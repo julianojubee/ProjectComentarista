@@ -1,0 +1,115 @@
+﻿@model IEnumerable<ControleFutebolWeb.Models.Time>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const buttons = document.querySelectorAll(".btn-importar");
+
+            buttons.forEach(btn => {
+                btn.addEventListener("click", function () {
+                    btn.innerHTML = `
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        Importando...
+                    `;
+                    btn.classList.add("disabled");
+                });
+            });
+        });
+    </script>
+}
+
+<h2>Lista de Times</h2>
+
+<p>
+    <a asp-action="Create" class="btn btn-success">Novo Time</a>
+</p>
+
+@if (TempData["Mensagem"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Mensagem"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["MensagemErro"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["MensagemErro"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Nome</th>
+            <th>Escudo</th>
+            <th>Uniforme</th>
+            <th>Ações</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var time in Model)
+        {
+            <tr>
+                <td>@time.Nome</td>
+                <td>
+                    <img src="@time.EscudoUrl" alt="@time.Nome" style="height:40px;" />
+                </td>
+                <td>
+                    @if (!string.IsNullOrEmpty(time.CamisaUrl))
+                    {
+                        <img src="@time.CamisaUrl" alt="Camisa" style="height:40px;" />
+                    }
+                    else
+                    {
+                        <span>Sem uniforme</span>
+                    }
+
+                    <form asp-action="ImportarUniforme"
+                          asp-controller="Times"
+                          method="post"
+                          enctype="multipart/form-data"
+                          style="margin-top:5px;">
+                        <input type="hidden" name="id" value="@time.Id" />
+                        <input type="file" name="arquivo" class="form-control form-control-sm" />
+                        <button type="submit" class="btn btn-sm btn-primary">Importar uniforme</button>
+                    </form>
+                </td>
+                <td>
+                    <a asp-action="Details"
+                       asp-controller="Times"
+                       asp-route-id="@time.Id"
+                       class="btn btn-sm btn-info">
+                        Detalhes
+                    </a>
+
+                    <a asp-action="ImportarJogadores"
+                       asp-controller="Brasileirao"
+                       asp-route-teamId="@time.IdApi"
+                       class="btn btn-sm btn-success btn-importar">
+                        Importar jogadores
+                    </a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (TempData["Mensagem"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Mensagem"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["MensagemErro"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["MensagemErro"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+

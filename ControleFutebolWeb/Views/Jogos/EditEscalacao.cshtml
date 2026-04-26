@@ -1,0 +1,72 @@
+﻿@model ControleFutebolWeb.Models.Jogo
+
+<h2>Editar Escalação</h2>
+
+<form asp-action="EditEscalacao" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Id" />
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Jogador</th>
+                <th>Posição</th>
+                <th>Titular</th>
+                <th>Time</th>
+                <th>X</th>
+                <th>Y</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var esc in Model.Escalacoes)
+            {
+                <tr>
+                    <td>@esc.Jogador?.Nome</td>
+                    <td>
+                        <input type="text" name="escalacoes[@esc.Id].Posicao" value="@esc.Posicao" class="form-control" />
+                    </td>
+                    <td>
+                        <input type="checkbox" name="escalacoes[@esc.Id].Titular" @(esc.Titular ? "checked" : "") />
+                    </td>
+                    <td>@(esc.IsTimeCasa ? "Casa" : "Visitante")</td>
+                    <td>
+                        <input type="number" name="escalacoes[@esc.Id].PosicaoX" value="@esc.PosicaoX" class="form-control" />
+                    </td>
+                    <td>
+                        <input type="number" name="escalacoes[@esc.Id].PosicaoY" value="@esc.PosicaoY" class="form-control" />
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <h4>Adicionar novo jogador</h4>
+    <div class="form-group">
+        <label>Jogador</label>
+        <select name="novoJogadorId" class="form-control" asp-items="ViewBag.Jogadores"></select>
+    </div>
+    <div class="form-group">
+        <label>Posição</label>
+        <input type="text" name="novaPosicao" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label>Titular?</label>
+        <input type="checkbox" name="novoTitular" />
+    </div>
+    <div class="form-group">
+        <label>Time</label>
+        <select name="novoIsTimeCasa" class="form-control">
+            <option value="true">Casa</option>
+            <option value="false">Visitante</option>
+        </select>
+    </div>
+
+    <div class="form-group mt-2">
+        <input type="submit" value="Salvar Escalação" class="btn btn-primary" />
+        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary">Voltar</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

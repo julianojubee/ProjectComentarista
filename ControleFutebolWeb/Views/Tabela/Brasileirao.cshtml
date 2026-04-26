@@ -1,0 +1,160 @@
+﻿<div class="row">
+    <!-- Coluna esquerda: Tabela -->
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h4>Classificação</h4>
+                <table class="table table-sm table-bordered align-middle tabela-classificacao">
+                    <thead>
+                        <tr>
+                            <th>Pos</th>
+                            <th class="nome-time">Time</th>
+                            <th>Pts</th>
+                            <th>J</th> <!-- nova coluna para Jogos -->
+                            <th>VIT</th>
+                            <th>E</th>
+                            <th>D</th>
+                            <th>GP</th>
+                            <th>GC</th>
+                            <th>SG</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < Model.Count; i++)
+                        {
+                            var posicao = i + 1;
+                            string classe = "";
+
+                            if (posicao <= 4) classe = "libertadores";
+                            else if (posicao <= 6) classe = "pre-libertadores";
+                            else if (posicao <= 12) classe = "sulamericana";
+                            else if (posicao >= 17) classe = "rebaixado";
+                            // cálculo automático de jogos disputados
+                            var jogos = Model[i].Vitorias + Model[i].Empates + Model[i].Derrotas;
+
+
+                            <tr class="@classe">
+                                <td>@posicao</td>
+                                <td class="nome-time">
+                                    <a asp-controller="Times" asp-action="Details" asp-route-id="@Model[i].Time.Id" style="text-decoration:none; color:inherit;">
+                                        <img src="@Model[i].Time.EscudoUrl" width="18" style="margin-right:3px;" />
+                                        <strong>@Model[i].Time.Nome</strong>
+                                    </a>
+                                </td>
+                                <td>@Model[i].Pontos</td>
+                                <td>@jogos</td> <!-- novo campo calculado -->
+                                <td>@Model[i].Vitorias</td>
+                                <td>@Model[i].Empates</td>
+                                <td>@Model[i].Derrotas</td>
+                                <td>@Model[i].GolsPro</td>
+                                <td>@Model[i].GolsContra</td>
+                                <td>@Model[i].SaldoGols</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+
+                <!-- Legenda -->
+                <div class="mt-3">
+                    <span class="badge bg-primary me-2">Libertadores</span>
+                    <span class="badge bg-info text-dark me-2">Pré-Libertadores</span>
+                    <span class="badge bg-success me-2">Sul-Americana</span>
+                    <span class="badge bg-danger">Rebaixamento</span>
+                </div>
+                <div class="criterios-desempate" style="margin-top:20px;">
+                    <h4>Critérios de Desempate</h4>
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Ordem</th>
+                                <th>Critério</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>1</td><td>Maior número de vitórias</td></tr>
+                            <tr><td>2</td><td>Maior saldo de gols</td></tr>
+                            <tr><td>3</td><td>Maior número de gols pró</td></tr>
+                            <tr><td>4</td><td>Confronto direto (apenas entre dois clubes)</td></tr>
+                            <tr><td>5</td><td>Menor número de cartões vermelhos</td></tr>
+                            <tr><td>6</td><td>Menor número de cartões amarelos</td></tr>
+                            <tr><td>7</td><td>Sorteio na sede da CBF</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Coluna direita: Próximos jogos -->
+    <div class="col-md-6">
+        <h4>
+            <!-- Badge centralizado -->
+            <div class="text-center mb-3">
+                <span class="badge bg-success fs-5 px-3 py-2">
+                    @ViewBag.NumeroRodada @("ª Rodada")
+                </span>
+            </div>
+
+        </h4>
+        <div class="row">
+            @foreach (var jogo in ViewBag.ProximaRodada as List<Jogo>)
+            {
+                <div class="col-md-6 mb-3">
+                    <div class="card shadow-sm">
+                        <!-- Cabeçalho com a data -->
+                        <div class="card-header text-center bg-primary text-white">
+                            @jogo.Data.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+
+                        </div>
+
+                        <!-- Corpo do card -->
+                        <div class="card-body text-center">
+                            <div class="d-flex justify-content-around align-items-center">
+                                <div>
+                                    <img src="@jogo.TimeCasa?.EscudoUrl" alt="@jogo.TimeCasa?.Nome" width="40" height="40" />
+                                    <h6>@jogo.TimeCasa?.Nome</h6>
+                                </div>
+                                <div class="fw-bold">vs</div>
+                                <div>
+                                    <img src="@jogo.TimeVisitante?.EscudoUrl" alt="@jogo.TimeVisitante?.Nome" width="40" height="40" />
+                                    <h6>@jogo.TimeVisitante?.Nome</h6>
+                                </div>
+                            </div>
+
+                            <!-- Badge de status -->
+                            <p class="mt-3">
+                                @if (jogo.Data > DateTime.Now)
+                                {
+                                    <span class="badge bg-secondary">Agendado</span>
+                                }
+                                else if (jogo.PlacarCasa >= 0 && jogo.PlacarVisitante >= 0)
+                                {
+                                    <span class="badge bg-success">
+                                        @jogo.PlacarCasa x @jogo.PlacarVisitante
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Agendado</span>
+                                }
+                            </p>
+
+                            <small class="text-muted">Rodada: @jogo.Rodada</small>
+
+                            <!-- Botão Analisar -->
+                            <div class="mt-2">
+                                <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id"
+                                   class="btn btn-outline-primary btn-sm">
+                                    Analisar
+                                </a>
+                            </div>
+
+
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

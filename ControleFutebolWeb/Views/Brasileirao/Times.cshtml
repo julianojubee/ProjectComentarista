@@ -1,0 +1,33 @@
+﻿@model List<ControleFutebolWeb.Models.ClubeInfo>
+
+<h2>Times da Competição</h2>
+
+@if (Model != null && Model.Any())
+{
+    <div class="row">
+        @foreach (var clube in Model)
+        {
+            <div class="col-md-3 text-center mb-4">
+                <a asp-controller="Brasileirao" asp-action="Detalhes" asp-route-id="@clube.Id">
+                    <img src="@clube.Escudo" alt="@clube.Nome" width="80" />
+                </a>
+                <h5>@clube.Nome</h5>
+            </div>
+
+        }
+    </div>
+}
+else
+{
+    <p>Nenhum time encontrado.</p>
+}
+
+<a asp-controller="Brasileirao" asp-action="SalvarTimes" class="btn btn-success">
+    Salvar Times no Banco
+</a>
+<div class="mb-3">
+    <a asp-action="ImportarTodosJogadores" asp-controller="Brasileirao" class="btn btn-primary">
+        Importar todos os jogadores
+    </a>
+</div>
+

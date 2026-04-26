@@ -1,0 +1,12 @@
+<record>
+                <boolean id="preload" value="false"/>
+                <boolean id="amap" value="false"/>
+                <list id="maps">
+                    <!--Grêmio Foot-Ball Porto Alegrense-->
+<record from="324_third" to="graphics/pictures/team/324/kits/third"/>
+<!--Grêmio Foot-Ball Porto Alegrense-->
+<record from="324_away" to="graphics/pictures/team/324/kits/away"/>
+<!--Grêmio Foot-Ball Porto Alegrense-->
+<record from="324_home" to="graphics/pictures/team/324/kits/home"/>
+                </list>
+            </record>

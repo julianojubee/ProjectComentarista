@@ -1,0 +1,31 @@
+﻿@model ControleFutebolWeb.Models.Jogador
+
+<h2>Detalhes do Jogador</h2>
+
+<dl class="row">
+    <dt class="col-sm-2">Nome</dt>
+    <dd class="col-sm-10">@Model.Nome</dd>
+
+    <dt class="col-sm-2">Posição</dt>
+    <dd class="col-sm-10">@Model.Posicao</dd>
+
+    <dt class="col-sm-2">Data de Nascimento</dt>
+    <dd class="col-sm-10">@Model.DataNascimento.ToString("dd/MM/yyyy")</dd>
+
+    <dt class="col-sm-2">Idade</dt>
+    <dd class="col-sm-10">@Model.Idade</dd>
+
+    <dt class="col-sm-2">Número da Camisa</dt>
+    <dd class="col-sm-10">@Model.NumeroCamisa</dd>
+
+    <dt class="col-sm-2">Nacionalidade</dt>
+    <dd class="col-sm-10">@Model.Nacionalidade?.Nome</dd>
+
+    <dt class="col-sm-2">Time</dt>
+    <dd class="col-sm-10">@Model.Time?.Nome</dd>
+</dl>
+
+<div>
+    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">Editar</a> |
+    <a asp-action="Index" class="btn btn-secondary">Voltar</a>
+</div>

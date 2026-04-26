@@ -1,0 +1,33 @@
+﻿@model ControleFutebolWeb.Models.ViewModels.CompeticaoDetalhesViewModel
+
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-3 col-lg-2 d-md-block bg-dark sidebar">
+            <div class="sidebar-sticky">
+                <h4 class="text-white mt-3">Competições</h4>
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link text-white" asp-controller="Competicoes" asp-action="Index">
+                            Voltar para lista
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Conteúdo principal -->
+        <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4">
+            <h2 class="mt-4">@Model.Competicao.Nome</h2>
+
+            @if (Model.Tipo == "PONTOS_CORRIDOS")
+            {
+                <!-- tabela pontos corridos -->
+            }
+            else if (Model.Tipo == "GRUPOS")
+            {
+                <!-- tabelas por grupo -->
+            }
+        </main>
+    </div>
+</div>

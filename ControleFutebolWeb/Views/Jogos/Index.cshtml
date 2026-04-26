@@ -1,0 +1,44 @@
+﻿@model IEnumerable<ControleFutebolWeb.Models.Jogo>
+
+<h2>Lista de Jogos</h2>
+
+<a asp-controller="Brasileirao" asp-action="ImportarJogos" class="btn btn-success mb-3">
+    Importar Jogos do Campeonato
+</a>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Data</th>
+            <th>Casa</th>
+            <th>Placar</th>
+            <th>Visitante</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var jogo in Model)
+        {
+            <tr>
+                <td>@jogo.Data.ToString("dd/MM/yyyy")</td>
+                <td>@jogo.TimeCasa?.Nome</td>
+                <td>
+                    @if (jogo.PlacarCasa >= 0 && jogo.PlacarVisitante >= 0)
+                    {
+                        <strong>@jogo.PlacarCasa x @jogo.PlacarVisitante</strong>
+                    }
+                    else
+                    {
+                        <span>Agendado</span>
+                    }
+                </td>
+                <td>@jogo.TimeVisitante?.Nome</td>
+                <td>
+                    <a asp-action="Details" asp-route-id="@jogo.Id" class="btn btn-info btn-sm">Detalhes</a>
+                    <a asp-action="Edit" asp-route-id="@jogo.Id" class="btn btn-warning btn-sm">Editar</a>
+                    <a asp-action="Delete" asp-route-id="@jogo.Id" class="btn btn-danger btn-sm">Excluir</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

@@ -1,0 +1,20 @@
+﻿@model ControleFutebolWeb.Models.Time
+
+<h2>Excluir Time</h2>
+
+<div>
+    <h4>Você tem certeza que deseja excluir este time?</h4>
+    <dl class="row">
+        <dt class="col-sm-2">Nome</dt>
+        <dd class="col-sm-10">@Model.Nome</dd>
+        <dt class="col-sm-2">Cidade</dt>
+        <dd class="col-sm-10">@Model.Cidade</dd>
+    </dl>
+</div>
+
+<form asp-action="Delete" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Id" />
+    <input type="submit" value="Excluir" class="btn btn-danger" />
+    <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
+</form>

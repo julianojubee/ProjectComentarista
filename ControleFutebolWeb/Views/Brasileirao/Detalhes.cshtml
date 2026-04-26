@@ -1,0 +1,60 @@
+﻿@* @model ControleFutebolWeb.Models.TimeDetalhesViewModel
+
+
+<h2>@Model.Time.Nome</h2>
+<img src="@Model.Time.Escudo" alt="@Model.Time.Nome" width="100" />
+
+<h3>Elenco Atual</h3>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Nome</th>
+            <th>Posição</th>
+            <th>Nacionalidade</th>
+            <th>Nascimento</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var jogador in Model.Time.Elenco)
+        {
+            <tr>
+                <td>@jogador.Nome</td>
+                <td>@jogador.Posicao</td>
+                <td>@jogador.Nacionalidade</td>
+                <td>@jogador.Nascimento?.ToString("dd/MM/yyyy")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h3>Jogos do Time</h3>
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Data</th>
+            <th>Mandante</th>
+            <th>Visitante</th>
+            <th>Placar</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var jogo in Model.Jogos)
+        {
+            <tr>
+                <td>@jogo.Data.ToString("dd/MM/yyyy HH:mm")</td>
+                <td>@jogo.TimeCasa?.Nome</td>
+                <td>@jogo.TimeVisitante?.Nome</td>
+                <td>
+                    @if (jogo.PlacarCasa >= 0 && jogo.PlacarVisitante >= 0)
+                    {
+                        @($"{jogo.PlacarCasa} - {jogo.PlacarVisitante}")
+                    }
+                    else
+                    {
+                        <span>Agendado</span>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table> *@

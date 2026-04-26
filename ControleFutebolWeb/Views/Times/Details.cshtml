@@ -1,0 +1,366 @@
+﻿@model ControleFutebolWeb.Models.TimeDetalhesViewModel
+@removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
+
+@functions {
+    string GetFlagEmoji(string pais)
+    {
+        return pais switch
+        {
+            "Brasil" => "🇧🇷",
+            "Argentina" => "🇦🇷",
+            "Uruguai" => "🇺🇾",
+            "Chile" => "🇨🇱",
+            "Paraguai" => "🇵🇾",
+            "Bolívia" => "🇧🇴",
+            "Colômbia" => "🇨🇴",
+            "Peru" => "🇵🇪",
+            "Equador" => "🇪🇨",
+            "Venezuela" => "🇻🇪",
+            "Portugal" => "🇵🇹",
+            "Espanha" => "🇪🇸",
+            "França" => "🇫🇷",
+            "Itália" => "🇮🇹",
+            "Alemanha" => "🇩🇪",
+            "Inglaterra" => "🏴",
+            "Reino Unido" => "🇬🇧",
+            "Holanda" => "🇳🇱",
+            "México" => "🇲🇽",
+            "Estados Unidos" => "🇺🇸",
+            "Canadá" => "🇨🇦",
+            _ => ""
+        };
+    }
+}
+<style>
+    body {
+        background-image: url('@Url.Content(Model.Time.BackgroundUrl)');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }
+    body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-color: rgba(0,0,0,0.3);
+        z-index: -1;
+    }
+
+    .scroll-panel {
+        max-height: 900px;
+        overflow-y: auto;
+    }
+
+    .sticky-title {
+        position: sticky;
+        top: 0;
+        background-color: rgba(0,0,0,0.6);
+        padding: 8px;
+        z-index: 2;
+    }
+
+
+</style>
+
+<h2 class="text-white">@Model.Time.Nome</h2>
+<img src="@Model.Time.EscudoUrl" alt="@Model.Time.Nome" width="100" />
+<div class="row">
+    <!-- Coluna esquerda: Elenco com rolagem -->
+    <div class="col-md-4 scroll-panel">
+        <div class="sticky-title text-white">
+            <h3 class="mb-0">Elenco Atual</h3>
+        </div>
+        <table class="table table-striped jogadores-table">
+            <thead>
+                <tr>
+                    <th>Camisa</th>
+                    <th>Nome</th>
+                    <th>Posição</th>
+                    <th>Nacionalidade</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var jogador in Model.Elenco)
+                {
+                    <tr class="jogador-row"
+                        draggable="true"
+                        ondragstart="dragJogador(event, @jogador.Id, '@jogador.Nome', '@jogador.NumeroCamisa', '@Url.Content(Model.Time.CamisaUrl)')">
+
+                        <td>
+                            <img src="@Url.Content(Model.Time.CamisaUrl)" alt="Camisa" width="32" height="32" />
+                        </td>
+                        <td>@jogador.Nome</td>
+                        <td>@jogador.Posicao</td>
+                        <td>
+                            <span title="@jogador.Nacionalidade?.Nome">
+                                @GetFlagEmoji(jogador.Nacionalidade?.Nome)
+                            </span>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Coluna direita: Campinho + Calendário -->
+    <div class="col-md-8">
+        <div class="row">
+            <!-- Campinho -->
+            <div class="col-md-7">
+                <h4 class="text-white">Escalação Padrão</h4>
+
+                <!-- Form para definir formação -->
+                <form method="post" asp-action="DefinirFormacao" asp-controller="Times">
+                    <input type="hidden" name="id" value="@Model.Time.Id" />
+                    <div class="form-group mt-3">
+                        <label for="formacaoPadrao" class="text-white">Formação Padrão</label>
+                        <select id="formacaoPadrao" name="formacaoPadraoId" class="form-control">
+                            @foreach (var formacao in Model.Formacoes)
+                            {
+                                <option value="@formacao.Id" @(formacao.Id == Model.Time.FormacaoPadraoId ? "selected" : "")>
+                                    @formacao.Nome
+                                </option>
+                            }
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-2">Definir Formação</button>
+                </form>
+
+                <!-- Form para salvar escalação -->
+                <form method="post" asp-action="SalvarEscalacaoPadrao" asp-controller="Times">
+                    <input type="hidden" name="id" value="@Model.Time.Id" />
+
+                    <!-- Campo do campinho -->
+                    <div id="campo" class="campo" style="max-height:800px; position:relative;">
+                       @{
+                            var index = 0;
+                        }
+                        @foreach (var esc in Model.TimeEscalacaoPadrao)
+                        {
+                           
+                             <div class="posicao-drop"
+                                 data-index="@index"
+                                 data-posicao="@esc.Posicao"
+                                 draggable="true"
+                                 ondragstart="dragPosicao(event, @index)"      
+                                 ondragend="dropPosicao(event, @index)"        
+                                 ondrop="dropEscalacao(event, @index)"         
+                                 ondragover="allowDropEscalacao(event)"        
+                                 style="position:absolute; left:@esc.PosicaoX%; top:@esc.PosicaoY%; text-align:center;">
+
+                                <span>@esc.Posicao</span>
+
+                                @if (esc.Jogador != null)
+                                {
+                                    <div style="margin-top:5px; text-align:center;">
+                                        <img src="@Model.Time.CamisaUrl"
+                                             alt="Camisa do @Model.Time.Nome"
+                                             width="50" height="50"
+                                             style="display:block; margin:0 auto;" />
+
+                                        <div style="font-size:12px; word-wrap:break-word; white-space:normal; max-width:70px; margin:0 auto;">
+                                            @esc.Jogador.Nome
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+
+                            <!-- Hidden inputs -->
+                            <input type="hidden" name="escalacao[@index].Id" value="@esc.Id" />
+                            <input type="hidden" name="escalacao[@index].PosicaoId" value="@esc.PosicaoId" />
+                            <input type="hidden" id="escalacao_@(index)__JogadorId" name="escalacao[@index].JogadorId" value="@esc.JogadorId" />
+                            <input type="hidden" id="escalacao_@(index)__PosicaoX" name="escalacao[@index].PosicaoX" value="@esc.PosicaoX" />
+                            <input type="hidden" id="escalacao_@(index)__PosicaoY" name="escalacao[@index].PosicaoY" value="@esc.PosicaoY" />
+                             index++;   
+                        }
+
+                    </div>
+
+                    <!-- Botão de salvar -->
+                    <div class="mt-3 text-start">
+                        <button type="submit" class="btn btn-success">Salvar Escalação Padrão</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Calendário -->
+            <div class="col-md-5 scroll-panel">
+                <div class="sticky-title text-white d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0">Calendário de Jogos</h3>
+                    <div>
+                        @foreach (var jogo in Model.Jogos
+                                                .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue && j.Data < DateTime.Now)
+                                                .OrderByDescending(j => j.Data)
+                                                .Take(5))
+                        {
+                            if ((Model.Time.Id == jogo.TimeCasaId && jogo.PlacarCasa > jogo.PlacarVisitante) ||
+                            (Model.Time.Id == jogo.TimeVisitanteId && jogo.PlacarVisitante > jogo.PlacarCasa))
+                            {
+                                <span class="badge bg-success me-1">✔️ @jogo.PlacarCasa x @jogo.PlacarVisitante</span>
+                            }
+                            else if (jogo.PlacarCasa == jogo.PlacarVisitante)
+                            {
+                                <span class="badge bg-warning text-dark me-1">➖ @jogo.PlacarCasa x @jogo.PlacarVisitante</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger me-1">❌ @jogo.PlacarCasa x @jogo.PlacarVisitante</span>
+                            }
+                        }
+                    </div>
+                </div>
+
+                <!-- Cards de jogos: um por linha -->
+                <div class="row">
+                    @foreach (var jogo in Model.Jogos.OrderBy(j => j.Rodada))
+                    {
+                        <div class="col-12 mb-3">
+                            <div class="card shadow-sm">
+                                <div class="card-header text-center bg-primary text-white">
+                                    @jogo.Data.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                </div>
+                                <div class="card-body text-center">
+                                    <div class="d-flex justify-content-around align-items-center">
+                                        <div>
+                                            <img src="@jogo.TimeCasa?.EscudoUrl" alt="@jogo.TimeCasa?.Nome" width="40" height="40" />
+                                            <h6>@jogo.TimeCasa?.Nome</h6>
+                                        </div>
+                                        <div class="fw-bold">vs</div>
+                                        <div>
+                                            <img src="@jogo.TimeVisitante?.EscudoUrl" alt="@jogo.TimeVisitante?.Nome" width="40" height="40" />
+                                            <h6>@jogo.TimeVisitante?.Nome</h6>
+                                        </div>
+                                    </div>
+
+                                    <p class="mt-3">
+                                        @if (jogo.Data > DateTime.Now)
+                                        {
+                                            <span class="badge bg-secondary">Agendado</span>
+                                        }
+                                        else if (jogo.PlacarCasa >= 0 && jogo.PlacarVisitante >= 0)
+                                        {
+                                            if ((Model.Time.Id == jogo.TimeCasaId && jogo.PlacarCasa > jogo.PlacarVisitante) ||
+                                            (Model.Time.Id == jogo.TimeVisitanteId && jogo.PlacarVisitante > jogo.PlacarCasa))
+                                            {
+                                                <span class="badge bg-success">✔️ @jogo.PlacarCasa x @jogo.PlacarVisitante</span>
+                                            }
+                                            else if (jogo.PlacarCasa == jogo.PlacarVisitante)
+                                            {
+                                                <span class="badge bg-warning text-dark">➖ @jogo.PlacarCasa x @jogo.PlacarVisitante</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-danger">❌ @jogo.PlacarCasa x @jogo.PlacarVisitante</span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">Agendado</span>
+                                        }
+                                    </p>
+                                    <small class="text-muted">Rodada: @jogo.Rodada</small>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+    <script>
+        let jogadoresUsados = new Set();
+
+        function allowDropEscalacao(ev) {
+            ev.preventDefault();
+        }
+
+        // Arrastar da lista
+        function dragJogador(ev, jogadorId, jogadorNome, jogadorNumero, camisaUrl) {
+            ev.dataTransfer.setData("jogadorId", jogadorId);
+            ev.dataTransfer.setData("jogadorNome", jogadorNome);
+            ev.dataTransfer.setData("jogadorNumero", jogadorNumero);
+            ev.dataTransfer.setData("camisaUrl", camisaUrl);
+        }
+
+        // Soltar jogador da lista no campo
+           function dropEscalacao(ev, index) {
+        ev.preventDefault();
+        ev.stopPropagation(); // ← importante para não propagar para pai
+
+        let jogadorId = ev.dataTransfer.getData("jogadorId");
+        let jogadorNome = ev.dataTransfer.getData("jogadorNome");
+        let jogadorNumero = ev.dataTransfer.getData("jogadorNumero");
+        let camisaUrl = ev.dataTransfer.getData("camisaUrl");
+
+        if (jogadoresUsados.has(jogadorId)) {
+            alert("Esse jogador já está em campo!");
+            return;
+        }
+
+        let hiddenJogador = document.getElementById(`escalacao_${index}__JogadorId`);
+        let antigoJogadorId = hiddenJogador.value;
+        if (antigoJogadorId) {
+            jogadoresUsados.delete(antigoJogadorId);
+        }
+
+        hiddenJogador.value = jogadorId;
+        jogadoresUsados.add(jogadorId);
+
+        // ← aqui está o fix: busca pelo seletor, não pelo ev.target
+        let posicaoEl = document.querySelector(`.posicao-drop[data-index='${index}']`);
+        let nomePosicao = posicaoEl.dataset.posicao;
+
+        posicaoEl.innerHTML = `
+            <span>${nomePosicao}</span>
+            <div style="margin-top:5px; text-align:center;">
+                <img src="${camisaUrl}" alt="Camisa" width="40" height="40" style="display:block; margin:0 auto;" />
+                <div style="font-size:12px; max-width:70px; margin:0 auto;">
+                    ${jogadorNome}
+                </div>
+                <div style="font-size:11px; color:#ccc;">
+                    Camisa: ${jogadorNumero}
+                </div>
+            </div>
+        `;
+    }
+
+        // Arrastar jogador já no campo
+        function dragPosicao(ev, index) {
+            ev.dataTransfer.setData("index", index);
+        }
+
+        // Reposicionar jogador dentro do campo
+        function dropPosicao(ev, index) {
+            ev.preventDefault();
+
+            let campo = document.getElementById("campo");
+            let rect = campo.getBoundingClientRect();
+
+            let newX = Math.round(((ev.clientX - rect.left) / rect.width) * 100);
+            let newY = Math.round(((ev.clientY - rect.top) / rect.height) * 100);
+
+            let el = document.querySelector(`.posicao-drop[data-index='${index}']`);
+            el.style.left = newX + "%";
+            el.style.top = newY + "%";
+
+            document.getElementById(`escalacao_${index}__PosicaoX`).value = newX;
+            document.getElementById(`escalacao_${index}__PosicaoY`).value = newY;
+
+            console.log(`Jogador ${index} movido para X=${newX}, Y=${newY}`);
+        }
+    </script>
+
+
+<script>
+    // Loga todos os hidden inputs no momento do submit
+    document.querySelectorAll("form").forEach(form => {
+        form.addEventListener("submit", function() {
+            console.log("=== LOG DE SUBMIT ===");
+            const inputs = form.querySelectorAll("input[type=hidden]");
+            inputs.forEach(i => {
+                console.log(i.name, "=", i.value);
+            });
+            console.log("=== FIM DO LOG ===");
+        });
+    });

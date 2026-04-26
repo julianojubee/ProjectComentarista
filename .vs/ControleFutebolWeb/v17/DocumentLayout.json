@@ -1,0 +1,88 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\Juliano\\source\\repos\\ControleFutebolWeb\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{6AF988EC-A4E3-4879-8DD2-645D378B297F}|ControleFutebolWeb\\ControleFutebolWeb.csproj|c:\\users\\juliano\\source\\repos\\controlefutebolweb\\controlefutebolweb\\views\\jogos\\analisar.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{6AF988EC-A4E3-4879-8DD2-645D378B297F}|ControleFutebolWeb\\ControleFutebolWeb.csproj|solutionrelative:controlefutebolweb\\views\\jogos\\analisar.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{6AF988EC-A4E3-4879-8DD2-645D378B297F}|ControleFutebolWeb\\ControleFutebolWeb.csproj|c:\\users\\juliano\\source\\repos\\controlefutebolweb\\controlefutebolweb\\wwwroot\\css\\site.css||{A5401142-F49D-43DB-90B1-F57BA349E55C}",
+      "RelativeMoniker": "D:0:0:{6AF988EC-A4E3-4879-8DD2-645D378B297F}|ControleFutebolWeb\\ControleFutebolWeb.csproj|solutionrelative:controlefutebolweb\\wwwroot\\css\\site.css||{A5401142-F49D-43DB-90B1-F57BA349E55C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{6AF988EC-A4E3-4879-8DD2-645D378B297F}|ControleFutebolWeb\\ControleFutebolWeb.csproj|c:\\users\\juliano\\source\\repos\\controlefutebolweb\\controlefutebolweb\\controllers\\jogoscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{6AF988EC-A4E3-4879-8DD2-645D378B297F}|ControleFutebolWeb\\ControleFutebolWeb.csproj|solutionrelative:controlefutebolweb\\controllers\\jogoscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{6AF988EC-A4E3-4879-8DD2-645D378B297F}|ControleFutebolWeb\\ControleFutebolWeb.csproj|c:\\users\\juliano\\source\\repos\\controlefutebolweb\\controlefutebolweb\\models\\jogo.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{6AF988EC-A4E3-4879-8DD2-645D378B297F}|ControleFutebolWeb\\ControleFutebolWeb.csproj|solutionrelative:controlefutebolweb\\models\\jogo.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 1,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "site.css",
+              "DocumentMoniker": "C:\\Users\\Juliano\\source\\repos\\ControleFutebolWeb\\ControleFutebolWeb\\wwwroot\\css\\site.css",
+              "RelativeDocumentMoniker": "ControleFutebolWeb\\wwwroot\\css\\site.css",
+              "ToolTip": "C:\\Users\\Juliano\\source\\repos\\ControleFutebolWeb\\ControleFutebolWeb\\wwwroot\\css\\site.css",
+              "RelativeToolTip": "ControleFutebolWeb\\wwwroot\\css\\site.css",
+              "ViewState": "AgIAACEAAAAAAAAAAAAuwDoAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003000|",
+              "WhenOpened": "2026-04-26T21:58:19.377Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Analisar.cshtml",
+              "DocumentMoniker": "C:\\Users\\Juliano\\source\\repos\\ControleFutebolWeb\\ControleFutebolWeb\\Views\\Jogos\\Analisar.cshtml",
+              "RelativeDocumentMoniker": "ControleFutebolWeb\\Views\\Jogos\\Analisar.cshtml",
+              "ToolTip": "C:\\Users\\Juliano\\source\\repos\\ControleFutebolWeb\\ControleFutebolWeb\\Views\\Jogos\\Analisar.cshtml",
+              "RelativeToolTip": "ControleFutebolWeb\\Views\\Jogos\\Analisar.cshtml",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAADwBAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2026-04-26T19:19:13.93Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "JogosController.cs",
+              "DocumentMoniker": "C:\\Users\\Juliano\\source\\repos\\ControleFutebolWeb\\ControleFutebolWeb\\Controllers\\JogosController.cs",
+              "RelativeDocumentMoniker": "ControleFutebolWeb\\Controllers\\JogosController.cs",
+              "ToolTip": "C:\\Users\\Juliano\\source\\repos\\ControleFutebolWeb\\ControleFutebolWeb\\Controllers\\JogosController.cs",
+              "RelativeToolTip": "ControleFutebolWeb\\Controllers\\JogosController.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-26T19:19:34.383Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "Jogo.cs",
+              "DocumentMoniker": "C:\\Users\\Juliano\\source\\repos\\ControleFutebolWeb\\ControleFutebolWeb\\Models\\Jogo.cs",
+              "RelativeDocumentMoniker": "ControleFutebolWeb\\Models\\Jogo.cs",
+              "ToolTip": "C:\\Users\\Juliano\\source\\repos\\ControleFutebolWeb\\ControleFutebolWeb\\Models\\Jogo.cs",
+              "RelativeToolTip": "ControleFutebolWeb\\Models\\Jogo.cs",
+              "ViewState": "AgIAABgAAAAAAAAAAAAAwDgAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-26T19:19:24.271Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

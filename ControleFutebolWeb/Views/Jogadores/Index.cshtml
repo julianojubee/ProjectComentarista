@@ -1,0 +1,190 @@
+﻿@model IEnumerable<ControleFutebolWeb.Models.Jogador>
+@functions {
+    string GetFlagEmoji(string pais)
+    {
+        return pais switch
+        {
+            "Brasil" => "🇧🇷",
+            "Argentina" => "🇦🇷",
+            "Angola" => "🇦🇴",
+            "Camarões" => "🇨🇲",
+            "Uruguai" => "🇺🇾",
+            "Chile" => "🇨🇱",
+            "Dinamarca" => "🇩🇰",
+            "Paraguai" => "🇵🇾",
+            "Bolívia" => "🇧🇴",
+            "Colômbia" => "🇨🇴",
+            "Gana" => "🇬🇭",
+            "Grécia" => "🇬🇷 ",
+            "Guiné" => "🇬🇳",
+            "Peru" => "🇵🇪",
+            "Equador" => "🇪🇨",
+            "Venezuela" => "🇻🇪",
+            "Portugal" => "🇵🇹",
+            "Panamá" => "🇵🇦 ",
+            "Espanha" => "🇪🇸",
+            "França" => "🇫🇷",
+            "Itália" => "🇮🇹",
+            "Alemanha" => "🇩🇪",
+            "Inglaterra" => "🏴", // bandeira da Inglaterra
+            "Reino Unido" => "🇬🇧",
+            "Holanda" => "🇳🇱",
+            "Marrocos" => "🇲🇦",
+            "Bélgica" => "🇧🇪",
+            "Suíça" => "🇨🇭",
+            "México" => "🇲🇽",
+            "Estados Unidos" => "🇺🇸",
+            "Republicá Democrática do Congo" => "🇨🇩",
+            "Ucrania" => "🇺🇦",
+            "Canadá" => "🇨🇦",
+            _ => ""
+        };
+    }
+}
+
+<h2>Lista de Jogadores</h2>
+
+
+<p>
+    <a asp-action="Create" class="btn btn-success">Novo Jogador</a>
+</p>
+
+<form asp-action="Index" method="get" class="row g-3 mb-3">
+    <div class="col-md-3">
+        <label for="posicao" class="form-label">Posição</label>
+        @Html.DropDownList("posicao", (SelectList)ViewBag.Posicoes, "Todas", new { @class = "form-select" })
+    </div>
+
+    <div class="col-md-3">
+        <label for="nacionalidade" class="form-label">Nacionalidade</label>
+        @Html.DropDownList("nacionalidade", (SelectList)ViewBag.Nacionalidades, "Todas", new { @class = "form-select" })
+    </div>
+
+    <div class="col-md-3">
+        <label for="timeId" class="form-label">Time</label>
+        @Html.DropDownList("timeId", (SelectList)ViewBag.Times, "Todos", new { @class = "form-select" })
+    </div>
+
+    <div class="col-md-3 d-flex align-items-end">
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+    </div>
+</form>
+
+
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                <a asp-action="Index"
+                   asp-route-sortOrder="@ViewBag.NomeSortParam"
+                   asp-route-posicao="@ViewBag.PosicaoFiltro"
+                   asp-route-nacionalidade="@ViewBag.NacionalidadeFiltro"
+                   asp-route-timeId="@ViewBag.TimeFiltro">
+                    Nome
+                    @if ((string)ViewBag.CurrentSort == "Nome")
+                    {
+                        <span>↑</span>
+                    }
+                    @if ((string)ViewBag.CurrentSort == "Nome_desc")
+                    {
+                        <span>↓</span>
+                    }
+                </a>
+            </th>
+            <th>
+                <a asp-action="Index"
+                   asp-route-sortOrder="@ViewBag.PosicaoSortParam"
+                   asp-route-posicao="@ViewBag.PosicaoFiltro"
+                   asp-route-nacionalidade="@ViewBag.NacionalidadeFiltro"
+                   asp-route-timeId="@ViewBag.TimeFiltro">
+                    Posição
+                    @if ((string)ViewBag.CurrentSort == "Posicao")
+                    {
+                        <span>↑</span>
+                    }
+                    @if ((string)ViewBag.CurrentSort == "Posicao_desc")
+                    {
+                        <span>↓</span>
+                    }
+                </a>
+            </th>
+            <th>
+                <a asp-action="Index"
+                   asp-route-sortOrder="@ViewBag.IdadeSortParam"
+                   asp-route-posicao="@ViewBag.PosicaoFiltro"
+                   asp-route-nacionalidade="@ViewBag.NacionalidadeFiltro"
+                   asp-route-timeId="@ViewBag.TimeFiltro">
+                    Idade
+                    @if ((string)ViewBag.CurrentSort == "Idade")
+                    {
+                        <span>↑</span>
+                    }
+                    @if ((string)ViewBag.CurrentSort == "Idade_desc")
+                    {
+                        <span>↓</span>
+                    }
+                </a>
+            </th>
+            <th>
+                <a asp-action="Index"
+                   asp-route-sortOrder="@ViewBag.NacionalidadeSortParam"
+                   asp-route-posicao="@ViewBag.PosicaoFiltro"
+                   asp-route-nacionalidade="@ViewBag.NacionalidadeFiltro"
+                   asp-route-timeId="@ViewBag.TimeFiltro">
+                    Nacionalidade
+                    @if ((string)ViewBag.CurrentSort == "Nacionalidade")
+                    {
+                        <span>↑</span>
+                    }
+                    @if ((string)ViewBag.CurrentSort == "Nacionalidade_desc")
+                    {
+                        <span>↓</span>
+                    }
+                </a>
+            </th>
+            <th>
+                <a asp-action="Index"
+                   asp-route-sortOrder="@ViewBag.TimeSortParam"
+                   asp-route-posicao="@ViewBag.PosicaoFiltro"
+                   asp-route-nacionalidade="@ViewBag.NacionalidadeFiltro"
+                   asp-route-timeId="@ViewBag.TimeFiltro">
+                    Time
+                    @if ((string)ViewBag.CurrentSort == "Time")
+                    {
+                        <span>↑</span>
+                    }
+                    @if ((string)ViewBag.CurrentSort == "Time_desc")
+                    {
+                        <span>↓</span>
+                    }
+                </a>
+            </th>
+            <th>Ações</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var jogador in Model)
+        {
+            <tr>
+                <td>@jogador.Nome</td>
+                <td>@jogador.Posicao</td>
+                <td>@jogador.Idade</td>
+                <td>
+                    <span title="@jogador.Nacionalidade?.Nome">
+                        @GetFlagEmoji(jogador.Nacionalidade?.Nome)
+                    </span>
+                </td>
+
+                <td>@jogador.Time?.Nome</td>
+                <td>
+                    <a asp-action="Edit" asp-route-id="@jogador.Id" class="btn btn-warning">Editar</a> |
+                    <a asp-action="Details" asp-route-id="@jogador.Id" class="btn btn-info">Detalhes</a> |
+                    <a asp-action="Delete" asp-route-id="@jogador.Id" class="btn btn-danger">Excluir</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+

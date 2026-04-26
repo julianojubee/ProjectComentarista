@@ -1,0 +1,183 @@
+is_global = true
+build_property.TargetFramework = net9.0
+build_property.TargetFramework = net9.0
+build_property.TargetPlatformMinVersion = 
+build_property.TargetPlatformMinVersion = 
+build_property.UsingMicrosoftNETSdkWeb = true
+build_property.UsingMicrosoftNETSdkWeb = true
+build_property.ProjectTypeGuids = 
+build_property.ProjectTypeGuids = 
+build_property.InvariantGlobalization = 
+build_property.InvariantGlobalization = 
+build_property.PlatformNeutralAssembly = 
+build_property.PlatformNeutralAssembly = 
+build_property.EnforceExtendedAnalyzerRules = 
+build_property.EnforceExtendedAnalyzerRules = 
+build_property._SupportedPlatformList = Linux,macOS,Windows
+build_property._SupportedPlatformList = Linux,macOS,Windows
+build_property.TargetFrameworkIdentifier = .NETCoreApp
+build_property.TargetFrameworkVersion = v9.0
+build_property.RootNamespace = ControleFutebolWeb
+build_property.RootNamespace = ControleFutebolWeb
+build_property.ProjectDir = C:\Users\Juliano\source\repos\ControleFutebolWeb\ControleFutebolWeb\
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = 
+build_property.RazorLangVersion = 9.0
+build_property.SupportLocalizedComponentNames = 
+build_property.GenerateRazorMetadataSourceChecksumAttributes = 
+build_property.MSBuildProjectDirectory = C:\Users\Juliano\source\repos\ControleFutebolWeb\ControleFutebolWeb
+build_property._RazorSourceGeneratorDebug = 
+build_property.EffectiveAnalysisLevelStyle = 9.0
+build_property.EnableCodeStyleSeverity = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Pages/Error.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRXJyb3IuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Pages/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcSW5kZXguY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Pages/Privacy.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUHJpdmFjeS5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Pages/Shared/_ValidationScriptsPartial.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2hhcmVkXF9WYWxpZGF0aW9uU2NyaXB0c1BhcnRpYWwuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Pages/_ViewImports.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcX1ZpZXdJbXBvcnRzLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Pages/_ViewStart.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcX1ZpZXdTdGFydC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Brasileirao/Detalhes.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQnJhc2lsZWlyYW9cRGV0YWxoZXMuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Brasileirao/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQnJhc2lsZWlyYW9cSW5kZXguY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Brasileirao/Times.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQnJhc2lsZWlyYW9cVGltZXMuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Competicoes/Detalhes.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQ29tcGV0aWNvZXNcRGV0YWxoZXMuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Competicoes/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQ29tcGV0aWNvZXNcSW5kZXguY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Home/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSG9tZVxJbmRleC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Jogadores/Create.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSm9nYWRvcmVzXENyZWF0ZS5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Jogadores/Delete.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSm9nYWRvcmVzXERlbGV0ZS5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Jogadores/Details.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSm9nYWRvcmVzXERldGFpbHMuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Jogadores/Edit.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSm9nYWRvcmVzXEVkaXQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Jogadores/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSm9nYWRvcmVzXEluZGV4LmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Jogos/Analisar.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSm9nb3NcQW5hbGlzYXIuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Jogos/Create.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSm9nb3NcQ3JlYXRlLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Jogos/Delete.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSm9nb3NcRGVsZXRlLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Jogos/Details.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSm9nb3NcRGV0YWlscy5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Jogos/Edit.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSm9nb3NcRWRpdC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Jogos/EditEscalacao.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSm9nb3NcRWRpdEVzY2FsYWNhby5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Jogos/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSm9nb3NcSW5kZXguY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Notas/Create.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcTm90YXNcQ3JlYXRlLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Notas/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcTm90YXNcSW5kZXguY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Shared/Error.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXEVycm9yLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Shared/_ValidationScriptsPartial.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXF9WYWxpZGF0aW9uU2NyaXB0c1BhcnRpYWwuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Tabela/Brasileirao.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVGFiZWxhXEJyYXNpbGVpcmFvLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Times/Create.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVGltZXNcQ3JlYXRlLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Times/Delete.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVGltZXNcRGVsZXRlLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Times/Details.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVGltZXNcRGV0YWlscy5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Times/Edit.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVGltZXNcRWRpdC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Times/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVGltZXNcSW5kZXguY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/_ViewImports.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcX1ZpZXdJbXBvcnRzLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/_ViewStart.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcX1ZpZXdTdGFydC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Pages/Shared/_Layout.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2hhcmVkXF9MYXlvdXQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = b-gmdqt867u3
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Shared/_Layout.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXF9MYXlvdXQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = b-10y0qyfudi

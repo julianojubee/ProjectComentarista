@@ -1,0 +1,405 @@
+﻿@model ControleFutebolWeb.Models.Jogo
+@removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
+
+<style>
+   /*  .campo {
+        position: relative;
+        width: 100%;
+        padding-top: 150%;
+        background: url('/images/campo.png') no-repeat center center;
+        background-size: cover;
+        border: 2px solid #ccc;
+    }
+ */
+
+
+    .posicao-drop {
+        position: absolute;
+        text-align: center;
+        cursor: grab;
+        color: white;
+        font-size: 11px;
+        text-shadow: 1px 1px 2px black;
+        transform: translate(-50%, -50%);
+    }
+
+    .scroll-panel {
+        max-height: 700px;
+        overflow-y: auto;
+    }
+
+    .jogador-row {
+        cursor: grab;
+    }
+
+    .posicao-drop * {
+        pointer-events: none;
+    }
+</style>
+
+<!-- Seleção de Formações -->
+<div class="row mb-3">
+    <div class="col-md-6">
+        <form method="get" asp-action="Analisar" asp-controller="Jogos">
+            <input type="hidden" name="id" value="@Model.Id" />
+            <input type="hidden" name="formacaoVisitanteId" value="@ViewBag.FormacaoVisitanteSelecionada" />
+            <label class="fw-bold">Formação @Model.TimeCasa.Nome:</label>
+            <select name="formacaoCasaId" class="form-select" onchange="this.form.submit()">
+                @foreach (var f in (IEnumerable<SelectListItem>)ViewBag.FormacoesCasa)
+                {
+                    <option value="@f.Value" @(f.Selected ? "selected" : "")>@f.Text</option>
+                }
+            </select>
+        </form>
+    </div>
+    <div class="col-md-6">
+        <form method="get" asp-action="Analisar" asp-controller="Jogos">
+            <input type="hidden" name="id" value="@Model.Id" />
+            <input type="hidden" name="formacaoCasaId" value="@ViewBag.FormacaoCasaSelecionada" />
+            <label class="fw-bold">Formação @Model.TimeVisitante.Nome:</label>
+            <select name="formacaoVisitanteId" class="form-select" onchange="this.form.submit()">
+                @foreach (var f in (IEnumerable<SelectListItem>)ViewBag.FormacoesVisitante)
+                {
+                    <option value="@f.Value" @(f.Selected ? "selected" : "")>@f.Text</option>
+                }
+            </select>
+        </form>
+    </div>
+</div>
+
+<!-- Escalações -->
+<form method="post" asp-action="SalvarEscalacao" asp-controller="Jogos">
+    <input type="hidden" name="id" value="@Model.Id" />
+    <input type="hidden" name="formacaoCasaId" value="@ViewBag.FormacaoCasaSelecionada" />
+    <input type="hidden" name="formacaoVisitanteId" value="@ViewBag.FormacaoVisitanteSelecionada" />
+
+    <div class="row">
+
+        <!-- ===== TIME DA CASA ===== -->
+        <div class="col-md-6">
+            <h4>
+                <img src="@Model.TimeCasa.EscudoUrl" width="24" />
+                @Model.TimeCasa.Nome
+            </h4>
+            <div class="row">
+                <!-- Lista de jogadores -->
+                <div class="col-5 scroll-panel">
+                    <table class="table table-sm table-striped">
+                        <thead><tr><th></th><th>Nome</th><th>Pos</th></tr></thead>
+                        <tbody>
+                            @foreach (var jogador in (List<ControleFutebolWeb.Models.Jogador>)ViewBag.JogadoresCasa)
+                            {
+                                var camisaCasa = string.IsNullOrEmpty(Model.TimeCasa.CamisaUrl) ? "" : Url.Content(Model.TimeCasa.CamisaUrl);
+                                <tr class="jogador-row"
+                                    draggable="true"
+                                    ondragstart="dragJogador(event, @jogador.Id, '@jogador.Nome', '@jogador.NumeroCamisa', '@camisaCasa')">
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(camisaCasa))
+                                        {
+                                            <img src="@camisaCasa" width="32" height="32" />
+                                        }
+                                        else
+                                        {
+                                            <span style="font-size:20px;">👕</span>
+                                        }
+                                    </td>
+                                    <td>@jogador.Nome</td>
+                                    <td>@jogador.Posicao</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Campinho casa -->
+                <div class="col-7">
+                    <div id="campoCasa" class="campo"
+                         ondrop="dropNoCampo(event, 'campoCasa')"
+                         ondragover="allowDropEscalacao(event)">
+                        @{
+                            var idxCasa = 0;
+                        }
+                        @foreach (var esc in (List<ControleFutebolWeb.Models.Escalacao>)ViewBag.EscalacoesCasa)
+                        {
+                            <div class="posicao-drop"
+                                 data-index="casa_@idxCasa"
+                                 data-posicao="@esc.Posicao"
+                                 data-campo="casa"
+                                 draggable="true"
+                                 ondragstart="dragPosicao(event, 'casa_@idxCasa')"
+                                 ondragend="dropPosicao(event, 'casa_@idxCasa', 'campoCasa')"
+                                 ondrop="dropEscalacao(event, 'casa_@idxCasa')"
+                                 ondragover="allowDropEscalacao(event)"
+                                 style="left:@esc.PosicaoX%; top:@esc.PosicaoY%;">
+                                <span>@esc.Posicao</span>
+                                @if (esc.Jogador != null)
+                                {
+                                    <div>
+                                        <img src="@Model.TimeCasa.CamisaUrl" width="40" style="display:block;margin:0 auto;" />
+                                        <div style="font-size:11px;max-width:60px;margin:0 auto;">@esc.Jogador.Nome</div>
+                                    </div>
+                                }
+                            </div>
+                            <input type="hidden" name="escalacaoCasa[@idxCasa].Id" value="@esc.Id" />
+                            <input type="hidden" name="escalacaoCasa[@idxCasa].PosicaoId" value="@esc.Id" />
+                            <input type="hidden" id="escalacaoCasa_@(idxCasa)__JogadorId" name="escalacaoCasa[@idxCasa].JogadorId" value="@esc.JogadorId" />
+                            <input type="hidden" id="escalacaoCasa_@(idxCasa)__PosicaoX" name="escalacaoCasa[@idxCasa].PosicaoX" value="@esc.PosicaoX" />
+                            <input type="hidden" id="escalacaoCasa_@(idxCasa)__PosicaoY" name="escalacaoCasa[@idxCasa].PosicaoY" value="@esc.PosicaoY" />
+                            idxCasa++;
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== TIME VISITANTE ===== -->
+        <div class="col-md-6">
+            <h4>
+                <img src="@Model.TimeVisitante.EscudoUrl" width="24" />
+                @Model.TimeVisitante.Nome
+            </h4>
+            <div class="row">
+                <!-- Campinho visitante -->
+                <div class="col-7">
+                    <div id="campoVisitante" class="campo"
+                         ondrop="dropNoCampo(event, 'campoVisitante')"
+                         ondragover="allowDropEscalacao(event)">
+                        @{
+                            var idxVis = 0;
+                        }
+                        @foreach (var esc in (List<ControleFutebolWeb.Models.Escalacao>)ViewBag.EscalacoesVisitante)
+                        {
+                            <div class="posicao-drop"
+                                 data-index="vis_@idxVis"
+                                 data-posicao="@esc.Posicao"
+                                 data-campo="vis"
+                                 draggable="true"
+                                 ondragstart="dragPosicao(event, 'vis_@idxVis')"
+                                 ondragend="dropPosicao(event, 'vis_@idxVis', 'campoVisitante')"
+                                 ondrop="dropEscalacao(event, 'vis_@idxVis')"
+                                 ondragover="allowDropEscalacao(event)"
+                                 style="left:@esc.PosicaoX%; top:@esc.PosicaoY%;">
+                                <span>@esc.Posicao</span>
+                                @if (esc.Jogador != null)
+                                {
+                                    <div>
+                                        <img src="@Model.TimeVisitante.CamisaUrl" width="40" style="display:block;margin:0 auto;" />
+                                        <div style="font-size:11px;max-width:60px;margin:0 auto;">@esc.Jogador.Nome</div>
+                                    </div>
+                                }
+                            </div>
+                            <input type="hidden" name="escalacaoVisitante[@idxVis].Id" value="@esc.Id" />
+                            <input type="hidden" name="escalacaoVisitante[@idxVis].PosicaoId" value="@esc.Id" />
+                            <input type="hidden" id="escalacaoVisitante_@(idxVis)__JogadorId" name="escalacaoVisitante[@idxVis].JogadorId" value="@esc.JogadorId" />
+                            <input type="hidden" id="escalacaoVisitante_@(idxVis)__PosicaoX" name="escalacaoVisitante[@idxVis].PosicaoX" value="@esc.PosicaoX" />
+                            <input type="hidden" id="escalacaoVisitante_@(idxVis)__PosicaoY" name="escalacaoVisitante[@idxVis].PosicaoY" value="@esc.PosicaoY" />
+                            idxVis++;
+                        }
+                    </div>
+                </div>
+
+                <!-- Lista de jogadores visitante -->
+                <div class="col-5 scroll-panel">
+                    <table class="table table-sm table-striped">
+                        <thead><tr><th></th><th>Nome</th><th>Pos</th></tr></thead>
+                        <tbody>
+                            
+                            @foreach (var jogador in (List<ControleFutebolWeb.Models.Jogador>)ViewBag.JogadoresVisitante)
+                            {
+                                var camisaVisitante = string.IsNullOrEmpty(Model.TimeVisitante.CamisaUrl) ? "" : Url.Content(Model.TimeVisitante.CamisaUrl);
+                                <tr class="jogador-row"
+                                    draggable="true"
+                                    ondragstart="dragJogador(event, @jogador.Id, '@jogador.Nome', '@jogador.NumeroCamisa', '@camisaVisitante')">
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(camisaVisitante))
+                                        {
+                                            <img src="@camisaVisitante" width="32" height="32" />
+                                        }
+                                        else
+                                        {
+                                            <span style="font-size:20px;">👕</span>
+                                        }
+                                    </td>
+                                    <td>@jogador.Nome</td>
+                                    <td>@jogador.Posicao</td>
+                                </tr>
+                            }
+                            
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="text-center mt-3">
+        <button type="submit" class="btn btn-success">Salvar Escalação</button>
+    </div>
+</form>
+
+<form asp-action="LimparEscalacoes" asp-route-id="@Model.Id" method="post" class="mt-2">
+    <div class="text-center">
+        <button type="submit" class="btn btn-danger">🗑️ Limpar Escalações</button>
+    </div>
+</form>
+<script>
+    let jogadoresUsadosCasa = new Set();
+    let jogadoresUsadosVis  = new Set();
+    let draggingPosicao     = false; // ← flag para distinguir arrastar posição vs jogador
+
+    function allowDropEscalacao(ev) { ev.preventDefault(); }
+
+    // ── Arrastar jogador da lista ──────────────────────────────────────────
+    function dragJogador(ev, jogadorId, jogadorNome, jogadorNumero, camisaUrl) {
+        draggingPosicao = false;
+        ev.dataTransfer.setData("jogadorId",     jogadorId);
+        ev.dataTransfer.setData("jogadorNome",   jogadorNome);
+        ev.dataTransfer.setData("jogadorNumero", jogadorNumero);
+        ev.dataTransfer.setData("camisaUrl",     camisaUrl);
+    }
+
+    // ── Soltar jogador em uma posição do campo ─────────────────────────────
+    function dropEscalacao(ev, index) {
+        ev.preventDefault();
+        ev.stopPropagation();
+
+        if (draggingPosicao) return; // estava arrastando posição, não jogador
+
+        const jogadorId   = ev.dataTransfer.getData("jogadorId");
+        const jogadorNome = ev.dataTransfer.getData("jogadorNome");
+        const jogadorNum  = ev.dataTransfer.getData("jogadorNumero");
+        const camisaUrl   = ev.dataTransfer.getData("camisaUrl");
+
+        if (!jogadorId) return;
+
+        const isCasa  = index.startsWith("casa_");
+        const usados  = isCasa ? jogadoresUsadosCasa : jogadoresUsadosVis;
+        const prefix  = isCasa ? "escalacaoCasa" : "escalacaoVisitante";
+        const numIdx  = index.split("_")[1];
+
+        if (usados.has(jogadorId)) {
+            alert("Esse jogador já está em campo!");
+            return;
+        }
+
+        const hidden = document.getElementById(`${prefix}_${numIdx}__JogadorId`);
+        if (!hidden) return;
+
+        const antigoId = hidden.value;
+        if (antigoId) usados.delete(antigoId);
+
+        hidden.value = jogadorId;
+        usados.add(jogadorId);
+
+        const posEl = document.querySelector(`.posicao-drop[data-index='${index}']`);
+        posEl.innerHTML = `
+            <span>${posEl.dataset.posicao}</span>
+            <div style="margin-top:4px;text-align:center;">
+                <img src="${camisaUrl}" width="40" style="display:block;margin:0 auto;" />
+                <div style="font-size:11px;max-width:60px;margin:0 auto;">${jogadorNome}</div>
+                <div style="font-size:10px;color:#ccc;">Camisa: ${jogadorNum}</div>
+            </div>`;
+    }
+
+    // ── Arrastar marcador já no campo ──────────────────────────────────────
+    let posicaoArrastando = null; // guarda o index do marcador sendo arrastado
+
+    function dragPosicao(ev, index) {
+        draggingPosicao = true;
+        posicaoArrastando = index;
+        ev.dataTransfer.setData("posIndex", index);
+    }
+
+    function dropPosicao(ev, index, campoId) {
+        // mantido vazio — agora o drop é tratado pelo dropNoCampo
+    }
+
+    function dropNoCampo(ev, campoId) {
+        ev.preventDefault();
+        ev.stopPropagation();
+
+        // Se estava arrastando jogador da lista, deixa o dropEscalacao tratar
+        if (!draggingPosicao || !posicaoArrastando) return;
+
+        const index = posicaoArrastando;
+        const campo = document.getElementById(campoId);
+        const rect  = campo.getBoundingClientRect();
+
+        const newX = Math.round(((ev.clientX - rect.left)  / rect.width)  * 100);
+        const newY = Math.round(((ev.clientY - rect.top)   / rect.height) * 100);
+
+        // Ignora se soltou fora dos limites
+        if (newX < 0 || newX > 100 || newY < 0 || newY > 100) return;
+
+        const el = document.querySelector(`.posicao-drop[data-index='${index}']`);
+        if (!el) return;
+
+        el.style.left = newX + "%";
+        el.style.top  = newY + "%";
+
+        const isCasa = index.startsWith("casa_");
+        const prefix = isCasa ? "escalacaoCasa" : "escalacaoVisitante";
+        const numIdx = index.split("_")[1];
+
+        document.getElementById(`${prefix}_${numIdx}__PosicaoX`).value = newX;
+        document.getElementById(`${prefix}_${numIdx}__PosicaoY`).value = newY;
+
+        draggingPosicao   = false;
+        posicaoArrastando = null;
+    }
+
+    // ── Soltar marcador em nova posição (ondragend no próprio elemento) ────
+       function dropEscalacao(ev, index) {
+        ev.preventDefault();
+        ev.stopPropagation();
+
+        if (draggingPosicao) return;
+
+        const jogadorId   = ev.dataTransfer.getData("jogadorId");
+        const jogadorNome = ev.dataTransfer.getData("jogadorNome");
+        const jogadorNum  = ev.dataTransfer.getData("jogadorNumero");
+        const camisaUrl   = ev.dataTransfer.getData("camisaUrl");
+
+        console.log("DROP:", index, "jogadorId:", jogadorId, "camisaUrl:", camisaUrl);
+
+        if (!jogadorId) return;
+
+        const isCasa  = index.startsWith("casa_");
+        const usados  = isCasa ? jogadoresUsadosCasa : jogadoresUsadosVis;
+        const prefix  = isCasa ? "escalacaoCasa" : "escalacaoVisitante";
+        const numIdx  = index.split("_")[1];
+
+        console.log("prefix:", prefix, "numIdx:", numIdx);
+        console.log("hiddenId:", `${prefix}_${numIdx}__JogadorId`);
+
+        if (usados.has(jogadorId)) {
+            alert("Esse jogador já está em campo!");
+            return;
+        }
+
+        const hidden = document.getElementById(`${prefix}_${numIdx}__JogadorId`);
+        console.log("hidden element:", hidden);
+
+        if (!hidden) return;
+
+        const antigoId = hidden.value;
+        if (antigoId) usados.delete(antigoId);
+
+        hidden.value = jogadorId;
+        usados.add(jogadorId);
+
+        const posEl = document.querySelector(`.posicao-drop[data-index='${index}']`);
+        console.log("posEl:", posEl, "dataset:", posEl?.dataset);
+
+        const nomePosicao = posEl.dataset.posicao;
+
+        posEl.innerHTML = `
+            <span>${nomePosicao}</span>
+            <div style="margin-top:4px;text-align:center;">
+                <img src="${camisaUrl}" width="40" style="display:block;margin:0 auto;" />
+                <div style="font-size:11px;max-width:60px;margin:0 auto;">${jogadorNome}</div>
+                <div style="font-size:10px;color:#ccc;">Camisa: ${jogadorNum}</div>
+            </div>`;
+    }
+</script>

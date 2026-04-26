@@ -1,0 +1,47 @@
+﻿@model List<ControleFutebolWeb.Models.MatchResponse>
+
+<h2>Campeonato - Partidas</h2>
+
+@if (Model != null && Model.Any())
+{
+    <table class="table table-striped table-bordered">
+        <thead>
+            <tr>
+                <th>Data</th>
+                <th>Mandante</th>
+                <th>Visitante</th>
+                <th>Placar</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var match in Model)
+            {
+                <tr>
+                    <td>@match.UtcDate.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td>
+                        <img src="@match.HomeTeam.Crest" alt="@match.HomeTeam.Name" width="30" />
+                        @match.HomeTeam.Name
+                    </td>
+                    <td>
+                        <img src="@match.AwayTeam.Crest" alt="@match.AwayTeam.Name" width="30" />
+                        @match.AwayTeam.Name
+                    </td>
+                    <td>
+                        @if (match.Score.FullTime.Home.HasValue && match.Score.FullTime.Away.HasValue)
+                        {
+                            @($"{match.Score.FullTime.Home} - {match.Score.FullTime.Away}")
+                        }
+                        else
+                        {
+                            <span>Agendado</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>Nenhum jogo encontrado.</p>
+}

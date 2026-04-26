@@ -1,0 +1,32 @@
+﻿@model ControleFutebolWeb.Models.Jogo
+
+<h2>Excluir Jogo</h2>
+
+<div>
+    <h4>Você tem certeza que deseja excluir este jogo?</h4>
+    <dl class="row">
+        <dt class="col-sm-2">Data</dt>
+        <dd class="col-sm-10">@Model.Data.ToString("d")</dd>
+
+        <dt class="col-sm-2">Rodada</dt>
+        <dd class="col-sm-10">@Model.Rodada</dd>
+
+        <dt class="col-sm-2">Time da Casa</dt>
+        <dd class="col-sm-10">@Model.TimeCasa?.Nome</dd>
+
+        <dt class="col-sm-2">Placar Casa</dt>
+        <dd class="col-sm-10">@Model.PlacarCasa</dd>
+
+        <dt class="col-sm-2">Time Visitante</dt>
+        <dd class="col-sm-10">@Model.TimeVisitante?.Nome</dd>
+
+        <dt class="col-sm-2">Placar Fora</dt>
+        <dd class="col-sm-10">@Model.PlacarVisitante</dd>
+    </dl>
+</div>
+
+<form asp-action="Delete">
+    <input type="hidden" asp-for="Id" />
+    <input type="submit" value="Excluir" class="btn btn-danger" />
+    <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
+</form>
