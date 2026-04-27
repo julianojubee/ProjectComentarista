@@ -3,15 +3,14 @@
     public class Nota
     {
         public int Id { get; set; }
-        public int Valor { get; set; }   // Ex: nota de 0 a 10
-        public string Comentario { get; set; }
+        public int Valor { get; set; }   // pontuação total calculada
+        public string Comentario { get; set; }  // observação
 
-        // Relacionamento com Jogador
         public int JogadorId { get; set; }
         public Jogador Jogador { get; set; }
 
-        // Relacionamento com Jogo
         public int JogoId { get; set; }
         public Jogo Jogo { get; set; }
+        public ICollection<Notadetalhe> Detalhes { get; set; } = new List<Notadetalhe>();
     }
 }

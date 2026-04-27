@@ -11,7 +11,26 @@
         border: 2px solid #ccc;
     }
  */
-
+    .btn-avaliar {
+        position: absolute;
+        top: -6px;
+        right: -6px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #f5c400;
+        border: none;
+        font-size: 12px;
+        font-weight: 700;
+        color: #333;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        z-index: 10;
+        pointer-events: all;
+    }
 
     .posicao-drop {
         position: absolute;
@@ -32,7 +51,7 @@
         cursor: grab;
     }
 
-    .posicao-drop * {
+    .posicao-drop *:not(.btn-avaliar) {
         pointer-events: none;
     }
 </style>
@@ -134,6 +153,11 @@
                                 <span>@esc.Posicao</span>
                                 @if (esc.Jogador != null)
                                 {
+                                    <button type="button"
+                                            class="btn-avaliar"
+                                            onclick="abrirAvaliacao(@esc.Jogador.Id, '@esc.Jogador.Nome', '@esc.Posicao', event)">
+                                        +
+                                    </button>
                                     <div>
                                         <img src="@Model.TimeCasa.CamisaUrl" width="40" style="display:block;margin:0 auto;" />
                                         <div style="font-size:11px;max-width:60px;margin:0 auto;">@esc.Jogador.Nome</div>
@@ -182,6 +206,11 @@
                                 <span>@esc.Posicao</span>
                                 @if (esc.Jogador != null)
                                 {
+                                    <button type="button"
+                                            class="btn-avaliar"
+                                            onclick="abrirAvaliacao(@esc.Jogador.Id, '@esc.Jogador.Nome', '@esc.Posicao', event)">
+                                        +
+                                    </button>
                                     <div>
                                         <img src="@Model.TimeVisitante.CamisaUrl" width="40" style="display:block;margin:0 auto;" />
                                         <div style="font-size:11px;max-width:60px;margin:0 auto;">@esc.Jogador.Nome</div>
@@ -243,14 +272,39 @@
         <button type="submit" class="btn btn-danger">🗑️ Limpar Escalações</button>
     </div>
 </form>
+
+<div id="modal-avaliacao" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:12px; padding:1.25rem; width:360px; max-width:95vw; max-height:90vh; overflow-y:auto; box-shadow: 0 8px 32px rgba(0,0,0,0.2);">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1rem; padding-bottom:0.75rem; border-bottom:1px solid #eee;">
+            <div>
+                <h5 id="av-nome" style="margin:0; font-size:15px; font-weight:600;"></h5>
+                <small id="av-pos" style="color:#888;"></small>
+            </div>
+            <button type="button" onclick="fecharAvaliacao()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#999;">&times;</button>
+        </div>
+        <div id="av-acoes"></div>
+        <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:#666; font-size:13px;">Pontuação total</span>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span id="av-total" style="font-size:22px; font-weight:600;">0</span>
+                <span id="av-nota" style="padding:3px 10px; border-radius:20px; font-size:12px; font-weight:500;">Regular</span>
+            </div>
+        </div>
+        <div style="margin-top:1rem;">
+            <label style="font-size:12px; color:#666;">Observação:</label>
+            <textarea id="av-obs" rows="2" style="width:100%; margin-top:4px; font-size:13px; border:1px solid #ddd; border-radius:6px; padding:6px; resize:vertical;"></textarea>
+        </div>
+        <button type="button" onclick="salvarAvaliacao()" style="width:100%; margin-top:10px; padding:8px; background:#198754; color:white; border:none; border-radius:6px; font-size:14px; cursor:pointer;">Salvar</button>
+    </div>
+</div>
+<input type="hidden" id="jogoId" value="@Model.Id" />
 <script>
     let jogadoresUsadosCasa = new Set();
     let jogadoresUsadosVis  = new Set();
-    let draggingPosicao     = false; // ← flag para distinguir arrastar posição vs jogador
+    let draggingPosicao     = false;
 
     function allowDropEscalacao(ev) { ev.preventDefault(); }
 
-    // ── Arrastar jogador da lista ──────────────────────────────────────────
     function dragJogador(ev, jogadorId, jogadorNome, jogadorNumero, camisaUrl) {
         draggingPosicao = false;
         ev.dataTransfer.setData("jogadorId",     jogadorId);
@@ -259,51 +313,7 @@
         ev.dataTransfer.setData("camisaUrl",     camisaUrl);
     }
 
-    // ── Soltar jogador em uma posição do campo ─────────────────────────────
-    function dropEscalacao(ev, index) {
-        ev.preventDefault();
-        ev.stopPropagation();
-
-        if (draggingPosicao) return; // estava arrastando posição, não jogador
-
-        const jogadorId   = ev.dataTransfer.getData("jogadorId");
-        const jogadorNome = ev.dataTransfer.getData("jogadorNome");
-        const jogadorNum  = ev.dataTransfer.getData("jogadorNumero");
-        const camisaUrl   = ev.dataTransfer.getData("camisaUrl");
-
-        if (!jogadorId) return;
-
-        const isCasa  = index.startsWith("casa_");
-        const usados  = isCasa ? jogadoresUsadosCasa : jogadoresUsadosVis;
-        const prefix  = isCasa ? "escalacaoCasa" : "escalacaoVisitante";
-        const numIdx  = index.split("_")[1];
-
-        if (usados.has(jogadorId)) {
-            alert("Esse jogador já está em campo!");
-            return;
-        }
-
-        const hidden = document.getElementById(`${prefix}_${numIdx}__JogadorId`);
-        if (!hidden) return;
-
-        const antigoId = hidden.value;
-        if (antigoId) usados.delete(antigoId);
-
-        hidden.value = jogadorId;
-        usados.add(jogadorId);
-
-        const posEl = document.querySelector(`.posicao-drop[data-index='${index}']`);
-        posEl.innerHTML = `
-            <span>${posEl.dataset.posicao}</span>
-            <div style="margin-top:4px;text-align:center;">
-                <img src="${camisaUrl}" width="40" style="display:block;margin:0 auto;" />
-                <div style="font-size:11px;max-width:60px;margin:0 auto;">${jogadorNome}</div>
-                <div style="font-size:10px;color:#ccc;">Camisa: ${jogadorNum}</div>
-            </div>`;
-    }
-
-    // ── Arrastar marcador já no campo ──────────────────────────────────────
-    let posicaoArrastando = null; // guarda o index do marcador sendo arrastado
+    let posicaoArrastando = null;
 
     function dragPosicao(ev, index) {
         draggingPosicao = true;
@@ -312,14 +322,13 @@
     }
 
     function dropPosicao(ev, index, campoId) {
-        // mantido vazio — agora o drop é tratado pelo dropNoCampo
+        // tratado pelo dropNoCampo
     }
 
     function dropNoCampo(ev, campoId) {
         ev.preventDefault();
         ev.stopPropagation();
 
-        // Se estava arrastando jogador da lista, deixa o dropEscalacao tratar
         if (!draggingPosicao || !posicaoArrastando) return;
 
         const index = posicaoArrastando;
@@ -329,7 +338,6 @@
         const newX = Math.round(((ev.clientX - rect.left)  / rect.width)  * 100);
         const newY = Math.round(((ev.clientY - rect.top)   / rect.height) * 100);
 
-        // Ignora se soltou fora dos limites
         if (newX < 0 || newX > 100 || newY < 0 || newY > 100) return;
 
         const el = document.querySelector(`.posicao-drop[data-index='${index}']`);
@@ -349,8 +357,7 @@
         posicaoArrastando = null;
     }
 
-    // ── Soltar marcador em nova posição (ondragend no próprio elemento) ────
-       function dropEscalacao(ev, index) {
+    function dropEscalacao(ev, index) {
         ev.preventDefault();
         ev.stopPropagation();
 
@@ -361,8 +368,6 @@
         const jogadorNum  = ev.dataTransfer.getData("jogadorNumero");
         const camisaUrl   = ev.dataTransfer.getData("camisaUrl");
 
-        console.log("DROP:", index, "jogadorId:", jogadorId, "camisaUrl:", camisaUrl);
-
         if (!jogadorId) return;
 
         const isCasa  = index.startsWith("casa_");
@@ -370,17 +375,12 @@
         const prefix  = isCasa ? "escalacaoCasa" : "escalacaoVisitante";
         const numIdx  = index.split("_")[1];
 
-        console.log("prefix:", prefix, "numIdx:", numIdx);
-        console.log("hiddenId:", `${prefix}_${numIdx}__JogadorId`);
-
         if (usados.has(jogadorId)) {
             alert("Esse jogador já está em campo!");
             return;
         }
 
         const hidden = document.getElementById(`${prefix}_${numIdx}__JogadorId`);
-        console.log("hidden element:", hidden);
-
         if (!hidden) return;
 
         const antigoId = hidden.value;
@@ -390,16 +390,177 @@
         usados.add(jogadorId);
 
         const posEl = document.querySelector(`.posicao-drop[data-index='${index}']`);
-        console.log("posEl:", posEl, "dataset:", posEl?.dataset);
-
         const nomePosicao = posEl.dataset.posicao;
 
         posEl.innerHTML = `
             <span>${nomePosicao}</span>
-            <div style="margin-top:4px;text-align:center;">
+            <div style="margin-top:4px;text-align:center;position:relative;display:inline-block;">
                 <img src="${camisaUrl}" width="40" style="display:block;margin:0 auto;" />
-                <div style="font-size:11px;max-width:60px;margin:0 auto;">${jogadorNome}</div>
-                <div style="font-size:10px;color:#ccc;">Camisa: ${jogadorNum}</div>
-            </div>`;
+                <button type="button" class="btn-avaliar" onclick="abrirAvaliacao(${jogadorId}, '${jogadorNome}', '${nomePosicao}', event)">+</button>
+            </div>
+            <div style="font-size:11px;max-width:60px;margin:0 auto;">${jogadorNome}</div>
+            <div style="font-size:10px;color:#ccc;">Camisa: ${jogadorNum}</div>`;
     }
+
+    // ── Avaliação de jogadores ─────────────────────────────────────────────
+
+    const acoesPorPosicao = {
+        'GL': [
+            { id: 'defesa_dificil', label: 'Defesa difícil',     peso: +2 },
+            { id: 'gol_sofrido',    label: 'Gol sofrido',         peso: -1 },
+            { id: 'saida_bola',     label: 'Boa saída de bola',   peso: +1 },
+            { id: 'falha_grave',    label: 'Falha grave',          peso: -2 },
+        ],
+        'AT': [
+            { id: 'chute_gol',     label: 'Chute no alvo',        peso: +1 },
+            { id: 'chute_fora',    label: 'Chute pra fora',        peso: -1 },
+            { id: 'drible_certo',  label: 'Drible bem-sucedido',   peso: +1 },
+            { id: 'passe_certo',   label: 'Passe certo',           peso: +1 },
+            { id: 'passe_errado',  label: 'Passe errado',          peso: -1 },
+            { id: 'falta_sofrida', label: 'Falta sofrida',         peso: +1 },
+        ],
+        'default': [
+            { id: 'passe_certo',    label: 'Passe certo',           peso: +1 },
+            { id: 'passe_errado',   label: 'Passe errado',          peso: -1 },
+            { id: 'interceptacao',  label: 'Interceptação',         peso: +1 },
+            { id: 'falta_cometida', label: 'Falta cometida',        peso: -1 },
+            { id: 'drible_certo',   label: 'Drible certo',          peso: +1 },
+            { id: 'perda_bola',     label: 'Perda de bola',         peso: -1 },
+            { id: 'assistencias',   label: 'Assistências',          peso: +1 },
+        ]
+    };
+
+    const avaliacoes = {};
+    let jogadorAtual = null;
+    let chaveAtual   = 'default';
+
+    function abrirAvaliacao(jogadorId, nome, posicao, event) {
+        event.stopPropagation();
+
+        jogadorAtual = jogadorId;
+        chaveAtual   = posicao in acoesPorPosicao ? posicao : 'default';
+
+        if (!avaliacoes[jogadorId]) avaliacoes[jogadorId] = { obs: '' };
+
+        document.getElementById('av-nome').textContent = nome;
+        document.getElementById('av-pos').textContent  = posicao + ' · Avaliação da partida';
+        document.getElementById('av-obs').value        = avaliacoes[jogadorId].obs || '';
+
+        const acoes     = acoesPorPosicao[chaveAtual];
+        const container = document.getElementById('av-acoes');
+        container.innerHTML = '';
+
+        acoes.forEach(a => {
+            if (!avaliacoes[jogadorId][a.id]) avaliacoes[jogadorId][a.id] = 0;
+
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f0f0f0;';
+            row.innerHTML = `
+                <div style="flex:1;font-size:13px;">
+                    <div>${a.label}</div>
+                    <div style="font-size:11px;color:#999;">${a.peso > 0 ? '+' + a.peso : a.peso} ponto(s)</div>
+                </div>
+                <button type="button" onclick="ajustarAcao(${jogadorId},'${a.id}',-1)"
+                    style="width:28px;height:28px;border-radius:50%;border:1px solid #ddd;background:#f8f8f8;font-size:16px;cursor:pointer;">&#8722;</button>
+                <span id="av-cnt-${a.id}" style="min-width:28px;text-align:center;font-size:14px;font-weight:600;">${avaliacoes[jogadorId][a.id]}</span>
+                <button type="button" onclick="ajustarAcao(${jogadorId},'${a.id}',+1)"
+                    style="width:28px;height:28px;border-radius:50%;border:1px solid #ddd;background:#f8f8f8;font-size:16px;cursor:pointer;">+</button>`;
+            container.appendChild(row);
+        });
+
+        recalcularTotal();
+        document.getElementById('modal-avaliacao').style.display = 'flex';
+    }
+
+    function ajustarAcao(jogadorId, acaoId, delta) {
+        if (delta < 0 && avaliacoes[jogadorId][acaoId] <= 0) return;
+        avaliacoes[jogadorId][acaoId] += delta;
+        document.getElementById('av-cnt-' + acaoId).textContent = avaliacoes[jogadorId][acaoId];
+        recalcularTotal();
+    }
+
+    function recalcularTotal() {
+        const acoes = acoesPorPosicao[chaveAtual];
+        let total   = 0;
+        acoes.forEach(a => {
+            total += (avaliacoes[jogadorAtual][a.id] || 0) * a.peso;
+        });
+
+        const el   = document.getElementById('av-total');
+        const chip = document.getElementById('av-nota');
+        el.textContent = total;
+        el.style.color = total > 0 ? '#198754' : total < 0 ? '#dc3545' : '#333';
+
+        if      (total >= 5) { chip.textContent = 'Excelente'; chip.style.cssText = 'padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;background:#d1e7dd;color:#0f5132;'; }
+        else if (total >= 2) { chip.textContent = 'Bom';       chip.style.cssText = 'padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;background:#d1e7dd;color:#0f5132;'; }
+        else if (total >= 0) { chip.textContent = 'Regular';   chip.style.cssText = 'padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;background:#fff3cd;color:#664d03;'; }
+        else                 { chip.textContent = 'Ruim';      chip.style.cssText = 'padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;background:#f8d7da;color:#842029;'; }
+    }
+
+    async function salvarAvaliacao() {
+        if (!jogadorAtual) return;
+
+        avaliacoes[jogadorAtual].obs = document.getElementById('av-obs').value;
+
+        const jogoId = parseInt(document.getElementById('jogoId').value);
+        const acoes  = acoesPorPosicao[chaveAtual];
+
+        const detalhes = acoes
+            .filter(a => (avaliacoes[jogadorAtual][a.id] || 0) > 0)
+            .map(a => ({
+                acaoId:     a.id,
+                acaoLabel:  a.label,
+                quantidade: avaliacoes[jogadorAtual][a.id],
+                peso:       a.peso
+            }));
+
+        const total = acoes.reduce((sum, a) => sum + (avaliacoes[jogadorAtual][a.id] || 0) * a.peso, 0);
+
+        const body = {
+            jogadorId:  jogadorAtual,
+            jogoId:     jogoId,
+            total:      total,
+            observacao: avaliacoes[jogadorAtual].obs,
+            detalhes:   detalhes
+        };
+
+        try {
+            const resp = await fetch('/Notas/Salvar', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify(body)
+            });
+
+            if (resp.ok) {
+                fecharAvaliacao();
+            } else {
+                alert('Erro ao salvar avaliação.');
+            }
+        } catch (e) {
+            alert('Erro de conexão ao salvar.');
+        }
+    }
+
+    function fecharAvaliacao() {
+        document.getElementById('modal-avaliacao').style.display = 'none';
+        jogadorAtual = null;
+    }
+        // Carrega avaliações salvas ao abrir a página
+    (async function carregarAvaliacoesSalvas() {
+        const jogoId = document.getElementById('jogoId').value;
+        try {
+            const resp = await fetch(`/Notas/BuscarPorJogo?jogoId=${jogoId}`);
+            if (!resp.ok) return;
+            const notas = await resp.json();
+            notas.forEach(n => {
+                if (!avaliacoes[n.jogadorId]) avaliacoes[n.jogadorId] = { obs: '' };
+                avaliacoes[n.jogadorId].obs = n.observacao || '';
+                n.detalhes.forEach(d => {
+                    avaliacoes[n.jogadorId][d.acaoId] = d.quantidade;
+                });
+            });
+        } catch (e) {
+            console.warn('Não foi possível carregar avaliações:', e);
+        }
+    })();
 </script>
