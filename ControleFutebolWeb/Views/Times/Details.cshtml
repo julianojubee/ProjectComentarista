@@ -89,7 +89,11 @@
                         <td>
                             <img src="@Url.Content(Model.Time.CamisaUrl)" alt="Camisa" width="32" height="32" />
                         </td>
-                        <td>@jogador.Nome</td>
+                        <td>
+                            <a href="/Jogadores/Estatisticas/@jogador.Id">
+                                @jogador.Nome
+                            </a>
+                        </td>
                         <td>@jogador.Posicao</td>
                         <td>
                             <span title="@jogador.Nacionalidade?.Nome">

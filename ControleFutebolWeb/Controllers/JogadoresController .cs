@@ -1,5 +1,6 @@
 ﻿using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Models;
+using ControleFutebolWeb.Models.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -247,6 +248,46 @@ namespace ControleFutebolWeb.Controllers
 
             if (errors.Any())
                 _logger.LogWarning("ModelState inválido em Jogadores/{Action}. Erros: {@Errors}", contextAction, errors);
+        }
+
+        public async Task<IActionResult> Estatisticas(int id)
+        {
+            var jogador = await _context.Jogadores
+                .Include(j => j.Time)
+                .Include(j => j.Nacionalidade)
+                .FirstOrDefaultAsync(j => j.Id == id);
+
+            if (jogador == null) return NotFound();
+
+            var notas = await _context.Notas
+                .Include(n => n.Jogo).ThenInclude(j => j.TimeCasa)
+                .Include(n => n.Jogo).ThenInclude(j => j.TimeVisitante)
+                .Where(n => n.JogadorId == id)
+                .ToListAsync();
+
+            var gols = await _context.Gols
+                .Include(g => g.Jogo)
+                .Where(g => g.JogadorId == id && !g.Contra)
+                .ToListAsync();
+
+            var notasPorJogo = notas.Select(n => new NotaJogoItem
+            {
+                Jogo = n.Jogo,
+                Nota = n.Valor,
+                Comentario = n.Comentario,
+                Gols = gols.Count(g => g.JogoId == n.JogoId)
+            }).OrderByDescending(x => x.Jogo.Data).ToList();
+
+            var vm = new JogadorEstatisticasViewModel
+            {
+                Jogador = jogador,
+                MediaNotas = notas.Any() ? notas.Average(n => n.Valor) : 0,
+                TotalJogos = notas.Select(n => n.JogoId).Distinct().Count(),
+                TotalGols = gols.Count,
+                NotasPorJogo = notasPorJogo
+            };
+
+            return View(vm);
         }
     }
 }

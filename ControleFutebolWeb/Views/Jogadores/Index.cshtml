@@ -167,7 +167,11 @@
         @foreach (var jogador in Model)
         {
             <tr>
-                <td>@jogador.Nome</td>
+                <td>
+                    <a href="/Jogadores/Estatisticas/@jogador.Id">
+                        @jogador.Nome
+                    </a>
+                </td>
                 <td>@jogador.Posicao</td>
                 <td>@jogador.Idade</td>
                 <td>

@@ -1,0 +1,420 @@
+﻿@model ControleFutebolWeb.Models.ViewModels.JogadorEstatisticasViewModel
+
+@{
+    ViewData["Title"] = $"Estatísticas — {Model.Jogador.Nome}";
+
+    string NotaCor(int nota) => nota switch
+    {
+        >= 8 => "#22c55e",
+        >= 6 => "#f59e0b",
+        >= 4 => "#f97316",
+        _ => "#ef4444"
+    };
+
+    string NotaLabel(int nota) => nota switch
+    {
+        >= 9 => "Excepcional",
+        >= 8 => "Ótimo",
+        >= 7 => "Bom",
+        >= 6 => "Regular",
+        >= 5 => "Abaixo",
+        _ => "Ruim"
+    };
+}
+
+<style>
+    @@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500&display=swap');
+
+    :root {
+        --verde: #16a34a;
+        --verde2: #22c55e;
+        --cinza1: #0f172a;
+        --cinza2: #1e293b;
+        --cinza3: #334155;
+        --texto: #f1f5f9;
+        --muted: #94a3b8;
+        --accent: #facc15;
+    }
+
+    .estat-page {
+        background: var(--cinza1);
+        min-height: 100vh;
+        color: var(--texto);
+        font-family: 'Barlow', sans-serif;
+        padding: 2rem 1rem 4rem;
+    }
+
+    /* ── Header do jogador ── */
+    .jogador-header {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--cinza3);
+    }
+
+    .jogador-escudo {
+        width: 72px;
+        height: 72px;
+        object-fit: contain;
+        filter: drop-shadow(0 2px 8px rgba(0,0,0,.5));
+    }
+
+    .jogador-nome {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 2.4rem;
+        font-weight: 800;
+        letter-spacing: .02em;
+        line-height: 1;
+        margin: 0;
+    }
+
+    .jogador-meta {
+        font-size: .85rem;
+        color: var(--muted);
+        margin-top: .3rem;
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+        .jogador-meta span {
+            display: flex;
+            align-items: center;
+            gap: .3rem;
+        }
+
+    /* ── Cards de resumo ── */
+    .resumo-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .resumo-card {
+        background: var(--cinza2);
+        border: 1px solid var(--cinza3);
+        border-radius: 12px;
+        padding: 1.1rem 1rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+        .resumo-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--accent-color, var(--verde2));
+        }
+
+    .resumo-valor {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 2.6rem;
+        font-weight: 800;
+        line-height: 1;
+        color: var(--accent-color, var(--verde2));
+    }
+
+    .resumo-label {
+        font-size: .75rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        margin-top: .3rem;
+    }
+
+    /* ── Barra de média visual ── */
+    .media-bar-wrap {
+        background: var(--cinza2);
+        border: 1px solid var(--cinza3);
+        border-radius: 12px;
+        padding: 1.2rem 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .media-bar-titulo {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 1rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .1em;
+        color: var(--muted);
+        margin-bottom: .8rem;
+    }
+
+    .media-bar-track {
+        background: var(--cinza3);
+        border-radius: 99px;
+        height: 12px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .media-bar-fill {
+        height: 100%;
+        border-radius: 99px;
+        transition: width .8s cubic-bezier(.4,0,.2,1);
+        background: linear-gradient(90deg, var(--verde), var(--verde2));
+    }
+
+    .media-bar-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: .75rem;
+        color: var(--muted);
+        margin-top: .4rem;
+    }
+
+    /* ── Tabela de jogos ── */
+    .jogos-titulo {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 1.4rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+    }
+
+        .jogos-titulo::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--cinza3);
+        }
+
+    .jogo-item {
+        background: var(--cinza2);
+        border: 1px solid var(--cinza3);
+        border-radius: 10px;
+        padding: .9rem 1.1rem;
+        margin-bottom: .6rem;
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        align-items: center;
+        gap: 1rem;
+        transition: border-color .2s;
+    }
+
+        .jogo-item:hover {
+            border-color: var(--cinza3);
+            background: #263245;
+        }
+
+    .jogo-adversario {
+        font-size: .95rem;
+        font-weight: 500;
+    }
+
+    .jogo-data {
+        font-size: .75rem;
+        color: var(--muted);
+        margin-top: .2rem;
+    }
+
+    .jogo-gols {
+        display: flex;
+        align-items: center;
+        gap: .35rem;
+        font-size: .85rem;
+        color: var(--verde2);
+        font-weight: 600;
+        min-width: 50px;
+        justify-content: center;
+    }
+
+    .badge-nota {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 1.3rem;
+        font-weight: 800;
+        width: 42px;
+        height: 42px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #000;
+    }
+
+    .comentario-texto {
+        font-size: .78rem;
+        color: var(--muted);
+        margin-top: .25rem;
+        font-style: italic;
+    }
+
+    /* ── Vazio ── */
+    .sem-dados {
+        text-align: center;
+        color: var(--muted);
+        padding: 3rem;
+        font-size: .95rem;
+    }
+
+    /* ── Voltar ── */
+    .btn-voltar {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        background: var(--cinza2);
+        border: 1px solid var(--cinza3);
+        color: var(--texto);
+        padding: .45rem 1rem;
+        border-radius: 8px;
+        font-size: .85rem;
+        text-decoration: none;
+        margin-bottom: 1.5rem;
+        transition: background .2s;
+    }
+
+        .btn-voltar:hover {
+            background: var(--cinza3);
+            color: var(--texto);
+        }
+</style>
+
+<div class="estat-page">
+    <div class="container" style="max-width:860px;">
+
+        <a href="javascript:history.back()" class="btn-voltar">← Voltar</a>
+
+        <!-- Header -->
+        <div class="jogador-header">
+            @if (Model.Jogador.Time?.EscudoUrl != null)
+            {
+                <img src="@Model.Jogador.Time.EscudoUrl" class="jogador-escudo" />
+            }
+            <div>
+                <h1 class="jogador-nome">@Model.Jogador.Nome</h1>
+                <div class="jogador-meta">
+                    <span>🎽 @Model.Jogador.Posicao</span>
+                    @if (Model.Jogador.NumeroCamisa.HasValue)
+                    {
+                        <span># @Model.Jogador.NumeroCamisa</span>
+                    }
+                    <span>📅 @Model.Jogador.Idade anos</span>
+                    @if (Model.Jogador.Time != null)
+                    {
+                        <span>🏟️ @Model.Jogador.Time.Nome</span>
+                    }
+                    @if (Model.Jogador.Nacionalidade != null)
+                    {
+                        <span>🌍 @Model.Jogador.Nacionalidade.Nome</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Cards de resumo -->
+        <div class="resumo-grid">
+            <div class="resumo-card" style="--accent-color: #facc15;">
+                <div class="resumo-valor">@Model.MediaNotas.ToString("0.0")</div>
+                <div class="resumo-label">Média Geral</div>
+            </div>
+            <div class="resumo-card" style="--accent-color: #60a5fa;">
+                <div class="resumo-valor">@Model.TotalJogos</div>
+                <div class="resumo-label">Jogos Avaliados</div>
+            </div>
+            <div class="resumo-card" style="--accent-color: #22c55e;">
+                <div class="resumo-valor">@Model.TotalGols</div>
+                <div class="resumo-label">Gols</div>
+            </div>
+           @*  @if (Model.TotalGolsContra > 0)
+            {
+                <div class="resumo-card" style="--accent-color: #ef4444;">
+                    <div class="resumo-valor">@Model.TotalGolsContra</div>
+                    <div class="resumo-label">Gols Contra</div>
+                </div>
+            }
+            <div class="resumo-card" style="--accent-color: #22c55e;">
+                <div class="resumo-valor">@Model.MelhorNota</div>
+                <div class="resumo-label">Melhor Nota</div>
+            </div>
+            <div class="resumo-card" style="--accent-color: #f97316;">
+                <div class="resumo-valor">@Model.PiorNota</div>
+                <div class="resumo-label">Pior Nota</div>
+            </div> *@
+        </div>
+
+        <!-- Barra de média -->
+        @if (Model.TotalJogos > 0)
+        {
+            <div class="media-bar-wrap">
+                <div class="media-bar-titulo">Índice de Desempenho</div>
+                <div class="media-bar-track">
+                    <div class="media-bar-fill" style="width: @((Model.MediaNotas / 10.0 * 100).ToString(" 0", System.Globalization.CultureInfo.InvariantCulture))%"></div>
+                </div>
+                <div class="media-bar-labels">
+                    <span>0</span>
+                    <span style="color:var(--texto); font-weight:600;">
+                        @Model.MediaNotas.ToString("0.0") / 10 — @NotaLabel((int)Math.Round(Model.MediaNotas))
+                    </span>
+                    <span>10</span>
+                </div>
+            </div>
+        }
+
+        <!-- Lista por jogo -->
+        <div class="jogos-titulo">Histórico por Jogo</div>
+
+        @if (!Model.NotasPorJogo.Any())
+        {
+            <div class="sem-dados">
+                Nenhuma avaliação registrada para este jogador ainda.
+            </div>
+        }
+        else
+        {
+            foreach (var item in Model.NotasPorJogo)
+            {
+                var adversario = item.Jogo.TimeCasa?.Id == Model.Jogador.TimeId
+                ? item.Jogo.TimeVisitante?.Nome
+                : item.Jogo.TimeCasa?.Nome;
+
+                var placar = (item.Jogo.PlacarCasa.HasValue && item.Jogo.PlacarVisitante.HasValue)
+                ? $"{item.Jogo.PlacarCasa} x {item.Jogo.PlacarVisitante}"
+                : "–";
+
+                var cor = NotaCor(item.Nota);
+
+                <div class="jogo-item">
+                    <div>
+                        <div class="jogo-adversario">
+                            vs @adversario
+                            <span style="color:var(--muted); font-size:.8rem; margin-left:.5rem;">@placar</span>
+                        </div>
+                        <div class="jogo-data">@item.Jogo.Data.ToString("dd/MM/yyyy") — Rodada @item.Jogo.Rodada</div>
+                        @if (!string.IsNullOrWhiteSpace(item.Comentario))
+                        {
+                            <div class="comentario-texto">"@item.Comentario"</div>
+                        }
+                    </div>
+
+                    <div class="jogo-gols">
+                        @if (item.Gols > 0)
+                        {
+                            <span>⚽ @item.Gols</span>
+                        }
+                        @* @if (item.GolsContra > 0)
+                        {
+                            <span style="color:#ef4444;">⚽ @item.GolsContra CC</span>
+                        } *@
+                    </div>
+
+                    <div class="badge-nota" style="background:@cor;">
+                        @item.Nota
+                    </div>
+                </div>
+            }
+        }
+
+    </div>
+</div>

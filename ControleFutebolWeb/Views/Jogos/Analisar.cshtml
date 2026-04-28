@@ -159,8 +159,8 @@
                                         +
                                     </button>
                                     <div>
-                                        <img src="@Model.TimeCasa.CamisaUrl" width="40" style="display:block;margin:0 auto;" />
-                                        <div style="font-size:11px;max-width:60px;margin:0 auto;">@esc.Jogador.Nome</div>
+                                        <img src="@Model.TimeCasa.CamisaUrl" width="50" style="display:block;margin:0 auto;" />
+                                        <div style="font-size:14px;max-width:60px;margin:0 auto;">@esc.Jogador.Nome</div>
                                     </div>
                                 }
                             </div>
@@ -178,9 +178,11 @@
 
         <!-- ===== TIME VISITANTE ===== -->
         <div class="col-md-6">
-            <h4>
+            <h4 class="text-end">
+                <!-- adiciona text-end aqui -->
                 <img src="@Model.TimeVisitante.EscudoUrl" width="24" />
                 @Model.TimeVisitante.Nome
+                
             </h4>
             <div class="row">
                 <!-- Campinho visitante -->
@@ -212,8 +214,8 @@
                                         +
                                     </button>
                                     <div>
-                                        <img src="@Model.TimeVisitante.CamisaUrl" width="40" style="display:block;margin:0 auto;" />
-                                        <div style="font-size:11px;max-width:60px;margin:0 auto;">@esc.Jogador.Nome</div>
+                                        <img src="@Model.TimeVisitante.CamisaUrl" width="50" style="display:block;margin:0 auto;" />
+                                        <div style="font-size:14px;max-width:60px;margin:0 auto;">@esc.Jogador.Nome</div>
                                     </div>
                                 }
                             </div>
@@ -418,6 +420,8 @@
             { id: 'passe_certo',   label: 'Passe certo',           peso: +1 },
             { id: 'passe_errado',  label: 'Passe errado',          peso: -1 },
             { id: 'falta_sofrida', label: 'Falta sofrida',         peso: +1 },
+            { id: 'assistencias',   label: 'Assistências',          peso: +3 },
+            { id: 'gols',           label: 'Gols',                  peso: +5 },
         ],
         'default': [
             { id: 'passe_certo',    label: 'Passe certo',           peso: +1 },
@@ -426,7 +430,9 @@
             { id: 'falta_cometida', label: 'Falta cometida',        peso: -1 },
             { id: 'drible_certo',   label: 'Drible certo',          peso: +1 },
             { id: 'perda_bola',     label: 'Perda de bola',         peso: -1 },
-            { id: 'assistencias',   label: 'Assistências',          peso: +1 },
+            { id: 'assistencias',   label: 'Assistências',          peso: +3 },
+            { id: 'gols',           label: 'Gols',                  peso: +5 },
+            { id: 'falha_grave',    label: 'Falha grave',          peso: -2 },
         ]
     };
 
