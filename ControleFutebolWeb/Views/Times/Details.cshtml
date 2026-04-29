@@ -8,29 +8,42 @@
         {
             "Brasil" => "🇧🇷",
             "Argentina" => "🇦🇷",
+            "Angola" => "🇦🇴",
+            "Camarões" => "🇨🇲",
             "Uruguai" => "🇺🇾",
             "Chile" => "🇨🇱",
+            "Dinamarca" => "🇩🇰",
             "Paraguai" => "🇵🇾",
             "Bolívia" => "🇧🇴",
             "Colômbia" => "🇨🇴",
+            "Gana" => "🇬🇭",
+            "Grécia" => "🇬🇷 ",
+            "Guiné" => "🇬🇳",
             "Peru" => "🇵🇪",
             "Equador" => "🇪🇨",
             "Venezuela" => "🇻🇪",
             "Portugal" => "🇵🇹",
+            "Panamá" => "🇵🇦 ",
             "Espanha" => "🇪🇸",
             "França" => "🇫🇷",
             "Itália" => "🇮🇹",
             "Alemanha" => "🇩🇪",
-            "Inglaterra" => "🏴",
+            "Inglaterra" => "🏴", // bandeira da Inglaterra
             "Reino Unido" => "🇬🇧",
             "Holanda" => "🇳🇱",
+            "Marrocos" => "🇲🇦",
+            "Bélgica" => "🇧🇪",
+            "Suíça" => "🇨🇭",
             "México" => "🇲🇽",
             "Estados Unidos" => "🇺🇸",
+            "Republicá Democrática do Congo" => "🇨🇩",
+            "Ucrania" => "🇺🇦",
             "Canadá" => "🇨🇦",
             _ => ""
         };
     }
 }
+
 <style>
     body {
         background-image: url('@Url.Content(Model.Time.BackgroundUrl)');
@@ -38,13 +51,14 @@
         background-position: center;
         background-attachment: fixed;
     }
-    body::before {
-        content: "";
-        position: fixed;
-        inset: 0;
-        background-color: rgba(0,0,0,0.3);
-        z-index: -1;
-    }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0,0,0,0.3);
+            z-index: -1;
+        }
 
     .scroll-panel {
         max-height: 900px;
@@ -59,11 +73,33 @@
         z-index: 2;
     }
 
+    /* ── igual ao Analisar ── */
+    .posicao-drop {
+        position: absolute;
+        text-align: center;
+        cursor: grab;
+        color: white;
+        font-size: 11px;
+        text-shadow: 1px 1px 2px black;
+        transform: translate(-50%, -50%);
+    }
 
+        .posicao-drop * {
+            pointer-events: none;
+        }
+
+    .jogador-row {
+        cursor: grab;
+    }
+
+        .jogador-row.usado {
+            display: none;
+        }
 </style>
 
 <h2 class="text-white">@Model.Time.Nome</h2>
 <img src="@Model.Time.EscudoUrl" alt="@Model.Time.Nome" width="100" />
+
 <div class="row">
     <!-- Coluna esquerda: Elenco com rolagem -->
     <div class="col-md-4 scroll-panel">
@@ -79,21 +115,25 @@
                     <th>Nacionalidade</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="listaJogadores">
                 @foreach (var jogador in Model.Elenco)
                 {
+                    var camisaUrl = string.IsNullOrEmpty(Model.Time.CamisaUrl) ? "" : Url.Content(Model.Time.CamisaUrl);
                     <tr class="jogador-row"
+                        id="jogador-@jogador.Id"
                         draggable="true"
-                        ondragstart="dragJogador(event, @jogador.Id, '@jogador.Nome', '@jogador.NumeroCamisa', '@Url.Content(Model.Time.CamisaUrl)')">
-
+                        ondragstart="dragJogador(event, @jogador.Id, '@jogador.Nome', '@jogador.NumeroCamisa', '@camisaUrl')">
                         <td>
-                            <img src="@Url.Content(Model.Time.CamisaUrl)" alt="Camisa" width="32" height="32" />
+                            @if (!string.IsNullOrEmpty(camisaUrl))
+                            {
+                                <img src="@camisaUrl" alt="Camisa" width="32" height="32" />
+                            }
+                            else
+                            {
+                                <span style="font-size:20px;">👕</span>
+                            }
                         </td>
-                        <td>
-                            <a href="/Jogadores/Estatisticas/@jogador.Id">
-                                @jogador.Nome
-                            </a>
-                        </td>
+                        <td>@jogador.Nome</td>
                         <td>@jogador.Posicao</td>
                         <td>
                             <span title="@jogador.Nacionalidade?.Nome">
@@ -131,40 +171,37 @@
                 </form>
 
                 <!-- Form para salvar escalação -->
-                <form method="post" asp-action="SalvarEscalacaoPadrao" asp-controller="Times">
+                <form id="formEscalacao" method="post" asp-action="SalvarEscalacaoPadrao" asp-controller="Times">
                     <input type="hidden" name="id" value="@Model.Time.Id" />
 
-                    <!-- Campo do campinho -->
-                    <div id="campo" class="campo" style="max-height:800px; position:relative;">
-                       @{
+                    <!-- Campo do campinho — mesma estrutura do Analisar -->
+                    <div id="campo"
+                         class="campo"
+                         style="position:relative;"
+                         ondrop="dropNoCampo(event)"
+                         ondragover="allowDrop(event)">
+
+                        @{
                             var index = 0;
                         }
                         @foreach (var esc in Model.TimeEscalacaoPadrao)
                         {
-                           
-                             <div class="posicao-drop"
+                            <div class="posicao-drop"
                                  data-index="@index"
                                  data-posicao="@esc.Posicao"
                                  draggable="true"
-                                 ondragstart="dragPosicao(event, @index)"      
-                                 ondragend="dropPosicao(event, @index)"        
-                                 ondrop="dropEscalacao(event, @index)"         
-                                 ondragover="allowDropEscalacao(event)"        
-                                 style="position:absolute; left:@esc.PosicaoX%; top:@esc.PosicaoY%; text-align:center;">
+                                 ondragstart="dragPosicao(event, @index)"
+                                 ondrop="dropEscalacao(event, @index)"
+                                 ondragover="allowDrop(event)"
+                                 style="left:@esc.PosicaoX%; top:@esc.PosicaoY%;">
 
                                 <span>@esc.Posicao</span>
 
                                 @if (esc.Jogador != null)
                                 {
-                                    <div style="margin-top:5px; text-align:center;">
-                                        <img src="@Model.Time.CamisaUrl"
-                                             alt="Camisa do @Model.Time.Nome"
-                                             width="50" height="50"
-                                             style="display:block; margin:0 auto;" />
-
-                                        <div style="font-size:12px; word-wrap:break-word; white-space:normal; max-width:70px; margin:0 auto;">
-                                            @esc.Jogador.Nome
-                                        </div>
+                                    <div>
+                                        <img src="@Model.Time.CamisaUrl" width="40" style="display:block;margin:0 auto;" />
+                                        <div style="font-size:11px;max-width:60px;margin:0 auto;">@esc.Jogador.Nome</div>
                                     </div>
                                 }
                             </div>
@@ -175,9 +212,8 @@
                             <input type="hidden" id="escalacao_@(index)__JogadorId" name="escalacao[@index].JogadorId" value="@esc.JogadorId" />
                             <input type="hidden" id="escalacao_@(index)__PosicaoX" name="escalacao[@index].PosicaoX" value="@esc.PosicaoX" />
                             <input type="hidden" id="escalacao_@(index)__PosicaoY" name="escalacao[@index].PosicaoY" value="@esc.PosicaoY" />
-                             index++;   
+                            index++;
                         }
-
                     </div>
 
                     <!-- Botão de salvar -->
@@ -214,7 +250,7 @@
                     </div>
                 </div>
 
-                <!-- Cards de jogos: um por linha -->
+                <!-- Cards de jogos -->
                 <div class="row">
                     @foreach (var jogo in Model.Jogos.OrderBy(j => j.Rodada))
                     {
@@ -263,7 +299,6 @@
                                         }
                                     </p>
                                     <small class="text-muted">Rodada: @jogo.Rodada</small>
-                                    <!-- Botão Analisar -->
                                     <div class="mt-2">
                                         <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id"
                                            class="btn btn-outline-primary btn-sm">
@@ -279,99 +314,124 @@
         </div>
     </div>
 </div>
-    <script>
-        let jogadoresUsados = new Set();
 
-        function allowDropEscalacao(ev) {
-            ev.preventDefault();
-        }
+<script>
+    // ── Estado global (igual ao Analisar) ──────────────────────────────────
+    const usados = new Set();
+    let dragData          = {};
+    let draggingPosicao   = false;
+    let posicaoArrastando = null;
 
-        // Arrastar da lista
-        function dragJogador(ev, jogadorId, jogadorNome, jogadorNumero, camisaUrl) {
-            ev.dataTransfer.setData("jogadorId", jogadorId);
-            ev.dataTransfer.setData("jogadorNome", jogadorNome);
-            ev.dataTransfer.setData("jogadorNumero", jogadorNumero);
-            ev.dataTransfer.setData("camisaUrl", camisaUrl);
-        }
+    const camisaUrl = '@(string.IsNullOrEmpty(Model.Time.CamisaUrl) ? "" : Url.Content(Model.Time.CamisaUrl))';
 
-        // Soltar jogador da lista no campo
-           function dropEscalacao(ev, index) {
+    // ── Inicializa jogadores já posicionados ───────────────────────────────
+    function initUsados() {
+        document.querySelectorAll('[id^="escalacao_"][id$="__JogadorId"]').forEach(el => {
+            if (el.value) usados.add(el.value);
+        });
+        atualizarLista();
+    }
+
+    function atualizarLista() {
+        usados.forEach(id => {
+            const row = document.getElementById('jogador-' + id);
+            if (row) row.classList.add('usado');
+        });
+    }
+
+    function marcarUsado(jogadorId) {
+        usados.add(String(jogadorId));
+        const row = document.getElementById('jogador-' + jogadorId);
+        if (row) row.classList.add('usado');
+    }
+
+    function desmarcarUsado(jogadorId) {
+        usados.delete(String(jogadorId));
+        const row = document.getElementById('jogador-' + jogadorId);
+        if (row) row.classList.remove('usado');
+    }
+
+    // ── Drag helpers ───────────────────────────────────────────────────────
+    function allowDrop(ev) { ev.preventDefault(); }
+
+    // Arrastar jogador da lista lateral
+    function dragJogador(ev, jogadorId, jogadorNome, jogadorNumero, camisa) {
+        draggingPosicao = false;
+        dragData = { jogadorId: String(jogadorId), jogadorNome, jogadorNumero, camisaUrl: camisa };
+        ev.dataTransfer.setData("text/plain", String(jogadorId));
+    }
+
+    // ── Soltar jogador em slot do campo ───────────────────────────────────
+    function dropEscalacao(ev, index) {
         ev.preventDefault();
-        ev.stopPropagation(); // ← importante para não propagar para pai
+        ev.stopPropagation();
+        if (draggingPosicao) return;
 
-        let jogadorId = ev.dataTransfer.getData("jogadorId");
-        let jogadorNome = ev.dataTransfer.getData("jogadorNome");
-        let jogadorNumero = ev.dataTransfer.getData("jogadorNumero");
-        let camisaUrl = ev.dataTransfer.getData("camisaUrl");
+        const { jogadorId, jogadorNome, jogadorNumero, camisaUrl: camisa } = dragData;
+        if (!jogadorId) return;
 
-        if (jogadoresUsados.has(jogadorId)) {
+        if (usados.has(jogadorId)) {
             alert("Esse jogador já está em campo!");
             return;
         }
 
-        let hiddenJogador = document.getElementById(`escalacao_${index}__JogadorId`);
-        let antigoJogadorId = hiddenJogador.value;
-        if (antigoJogadorId) {
-            jogadoresUsados.delete(antigoJogadorId);
-        }
+        const hidden    = document.getElementById(`escalacao_${index}__JogadorId`);
+        if (!hidden) return;
 
-        hiddenJogador.value = jogadorId;
-        jogadoresUsados.add(jogadorId);
+        const antigoId  = hidden.value;
+        if (antigoId) desmarcarUsado(antigoId);
 
-        // ← aqui está o fix: busca pelo seletor, não pelo ev.target
-        let posicaoEl = document.querySelector(`.posicao-drop[data-index='${index}']`);
-        let nomePosicao = posicaoEl.dataset.posicao;
+        hidden.value = jogadorId;
+        marcarUsado(jogadorId);
 
-        posicaoEl.innerHTML = `
+        const posEl      = document.querySelector(`.posicao-drop[data-index='${index}']`);
+        const nomePosicao = posEl.dataset.posicao;
+
+        posEl.innerHTML = `
             <span>${nomePosicao}</span>
-            <div style="margin-top:5px; text-align:center;">
-                <img src="${camisaUrl}" alt="Camisa" width="40" height="40" style="display:block; margin:0 auto;" />
-                <div style="font-size:12px; max-width:70px; margin:0 auto;">
-                    ${jogadorNome}
-                </div>
-                <div style="font-size:11px; color:#ccc;">
-                    Camisa: ${jogadorNumero}
-                </div>
-            </div>
-        `;
+            <div style="margin-top:4px;text-align:center;">
+                <img src="${camisa}" width="40" style="display:block;margin:0 auto;" />
+                <div style="font-size:11px;max-width:60px;margin:0 auto;">${jogadorNome}</div>
+                <div style="font-size:10px;color:#ccc;">Camisa: ${jogadorNumero}</div>
+            </div>`;
     }
 
-        // Arrastar jogador já no campo
-        function dragPosicao(ev, index) {
-            ev.dataTransfer.setData("index", index);
-        }
+    // ── Arrastar posição já no campo (reposicionar) ────────────────────────
+    function dragPosicao(ev, index) {
+        draggingPosicao   = true;
+        posicaoArrastando = index;
+        ev.dataTransfer.setData("text/plain", String(index));
+    }
 
-        // Reposicionar jogador dentro do campo
-        function dropPosicao(ev, index) {
-            ev.preventDefault();
+    // Drop no fundo do campo para reposicionar slot
+    function dropNoCampo(ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
 
-            let campo = document.getElementById("campo");
-            let rect = campo.getBoundingClientRect();
+        if (!draggingPosicao || posicaoArrastando === null) return;
 
-            let newX = Math.round(((ev.clientX - rect.left) / rect.width) * 100);
-            let newY = Math.round(((ev.clientY - rect.top) / rect.height) * 100);
+        const index = posicaoArrastando;
+        const campo = document.getElementById("campo");
+        const rect  = campo.getBoundingClientRect();
 
-            let el = document.querySelector(`.posicao-drop[data-index='${index}']`);
-            el.style.left = newX + "%";
-            el.style.top = newY + "%";
+        const newX = Math.round(((ev.clientX - rect.left)  / rect.width)  * 100);
+        const newY = Math.round(((ev.clientY - rect.top)   / rect.height) * 100);
 
-            document.getElementById(`escalacao_${index}__PosicaoX`).value = newX;
-            document.getElementById(`escalacao_${index}__PosicaoY`).value = newY;
+        if (newX < 0 || newX > 100 || newY < 0 || newY > 100) return;
 
-            console.log(`Jogador ${index} movido para X=${newX}, Y=${newY}`);
-        }
-    </script>
+        const el = document.querySelector(`.posicao-drop[data-index='${index}']`);
+        if (!el) return;
 
+        el.style.left = newX + "%";
+        el.style.top  = newY + "%";
 
-<script>
-    // Loga todos os hidden inputs no momento do submit
-    document.querySelectorAll("form").forEach(form => {
-        form.addEventListener("submit", function() {
-            console.log("=== LOG DE SUBMIT ===");
-            const inputs = form.querySelectorAll("input[type=hidden]");
-            inputs.forEach(i => {
-                console.log(i.name, "=", i.value);
-            });
-            console.log("=== FIM DO LOG ===");
-        });
-    });
+        document.getElementById(`escalacao_${index}__PosicaoX`).value = newX;
+        document.getElementById(`escalacao_${index}__PosicaoY`).value = newY;
+
+        draggingPosicao   = false;
+        posicaoArrastando = null;
+    }
+
+    // Inicializa ao carregar
+    initUsados();
+</script>

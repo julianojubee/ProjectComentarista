@@ -38,13 +38,12 @@ namespace ControleFutebolWeb.Controllers
 
             if (time == null) return NotFound();
 
-            // Escalação padrão com fallback
             var escalacao = time.TimeEscalacaoPadrao.Any()
                 ? time.TimeEscalacaoPadrao.Select(te => new TimeEscalacaoPadrao
                 {
                     Id = te.Id,
                     TimeId = te.TimeId,
-                    PosicaoId = te.PosicaoId,   // 🔹 se já estiver gravado no banco
+                    PosicaoId = te.PosicaoId,
                     Posicao = te.Posicao,
                     PosicaoX = te.PosicaoX,
                     PosicaoY = te.PosicaoY,
@@ -56,12 +55,12 @@ namespace ControleFutebolWeb.Controllers
                     .Where(p => p.FormacaoId == time.FormacaoPadraoId)
                     .Select(p => new TimeEscalacaoPadrao
                     {
-                        PosicaoId = p.PosicaoId,   // ✅ preenchido no fallback
+                        PosicaoId = p.PosicaoId,
                         Posicao = p.NomePosicao,
                         FormacaoId = p.FormacaoId,
                         PosicaoX = (int)p.PosicaoX,
                         PosicaoY = (int)p.PosicaoY,
-                        Titular = true,
+                        Titular = true,          // ← fallback já nasce true
                         TimeId = id,
                         JogadorId = null
                     }).ToListAsync();
@@ -105,7 +104,6 @@ namespace ControleFutebolWeb.Controllers
             return View(viewModel);
         }
 
-
         // GET: Times/Create
         public IActionResult Create()
         {
@@ -123,12 +121,8 @@ namespace ControleFutebolWeb.Controllers
                 {
                     var fileName = Path.GetFileName(escudoFile.FileName);
                     var filePath = Path.Combine("wwwroot/images/escudos", fileName);
-
                     using (var stream = new FileStream(filePath, FileMode.Create))
-                    {
                         await escudoFile.CopyToAsync(stream);
-                    }
-
                     time.EscudoUrl = "/images/escudos/" + fileName;
                 }
 
@@ -145,10 +139,8 @@ namespace ControleFutebolWeb.Controllers
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null) return NotFound();
-
             var time = await _context.Times.FindAsync(id);
             if (time == null) return NotFound();
-
             return View(time);
         }
 
@@ -167,12 +159,8 @@ namespace ControleFutebolWeb.Controllers
                     {
                         var fileName = Path.GetFileName(escudoFile.FileName);
                         var filePath = Path.Combine("wwwroot/images/escudos", fileName);
-
                         using (var stream = new FileStream(filePath, FileMode.Create))
-                        {
                             await escudoFile.CopyToAsync(stream);
-                        }
-
                         time.EscudoUrl = "/images/escudos/" + fileName;
                     }
 
@@ -181,10 +169,8 @@ namespace ControleFutebolWeb.Controllers
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!_context.Times.Any(e => e.Id == time.Id))
-                        return NotFound();
-                    else
-                        throw;
+                    if (!_context.Times.Any(e => e.Id == time.Id)) return NotFound();
+                    throw;
                 }
                 return RedirectToAction(nameof(Index));
             }
@@ -195,10 +181,8 @@ namespace ControleFutebolWeb.Controllers
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null) return NotFound();
-
             var time = await _context.Times.FirstOrDefaultAsync(m => m.Id == id);
             if (time == null) return NotFound();
-
             return View(time);
         }
 
@@ -226,16 +210,12 @@ namespace ControleFutebolWeb.Controllers
             {
                 var fileName = $"{time.Nome}_camisa.png";
                 var path = Path.Combine("wwwroot/Images/kits", fileName);
-
                 using (var stream = new FileStream(path, FileMode.Create))
-                {
                     await arquivo.CopyToAsync(stream);
-                }
 
                 time.CamisaUrl = $"/Images/kits/{fileName}";
                 _context.Update(time);
                 await _context.SaveChangesAsync();
-
                 TempData["Mensagem"] = "Uniforme importado com sucesso!";
             }
             else
@@ -254,16 +234,11 @@ namespace ControleFutebolWeb.Controllers
 
             if (backgroundFile != null && backgroundFile.Length > 0)
             {
-                // Salva o arquivo em wwwroot/images/backgrounds
                 var fileName = $"{Guid.NewGuid()}_{backgroundFile.FileName}";
                 var path = Path.Combine("wwwroot/images/backgrounds", fileName);
-
                 using (var stream = new FileStream(path, FileMode.Create))
-                {
                     backgroundFile.CopyTo(stream);
-                }
 
-                // Atualiza campo no banco
                 time.BackgroundUrl = $"/images/backgrounds/{fileName}";
                 _context.SaveChanges();
             }
@@ -271,45 +246,26 @@ namespace ControleFutebolWeb.Controllers
             return RedirectToAction("Details", new { id });
         }
 
-
         [HttpPost]
         public IActionResult DefinirFormacao(int id, int formacaoPadraoId)
         {
             var time = _context.Times
-            .Include(t => t.TimeEscalacaoPadrao)
-            .FirstOrDefault(t => t.Id == id);
+                .Include(t => t.TimeEscalacaoPadrao)
+                .FirstOrDefault(t => t.Id == id);
 
-            if (time == null)
-            {
-                Console.WriteLine($"[DefinirFormacao] Nenhum time encontrado para id={id}");
-                return NotFound();
-            }
-
-            Console.WriteLine($"[DefinirFormacao] Time encontrado: id={time.Id}, nome={time.Nome}");
-
-            if (time == null)
-                return NotFound();
+            if (time == null) return NotFound();
 
             // Atualiza a formação escolhida
             time.FormacaoPadraoId = formacaoPadraoId;
 
-            // Remove posições antigas (se quiser resetar ao trocar de formação)
+            // Remove posições antigas ao trocar de formação
             if (time.TimeEscalacaoPadrao.Any())
-            {
                 _context.TimeEscalacaoPadrao.RemoveRange(time.TimeEscalacaoPadrao);
-            }
 
             // Busca todas as posições da formação escolhida
             var posicoesFormacao = _context.PosicoesFormacao
                 .Where(pf => pf.FormacaoId == formacaoPadraoId)
                 .ToList();
-
-            // 🔎 LOG para verificar o que está vindo de PosicoesFormacao
-            Console.WriteLine("Posições da formação selecionada:");
-            foreach (var pf in posicoesFormacao)
-            {
-                Console.WriteLine($"FormacaoId={pf.FormacaoId}, PosicaoId={pf.PosicaoId}, Nome={pf.NomePosicao}, X={pf.PosicaoX}, Y={pf.PosicaoY}");
-            }
 
             // Cria os registros de escalação padrão para o time
             var posicoes = posicoesFormacao.Select(pf => new TimeEscalacaoPadrao
@@ -319,14 +275,13 @@ namespace ControleFutebolWeb.Controllers
                 Posicao = pf.NomePosicao,
                 PosicaoX = (int)pf.PosicaoX,
                 PosicaoY = (int)pf.PosicaoY,
-                FormacaoId = formacaoPadraoId,  // ✅ adicionado
+                FormacaoId = formacaoPadraoId,
+                Titular = true,              // ← CORRIGIDO: era omitido (default false)
                 JogadorId = null
             }).ToList();
 
             _context.TimeEscalacaoPadrao.AddRange(posicoes);
             _context.SaveChanges();
-
-            Console.WriteLine("Escalação padrão criada com sucesso!");
 
             return RedirectToAction("Details", new { id = time.Id });
         }
@@ -339,36 +294,19 @@ namespace ControleFutebolWeb.Controllers
                     .ThenInclude(te => te.Jogador)
                 .FirstOrDefault(t => t.Id == id);
 
-            if (time == null)
-            {
-                Console.WriteLine($"[SalvarEscalacaoPadrao] Nenhum time encontrado para id={id}");
-                return NotFound();
-            }
-
-            Console.WriteLine($"[SalvarEscalacaoPadrao] Time encontrado: id={time.Id}, nome={time.Nome}");
-            Console.WriteLine($"[SalvarEscalacaoPadrao] formacaoPadraoId recebido: {formacaoPadraoId}");
+            if (time == null) return NotFound();
 
             if (escalacao != null && escalacao.Any())
             {
-                Console.WriteLine("Recebendo escalação...");
-
                 foreach (var e in escalacao)
                 {
-                    Console.WriteLine($"[INPUT] Id={e.Id}, JogadorId={e.JogadorId}, PosicaoId={e.PosicaoId}, X={e.PosicaoX}, Y={e.PosicaoY}");
-
-                    // ✅ Busca pelo Id único do registro, não pelo PosicaoId
                     var posicao = time.TimeEscalacaoPadrao.FirstOrDefault(te => te.Id == e.Id);
-
-
-                    if (posicao == null)
-                    {
-                        Console.WriteLine($"[SalvarEscalacaoPadrao] Posicao não encontrada para Id={e.Id}");
-                        continue;
-                    }
+                    if (posicao == null) continue;
 
                     posicao.FormacaoId = time.FormacaoPadraoId;
                     posicao.PosicaoX = e.PosicaoX;
                     posicao.PosicaoY = e.PosicaoY;
+                    posicao.Titular = true;  // ← CORRIGIDO: nunca era setado (ficava false)
 
                     if (e.JogadorId > 0)
                     {
@@ -376,11 +314,7 @@ namespace ControleFutebolWeb.Controllers
                         bool jogadorJaEscalado = time.TimeEscalacaoPadrao
                             .Any(te => te.JogadorId == e.JogadorId && te.Id != posicao.Id);
 
-                        if (jogadorJaEscalado)
-                        {
-                            Console.WriteLine($"[SalvarEscalacaoPadrao] Jogador {e.JogadorId} já está em outra posição!");
-                            continue;
-                        }
+                        if (jogadorJaEscalado) continue;
 
                         posicao.JogadorId = e.JogadorId;
                     }
@@ -388,27 +322,14 @@ namespace ControleFutebolWeb.Controllers
                     {
                         posicao.JogadorId = null;
                     }
-
-                    Console.WriteLine($"[SAVE] Id={posicao.Id}, Jogador={posicao.JogadorId}, X={posicao.PosicaoX}, Y={posicao.PosicaoY}");
                 }
-            }
-            else
-            {
-                Console.WriteLine("Nenhuma escalação recebida!");
             }
 
             if (_context.Formacoes.Any(f => f.Id == formacaoPadraoId))
-            {
                 time.FormacaoPadraoId = formacaoPadraoId;
-                Console.WriteLine($"[SalvarEscalacaoPadrao] Formação atualizada para id={formacaoPadraoId}");
-            }
 
             _context.SaveChanges();
-            Console.WriteLine("Escalação salva com sucesso!");
             return RedirectToAction("Details", new { id = time.Id });
         }
-
-
     }
-
 }

@@ -19,5 +19,8 @@ namespace ControleFutebolWeb.Models
             public double PosicaoX { get; set; }
             public double PosicaoY { get; set; }
 
+            // INICIAL | FINAL
+            public string FaseEscalacao { get; set; } = "INICIAL";
+
         }
 }

@@ -1,44 +1,419 @@
 ﻿@model IEnumerable<ControleFutebolWeb.Models.Jogo>
 
-<h2>Lista de Jogos</h2>
+@{
+    var competicoesMap = ViewBag.CompeticoesMap as Dictionary<int, string> ?? new Dictionary<int, string>();
+    var totalJogos = Model.Count();
+    var jogosFinalizados = Model.Count(j => j.PlacarCasa >= 0 && j.PlacarVisitante >= 0);
+    var jogosAgendados = totalJogos - jogosFinalizados;
+}
 
-<a asp-controller="Brasileirao" asp-action="ImportarJogos" class="btn btn-success mb-3">
-    Importar Jogos do Campeonato
-</a>
+<style>
+    .cf-jogos * {
+        box-sizing: border-box;
+    }
 
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Data</th>
-            <th>Casa</th>
-            <th>Placar</th>
-            <th>Visitante</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var jogo in Model)
-        {
-            <tr>
-                <td>@jogo.Data.ToString("dd/MM/yyyy")</td>
-                <td>@jogo.TimeCasa?.Nome</td>
-                <td>
-                    @if (jogo.PlacarCasa >= 0 && jogo.PlacarVisitante >= 0)
+    .cf-jogos-hero {
+        position: relative;
+        background: linear-gradient(135deg, #0a1628 0%, #1a2f4e 55%, #0f2040 100%);
+        border-radius: 14px;
+        padding: 2.8rem 2rem;
+        text-align: center;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+
+    .cf-jogos-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        opacity: 0.08;
+        background-image: radial-gradient(circle at 50% 50%, transparent 28%, #fff 28.5%, #fff 29.2%, transparent 29.8%), linear-gradient(90deg, transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%), linear-gradient(transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%);
+    }
+
+    .cf-jogos-hero-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .cf-jogos-badge {
+        display: inline-block;
+        background: rgba(55, 138, 221, 0.2);
+        color: #85b7eb;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 4px 14px;
+        border-radius: 20px;
+        border: 1px solid rgba(55, 138, 221, 0.35);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 1rem;
+    }
+
+    .cf-jogos-hero h1 {
+        color: #fff;
+        font-size: 1.95rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .cf-jogos-hero p {
+        color: rgba(255, 255, 255, 0.65);
+        margin: 0;
+        font-size: 0.95rem;
+    }
+
+    .cf-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 10px;
+        margin-bottom: 1.5rem;
+    }
+
+    .cf-stat-card {
+        background: #fff;
+        border: 0.5px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        text-align: center;
+    }
+
+    .cf-stat-num {
+        font-size: 24px;
+        font-weight: 600;
+        color: #111827;
+        line-height: 1.1;
+        margin-bottom: 4px;
+    }
+
+    .cf-stat-label {
+        font-size: 12px;
+        color: #6b7280;
+    }
+
+    .cf-panel {
+        background: #fff;
+        border: 0.5px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 1rem 1rem 0.7rem;
+    }
+
+    .cf-panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.9rem;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .cf-panel-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #111827;
+        margin: 0;
+    }
+
+    .cf-import-btn {
+        background: #16a34a;
+        color: #fff;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .cf-import-btn:hover {
+        color: #fff;
+        background: #15803d;
+        text-decoration: none;
+    }
+
+    .cf-filters {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 10px;
+        margin-bottom: 1rem;
+        padding: 0.9rem;
+        background: #f9fafb;
+        border: 1px solid #f1f5f9;
+        border-radius: 10px;
+    }
+
+    .cf-filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .cf-filter-group label {
+        font-size: 11px;
+        font-weight: 600;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+    }
+
+    .cf-filter-group select {
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        padding: 7px 10px;
+        font-size: 13px;
+        color: #111827;
+        background: #fff;
+    }
+
+    .cf-filter-actions {
+        display: flex;
+        align-items: end;
+        gap: 8px;
+    }
+
+    .cf-filter-btn {
+        border: none;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .cf-filter-apply {
+        background: #2563eb;
+        color: #fff;
+    }
+
+    .cf-filter-clear {
+        background: #e5e7eb;
+        color: #374151;
+    }
+
+    .cf-table-wrap {
+        overflow-x: auto;
+    }
+
+    .cf-jogos-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 820px;
+    }
+
+    .cf-jogos-table th {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        color: #6b7280;
+        font-weight: 600;
+        padding: 10px 8px;
+        border-bottom: 1px solid #f0f0f0;
+        white-space: nowrap;
+    }
+
+    .cf-jogos-table td {
+        padding: 11px 8px;
+        border-bottom: 1px solid #f5f5f5;
+        vertical-align: middle;
+        font-size: 13px;
+        color: #111827;
+    }
+
+    .cf-jogos-table tbody tr:hover {
+        background: #fafcff;
+    }
+
+    .cf-team-cell {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .cf-team-badge {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        background: #f3f4f6;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 9px;
+        color: #6b7280;
+        font-weight: 600;
+    }
+
+    .cf-team-badge img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    .cf-score {
+        font-weight: 600;
+        background: #f9fafb;
+        border: 0.5px solid #e5e7eb;
+        padding: 3px 9px;
+        border-radius: 6px;
+        display: inline-block;
+        min-width: 52px;
+        text-align: center;
+    }
+
+    .cf-status {
+        font-size: 11px;
+        color: #9ca3af;
+    }
+
+    .cf-actions {
+        display: flex;
+        gap: 6px;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+    }
+
+    .cf-actions .btn {
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+</style>
+
+<div class="cf-jogos">
+    <div class="cf-jogos-hero">
+        <div class="cf-jogos-hero-content">
+            <div class="cf-jogos-badge">Central de partidas</div>
+            <h1>Jogos</h1>
+            <p>Visualize confrontos, placares e acesse rapidamente o detalhe de cada partida.</p>
+        </div>
+    </div>
+
+    <div class="cf-stats">
+        <div class="cf-stat-card">
+            <div class="cf-stat-num">@totalJogos</div>
+            <div class="cf-stat-label">Total de jogos</div>
+        </div>
+        <div class="cf-stat-card">
+            <div class="cf-stat-num">@jogosFinalizados</div>
+            <div class="cf-stat-label">Finalizados</div>
+        </div>
+        <div class="cf-stat-card">
+            <div class="cf-stat-num">@jogosAgendados</div>
+            <div class="cf-stat-label">Agendados</div>
+        </div>
+    </div>
+
+    <div class="cf-panel">
+        <div class="cf-panel-header">
+            <h2 class="cf-panel-title">Lista de jogos</h2>
+            <a asp-controller="Brasileirao" asp-action="ImportarJogos" class="cf-import-btn">
+                Importar Jogos do Campeonato
+            </a>
+        </div>
+
+        <form method="get" asp-action="Index" class="cf-filters">
+            <div class="cf-filter-group">
+                <label for="competicaoId">Campeonato</label>
+                <select id="competicaoId" name="competicaoId" asp-items="ViewBag.CompeticaoList">
+                    <option value="">Todos os campeonatos</option>
+                </select>
+            </div>
+
+            <div class="cf-filter-group">
+                <label for="teamId">Time</label>
+                <select id="teamId" name="teamId" asp-items="ViewBag.TimeList">
+                    <option value="">Todos os times</option>
+                </select>
+            </div>
+
+            <div class="cf-filter-group">
+                <label for="status">Status</label>
+                <select id="status" name="status" asp-items="ViewBag.StatusList"></select>
+            </div>
+
+            <div class="cf-filter-actions">
+                <button type="submit" class="cf-filter-btn cf-filter-apply">Filtrar</button>
+                <a asp-action="Index" class="cf-filter-btn cf-filter-clear">Limpar</a>
+            </div>
+        </form>
+
+        <div class="cf-table-wrap">
+            <table class="cf-jogos-table">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Competição</th>
+                        <th>Casa</th>
+                        <th>Placar</th>
+                        <th>Visitante</th>
+                        <th style="text-align:right;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var jogo in Model)
                     {
-                        <strong>@jogo.PlacarCasa x @jogo.PlacarVisitante</strong>
+                        var nomeCompeticao = competicoesMap.TryGetValue(jogo.CompeticaoId, out var nome) ? nome : "Sem competição";
+                        var linkCompeticao = jogo.CompeticaoId == 1
+                            ? Url.Action("Brasileirao", "Tabela")
+                            : Url.Action("Detalhes", "Competicoes", new { id = jogo.CompeticaoId });
+
+                        <tr>
+                            <td>@jogo.Data.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                <a href="@linkCompeticao">@nomeCompeticao</a>
+                            </td>
+                            <td>
+                                <div class="cf-team-cell">
+                                    <div class="cf-team-badge">
+                                        @if (!string.IsNullOrWhiteSpace(jogo.TimeCasa?.EscudoUrl))
+                                        {
+                                            <img src="@jogo.TimeCasa.EscudoUrl" alt="@jogo.TimeCasa.Nome" />
+                                        }
+                                        else
+                                        {
+                                            @(jogo.TimeCasa?.Nome?.Length >= 3 ? jogo.TimeCasa.Nome.Substring(0, 3).ToUpper() : jogo.TimeCasa?.Nome)
+                                        }
+                                    </div>
+                                    <span>@jogo.TimeCasa?.Nome</span>
+                                </div>
+                            </td>
+                            <td>
+                                @if (jogo.PlacarCasa >= 0 && jogo.PlacarVisitante >= 0)
+                                {
+                                    <span class="cf-score">@jogo.PlacarCasa x @jogo.PlacarVisitante</span>
+                                }
+                                else
+                                {
+                                    <span class="cf-status">Agendado</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="cf-team-cell">
+                                    <div class="cf-team-badge">
+                                        @if (!string.IsNullOrWhiteSpace(jogo.TimeVisitante?.EscudoUrl))
+                                        {
+                                            <img src="@jogo.TimeVisitante.EscudoUrl" alt="@jogo.TimeVisitante.Nome" />
+                                        }
+                                        else
+                                        {
+                                            @(jogo.TimeVisitante?.Nome?.Length >= 3 ? jogo.TimeVisitante.Nome.Substring(0, 3).ToUpper() : jogo.TimeVisitante?.Nome)
+                                        }
+                                    </div>
+                                    <span>@jogo.TimeVisitante?.Nome</span>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="cf-actions">
+                                    <a asp-action="Analisar" asp-route-id="@jogo.Id" class="btn btn-info btn-sm">Detalhes</a>
+                                    <a asp-action="Edit" asp-route-id="@jogo.Id" class="btn btn-warning btn-sm">Editar</a>
+                                    <a asp-action="Delete" asp-route-id="@jogo.Id" class="btn btn-danger btn-sm">Excluir</a>
+                                </div>
+                            </td>
+                        </tr>
                     }
-                    else
-                    {
-                        <span>Agendado</span>
-                    }
-                </td>
-                <td>@jogo.TimeVisitante?.Nome</td>
-                <td>
-                    <a asp-action="Details" asp-route-id="@jogo.Id" class="btn btn-info btn-sm">Detalhes</a>
-                    <a asp-action="Edit" asp-route-id="@jogo.Id" class="btn btn-warning btn-sm">Editar</a>
-                    <a asp-action="Delete" asp-route-id="@jogo.Id" class="btn btn-danger btn-sm">Excluir</a>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

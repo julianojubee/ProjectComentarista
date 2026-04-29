@@ -1,27 +1,132 @@
 ﻿@model IEnumerable<Competicao>
 
-<div class="container-fluid">
-    <div class="row">
-        <!-- Sidebar -->
-        <nav class="col-md-3 col-lg-2 d-md-block bg-dark sidebar">
-            <div class="sidebar-sticky">
-                <h4 class="text-white mt-3">Competições</h4>
-                <ul class="nav flex-column">
-                    @foreach (var comp in Model)
-                    {
-                        <li class="nav-item">
-                            <a class="nav-link text-white" asp-controller="Competicoes" asp-action="Detalhes" asp-route-id="@comp.Id">
-                                @comp.Nome
-                            </a>
-                        </li>
-                    }
-                </ul>
-            </div>
-        </nav>
+@{
+    ViewData["Title"] = "Competições";
+}
 
-        <!-- Conteúdo principal -->
-        <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4">
-            <h2 class="mt-4">Selecione uma competição no menu</h2>
-        </main>
+<style>
+    .cf-competicoes * {
+        box-sizing: border-box;
+    }
+
+    .cf-comp-hero {
+        position: relative;
+        background: linear-gradient(135deg, #0a1628 0%, #1a2f4e 55%, #0f2040 100%);
+        border-radius: 14px;
+        padding: 2.6rem 2rem;
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+
+    .cf-comp-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        opacity: 0.08;
+        background-image: linear-gradient(90deg, transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%), linear-gradient(transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%);
+    }
+
+    .cf-comp-hero-content {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+    }
+
+    .cf-comp-badge {
+        display: inline-block;
+        background: rgba(55, 138, 221, 0.2);
+        color: #85b7eb;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 4px 14px;
+        border-radius: 20px;
+        border: 1px solid rgba(55, 138, 221, 0.35);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 0.9rem;
+    }
+
+    .cf-comp-hero h1 {
+        font-size: 1.9rem;
+        color: #fff;
+        margin-bottom: 0.6rem;
+        font-weight: 600;
+    }
+
+    .cf-comp-hero p {
+        color: rgba(255, 255, 255, 0.65);
+        margin: 0;
+        font-size: 0.95rem;
+    }
+
+    .cf-comp-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+    }
+
+    .cf-comp-card {
+        background: #fff;
+        border: 0.5px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 1rem 1.1rem;
+        text-decoration: none;
+        display: block;
+        transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+    }
+
+    .cf-comp-card:hover {
+        text-decoration: none;
+        border-color: #c0d4f0;
+        box-shadow: 0 2px 12px rgba(55, 138, 221, 0.08);
+        transform: translateY(-1px);
+    }
+
+    .cf-comp-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #111827;
+        margin: 0 0 0.35rem;
+    }
+
+    .cf-comp-meta {
+        font-size: 12px;
+        color: #6b7280;
+        margin-bottom: 0.7rem;
+    }
+
+    .cf-comp-link {
+        font-size: 12px;
+        color: #378add;
+        font-weight: 600;
+    }
+</style>
+
+<div class="cf-competicoes">
+    <div class="cf-comp-hero">
+        <div class="cf-comp-hero-content">
+            <div class="cf-comp-badge">Painel de competições</div>
+            <h1>Competições</h1>
+            <p>Acompanhe os campeonatos e acesse classificação, grupos e tabelas.</p>
+        </div>
+    </div>
+
+    <div class="cf-comp-grid">
+        @foreach (var comp in Model)
+        {
+            var isBrasileirao = !string.IsNullOrWhiteSpace(comp.Nome) &&
+                (comp.Nome.Contains("Brasileiro", StringComparison.OrdinalIgnoreCase) ||
+                 comp.Nome.Contains("Brasileirão", StringComparison.OrdinalIgnoreCase));
+
+            var url = isBrasileirao
+                ? Url.Action("Brasileirao", "Tabela")
+                : Url.Action("Detalhes", "Competicoes", new { id = comp.Id });
+
+            <a class="cf-comp-card" href="@url">
+                <h2 class="cf-comp-title">@comp.Nome</h2>
+                <div class="cf-comp-meta">Região: @comp.Regiao | Tipo: @comp.Tipo</div>
+                <span class="cf-comp-link">Abrir competição &rarr;</span>
+            </a>
+        }
     </div>
 </div>

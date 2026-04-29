@@ -1,78 +1,634 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+﻿@model ControleFutebolWeb.Models.ViewModels.HomeViewModel
+
+@{
+    ViewData["Title"] = "Início";
 }
 
-<!DOCTYPE html>
-<html>
-<head>
-    <title>@ViewData["Title"]</title>
-    <style>
-        body {
-            background-image: url('/images/copa_overlay.png'); /* imagem salva em wwwroot/images */
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            height: 100vh;
-            margin: 0;
-            position: relative;
-            font-family: 'Segoe UI', sans-serif;
+<style>
+    /* ── Reset local ─────────────────────────────── */
+    .cf-home * {
+        box-sizing: border-box;
+    }
+
+    /* ── Hero ────────────────────────────────────── */
+    .cf-hero {
+        position: relative;
+        background: linear-gradient(135deg, #0a1628 0%, #1a2f4e 55%, #0f2040 100%);
+        border-radius: 14px;
+        padding: 3.5rem 2rem;
+        text-align: center;
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+
+    .cf-hero-pitch {
+        position: absolute;
+        inset: 0;
+        opacity: 0.06;
+        background-image: radial-gradient(circle at 50% 50%, transparent 28%, #fff 28.5%, #fff 29.2%, transparent 29.8%), linear-gradient(90deg, transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%), linear-gradient(transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%);
+        pointer-events: none;
+    }
+
+    .cf-hero-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .cf-hero-badge {
+        display: inline-block;
+        background: rgba(55, 138, 221, 0.2);
+        color: #85b7eb;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 4px 14px;
+        border-radius: 20px;
+        border: 1px solid rgba(55, 138, 221, 0.35);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 1.1rem;
+    }
+
+    .cf-hero h1 {
+        font-size: 2rem;
+        font-weight: 600;
+        color: #fff;
+        margin-bottom: 0.6rem;
+        letter-spacing: -0.5px;
+    }
+
+    .cf-hero p {
+        color: rgba(255,255,255,0.5);
+        font-size: 0.95rem;
+        margin-bottom: 1.8rem;
+    }
+
+    .cf-hero-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .cf-btn-primary {
+        background: #378add;
+        color: #fff;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        text-decoration: none;
+        display: inline-block;
+        transition: background 0.15s;
+    }
+
+        .cf-btn-primary:hover {
+            background: #2a6db5;
+            color: #fff;
+            text-decoration: none;
         }
 
-        /* Overlay escuro para contraste */
-        body::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
+    .cf-btn-ghost {
+        background: rgba(255,255,255,0.07);
+        color: rgba(255,255,255,0.7);
+        border: 1px solid rgba(255,255,255,0.18);
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-block;
+        transition: background 0.15s;
+    }
+
+        .cf-btn-ghost:hover {
+            background: rgba(255,255,255,0.12);
+            color: #fff;
+            text-decoration: none;
+        }
+
+    /* ── Stats strip ─────────────────────────────── */
+    .cf-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 10px;
+        margin-bottom: 2rem;
+    }
+
+    .cf-stat-card {
+        background: #fff;
+        border: 0.5px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        text-align: center;
+    }
+
+    .cf-stat-num {
+        font-size: 26px;
+        font-weight: 600;
+        color: #111827;
+        line-height: 1.1;
+        margin-bottom: 4px;
+    }
+
+    .cf-stat-label {
+        font-size: 12px;
+        color: #6b7280;
+        font-weight: 400;
+    }
+
+    /* ── Section label ───────────────────────────── */
+    .cf-section-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: #9ca3af;
+        text-transform: uppercase;
+        letter-spacing: 0.7px;
+        margin-bottom: 12px;
+    }
+
+    /* ── Feature cards ───────────────────────────── */
+    .cf-modules {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 10px;
+        margin-bottom: 2rem;
+    }
+
+    .cf-module-card {
+        background: #fff;
+        border: 0.5px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 1.1rem 1.1rem 1rem;
+        text-decoration: none;
+        display: block;
+        transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+        .cf-module-card:hover {
+            border-color: #c0d4f0;
+            box-shadow: 0 2px 12px rgba(55,138,221,0.08);
+            text-decoration: none;
+        }
+
+    .cf-module-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 10px;
+        font-size: 16px;
+    }
+
+    .cf-module-card h3 {
+        font-size: 13px;
+        font-weight: 600;
+        color: #111827;
+        margin: 0 0 4px;
+    }
+
+    .cf-module-card p {
+        font-size: 12px;
+        color: #6b7280;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    /* ── Two-col grid ────────────────────────────── */
+    .cf-two-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 2rem;
+    }
+
+    @@media (max-width: 640px) {
+        .cf-two-col {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .cf-panel {
+        background: #fff;
+        border: 0.5px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 1.1rem 1.25rem;
+    }
+
+    .cf-panel-header {
+        font-size: 13px;
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 12px;
+        padding-bottom: 10px;
+        border-bottom: 0.5px solid #f0f0f0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .cf-panel-link {
+        font-size: 11px;
+        color: #378add;
+        text-decoration: none;
+        font-weight: 400;
+    }
+
+        .cf-panel-link:hover {
+            text-decoration: underline;
+        }
+
+    /* ── Match items ─────────────────────────────── */
+    .cf-match {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 7px 0;
+        border-bottom: 0.5px solid #f5f5f5;
+        font-size: 12px;
+    }
+
+        .cf-match:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+    .cf-team-badge {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        overflow: hidden;
+        background: #f3f4f6;
+        border: 0.5px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+        .cf-team-badge img {
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 0;
+            object-fit: contain;
         }
 
-        .text-center {
-            position: relative;
-            z-index: 1;
-            color: white;
-            text-align: center;
-            padding-top: 150px;
+    .cf-team-badge-abbr {
+        font-size: 8px;
+        font-weight: 600;
+        color: #6b7280;
+    }
+
+    .cf-team-name {
+        flex: 1;
+        color: #374151;
+        font-size: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+    }
+
+    .cf-score {
+        font-weight: 600;
+        font-size: 12px;
+        background: #f9fafb;
+        border: 0.5px solid #e5e7eb;
+        padding: 2px 8px;
+        border-radius: 6px;
+        color: #111827;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .cf-result {
+        font-size: 10px;
+        padding: 2px 7px;
+        border-radius: 10px;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+
+    .cf-result-w {
+        background: #dcfce7;
+        color: #15803d;
+    }
+
+    .cf-result-d {
+        background: #fef9c3;
+        color: #a16207;
+    }
+
+    .cf-result-l {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    .cf-match-date {
+        font-size: 10px;
+        color: #9ca3af;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    /* ── Classificação ───────────────────────────── */
+    .cf-classif {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 0;
+        border-bottom: 0.5px solid #f5f5f5;
+        font-size: 12px;
+    }
+
+        .cf-classif:last-child {
+            border-bottom: none;
         }
 
-        h1 {
-            font-size: 3rem;
-            text-shadow: 2px 2px 6px black;
-        }
+    .cf-rank {
+        width: 20px;
+        font-size: 11px;
+        font-weight: 600;
+        text-align: center;
+        flex-shrink: 0;
+    }
 
-        p {
-            font-size: 1.2rem;
-            margin-top: 20px;
-        }
+    .cf-rank-top {
+        color: #d97706;
+    }
 
-        a.btn {
-            display: inline-block;
-            margin-top: 30px;
-            padding: 12px 30px;
-            background-color: #ffc107;
-            color: black;
-            font-weight: bold;
-            border-radius: 8px;
+    .cf-rank-normal {
+        color: #9ca3af;
+    }
+
+    .cf-rank-drop {
+        color: #b91c1c;
+    }
+
+    .cf-pts {
+        font-size: 11px;
+        font-weight: 600;
+        background: #eff6ff;
+        color: #1d4ed8;
+        padding: 2px 8px;
+        border-radius: 10px;
+        margin-left: auto;
+        flex-shrink: 0;
+    }
+
+    .cf-classif-detail {
+        font-size: 10px;
+        color: #9ca3af;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    /* ── Quick actions ───────────────────────────── */
+    .cf-quick {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 8px;
+    }
+
+    .cf-qa {
+        background: #f9fafb;
+        border: 0.5px solid #e5e7eb;
+        border-radius: 9px;
+        padding: 10px 12px;
+        font-size: 13px;
+        color: #374151;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: background 0.15s, border-color 0.15s;
+    }
+
+        .cf-qa:hover {
+            background: #f0f7ff;
+            border-color: #bfdbfe;
+            color: #1d4ed8;
             text-decoration: none;
-            transition: 0.3s;
         }
 
-        a.btn:hover {
-            background-color: #ffca2c;
-            transform: scale(1.05);
-        }
-    </style>
-</head>
-<body>
-    <div class="text-center">
-        <h1 class="display-4">Bem-vindo ao Controle de Futebol</h1>
-        <p>Gerencie seus times, jogadores e jogos com facilidade.</p>
-        <a asp-controller="Jogos" asp-action="Index" class="btn">Entrar no Sistema</a>
+    .cf-qa-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    /* ── Rodada badge ────────────────────────────── */
+    .cf-rodada {
+        font-size: 10px;
+        color: #9ca3af;
+    }
+</style>
+
+<div class="cf-home">
+
+    <!-- Hero -->
+    <div class="cf-hero">
+        <div class="cf-hero-pitch"></div>
+        <div class="cf-hero-content">
+            <div class="cf-hero-badge">Futebol 2026</div>
+            <h1>Controle de Futebol</h1>
+            <p>Gerencie times, escalações, jogos e competições com análise tática completa.</p>
+            <div class="cf-hero-actions">
+                <a href="@Url.Action("Index", "Jogos")" class="cf-btn-primary">Ver jogos &rarr;</a>
+                <a href="@Url.Action("Index", "Times")" class="cf-btn-ghost">Gerenciar times</a>
+            </div>
+        </div>
     </div>
-</body>
 
+    <!-- Stats strip -->
+    <div class="cf-stats">
+        <div class="cf-stat-card">
+            <div class="cf-stat-num">@Model.TotalTimes</div>
+            <div class="cf-stat-label">Times</div>
+        </div>
+        <div class="cf-stat-card">
+            <div class="cf-stat-num">@Model.TotalJogadores</div>
+            <div class="cf-stat-label">Jogadores</div>
+        </div>
+        <div class="cf-stat-card">
+            <div class="cf-stat-num">@Model.TotalJogos</div>
+            <div class="cf-stat-label">Jogos</div>
+        </div>
+        <div class="cf-stat-card">
+            <div class="cf-stat-num">@Model.TotalCompeticoes</div>
+            <div class="cf-stat-label">Competições</div>
+        </div>
+    </div>
 
-</html>
+    <!-- Módulos -->
+    <div class="cf-section-label">Módulos do sistema</div>
+    <div class="cf-modules">
+        <a href="@Url.Action("Index", "Times")" class="cf-module-card">
+            <div class="cf-module-icon" style="background:#eff6ff;">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <rect x="2" y="4" width="12" height="9" rx="1.5" stroke="#378add" stroke-width="1.4" />
+                    <path d="M5 4V3a3 3 0 016 0v1" stroke="#378add" stroke-width="1.4" />
+                    <circle cx="8" cy="9" r="1.5" fill="#378add" />
+                </svg>
+            </div>
+            <h3>Times</h3>
+            <p>Elenco, escudo, camisa e formação padrão.</p>
+        </a>
+        <a href="@Url.Action("Index", "Jogadores")" class="cf-module-card">
+            <div class="cf-module-icon" style="background:#f0fdf4;">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="5" r="2.5" stroke="#16a34a" stroke-width="1.4" />
+                    <path d="M3 14c0-2.761 2.239-5 5-5s5 2.239 5 5" stroke="#16a34a" stroke-width="1.4" stroke-linecap="round" />
+                </svg>
+            </div>
+            <h3>Jogadores</h3>
+            <p>Posição, camisa, idade e nacionalidade.</p>
+        </a>
+        <a href="@Url.Action("Index", "Jogos")" class="cf-module-card">
+            <div class="cf-module-icon" style="background:#fffbeb;">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <rect x="2" y="2" width="12" height="12" rx="2" stroke="#d97706" stroke-width="1.4" />
+                    <path d="M8 5v3l2 2" stroke="#d97706" stroke-width="1.4" stroke-linecap="round" />
+                </svg>
+            </div>
+            <h3>Jogos</h3>
+            <p>Placares, gols, cartões e escalação tática.</p>
+        </a>
+        <a href="@Url.Action("Index", "Competicoes")" class="cf-module-card">
+            <div class="cf-module-icon" style="background:#f0fdf9;">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M8 2l1.5 4h4l-3.5 2.5 1.5 4L8 10l-3.5 2.5 1.5-4L2.5 6h4L8 2z" stroke="#0f766e" stroke-width="1.3" stroke-linejoin="round" />
+                </svg>
+            </div>
+            <h3>Competições</h3>
+            <p>Classificação, grupos e tabela por rodada.</p>
+        </a>
+    </div>
+
+    <!-- Jogos recentes + Classificação -->
+    <div class="cf-two-col">
+
+        <!-- Jogos recentes -->
+        <div class="cf-panel">
+            <div class="cf-panel-header">
+                Jogos recentes
+                <a href="@Url.Action("Index", "Jogos")" class="cf-panel-link">ver todos &rarr;</a>
+            </div>
+
+            @if (!Model.JogosRecentes.Any())
+            {
+                <p style="font-size:12px; color:#9ca3af; text-align:center; padding:1rem 0;">
+                    Nenhum jogo finalizado ainda.
+                </p>
+            }
+            else
+            {
+                @foreach (var jogo in Model.JogosRecentes)
+                {
+                    <div class="cf-match">
+                        <div class="cf-team-badge">
+                            @if (!string.IsNullOrEmpty(jogo.TimeCasa?.EscudoUrl))
+                            {
+                                <img src="@jogo.TimeCasa.EscudoUrl" alt="@jogo.TimeCasa.Nome" />
+                            }
+                            else
+                            {
+                                <span class="cf-team-badge-abbr">
+                                    @(jogo.TimeCasa?.Nome?.Length >= 3 ? jogo.TimeCasa.Nome.Substring(0, 3).ToUpper() : jogo.TimeCasa?.Nome)
+                                </span>
+                            }
+                        </div>
+                        <span class="cf-team-name">@jogo.TimeCasa?.Nome</span>
+                        <span class="cf-score">@jogo.PlacarCasa &times; @jogo.PlacarVisitante</span>
+                        <span class="cf-team-name" style="text-align:right;">@jogo.TimeVisitante?.Nome</span>
+                        <div class="cf-team-badge">
+                            @if (!string.IsNullOrEmpty(jogo.TimeVisitante?.EscudoUrl))
+                            {
+                                <img src="@jogo.TimeVisitante.EscudoUrl" alt="@jogo.TimeVisitante.Nome" />
+                            }
+                            else
+                            {
+                                <span class="cf-team-badge-abbr">
+                                    @(jogo.TimeVisitante?.Nome?.Length >= 3 ? jogo.TimeVisitante.Nome.Substring(0, 3).ToUpper() : jogo.TimeVisitante?.Nome)
+                                </span>
+                            }
+                        </div>
+                        <span class="cf-rodada">R@jogo.Rodada</span>
+                    </div>
+                }
+            }
+        </div>
+
+        <!-- Classificação -->
+        <div class="cf-panel">
+            <div class="cf-panel-header">
+                Classificação
+                <a href="@Url.Action("Index", "Competicoes")" class="cf-panel-link">ver completa &rarr;</a>
+            </div>
+
+            @if (!Model.Classificacao.Any())
+            {
+                <p style="font-size:12px; color:#9ca3af; text-align:center; padding:1rem 0;">
+                    Nenhum dado disponível ainda.
+                </p>
+            }
+            else
+            {
+                @foreach (var c in Model.Classificacao)
+                {
+                    string rankClass = c.Posicao <= 4 ? "cf-rank-top" : (c.Posicao >= Model.Classificacao.Count - 2 ? "cf-rank-drop" : "cf-rank-normal");
+
+                    <div class="cf-classif">
+                        <span class="cf-rank @rankClass">@c.Posicao</span>
+                        <div class="cf-team-badge">
+                            @if (!string.IsNullOrEmpty(c.Time?.EscudoUrl))
+                            {
+                                <img src="@c.Time.EscudoUrl" alt="@c.Time.Nome" />
+                            }
+                            else
+                            {
+                                <span class="cf-team-badge-abbr">
+                                    @(c.Time?.Nome?.Length >= 3 ? c.Time.Nome.Substring(0, 3).ToUpper() : c.Time?.Nome)
+                                </span>
+                            }
+                        </div>
+                        <span class="cf-team-name">@c.Time?.Nome</span>
+                        <span class="cf-classif-detail">@c.Jogos J &bull; @c.SaldoGols SG</span>
+                        <span class="cf-pts">@c.Pontos pts</span>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    <!-- Ações rápidas -->
+    <div class="cf-section-label">Ações rápidas</div>
+    <div class="cf-quick">
+        <a href="@Url.Action("Create", "Jogos")" class="cf-qa">
+            <div class="cf-qa-dot" style="background:#378add;"></div>
+            Novo jogo
+        </a>
+        <a href="@Url.Action("Index", "Brasileirao")" class="cf-qa">
+            <div class="cf-qa-dot" style="background:#16a34a;"></div>
+            Importar jogadores
+        </a>
+        <a href="@Url.Action("Index", "Times")" class="cf-qa">
+            <div class="cf-qa-dot" style="background:#d97706;"></div>
+            Escalação padrão
+        </a>
+        <a href="@Url.Action("Create", "Times")" class="cf-qa">
+            <div class="cf-qa-dot" style="background:#0f766e;"></div>
+            Cadastrar time
+        </a>
+        <a href="@Url.Action("Index", "Jogadores")" class="cf-qa">
+            <div class="cf-qa-dot" style="background:#7c3aed;"></div>
+            Ver jogadores
+        </a>
+        <a href="@Url.Action("Index", "Competicoes")" class="cf-qa">
+            <div class="cf-qa-dot" style="background:#be185d;"></div>
+            Competições
+        </a>
+    </div>
+
+</div>

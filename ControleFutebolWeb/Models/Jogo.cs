@@ -51,6 +51,7 @@ namespace ControleFutebolWeb.Models
         public int CompeticaoId { get; set; }
 
         public string? Grupo { get; set; }
+        public string? Observacoes { get; set; }
 
 
     }

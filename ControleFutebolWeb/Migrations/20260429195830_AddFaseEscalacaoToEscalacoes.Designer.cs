@@ -3,6 +3,7 @@ using System;
 using ControleFutebolWeb.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ControleFutebolWeb.Migrations
 {
     [DbContext(typeof(FutebolContext))]
-    partial class FutebolContextModelSnapshot : ModelSnapshot
+    [Migration("20260429195830_AddFaseEscalacaoToEscalacoes")]
+    partial class AddFaseEscalacaoToEscalacoes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -95,11 +98,6 @@ namespace ControleFutebolWeb.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("FaseEscalacao")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("faseescalacao");
-
                     b.Property<bool>("IsTimeCasa")
                         .HasColumnType("boolean")
                         .HasColumnName("istimecasa");
@@ -111,6 +109,11 @@ namespace ControleFutebolWeb.Migrations
                     b.Property<int>("JogoId")
                         .HasColumnType("integer")
                         .HasColumnName("jogoid");
+
+                    b.Property<string>("FaseEscalacao")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("faseescalacao");
 
                     b.Property<string>("Posicao")
                         .IsRequired()
@@ -229,10 +232,6 @@ namespace ControleFutebolWeb.Migrations
                     b.Property<string>("Grupo")
                         .HasColumnType("text")
                         .HasColumnName("grupo");
-
-                    b.Property<string>("Observacoes")
-                        .HasColumnType("text")
-                        .HasColumnName("observacoes");
 
                     b.Property<int>("PartidaApiId")
                         .HasColumnType("integer")
