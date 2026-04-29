@@ -263,6 +263,13 @@
                                         }
                                     </p>
                                     <small class="text-muted">Rodada: @jogo.Rodada</small>
+                                    <!-- Botão Analisar -->
+                                    <div class="mt-2">
+                                        <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id"
+                                           class="btn btn-outline-primary btn-sm">
+                                            Analisar
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
                         </div>

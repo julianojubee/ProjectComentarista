@@ -2,36 +2,6 @@
 @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
 
 <style>
-   /*  .campo {
-        position: relative;
-        width: 100%;
-        padding-top: 150%;
-        background: url('/images/campo.png') no-repeat center center;
-        background-size: cover;
-        border: 2px solid #ccc;
-    }
- */
-    .btn-avaliar {
-        position: absolute;
-        top: -6px;
-        right: -6px;
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-        background: #f5c400;
-        border: none;
-        font-size: 12px;
-        font-weight: 700;
-        color: #333;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        line-height: 1;
-        z-index: 10;
-        pointer-events: all;
-    }
-
     .posicao-drop {
         position: absolute;
         text-align: center;
@@ -42,6 +12,10 @@
         transform: translate(-50%, -50%);
     }
 
+        .posicao-drop * {
+            pointer-events: none;
+        }
+
     .scroll-panel {
         max-height: 700px;
         overflow-y: auto;
@@ -51,8 +25,61 @@
         cursor: grab;
     }
 
-    .posicao-drop *:not(.btn-avaliar) {
-        pointer-events: none;
+        .jogador-row.usado {
+            display: none;
+        }
+
+    .banco {
+        min-height: 100px;
+        border: 2px dashed #aaa;
+        border-radius: 6px;
+        padding: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: flex-start;
+        background: #f9f9f9;
+        margin-top: 8px;
+    }
+
+        .banco.drag-over {
+            border-color: #198754;
+            background: #e8f5e9;
+        }
+
+    .reserva-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        font-size: 11px;
+        color: #333;
+        width: 56px;
+        cursor: pointer;
+        position: relative;
+    }
+
+        .reserva-card .rem-btn {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 16px;
+            height: 16px;
+            background: #dc3545;
+            color: white;
+            border-radius: 50%;
+            font-size: 10px;
+            line-height: 16px;
+            text-align: center;
+            cursor: pointer;
+            pointer-events: all;
+            z-index: 10;
+        }
+
+    .banco-label {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 4px;
+        font-weight: 500;
     }
 </style>
 
@@ -86,7 +113,6 @@
     </div>
 </div>
 
-<!-- Escalações -->
 <form method="post" asp-action="SalvarEscalacao" asp-controller="Jogos">
     <input type="hidden" name="id" value="@Model.Id" />
     <input type="hidden" name="formacaoCasaId" value="@ViewBag.FormacaoCasaSelecionada" />
@@ -105,13 +131,14 @@
                 <div class="col-5 scroll-panel">
                     <table class="table table-sm table-striped">
                         <thead><tr><th></th><th>Nome</th><th>Pos</th></tr></thead>
-                        <tbody>
+                        <tbody id="listaCasa">
                             @foreach (var jogador in (List<ControleFutebolWeb.Models.Jogador>)ViewBag.JogadoresCasa)
                             {
                                 var camisaCasa = string.IsNullOrEmpty(Model.TimeCasa.CamisaUrl) ? "" : Url.Content(Model.TimeCasa.CamisaUrl);
                                 <tr class="jogador-row"
+                                    id="jogador-casa-@jogador.Id"
                                     draggable="true"
-                                    ondragstart="dragJogador(event, @jogador.Id, '@jogador.Nome', '@jogador.NumeroCamisa', '@camisaCasa')">
+                                    ondragstart="dragJogador(event, @jogador.Id, '@jogador.Nome', '@jogador.NumeroCamisa', '@camisaCasa', 'casa')">
                                     <td>
                                         @if (!string.IsNullOrEmpty(camisaCasa))
                                         {
@@ -134,7 +161,7 @@
                 <div class="col-7">
                     <div id="campoCasa" class="campo"
                          ondrop="dropNoCampo(event, 'campoCasa')"
-                         ondragover="allowDropEscalacao(event)">
+                         ondragover="allowDrop(event)">
                         @{
                             var idxCasa = 0;
                         }
@@ -146,21 +173,15 @@
                                  data-campo="casa"
                                  draggable="true"
                                  ondragstart="dragPosicao(event, 'casa_@idxCasa')"
-                                 ondragend="dropPosicao(event, 'casa_@idxCasa', 'campoCasa')"
                                  ondrop="dropEscalacao(event, 'casa_@idxCasa')"
-                                 ondragover="allowDropEscalacao(event)"
+                                 ondragover="allowDrop(event)"
                                  style="left:@esc.PosicaoX%; top:@esc.PosicaoY%;">
                                 <span>@esc.Posicao</span>
                                 @if (esc.Jogador != null)
                                 {
-                                    <button type="button"
-                                            class="btn-avaliar"
-                                            onclick="abrirAvaliacao(@esc.Jogador.Id, '@esc.Jogador.Nome', '@esc.Posicao', event)">
-                                        +
-                                    </button>
                                     <div>
-                                        <img src="@Model.TimeCasa.CamisaUrl" width="50" style="display:block;margin:0 auto;" />
-                                        <div style="font-size:14px;max-width:60px;margin:0 auto;">@esc.Jogador.Nome</div>
+                                        <img src="@Model.TimeCasa.CamisaUrl" width="40" style="display:block;margin:0 auto;" />
+                                        <div style="font-size:11px;max-width:60px;margin:0 auto;">@esc.Jogador.Nome</div>
                                     </div>
                                 }
                             </div>
@@ -172,24 +193,51 @@
                             idxCasa++;
                         }
                     </div>
+
+                    <!-- Banco de reservas casa -->
+                    <div class="banco-label mt-2">🪑 Banco de reservas</div>
+                    <div id="bancoCasa" class="banco"
+                         ondrop="dropNoBanco(event, 'casa')"
+                         ondragover="allowDrop(event)">
+                        @{
+                            var idxResCasa = 0;
+                        }
+                        @foreach (var esc in (List<ControleFutebolWeb.Models.Escalacao>)ViewBag.ReservasCasa)
+                        {
+                            <div class="reserva-card" id="reserva-casa-card-@idxResCasa">
+                                <span class="rem-btn" onclick="removerReserva('casa', @idxResCasa)">×</span>
+                                @if (!string.IsNullOrEmpty(Model.TimeCasa.CamisaUrl))
+                                {
+                                    <img src="@Model.TimeCasa.CamisaUrl" width="36" />
+                                }
+                                <div style="max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                    @esc.Jogador?.Nome
+                                </div>
+                            </div>
+                            <input type="hidden" name="reservasCasa[@idxResCasa].Id" value="@esc.Id" />
+                            <input type="hidden" id="reservaCasa_@(idxResCasa)__JogadorId" name="reservasCasa[@idxResCasa].JogadorId" value="@esc.JogadorId" />
+                            <input type="hidden" id="reservaCasa_@(idxResCasa)__PosicaoX" name="reservasCasa[@idxResCasa].PosicaoX" value="0" />
+                            <input type="hidden" id="reservaCasa_@(idxResCasa)__PosicaoY" name="reservasCasa[@idxResCasa].PosicaoY" value="0" />
+                            idxResCasa++;
+                        }
+                    </div>
+                    <input type="hidden" id="totalReservasCasa" value="@idxResCasa" />
                 </div>
             </div>
         </div>
 
         <!-- ===== TIME VISITANTE ===== -->
         <div class="col-md-6">
-            <h4 class="text-end">
-                <!-- adiciona text-end aqui -->
+            <h4>
                 <img src="@Model.TimeVisitante.EscudoUrl" width="24" />
                 @Model.TimeVisitante.Nome
-                
             </h4>
             <div class="row">
                 <!-- Campinho visitante -->
                 <div class="col-7">
                     <div id="campoVisitante" class="campo"
                          ondrop="dropNoCampo(event, 'campoVisitante')"
-                         ondragover="allowDropEscalacao(event)">
+                         ondragover="allowDrop(event)">
                         @{
                             var idxVis = 0;
                         }
@@ -201,21 +249,15 @@
                                  data-campo="vis"
                                  draggable="true"
                                  ondragstart="dragPosicao(event, 'vis_@idxVis')"
-                                 ondragend="dropPosicao(event, 'vis_@idxVis', 'campoVisitante')"
                                  ondrop="dropEscalacao(event, 'vis_@idxVis')"
-                                 ondragover="allowDropEscalacao(event)"
+                                 ondragover="allowDrop(event)"
                                  style="left:@esc.PosicaoX%; top:@esc.PosicaoY%;">
                                 <span>@esc.Posicao</span>
                                 @if (esc.Jogador != null)
                                 {
-                                    <button type="button"
-                                            class="btn-avaliar"
-                                            onclick="abrirAvaliacao(@esc.Jogador.Id, '@esc.Jogador.Nome', '@esc.Posicao', event)">
-                                        +
-                                    </button>
                                     <div>
-                                        <img src="@Model.TimeVisitante.CamisaUrl" width="50" style="display:block;margin:0 auto;" />
-                                        <div style="font-size:14px;max-width:60px;margin:0 auto;">@esc.Jogador.Nome</div>
+                                        <img src="@Model.TimeVisitante.CamisaUrl" width="40" style="display:block;margin:0 auto;" />
+                                        <div style="font-size:11px;max-width:60px;margin:0 auto;">@esc.Jogador.Nome</div>
                                     </div>
                                 }
                             </div>
@@ -227,20 +269,49 @@
                             idxVis++;
                         }
                     </div>
+
+                    <!-- Banco de reservas visitante -->
+                    <div class="banco-label mt-2">🪑 Banco de reservas</div>
+                    <div id="bancoVisitante" class="banco"
+                         ondrop="dropNoBanco(event, 'vis')"
+                         ondragover="allowDrop(event)">
+                        @{
+                            var idxResVis = 0;
+                        }
+                        @foreach (var esc in (List<ControleFutebolWeb.Models.Escalacao>)ViewBag.ReservasVisitante)
+                        {
+                            <div class="reserva-card" id="reserva-vis-card-@idxResVis">
+                                <span class="rem-btn" onclick="removerReserva('vis', @idxResVis)">×</span>
+                                @if (!string.IsNullOrEmpty(Model.TimeVisitante.CamisaUrl))
+                                {
+                                    <img src="@Model.TimeVisitante.CamisaUrl" width="36" />
+                                }
+                                <div style="max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                    @esc.Jogador?.Nome
+                                </div>
+                            </div>
+                            <input type="hidden" name="reservasVisitante[@idxResVis].Id" value="@esc.Id" />
+                            <input type="hidden" id="reservaVis_@(idxResVis)__JogadorId" name="reservasVisitante[@idxResVis].JogadorId" value="@esc.JogadorId" />
+                            <input type="hidden" id="reservaVis_@(idxResVis)__PosicaoX" name="reservasVisitante[@idxResVis].PosicaoX" value="0" />
+                            <input type="hidden" id="reservaVis_@(idxResVis)__PosicaoY" name="reservasVisitante[@idxResVis].PosicaoY" value="0" />
+                            idxResVis++;
+                        }
+                    </div>
+                    <input type="hidden" id="totalReservasVis" value="@idxResVis" />
                 </div>
 
                 <!-- Lista de jogadores visitante -->
                 <div class="col-5 scroll-panel">
                     <table class="table table-sm table-striped">
                         <thead><tr><th></th><th>Nome</th><th>Pos</th></tr></thead>
-                        <tbody>
-                            
+                        <tbody id="listaVisitante">
                             @foreach (var jogador in (List<ControleFutebolWeb.Models.Jogador>)ViewBag.JogadoresVisitante)
                             {
                                 var camisaVisitante = string.IsNullOrEmpty(Model.TimeVisitante.CamisaUrl) ? "" : Url.Content(Model.TimeVisitante.CamisaUrl);
                                 <tr class="jogador-row"
+                                    id="jogador-vis-@jogador.Id"
                                     draggable="true"
-                                    ondragstart="dragJogador(event, @jogador.Id, '@jogador.Nome', '@jogador.NumeroCamisa', '@camisaVisitante')">
+                                    ondragstart="dragJogador(event, @jogador.Id, '@jogador.Nome', '@jogador.NumeroCamisa', '@camisaVisitante', 'vis')">
                                     <td>
                                         @if (!string.IsNullOrEmpty(camisaVisitante))
                                         {
@@ -255,7 +326,6 @@
                                     <td>@jogador.Posicao</td>
                                 </tr>
                             }
-                            
                         </tbody>
                     </table>
                 </div>
@@ -275,56 +345,196 @@
     </div>
 </form>
 
-<div id="modal-avaliacao" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
-    <div style="background:white; border-radius:12px; padding:1.25rem; width:360px; max-width:95vw; max-height:90vh; overflow-y:auto; box-shadow: 0 8px 32px rgba(0,0,0,0.2);">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1rem; padding-bottom:0.75rem; border-bottom:1px solid #eee;">
-            <div>
-                <h5 id="av-nome" style="margin:0; font-size:15px; font-weight:600;"></h5>
-                <small id="av-pos" style="color:#888;"></small>
-            </div>
-            <button type="button" onclick="fecharAvaliacao()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#999;">&times;</button>
-        </div>
-        <div id="av-acoes"></div>
-        <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
-            <span style="color:#666; font-size:13px;">Pontuação total</span>
-            <div style="display:flex; align-items:center; gap:10px;">
-                <span id="av-total" style="font-size:22px; font-weight:600;">0</span>
-                <span id="av-nota" style="padding:3px 10px; border-radius:20px; font-size:12px; font-weight:500;">Regular</span>
-            </div>
-        </div>
-        <div style="margin-top:1rem;">
-            <label style="font-size:12px; color:#666;">Observação:</label>
-            <textarea id="av-obs" rows="2" style="width:100%; margin-top:4px; font-size:13px; border:1px solid #ddd; border-radius:6px; padding:6px; resize:vertical;"></textarea>
-        </div>
-        <button type="button" onclick="salvarAvaliacao()" style="width:100%; margin-top:10px; padding:8px; background:#198754; color:white; border:none; border-radius:6px; font-size:14px; cursor:pointer;">Salvar</button>
-    </div>
-</div>
-<input type="hidden" id="jogoId" value="@Model.Id" />
 <script>
-    let jogadoresUsadosCasa = new Set();
-    let jogadoresUsadosVis  = new Set();
-    let draggingPosicao     = false;
+    // ── Estado global ──────────────────────────────────────────────────────
+    // Registra todos os jogadores já em uso (campo + banco), por time
+    const usados = { casa: new Set(), vis: new Set() };
 
-    function allowDropEscalacao(ev) { ev.preventDefault(); }
-
-    function dragJogador(ev, jogadorId, jogadorNome, jogadorNumero, camisaUrl) {
-        draggingPosicao = false;
-        ev.dataTransfer.setData("jogadorId",     jogadorId);
-        ev.dataTransfer.setData("jogadorNome",   jogadorNome);
-        ev.dataTransfer.setData("jogadorNumero", jogadorNumero);
-        ev.dataTransfer.setData("camisaUrl",     camisaUrl);
-    }
-
+    // Dados do drag atual
+    let dragData   = {};   // { jogadorId, jogadorNome, jogadorNumero, camisaUrl, time }
+    let draggingPosicao   = false;
     let posicaoArrastando = null;
 
+    // Camisas por time (usadas ao criar cards de reserva)
+    const camisas = {
+        casa: '@(string.IsNullOrEmpty(Model.TimeCasa.CamisaUrl) ? "" : Url.Content(Model.TimeCasa.CamisaUrl))',
+        vis:  '@(string.IsNullOrEmpty(Model.TimeVisitante.CamisaUrl) ? "" : Url.Content(Model.TimeVisitante.CamisaUrl))'
+    };
+
+    // ── Inicializa conjuntos de usados a partir dos valores já salvos ──────
+    function initUsados() {
+        // Titulares casa
+        document.querySelectorAll('[id^="escalacaoCasa_"][id$="__JogadorId"]').forEach(el => {
+            if (el.value) usados.casa.add(el.value);
+        });
+        // Titulares visitante
+        document.querySelectorAll('[id^="escalacaoVisitante_"][id$="__JogadorId"]').forEach(el => {
+            if (el.value) usados.vis.add(el.value);
+        });
+        // Reservas casa
+        document.querySelectorAll('[id^="reservaCasa_"][id$="__JogadorId"]').forEach(el => {
+            if (el.value) usados.casa.add(el.value);
+        });
+        // Reservas visitante
+        document.querySelectorAll('[id^="reservaVis_"][id$="__JogadorId"]').forEach(el => {
+            if (el.value) usados.vis.add(el.value);
+        });
+
+        atualizarLista('casa');
+        atualizarLista('vis');
+    }
+
+    function atualizarLista(time) {
+        const prefix = time === 'casa' ? 'jogador-casa-' : 'jogador-vis-';
+        usados[time].forEach(id => {
+            const row = document.getElementById(prefix + id);
+            if (row) row.classList.add('usado');
+        });
+    }
+
+    function marcarUsado(time, jogadorId) {
+        usados[time].add(String(jogadorId));
+        atualizarLista(time);
+    }
+
+    function desmarcarUsado(time, jogadorId) {
+        usados[time].delete(String(jogadorId));
+        const prefix = time === 'casa' ? 'jogador-casa-' : 'jogador-vis-';
+        const row = document.getElementById(prefix + jogadorId);
+        if (row) row.classList.remove('usado');
+    }
+
+    // ── Drag helpers ───────────────────────────────────────────────────────
+    function allowDrop(ev) { ev.preventDefault(); }
+
+    function dragJogador(ev, jogadorId, jogadorNome, jogadorNumero, camisaUrl, time) {
+        draggingPosicao = false;
+        dragData = { jogadorId: String(jogadorId), jogadorNome, jogadorNumero, camisaUrl, time };
+        ev.dataTransfer.setData("text/plain", String(jogadorId)); // necessário p/ Firefox
+    }
+
+    // ── Drop em slot do campo ──────────────────────────────────────────────
+    function dropEscalacao(ev, index) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (draggingPosicao) return;
+
+        const { jogadorId, jogadorNome, jogadorNumero, camisaUrl, time } = dragData;
+        if (!jogadorId) return;
+
+        if (usados[time].has(jogadorId)) {
+            alert("Esse jogador já está em campo ou no banco!");
+            return;
+        }
+
+        const isCasa  = index.startsWith("casa_");
+        const prefix  = isCasa ? "escalacaoCasa" : "escalacaoVisitante";
+        const numIdx  = index.split("_")[1];
+
+        const hidden = document.getElementById(`${prefix}_${numIdx}__JogadorId`);
+        if (!hidden) return;
+
+        const antigoId = hidden.value;
+        if (antigoId) desmarcarUsado(time, antigoId);
+
+        hidden.value = jogadorId;
+        marcarUsado(time, jogadorId);
+
+        const posEl = document.querySelector(`.posicao-drop[data-index='${index}']`);
+        const nomePosicao = posEl.dataset.posicao;
+        posEl.innerHTML = `
+            <span>${nomePosicao}</span>
+            <div style="margin-top:4px;text-align:center;">
+                <img src="${camisaUrl}" width="40" style="display:block;margin:0 auto;" />
+                <div style="font-size:11px;max-width:60px;margin:0 auto;">${jogadorNome}</div>
+                <div style="font-size:10px;color:#ccc;">Camisa: ${jogadorNumero}</div>
+            </div>`;
+    }
+
+    // ── Drop no banco de reservas ──────────────────────────────────────────
+    function dropNoBanco(ev, time) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (draggingPosicao) return;
+
+        const { jogadorId, jogadorNome, camisaUrl } = dragData;
+        if (!jogadorId) return;
+
+        if (usados[time].has(jogadorId)) {
+            alert("Esse jogador já está em campo ou no banco!");
+            return;
+        }
+
+        const bancoId  = time === 'casa' ? 'bancoCasa' : 'bancoVisitante';
+        const totalKey = time === 'casa' ? 'totalReservasCasa' : 'totalReservasVis';
+        const prefixH  = time === 'casa' ? 'reservaCasa' : 'reservaVis';
+        const prefixN  = time === 'casa' ? 'reservasCasa' : 'reservasVisitante';
+
+        const totalEl = document.getElementById(totalKey);
+        const idx     = parseInt(totalEl.value);
+
+        // Cria card visual
+        const banco = document.getElementById(bancoId);
+        const card  = document.createElement('div');
+        card.className = 'reserva-card';
+        card.id = `reserva-${time}-card-${idx}`;
+        card.innerHTML = `
+            <span class="rem-btn" onclick="removerReserva('${time}', ${idx})">×</span>
+            ${camisas[time] ? `<img src="${camisas[time]}" width="36" />` : '👕'}
+            <div style="max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${jogadorNome}</div>`;
+        banco.appendChild(card);
+
+        // Cria inputs hidden
+        const form = document.querySelector('form[action*="SalvarEscalacao"], form');
+        const addHidden = (name, value) => {
+            const inp = document.createElement('input');
+            inp.type = 'hidden';
+            inp.name = name;
+            inp.value = value;
+            inp.id = `${prefixH}_${idx}__${name.split('.').pop().replace(/\[.*\]/, '')}`;
+            form.appendChild(inp);
+            return inp;
+        };
+
+        // Reutiliza função com ID correto
+        const idInp  = document.createElement('input'); idInp.type='hidden'; idInp.name=`${prefixN}[${idx}].Id`;       idInp.value='0';       form.appendChild(idInp);
+        const jInp   = document.createElement('input'); jInp.type='hidden';  jInp.name=`${prefixN}[${idx}].JogadorId`; jInp.value=jogadorId;  jInp.id=`${prefixH}_${idx}__JogadorId`; form.appendChild(jInp);
+        const xInp   = document.createElement('input'); xInp.type='hidden';  xInp.name=`${prefixN}[${idx}].PosicaoX`;  xInp.value='0';        xInp.id=`${prefixH}_${idx}__PosicaoX`;  form.appendChild(xInp);
+        const yInp   = document.createElement('input'); yInp.type='hidden';  yInp.name=`${prefixN}[${idx}].PosicaoY`;  yInp.value='0';        yInp.id=`${prefixH}_${idx}__PosicaoY`;  form.appendChild(yInp);
+
+        totalEl.value = idx + 1;
+        marcarUsado(time, jogadorId);
+    }
+
+    // ── Remover reserva ────────────────────────────────────────────────────
+    function removerReserva(time, idx) {
+        const prefixH = time === 'casa' ? 'reservaCasa' : 'reservaVis';
+        const prefixN = time === 'casa' ? 'reservasCasa' : 'reservasVisitante';
+
+        const jInp = document.getElementById(`${prefixH}_${idx}__JogadorId`);
+        if (!jInp) return;
+
+        const jogadorId = jInp.value;
+        desmarcarUsado(time, jogadorId);
+
+        // Remove card visual
+        const card = document.getElementById(`reserva-${time}-card-${idx}`);
+        if (card) card.remove();
+
+        // Remove inputs hidden relacionados
+        [`${prefixH}_${idx}__JogadorId`, `${prefixH}_${idx}__PosicaoX`, `${prefixH}_${idx}__PosicaoY`].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        });
+        // Remove o Id hidden (sem id próprio, localiza pelo name)
+        document.querySelectorAll(`input[name="${prefixN}[${idx}].Id"]`).forEach(el => el.remove());
+    }
+
+    // ── Mover posição dentro do campo ─────────────────────────────────────
     function dragPosicao(ev, index) {
         draggingPosicao = true;
         posicaoArrastando = index;
-        ev.dataTransfer.setData("posIndex", index);
-    }
-
-    function dropPosicao(ev, index, campoId) {
-        // tratado pelo dropNoCampo
+        ev.dataTransfer.setData("text/plain", index);
     }
 
     function dropNoCampo(ev, campoId) {
@@ -359,214 +569,6 @@
         posicaoArrastando = null;
     }
 
-    function dropEscalacao(ev, index) {
-        ev.preventDefault();
-        ev.stopPropagation();
-
-        if (draggingPosicao) return;
-
-        const jogadorId   = ev.dataTransfer.getData("jogadorId");
-        const jogadorNome = ev.dataTransfer.getData("jogadorNome");
-        const jogadorNum  = ev.dataTransfer.getData("jogadorNumero");
-        const camisaUrl   = ev.dataTransfer.getData("camisaUrl");
-
-        if (!jogadorId) return;
-
-        const isCasa  = index.startsWith("casa_");
-        const usados  = isCasa ? jogadoresUsadosCasa : jogadoresUsadosVis;
-        const prefix  = isCasa ? "escalacaoCasa" : "escalacaoVisitante";
-        const numIdx  = index.split("_")[1];
-
-        if (usados.has(jogadorId)) {
-            alert("Esse jogador já está em campo!");
-            return;
-        }
-
-        const hidden = document.getElementById(`${prefix}_${numIdx}__JogadorId`);
-        if (!hidden) return;
-
-        const antigoId = hidden.value;
-        if (antigoId) usados.delete(antigoId);
-
-        hidden.value = jogadorId;
-        usados.add(jogadorId);
-
-        const posEl = document.querySelector(`.posicao-drop[data-index='${index}']`);
-        const nomePosicao = posEl.dataset.posicao;
-
-        posEl.innerHTML = `
-            <span>${nomePosicao}</span>
-            <div style="margin-top:4px;text-align:center;position:relative;display:inline-block;">
-                <img src="${camisaUrl}" width="40" style="display:block;margin:0 auto;" />
-                <button type="button" class="btn-avaliar" onclick="abrirAvaliacao(${jogadorId}, '${jogadorNome}', '${nomePosicao}', event)">+</button>
-            </div>
-            <div style="font-size:11px;max-width:60px;margin:0 auto;">${jogadorNome}</div>
-            <div style="font-size:10px;color:#ccc;">Camisa: ${jogadorNum}</div>`;
-    }
-
-    // ── Avaliação de jogadores ─────────────────────────────────────────────
-
-    const acoesPorPosicao = {
-        'GL': [
-            { id: 'defesa_dificil', label: 'Defesa difícil',     peso: +2 },
-            { id: 'gol_sofrido',    label: 'Gol sofrido',         peso: -1 },
-            { id: 'saida_bola',     label: 'Boa saída de bola',   peso: +1 },
-            { id: 'falha_grave',    label: 'Falha grave',          peso: -2 },
-        ],
-        'AT': [
-            { id: 'chute_gol',     label: 'Chute no alvo',        peso: +1 },
-            { id: 'chute_fora',    label: 'Chute pra fora',        peso: -1 },
-            { id: 'drible_certo',  label: 'Drible bem-sucedido',   peso: +1 },
-            { id: 'passe_certo',   label: 'Passe certo',           peso: +1 },
-            { id: 'passe_errado',  label: 'Passe errado',          peso: -1 },
-            { id: 'falta_sofrida', label: 'Falta sofrida',         peso: +1 },
-            { id: 'assistencias',   label: 'Assistências',          peso: +3 },
-            { id: 'gols',           label: 'Gols',                  peso: +5 },
-        ],
-        'default': [
-            { id: 'passe_certo',    label: 'Passe certo',           peso: +1 },
-            { id: 'passe_errado',   label: 'Passe errado',          peso: -1 },
-            { id: 'interceptacao',  label: 'Interceptação',         peso: +1 },
-            { id: 'falta_cometida', label: 'Falta cometida',        peso: -1 },
-            { id: 'drible_certo',   label: 'Drible certo',          peso: +1 },
-            { id: 'perda_bola',     label: 'Perda de bola',         peso: -1 },
-            { id: 'assistencias',   label: 'Assistências',          peso: +3 },
-            { id: 'gols',           label: 'Gols',                  peso: +5 },
-            { id: 'falha_grave',    label: 'Falha grave',          peso: -2 },
-        ]
-    };
-
-    const avaliacoes = {};
-    let jogadorAtual = null;
-    let chaveAtual   = 'default';
-
-    function abrirAvaliacao(jogadorId, nome, posicao, event) {
-        event.stopPropagation();
-
-        jogadorAtual = jogadorId;
-        chaveAtual   = posicao in acoesPorPosicao ? posicao : 'default';
-
-        if (!avaliacoes[jogadorId]) avaliacoes[jogadorId] = { obs: '' };
-
-        document.getElementById('av-nome').textContent = nome;
-        document.getElementById('av-pos').textContent  = posicao + ' · Avaliação da partida';
-        document.getElementById('av-obs').value        = avaliacoes[jogadorId].obs || '';
-
-        const acoes     = acoesPorPosicao[chaveAtual];
-        const container = document.getElementById('av-acoes');
-        container.innerHTML = '';
-
-        acoes.forEach(a => {
-            if (!avaliacoes[jogadorId][a.id]) avaliacoes[jogadorId][a.id] = 0;
-
-            const row = document.createElement('div');
-            row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f0f0f0;';
-            row.innerHTML = `
-                <div style="flex:1;font-size:13px;">
-                    <div>${a.label}</div>
-                    <div style="font-size:11px;color:#999;">${a.peso > 0 ? '+' + a.peso : a.peso} ponto(s)</div>
-                </div>
-                <button type="button" onclick="ajustarAcao(${jogadorId},'${a.id}',-1)"
-                    style="width:28px;height:28px;border-radius:50%;border:1px solid #ddd;background:#f8f8f8;font-size:16px;cursor:pointer;">&#8722;</button>
-                <span id="av-cnt-${a.id}" style="min-width:28px;text-align:center;font-size:14px;font-weight:600;">${avaliacoes[jogadorId][a.id]}</span>
-                <button type="button" onclick="ajustarAcao(${jogadorId},'${a.id}',+1)"
-                    style="width:28px;height:28px;border-radius:50%;border:1px solid #ddd;background:#f8f8f8;font-size:16px;cursor:pointer;">+</button>`;
-            container.appendChild(row);
-        });
-
-        recalcularTotal();
-        document.getElementById('modal-avaliacao').style.display = 'flex';
-    }
-
-    function ajustarAcao(jogadorId, acaoId, delta) {
-        if (delta < 0 && avaliacoes[jogadorId][acaoId] <= 0) return;
-        avaliacoes[jogadorId][acaoId] += delta;
-        document.getElementById('av-cnt-' + acaoId).textContent = avaliacoes[jogadorId][acaoId];
-        recalcularTotal();
-    }
-
-    function recalcularTotal() {
-        const acoes = acoesPorPosicao[chaveAtual];
-        let total   = 0;
-        acoes.forEach(a => {
-            total += (avaliacoes[jogadorAtual][a.id] || 0) * a.peso;
-        });
-
-        const el   = document.getElementById('av-total');
-        const chip = document.getElementById('av-nota');
-        el.textContent = total;
-        el.style.color = total > 0 ? '#198754' : total < 0 ? '#dc3545' : '#333';
-
-        if      (total >= 5) { chip.textContent = 'Excelente'; chip.style.cssText = 'padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;background:#d1e7dd;color:#0f5132;'; }
-        else if (total >= 2) { chip.textContent = 'Bom';       chip.style.cssText = 'padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;background:#d1e7dd;color:#0f5132;'; }
-        else if (total >= 0) { chip.textContent = 'Regular';   chip.style.cssText = 'padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;background:#fff3cd;color:#664d03;'; }
-        else                 { chip.textContent = 'Ruim';      chip.style.cssText = 'padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;background:#f8d7da;color:#842029;'; }
-    }
-
-    async function salvarAvaliacao() {
-        if (!jogadorAtual) return;
-
-        avaliacoes[jogadorAtual].obs = document.getElementById('av-obs').value;
-
-        const jogoId = parseInt(document.getElementById('jogoId').value);
-        const acoes  = acoesPorPosicao[chaveAtual];
-
-        const detalhes = acoes
-            .filter(a => (avaliacoes[jogadorAtual][a.id] || 0) > 0)
-            .map(a => ({
-                acaoId:     a.id,
-                acaoLabel:  a.label,
-                quantidade: avaliacoes[jogadorAtual][a.id],
-                peso:       a.peso
-            }));
-
-        const total = acoes.reduce((sum, a) => sum + (avaliacoes[jogadorAtual][a.id] || 0) * a.peso, 0);
-
-        const body = {
-            jogadorId:  jogadorAtual,
-            jogoId:     jogoId,
-            total:      total,
-            observacao: avaliacoes[jogadorAtual].obs,
-            detalhes:   detalhes
-        };
-
-        try {
-            const resp = await fetch('/Notas/Salvar', {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify(body)
-            });
-
-            if (resp.ok) {
-                fecharAvaliacao();
-            } else {
-                alert('Erro ao salvar avaliação.');
-            }
-        } catch (e) {
-            alert('Erro de conexão ao salvar.');
-        }
-    }
-
-    function fecharAvaliacao() {
-        document.getElementById('modal-avaliacao').style.display = 'none';
-        jogadorAtual = null;
-    }
-        // Carrega avaliações salvas ao abrir a página
-    (async function carregarAvaliacoesSalvas() {
-        const jogoId = document.getElementById('jogoId').value;
-        try {
-            const resp = await fetch(`/Notas/BuscarPorJogo?jogoId=${jogoId}`);
-            if (!resp.ok) return;
-            const notas = await resp.json();
-            notas.forEach(n => {
-                if (!avaliacoes[n.jogadorId]) avaliacoes[n.jogadorId] = { obs: '' };
-                avaliacoes[n.jogadorId].obs = n.observacao || '';
-                n.detalhes.forEach(d => {
-                    avaliacoes[n.jogadorId][d.acaoId] = d.quantidade;
-                });
-            });
-        } catch (e) {
-            console.warn('Não foi possível carregar avaliações:', e);
-        }
-    })();
+    // Inicializa ao carregar
+    initUsados();
 </script>

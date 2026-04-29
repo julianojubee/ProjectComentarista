@@ -326,15 +326,7 @@ namespace ControleFutebolWeb.Controllers
 
             if (jogo == null) return NotFound();
 
-            // Dropdowns de formações
-            ViewBag.FormacoesCasa = new SelectList(_context.Formacoes, "Id", "Nome", formacaoCasaId ?? jogo.FormacaoCasaId);
-            ViewBag.FormacoesVisitante = new SelectList(_context.Formacoes, "Id", "Nome", formacaoVisitanteId ?? jogo.FormacaoVisitanteId);
-
-            // Jogadores disponíveis
-            ViewBag.JogadoresCasa = _context.Jogadores.Where(j => j.TimeId == jogo.TimeCasaId).ToList();
-            ViewBag.JogadoresVisitante = _context.Jogadores.Where(j => j.TimeId == jogo.TimeVisitanteId).ToList();
-
-            // Escalações salvas
+            // Escalações já salvas para este jogo
             var escalacoes = await _context.Escalacoes
                 .Include(e => e.Jogador)
                 .Where(e => e.JogoId == id)
@@ -343,95 +335,238 @@ namespace ControleFutebolWeb.Controllers
             var escalacoesCasa = escalacoes.Where(e => e.IsTimeCasa).ToList();
             var escalacoesVisitante = escalacoes.Where(e => !e.IsTimeCasa).ToList();
 
-            // ── Casa: recria se formação mudou ou não existe ──────────────────────
+            // ── CASA ─────────────────────────────────────────────────────────────
             var idFormacaoCasa = formacaoCasaId ?? jogo.FormacaoCasaId ?? 0;
-            bool formacaoCasaMudou = escalacoesCasa.Count == 0 ||
-                                     (formacaoCasaId.HasValue && formacaoCasaId != jogo.FormacaoCasaId);
+            bool formacaoCasaMudou = formacaoCasaId.HasValue && formacaoCasaId != jogo.FormacaoCasaId;
 
-            if (formacaoCasaMudou && idFormacaoCasa > 0)
+            if (escalacoesCasa.Count == 0 || formacaoCasaMudou)
             {
-                _context.Escalacoes.RemoveRange(escalacoesCasa);
+                if (escalacoesCasa.Count > 0)
+                    _context.Escalacoes.RemoveRange(escalacoesCasa);
 
-                var posicoesCasa = await _context.PosicoesFormacao
-                    .Where(p => p.FormacaoId == idFormacaoCasa)
-                    .ToListAsync();
+                List<Escalacao> novasCasa = new();
 
-                foreach (var pos in posicoesCasa)
+                // 1) Última escalação do time em outro jogo
+                if (!formacaoCasaMudou)
                 {
-                    _context.Escalacoes.Add(new Escalacao
+                    var ultimoJogoCasa = await _context.Jogos
+                        .Where(j => j.Id != id && (j.TimeCasaId == jogo.TimeCasaId || j.TimeVisitanteId == jogo.TimeCasaId))
+                        .OrderByDescending(j => j.Data)
+                        .Select(j => j.Id)
+                        .FirstOrDefaultAsync();
+
+                    if (ultimoJogoCasa > 0)
+                    {
+                        var ultimasEscalacoes = await _context.Escalacoes
+                            .Where(e => e.JogoId == ultimoJogoCasa &&
+                                        ((e.IsTimeCasa && _context.Jogos.Any(j => j.Id == ultimoJogoCasa && j.TimeCasaId == jogo.TimeCasaId))
+                                      || (!e.IsTimeCasa && _context.Jogos.Any(j => j.Id == ultimoJogoCasa && j.TimeVisitanteId == jogo.TimeCasaId))))
+                            .ToListAsync();
+
+                        novasCasa = ultimasEscalacoes.Select(e => new Escalacao
+                        {
+                            JogoId = id,
+                            JogadorId = e.JogadorId,
+                            Posicao = e.Posicao,
+                            PosicaoX = e.PosicaoX,
+                            PosicaoY = e.PosicaoY,
+                            IsTimeCasa = true,
+                            Titular = e.Titular
+                        }).ToList();
+
+                        // Pega a formação que estava salva naquele jogo
+                        if (idFormacaoCasa == 0)
+                        {
+                            var jogoAnterior = await _context.Jogos.FindAsync(ultimoJogoCasa);
+                            bool eraTimeCasa = jogoAnterior?.TimeCasaId == jogo.TimeCasaId;
+                            idFormacaoCasa = (eraTimeCasa ? jogoAnterior?.FormacaoCasaId : jogoAnterior?.FormacaoVisitanteId) ?? 0;
+                        }
+                    }
+                }
+
+                // 2) Escalação padrão do time
+                if (novasCasa.Count == 0)
+                {
+                    var padrao = await _context.TimeEscalacaoPadrao
+                        .Where(t => t.TimeId == jogo.TimeCasaId)
+                        .ToListAsync();
+
+                    if (padrao.Any())
+                    {
+                        novasCasa = padrao.Select(p => new Escalacao
+                        {
+                            JogoId = id,
+                            JogadorId = p.JogadorId,
+                            Posicao = p.Posicao,
+                            PosicaoX = p.PosicaoX,
+                            PosicaoY = p.PosicaoY,
+                            IsTimeCasa = true,
+                            Titular = p.Titular
+                        }).ToList();
+
+                        if (idFormacaoCasa == 0)
+                            idFormacaoCasa = padrao.First().FormacaoId;
+                    }
+                }
+
+                // 3) Formação em branco (cria slots vazios)
+                if (novasCasa.Count == 0 && idFormacaoCasa > 0)
+                {
+                    var posicoes = await _context.PosicoesFormacao
+                        .Where(p => p.FormacaoId == idFormacaoCasa)
+                        .ToListAsync();
+
+                    novasCasa = posicoes.Select(pos => new Escalacao
                     {
                         JogoId = id,
                         Posicao = pos.NomePosicao,
-                        PosicaoX = (int)pos.PosicaoX,
-                        PosicaoY = (int)pos.PosicaoY,
+                        PosicaoX = pos.PosicaoX,
+                        PosicaoY = pos.PosicaoY,
                         IsTimeCasa = true,
                         Titular = true
-                    });
+                    }).ToList();
                 }
 
-                jogo.FormacaoCasaId = idFormacaoCasa;
+                _context.Escalacoes.AddRange(novasCasa);
+                jogo.FormacaoCasaId = idFormacaoCasa > 0 ? idFormacaoCasa : jogo.FormacaoCasaId;
             }
 
-            // ── Visitante: recria se formação mudou ou não existe ─────────────────
+            // ── VISITANTE ─────────────────────────────────────────────────────────
             var idFormacaoVisitante = formacaoVisitanteId ?? jogo.FormacaoVisitanteId ?? 0;
-            bool formacaoVisitanteMudou = escalacoesVisitante.Count == 0 ||
-                                          (formacaoVisitanteId.HasValue && formacaoVisitanteId != jogo.FormacaoVisitanteId);
+            bool formacaoVisitanteMudou = formacaoVisitanteId.HasValue && formacaoVisitanteId != jogo.FormacaoVisitanteId;
 
-            if (formacaoVisitanteMudou && idFormacaoVisitante > 0)
+            if (escalacoesVisitante.Count == 0 || formacaoVisitanteMudou)
             {
-                _context.Escalacoes.RemoveRange(escalacoesVisitante);
+                if (escalacoesVisitante.Count > 0)
+                    _context.Escalacoes.RemoveRange(escalacoesVisitante);
 
-                var posicoesVisitante = await _context.PosicoesFormacao
-                    .Where(p => p.FormacaoId == idFormacaoVisitante)
-                    .ToListAsync();
+                List<Escalacao> novasVisitante = new();
 
-                foreach (var pos in posicoesVisitante)
+                // 1) Última escalação do time em outro jogo
+                if (!formacaoVisitanteMudou)
                 {
-                    _context.Escalacoes.Add(new Escalacao
+                    var ultimoJogoVis = await _context.Jogos
+                        .Where(j => j.Id != id && (j.TimeCasaId == jogo.TimeVisitanteId || j.TimeVisitanteId == jogo.TimeVisitanteId))
+                        .OrderByDescending(j => j.Data)
+                        .Select(j => j.Id)
+                        .FirstOrDefaultAsync();
+
+                    if (ultimoJogoVis > 0)
+                    {
+                        var ultimasEscalacoes = await _context.Escalacoes
+                            .Where(e => e.JogoId == ultimoJogoVis &&
+                                        ((e.IsTimeCasa && _context.Jogos.Any(j => j.Id == ultimoJogoVis && j.TimeCasaId == jogo.TimeVisitanteId))
+                                      || (!e.IsTimeCasa && _context.Jogos.Any(j => j.Id == ultimoJogoVis && j.TimeVisitanteId == jogo.TimeVisitanteId))))
+                            .ToListAsync();
+
+                        novasVisitante = ultimasEscalacoes.Select(e => new Escalacao
+                        {
+                            JogoId = id,
+                            JogadorId = e.JogadorId,
+                            Posicao = e.Posicao,
+                            PosicaoX = e.PosicaoX,
+                            PosicaoY = e.PosicaoY,
+                            IsTimeCasa = false,
+                            Titular = e.Titular
+                        }).ToList();
+
+                        if (idFormacaoVisitante == 0)
+                        {
+                            var jogoAnterior = await _context.Jogos.FindAsync(ultimoJogoVis);
+                            bool eraTimeCasa = jogoAnterior?.TimeCasaId == jogo.TimeVisitanteId;
+                            idFormacaoVisitante = (eraTimeCasa ? jogoAnterior?.FormacaoCasaId : jogoAnterior?.FormacaoVisitanteId) ?? 0;
+                        }
+                    }
+                }
+
+                // 2) Escalação padrão do time
+                if (novasVisitante.Count == 0)
+                {
+                    var padrao = await _context.TimeEscalacaoPadrao
+                        .Where(t => t.TimeId == jogo.TimeVisitanteId)
+                        .ToListAsync();
+
+                    if (padrao.Any())
+                    {
+                        novasVisitante = padrao.Select(p => new Escalacao
+                        {
+                            JogoId = id,
+                            JogadorId = p.JogadorId,
+                            Posicao = p.Posicao,
+                            PosicaoX = p.PosicaoX,
+                            PosicaoY = p.PosicaoY,
+                            IsTimeCasa = false,
+                            Titular = p.Titular
+                        }).ToList();
+
+                        if (idFormacaoVisitante == 0)
+                            idFormacaoVisitante = padrao.First().FormacaoId;
+                    }
+                }
+
+                // 3) Formação em branco
+                if (novasVisitante.Count == 0 && idFormacaoVisitante > 0)
+                {
+                    var posicoes = await _context.PosicoesFormacao
+                        .Where(p => p.FormacaoId == idFormacaoVisitante)
+                        .ToListAsync();
+
+                    novasVisitante = posicoes.Select(pos => new Escalacao
                     {
                         JogoId = id,
                         Posicao = pos.NomePosicao,
-                        PosicaoX = (int)pos.PosicaoX,
-                        PosicaoY = (int)pos.PosicaoY,
+                        PosicaoX = pos.PosicaoX,
+                        PosicaoY = pos.PosicaoY,
                         IsTimeCasa = false,
                         Titular = true
-                    });
+                    }).ToList();
                 }
 
-                jogo.FormacaoVisitanteId = idFormacaoVisitante;
+                _context.Escalacoes.AddRange(novasVisitante);
+                jogo.FormacaoVisitanteId = idFormacaoVisitante > 0 ? idFormacaoVisitante : jogo.FormacaoVisitanteId;
             }
 
             await _context.SaveChangesAsync();
 
-            // Recarrega escalações atualizadas
+            // Recarrega escalações finais
             escalacoes = await _context.Escalacoes
                 .Include(e => e.Jogador)
                 .Where(e => e.JogoId == id)
                 .ToListAsync();
 
-            // Ordem customizada das posições
             var ordemPosicoes = new Dictionary<string, int>
-    {
-        { "GL", 1 }, { "LD", 2 }, { "LE", 3 },
-        { "ZG", 4 }, { "MC", 5 }, { "AT", 6 }
-    };
+            {
+                { "GL", 1 }, { "LD", 2 }, { "LE", 3 },
+                { "ZG", 4 }, { "MC", 5 }, { "AT", 6 }
+            };
 
             ViewBag.EscalacoesCasa = escalacoes
-                .Where(e => e.IsTimeCasa)
+                .Where(e => e.IsTimeCasa && e.Titular)
                 .OrderBy(e => ordemPosicoes.ContainsKey(e.Posicao) ? ordemPosicoes[e.Posicao] : 99)
                 .ToList();
 
             ViewBag.EscalacoesVisitante = escalacoes
-                .Where(e => !e.IsTimeCasa)
+                .Where(e => !e.IsTimeCasa && e.Titular)
                 .OrderBy(e => ordemPosicoes.ContainsKey(e.Posicao) ? ordemPosicoes[e.Posicao] : 99)
                 .ToList();
 
-            ViewBag.FormacaoCasaSelecionada = formacaoCasaId ?? jogo.FormacaoCasaId;
-            ViewBag.FormacaoVisitanteSelecionada = formacaoVisitanteId ?? jogo.FormacaoVisitanteId;
+            ViewBag.ReservasCasa = escalacoes
+                .Where(e => e.IsTimeCasa && !e.Titular)
+                .ToList();
+
+            ViewBag.ReservasVisitante = escalacoes
+                .Where(e => !e.IsTimeCasa && !e.Titular)
+                .ToList();
+
+            ViewBag.FormacoesCasa = new SelectList(_context.Formacoes, "Id", "Nome", idFormacaoCasa);
+            ViewBag.FormacoesVisitante = new SelectList(_context.Formacoes, "Id", "Nome", idFormacaoVisitante);
+            ViewBag.JogadoresCasa = _context.Jogadores.Where(j => j.TimeId == jogo.TimeCasaId).ToList();
+            ViewBag.JogadoresVisitante = _context.Jogadores.Where(j => j.TimeId == jogo.TimeVisitanteId).ToList();
+            ViewBag.FormacaoCasaSelecionada = idFormacaoCasa;
+            ViewBag.FormacaoVisitanteSelecionada = idFormacaoVisitante;
 
             return View(jogo);
         }
-
 
 
         [HttpPost]
@@ -440,41 +575,58 @@ namespace ControleFutebolWeb.Controllers
         int formacaoCasaId,
         int formacaoVisitanteId,
         List<EscalacaoInput> escalacaoCasa,
-        List<EscalacaoInput> escalacaoVisitante)
-            {
+        List<EscalacaoInput> escalacaoVisitante,
+        List<EscalacaoInput> reservasCasa,       // ← novo
+        List<EscalacaoInput> reservasVisitante)  // ← novo
+        {
             var escalacoes = await _context.Escalacoes
                 .Where(e => e.JogoId == id)
                 .ToListAsync();
 
-            void AtualizarSlots(List<EscalacaoInput> inputs)
+            // Atualiza titulares (lógica existente)
+            void AtualizarSlots(List<EscalacaoInput> inputs, bool isTimeCasa)
             {
                 if (inputs == null) return;
                 foreach (var e in inputs)
                 {
                     var esc = escalacoes.FirstOrDefault(x => x.Id == e.Id);
                     if (esc == null) continue;
-
                     esc.PosicaoX = e.PosicaoX;
                     esc.PosicaoY = e.PosicaoY;
                     esc.JogadorId = e.JogadorId > 0 ? e.JogadorId : null;
+                    esc.Titular = true;
                 }
             }
 
-            AtualizarSlots(escalacaoCasa);
-            AtualizarSlots(escalacaoVisitante);
+            AtualizarSlots(escalacaoCasa, true);
+            AtualizarSlots(escalacaoVisitante, false);
+
+            // Remove reservas antigas e recria
+            var reservasAntigas = escalacoes.Where(e => !e.Titular).ToList();
+            _context.Escalacoes.RemoveRange(reservasAntigas);
+
+            void AdicionarReservas(List<EscalacaoInput> inputs, bool isTimeCasa)
+            {
+                if (inputs == null) return;
+                foreach (var e in inputs.Where(e => e.JogadorId > 0))
+                {
+                    _context.Escalacoes.Add(new Escalacao
+                    {
+                        JogoId = id,
+                        JogadorId = e.JogadorId,
+                        Posicao = "RES",
+                        PosicaoX = 0,
+                        PosicaoY = 0,
+                        IsTimeCasa = isTimeCasa,
+                        Titular = false
+                    });
+                }
+            }
+
+            AdicionarReservas(reservasCasa, true);
+            AdicionarReservas(reservasVisitante, false);
 
             await _context.SaveChangesAsync();
-            return RedirectToAction("Analisar", new { id });
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> LimparEscalacoes(int id)
-        {
-            var escalacoes = _context.Escalacoes.Where(e => e.JogoId == id);
-            _context.Escalacoes.RemoveRange(escalacoes);
-            await _context.SaveChangesAsync();
-
-            // Depois de limpar, redireciona de volta para a página de análise
             return RedirectToAction("Analisar", new { id });
         }
 
