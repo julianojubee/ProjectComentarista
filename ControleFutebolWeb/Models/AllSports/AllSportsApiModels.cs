@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace ControleFutebolWeb.Models.AllSports
 {
@@ -132,10 +133,27 @@ namespace ControleFutebolWeb.Models.AllSports
         public string Time { get; set; } = "";
 
         [JsonPropertyName("home_scorer")]
+        [JsonConverter(typeof(SubPlayerConverter))]
         public AllSportsSubPlayer? HomeScorer { get; set; }
 
         [JsonPropertyName("away_scorer")]
+        [JsonConverter(typeof(SubPlayerConverter))]
         public AllSportsSubPlayer? AwayScorer { get; set; }
+
+        [JsonPropertyName("score")]
+        public string? Score { get; set; }
+
+        [JsonPropertyName("home_assist")]
+        public string? HomeAssist { get; set; }
+
+        [JsonPropertyName("away_assist")]
+        public string? AwayAssist { get; set; }
+
+        [JsonPropertyName("info")]
+        public string? Info { get; set; }
+
+        [JsonPropertyName("info_time")]
+        public string? InfoTime { get; set; }
     }
 
     public class AllSportsSubPlayer
@@ -151,6 +169,35 @@ namespace ControleFutebolWeb.Models.AllSports
 
         [JsonPropertyName("out_id")]
         public long? OutId { get; set; }
+    }
+
+    // 🔹 Converter embutido no mesmo namespace
+    public class SubPlayerConverter : JsonConverter<AllSportsSubPlayer?>
+    {
+        public override AllSportsSubPlayer? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.String)
+            {
+                var nome = reader.GetString();
+                return new AllSportsSubPlayer { In = nome };
+            }
+            else if (reader.TokenType == JsonTokenType.StartObject)
+            {
+                return JsonSerializer.Deserialize<AllSportsSubPlayer>(ref reader, options);
+            }
+            else if (reader.TokenType == JsonTokenType.StartArray)
+            {
+                // Consome array vazio []
+                reader.Read();
+                return null;
+            }
+            return null;
+        }
+
+        public override void Write(Utf8JsonWriter writer, AllSportsSubPlayer? value, JsonSerializerOptions options)
+        {
+            JsonSerializer.Serialize(writer, value, options);
+        }
     }
 
     public class AllSportsLineups
@@ -174,16 +221,16 @@ namespace ControleFutebolWeb.Models.AllSports
     public class AllSportsPlayer
     {
         [JsonPropertyName("player")]
-        public string Name { get; set; } = "";
+        public string? Name { get; set; } = "";
 
         [JsonPropertyName("player_number")]
-        public int Number { get; set; }
+        public int? Number { get; set; }
 
         [JsonPropertyName("player_position")]
-        public int Position { get; set; }
+        public int? Position { get; set; }
 
         [JsonPropertyName("player_key")]
-        public long PlayerKey { get; set; }
+        public long? PlayerKey { get; set; }
     }
 
     public class AllSportsStat

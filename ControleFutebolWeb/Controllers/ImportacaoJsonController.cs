@@ -50,14 +50,20 @@ namespace ControleFutebolWeb.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            string jsonContent;
-            using (var reader = new StreamReader(arquivo.OpenReadStream()))
-                jsonContent = await reader.ReadToEndAsync();
-
             List<AllSportsJogo> jogos;
             try
             {
-                jogos = ParsearJson(jsonContent);
+                if (arquivo.Length > 5_000_000) // 🔹 se for muito grande, usa streaming
+                {
+                    using var stream = arquivo.OpenReadStream();
+                    jogos = await ParsearJsonStream(stream);
+                }
+                else
+                {
+                    using var reader = new StreamReader(arquivo.OpenReadStream());
+                    var jsonContent = await reader.ReadToEndAsync();
+                    jogos = ParsearJson(jsonContent);
+                }
             }
             catch (Exception ex)
             {
@@ -88,12 +94,13 @@ namespace ControleFutebolWeb.Controllers
         {
             var trimmed = json.TrimStart();
 
-            // Array direto: [ {...}, {...} ]
+            // 1. Array direto: [ {...}, {...} ]
             if (trimmed.StartsWith('['))
                 return JsonSerializer.Deserialize<List<AllSportsJogo>>(json, _jsonOpts) ?? new();
 
-            // Objeto com chave "result"
             var node = JsonNode.Parse(json);
+
+            // 2. Objeto com chave "result"
             if (node is JsonObject obj && obj.ContainsKey("result"))
             {
                 var resultNode = obj["result"];
@@ -102,10 +109,71 @@ namespace ControleFutebolWeb.Controllers
                         resultNode.ToJsonString(), _jsonOpts) ?? new();
             }
 
-            // Objeto único de um jogo
-            var jogo = JsonSerializer.Deserialize<AllSportsJogo>(json, _jsonOpts);
-            return jogo != null ? new List<AllSportsJogo> { jogo } : new();
+            // 3. Objeto grande com várias chaves (ex: { "123": {...}, "124": {...} })
+            if (node is JsonObject bigObj)
+            {
+                var jogos = new List<AllSportsJogo>();
+                foreach (var kv in bigObj)
+                {
+                    if (kv.Value is JsonObject jogoObj)
+                    {
+                        var jogo = jogoObj.Deserialize<AllSportsJogo>(_jsonOpts);
+                        if (jogo != null) jogos.Add(jogo);
+                    }
+                    else if (kv.Value is JsonArray arr)
+                    {
+                        foreach (var element in arr)
+                        {
+                            var jogo = element.Deserialize<AllSportsJogo>(_jsonOpts);
+                            if (jogo != null) jogos.Add(jogo);
+                        }
+                    }
+                }
+                if (jogos.Any()) return jogos;
+            }
+
+            // 4. Objeto único de um jogo
+            var jogoUnico = JsonSerializer.Deserialize<AllSportsJogo>(json, _jsonOpts);
+            return jogoUnico != null ? new List<AllSportsJogo> { jogoUnico } : new();
         }
+
+        private async Task<List<AllSportsJogo>> ParsearJsonStream(Stream jsonStream)
+        {
+            var jogos = new List<AllSportsJogo>();
+
+            using var doc = await JsonDocument.ParseAsync(jsonStream);
+
+            if (doc.RootElement.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var element in doc.RootElement.EnumerateArray())
+                {
+                    var jogo = element.Deserialize<AllSportsJogo>(_jsonOpts);
+                    if (jogo != null) jogos.Add(jogo);
+                }
+            }
+            else if (doc.RootElement.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var kv in doc.RootElement.EnumerateObject())
+                {
+                    if (kv.Value.ValueKind == JsonValueKind.Object)
+                    {
+                        var jogo = kv.Value.Deserialize<AllSportsJogo>(_jsonOpts);
+                        if (jogo != null) jogos.Add(jogo);
+                    }
+                    else if (kv.Value.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var element in kv.Value.EnumerateArray())
+                        {
+                            var jogo = element.Deserialize<AllSportsJogo>(_jsonOpts);
+                            if (jogo != null) jogos.Add(jogo);
+                        }
+                    }
+                }
+            }
+
+            return jogos;
+        }
+
 
         // ── Lógica principal de importação ───────────────────────────────────
         private async Task<ResultadoImportacao> ProcessarJogos(
@@ -225,11 +293,12 @@ namespace ControleFutebolWeb.Controllers
                     }
 
                     // ── 7. Gols ───────────────────────────────────────────────
+                   
+
                     if (jogoNovo && jogoApi.Goalscorers.Any())
                     {
-                        await ImportarGols(jogoDb, jogoApi.Goalscorers, timeCasa, timeVis);
+                        await ImportarGols(jogoApi, jogoDb, timeCasa, timeVis, resultado);
                     }
-
                     // ── 8. Cartões ────────────────────────────────────────────
                     if (jogoNovo && jogoApi.Cards.Any())
                     {
@@ -250,17 +319,35 @@ namespace ControleFutebolWeb.Controllers
             return resultado;
         }
 
-        // ── Resolve ou cria time ─────────────────────────────────────────────
-        private async Task<Time?> ResolverTime(
-            string nome, long apiKey, string? logoUrl,
-            Formacao formacaoPadrao, bool criarAuto,
-            ResultadoImportacao resultado)
+        private async Task<Time?> ResolverTime(string nome, long apiKey, string? logoUrl,Formacao formacaoPadrao, bool criarAuto,
+                 ResultadoImportacao resultado)
         {
-            // Tenta por IdApi primeiro
+            // 1. Se o nome vier vazio ou nulo, aborta ou usa fallback
+            if (string.IsNullOrWhiteSpace(nome))
+            {
+                // Se não pode criar automaticamente, apenas retorna null
+                if (!criarAuto)
+                {
+                    resultado.Avisos.Add($"Time ignorado: nome vazio para apiKey {apiKey}");
+                    return null;
+                }
+
+                // Se pode criar, usa um nome padrão
+                nome = $"Time_{apiKey}";
+            }
+
+            // 2. Busca por IdApi
             var time = await _context.Times.FirstOrDefaultAsync(
                 t => t.IdApi == (int)(apiKey % int.MaxValue));
 
-            // Fallback por nome (normalizado)
+            // 3. Busca por nome usando ILIKE
+            if (time == null)
+            {
+                time = await _context.Times
+                    .FirstOrDefaultAsync(t => EF.Functions.ILike(t.Nome, nome));
+            }
+
+            // 4. Normalização extra (remove CR, RJ, FC, acentos, espaços)
             if (time == null)
             {
                 var nomeNorm = NormalizarNome(nome);
@@ -273,11 +360,12 @@ namespace ControleFutebolWeb.Controllers
                     .AsTask();
             }
 
+            // 5. Cria novo se não achou e está permitido
             if (time == null && criarAuto)
             {
                 time = new Time
                 {
-                    Nome = nome,
+                    Nome = nome, // 🔹 sempre preenchido
                     Cidade = "Importado",
                     IdApi = (int)(apiKey % int.MaxValue),
                     EscudoUrl = logoUrl ?? "",
@@ -293,12 +381,36 @@ namespace ControleFutebolWeb.Controllers
             return time;
         }
 
+
+        private static string NormalizarNome(string nome)
+        {
+            return nome.ToLowerInvariant()
+                .Replace("cr ", "")
+                .Replace("rj", "")
+                .Replace("fc", "")
+                .Replace("futebol clube", "")
+                .Replace("á", "a").Replace("é", "e").Replace("í", "i")
+                .Replace("ó", "o").Replace("ú", "u").Replace("ã", "a")
+                .Replace("ê", "e").Replace("â", "a").Replace("ô", "o")
+                .Replace("ç", "c")
+                .Replace("-", "").Replace(" ", "")
+                .Trim();
+        }
+
+
         // ── Importa escalação de um time ─────────────────────────────────────
         private async Task ImportarEscalacao(
-            Jogo jogo, AllSportsTeamLineup? lineup, Time time,
-            bool isTimeCasa, Formacao formacaoPadrao, ResultadoImportacao resultado)
+                Jogo jogo, AllSportsTeamLineup? lineup, Time time,
+                bool isTimeCasa, Formacao formacaoPadrao, ResultadoImportacao resultado)
         {
             if (lineup == null) return;
+
+            // Se o time já tem jogadores cadastrados, não incluir novamente
+            bool timeJaTemJogadores = await _context.Jogadores.AnyAsync(j => j.TimeId == time.Id);
+            if (timeJaTemJogadores)
+            {
+                _logger.LogInformation("Time {Time} já possui jogadores cadastrados. Não serão incluídos novamente.", time.Nome);
+            }
 
             // Remove escalações antigas deste time/fase neste jogo
             var antigas = jogo.Escalacoes?
@@ -317,9 +429,15 @@ namespace ControleFutebolWeb.Controllers
 
             int posIdx = 0;
 
+            // Titulares
             foreach (var p in lineup.StartingLineups)
             {
-                var jogador = await ResolverJogador(p, time, resultado);
+                Jogador? jogador = null;
+
+                if (!timeJaTemJogadores)
+                    jogador = await ResolverJogador(p, time, resultado);
+                else
+                    jogador = await _context.Jogadores.FirstOrDefaultAsync(j => j.Nome == p.Name && j.TimeId == time.Id);
 
                 double posX = posIdx < posicoesForm.Count ? posicoesForm[posIdx].PosicaoX : 50;
                 double posY = posIdx < posicoesForm.Count ? posicoesForm[posIdx].PosicaoY : 50;
@@ -330,7 +448,7 @@ namespace ControleFutebolWeb.Controllers
                     JogadorId = jogador?.Id,
                     Titular = true,
                     IsTimeCasa = isTimeCasa,
-                    Posicao = MapearPosicao(p.Position),
+                    Posicao = MapearPosicao(p.Position ?? 0),
                     PosicaoX = posX,
                     PosicaoY = posY,
                     FaseEscalacao = "INICIAL"
@@ -338,9 +456,16 @@ namespace ControleFutebolWeb.Controllers
                 posIdx++;
             }
 
+            // Reservas
             foreach (var p in lineup.Substitutes)
             {
-                var jogador = await ResolverJogador(p, time, resultado);
+                Jogador? jogador = null;
+
+                if (!timeJaTemJogadores)
+                    jogador = await ResolverJogador(p, time, resultado);
+                else
+                    jogador = await _context.Jogadores.FirstOrDefaultAsync(j => j.Nome == p.Name && j.TimeId == time.Id);
+
                 _context.Escalacoes.Add(new Escalacao
                 {
                     JogoId = jogo.Id,
@@ -355,89 +480,107 @@ namespace ControleFutebolWeb.Controllers
             }
         }
 
-        // ── Resolve ou cria jogador ───────────────────────────────────────────
-        private async Task<Jogador?> ResolverJogador(
-            AllSportsPlayer p, Time time, ResultadoImportacao resultado)
-        {
-            if (p.PlayerKey == 0) return null;
 
-            // Busca por nome + time
+
+        // ── Resolve ou cria jogador ───────────────────────────────────────────
+        private async Task<Jogador?> ResolverJogador(AllSportsPlayer p, Time time, ResultadoImportacao resultado)
+        {
+            if (string.IsNullOrWhiteSpace(p.Name))
+            {
+                resultado.Avisos.Add($"Jogador ignorado: nome vazio no time {time.Nome}");
+                return null;
+            }
+
+            // Busca por Nome + TimeId
             var jogador = await _context.Jogadores
-                .FirstOrDefaultAsync(j =>
-                    j.Nome == p.Name && j.TimeId == time.Id);
+                .FirstOrDefaultAsync(j => j.Nome == p.Name && j.TimeId == time.Id);
 
             if (jogador == null)
             {
                 jogador = new Jogador
                 {
                     Nome = p.Name,
-                    Posicao = MapearPosicao(p.Position),
-                    TimeId = time.Id,
-                    NumeroCamisa = p.Number > 0 ? p.Number : null,
-                    DataNascimento = DateTime.MinValue
+                    NumeroCamisa = p.Number,
+                    Posicao = MapearPosicao(p.Position ?? 0), // 🔹 usa Position (int)
+                    TimeId = time.Id
                 };
+
+                _logger.LogInformation("Incluindo Jogador: Nome={Nome}, Numero={Numero}, Posicao={Posicao}, Time={Time}",
+                    jogador.Nome, jogador.NumeroCamisa, jogador.Posicao, time.Nome);
+
                 _context.Jogadores.Add(jogador);
                 await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Jogador salvo com Id={Id}", jogador.Id);
+
                 resultado.JogadoresNovos++;
-            }
-            else if (p.Number > 0 && jogador.NumeroCamisa == null)
-            {
-                jogador.NumeroCamisa = p.Number;
             }
 
             return jogador;
         }
 
-        // ── Importa gols ──────────────────────────────────────────────────────
-        private async Task ImportarGols(
-            Jogo jogo, List<AllSportsGol> gols, Time timeCasa, Time timeVis)
+        private int ConverterMinuto(string? timeStr)
         {
-            foreach (var g in gols)
+            if (string.IsNullOrWhiteSpace(timeStr))
+                return 0;
+
+            // Exemplo: "45+2" → pega 45 e soma 2
+            if (timeStr.Contains("+"))
             {
-                // Pula pênaltis de série de pênalti (InfoTime == "Penalty")
-                bool ePenaltyShootout = g.InfoTime == "Penalty";
-                bool eGolCasa = !string.IsNullOrEmpty(g.HomeScorer) && !string.IsNullOrEmpty(g.Score) && !ePenaltyShootout;
-                bool eGolVis = !string.IsNullOrEmpty(g.AwayScorer) && !string.IsNullOrEmpty(g.Score) && !ePenaltyShootout;
-
-                if (!eGolCasa && !eGolVis) continue;
-
-                int.TryParse(g.Time.Replace("+", "").Trim(), out int minuto);
-
-                if (eGolCasa)
+                var partes = timeStr.Split('+');
+                if (int.TryParse(partes[0], out int baseMin) &&
+                    int.TryParse(partes[1], out int acrescimo))
                 {
-                    var nomeJogador = LimparNomeGol(g.HomeScorer!);
-                    var jogador = await _context.Jogadores
-                        .FirstOrDefaultAsync(j => j.Nome.Contains(nomeJogador) && j.TimeId == timeCasa.Id)
-                        ?? await _context.Jogadores
-                            .FirstOrDefaultAsync(j => j.TimeId == timeCasa.Id);
-
-                    _context.Gols.Add(new Gol
-                    {
-                        JogoId = jogo.Id,
-                        JogadorId = jogador?.Id ?? 0,
-                        Minuto = minuto,
-                        Contra = false
-                    });
+                    return baseMin + acrescimo;
                 }
-
-                if (eGolVis)
-                {
-                    var nomeJogador = LimparNomeGol(g.AwayScorer!);
-                    var jogador = await _context.Jogadores
-                        .FirstOrDefaultAsync(j => j.Nome.Contains(nomeJogador) && j.TimeId == timeVis.Id)
-                        ?? await _context.Jogadores
-                            .FirstOrDefaultAsync(j => j.TimeId == timeVis.Id);
-
-                    _context.Gols.Add(new Gol
-                    {
-                        JogoId = jogo.Id,
-                        JogadorId = jogador?.Id ?? 0,
-                        Minuto = minuto,
-                        Contra = false
-                    });
-                }
+                return baseMin;
             }
+
+            // Exemplo: "12" → converte direto
+            if (int.TryParse(timeStr, out int minuto))
+                return minuto;
+
+            return 0; // fallback
         }
+
+        // ── Importa gols ──────────────────────────────────────────────────────
+        private async Task ImportarGols(AllSportsJogo jogo, Jogo jogoDb, Time timeCasa, Time timeVisitante, ResultadoImportacao resultado)
+        {
+            foreach (var gol in jogo.Goalscorers)
+            {
+                string? nomeJogador = gol.HomeScorer ?? gol.AwayScorer;
+                int? timeId = gol.HomeScorer != null ? timeCasa.Id : timeVisitante.Id;
+
+                if (string.IsNullOrWhiteSpace(nomeJogador))
+                {
+                    resultado.Avisos.Add($"Gol ignorado: nome de jogador vazio no jogo {jogo.EventKey}");
+                    continue;
+                }
+
+                // 🔹 tenta localizar jogador existente
+                var jogador = await _context.Jogadores
+                    .FirstOrDefaultAsync(j => j.Nome == nomeJogador && j.TimeId == timeId);
+
+                if (jogador == null)
+                {
+                    resultado.Avisos.Add($"Gol ignorado: jogador '{nomeJogador}' não encontrado no time {timeId}");
+                    continue; // não adiciona o gol
+                }
+
+                _logger.LogInformation("Incluindo gol: Jogo={JogoId}, Jogador={Jogador}, Minuto={Minuto}, Score={Score}",
+                    jogoDb.Id, jogador.Nome, gol.Time, gol.Score);
+
+                _context.Gols.Add(new Gol
+                {
+                    JogoId = jogoDb.Id,
+                    JogadorId = jogador.Id,
+                    Minuto = ConverterMinuto(gol.Time)
+                });
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
 
         // ── Importa cartões ───────────────────────────────────────────────────
         private async Task ImportarCartoes(
@@ -492,15 +635,7 @@ namespace ControleFutebolWeb.Controllers
             _ => "MC"
         };
 
-        private static string NormalizarNome(string nome)
-        {
-            return nome.ToLowerInvariant()
-                .Replace("á", "a").Replace("é", "e").Replace("í", "i")
-                .Replace("ó", "o").Replace("ú", "u").Replace("ã", "a")
-                .Replace("ê", "e").Replace("â", "a").Replace("ô", "o")
-                .Replace("ç", "c").Replace("-", "").Replace(" ", "")
-                .Trim();
-        }
+     
 
         private static string LimparNomeGol(string nome)
         {

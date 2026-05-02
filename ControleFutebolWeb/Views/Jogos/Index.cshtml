@@ -333,18 +333,12 @@
                 Importar Jogos da Libertadores
             </a>
         </div>
-        <a asp-controller="Copa" asp-action="ImportarJogos" asp-route-competicaoId="3"
-           class="cf-import-btn">Importar Jogos Copa do Brasil</a>
-
-        <form asp-controller="Copa" asp-action="ImportarSulAmericana" method="post">
-            <input type="hidden" name="competicaoId" value="4" />
-            <button type="submit" class="cf-import-btn">Importar Jogos Sul-Americana</button>
-        </form>
-
-        <form asp-controller="Copa" asp-action="ImportarSulAmericanaArquivo" method="post">
-            <input type="hidden" name="competicaoId" value="4" />
-            <button type="submit" class="cf-import-btn">Importar Jogos Sul-Americana (Arquivo JSON)</button>
-        </form>
+        <li>
+            <a class="dropdown-item"
+               asp-controller="ImportacaoJson" asp-action="Index">
+                📂 Importar JSON
+            </a>
+        </li>
 
         <form method="get" asp-action="Index" class="cf-filters">
             <div class="cf-filter-group">
