@@ -1,33 +1,163 @@
 ﻿@model ControleFutebolWeb.Models.ViewModels.CompeticaoDetalhesViewModel
 
-<div class="container-fluid">
-    <div class="row">
-        <!-- Sidebar -->
-        <nav class="col-md-3 col-lg-2 d-md-block bg-dark sidebar">
-            <div class="sidebar-sticky">
-                <h4 class="text-white mt-3">Competições</h4>
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link text-white" asp-controller="Competicoes" asp-action="Index">
-                            Voltar para lista
-                        </a>
-                    </li>
-                </ul>
+<div class="row">
+    <!-- Coluna esquerda: Classificação por grupos -->
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h4>Classificação - Fase de Grupos</h4>
+
+                @foreach (var grupo in Model.Grupos)
+                {
+                    <h5 class="mt-3">Grupo @grupo.Nome</h5>
+                    <table class="table table-sm table-bordered align-middle tabela-classificacao">
+                        <thead>
+                            <tr>
+                                <th>Pos</th>
+                                <th class="nome-time">Time</th>
+                                <th>Pts</th>
+                                <th>J</th>
+                                <th>VIT</th>
+                                <th>E</th>
+                                <th>D</th>
+                                <th>GP</th>
+                                <th>GC</th>
+                                <th>SG</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (int i = 0; i < grupo.Times.Count; i++)
+                            {
+                                var posicao = i + 1;
+                                var timeGrupo = grupo.Times[i];
+                                var jogos = timeGrupo.Vitorias + timeGrupo.Empates + timeGrupo.Derrotas;
+
+                                // Zonas de classificação na fase de grupos da Libertadores:
+                                // 1º e 2º lugar: classificados direto para oitavas
+                                // 3º lugar: vai para a Pré-Oitavas (repescagem)
+                                // 4º lugar: eliminado
+                                string classe = "";
+                                if (posicao <= 2) classe = "libertadores";
+                                else if (posicao == 3) classe = "sulamericana";
+                                else classe = "rebaixado";
+
+                                <tr class="@classe">
+                                    <td>@posicao</td>
+                                    <td class="nome-time">
+                                        <a asp-controller="Times" asp-action="Details" asp-route-id="@timeGrupo.Time.Id" style="text-decoration:none; color:inherit;">
+                                            <img src="@timeGrupo.Time.EscudoUrl" width="18" style="margin-right:3px;" />
+                                            <strong>@timeGrupo.Time.Nome</strong>
+                                        </a>
+                                    </td>
+                                    <td>@timeGrupo.Pontos</td>
+                                    <td>@jogos</td>
+                                    <td>@timeGrupo.Vitorias</td>
+                                    <td>@timeGrupo.Empates</td>
+                                    <td>@timeGrupo.Derrotas</td>
+                                    <td>@timeGrupo.GolsPro</td>
+                                    <td>@timeGrupo.GolsContra</td>
+                                    <td>@timeGrupo.SaldoGols</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+
+                <!-- Legenda -->
+                <div class="mt-3">
+                    <span class="badge bg-primary me-2">Oitavas de Final</span>
+                    <span class="badge bg-success me-2">Pré-Oitavas</span>
+                    <span class="badge bg-danger">Eliminado</span>
+                </div>
+
+                <!-- Critérios de Desempate -->
+                <div class="criterios-desempate" style="margin-top:20px;">
+                    <h4>Critérios de Desempate</h4>
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Ordem</th>
+                                <th>Critério</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>1</td><td>Maior número de vitórias</td></tr>
+                            <tr><td>2</td><td>Maior saldo de gols</td></tr>
+                            <tr><td>3</td><td>Maior número de gols pró</td></tr>
+                            <tr><td>4</td><td>Confronto direto (apenas entre dois clubes)</td></tr>
+                            <tr><td>5</td><td>Menor número de cartões vermelhos</td></tr>
+                            <tr><td>6</td><td>Menor número de cartões amarelos</td></tr>
+                            <tr><td>7</td><td>Sorteio na sede da CONMEBOL</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
             </div>
-        </nav>
+        </div>
+    </div>
 
-        <!-- Conteúdo principal -->
-        <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4">
-            <h2 class="mt-4">@Model.Competicao.Nome</h2>
+    <!-- Coluna direita: Próximos jogos -->
+    <div class="col-md-6">
+        <h4>
+            <div class="text-center mb-3">
+                <span class="badge bg-success fs-5 px-3 py-2">
+                    Próximos Jogos
+                </span>
+            </div>
+        </h4>
 
-            @if (Model.Tipo == "PONTOS_CORRIDOS")
+        <div class="row">
+            @foreach (var jogo in Model.Competicao.Jogos)
             {
-                <!-- tabela pontos corridos -->
+                <div class="col-md-6 mb-3">
+                    <div class="card shadow-sm">
+                        <div class="card-header text-center bg-primary text-white">
+                            @jogo.Data.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                        </div>
+                        <div class="card-body text-center">
+                            <div class="d-flex justify-content-around align-items-center">
+                                <div>
+                                    <img src="@jogo.TimeCasa?.EscudoUrl" alt="@jogo.TimeCasa?.Nome" width="40" height="40" />
+                                    <h6>@jogo.TimeCasa?.Nome</h6>
+                                </div>
+                                <div class="fw-bold">vs</div>
+                                <div>
+                                    <img src="@jogo.TimeVisitante?.EscudoUrl" alt="@jogo.TimeVisitante?.Nome" width="40" height="40" />
+                                    <h6>@jogo.TimeVisitante?.Nome</h6>
+                                </div>
+                            </div>
+
+                            <p class="mt-3">
+                                @if (jogo.Data > DateTime.Now)
+                                {
+                                    <span class="badge bg-secondary">Agendado</span>
+                                }
+                                else if (jogo.PlacarCasa >= 0 && jogo.PlacarVisitante >= 0)
+                                {
+                                    <span class="badge bg-success">
+                                        @jogo.PlacarCasa x @jogo.PlacarVisitante
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Agendado</span>
+                                }
+                            </p>
+
+                            <small class="text-muted">Grupo: @jogo.Grupo</small>
+
+                            <!-- Botão Analisar -->
+                            <div class="mt-2">
+                                <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id"
+                                   class="btn btn-outline-primary btn-sm">
+                                    Analisar
+                                </a>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
             }
-            else if (Model.Tipo == "GRUPOS")
-            {
-                <!-- tabelas por grupo -->
-            }
-        </main>
+        </div>
     </div>
 </div>

@@ -3,6 +3,7 @@ using System;
 using ControleFutebolWeb.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ControleFutebolWeb.Migrations
 {
     [DbContext(typeof(FutebolContext))]
-    partial class FutebolContextModelSnapshot : ModelSnapshot
+    [Migration("20260430214507_AddnullnoCampoCor")]
+    partial class AddnullnoCampoCor
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -157,48 +160,6 @@ namespace ControleFutebolWeb.Migrations
                     b.ToTable("formacoes");
                 });
 
-            modelBuilder.Entity("ControleFutebolWeb.Models.ImportacaoLog", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Acao")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("acao");
-
-                    b.Property<int>("CompeticaoId")
-                        .HasColumnType("integer")
-                        .HasColumnName("competicaoid");
-
-                    b.Property<DateTime>("DataImportacao")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("dataimportacao");
-
-                    b.Property<string>("NomeTimeApi")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("nometimeapi");
-
-                    b.Property<string>("NomeTimeBanco")
-                        .HasColumnType("text")
-                        .HasColumnName("nometimebanco");
-
-                    b.Property<string>("Observacao")
-                        .HasColumnType("text")
-                        .HasColumnName("observacao");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CompeticaoId");
-
-                    b.ToTable("importacaologs");
-                });
-
             modelBuilder.Entity("ControleFutebolWeb.Models.Jogador", b =>
                 {
                     b.Property<int>("Id")
@@ -260,10 +221,6 @@ namespace ControleFutebolWeb.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("data");
 
-                    b.Property<int>("EventKey")
-                        .HasColumnType("integer")
-                        .HasColumnName("eventkey");
-
                     b.Property<int?>("FormacaoCasaId")
                         .HasColumnType("integer")
                         .HasColumnName("formacaocasaid");
@@ -295,10 +252,6 @@ namespace ControleFutebolWeb.Migrations
                     b.Property<int>("Rodada")
                         .HasColumnType("integer")
                         .HasColumnName("rodada");
-
-                    b.Property<string>("Status")
-                        .HasColumnType("text")
-                        .HasColumnName("status");
 
                     b.Property<int>("TimeCasaId")
                         .HasColumnType("integer")
@@ -718,17 +671,6 @@ namespace ControleFutebolWeb.Migrations
                     b.Navigation("Jogador");
 
                     b.Navigation("Jogo");
-                });
-
-            modelBuilder.Entity("ControleFutebolWeb.Models.ImportacaoLog", b =>
-                {
-                    b.HasOne("ControleFutebolWeb.Models.Competicao", "Competicao")
-                        .WithMany()
-                        .HasForeignKey("CompeticaoId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Competicao");
                 });
 
             modelBuilder.Entity("ControleFutebolWeb.Models.Jogador", b =>

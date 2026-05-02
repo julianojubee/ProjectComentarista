@@ -16,9 +16,11 @@ internal class Program
         builder.Services.AddControllersWithViews();
         builder.Services.AddHttpClient<ApiFootballDataService>();
         builder.Services.AddHostedService<AtualizacaoJogosService>();
-
-
-
+        builder.Services.AddHttpClient();
+        // habilita logging no console e debug
+        builder.Logging.ClearProviders();
+        builder.Logging.AddConsole();
+        builder.Logging.AddDebug();
         var app = builder.Build();
 
         // Inicializa o banco com dados (SeedData)

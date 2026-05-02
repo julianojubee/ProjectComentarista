@@ -1,0 +1,39 @@
+﻿@model ControleFutebolWeb.Models.Competicao
+
+<h2>@Model.Nome (@Model.Regiao)</h2>
+
+@if (TempData["Sucesso"] != null)
+{
+    <div class="alert alert-success">@TempData["Sucesso"]</div>
+}
+@if (TempData["Aviso"] != null)
+{
+    <div class="alert alert-warning">@TempData["Aviso"]</div>
+}
+@if (TempData["Erro"] != null)
+{
+    <div class="alert alert-danger">@TempData["Erro"]</div>
+}
+
+<h4>Jogos</h4>
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Data</th>
+            <th>Casa</th>
+            <th>Visitante</th>
+            <th>Placar</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var jogo in Model.Jogos)
+        {
+            <tr>
+                <td>@jogo.Data.ToString("dd/MM/yyyy HH:mm")</td>
+                <td>@jogo.TimeCasa?.Nome</td>
+                <td>@jogo.TimeVisitante?.Nome</td>
+                <td>@(jogo.PlacarCasa.HasValue ? $"{jogo.PlacarCasa} x {jogo.PlacarVisitante}" : "-")</td>
+            </tr>
+        }
+    </tbody>
+</table>

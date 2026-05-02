@@ -7,7 +7,7 @@
 
     public class TeamResponse
     {
-        public int Id { get; set; }
+        public int? Id { get; set; }  // ← int?
         public string Name { get; set; } = string.Empty;
         public string Crest { get; set; } = string.Empty;
         public List<PlayerResponse> Squad { get; set; } = new();
@@ -31,11 +31,11 @@
     {
         public int Id { get; set; }
         public DateTime UtcDate { get; set; }
-        public int Matchday { get; set; }   // novo campo → rodada
+        public int? Matchday { get; set; }  // ← era int, agora int?
+        public string? Group { get; set; }
         public TeamResponse HomeTeam { get; set; } = new();
         public TeamResponse AwayTeam { get; set; } = new();
         public ScoreResponse Score { get; set; } = new();
-
     }
 
     public class ScoreResponse

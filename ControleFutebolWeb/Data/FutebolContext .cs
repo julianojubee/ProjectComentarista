@@ -20,6 +20,7 @@ namespace ControleFutebolWeb.Data
         public DbSet<Competicao> Competicoes { get; set; }
         public DbSet<TimeEscalacaoPadrao> TimeEscalacaoPadrao { get; set; }
         public DbSet<Notadetalhe> NotaDetalhes { get; set; }
+        
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

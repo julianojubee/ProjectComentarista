@@ -41,7 +41,7 @@ public class AtualizacaoJogosService : BackgroundService
                             jogoDb.PlacarCasa = jogoApi.Score.FullTime.Home;
                             jogoDb.PlacarVisitante = jogoApi.Score.FullTime.Away;
                             jogoDb.Data = jogoApi.UtcDate;
-                            jogoDb.Rodada = jogoApi.Matchday;
+                            jogoDb.Rodada = jogoApi.Matchday ?? jogoDb.Rodada;
 
                             context.Jogos.Update(jogoDb);
 

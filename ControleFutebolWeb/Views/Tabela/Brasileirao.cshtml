@@ -1,4 +1,86 @@
-﻿<div class="row">
+﻿@using ControleFutebolWeb.Models
+
+<style>
+    .cf-comp-hero {
+        position: relative;
+        border-radius: 14px;
+        padding: 1.5rem 1.6rem;
+        margin-bottom: 1rem;
+        overflow: hidden;
+        background: linear-gradient(135deg, #0b5f2a 0%, #1f8f45 55%, #0d6d30 100%);
+    }
+
+        .cf-comp-hero::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            opacity: 0.12;
+            background-image: radial-gradient(circle at 50% 50%, transparent 28%, #fff 28.5%, #fff 29.2%, transparent 29.8%), linear-gradient(90deg, transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%), linear-gradient(transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%);
+        }
+
+    .cf-comp-hero-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .cf-comp-badge {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.16);
+        color: #e6f7eb;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        padding: 4px 11px;
+        border-radius: 999px;
+        margin-bottom: 0.55rem;
+    }
+
+    .cf-comp-title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 0.2rem;
+    }
+
+    .cf-comp-logo {
+        width: 34px;
+        height: 34px;
+        object-fit: contain;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.12);
+        padding: 2px;
+    }
+
+    .cf-comp-title {
+        color: #fff;
+        font-size: 1.35rem;
+        font-weight: 700;
+        margin: 0 0 0.2rem;
+    }
+
+    .cf-comp-sub {
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 0.92rem;
+        margin: 0;
+    }
+</style>
+
+<!-- Banner Campeonato Brasileiro -->
+<div class="cf-comp-hero">
+    <div class="cf-comp-hero-content">
+        <span class="cf-comp-badge">Competição nacional</span>
+        <div class="cf-comp-title-wrap">
+            <img src="~/images/background/campeonatobrasileiro.png"
+                 alt="Escudo Campeonato Brasileiro"
+                 class="cf-comp-logo" />
+            <h2 class="cf-comp-title">Campeonato Brasileiro</h2>
+        </div>
+        <p class="cf-comp-sub">Classificação geral e jogos da rodada atual.</p>
+    </div>
+</div>
+
+<div class="row">
     <!-- Coluna esquerda: Tabela -->
     <div class="col-md-6">
         <div class="card shadow-sm">
@@ -10,7 +92,7 @@
                             <th>Pos</th>
                             <th class="nome-time">Time</th>
                             <th>Pts</th>
-                            <th>J</th> <!-- nova coluna para Jogos -->
+                            <th>J</th>
                             <th>VIT</th>
                             <th>E</th>
                             <th>D</th>
@@ -29,9 +111,8 @@
                             else if (posicao <= 6) classe = "pre-libertadores";
                             else if (posicao <= 12) classe = "sulamericana";
                             else if (posicao >= 17) classe = "rebaixado";
-                            // cálculo automático de jogos disputados
-                            var jogos = Model[i].Vitorias + Model[i].Empates + Model[i].Derrotas;
 
+                            var jogos = Model[i].Vitorias + Model[i].Empates + Model[i].Derrotas;
 
                             <tr class="@classe">
                                 <td>@posicao</td>
@@ -42,7 +123,7 @@
                                     </a>
                                 </td>
                                 <td>@Model[i].Pontos</td>
-                                <td>@jogos</td> <!-- novo campo calculado -->
+                                <td>@jogos</td>
                                 <td>@Model[i].Vitorias</td>
                                 <td>@Model[i].Empates</td>
                                 <td>@Model[i].Derrotas</td>
@@ -61,6 +142,7 @@
                     <span class="badge bg-success me-2">Sul-Americana</span>
                     <span class="badge bg-danger">Rebaixamento</span>
                 </div>
+
                 <div class="criterios-desempate" style="margin-top:20px;">
                     <h4>Critérios de Desempate</h4>
                     <table class="table table-sm">
@@ -81,34 +163,26 @@
                         </tbody>
                     </table>
                 </div>
-
             </div>
         </div>
     </div>
 
-    <!-- Coluna direita: Próximos jogos -->
+    <!-- Coluna direita: Jogos da rodada -->
     <div class="col-md-6">
-        <h4>
-            <!-- Badge centralizado -->
-            <div class="text-center mb-3">
-                <span class="badge bg-success fs-5 px-3 py-2">
-                    @ViewBag.NumeroRodada @("ª Rodada")
-                </span>
-            </div>
+        <div class="text-center mb-3">
+            <span class="badge bg-success fs-5 px-3 py-2">
+                @ViewBag.NumeroRodada @("ª Rodada")
+            </span>
+        </div>
 
-        </h4>
         <div class="row">
             @foreach (var jogo in ViewBag.ProximaRodada as List<Jogo>)
             {
                 <div class="col-md-6 mb-3">
                     <div class="card shadow-sm">
-                        <!-- Cabeçalho com a data -->
                         <div class="card-header text-center bg-primary text-white">
                             @jogo.Data.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
-
                         </div>
-
-                        <!-- Corpo do card -->
                         <div class="card-body text-center">
                             <div class="d-flex justify-content-around align-items-center">
                                 <div>
@@ -122,7 +196,6 @@
                                 </div>
                             </div>
 
-                            <!-- Badge de status -->
                             <p class="mt-3">
                                 @if (jogo.Data > DateTime.Now)
                                 {
@@ -142,15 +215,12 @@
 
                             <small class="text-muted">Rodada: @jogo.Rodada</small>
 
-                            <!-- Botão Analisar -->
                             <div class="mt-2">
                                 <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id"
                                    class="btn btn-outline-primary btn-sm">
                                     Analisar
                                 </a>
                             </div>
-
-
                         </div>
                     </div>
                 </div>

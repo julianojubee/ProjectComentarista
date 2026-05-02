@@ -280,6 +280,20 @@
     }
 </style>
 
+@if (TempData["Sucesso"] != null)
+{
+    <div class="alert alert-success">@TempData["Sucesso"]</div>
+}
+@if (TempData["Aviso"] != null)
+{
+    <div class="alert alert-warning">@TempData["Aviso"]</div>
+}
+@if (TempData["Erro"] != null)
+{
+    <div class="alert alert-danger">@TempData["Erro"]</div>
+}
+
+
 <div class="cf-jogos">
     <div class="cf-jogos-hero">
         <div class="cf-jogos-hero-content">
@@ -307,10 +321,30 @@
     <div class="cf-panel">
         <div class="cf-panel-header">
             <h2 class="cf-panel-title">Lista de jogos</h2>
-            <a asp-controller="Brasileirao" asp-action="ImportarJogos" class="cf-import-btn">
-                Importar Jogos do Campeonato
+            <a asp-controller="Brasileirao" asp-action="ImportarJogos"
+               asp-route-competitionCode="BSA" asp-route-competicaoId="1"
+               class="cf-import-btn">
+                Importar Jogos do Campeonato Brasileiro
+            </a>
+
+            <a asp-controller="Brasileirao" asp-action="ImportarJogos"
+               asp-route-competitionCode="CLI" asp-route-competicaoId="2"
+               class="cf-import-btn">
+                Importar Jogos da Libertadores
             </a>
         </div>
+        <a asp-controller="Copa" asp-action="ImportarJogos" asp-route-competicaoId="3"
+           class="cf-import-btn">Importar Jogos Copa do Brasil</a>
+
+        <form asp-controller="Copa" asp-action="ImportarSulAmericana" method="post">
+            <input type="hidden" name="competicaoId" value="4" />
+            <button type="submit" class="cf-import-btn">Importar Jogos Sul-Americana</button>
+        </form>
+
+        <form asp-controller="Copa" asp-action="ImportarSulAmericanaArquivo" method="post">
+            <input type="hidden" name="competicaoId" value="4" />
+            <button type="submit" class="cf-import-btn">Importar Jogos Sul-Americana (Arquivo JSON)</button>
+        </form>
 
         <form method="get" asp-action="Index" class="cf-filters">
             <div class="cf-filter-group">

@@ -15,6 +15,8 @@ build_property.EnforceExtendedAnalyzerRules =
 build_property.EnforceExtendedAnalyzerRules = 
 build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property._SupportedPlatformList = Linux,macOS,Windows
+build_property.TargetFrameworkIdentifier = .NETCoreApp
+build_property.TargetFrameworkVersion = v9.0
 build_property.RootNamespace = ControleFutebolWeb
 build_property.RootNamespace = ControleFutebolWeb
 build_property.ProjectDir = C:\Users\Juliano\source\repos\ControleFutebolWeb\ControleFutebolWeb\
@@ -72,8 +74,16 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQ29tcGV0aWNvZXNcSW5kZXguY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Copa/Detalhes.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQ29wYVxEZXRhbGhlcy5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Home/Index.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSG9tZVxJbmRleC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/ImportacaoJson/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSW1wb3J0YWNhb0pzb25cSW5kZXguY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Jogadores/Create.cshtml]
@@ -146,6 +156,10 @@ build_metadata.AdditionalFiles.CssScope =
 
 [C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Tabela/Brasileirao.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVGFiZWxhXEJyYXNpbGVpcmFvLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Tabela/Libertadores.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVGFiZWxhXExpYmVydGFkb3Jlcy5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Times/Create.cshtml]

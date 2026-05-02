@@ -1,6 +1,7 @@
 ﻿using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
+using ControleFutebolWeb.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -50,11 +51,10 @@ namespace ControleFutebolWeb.Controllers
             {
                 // Garantir que os times existam na tabela
                 if (!tabela.ContainsKey(jogo.TimeCasaId))
-                    tabela[jogo.TimeCasaId] = new Classificacao { TimeId = jogo.TimeCasaId, Time = jogo.TimeCasa?.Nome };
+                    tabela[jogo.TimeCasaId] = new Classificacao { TimeId = jogo.TimeCasaId, Time = jogo.TimeCasa };
 
                 if (!tabela.ContainsKey(jogo.TimeVisitanteId))
-                    tabela[jogo.TimeVisitanteId] = new Classificacao { TimeId = jogo.TimeVisitanteId, Time = jogo.TimeVisitante?.Nome };
-
+                    tabela[jogo.TimeVisitanteId] = new Classificacao { TimeId = jogo.TimeVisitanteId, Time = jogo.TimeVisitante };
                 var casa = tabela[jogo.TimeCasaId];
                 var visitante = tabela[jogo.TimeVisitanteId];
 

@@ -12,8 +12,8 @@ public class Time
     public string? EscudoUrl { get; set; }
     public string? BackgroundUrl { get; set; }
     public int IdApi { get; set; }
-    public string CorPrincipal { get; set; }
-    public string CorSecundaria { get; set; }
+    public string? CorPrincipal { get; set; }
+    public string? CorSecundaria { get; set; }
     public string? CamisaUrl { get; set; }
     // FK para a formação padrão
     public int FormacaoPadraoId { get; set; }

@@ -10,7 +10,7 @@ namespace ControleFutebolWeb.Models
         public DateTime Data { get; set; }
         public int PartidaApiId { get; set; } // ID da partida na API
 
-
+        public int EventKey { get; set; }
         public int TimeCasaId { get; set; }
         [ValidateNever]
 
@@ -52,6 +52,10 @@ namespace ControleFutebolWeb.Models
 
         public string? Grupo { get; set; }
         public string? Observacoes { get; set; }
+
+        
+        public string? Status { get; set; }
+        
 
 
     }

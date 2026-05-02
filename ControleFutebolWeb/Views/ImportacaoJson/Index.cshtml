@@ -1,0 +1,308 @@
+﻿@{
+    ViewData["Title"] = "Importar JSON";
+    var competicoes = ViewBag.Competicoes as List<ControleFutebolWeb.Models.Competicao>
+                      ?? new();
+}
+
+<style>
+    .imp-page * {
+        box-sizing: border-box;
+    }
+
+    .imp-hero {
+        background: linear-gradient(135deg, #0a1628 0%, #1a2f4e 55%, #0f2040 100%);
+        border-radius: 14px;
+        padding: 2.4rem 2rem;
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+
+    .imp-badge {
+        display: inline-block;
+        background: rgba(55,138,221,0.2);
+        color: #85b7eb;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 4px 14px;
+        border-radius: 20px;
+        border: 1px solid rgba(55,138,221,0.35);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 0.9rem;
+    }
+
+    .imp-hero h1 {
+        font-size: 1.9rem;
+        color: #fff;
+        margin-bottom: 0.4rem;
+    }
+
+    .imp-hero p {
+        color: rgba(255,255,255,0.6);
+        margin: 0;
+    }
+
+    .imp-card {
+        background: #fff;
+        border: 0.5px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 1.6rem;
+        max-width: 640px;
+        margin: 0 auto;
+    }
+
+        .imp-card h2 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 1.2rem;
+        }
+
+    .imp-field {
+        margin-bottom: 1.1rem;
+    }
+
+        .imp-field label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .imp-field select,
+        .imp-field input[type=file] {
+            width: 100%;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 9px 12px;
+            font-size: 14px;
+            color: #111827;
+            background: #fff;
+        }
+
+    .imp-drop {
+        border: 2px dashed #d1d5db;
+        border-radius: 10px;
+        padding: 2.2rem 1rem;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color .2s, background .2s;
+    }
+
+        .imp-drop:hover, .imp-drop.drag-over {
+            border-color: #378add;
+            background: #f0f7ff;
+        }
+
+    .imp-drop-icon {
+        font-size: 32px;
+        margin-bottom: 8px;
+    }
+
+    .imp-drop-label {
+        font-size: 14px;
+        color: #6b7280;
+    }
+
+        .imp-drop-label span {
+            color: #378add;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+    .imp-file-name {
+        font-size: 13px;
+        color: #111827;
+        margin-top: 8px;
+        font-weight: 500;
+    }
+
+    .imp-check {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 1.3rem;
+    }
+
+        .imp-check input {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .imp-check label {
+            font-size: 13px;
+            color: #374151;
+            cursor: pointer;
+            margin: 0;
+        }
+
+        .imp-check small {
+            display: block;
+            color: #9ca3af;
+            font-size: 11px;
+        }
+
+    .imp-btn {
+        width: 100%;
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        border-radius: 9px;
+        padding: 11px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background .15s;
+    }
+
+        .imp-btn:hover {
+            background: #1d4ed8;
+        }
+
+        .imp-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+    .imp-info {
+        margin-top: 1.3rem;
+        background: #f0f7ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 10px;
+        padding: 1rem 1.2rem;
+        font-size: 12.5px;
+        color: #1e40af;
+        line-height: 1.6;
+    }
+
+        .imp-info strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 13px;
+        }
+</style>
+
+<div class="imp-page">
+    <div class="imp-hero">
+        <div class="imp-badge">Importação de dados</div>
+        <h1>Importar JSON</h1>
+        <p>Importe partidas da AllSportsAPI diretamente de um arquivo .json extraído do site.</p>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["Sucesso"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["Erro"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="imp-card">
+        <h2>📂 Selecionar arquivo e competição</h2>
+
+        <form asp-action="Importar" method="post" enctype="multipart/form-data" id="formImport">
+            @Html.AntiForgeryToken()
+
+            <div class="imp-field">
+                <label for="competicaoId">Competição de destino</label>
+                <select name="competicaoId" id="competicaoId" required>
+                    <option value="">Selecione...</option>
+                    @foreach (var c in competicoes)
+                    {
+                        <option value="@c.Id">@c.Nome (@c.Tipo)</option>
+                    }
+                </select>
+            </div>
+
+            <div class="imp-field">
+                <label>Arquivo JSON</label>
+                <div class="imp-drop" id="dropZone" onclick="document.getElementById('arquivo').click()">
+                    <div class="imp-drop-icon">📄</div>
+                    <div class="imp-drop-label">
+                        Arraste o arquivo aqui ou <span>clique para selecionar</span>
+                    </div>
+                    <div class="imp-file-name" id="fileName">Nenhum arquivo selecionado</div>
+                </div>
+                <input type="file" name="arquivo" id="arquivo" accept=".json"
+                       style="display:none" required />
+            </div>
+
+            <div class="imp-check">
+                <input type="checkbox" name="criarTimesAuto" id="criarTimesAuto"
+                       value="true" checked />
+                <div>
+                    <label for="criarTimesAuto">Criar times automaticamente se não existirem</label>
+                    <small>Se desmarcado, jogos com times não cadastrados serão ignorados.</small>
+                </div>
+            </div>
+
+            <button type="submit" class="imp-btn" id="btnImportar" disabled>
+                Importar partidas
+            </button>
+        </form>
+
+        <div class="imp-info">
+            <strong>ℹ️ Formatos aceitos:</strong>
+            O arquivo pode conter: um único jogo (objeto JSON), um array de jogos
+            <code>[{...}, {...}]</code>, ou o formato da API com chave
+            <code>"result": [...]</code>.<br>
+            Os campos <strong>gols, cartões e escalações</strong> são importados automaticamente
+            quando presentes.
+        </div>
+    </div>
+</div>
+
+<script>
+    const input    = document.getElementById('arquivo');
+    const dropZone = document.getElementById('dropZone');
+    const btnImp   = document.getElementById('btnImportar');
+    const fileName = document.getElementById('fileName');
+
+    function setFile(file) {
+        if (!file || !file.name.endsWith('.json')) {
+            alert('Selecione um arquivo .json');
+            return;
+        }
+        fileName.textContent = `✅ ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+        btnImp.disabled = false;
+    }
+
+    input.addEventListener('change', () => {
+        if (input.files[0]) setFile(input.files[0]);
+    });
+
+    dropZone.addEventListener('dragover', e => {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', () =>
+        dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        const file = e.dataTransfer.files[0];
+        if (file) {
+            // Transfere para o input real para submissão do form
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+            setFile(file);
+        }
+    });
+
+    document.getElementById('formImport').addEventListener('submit', () => {
+        btnImp.disabled = true;
+        btnImp.textContent = 'Importando...';
+    });
+</script>

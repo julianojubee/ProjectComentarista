@@ -28,7 +28,7 @@ namespace ControleFutebolWeb.Services
             var wrapper = JsonSerializer.Deserialize<TeamsResponse>(json, _options)!;
             return wrapper.Teams.Select(t => new ClubeInfo
             {
-                Id = t.Id,
+                Id = t.Id.GetValueOrDefault(),  // ←
                 Nome = t.Name,
                 Escudo = t.Crest
             }).ToList();
@@ -52,12 +52,10 @@ namespace ControleFutebolWeb.Services
             var response = await _httpClient.GetAsync($"teams/{teamId}");
             response.EnsureSuccessStatusCode();
             var json = await response.Content.ReadAsStringAsync();
-
             var team = JsonSerializer.Deserialize<TeamResponse>(json, _options)!;
-
             return new TeamDetail
             {
-                Id = team.Id,
+                Id = team.Id.GetValueOrDefault(),  // ← 
                 Nome = team.Name,
                 Escudo = team.Crest,
                 Elenco = team.Squad.Select(p => new Player
@@ -76,10 +74,8 @@ namespace ControleFutebolWeb.Services
         {
             var response = await _httpClient.GetAsync($"teams/{teamId}");
             response.EnsureSuccessStatusCode();
-
             var json = await response.Content.ReadAsStringAsync();
             var team = JsonSerializer.Deserialize<TeamResponse>(json, _options)!;
-
             return team.Squad.Select(s => new Jogador
             {
                 Id = s.Id,
