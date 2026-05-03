@@ -1,4 +1,14 @@
 ﻿@model ControleFutebolWeb.Models.TimeDetalhesViewModel
+@{
+    // Mapa competicaoId → nome (para tooltip dos escudos)
+    var compMap = new Dictionary<int, string>
+    {
+        { 1, "Campeonato Brasileiro" },
+        { 2, "Libertadores" },
+        { 3, "Copa do Brasil" },
+        { 4, "Sul-Americana" }
+    };
+}
 @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
 
 @functions {
@@ -32,17 +42,36 @@
             "Reino Unido" => "🇬🇧",
             "Holanda" => "🇳🇱",
             "Marrocos" => "🇲🇦",
-            "Bélgica" => "🇧🇪",
+            "Belgica" => "🇧🇪",
             "Suíça" => "🇨🇭",
             "México" => "🇲🇽",
             "Estados Unidos" => "🇺🇸",
             "Republicá Democrática do Congo" => "🇨🇩",
             "Ucrania" => "🇺🇦",
             "Canadá" => "🇨🇦",
+            "Turquia" => "🇹🇷",
+            "Algeria" => "🇩🇿",
+            "Andorra" => "🇦🇩",
+            "Armenia" => "🇦🇲",
+            "Aruba" => "🇦🇼",
+            "Austria" => "🇦🇹",
+            _ => ""
+        };
+    }
+    string GetLogoCompeticao(int competicaoId)
+    {
+        return competicaoId switch
+        {
+            1 => "/images/background/campeonatobrasileiro.png",
+            2 => "/images/background/libertadores.png",
+            3 => "/images/background/copadobrasil.png",
+            4 => "/images/background/sudamericana.png",
+            5 => "/images/background/premierleague.png",
             _ => ""
         };
     }
 }
+
 
 <style>
     body {
@@ -225,39 +254,52 @@
 
             <!-- Calendário -->
             <div class="col-md-5 scroll-panel">
-                <div class="sticky-title text-white d-flex justify-content-between align-items-center">
-                    <h3 class="mb-0">Calendário de Jogos</h3>
-                    <div>
-                        @foreach (var jogo in Model.Jogos
-                                                .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue && j.Data < DateTime.Now)
-                                                .OrderByDescending(j => j.Data)
-                                                .Take(5))
-                        {
-                            if ((Model.Time.Id == jogo.TimeCasaId && jogo.PlacarCasa > jogo.PlacarVisitante) ||
-                            (Model.Time.Id == jogo.TimeVisitanteId && jogo.PlacarVisitante > jogo.PlacarCasa))
-                            {
-                                <span class="badge bg-success me-1">✔️ @jogo.PlacarCasa x @jogo.PlacarVisitante</span>
-                            }
-                            else if (jogo.PlacarCasa == jogo.PlacarVisitante)
-                            {
-                                <span class="badge bg-warning text-dark me-1">➖ @jogo.PlacarCasa x @jogo.PlacarVisitante</span>
-                            }
-                            else
-                            {
-                                <span class="badge bg-danger me-1">❌ @jogo.PlacarCasa x @jogo.PlacarVisitante</span>
-                            }
-                        }
-                    </div>
+                <div class="d-flex gap-1 align-items-center">
+                    @foreach (var jogo in Model.Jogos
+                                        .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue && j.Data < DateTime.Now)
+                                        .OrderByDescending(j => j.Data)
+                                        .Take(5))
+                    {
+                        bool vitoria = (Model.Time.Id == jogo.TimeCasaId && jogo.PlacarCasa > jogo.PlacarVisitante) ||
+                        (Model.Time.Id == jogo.TimeVisitanteId && jogo.PlacarVisitante > jogo.PlacarCasa);
+                        bool empate = jogo.PlacarCasa == jogo.PlacarVisitante;
+
+                        string bgColor = vitoria ? "#22c55e" : empate ? "#6b7280" : "#ef4444";
+                        string letra = vitoria ? "V" : empate ? "E" : "D";
+
+                        <span title="@jogo.PlacarCasa x @jogo.PlacarVisitante"
+                              style="display:inline-flex;align-items:center;justify-content:center;
+                         width:28px;height:28px;border-radius:50%;
+                         background:@bgColor;color:#fff;
+                         font-size:12px;font-weight:700;
+                         box-shadow:0 1px 3px rgba(0,0,0,0.3);">
+                            @letra
+                        </span>
+                    }
                 </div>
 
                 <!-- Cards de jogos -->
+                <!-- Cards de jogos -->
                 <div class="row">
-                    @foreach (var jogo in Model.Jogos.OrderBy(j => j.Rodada))
+                    @foreach (var jogo in Model.Jogos
+                                        .OrderBy(j => j.Data > DateTime.Now ? 1 : 0)
+                                        .ThenBy(j => j.Data))
                     {
                         <div class="col-12 mb-3">
                             <div class="card shadow-sm">
-                                <div class="card-header text-center bg-primary text-white">
-                                    @jogo.Data.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                <div class="card-header text-center bg-primary text-white d-flex justify-content-between align-items-center px-2">
+                                    <span style="font-size:11px;">@jogo.Data.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+                                    @{
+                                        var logoComp = GetLogoCompeticao(jogo.CompeticaoId);
+                                    }
+                                    @if (!string.IsNullOrEmpty(logoComp))
+                                    {
+                                        <img src="@logoComp"
+                                             alt="Competição"
+                                             title="@(compMap.TryGetValue(jogo.CompeticaoId, out var cn) ? cn : "Competição")"
+                                             style="width:22px;height:22px;object-fit:contain;border-radius:50%;background:rgba(255,255,255,0.15);padding:2px;"
+                                             data-bs-toggle="tooltip" data-bs-placement="top" />
+                                    }
                                 </div>
                                 <div class="card-body text-center">
                                     <div class="d-flex justify-content-around align-items-center">

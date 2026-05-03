@@ -102,17 +102,19 @@
     }
 </style>
 @{
-    string GetLogoFile(string nome)
+    string GetLogoCompeticao(int competicaoId)
     {
-        if (string.IsNullOrWhiteSpace(nome)) return "default.png";
+        return competicaoId switch
+        {
+            1 => "/images/background/campeonatobrasileiro.png",
+            2 => "/images/background/libertadores.png",
+            3 => "/images/background/copadobrasil.png",
+            4 => "/images/background/sudamericana.png",
+            5 => "/images/background/premierleague.png",
+            6 => "/images/background/championsleague.png",
 
-        var lower = nome.ToLower().Replace(" ", "");
-        if (lower.Contains("brasileiro")) return "campeonatobrasileiro.png";
-        if (lower.Contains("Copa do Brasil")) return "copadobrasil.png";
-        if (lower.Contains("libertadores")) return "libertadores.png";
-        if (lower.Contains("sulamericana") || lower.Contains("sudamericana")) return "sudamericana.png";
-
-        return "default.png"; // fallback
+            _ => ""
+        };
     }
 }
 
@@ -138,7 +140,7 @@
 
             <a class="cf-comp-card" href="@url">
                 <div style="display:flex; align-items:center; gap:8px;">
-                    <img src="~/Images/background/@GetLogoFile(comp.Nome)"
+                    <img src="@GetLogoCompeticao(comp.Id)"
                          alt="@comp.Nome"
                          style="width:28px; height:28px; border-radius:50%; object-fit:cover;" />
                     <h2 class="cf-comp-title">@comp.Nome</h2>

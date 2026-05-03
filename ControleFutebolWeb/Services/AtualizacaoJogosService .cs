@@ -1,21 +1,29 @@
-﻿using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.DependencyInjection;
+﻿using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Models;
+using ControleFutebolWeb.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using ControleFutebolWeb.Data;
-using ControleFutebolWeb.Services;
+
 
 public class AtualizacaoJogosService : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ApiFootballDataService _apiService;
+    private readonly CompeticoesApiOptions _options;
 
-    public AtualizacaoJogosService(IServiceProvider serviceProvider, ApiFootballDataService apiService)
+    public AtualizacaoJogosService(
+        IServiceProvider serviceProvider,
+        ApiFootballDataService apiService,
+        IOptions<CompeticoesApiOptions> options)
     {
         _serviceProvider = serviceProvider;
         _apiService = apiService;
+        _options = options.Value;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -28,27 +36,30 @@ public class AtualizacaoJogosService : BackgroundService
 
                 try
                 {
-                    var jogosApi = await _apiService.GetMatchesAsync("BSA"); // código da competição (Brasileirão)
-
-                    foreach (var jogoApi in jogosApi)
+                    foreach (var codigo in _options.Codigos)
                     {
-                        var jogoDb = await context.Jogos
-                            .FirstOrDefaultAsync(j => j.PartidaApiId == jogoApi.Id, stoppingToken);
+                        var jogosApi = await _apiService.GetMatchesAsync(codigo);
 
-                        if (jogoDb != null)
+
+                        foreach (var jogoApi in jogosApi)
                         {
-                            // Atualiza placares e data
-                            jogoDb.PlacarCasa = jogoApi.Score.FullTime.Home;
-                            jogoDb.PlacarVisitante = jogoApi.Score.FullTime.Away;
-                            jogoDb.Data = jogoApi.UtcDate;
-                            jogoDb.Rodada = jogoApi.Matchday ?? jogoDb.Rodada;
+                            var jogoDb = await context.Jogos
+                                .FirstOrDefaultAsync(j => j.PartidaApiId == jogoApi.Id, stoppingToken);
 
-                            context.Jogos.Update(jogoDb);
+                            if (jogoDb != null)
+                            {
+                                jogoDb.PlacarCasa = jogoApi.Score.FullTime.Home;
+                                jogoDb.PlacarVisitante = jogoApi.Score.FullTime.Away;
+                                jogoDb.Data = jogoApi.UtcDate;
+                                jogoDb.Rodada = jogoApi.Matchday ?? jogoDb.Rodada;
 
-                            Console.WriteLine(
-                                $"[Atualização] Rodada {jogoDb.Rodada}: " +
-                                $"{jogoApi.HomeTeam.Name} {jogoDb.PlacarCasa} x {jogoDb.PlacarVisitante} {jogoApi.AwayTeam.Name}"
-                            );
+                                context.Jogos.Update(jogoDb);
+
+                                Console.WriteLine(
+                                    $"[Atualização {codigo}] {jogoApi.HomeTeam.Name} {jogoDb.PlacarCasa} x {jogoDb.PlacarVisitante} {jogoApi.AwayTeam.Name}"
+                                );
+                            }
+
                         }
                     }
 
@@ -60,7 +71,7 @@ public class AtualizacaoJogosService : BackgroundService
                 }
             }
 
-            // Aguarda 15 minutos antes da próxima execução
+
             await Task.Delay(TimeSpan.FromMinutes(15), stoppingToken);
         }
     }

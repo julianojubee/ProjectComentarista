@@ -274,6 +274,360 @@
         font-size: 0.92rem;
         margin: 0;
     }
+    /* ── Placar board ─────────────────────────────────────── */
+    .match-board {
+        background: linear-gradient(160deg, #0d1b2a 0%, #1b2e44 60%, #0d1b2a 100%);
+        border-radius: 16px;
+        padding: 1.25rem 1.5rem 1rem;
+        margin-bottom: 1.2rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 24px rgba(0,0,0,.35);
+    }
+
+        .match-board::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(circle at 20% 50%, rgba(55,138,221,.08) 0%, transparent 55%), radial-gradient(circle at 80% 50%, rgba(55,138,221,.08) 0%, transparent 55%);
+            pointer-events: none;
+        }
+
+    /* ── Linha de times + placar ─────────────────────────── */
+    .mb-scoreline {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .mb-team {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+        .mb-team.away {
+            flex-direction: row-reverse;
+        }
+
+        .mb-team img {
+            width: 42px;
+            height: 42px;
+            object-fit: contain;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,.5));
+            flex-shrink: 0;
+        }
+
+    .mb-team-name {
+        font-size: .9rem;
+        font-weight: 600;
+        color: #e2e8f0;
+        line-height: 1.2;
+    }
+
+    .mb-score {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        justify-content: center;
+    }
+
+    .mb-score-box {
+        background: rgba(255,255,255,.07);
+        border: 1px solid rgba(255,255,255,.15);
+        border-radius: 10px;
+        min-width: 52px;
+        height: 52px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.9rem;
+        font-weight: 700;
+        color: #fff;
+        cursor: pointer;
+        transition: background .15s, transform .1s;
+        user-select: none;
+    }
+
+        .mb-score-box:hover {
+            background: rgba(255,255,255,.13);
+            transform: scale(1.04);
+        }
+
+    .mb-score-sep {
+        font-size: 1.4rem;
+        color: rgba(255,255,255,.35);
+        font-weight: 300;
+    }
+
+    /* ── Toolbar de eventos ───────────────────────────────── */
+    .mb-toolbar {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        margin-top: .9rem;
+        flex-wrap: wrap;
+    }
+
+    .mb-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 13px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,.18);
+        background: rgba(255,255,255,.07);
+        color: rgba(255,255,255,.8);
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background .15s, color .15s, border-color .15s;
+    }
+
+        .mb-btn:hover {
+            background: rgba(255,255,255,.16);
+            color: #fff;
+        }
+
+        .mb-btn.gol {
+            border-color: rgba(34,197,94,.5);
+            color: #4ade80;
+        }
+
+            .mb-btn.gol:hover {
+                background: rgba(34,197,94,.15);
+            }
+
+        .mb-btn.cartao-amarelo {
+            border-color: rgba(250,204,21,.5);
+            color: #fde047;
+        }
+
+            .mb-btn.cartao-amarelo:hover {
+                background: rgba(250,204,21,.12);
+            }
+
+        .mb-btn.cartao-vermelho {
+            border-color: rgba(239,68,68,.5);
+            color: #f87171;
+        }
+
+            .mb-btn.cartao-vermelho:hover {
+                background: rgba(239,68,68,.12);
+            }
+
+    /* ── Timeline de eventos ─────────────────────────────── */
+    .mb-timeline {
+        margin-top: .85rem;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        max-height: 220px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+        .mb-timeline::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .mb-timeline::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .mb-timeline::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,.2);
+            border-radius: 4px;
+        }
+
+    .mb-event {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 8px;
+        border-radius: 8px;
+        background: rgba(255,255,255,.05);
+        font-size: 12px;
+        color: #cbd5e1;
+        transition: background .15s;
+        position: relative;
+    }
+
+        .mb-event:hover {
+            background: rgba(255,255,255,.09);
+        }
+
+        .mb-event.casa {
+            flex-direction: row;
+        }
+
+        .mb-event.vis {
+            flex-direction: row-reverse;
+            text-align: right;
+        }
+
+    .mb-event-min {
+        font-size: 11px;
+        font-weight: 700;
+        color: rgba(255,255,255,.45);
+        min-width: 28px;
+        flex-shrink: 0;
+    }
+
+    .mb-event-icon {
+        font-size: 14px;
+        flex-shrink: 0;
+    }
+
+    .mb-event-text {
+        flex: 1;
+        line-height: 1.3;
+    }
+
+        .mb-event-text strong {
+            color: #e2e8f0;
+            font-weight: 600;
+        }
+
+        .mb-event-text small {
+            color: rgba(255,255,255,.4);
+            font-size: 11px;
+            display: block;
+        }
+
+    .mb-event-del {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: rgba(239,68,68,.25);
+        color: #f87171;
+        border: none;
+        cursor: pointer;
+        font-size: 11px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        opacity: 0;
+        transition: opacity .15s;
+    }
+
+    .mb-event:hover .mb-event-del {
+        opacity: 1;
+    }
+
+    /* ── Modal de evento ─────────────────────────────────── */
+    #modal-evento {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,.6);
+        z-index: 9998;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-evento-box {
+        background: #1e293b;
+        border: 1px solid rgba(255,255,255,.12);
+        border-radius: 16px;
+        padding: 1.4rem;
+        width: 360px;
+        max-width: 95vw;
+        box-shadow: 0 20px 60px rgba(0,0,0,.5);
+        color: #e2e8f0;
+    }
+
+        .modal-evento-box h5 {
+            font-size: 15px;
+            font-weight: 700;
+            margin: 0 0 1rem;
+            color: #fff;
+        }
+
+    .mev-field {
+        margin-bottom: .9rem;
+    }
+
+        .mev-field label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            color: rgba(255,255,255,.5);
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            margin-bottom: 5px;
+        }
+
+        .mev-field select,
+        .mev-field input {
+            width: 100%;
+            background: rgba(255,255,255,.07);
+            border: 1px solid rgba(255,255,255,.15);
+            border-radius: 9px;
+            padding: 8px 12px;
+            font-size: 13px;
+            color: #e2e8f0;
+        }
+
+            .mev-field select option {
+                background: #1e293b;
+            }
+
+    .mev-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .mev-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 1.1rem;
+    }
+
+    .mev-save {
+        flex: 1;
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        border-radius: 9px;
+        padding: 9px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background .15s;
+    }
+
+        .mev-save:hover {
+            background: #1d4ed8;
+        }
+
+    .mev-cancel {
+        background: rgba(255,255,255,.07);
+        color: rgba(255,255,255,.6);
+        border: 1px solid rgba(255,255,255,.12);
+        border-radius: 9px;
+        padding: 9px 16px;
+        font-size: 13px;
+        cursor: pointer;
+    }
+
+        .mev-cancel:hover {
+            background: rgba(255,255,255,.12);
+        }
+
+    .mev-tipo-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: .8rem;
+    }
 </style>
 
 @if (Model.CompeticaoId == 1)
@@ -289,6 +643,145 @@
         </div>
     </div>
 }
+
+
+<!-- ══ PLACAR BOARD ══════════════════════════════════════════════════════ -->
+<div class="match-board">
+    <div class="mb-scoreline">
+        <!-- Time Casa -->
+        <div class="mb-team home">
+            @if (!string.IsNullOrEmpty(Model.TimeCasa?.EscudoUrl))
+            {
+                <img src="@Model.TimeCasa.EscudoUrl" alt="@Model.TimeCasa.Nome" />
+            }
+            <span class="mb-team-name">@Model.TimeCasa?.Nome</span>
+        </div>
+
+        <!-- Placar -->
+        <div class="mb-score">
+            <div class="mb-score-box" id="placarCasaBox"
+                 title="Clique para editar"
+                 onclick="editarPlacar()">
+                @(Model.PlacarCasa?.ToString() ?? "–")
+            </div>
+            <span class="mb-score-sep">×</span>
+            <div class="mb-score-box" id="placarVisBox"
+                 title="Clique para editar"
+                 onclick="editarPlacar()">
+                @(Model.PlacarVisitante?.ToString() ?? "–")
+            </div>
+        </div>
+
+        <!-- Time Visitante -->
+        <div class="mb-team away">
+            @if (!string.IsNullOrEmpty(Model.TimeVisitante?.EscudoUrl))
+            {
+                <img src="@Model.TimeVisitante.EscudoUrl" alt="@Model.TimeVisitante.Nome" />
+            }
+            <span class="mb-team-name">@Model.TimeVisitante?.Nome</span>
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="mb-toolbar">
+        <button type="button" class="mb-btn gol"
+                onclick="abrirModalEvento('gol', 'casa')">
+            ⚽ Gol Mandante
+        </button>
+        <button type="button" class="mb-btn gol"
+                onclick="abrirModalEvento('gol', 'vis')">
+            ⚽ Gol Visitante
+        </button>
+        <button type="button" class="mb-btn cartao-amarelo"
+                onclick="abrirModalEvento('amarelo', 'casa')">
+            🟨 Cartão Casa
+        </button>
+        <button type="button" class="mb-btn cartao-amarelo"
+                onclick="abrirModalEvento('amarelo', 'vis')">
+            🟨 Cartão Visit.
+        </button>
+        <button type="button" class="mb-btn cartao-vermelho"
+                onclick="abrirModalEvento('vermelho', 'casa')">
+            🟥 Vermelho Casa
+        </button>
+        <button type="button" class="mb-btn cartao-vermelho"
+                onclick="abrirModalEvento('vermelho', 'vis')">
+            🟥 Vermelho Visit.
+        </button>
+    </div>
+
+    <!-- Timeline de eventos -->
+    <div class="mb-timeline" id="mbTimeline"></div>
+</div>
+
+<!-- ══ MODAL DE EVENTO ══════════════════════════════════════════════════ -->
+<div id="modal-evento">
+    <div class="modal-evento-box">
+        <h5 id="mev-titulo">Registrar Evento</h5>
+
+        <div id="mev-tipo-badge-wrap"></div>
+
+        <div class="mev-row">
+            <div class="mev-field">
+                <label>Minuto</label>
+                <input type="number" id="mev-minuto" min="1" max="120" placeholder="Ex: 45" />
+            </div>
+            <div class="mev-field" id="mev-acrescimo-wrap">
+                <label>Acréscimo</label>
+                <input type="number" id="mev-acrescimo" min="0" max="30" placeholder="0" />
+            </div>
+        </div>
+
+        <div class="mev-field" id="mev-jogador-wrap">
+            <label>Jogador</label>
+            <select id="mev-jogador">
+                <option value="">Selecione...</option>
+            </select>
+        </div>
+
+        <div class="mev-field" id="mev-assistencia-wrap" style="display:none;">
+            <label>Assistência (opcional)</label>
+            <select id="mev-assistencia">
+                <option value="">Nenhuma</option>
+            </select>
+        </div>
+
+        <div class="mev-field" id="mev-tipo-cartao-wrap" style="display:none;">
+            <label>Tipo de Cartão</label>
+            <select id="mev-tipo-cartao">
+                <option value="Amarelo">🟨 Amarelo</option>
+                <option value="Vermelho">🟥 Vermelho</option>
+            </select>
+        </div>
+
+        <div class="mev-actions">
+            <button type="button" class="mev-cancel" onclick="fecharModalEvento()">Cancelar</button>
+            <button type="button" class="mev-save" onclick="salvarEvento()">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ MODAL EDITAR PLACAR ══════════════════════════════════════════════ -->
+<div id="modal-placar" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:9998; align-items:center; justify-content:center;">
+    <div class="modal-evento-box">
+        <h5>Editar Placar</h5>
+        <div class="mev-row">
+            <div class="mev-field">
+                <label>@Model.TimeCasa?.Nome</label>
+                <input type="number" id="edit-placar-casa" min="0" max="99" />
+            </div>
+            <div class="mev-field">
+                <label>@Model.TimeVisitante?.Nome</label>
+                <input type="number" id="edit-placar-vis" min="0" max="99" />
+            </div>
+        </div>
+        <div class="mev-actions">
+            <button type="button" class="mev-cancel" onclick="document.getElementById('modal-placar').style.display='none'">Cancelar</button>
+            <button type="button" class="mev-save" onclick="salvarPlacar()">Salvar</button>
+        </div>
+    </div>
+</div>
+
 
 <!-- Seleção de Formações -->
 <div class="row mb-3">
@@ -359,10 +852,10 @@
 
         <!-- ===== TIME DA CASA ===== -->
         <div class="col-md-6">
-            <h4>
+            @* <h4>
                 <img src="@Model.TimeCasa.EscudoUrl" width="24" />
                 @Model.TimeCasa.Nome
-            </h4>
+            </h4> *@
             <div class="row">
                 <!-- Lista de jogadores -->
                 <div class="col-5 scroll-panel">
@@ -486,10 +979,10 @@
 
         <!-- ===== TIME VISITANTE ===== -->
         <div class="col-md-6">
-            <h4>
+            @* <h4>
                 <img src="@Model.TimeVisitante.EscudoUrl" width="24" />
                 @Model.TimeVisitante.Nome
-            </h4>
+            </h4> *@
             <div class="row">
                 <!-- Campinho visitante -->
                 <div class="col-7">
@@ -1130,4 +1623,280 @@
             console.warn('Não foi possível carregar avaliações:', e);
         }
     })();
+</script>
+
+<script>
+    // ══ Dados vindos do servidor ══════════════════════════════════════════
+    const jogoIdPlacar  = @Model.Id;
+    const placarCasaIni = @(Model.PlacarCasa?.ToString() ?? "null");
+    const placarVisIni  = @(Model.PlacarVisitante?.ToString() ?? "null");
+
+    const jogadoresCasaLista = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                ((List<ControleFutebolWeb.Models.Jogador>)ViewBag.JogadoresCasa)
+                        .Select(j => new { id = j.Id, nome = j.Nome })
+        ));
+    const jogadoresVisLista = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                ((List<ControleFutebolWeb.Models.Jogador>)ViewBag.JogadoresVisitante)
+                        .Select(j => new { id = j.Id, nome = j.Nome })
+        ));
+
+    // ══ Estado local ══════════════════════════════════════════════════════
+    let eventoAtualTipo  = 'gol';   // 'gol' | 'amarelo' | 'vermelho'
+    let eventoAtualTime  = 'casa';  // 'casa' | 'vis'
+
+    // ══ Carregar eventos ao abrir página ═════════════════════════════════
+    (async function carregarEventos() {
+        try {
+            const resp = await fetch(`/Jogos/BuscarEventos?jogoId=${jogoIdPlacar}`);
+            if (!resp.ok) return;
+            const data = await resp.json();
+
+            // Renderiza gols
+            (data.gols || []).forEach(g => {
+                adicionarEventoNaTimeline({
+                    id: g.id, tipo: 'gol',
+                    time: g.timeCasaId ? 'casa' : 'vis',
+                    minuto: g.minuto, acrescimo: 0,
+                    nomeJogador: g.nomeJogador,
+                    nomeAssistencia: g.nomeAssistencia || null,
+                    isContra: g.contra
+                });
+            });
+
+            // Renderiza cartões
+            (data.cartoes || []).forEach(c => {
+                adicionarEventoNaTimeline({
+                    id: c.id, tipo: c.tipo.toLowerCase() === 'vermelho' ? 'vermelho' : 'amarelo',
+                    time: c.timeCasaId ? 'casa' : 'vis',
+                    minuto: c.minuto, acrescimo: 0,
+                    nomeJogador: c.nomeJogador
+                });
+            });
+        } catch (e) {
+            console.warn('Não foi possível carregar eventos:', e);
+        }
+    })();
+
+    // ══ Modal de Evento ═══════════════════════════════════════════════════
+    function abrirModalEvento(tipo, time) {
+        eventoAtualTipo = tipo;
+        eventoAtualTime = time;
+
+        const isGol = tipo === 'gol';
+        const nomeTime = time === 'casa'
+            ? '@Model.TimeCasa?.Nome'
+            : '@Model.TimeVisitante?.Nome';
+
+        const icones = { gol: '⚽', amarelo: '🟨', vermelho: '🟥' };
+        const cores  = { gol: '#4ade80', amarelo: '#fde047', vermelho: '#f87171' };
+
+        document.getElementById('mev-titulo').textContent =
+            `Registrar ${isGol ? 'Gol' : 'Cartão'} — ${nomeTime}`;
+
+        document.getElementById('mev-tipo-badge-wrap').innerHTML = `
+            <div class="mev-tipo-badge" style="background:${cores[tipo]}22; color:${cores[tipo]}; border:1px solid ${cores[tipo]}44;">
+                ${icones[tipo]} ${tipo.charAt(0).toUpperCase() + tipo.slice(1)} — ${nomeTime}
+            </div>`;
+
+        // Assistência só para gol
+        document.getElementById('mev-assistencia-wrap').style.display = isGol ? '' : 'none';
+        document.getElementById('mev-tipo-cartao-wrap').style.display = isGol ? 'none' : '';
+        if (!isGol) {
+            document.getElementById('mev-tipo-cartao').value =
+                tipo === 'vermelho' ? 'Vermelho' : 'Amarelo';
+        }
+
+        // Preenche selects de jogadores
+        const lista = time === 'casa' ? jogadoresCasaLista : jogadoresVisLista;
+        const sel   = document.getElementById('mev-jogador');
+        const selA  = document.getElementById('mev-assistencia');
+
+        sel.innerHTML  = '<option value="">Selecione...</option>';
+        selA.innerHTML = '<option value="">Nenhuma</option>';
+        lista.forEach(j => {
+            sel.innerHTML  += `<option value="${j.id}">${j.nome}</option>`;
+            selA.innerHTML += `<option value="${j.id}">${j.nome}</option>`;
+        });
+
+        document.getElementById('mev-minuto').value    = '';
+        document.getElementById('mev-acrescimo').value = '';
+
+        document.getElementById('modal-evento').style.display = 'flex';
+        document.getElementById('mev-minuto').focus();
+    }
+
+    function fecharModalEvento() {
+        document.getElementById('modal-evento').style.display = 'none';
+    }
+
+    async function salvarEvento() {
+        const minuto     = parseInt(document.getElementById('mev-minuto').value) || 0;
+        const acrescimo  = parseInt(document.getElementById('mev-acrescimo').value) || 0;
+        const jogadorId  = parseInt(document.getElementById('mev-jogador').value) || 0;
+        const assistId   = parseInt(document.getElementById('mev-assistencia').value) || 0;
+        const tipoCartao = document.getElementById('mev-tipo-cartao').value;
+
+        if (!jogadorId) { alert('Selecione um jogador.'); return; }
+        if (!minuto)    { alert('Informe o minuto.'); return; }
+
+        const isGol  = eventoAtualTipo === 'gol';
+        const isCasa = eventoAtualTime === 'casa';
+
+        const body = isGol
+            ? {
+                jogoId: jogoIdPlacar,
+                jogadorId,
+                assistenciaJogadorId: assistId || null,
+                minuto,
+                acrescimo,
+                contra: false,
+                isTimeCasa: isCasa
+              }
+            : {
+                jogoId: jogoIdPlacar,
+                jogadorId,
+                minuto,
+                acrescimo,
+                tipo: tipoCartao,
+                isTimeCasa: isCasa
+              };
+
+        const url = isGol ? '/Jogos/RegistrarGol' : '/Jogos/RegistrarCartao';
+
+        try {
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await resp.json();
+            if (!resp.ok) { alert(data.erro || 'Erro ao salvar.'); return; }
+
+            // Atualiza placar na tela (retornado pelo endpoint)
+            if (data.placarCasa !== undefined) {
+                document.getElementById('placarCasaBox').textContent = data.placarCasa;
+                document.getElementById('placarVisBox').textContent  = data.placarVis;
+            }
+
+            // Encontra nome do jogador
+            const lista = isCasa ? jogadoresCasaLista : jogadoresVisLista;
+            const nomeJ = lista.find(j => j.id === jogadorId)?.nome || '?';
+            const nomeA = assistId
+                ? lista.find(j => j.id === assistId)?.nome || null
+                : null;
+
+            adicionarEventoNaTimeline({
+                id: data.id, tipo: eventoAtualTipo,
+                time: eventoAtualTime,
+                minuto, acrescimo,
+                nomeJogador: nomeJ,
+                nomeAssistencia: nomeA,
+                isContra: false
+            });
+
+            fecharModalEvento();
+        } catch (e) {
+            alert('Erro de conexão.');
+            console.error(e);
+        }
+    }
+
+    // ══ Timeline de eventos ═══════════════════════════════════════════════
+    function adicionarEventoNaTimeline(ev) {
+        const tl   = document.getElementById('mbTimeline');
+        const icones = { gol: '⚽', amarelo: '🟨', vermelho: '🟥' };
+        const icon   = ev.isContra ? '🔴⚽' : icones[ev.tipo] || '📌';
+        const minStr = ev.acrescimo > 0 ? `${ev.minuto}+${ev.acrescimo}'` : `${ev.minuto}'`;
+        const assistStr = ev.nomeAssistencia
+            ? `<small>Assist.: ${ev.nomeAssistencia}</small>` : '';
+
+        const div = document.createElement('div');
+        div.className = `mb-event ${ev.time}`;
+        div.dataset.eventoId   = ev.id   || '';
+        div.dataset.eventoTipo = ev.tipo || '';
+        div.innerHTML = `
+            <span class="mb-event-min">${minStr}</span>
+            <span class="mb-event-icon">${icon}</span>
+            <div class="mb-event-text">
+                <strong>${ev.nomeJogador || '?'}</strong>
+                ${assistStr}
+            </div>
+            <button class="mb-event-del"
+                    onclick="removerEvento(this, '${ev.tipo}', ${ev.id || 0})"
+                    title="Remover">×</button>`;
+
+        // Insere ordenado por minuto
+        const todos = Array.from(tl.children);
+        const minAtual = ev.minuto * 100 + (ev.acrescimo || 0);
+        let inserido = false;
+        for (const el of todos) {
+            const m = parseInt(el.querySelector('.mb-event-min')?.textContent) || 0;
+            if (minAtual < m * 100) {
+                tl.insertBefore(div, el);
+                inserido = true;
+                break;
+            }
+        }
+        if (!inserido) tl.appendChild(div);
+    }
+
+    async function removerEvento(btn, tipo, id) {
+        if (!id || !confirm('Remover este evento?')) return;
+
+        const url = tipo === 'gol' ? `/Jogos/RemoverGol?id=${id}` : `/Jogos/RemoverCartao?id=${id}`;
+        try {
+            const resp = await fetch(url, { method: 'DELETE' });
+            const data = await resp.json();
+            if (!resp.ok) { alert(data.erro || 'Erro ao remover.'); return; }
+
+            // Atualiza placar
+            if (data.placarCasa !== undefined) {
+                document.getElementById('placarCasaBox').textContent = data.placarCasa;
+                document.getElementById('placarVisBox').textContent  = data.placarVis;
+            }
+
+            btn.closest('.mb-event').remove();
+        } catch (e) {
+            alert('Erro de conexão.');
+        }
+    }
+
+    // ══ Editar placar manual ══════════════════════════════════════════════
+    function editarPlacar() {
+        const atual_c = document.getElementById('placarCasaBox').textContent.trim();
+        const atual_v = document.getElementById('placarVisBox').textContent.trim();
+        document.getElementById('edit-placar-casa').value = isNaN(parseInt(atual_c)) ? 0 : parseInt(atual_c);
+        document.getElementById('edit-placar-vis').value  = isNaN(parseInt(atual_v)) ? 0 : parseInt(atual_v);
+        document.getElementById('modal-placar').style.display = 'flex';
+    }
+
+    async function salvarPlacar() {
+        const casa = parseInt(document.getElementById('edit-placar-casa').value);
+        const vis  = parseInt(document.getElementById('edit-placar-vis').value);
+        if (isNaN(casa) || isNaN(vis)) { alert('Informe valores válidos.'); return; }
+
+        try {
+            const resp = await fetch('/Jogos/AtualizarPlacar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ jogoId: jogoIdPlacar, placarCasa: casa, placarVis: vis })
+            });
+            const data = await resp.json();
+            if (!resp.ok) { alert(data.erro || 'Erro.'); return; }
+
+            document.getElementById('placarCasaBox').textContent = data.placarCasa;
+            document.getElementById('placarVisBox').textContent  = data.placarVis;
+            document.getElementById('modal-placar').style.display = 'none';
+        } catch (e) {
+            alert('Erro de conexão.');
+        }
+    }
+
+    // Fecha modais com ESC
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+            fecharModalEvento();
+            document.getElementById('modal-placar').style.display = 'none';
+        }
+    });
 </script>

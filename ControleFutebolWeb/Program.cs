@@ -1,6 +1,7 @@
-﻿using ControleFutebolWeb.Data;
+﻿using ControleFutebolWeb.Converters; // ← importa o converter
+using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Services;
-using ControleFutebolWeb.Converters; // ← importa o converter
 using Microsoft.EntityFrameworkCore;
 
 internal class Program
@@ -37,7 +38,8 @@ internal class Program
         builder.Logging.ClearProviders();
         builder.Logging.AddConsole();
         builder.Logging.AddDebug();
-
+        builder.Services.Configure<CompeticoesApiOptions>(
+        builder.Configuration.GetSection("CompeticoesApi"));
         var app = builder.Build();
 
         // Inicializa o banco com dados (SeedData)

@@ -1,0 +1,611 @@
+﻿@using ControleFutebolWeb.Controllers
+@{
+    ViewData["Title"] = "Copa do Brasil";
+    var vm = ViewBag.Vm as CopaBrasilViewModel ?? new CopaBrasilViewModel();
+}
+
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<style>
+    /* ── Variáveis ──────────────────────────────────────── */
+    :root {
+        --copa-green: #00612b;
+        --copa-green2: #008a3c;
+        --copa-gold: #f5c518;
+        --copa-gold2: #fde68a;
+        --copa-dark: #0a1a0e;
+        --copa-mid: #143320;
+    }
+
+    /* ── Banner ─────────────────────────────────────────── */
+    .copa-hero {
+        position: relative;
+        border-radius: 14px;
+        padding: 1.6rem 1.8rem;
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+        background: linear-gradient(135deg, var(--copa-dark) 0%, var(--copa-mid) 55%, var(--copa-dark) 100%);
+    }
+
+        .copa-hero::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            opacity: 0.08;
+            background-image: radial-gradient(circle at 50% 50%, transparent 28%, #fff 28.5%, #fff 29.2%, transparent 29.8%), linear-gradient(90deg, transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%), linear-gradient(transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%);
+        }
+
+        .copa-hero::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 65% 50%, rgba(245,197,24,0.07) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+    .copa-hero-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .copa-badge {
+        display: inline-block;
+        background: rgba(245,197,24,0.15);
+        color: var(--copa-gold2);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        padding: 4px 13px;
+        border-radius: 999px;
+        border: 1px solid rgba(245,197,24,0.3);
+        margin-bottom: 0.6rem;
+    }
+
+    .copa-title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 0.25rem;
+    }
+
+    .copa-logo {
+        width: 46px;
+        height: 46px;
+        object-fit: contain;
+        filter: drop-shadow(0 2px 10px rgba(0,0,0,0.5));
+    }
+
+    .copa-title {
+        font-family: 'Bebas Neue', sans-serif;
+        color: #fff;
+        font-size: 2rem;
+        letter-spacing: 1px;
+        margin: 0;
+        line-height: 1;
+    }
+
+        .copa-title span {
+            color: var(--copa-gold);
+        }
+
+    .copa-sub {
+        color: rgba(255,255,255,0.6);
+        font-size: 0.85rem;
+        margin: 0;
+    }
+
+    /* ── Navegação de fases ──────────────────────────────── */
+    .copa-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 1.5rem;
+    }
+
+    .copa-nav-btn {
+        padding: 6px 16px;
+        border-radius: 999px;
+        border: 1.5px solid #d1d5db;
+        background: #fff;
+        color: #374151;
+        font-size: 12px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.15s;
+        cursor: pointer;
+    }
+
+        .copa-nav-btn:hover {
+            border-color: var(--copa-green);
+            color: var(--copa-green);
+            text-decoration: none;
+        }
+
+        .copa-nav-btn.active {
+            background: var(--copa-green);
+            border-color: var(--copa-green);
+            color: #fff;
+        }
+
+    /* ── Cabeçalho da fase ───────────────────────────────── */
+    .copa-fase-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 1.2rem;
+    }
+
+    .copa-fase-title {
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 1.5rem;
+        color: #111827;
+        letter-spacing: 0.5px;
+        margin: 0;
+    }
+
+    .copa-fase-badge {
+        background: var(--copa-green);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 3px 10px;
+        border-radius: 999px;
+    }
+
+    /* ── Grid de confrontos ──────────────────────────────── */
+    .copa-confrontos {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 14px;
+    }
+
+    /* ── Card de confronto ───────────────────────────────── */
+    .copa-card {
+        background: #fff;
+        border: 0.5px solid #e5e7eb;
+        border-radius: 14px;
+        overflow: hidden;
+        transition: box-shadow 0.2s, transform 0.2s;
+    }
+
+        .copa-card:hover {
+            box-shadow: 0 4px 20px rgba(0,97,43,0.1);
+            transform: translateY(-1px);
+        }
+
+    .copa-card-header {
+        background: linear-gradient(90deg, var(--copa-green), var(--copa-green2));
+        padding: 8px 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .copa-card-header-left {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--copa-gold2);
+        letter-spacing: 0.3px;
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 14px;
+    }
+
+    .copa-card-header-right {
+        font-size: 10px;
+        color: rgba(255,255,255,0.6);
+    }
+
+    /* Agregado */
+    .copa-agregado {
+        background: #f9fafb;
+        border-bottom: 0.5px solid #e5e7eb;
+        padding: 10px 14px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 14px;
+    }
+
+    .copa-agg-time {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        flex: 1;
+    }
+
+        .copa-agg-time.right {
+            justify-content: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .copa-agg-time img {
+            width: 26px;
+            height: 26px;
+            object-fit: contain;
+            border-radius: 50%;
+            border: 0.5px solid #e5e7eb;
+            background: #f3f4f6;
+            flex-shrink: 0;
+        }
+
+    .copa-agg-name {
+        font-size: 12px;
+        font-weight: 600;
+        color: #111827;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100px;
+    }
+
+    .copa-agg-score {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-shrink: 0;
+    }
+
+    .copa-agg-num {
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 1.7rem;
+        line-height: 1;
+        color: #111827;
+        min-width: 22px;
+        text-align: center;
+    }
+
+        .copa-agg-num.leader {
+            color: var(--copa-green);
+        }
+
+        .copa-agg-num.loser {
+            color: #d1d5db;
+        }
+
+    .copa-agg-sep {
+        font-size: 18px;
+        color: #d1d5db;
+        font-weight: 300;
+        line-height: 1;
+    }
+
+    /* Classificado badge */
+    .copa-classificado {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--copa-gold);
+        color: var(--copa-dark);
+        white-space: nowrap;
+    }
+
+    /* Jogos ida/volta */
+    .copa-jogos {
+        padding: 10px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .copa-jogo-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        border-radius: 8px;
+        background: #f9fafb;
+        border: 0.5px solid #f0f0f0;
+        font-size: 12px;
+        transition: border-color 0.15s;
+    }
+
+        .copa-jogo-row:hover {
+            border-color: #d1d5db;
+        }
+
+    .copa-jogo-label {
+        font-size: 10px;
+        font-weight: 700;
+        color: #fff;
+        background: var(--copa-green);
+        padding: 2px 7px;
+        border-radius: 4px;
+        flex-shrink: 0;
+    }
+
+        .copa-jogo-label.volta {
+            background: #374151;
+        }
+
+    .copa-jogo-date {
+        font-size: 10px;
+        color: #9ca3af;
+        flex-shrink: 0;
+    }
+
+    .copa-jogo-times {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex: 1;
+        justify-content: center;
+        font-size: 12px;
+        color: #374151;
+    }
+
+    .copa-jogo-result {
+        font-weight: 700;
+        font-size: 13px;
+        background: #111827;
+        color: #fff;
+        padding: 1px 8px;
+        border-radius: 5px;
+        flex-shrink: 0;
+    }
+
+    .copa-jogo-pending {
+        font-size: 10px;
+        color: #9ca3af;
+        background: #f3f4f6;
+        padding: 2px 8px;
+        border-radius: 5px;
+        flex-shrink: 0;
+    }
+
+    .copa-jogo-analisar {
+        font-size: 10px;
+        color: var(--copa-green);
+        font-weight: 600;
+        text-decoration: none;
+        flex-shrink: 0;
+        border: 1px solid var(--copa-green);
+        padding: 2px 8px;
+        border-radius: 5px;
+        transition: background 0.15s, color 0.15s;
+    }
+
+        .copa-jogo-analisar:hover {
+            background: var(--copa-green);
+            color: #fff;
+            text-decoration: none;
+        }
+
+    /* Sem dados */
+    .copa-empty {
+        text-align: center;
+        padding: 3.5rem 1rem;
+        color: #9ca3af;
+        font-size: 13px;
+        background: #fff;
+        border: 0.5px solid #e5e7eb;
+        border-radius: 14px;
+    }
+
+    .copa-trophy {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+    }
+</style>
+
+<!-- ── Banner ── -->
+<div class="copa-hero">
+    <div class="copa-hero-content">
+        <span class="copa-badge">Competição Nacional · Mata-Mata</span>
+        <div class="copa-title-wrap">
+            <img src="~/images/background/copadobrasil.png" alt="Copa do Brasil" class="copa-logo"
+                 onerror="this.style.display='none'" />
+            <h2 class="copa-title">Copa do <span>Brasil</span></h2>
+        </div>
+        <p class="copa-sub">Fase atual · Confrontos de ida e volta</p>
+    </div>
+</div>
+
+@if (vm.FaseAtual == "Sem dados" || !vm.Confrontos.Any())
+{
+    <div class="copa-empty">
+        <div class="copa-trophy">🏆</div>
+        Nenhum jogo da Copa do Brasil encontrado.<br />
+        <small>Importe os jogos com <strong>CompeticaoId = 3</strong> para ver os confrontos.</small>
+    </div>
+}
+else
+{
+    <!-- ── Navegação de fases ── -->
+    @if (vm.RodasDisponiveis.Count > 1)
+    {
+        <div class="copa-nav">
+            @foreach (var r in vm.RodasDisponiveis)
+            {
+                var nomeR = r switch
+                {
+                    1 => "1ª Fase",
+                    2 => "2ª Fase",
+                    3 => "3ª Fase",
+                    4 => "Oitavas",
+                    5 => "Quartas",
+                    6 => "Semifinal",
+                    7 => "Final",
+                    _ => $"Rodada {r}"
+                };
+                <a asp-action="Index" asp-controller="CopaBrasil"
+                   asp-route-rodada="@r"
+                   class="copa-nav-btn @(r == vm.RodadaAtual ? "active" : "")">
+                    @nomeR
+                </a>
+            }
+        </div>
+    }
+
+    <!-- ── Cabeçalho da fase ── -->
+    <div class="copa-fase-header">
+        <h3 class="copa-fase-title">@vm.FaseAtual</h3>
+        <span class="copa-fase-badge">@vm.Confrontos.Count confronto(s)</span>
+    </div>
+
+    <!-- ── Confrontos ── -->
+    <div class="copa-confrontos">
+        @foreach (var c in vm.Confrontos)
+        {
+            bool idaRealizada = c.JogoIda?.PlacarCasa.HasValue == true;
+            bool voltaRealizada = c.JogoVolta?.PlacarCasa.HasValue == true;
+            bool ambosRealizados = idaRealizada && voltaRealizada;
+
+            bool aLiderando = c.GolsTimeA > c.GolsTimeB;
+            bool bLiderando = c.GolsTimeB > c.GolsTimeA;
+
+            <div class="copa-card">
+                <!-- Header do card -->
+                <div class="copa-card-header">
+                    <span class="copa-card-header-left">@c.FaseName</span>
+                    <span class="copa-card-header-right">
+                        @if (ambosRealizados)
+                        {
+                            <span style="color:#86efac;">✔ Encerrado</span>
+                        }
+                        else if (idaRealizada)
+                        {
+                            <span>Aguardando volta</span>
+                        }
+                        else
+                        {
+                            <span>A realizar</span>
+                        }
+                    </span>
+                </div>
+
+                <!-- Placar agregado -->
+                <div class="copa-agregado">
+                    <!-- Time A -->
+                    <div class="copa-agg-time">
+                        @if (!string.IsNullOrEmpty(c.TimeA.EscudoUrl))
+                        {
+                            <img src="@c.TimeA.EscudoUrl" alt="@c.TimeA.Nome" />
+                        }
+                        <span class="copa-agg-name" title="@c.TimeA.Nome">@c.TimeA.Nome</span>
+                    </div>
+
+                    <!-- Placar agregado central -->
+                    <div class="copa-agg-score">
+                        @if (idaRealizada)
+                        {
+                            <span class="copa-agg-num @(aLiderando ? "leader" : (bLiderando ? "loser" : ""))">
+                                @c.GolsTimeA
+                            </span>
+                            <span class="copa-agg-sep">–</span>
+                            <span class="copa-agg-num @(bLiderando ? "leader" : (aLiderando ? "loser" : ""))">
+                                @c.GolsTimeB
+                            </span>
+                        }
+                        else
+                        {
+                            <span style="font-size:12px;color:#9ca3af;font-weight:500;">vs</span>
+                        }
+                    </div>
+
+                    <!-- Time B -->
+                    <div class="copa-agg-time right">
+                        @if (!string.IsNullOrEmpty(c.TimeB.EscudoUrl))
+                        {
+                            <img src="@c.TimeB.EscudoUrl" alt="@c.TimeB.Nome" />
+                        }
+                        <span class="copa-agg-name" title="@c.TimeB.Nome">@c.TimeB.Nome</span>
+                    </div>
+                </div>
+
+                <!-- Badge classificado (se encerrado) -->
+                @if (c.Classificado != null)
+                {
+                    <div style="padding:6px 14px;text-align:center;border-bottom:0.5px solid #f0f0f0;">
+                        <span class="copa-classificado">
+                            🏆 @c.Classificado.Nome classificado
+                        </span>
+                    </div>
+                }
+                else if (ambosRealizados && c.GolsTimeA == c.GolsTimeB)
+                {
+                    <div style="padding:6px 14px;text-align:center;border-bottom:0.5px solid #f0f0f0;">
+                        <span class="copa-classificado" style="background:#6b7280;color:#fff;">
+                            ⚽ Pênaltis / definição pendente
+                        </span>
+                    </div>
+                }
+
+                <!-- Jogos de ida e volta -->
+                <div class="copa-jogos">
+
+                    @* ── Jogo de Ida ── *@
+                    @if (c.JogoIda != null)
+                    {
+                        <div class="copa-jogo-row">
+                            <span class="copa-jogo-label">IDA</span>
+                            <span class="copa-jogo-date">
+                                @c.JogoIda.Data.ToLocalTime().ToString("dd/MM HH:mm")
+                            </span>
+                            <div class="copa-jogo-times">
+                                <span style="font-weight:500;">@c.JogoIda.TimeCasa?.Nome</span>
+                                @if (c.JogoIda.PlacarCasa.HasValue)
+                                {
+                                    <span class="copa-jogo-result">
+                                        @c.JogoIda.PlacarCasa x @c.JogoIda.PlacarVisitante
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="copa-jogo-pending">vs</span>
+                                }
+                                <span style="font-weight:500;">@c.JogoIda.TimeVisitante?.Nome</span>
+                            </div>
+                            <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@c.JogoIda.Id"
+                               class="copa-jogo-analisar">→</a>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="copa-jogo-row" style="justify-content:center;color:#9ca3af;">
+                            <span class="copa-jogo-label">IDA</span>
+                            <span style="font-size:11px;margin-left:8px;">Jogo de ida não cadastrado</span>
+                        </div>
+                    }
+
+                    @* ── Jogo de Volta ── *@
+                    @if (c.JogoVolta != null)
+                    {
+                        <div class="copa-jogo-row">
+                            <span class="copa-jogo-label volta">VOLTA</span>
+                            <span class="copa-jogo-date">
+                                @c.JogoVolta.Data.ToLocalTime().ToString("dd/MM HH:mm")
+                            </span>
+                            <div class="copa-jogo-times">
+                                <span style="font-weight:500;">@c.JogoVolta.TimeCasa?.Nome</span>
+                                @if (c.JogoVolta.PlacarCasa.HasValue)
+                                {
+                                    <span class="copa-jogo-result">
+                                        @c.JogoVolta.PlacarCasa x @c.JogoVolta.PlacarVisitante
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="copa-jogo-pending">A jogar</span>
+                                }
+                                <span style="font-weight:500;">@c.JogoVolta.TimeVisitante?.Nome</span>
+                            </div>
+                            <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@c.JogoVolta.Id"
+                               class="copa-jogo-analisar">→</a>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="copa-jogo-row" style="justify-content:center;">
+                            <span class="copa-jogo-label volta">VOLTA</span>
+                            <span style="font-size:11px;color:#9ca3af;margin-left:8px;">
+                                Jogo de volta ainda não cadastrado
+                            </span>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
