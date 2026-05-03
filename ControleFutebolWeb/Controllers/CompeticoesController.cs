@@ -4,16 +4,19 @@ using ControleFutebolWeb.Models.ViewModels;
 using ControleFutebolWeb.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace ControleFutebolWeb.Controllers
 {
     public class CompeticoesController : Controller
     {
         private readonly FutebolContext _context;
+        private readonly ILogger<CompeticoesController> _logger;
 
-        public CompeticoesController(FutebolContext context)
+        public CompeticoesController(FutebolContext context, ILogger<CompeticoesController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         public IActionResult Index()
@@ -41,6 +44,36 @@ namespace ControleFutebolWeb.Controllers
             return View(vm);
         }
 
+        // GET: Competicoes/Create
+        public IActionResult Create()
+        {
+            return View();
+        }
+
+        // POST: Competicoes/Create
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Create([Bind("Nome,Regiao,Tipo")] Competicao competicao)
+        {
+            _logger.LogInformation("POST Create chamado: Nome={Nome}, Regiao={Regiao}, Tipo={Tipo}",
+                competicao.Nome, competicao.Regiao, competicao.Tipo);
+
+            if (!ModelState.IsValid)
+            {
+                foreach (var erro in ModelState.Values.SelectMany(v => v.Errors))
+                {
+                    _logger.LogWarning("Erro de validação: {Erro}", erro.ErrorMessage);
+                }
+                return View(competicao);
+            }
+
+            _context.Add(competicao);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Competição salva com sucesso no banco: Id={Id}", competicao.Id);
+
+            return RedirectToAction(nameof(Index));
+        }
         // Ação Index e Detalhes...
 
         private List<Classificacao> CalcularTabela(ICollection<Jogo> jogos)

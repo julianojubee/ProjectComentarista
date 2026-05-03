@@ -226,11 +226,11 @@ namespace ControleFutebolWeb.Controllers
 
                     // ── 4. Resolve times ──────────────────────────────────────
                     var timeCasa = await ResolverTime(
-                        jogoApi.HomeTeam, jogoApi.HomeTeamKey,
+                        jogoApi.HomeTeam, jogoApi.HomeTeamKey.Value,
                         jogoApi.HomeTeamLogo, formacaoPadrao, criarTimesAuto, resultado);
 
                     var timeVis = await ResolverTime(
-                        jogoApi.AwayTeam, jogoApi.AwayTeamKey,
+                        jogoApi.AwayTeam, jogoApi.AwayTeamKey.Value,
                         jogoApi.AwayTeamLogo, formacaoPadrao, criarTimesAuto, resultado);
 
                     if (timeCasa == null || timeVis == null)
@@ -491,9 +491,16 @@ namespace ControleFutebolWeb.Controllers
                 return null;
             }
 
-            // Busca por Nome + TimeId
+            // 🔹 Busca por IdApi primeiro
             var jogador = await _context.Jogadores
-                .FirstOrDefaultAsync(j => j.Nome == p.Name && j.TimeId == time.Id);
+                .FirstOrDefaultAsync(j => j.IdApi == p.PlayerKey && j.TimeId == time.Id);
+
+            // 🔹 Fallback por nome
+            if (jogador == null)
+            {
+                jogador = await _context.Jogadores
+                    .FirstOrDefaultAsync(j => j.Nome == p.Name && j.TimeId == time.Id);
+            }
 
             if (jogador == null)
             {
@@ -501,23 +508,25 @@ namespace ControleFutebolWeb.Controllers
                 {
                     Nome = p.Name,
                     NumeroCamisa = p.Number,
-                    Posicao = MapearPosicao(p.Position ?? 0), // 🔹 usa Position (int)
-                    TimeId = time.Id
+                    Posicao = MapearPosicao(p.Position ?? 0),
+                    TimeId = time.Id,
+                    DtInc = DateTime.UtcNow,
+                    DtAlt = null,
+                    IdApi = p.PlayerKey // 🔹 salva identificador único
                 };
 
-                _logger.LogInformation("Incluindo Jogador: Nome={Nome}, Numero={Numero}, Posicao={Posicao}, Time={Time}",
-                    jogador.Nome, jogador.NumeroCamisa, jogador.Posicao, time.Nome);
+                _logger.LogInformation("Incluindo Jogador: Nome={Nome}, Numero={Numero}, Posicao={Posicao}, Time={Time}, IdApi={IdApi}",
+                    jogador.Nome, jogador.NumeroCamisa, jogador.Posicao, time.Nome, jogador.IdApi);
 
                 _context.Jogadores.Add(jogador);
                 await _context.SaveChangesAsync();
-
-                _logger.LogInformation("Jogador salvo com Id={Id}", jogador.Id);
 
                 resultado.JogadoresNovos++;
             }
 
             return jogador;
         }
+
 
         private int ConverterMinuto(string? timeStr)
         {
@@ -548,27 +557,26 @@ namespace ControleFutebolWeb.Controllers
         {
             foreach (var gol in jogo.Goalscorers)
             {
-                string? nomeJogador = gol.HomeScorer ?? gol.AwayScorer;
+                long? playerKey = gol.PlayerKey; // 🔹 agora vem direto da propriedade auxiliar
                 int? timeId = gol.HomeScorer != null ? timeCasa.Id : timeVisitante.Id;
 
-                if (string.IsNullOrWhiteSpace(nomeJogador))
+                if (!playerKey.HasValue || playerKey.Value == 0)
                 {
-                    resultado.Avisos.Add($"Gol ignorado: nome de jogador vazio no jogo {jogo.EventKey}");
+                    resultado.Avisos.Add($"Gol ignorado: player_key inválido no jogo {jogo.EventKey}");
                     continue;
                 }
 
-                // 🔹 tenta localizar jogador existente
                 var jogador = await _context.Jogadores
-                    .FirstOrDefaultAsync(j => j.Nome == nomeJogador && j.TimeId == timeId);
+                    .FirstOrDefaultAsync(j => j.IdApi == playerKey && j.TimeId == timeId);
 
                 if (jogador == null)
                 {
-                    resultado.Avisos.Add($"Gol ignorado: jogador '{nomeJogador}' não encontrado no time {timeId}");
-                    continue; // não adiciona o gol
+                    resultado.Avisos.Add($"Gol ignorado: jogador com IdApi '{playerKey}' não encontrado no time {timeId}");
+                    continue;
                 }
 
-                _logger.LogInformation("Incluindo gol: Jogo={JogoId}, Jogador={Jogador}, Minuto={Minuto}, Score={Score}",
-                    jogoDb.Id, jogador.Nome, gol.Time, gol.Score);
+                _logger.LogInformation("Incluindo gol: Jogo={JogoId}, Jogador={Jogador}, Minuto={Minuto}, Score={Score}, IdApi={IdApi}",
+                    jogoDb.Id, jogador.Nome, gol.Time, gol.Score, jogador.IdApi);
 
                 _context.Gols.Add(new Gol
                 {
@@ -582,9 +590,10 @@ namespace ControleFutebolWeb.Controllers
         }
 
 
+
+
         // ── Importa cartões ───────────────────────────────────────────────────
-        private async Task ImportarCartoes(
-            Jogo jogo, List<AllSportsCard> cards, Time timeCasa, Time timeVis)
+        private async Task ImportarCartoes(Jogo jogo, List<AllSportsCard> cards, Time timeCasa, Time timeVis)
         {
             foreach (var c in cards)
             {
@@ -592,12 +601,20 @@ namespace ControleFutebolWeb.Controllers
                 string tipo = c.CardType.Contains("red", StringComparison.OrdinalIgnoreCase)
                     ? "Vermelho" : "Amarelo";
 
+                // 🔹 HomeFault
                 if (!string.IsNullOrWhiteSpace(c.HomeFault))
                 {
                     var jogador = await _context.Jogadores
-                        .FirstOrDefaultAsync(j =>
-                            j.Nome.Contains(c.HomeFault) && j.TimeId == timeCasa.Id);
+                        .FirstOrDefaultAsync(j => j.IdApi == c.PlayerKey && j.TimeId == timeCasa.Id);
+
+                    if (jogador == null)
+                    {
+                        jogador = await _context.Jogadores
+                            .FirstOrDefaultAsync(j => j.Nome.Contains(c.HomeFault) && j.TimeId == timeCasa.Id);
+                    }
+
                     if (jogador != null)
+                    {
                         _context.Cartoes.Add(new Cartao
                         {
                             JogoId = jogo.Id,
@@ -605,14 +622,23 @@ namespace ControleFutebolWeb.Controllers
                             Minuto = minuto,
                             Tipo = tipo
                         });
+                    }
                 }
 
+                // 🔹 AwayFault
                 if (!string.IsNullOrWhiteSpace(c.AwayFault))
                 {
                     var jogador = await _context.Jogadores
-                        .FirstOrDefaultAsync(j =>
-                            j.Nome.Contains(c.AwayFault) && j.TimeId == timeVis.Id);
+                        .FirstOrDefaultAsync(j => j.IdApi == c.PlayerKey && j.TimeId == timeVis.Id);
+
+                    if (jogador == null)
+                    {
+                        jogador = await _context.Jogadores
+                            .FirstOrDefaultAsync(j => j.Nome.Contains(c.AwayFault) && j.TimeId == timeVis.Id);
+                    }
+
                     if (jogador != null)
+                    {
                         _context.Cartoes.Add(new Cartao
                         {
                             JogoId = jogo.Id,
@@ -620,9 +646,12 @@ namespace ControleFutebolWeb.Controllers
                             Minuto = minuto,
                             Tipo = tipo
                         });
+                    }
                 }
             }
         }
+
+
 
         // ── Helpers ───────────────────────────────────────────────────────────
 

@@ -180,6 +180,8 @@ namespace ControleFutebolWeb.Controllers
                         Posicao = NormalizarPosicao(jogadorApi.Posicao),  // ← 
                         DataNascimento = jogadorApi.Nascimento ?? DateTime.MinValue,
                         Nacionalidade = nacionalidade,
+                        DtInc = DateTime.UtcNow,
+                        DtAlt = null,
                         Time = time
                     });
                 }

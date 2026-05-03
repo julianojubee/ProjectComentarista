@@ -157,48 +157,6 @@ namespace ControleFutebolWeb.Migrations
                     b.ToTable("formacoes");
                 });
 
-            modelBuilder.Entity("ControleFutebolWeb.Models.ImportacaoLog", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Acao")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("acao");
-
-                    b.Property<int>("CompeticaoId")
-                        .HasColumnType("integer")
-                        .HasColumnName("competicaoid");
-
-                    b.Property<DateTime>("DataImportacao")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("dataimportacao");
-
-                    b.Property<string>("NomeTimeApi")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("nometimeapi");
-
-                    b.Property<string>("NomeTimeBanco")
-                        .HasColumnType("text")
-                        .HasColumnName("nometimebanco");
-
-                    b.Property<string>("Observacao")
-                        .HasColumnType("text")
-                        .HasColumnName("observacao");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CompeticaoId");
-
-                    b.ToTable("importacaologs");
-                });
-
             modelBuilder.Entity("ControleFutebolWeb.Models.Jogador", b =>
                 {
                     b.Property<int>("Id")
@@ -208,9 +166,29 @@ namespace ControleFutebolWeb.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("Atualizado")
+                        .HasColumnType("boolean")
+                        .HasColumnName("atualizado");
+
                     b.Property<DateTime>("DataNascimento")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("datanascimento");
+
+                    b.Property<DateTime?>("DtAlt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("dtalt");
+
+                    b.Property<DateTime>("DtInc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("dtinc");
+
+                    b.Property<long?>("IdApi")
+                        .HasColumnType("bigint")
+                        .HasColumnName("idapi");
+
+                    b.Property<int?>("IdadeTransfermarkt")
+                        .HasColumnType("integer")
+                        .HasColumnName("idadetransfermarkt");
 
                     b.Property<int?>("NacionalidadeId")
                         .HasColumnType("integer")
@@ -718,17 +696,6 @@ namespace ControleFutebolWeb.Migrations
                     b.Navigation("Jogador");
 
                     b.Navigation("Jogo");
-                });
-
-            modelBuilder.Entity("ControleFutebolWeb.Models.ImportacaoLog", b =>
-                {
-                    b.HasOne("ControleFutebolWeb.Models.Competicao", "Competicao")
-                        .WithMany()
-                        .HasForeignKey("CompeticaoId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Competicao");
                 });
 
             modelBuilder.Entity("ControleFutebolWeb.Models.Jogador", b =>

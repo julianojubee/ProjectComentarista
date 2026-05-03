@@ -15,8 +15,6 @@ build_property.EnforceExtendedAnalyzerRules =
 build_property.EnforceExtendedAnalyzerRules = 
 build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property._SupportedPlatformList = Linux,macOS,Windows
-build_property.TargetFrameworkIdentifier = .NETCoreApp
-build_property.TargetFrameworkVersion = v9.0
 build_property.RootNamespace = ControleFutebolWeb
 build_property.RootNamespace = ControleFutebolWeb
 build_property.ProjectDir = C:\Users\Juliano\source\repos\ControleFutebolWeb\ControleFutebolWeb\
@@ -64,6 +62,10 @@ build_metadata.AdditionalFiles.CssScope =
 
 [C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Brasileirao/Times.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQnJhc2lsZWlyYW9cVGltZXMuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Competicoes/Create.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQ29tcGV0aWNvZXNcQ3JlYXRlLmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/Juliano/source/repos/ControleFutebolWeb/ControleFutebolWeb/Views/Competicoes/Detalhes.cshtml]

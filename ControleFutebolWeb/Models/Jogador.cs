@@ -9,10 +9,10 @@ namespace ControleFutebolWeb.Models
         public string Nome { get; set; } = string.Empty;
         public string Posicao { get; set; } = string.Empty;
 
-        // Novo campo: Data de Nascimento
+        // Data de Nascimento
         public DateTime DataNascimento { get; set; }
 
-        // Idade calculada dinamicamente
+        // Idade calculada dinamicamente (baseada na DataNascimento)
         public int Idade
         {
             get
@@ -24,6 +24,16 @@ namespace ControleFutebolWeb.Models
             }
         }
 
+        // 🔹 Novo campo: Idade extraída do Transfermarkt
+        public int? IdadeTransfermarkt { get; set; }
+
+        // 🔹 Novo campo: Flag para indicar se já foi atualizado
+        public bool Atualizado { get; set; } = false;
+
+        // 🔹 Novo campo: ID de origem da API/JSON
+
+        public long? IdApi { get; set; }
+
         public int? NumeroCamisa { get; set; }
 
         public int? NacionalidadeId { get; set; }
@@ -34,5 +44,9 @@ namespace ControleFutebolWeb.Models
         [ValidateNever]   // <- evita erro de ModelState
 
         public Time Time { get; set; } = null!;
+
+        // 🔹 Novos campos de controle
+        public DateTime DtInc { get; set; }   // Data de inclusão
+        public DateTime? DtAlt { get; set; }   // Data da última alteração
     }
 }

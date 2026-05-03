@@ -101,6 +101,20 @@
         font-weight: 600;
     }
 </style>
+@{
+    string GetLogoFile(string nome)
+    {
+        if (string.IsNullOrWhiteSpace(nome)) return "default.png";
+
+        var lower = nome.ToLower().Replace(" ", "");
+        if (lower.Contains("brasileiro")) return "campeonatobrasileiro.png";
+        if (lower.Contains("Copa do Brasil")) return "copadobrasil.png";
+        if (lower.Contains("libertadores")) return "libertadores.png";
+        if (lower.Contains("sulamericana") || lower.Contains("sudamericana")) return "sudamericana.png";
+
+        return "default.png"; // fallback
+    }
+}
 
 <div class="cf-competicoes">
     <div class="cf-comp-hero">
@@ -110,7 +124,7 @@
             <p>Acompanhe os campeonatos e acesse classificação, grupos e tabelas.</p>
         </div>
     </div>
-
+    <a class="btn btn-success" href="@Url.Action("Create", "Competicoes")">+ Nova Competição</a>
     <div class="cf-comp-grid">
         @foreach (var comp in Model)
         {
@@ -123,7 +137,12 @@
                 : Url.Action("Detalhes", "Competicoes", new { id = comp.Id });
 
             <a class="cf-comp-card" href="@url">
-                <h2 class="cf-comp-title">@comp.Nome</h2>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <img src="~/Images/background/@GetLogoFile(comp.Nome)"
+                         alt="@comp.Nome"
+                         style="width:28px; height:28px; border-radius:50%; object-fit:cover;" />
+                    <h2 class="cf-comp-title">@comp.Nome</h2>
+                </div>
                 <div class="cf-comp-meta">Região: @comp.Regiao | Tipo: @comp.Tipo</div>
                 <span class="cf-comp-link">Abrir competição &rarr;</span>
             </a>

@@ -1,0 +1,37 @@
+﻿@model Competicao
+
+@{
+    ViewData["Title"] = "Nova Competição";
+}
+
+<h2>Nova Competição</h2>
+
+<form asp-action="Create" asp-controller="Competicoes" method="post">
+    <div class="form-group">
+        <label asp-for="Nome"></label>
+        <input asp-for="Nome" class="form-control" />
+        <span asp-validation-for="Nome" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="Regiao"></label>
+        <input asp-for="Regiao" class="form-control" />
+        <span asp-validation-for="Regiao" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="Tipo"></label>
+        <select asp-for="Tipo" class="form-control">
+            <option value="">Selecione...</option>
+            <option value="PONTOS_CORRIDOS">Pontos Corridos</option>
+            <option value="GRUPOS">Grupos</option>
+            <option value="MATA_MATA">Mata-Mata</option>
+        </select>
+        <span asp-validation-for="Tipo" class="text-danger"></span>
+    </div>
+    <button type="submit" class="btn btn-primary">Salvar</button>
+</form>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}
