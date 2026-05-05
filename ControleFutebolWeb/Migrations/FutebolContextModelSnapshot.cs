@@ -432,6 +432,10 @@ namespace ControleFutebolWeb.Migrations
                         .HasColumnType("text")
                         .HasColumnName("camisaurl");
 
+                    b.Property<string>("CamisaVisitanteUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("camisavisitanteurl");
+
                     b.Property<string>("Cidade")
                         .IsRequired()
                         .HasColumnType("text")

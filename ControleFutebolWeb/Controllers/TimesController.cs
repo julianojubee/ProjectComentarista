@@ -201,26 +201,28 @@ namespace ControleFutebolWeb.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> ImportarUniforme(int id, IFormFile arquivo)
+        public async Task<IActionResult> ImportarUniforme(int id, IFormFile arquivo, string tipo = "casa")
         {
             var time = await _context.Times.FindAsync(id);
             if (time == null) return NotFound();
 
             if (arquivo != null && arquivo.Length > 0)
             {
-                var fileName = $"{time.Nome}_camisa.png";
+                var sufixo = tipo == "visitante" ? "camisa_visitante" : "camisa";
+                var fileName = $"{time.Nome}_{sufixo}.png";
                 var path = Path.Combine("wwwroot/Images/kits", fileName);
+
                 using (var stream = new FileStream(path, FileMode.Create))
                     await arquivo.CopyToAsync(stream);
 
-                time.CamisaUrl = $"/Images/kits/{fileName}";
+                if (tipo == "visitante")
+                    time.CamisaVisitanteUrl = $"/Images/kits/{fileName}";
+                else
+                    time.CamisaUrl = $"/Images/kits/{fileName}";
+
                 _context.Update(time);
                 await _context.SaveChangesAsync();
-                TempData["Mensagem"] = "Uniforme importado com sucesso!";
-            }
-            else
-            {
-                TempData["MensagemErro"] = "Nenhum arquivo selecionado.";
+                TempData["Mensagem"] = $"Camisa {tipo} importada com sucesso!";
             }
 
             return RedirectToAction(nameof(Index));

@@ -135,7 +135,6 @@ C:\Users\Juliano\source\repos\ControleFutebolWeb\ControleFutebolWeb\obj\Debug\ne
 C:\Users\Juliano\source\repos\ControleFutebolWeb\ControleFutebolWeb\obj\Debug\net9.0\compressed\iyla0694q0-{0}-ebsuv5x2yo-ebsuv5x2yo.gz
 C:\Users\Juliano\source\repos\ControleFutebolWeb\ControleFutebolWeb\obj\Debug\net9.0\compressed\q8yaenmdp1-{0}-x5w62jctsp-x5w62jctsp.gz
 C:\Users\Juliano\source\repos\ControleFutebolWeb\ControleFutebolWeb\obj\Debug\net9.0\compressed\cu7nfsziu2-{0}-61n19gt1b8-61n19gt1b8.gz
-C:\Users\Juliano\source\repos\ControleFutebolWeb\ControleFutebolWeb\obj\Debug\net9.0\compressed\7lgotn8nbj-{0}-s2177zn69a-s2177zn69a.gz
 C:\Users\Juliano\source\repos\ControleFutebolWeb\ControleFutebolWeb\obj\Debug\net9.0\compressed\ggtpzh7qo2-{0}-7x2ck10aek-7x2ck10aek.gz
 C:\Users\Juliano\source\repos\ControleFutebolWeb\ControleFutebolWeb\obj\Debug\net9.0\compressed\6h7aysmbbo-{0}-cs74gjpgl1-cs74gjpgl1.gz
 C:\Users\Juliano\source\repos\ControleFutebolWeb\ControleFutebolWeb\obj\Debug\net9.0\compressed\wk99y4t60d-{0}-w4ovz9vek7-w4ovz9vek7.gz
