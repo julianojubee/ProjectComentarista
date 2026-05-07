@@ -53,12 +53,11 @@ namespace ControleFutebolWeb.Models
         public string? Grupo { get; set; }
         public string? Observacoes { get; set; }
 
-        
         public string? Status { get; set; }
-        
 
-
+        // Novo campo para controlar se já foi atualizado pelo serviço Transfermarkt
+        // 0 = não atualizado, 1 = atualizado
+        public int Atualizado { get; set; } = 0;
     }
-
 }
 

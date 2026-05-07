@@ -1,4 +1,5 @@
-﻿using ControleFutebolWeb.Converters; // ← importa o converter
+﻿using System.Text;
+using ControleFutebolWeb.Converters; // ← importa o converter
 using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Services;
@@ -9,6 +10,9 @@ internal class Program
     private static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+
+        // Register code pages provider so encodings like "windows-1252" are supported
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
         // Conexão com PostgreSQL
         builder.Services.AddDbContext<FutebolContext>(options =>
@@ -30,8 +34,10 @@ internal class Program
             });
 
         builder.Services.AddHttpClient<ApiFootballDataService>();
+        builder.Services.AddHttpClient<TransfermarktSulAmericanaService>();
         builder.Services.AddHostedService<AtualizacaoJogosService>();
         builder.Services.AddHostedService<AtualizarJogadoresSemDataService>();
+        builder.Services.AddHostedService<AtualizarCopaSulAmericanaService>();
         builder.Services.AddHttpClient();
 
         // habilita logging no console e debug

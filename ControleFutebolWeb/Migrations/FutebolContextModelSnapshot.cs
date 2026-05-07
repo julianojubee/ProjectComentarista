@@ -286,6 +286,10 @@ namespace ControleFutebolWeb.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("timevisitanteid");
 
+                    b.Property<int>("atualizado")
+                        .HasColumnType("integer")
+                        .HasColumnName("atualizado");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CompeticaoId");
