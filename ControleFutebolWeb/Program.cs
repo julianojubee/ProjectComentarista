@@ -38,6 +38,7 @@ internal class Program
         builder.Services.AddHostedService<AtualizacaoJogosService>();
         builder.Services.AddHostedService<AtualizarJogadoresSemDataService>();
         builder.Services.AddHostedService<AtualizarCopaSulAmericanaService>();
+        builder.Services.AddHttpClient<FMInsideService>();
         builder.Services.AddHttpClient();
 
         // habilita logging no console e debug

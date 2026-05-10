@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ControleFutebolWeb")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1576a18750d20ed74d4a31bc39f07c7dc63482b0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cfcdcdef23b44f7f0194d1815c3df5675bd608c2")]
 [assembly: System.Reflection.AssemblyProductAttribute("ControleFutebolWeb")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ControleFutebolWeb")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -152,6 +152,20 @@
 
 @{
     ViewData["Title"] = "Jogadores";
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["Sucesso"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["Erro"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
 }
 
 <style>
@@ -290,7 +304,15 @@
         <a asp-action="Create" class="btn btn-success cf-small-btn" style="margin-left:6px;">Novo Jogador</a>
     </div>
 </form>
-
+<div class="d-flex gap-2 mb-3 align-items-center flex-wrap">
+    <form asp-action="BuscarFotosTodos" method="post" style="display:inline;">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="btn btn-outline-secondary btn-sm"
+                onclick="return confirm('Buscar fotos de todos os jogadores sem foto? Pode demorar alguns minutos.')">
+            📷 Buscar fotos sem foto (Transfermarkt)
+        </button>
+    </form>
+</div>
 <div class="cf-grid">
     @foreach (var jogador in Model)
     {
@@ -345,6 +367,14 @@
                 <a asp-action="Details" asp-route-id="@jogador.Id" class="btn btn-outline-primary btn-sm cf-small-btn">Detalhes</a>
                 <a asp-action="Edit" asp-route-id="@jogador.Id" class="btn btn-warning btn-sm cf-small-btn">Editar</a>
                 <a asp-action="Delete" asp-route-id="@jogador.Id" class="btn btn-danger btn-sm cf-small-btn">Excluir</a>
+                <form asp-action="BuscarFoto" asp-route-id="@jogador.Id" method="post" style="display:inline;">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-secondary btn-sm cf-small-btn"
+                            title="Buscar foto no Transfermarkt"
+                            onclick="return confirm('Buscar foto de @jogador.Nome no Transfermarkt?')">
+                        📷
+                    </button>
+                </form>
             </div>
         </div>
     }

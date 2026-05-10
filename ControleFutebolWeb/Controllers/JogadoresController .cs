@@ -1,6 +1,7 @@
 ﻿using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
+using ControleFutebolWeb.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -15,11 +16,13 @@ namespace ControleFutebolWeb.Controllers
     {
         private readonly FutebolContext _context;
         private readonly ILogger<JogadoresController> _logger;
+        private readonly FMInsideService _fmInsideService;
 
-        public JogadoresController(FutebolContext context, ILogger<JogadoresController> logger)
+        public JogadoresController(FutebolContext context,ILogger<JogadoresController> logger,FMInsideService fmInsideService)
         {
             _context = context;
             _logger = logger;
+            _fmInsideService = fmInsideService;
         }
 
         public IActionResult Index(string posicao, string nacionalidade, int? timeId, string sortOrder)
@@ -288,6 +291,86 @@ namespace ControleFutebolWeb.Controllers
             };
 
             return View(vm);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> BuscarFoto(int id)
+        {
+            var jogador = await _context.Jogadores
+                .Include(j => j.Time)
+                .FirstOrDefaultAsync(j => j.Id == id);
+
+            if (jogador == null) return NotFound();
+
+            var fotoUrl = await _fmInsideService.BuscarFotoJogador(
+                jogador.Nome, jogador.Time?.Nome);
+
+            if (!string.IsNullOrWhiteSpace(fotoUrl))
+            {
+                jogador.FotoUrl = fotoUrl;
+                jogador.DtAlt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+                TempData["Sucesso"] = $"✅ Foto de {jogador.Nome} atualizada!";
+            }
+            else
+            {
+                TempData["Erro"] = $"❌ Foto de {jogador.Nome} não encontrada no FMInside.";
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> BuscarFotosTodos(int? timeId)
+        {
+            var query = _context.Jogadores
+                .Include(j => j.Time)
+                .Where(j => string.IsNullOrEmpty(j.FotoUrl));
+
+            if (timeId.HasValue)
+                query = query.Where(j => j.TimeId == timeId.Value);
+
+            var jogadores = await query.ToListAsync();
+
+            int atualizados = 0;
+            int falhas = 0;
+
+            foreach (var jogador in jogadores)
+            {
+                try
+                {
+                    var fotoUrl = await _fmInsideService.BuscarFotoJogador(
+                        jogador.Nome, jogador.Time?.Nome);
+
+                    if (!string.IsNullOrWhiteSpace(fotoUrl))
+                    {
+                        jogador.FotoUrl = fotoUrl;
+                        jogador.DtAlt = DateTime.UtcNow;
+                        atualizados++;
+                    }
+                    else
+                    {
+                        falhas++;
+                    }
+
+                    // FMInside permite cadência menor que o Transfermarkt
+                    await Task.Delay(800);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erro ao buscar foto de {Nome}", jogador.Nome);
+                    falhas++;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            TempData["Sucesso"] =
+                $"Fotos atualizadas: {atualizados} ✅  |  Não encontradas: {falhas} ❌  " +
+                $"(total verificado: {jogadores.Count})";
+
+            return RedirectToAction(nameof(Index));
         }
     }
 }

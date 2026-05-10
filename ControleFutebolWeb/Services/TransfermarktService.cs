@@ -1373,7 +1373,203 @@ namespace ControleFutebolWeb.Services
             _httpClient.DefaultRequestHeaders.Add("Accept-Language", "pt-BR,pt;q=0.9,en;q=0.8");
             _httpClient.DefaultRequestHeaders.Add("Referer", "https://www.transfermarkt.com.br/");
         }
+        public async Task<string?> BuscarFotoJogador(string nomeJogador, string? nomeClube = null)
+        {
+            try
+            {
+                var query = HttpUtility.UrlEncode(nomeJogador);
+                var url = $"https://www.transfermarkt.com.br/schnellsuche/ergebnis/schnellsuche?query={query}";
 
+                _logger.LogInformation("[Foto] Buscando: {Nome} | Clube: {Clube}", nomeJogador, nomeClube);
+
+                var html = await _httpClient.GetStringAsync(url);
+                var doc = new HtmlDocument();
+                doc.LoadHtml(html);
+
+                // A tabela de jogadores é a primeira com class 'items'
+                var tabela = doc.DocumentNode
+                    .SelectNodes("//table[contains(@class,'items')]")
+                    ?.FirstOrDefault();
+
+                if (tabela == null)
+                {
+                    _logger.LogWarning("[Foto] Nenhuma tabela de resultados: {Nome}", nomeJogador);
+                    return null;
+                }
+
+                var linhas = tabela.SelectNodes(".//tbody/tr[not(contains(@class,'thead'))]");
+                if (linhas == null || !linhas.Any()) return null;
+
+                // Log todos os candidatos para diagnóstico
+                foreach (var l in linhas)
+                {
+                    var nomeCell = ExtrairNomeLinha(l);
+                    var clubeCell = ExtrairClubeLinha(l);
+                    _logger.LogInformation("[Foto] Candidato: Nome={Nome} | Clube={Clube}", nomeCell, clubeCell);
+                }
+
+                HtmlNode? linhaSelecionada = null;
+
+                if (!string.IsNullOrWhiteSpace(nomeClube))
+                {
+                    // Tenta match exato normalizado primeiro
+                    linhaSelecionada = linhas.FirstOrDefault(l =>
+                        NomesClubeSimilares(ExtrairClubeLinha(l), nomeClube));
+
+                    if (linhaSelecionada != null)
+                        _logger.LogInformation("[Foto] Clube encontrado (match): {Clube}",
+                            ExtrairClubeLinha(linhaSelecionada));
+                }
+
+                // Fallback: primeiro resultado
+                linhaSelecionada ??= linhas.First();
+                _logger.LogInformation("[Foto] Linha selecionada: {Nome} / {Clube}",
+                    ExtrairNomeLinha(linhaSelecionada), ExtrairClubeLinha(linhaSelecionada));
+
+                return await ExtrairFotoDaLinha(linhaSelecionada);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Foto] Erro ao buscar foto de {Nome}", nomeJogador);
+                return null;
+            }
+        }
+
+        private static string ExtrairNomeLinha(HtmlNode linha)
+        {
+            // Estrutura: <td class="hauptlink"><a>Nome</a></td>
+            var link = linha.SelectSingleNode(".//td[contains(@class,'hauptlink')]//a");
+            return HtmlEntity.DeEntitize(link?.InnerText?.Trim() ?? "");
+        }
+
+        private static string ExtrairClubeLinha(HtmlNode linha)
+        {
+            // Estratégia 1: link para /verein/ (o mais confiável)
+            var linkVerein = linha.SelectNodes(".//a[contains(@href,'/verein/')]")
+                ?.FirstOrDefault();
+            if (linkVerein != null)
+            {
+                // Prefere o atributo title (nome completo do clube)
+                var title = linkVerein.GetAttributeValue("title", "").Trim();
+                if (!string.IsNullOrWhiteSpace(title))
+                    return HtmlEntity.DeEntitize(title);
+
+                var texto = linkVerein.InnerText.Trim();
+                if (!string.IsNullOrWhiteSpace(texto))
+                    return HtmlEntity.DeEntitize(texto);
+            }
+
+            // Estratégia 2: segunda célula da inline-table (abaixo do nome)
+            var subTds = linha.SelectNodes(".//td[@class='inline-table']//tr");
+            if (subTds?.Count >= 2)
+            {
+                var clubeTexto = subTds[1].InnerText.Trim();
+                if (!string.IsNullOrWhiteSpace(clubeTexto))
+                    return HtmlEntity.DeEntitize(clubeTexto);
+            }
+
+            return "";
+        }
+
+        private static bool NomesClubeSimilares(string nomesite, string nomeBanco)
+        {
+            if (string.IsNullOrWhiteSpace(nomesite) || string.IsNullOrWhiteSpace(nomeBanco))
+                return false;
+
+            var a = NormalizarClube(nomesite);
+            var b = NormalizarClube(nomeBanco);
+
+            // Match exato após normalização
+            if (a == b) return true;
+
+            // Um contém o outro (cobre "Internacional" ↔ "SC Internacional Porto Alegre")
+            if (a.Contains(b) || b.Contains(a)) return true;
+
+            // Match parcial: cada token de b aparece em a
+            var tokensB = b.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (tokensB.Length > 0 && tokensB.All(t => a.Contains(t))) return true;
+
+            return false;
+        }
+
+
+        private static string NormalizarClube(string nome)
+        {
+            if (string.IsNullOrWhiteSpace(nome)) return "";
+
+            var s = nome.ToLowerInvariant()
+                .Replace("á", "a").Replace("é", "e").Replace("í", "i")
+                .Replace("ó", "o").Replace("ú", "u").Replace("ã", "a")
+                .Replace("ê", "e").Replace("â", "a").Replace("ô", "o")
+                .Replace("ç", "c").Replace("ñ", "n");
+
+            // Remove prefixos/sufixos comuns
+            var stopwords = new[] { "sc", "cr", "ec", "fc", "cd", "ca", "ac", "se",
+                             "sport", "clube", "club", "futebol", "football",
+                             "de", "do", "da", "dos", "las", "los",
+                             "porto", "alegre" }; // cidade removida para não interferir
+
+            var tokens = s.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                          .Where(t => !stopwords.Contains(t) && t.Length > 1)
+                          .ToArray();
+
+            return string.Join(" ", tokens);
+        }
+
+        /// <summary>Acessa o perfil e extrai a URL da foto via og:image.</summary>
+        private async Task<string?> ExtrairFotoDaLinha(HtmlNode linha)
+        {
+            try
+            {
+                var linkNode = linha.SelectSingleNode(".//td[contains(@class,'hauptlink')]//a")
+                             ?? linha.SelectSingleNode(".//a[contains(@href,'/profil/spieler/')]");
+                if (linkNode == null) return null;
+
+                var href = linkNode.GetAttributeValue("href", "");
+                if (string.IsNullOrWhiteSpace(href)) return null;
+
+                var profileUrl = href.StartsWith("http")
+                    ? href
+                    : "https://www.transfermarkt.com.br" + href;
+
+                _logger.LogInformation("[Foto] Acessando perfil: {Url}", profileUrl);
+                await Task.Delay(TimeSpan.FromSeconds(1.5));
+
+                var profileHtml = await _httpClient.GetStringAsync(profileUrl);
+                var profileDoc = new HtmlDocument();
+                profileDoc.LoadHtml(profileHtml);
+
+                // Extrai og:image (mais confiável)
+                var ogImage = profileDoc.DocumentNode
+                    .SelectSingleNode("//meta[@property='og:image']");
+                var fotoUrl = ogImage?.GetAttributeValue("content", "")?.Trim();
+
+                if (!string.IsNullOrWhiteSpace(fotoUrl) && fotoUrl.Contains("transfermarkt"))
+                {
+                    _logger.LogInformation("[Foto] og:image encontrado: {Url}", fotoUrl);
+                    return fotoUrl;
+                }
+
+                // Fallback: img de perfil
+                var imgPerfil = profileDoc.DocumentNode
+                    .SelectSingleNode("//img[contains(@class,'data-header__profile-image')]");
+                fotoUrl = imgPerfil?.GetAttributeValue("src", "")?.Trim();
+
+                if (!string.IsNullOrWhiteSpace(fotoUrl))
+                {
+                    _logger.LogInformation("[Foto] img perfil encontrado: {Url}", fotoUrl);
+                    return fotoUrl;
+                }
+
+                _logger.LogWarning("[Foto] Nenhuma foto encontrada na página de perfil.");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Foto] Erro ao acessar perfil");
+                return null;
+            }
+        }
 
         /// <summary>
         /// Busca dados do jogador no Transfermarkt pelo nome.
@@ -1421,10 +1617,9 @@ namespace ControleFutebolWeb.Services
                 {
                     foreach (var linha in linhas)
                     {
-                        var clubeCell = linha.SelectSingleNode(".//td[@class='zentriert']/a");
-                        var clubeTexto = HtmlEntity.DeEntitize(clubeCell?.InnerText?.Trim() ?? "");
+                        var clubeTexto = ExtrairClubeLinha(linha);
 
-                        if (NomesParecidos(clubeTexto, nomeClube))
+                        if (NomesClubeSimilares(clubeTexto, nomeClube))
                         {
                             linhaSelecionada = linha;
                             _logger.LogInformation("[Transfermarkt] Selecionado pelo clube: {Clube}", clubeTexto);
