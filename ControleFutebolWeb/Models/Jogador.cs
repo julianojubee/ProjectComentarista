@@ -48,5 +48,6 @@ namespace ControleFutebolWeb.Models
         // 🔹 Novos campos de controle
         public DateTime DtInc { get; set; }   // Data de inclusão
         public DateTime? DtAlt { get; set; }   // Data da última alteração
+        public string? FotoUrl { get; set; }
     }
 }

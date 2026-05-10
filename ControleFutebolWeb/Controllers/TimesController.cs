@@ -1,12 +1,13 @@
-﻿using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using ControleFutebolWeb.Data;
-using ControleFutebolWeb.Models;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace ControleFutebolWeb.Controllers
 {
@@ -22,10 +23,40 @@ namespace ControleFutebolWeb.Controllers
         }
 
         // GET: Times
-        public async Task<IActionResult> Index()
+        // GET: Times
+        public async Task<IActionResult> Index(int? competicaoId, int? timeId)
         {
-            return View(await _context.Times.ToListAsync());
+            var query = _context.Times.AsQueryable();
+
+            if (competicaoId.HasValue)
+            {
+                // pega todos os times que jogaram na competição
+                var jogosCompeticao = _context.Jogos
+                    .Where(j => j.CompeticaoId == competicaoId.Value);
+
+                var timesCompeticao = await jogosCompeticao
+                    .Select(j => j.TimeCasaId)
+                    .Union(jogosCompeticao.Select(j => j.TimeVisitanteId))
+                    .Distinct()
+                    .ToListAsync();
+
+                query = query.Where(t => timesCompeticao.Contains(t.Id));
+            }
+
+            if (timeId.HasValue)
+            {
+                query = query.Where(t => t.Id == timeId.Value);
+            }
+
+            var times = await query.ToListAsync();
+
+            // Preenche os dropdowns
+            ViewBag.Competicoes = new SelectList(_context.Competicoes, "Id", "Nome", competicaoId);
+            ViewBag.Times = new SelectList(_context.Times, "Id", "Nome", timeId);
+
+            return View(times);
         }
+
 
         // GET: Times/Details/5
         public async Task<IActionResult> Details(int id)

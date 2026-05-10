@@ -58,6 +58,7 @@ namespace ControleFutebolWeb.Models
         // Novo campo para controlar se já foi atualizado pelo serviço Transfermarkt
         // 0 = não atualizado, 1 = atualizado
         public int Atualizado { get; set; } = 0;
+        public string? FotoUrl { get; set; }
     }
 }
 

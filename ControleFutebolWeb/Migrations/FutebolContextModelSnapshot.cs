@@ -182,6 +182,10 @@ namespace ControleFutebolWeb.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("dtinc");
 
+                    b.Property<string>("FotoUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("fotourl");
+
                     b.Property<long?>("IdApi")
                         .HasColumnType("bigint")
                         .HasColumnName("idapi");
@@ -230,6 +234,10 @@ namespace ControleFutebolWeb.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("Atualizado")
+                        .HasColumnType("integer")
+                        .HasColumnName("atualizado");
+
                     b.Property<int>("CompeticaoId")
                         .HasColumnType("integer")
                         .HasColumnName("competicaoid");
@@ -249,6 +257,10 @@ namespace ControleFutebolWeb.Migrations
                     b.Property<int?>("FormacaoVisitanteId")
                         .HasColumnType("integer")
                         .HasColumnName("formacaovisitanteid");
+
+                    b.Property<string>("FotoUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("fotourl");
 
                     b.Property<string>("Grupo")
                         .HasColumnType("text")
@@ -285,10 +297,6 @@ namespace ControleFutebolWeb.Migrations
                     b.Property<int>("TimeVisitanteId")
                         .HasColumnType("integer")
                         .HasColumnName("timevisitanteid");
-
-                    b.Property<int>("atualizado")
-                        .HasColumnType("integer")
-                        .HasColumnName("atualizado");
 
                     b.HasKey("Id");
 
@@ -528,6 +536,77 @@ namespace ControleFutebolWeb.Migrations
                     b.HasIndex("TimeId");
 
                     b.ToTable("timeescalacaopadrao");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.Treinador", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("DataNascimento")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("datanascimento");
+
+                    b.Property<DateTime?>("DtAlt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("dtalt");
+
+                    b.Property<DateTime>("DtInc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("dtinc");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("nome");
+
+                    b.Property<int>("TimeId")
+                        .HasColumnType("integer")
+                        .HasColumnName("timeid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TimeId");
+
+                    b.ToTable("treinadores");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.TreinadorHistorico", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("DtFim")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("dtfim");
+
+                    b.Property<DateTime>("DtInicio")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("dtinicio");
+
+                    b.Property<int>("TimeId")
+                        .HasColumnType("integer")
+                        .HasColumnName("timeid");
+
+                    b.Property<int>("TreinadorId")
+                        .HasColumnType("integer")
+                        .HasColumnName("treinadorid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TimeId");
+
+                    b.HasIndex("TreinadorId");
+
+                    b.ToTable("treinadoreshistorico");
                 });
 
             modelBuilder.Entity("Gol", b =>
@@ -837,6 +916,36 @@ namespace ControleFutebolWeb.Migrations
                     b.Navigation("Time");
                 });
 
+            modelBuilder.Entity("ControleFutebolWeb.Models.Treinador", b =>
+                {
+                    b.HasOne("ControleFutebolWeb.Models.Time", "Time")
+                        .WithMany()
+                        .HasForeignKey("TimeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Time");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.TreinadorHistorico", b =>
+                {
+                    b.HasOne("ControleFutebolWeb.Models.Time", "Time")
+                        .WithMany()
+                        .HasForeignKey("TimeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ControleFutebolWeb.Models.Treinador", "Treinador")
+                        .WithMany("Historicos")
+                        .HasForeignKey("TreinadorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Time");
+
+                    b.Navigation("Treinador");
+                });
+
             modelBuilder.Entity("Gol", b =>
                 {
                     b.HasOne("ControleFutebolWeb.Models.Jogador", "Jogador")
@@ -885,6 +994,11 @@ namespace ControleFutebolWeb.Migrations
                     b.Navigation("Jogadores");
 
                     b.Navigation("TimeEscalacaoPadrao");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.Treinador", b =>
+                {
+                    b.Navigation("Historicos");
                 });
 
             modelBuilder.Entity("Nacionalidade", b =>

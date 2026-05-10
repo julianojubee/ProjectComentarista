@@ -33,51 +33,255 @@ namespace ControleFutebolWeb.Services
 
         // ── DICIONÁRIO DE NOMES: Transfermarkt → banco local ──────────────────
         // Adicione linhas sempre que o nome no site divergir do cadastrado localmente.
-        private static readonly Dictionary<string, string> _mapaTimesNomes =
+        public static readonly Dictionary<string, string> _mapaTimesNomes =
             new(StringComparer.OrdinalIgnoreCase)
         {
-            // Brasil
-            { "Athletico Paranaense",        "Athletico Paranaense" },
-            { "Athletico-PR",                "Athletico Paranaense" },
-            { "Club Athletico Paranaense",   "Athletico Paranaense" },
-            { "Fortaleza EC",                "Fortaleza" },
-            { "Clube de Regatas do Flamengo","Flamengo" },
-            { "Fluminense FC",               "Fluminense" },
-            { "SC Internacional",            "Internacional" },
-            { "Grêmio FBPA",                 "Grêmio" },
-            { "Santos FC",                   "Santos" },
-            { "Ceará SC",                    "Ceará" },
-            { "Sport Club Corinthians",      "Corinthians" },
-            { "SE Palmeiras",                "Palmeiras" },
-            // Argentina
-            { "Club Atlético Independiente", "Independiente" },
-            { "Racing Club",                 "Racing Club" },
-            { "River Plate",                 "River Plate" },
-            { "Boca Juniors",                "Boca Juniors" },
-            // Colômbia
-            { "Deportivo Independiente Medellín", "Ind. Medellín" },
-            { "Atlético Nacional",           "Atlético Nacional" },
-            // Chile
-            { "Club Universidad de Chile",   "Universidad de Chile" },
-            { "Colo-Colo",                   "Colo-Colo" },
-            // Bolívia
-            { "Club Guabirá",                "Guabira" },
-            { "Club Bolívar",                "Bolívar" },
-            // Equador
-            { "Liga Deportiva Universitaria","LDU Quito" },
-            { "Club Deportivo El Nacional",  "El Nacional" },
-            // Peru
-            { "Club Universitario de Deportes","Universitario" },
-            { "Alianza Lima",                "Alianza Lima" },
-            // Uruguai
-            { "Club Nacional de Football",   "Nacional" },
-            { "Peñarol",                     "Peñarol" },
-            // Venezuela
-            { "Caracas FC",                  "Caracas" },
-            { "Deportivo Táchira FC",        "Táchira" },
-            // Paraguai
-            { "Olimpia",                     "Olimpia" },
-            { "Cerro Porteño",               "Cerro Porteño" },
+             // ── Carabobo FC ──────────────────────────────────────────
+            { "Carabobo FC",                    "Carabobo FC" },
+            { "Carabobo",                       "Carabobo FC" },
+
+            // ── Caracas ──────────────────────────────────────────────
+            { "Caracas FC",                     "Caracas" },
+            { "Caracas",                        "Caracas" },
+
+            // ── Nacional Asuncion ────────────────────────────────────
+            { "Club Nacional Asunción",         "Nacional Asuncion" },
+            { "Nacional Asunción",              "Nacional Asuncion" },
+            { "Nacional Asuncion",              "Nacional Asuncion" },
+            { "Club Nacional de Football",      "Nacional Asuncion" },
+
+            // ── CR Vasco da Gama ─────────────────────────────────────
+            { "CR Vasco da Gama",               "CR Vasco da Gama" },
+            { "Vasco da Gama",                  "CR Vasco da Gama" },
+            { "Vasco",                          "CR Vasco da Gama" },
+
+            // ── São Paulo FC ─────────────────────────────────────────
+            { "São Paulo FC",                   "São Paulo FC" },
+            { "FC São Paulo",                   "São Paulo FC" },
+            { "São Paulo",                      "São Paulo FC" },
+            { "Sao Paulo FC",                   "São Paulo FC" },
+
+            // ── Macara ───────────────────────────────────────────────
+            { "CD Macarà",                     "Macara" },
+            { "CD Macarã¡",                    "Macara" },
+            { "CD Macarâ",                     "Macara" },
+            { "CD Macar&#225;",                 "Macara" },
+            { "CD Macarã",                      "Macara" },
+            { "Macará",                         "Macara" },
+            { "CD Macará",                      "Macara" },
+            { "Macara",                         "Macara" },
+
+            // ── Olimpia Asuncion ─────────────────────────────────────
+            { "Olimpia Asunción",               "Olimpia Asuncion" },
+            { "Olimpia AsunciÃ³n",              "Olimpia Asuncion" },
+            { "Olimpia Asunci&#243;n",          "Olimpia Asuncion" },
+            { "Club Olimpia",                   "Olimpia Asuncion" },
+            { "Olimpia",                        "Olimpia Asuncion" },
+
+            // ── Orense ───────────────────────────────────────────────
+            { "Orenses SC",                     "Orense" },
+            { "Orense SC",                      "Orense" },
+            { "Orense",                         "Orense" },
+
+            // ── Santos FC ────────────────────────────────────────────
+            { "Santos FC",                      "Santos FC" },
+            { "Santos",                         "Santos FC" },
+
+            // ── Millonarios ──────────────────────────────────────────
+            { "Millonarios FC",                 "Millonarios" },
+            { "Millonarios Bogotá",             "Millonarios" },
+            { "Millonarios BogotÃ¡",            "Millonarios" },
+            { "Millonarios Bogot&#225;",        "Millonarios" },
+            { "Millonarios",                    "Millonarios" },
+
+            // ── America De Cali ──────────────────────────────────────
+            { "CD América de Cali",             "America De Cali" },
+            { "CD AmÃ©rica de Cali",            "America De Cali" },
+            { "CD Am&#233;rica de Cali",        "America De Cali" },
+            { "America de Cali",                "America De Cali" },
+            { "América de Cali",                "America De Cali" },
+            { "Atletico Bucaramanga",           "Bucaramanga" },  // estava errado antes
+
+            // ── Palestino ────────────────────────────────────────────
+            { "CD Palestino",                   "Palestino" },
+            { "Palestino",                      "Palestino" },
+
+            // ── Dep. Cuenca ──────────────────────────────────────────
+            { "Deportivo Cuenca",               "Dep. Cuenca" },
+            { "Dep. Cuenca",                    "Dep. Cuenca" },
+            { "CD Deportivo Cuenca",            "Dep. Cuenca" },
+
+            // ── FBC Melgar ───────────────────────────────────────────
+            { "FBC Melgar",                     "FBC Melgar" },
+            { "Melgar",                         "FBC Melgar" },
+
+            // ── Juventud de Las Piedras ──────────────────────────────
+            { "CA Juventud",                    "Juventud de Las Piedras" },
+            { "Juventud",                       "Juventud de Las Piedras" },
+            { "Juventud de Las Piedras",        "Juventud de Las Piedras" },
+
+            // ── River Plate ──────────────────────────────────────────
+            { "CA River Plate",                 "River Plate" },
+            { "River Plate",                    "River Plate" },
+
+            // ── Atl. Nacional ────────────────────────────────────────
+            { "Atlético Nacional",              "Atl. Nacional" },
+            { "AtlÃ©tico Nacional",             "Atl. Nacional" },
+            { "Atl&#233;tico Nacional",         "Atl. Nacional" },
+            { "Atletico Nacional",              "Atl. Nacional" },
+            { "Atl. Nacional",                  "Atl. Nacional" },
+
+            // ── Botafogo FR ──────────────────────────────────────────
+            { "Botafogo FR",                    "Botafogo FR" },
+            { "Botafogo Rio de Janeiro",        "Botafogo FR" },
+            { "Botafogo",                       "Botafogo FR" },
+
+            // ── Barra FC ─────────────────────────────────────────────
+            { "Barra FC",                       "Barra FC" },
+            { "Barra",                          "Barra FC" },
+
+            // ── A. Italiano ──────────────────────────────────────────
+            { "Audax Italiano",                 "A. Italiano" },
+            { "A. Italiano",                    "A. Italiano" },
+            { "Audax",                          "A. Italiano" },
+            { "CD Cobresal",                    "Cobresal" },   // Cobresal entra aqui
+
+            // ── Puerto Cabello ───────────────────────────────────────
+            { "Academia Puerto Cabello",        "Puerto Cabello" },
+            { "Puerto Cabello",                 "Puerto Cabello" },
+
+            // ── Dep. Riestra ─────────────────────────────────────────
+            { "Club Deportivo Riestra",         "Dep. Riestra" },
+            { "CD Riestra",                     "Dep. Riestra" },
+            { "Dep. Riestra",                   "Dep. Riestra" },
+
+            // ── Cobresal ─────────────────────────────────────────────
+            { "Cobresal",                       "Cobresal" },
+
+            // ── Metropolitanos ───────────────────────────────────────
+            { "Metropolitanos FC",              "Metropolitanos" },
+            { "Metropolitanos",                 "Metropolitanos" },
+            { "Monagas SC",                     "Metropolitanos" }, // confirme se é o mesmo
+
+            // ── Recoleta ─────────────────────────────────────────────
+            { "Club Deportivo Recoleta",        "Recoleta" },
+            { "Recoleta FC",                    "Recoleta" },
+            { "Recoleta",                       "Recoleta" },
+
+            // ── CA Mineiro ───────────────────────────────────────────
+            { "CA Mineiro",                     "CA Mineiro" },
+            { "Atletico Mineiro",               "CA Mineiro" },
+            { "Atlético Mineiro",               "CA Mineiro" },
+
+            // ── Club Libertad Asuncion ───────────────────────────────
+            { "Club Libertad",                  "Club Libertad Asuncion" },
+            { "Libertad",                       "Club Libertad Asuncion" },
+            { "Libertad FC",                    "Club Libertad Asuncion" },
+
+            // ── Cienciano ────────────────────────────────────────────
+            { "Club Cienciano",                 "Cienciano" },
+            { "Cienciano",                      "Cienciano" },
+
+            // ── Sportivo Trinidense ──────────────────────────────────
+            { "Club Sportivo Trinidense",       "Sportivo Trinidense" },
+            { "Sportivo Trinidense",            "Sportivo Trinidense" },
+
+            // ── Deportivo Garcilaso ──────────────────────────────────
+            { "Deportivo Garcilaso",            "Deportivo Garcilaso" },
+            { "Garcilaso",                      "Deportivo Garcilaso" },
+
+            // ── SA Bulo Bulo ─────────────────────────────────────────
+            { "Club Independiente Petrolero",   "SA Bulo Bulo" },
+            { "San Antonio Bulo Bulo",          "SA Bulo Bulo" },
+            { "SA Bulo Bulo",                   "SA Bulo Bulo" },
+            { "Bulo Bulo",                      "SA Bulo Bulo" },
+
+            // ── RB Bragantino ────────────────────────────────────────
+            { "RB Bragantino",                  "RB Bragantino" },
+            { "Red Bull Bragantino",            "RB Bragantino" },
+            { "Bragantino",                     "RB Bragantino" },
+
+            // ── Alianza Atl. ─────────────────────────────────────────
+            { "Alianza Atlético Sullana",       "Alianza Atl." },
+            { "Alianza AtlÃ©tico Sullana",      "Alianza Atl." },
+            { "Alianza Atl&#233;tico Sullana",  "Alianza Atl." },
+            { "Alianza Atletico Sullana",       "Alianza Atl." },
+            { "Alianza Atl.",                   "Alianza Atl." },
+
+            // ── San Lorenzo ──────────────────────────────────────────
+            { "CA San Lorenzo de Almagro",      "San Lorenzo" },
+            { "Club Atlético San Lorenzo",      "San Lorenzo" },
+            { "San Lorenzo",                    "San Lorenzo" },
+
+            // ── Guabira ──────────────────────────────────────────────
+            { "Club Deportivo Guabirá",         "Guabira" },
+            { "Club Deportivo Guabir&#225;",    "Guabira" },
+            { "Guabirá",                        "Guabira" },
+            { "Guabira",                        "Guabira" },
+
+            // ── Montevideo City ──────────────────────────────────────
+            { "Montevideo City Torque",         "Montevideo City" },
+            { "Mvd City Torque",                "Montevideo City" },
+            { "Montevideo City",                "Montevideo City" },
+
+            // ── Blooming ─────────────────────────────────────────────
+            { "Blooming Santa Cruz",            "Blooming" },
+            { "Blooming",                       "Blooming" },
+
+            // ── Racing Montevideo ────────────────────────────────────
+            { "Racing Club de Montevideo",      "Racing Montevideo" },
+            { "Racing Montevideo",              "Racing Montevideo" },
+
+            // ── Bucaramanga ──────────────────────────────────────────
+            { "Bucaramanga",                    "Bucaramanga" },
+            { "Club Atlético Bucaramanga",      "Bucaramanga" },
+
+            // ── U. De Chile ──────────────────────────────────────────
+            { "CF Universidad de Chile",        "U. De Chile" },
+            { "Universidad de Chile",           "U. De Chile" },
+            { "U. De Chile",                    "U. De Chile" },
+
+            // ── CS Independiente Rivadavia ───────────────────────────
+            { "CS Independiente Rivadavia",     "CS Independiente Rivadavia" },
+            { "Independiente Rivadavia",        "CS Independiente Rivadavia" },
+
+            // ── Boston River ─────────────────────────────────────────
+            { "CA Boston River",                "Boston River" },
+            { "Boston River",                   "Boston River" },
+
+            // ── Grêmio FBPA ──────────────────────────────────────────
+            { "Grêmio FBPA",                    "Grêmio FBPA" },
+            { "GrÃªmio FBPA",                   "Grêmio FBPA" },
+            { "Gr&#234;mio FBPA",               "Grêmio FBPA" },
+            { "Grêmio Porto Alegre",            "Grêmio FBPA" },
+            { "Grêmio",                         "Grêmio FBPA" },
+            { "Gremio Porto Alegre",            "Grêmio FBPA" },
+
+            // ── GAS ──────────────────────────────────────────────────
+            { "GAS",                            "GAS" },
+
+            // ── Defensor Sp. ─────────────────────────────────────────
+            { "Defensor Sporting Club",         "Defensor Sp." },
+            { "Defensor Sporting",              "Defensor Sp." },
+            { "Defensor Sp.",                   "Defensor Sp." },
+            { "Defensor",                       "Defensor Sp." },
+
+            // ── O'Higgins FC ─────────────────────────────────────────
+            { "CD O'Higgins",                   "O'Higgins FC" },
+            { "CD O&#039;Higgins",              "O'Higgins FC" },
+            { "O'Higgins",                      "O'Higgins FC" },
+            { "O&#039;Higgins",                 "O'Higgins FC" },
+            { "OHiggins",                       "O'Higgins FC" },
+            { "O'Higgins FC",                   "O'Higgins FC" },
+
+            // ── Tigre ────────────────────────────────────────────────
+            { "Club Atlético Tigre",            "Tigre" },
+            { "CA Tigre",                       "Tigre" },
+            { "Tigre",                          "Tigre" },
+
+            // ── Racing Club ──────────────────────────────────────────
+            { "Racing Club",                    "Racing Club" },
+            { "Racing",                         "Racing Club" },
         };
 
         // ── DICIONÁRIO DE JOGADORES: nome no site → nome no banco ─────────────
@@ -146,7 +350,7 @@ namespace ControleFutebolWeb.Services
                 .Include(j => j.TimeVisitante)
                 .Include(j => j.Escalacoes)
                 .Include(j => j.Gols)
-                .Where(j => j.CompeticaoId == competicaoIdNoBanco && j.Atualizado == 0 )
+                .Where(j => j.CompeticaoId == competicaoIdNoBanco && j.Atualizado != 1)
                 .ToListAsync(ct);
 
             _log.LogInformation("[SulAmericana] {Total} jogos no banco para verificar.", jogosBanco.Count);
@@ -157,7 +361,7 @@ namespace ControleFutebolWeb.Services
                 if (ct.IsCancellationRequested) break;
                 try
                 {
-                    await ProcessarJogoAsync(context, jogoWeb, jogosBanco,
+                    await ProcessarJogoAsync_V2(context, jogoWeb, jogosBanco,
                         importarEscalacoes, resultado, ct);
                 }
                 catch (Exception ex)
@@ -173,154 +377,598 @@ namespace ControleFutebolWeb.Services
             }
 
             await context.SaveChangesAsync(ct);
+            await AtualizarGruposAsync(context, competicaoIdNoBanco, anoTemporada, ct);
             return resultado;
+        }
+
+        public async Task AtualizarGruposAsync(
+        FutebolContext context,
+        int competicaoId,
+        int ano = 2025,
+        CancellationToken ct = default)
+        {
+            var saison = ano - 1;
+            var url = $"https://www.transfermarkt.com.br/copa-sudamericana/gesamtspielplan/" +
+                      $"pokalwettbewerb/CS/saison_id/{saison}";
+
+            _log.LogInformation("[SulAmericana] Buscando grupos: {U}", url);
+
+            string html;
+            try
+            {
+                html = await _http.GetStringAsync(url, ct);
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "[SulAmericana] Erro ao buscar grupos.");
+                return;
+            }
+
+            var doc = new HtmlDocument();
+            doc.LoadHtml(html);
+
+            // A página gesamtspielplan tem tabelas de classificação por grupo.
+            // Cada tabela fica dentro de um box com h2/h3 indicando o nome do grupo.
+            // Os links de time têm href="/slug/spielplan/verein/ID/saison_id/ANO"
+            // e title="Nome do Time".
+
+            // Monta dicionário: nomeNoBanco → grupo
+            var mapaTimeGrupo = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            var boxes = doc.DocumentNode.SelectNodes(
+                "//div[contains(@class,'box')] | //div[contains(@class,'content-box')]");
+
+            if (boxes == null)
+            {
+                _log.LogWarning("[SulAmericana] Nenhum box encontrado para grupos.");
+                return;
+            }
+
+            foreach (var box in boxes)
+            {
+                // Nome do grupo (h2 ou h3 dentro do box)
+                var hNode = box.SelectSingleNode(".//h2 | .//h3 | .//div[contains(@class,'headline')]");
+                if (hNode == null) continue;
+
+                var nomeGrupo = HtmlEntity.DeEntitize(hNode.InnerText.Trim());
+
+                // Ignora boxes que não são grupos (artilheiros, rodadas, etc.)
+                if (!nomeGrupo.Contains("Grupo") && !nomeGrupo.Contains("Group") &&
+                    !nomeGrupo.Contains("Gruppe") && !Regex.IsMatch(nomeGrupo, @"^[A-H]$"))
+                    continue;
+
+                // Todos os links de times dentro do box
+                var linksTime = box.SelectNodes(
+                    ".//a[contains(@href,'/verein/') and not(contains(@href,'/spieler/'))]");
+
+                if (linksTime == null) continue;
+
+                foreach (var lt in linksTime)
+                {
+                    var title = HtmlEntity.DeEntitize(lt.GetAttributeValue("title", "").Trim());
+                    if (string.IsNullOrWhiteSpace(title)) continue;
+
+                    // Resolve para nome no banco
+                    if (_mapaTimesNomes.TryGetValue(title, out var nomeBanco))
+                        mapaTimeGrupo[nomeBanco] = nomeGrupo;
+                    else
+                    {
+                        // Tenta normalizado
+                        var norm = NormalizarTexto(title);
+                        var encontrado = _mapaTimesNomes
+                            .FirstOrDefault(kv => NormalizarTexto(kv.Key) == norm);
+                        if (!string.IsNullOrEmpty(encontrado.Value))
+                            mapaTimeGrupo[encontrado.Value] = nomeGrupo;
+                        else
+                            _log.LogDebug("[SulAmericana] Grupo: time '{T}' não mapeado.", title);
+                    }
+                }
+            }
+
+            if (!mapaTimeGrupo.Any())
+            {
+                _log.LogWarning("[SulAmericana] Nenhum grupo extraído da página.");
+                return;
+            }
+
+            _log.LogInformation("[SulAmericana] Grupos mapeados: {N}", mapaTimeGrupo.Count);
+            foreach (var kv in mapaTimeGrupo)
+                _log.LogInformation("[SulAmericana]   {Time} → {Grupo}", kv.Key, kv.Value);
+
+            // Atualiza jogos no banco: se TimeCasa ou TimeVisitante estiver no mapa,
+            // usa o grupo correspondente
+            var jogos = await context.Jogos
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .Where(j => j.CompeticaoId == competicaoId)
+                .ToListAsync(ct);
+
+            int atualizados = 0;
+            foreach (var jogo in jogos)
+            {
+                string? grupo = null;
+
+                if (jogo.TimeCasa?.Nome != null &&
+                    mapaTimeGrupo.TryGetValue(jogo.TimeCasa.Nome, out var g1))
+                    grupo = g1;
+                else if (jogo.TimeVisitante?.Nome != null &&
+                         mapaTimeGrupo.TryGetValue(jogo.TimeVisitante.Nome, out var g2))
+                    grupo = g2;
+
+                if (grupo != null && jogo.Grupo != grupo)
+                {
+                    jogo.Grupo = grupo;
+                    atualizados++;
+                }
+            }
+
+            await context.SaveChangesAsync(ct);
+            _log.LogInformation("[SulAmericana] Grupos atualizados em {N} jogos.", atualizados);
         }
 
         // ─────────────────────────────────────────────────────────────────────
         // SCRAPING DO CALENDÁRIO (grupos e rodadas)
         // ─────────────────────────────────────────────────────────────────────
 
-        public async Task<List<JogoTM>> BuscarCalendarioAsync(
-            int ano = 2025, CancellationToken ct = default)
-        {
-            var jogos = new List<JogoTM>();
-            var url = $"https://www.transfermarkt.com.br/copa-sudamericana/" +
-                      $"gesamtspielplan/pokalwettbewerb/CS/saison_id/{ano}";
-
-            _log.LogInformation("[SulAmericana] Calendário: {Url}", url);
-
-            string html;
-            try { html = await _http.GetStringAsync(url, ct); }
-            catch (Exception ex)
-            {
-                _log.LogError(ex, "[SulAmericana] Falha ao acessar calendário.");
-                return jogos;
-            }
-
-            var doc = new HtmlDocument();
-            doc.LoadHtml(html);
-
-            // Cada fase/grupo aparece em uma tabela class="items"
-            var tabelas = doc.DocumentNode
-                .SelectNodes("//table[contains(@class,'items')]");
-
-            if (tabelas == null || !tabelas.Any())
-            {
-                _log.LogWarning("[SulAmericana] Nenhuma tabela encontrada no calendário.");
-                return jogos;
-            }
-
-            foreach (var tabela in tabelas)
-            {
-                var grupo = ExtrairNomeGrupo(tabela);
-                var linhas = tabela.SelectNodes(
-                    ".//tbody/tr[not(contains(@class,'thead'))]");
-                if (linhas == null) continue;
-
-                foreach (var linha in linhas)
-                {
-                    var jogo = ParseLinhJogo(linha, grupo);
-                    if (jogo != null) jogos.Add(jogo);
-                }
-            }
-
-            _log.LogInformation("[SulAmericana] {Total} jogos no calendário.", jogos.Count);
-            return jogos;
-        }
-
-        private string ExtrairNomeGrupo(HtmlNode tabela)
-        {
-            var no = tabela.ParentNode;
-            for (int i = 0; i < 6 && no != null; i++)
-            {
-                var h = no.SelectSingleNode(
-                    ".//h2 | .//h3 | .//div[contains(@class,'content-box-headline')]");
-                if (h != null)
-                {
-                    var txt = HtmlEntity.DeEntitize(h.InnerText.Trim());
-                    if (!string.IsNullOrWhiteSpace(txt)) return txt;
-                }
-                no = no.ParentNode;
-            }
-            return "";
-        }
-
-        private JogoTM? ParseLinhJogo(HtmlNode linha, string grupo)
+        public async Task<string> BuscarHtmlBrutoAsync(string url, CancellationToken ct = default)
         {
             try
             {
-                var cols = linha.SelectNodes(".//td");
-                if (cols == null || cols.Count < 4) return null;
+                return await _http.GetStringAsync(url, ct);
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "[SulAmericana] Erro ao buscar HTML bruto: {Url}", url);
+                return $"ERRO: {ex.Message}";
+            }
+        }
 
-                // ── Data ────────────────────────────────────────────────────
-                DateTime? data = null;
-                foreach (var col in cols)
+        public async Task<List<JogoTM>> BuscarCalendarioAsync(
+    int ano = 2025, CancellationToken ct = default)
+        {
+            var jogos = new List<JogoTM>();
+            var saison = ano - 1; // Sul-Americana 2026 → saison_id=2025
+
+            int rodadaAtual = 1;
+            int rodadasSemJogos = 0;
+            const int maxRodadas = 20; // fase de grupos tem até 8 rodadas; mata-mata mais algumas
+
+            while (rodadaAtual <= maxRodadas && rodadasSemJogos < 2)
+            {
+                if (ct.IsCancellationRequested) break;
+
+                var url = $"https://www.transfermarkt.com.br/copa-sudamericana/spieltag/" +
+                          $"pokalwettbewerb/CS/saison_id/{saison}/spieltag/{rodadaAtual}";
+
+                _log.LogInformation("[SulAmericana] Buscando rodada {R}: {U}", rodadaAtual, url);
+
+                string html;
+                try
                 {
-                    var t = col.InnerText.Trim();
-                    if (Regex.IsMatch(t, @"\d{2}[./]\d{2}[./]\d{2,4}"))
-                    { data = ParseData(t); break; }
-                }
-
-                // ── Times (links /verein/) ───────────────────────────────────
-                var linksTime = linha.SelectNodes(
-                    ".//a[contains(@href,'/verein/') or contains(@href,'/spielplan/')]");
-                if (linksTime == null || linksTime.Count < 2) return null;
-
-                var nomes = linksTime
-                    .Select(l => HtmlEntity.DeEntitize(l.InnerText.Trim()))
-                    .Where(n => !string.IsNullOrWhiteSpace(n))
-                    .Distinct().ToList();
-                if (nomes.Count < 2) return null;
-
-                // ── Placar ───────────────────────────────────────────────────
-                int? pc = null, pv = null;
-                var linkRes = linha.SelectSingleNode(
-                    ".//a[contains(@href,'/spielbericht/') or " +
-                    "contains(@href,'/begegnung_detail/')]");
-
-                if (linkRes != null)
-                {
-                    var m = Regex.Match(
-                        HtmlEntity.DeEntitize(linkRes.InnerText.Trim()),
-                        @"(\d+)\s*[:\-x×]\s*(\d+)");
-                    if (m.Success)
-                    { pc = int.Parse(m.Groups[1].Value); pv = int.Parse(m.Groups[2].Value); }
-                }
-                // fallback: célula com "N:N"
-                if (pc == null)
-                {
-                    foreach (var col in cols)
+                    var response = await _http.GetAsync(url, ct);
+                    if (!response.IsSuccessStatusCode)
                     {
-                        var m = Regex.Match(col.InnerText.Trim(),
-                            @"^(\d+)\s*[:\-x×]\s*(\d+)$");
-                        if (m.Success)
-                        { pc = int.Parse(m.Groups[1].Value); pv = int.Parse(m.Groups[2].Value); break; }
+                        _log.LogWarning("[SulAmericana] Rodada {R}: status {S}", rodadaAtual, (int)response.StatusCode);
+                        rodadasSemJogos++;
+                        rodadaAtual++;
+                        continue;
+                    }
+                    html = await response.Content.ReadAsStringAsync(ct);
+                }
+                catch (Exception ex)
+                {
+                    _log.LogWarning("[SulAmericana] Rodada {R} erro: {M}", rodadaAtual, ex.Message);
+                    rodadasSemJogos++;
+                    rodadaAtual++;
+                    continue;
+                }
+
+                if (!html.Contains("/spielbericht/") && !html.Contains("/begegnung_detail/"))
+                {
+                    _log.LogInformation("[SulAmericana] Rodada {R}: sem jogos, encerrando.", rodadaAtual);
+                    rodadasSemJogos++;
+                    rodadaAtual++;
+                    continue;
+                }
+
+                var jogosRodada = ExtrairJogosDoPagina(html, rodadaAtual);
+                _log.LogInformation("[SulAmericana] Rodada {R}: {N} jogos ({P} com placar)",
+                    rodadaAtual, jogosRodada.Count, jogosRodada.Count(j => j.PlacarCasa.HasValue));
+
+                if (jogosRodada.Any())
+                {
+                    jogos.AddRange(jogosRodada);
+                    rodadasSemJogos = 0;
+                }
+                else
+                {
+                    rodadasSemJogos++;
+                }
+
+                rodadaAtual++;
+                await Task.Delay(1500, ct); // pausa para não ser bloqueado
+            }
+
+            _log.LogInformation("[SulAmericana] Total: {N} | Com placar: {P} | Rodadas verificadas: {R}",
+                jogos.Count, jogos.Count(j => j.PlacarCasa.HasValue), rodadaAtual - 1);
+
+            return jogos;
+        }
+        // ── Extrai jogos de uma página de rodada ─────────────────────────────────────
+        private List<JogoTM> ExtrairJogosDoPagina(string html, int rodada)
+        {
+            var jogos = new List<JogoTM>();
+            var doc = new HtmlDocument();
+            doc.LoadHtml(html);
+
+            var linksJogo = doc.DocumentNode.SelectNodes(
+                "//a[contains(@href,'/spielbericht/') or contains(@href,'/begegnung_detail/')]");
+
+            if (linksJogo == null) return jogos;
+
+            var processados = new HashSet<string>();
+
+            foreach (var linkJogo in linksJogo)
+            {
+                var href = linkJogo.GetAttributeValue("href", "");
+                if (processados.Contains(href)) continue;
+                processados.Add(href);
+
+                if (!href.StartsWith("http"))
+                    href = "https://www.transfermarkt.com.br" + href;
+
+                // Placar está no texto do link: "2:1" ou "2 : 1"
+                var scoreText = HtmlEntity.DeEntitize(linkJogo.InnerText.Trim());
+                var scoreMatch = Regex.Match(scoreText, @"(\d+)\s*[:\-]\s*(\d+)");
+                int? pc = null, pv = null;
+                if (scoreMatch.Success)
+                {
+                    pc = int.Parse(scoreMatch.Groups[1].Value);
+                    pv = int.Parse(scoreMatch.Groups[2].Value);
+                }
+
+                // Sobe na DOM para encontrar o bloco do jogo (tr ou div pai)
+                var bloco = linkJogo.ParentNode;
+                for (int i = 0; i < 6; i++)
+                {
+                    if (bloco == null) break;
+                    if (bloco.Name == "tr") break;
+                    if (bloco.Name == "div" && (
+                        bloco.GetAttributeValue("class", "").Contains("spieltag") ||
+                        bloco.GetAttributeValue("class", "").Contains("ergebnis") ||
+                        bloco.GetAttributeValue("class", "").Contains("match")))
+                        break;
+                    bloco = bloco.ParentNode;
+                }
+
+                if (bloco == null) continue;
+
+                // Times: links com /verein/ no bloco
+                var linksTime = bloco.SelectNodes(
+                    ".//a[contains(@href,'/verein/') and not(contains(@href,'/spielbericht/'))]");
+
+                if (linksTime == null || linksTime.Count < 2)
+                {
+                    linksTime = bloco.SelectNodes(
+                        ".//a[@title and string-length(@title) > 2 and " +
+                        "not(contains(@href,'/spielbericht/')) and " +
+                        "not(contains(@href,'/begegnung_detail/'))]");
+                }
+
+                if (linksTime == null || linksTime.Count < 2) continue;
+
+                var nomesTime = new List<string>();
+                foreach (var lt in linksTime)
+                {
+                    var nome = lt.GetAttributeValue("title", "").Trim();
+                    if (string.IsNullOrWhiteSpace(nome))
+                        nome = HtmlEntity.DeEntitize(lt.InnerText.Trim());
+                    nome = nome.Split('\n')[0].Trim();
+                    if (!string.IsNullOrWhiteSpace(nome) && !nomesTime.Contains(nome))
+                        nomesTime.Add(nome);
+                    if (nomesTime.Count == 2) break;
+                }
+
+                if (nomesTime.Count < 2) continue;
+
+                // Data: procura em células <td> ou <span> com padrão de data
+                // O Transfermarkt coloca a data em célula separada do placar
+                DateTime? data = null;
+
+                // Estratégia 1: busca qualquer nó com texto de data no bloco pai (até 3 níveis acima)
+                var buscaData = bloco.ParentNode;
+                for (int i = 0; i < 3 && buscaData != null; i++)
+                {
+                    var textoNos = buscaData.SelectNodes(
+                        ".//td | .//span[contains(@class,'datum')] | .//span[contains(@class,'date')]");
+                    if (textoNos != null)
+                    {
+                        foreach (var tn in textoNos)
+                        {
+                            var t = tn.InnerText.Trim();
+                            var dm = Regex.Match(t, @"\d{2}[./]\d{2}[./]\d{2,4}");
+                            if (dm.Success) { data = ParseData(dm.Value); break; }
+                        }
+                    }
+                    if (data.HasValue) break;
+                    buscaData = buscaData.ParentNode;
+                }
+
+                // Estratégia 2: busca em qualquer <td> da linha que tenha data
+                if (!data.HasValue)
+                {
+                    var tds = bloco.SelectNodes(".//td");
+                    if (tds != null)
+                    {
+                        foreach (var td in tds)
+                        {
+                            var dm = Regex.Match(td.InnerText.Trim(), @"\d{2}[./]\d{2}[./]\d{2,4}");
+                            if (dm.Success) { data = ParseData(dm.Value); break; }
+                        }
                     }
                 }
 
-                // ── Link detalhes ────────────────────────────────────────────
-                var href = linkRes?.GetAttributeValue("href", "") ?? "";
-                if (!string.IsNullOrEmpty(href) && !href.StartsWith("http"))
-                    href = "https://www.transfermarkt.com.br" + href;
-
-                // ── Rodada ───────────────────────────────────────────────────
-                int.TryParse(cols[0].InnerText.Trim(), out int rodada);
-
-                return new JogoTM
+                // Grupo: sobe na DOM buscando h2/h3
+                string grupo = $"Rodada {rodada}";
+                var no = bloco.ParentNode;
+                for (int i = 0; i < 8 && no != null; i++)
                 {
-                    NomeTimeCasa = nomes[0],
-                    NomeTimeVisitante = nomes[1],
+                    var h = no.SelectSingleNode(
+                        ".//h2 | .//h3 | .//div[contains(@class,'content-box-headline')]");
+                    if (h != null)
+                    {
+                        var txt = HtmlEntity.DeEntitize(h.InnerText.Trim());
+                        if (!string.IsNullOrWhiteSpace(txt) && txt.Length < 80)
+                        { grupo = txt; break; }
+                    }
+                    no = no.ParentNode;
+                }
+
+                jogos.Add(new JogoTM
+                {
+                    NomeTimeCasa = nomesTime[0],
+                    NomeTimeVisitante = nomesTime[1],
                     PlacarCasa = pc,
                     PlacarVisitante = pv,
                     Data = data,
                     Grupo = grupo,
                     Rodada = rodada,
                     LinkDetalhes = href
-                };
+                });
+            }
+
+            return jogos;
+        }
+
+        private async Task<List<JogoTM>> BuscarRodadaAsync(
+             int saison, int rodada, CancellationToken ct)
+        {
+            var jogos = new List<JogoTM>();
+
+            var url = $"https://www.transfermarkt.com.br/copa-sudamericana/spieltag/pokalwettbewerb/CS/saison_id/{saison}/spieltag/{rodada}";
+            _log.LogInformation("[SulAmericana] Rodada {R}: {U}", rodada, url);
+
+            string html;
+            try
+            {
+                var response = await _http.GetAsync(url, ct);
+                if (!response.IsSuccessStatusCode)
+                {
+                    _log.LogWarning("[SulAmericana] Rodada {R}: status {S}", rodada, (int)response.StatusCode);
+                    return jogos;
+                }
+                html = await response.Content.ReadAsStringAsync(ct);
             }
             catch (Exception ex)
             {
-                _log.LogWarning(ex, "[SulAmericana] Falha ao parsear linha do calendário.");
+                _log.LogWarning("[SulAmericana] Rodada {R} erro: {M}", rodada, ex.Message);
+                return jogos;
+            }
+
+            if (!html.Contains("/spielbericht/") && !html.Contains("/begegnung_detail/"))
+            {
+                _log.LogDebug("[SulAmericana] Rodada {R}: sem links de jogo.", rodada);
+                return jogos;
+            }
+
+            var doc = new HtmlDocument();
+            doc.LoadHtml(html);
+
+            var tabelas = doc.DocumentNode.SelectNodes(
+                "//table[contains(@class,'items')] | //table[@id='yw1']");
+
+            if (tabelas == null) return jogos;
+
+            foreach (var tabela in tabelas)
+            {
+                var temLink = tabela.SelectSingleNode(
+                    ".//a[contains(@href,'/spielbericht/') or contains(@href,'/begegnung_detail/')]");
+                if (temLink == null) continue;
+
+                var linhas = tabela.SelectNodes(
+                    ".//tbody/tr[not(contains(@class,'thead'))]");
+                if (linhas == null) continue;
+
+                foreach (var linha in linhas)
+                {
+                    var jogo = ParseLinhaJogo(linha, $"Rodada {rodada}");
+                    if (jogo != null)
+                    {
+                        jogo.Rodada = rodada;
+                        jogos.Add(jogo);
+                    }
+                }
+            }
+
+            _log.LogInformation("[SulAmericana] Rodada {R}: {N} jogos ({P} com placar)",
+                rodada, jogos.Count, jogos.Count(j => j.PlacarCasa.HasValue));
+
+            return jogos;
+        }
+        // ─── SUBSTITUIR ParseLinhJogo ─────────────────────────────────────────
+        private JogoTM? ParseLinhaJogo(HtmlNode linha, string grupo)
+        {
+            try
+            {
+                var cols = linha.SelectNodes(".//td");
+                if (cols == null || cols.Count < 3) return null;
+
+                // Descarta linhas de cabeçalho repetido ou separador
+                var linhaClasse = linha.GetAttributeValue("class", "");
+                if (linhaClasse.Contains("thead") || linhaClasse.Contains("head")) return null;
+
+                // ── Data ───────────────────────────────────────────────────────
+                DateTime? data = null;
+                foreach (var col in cols)
+                {
+                    var t = col.InnerText.Trim();
+                    // dd/MM/yyyy ou dd.MM.yyyy
+                    var dm = Regex.Match(t, @"\d{2}[./]\d{2}[./]\d{2,4}");
+                    if (dm.Success) { data = ParseData(dm.Value); break; }
+                }
+
+                // ── Busca links de times ─────────────────────────────────────
+                // Transfermarkt usa /verein/NNN/spielplan/saison_id/YYYY
+                // OU /verein/NNN (sem mais nada)
+                // Exclui /spieler/ (jogadores) e /wettbewerbe/ (competições)
+                var linksTime = linha.SelectNodes(
+                    ".//a[contains(@href,'/verein/') and " +
+                    "not(contains(@href,'/spieler/')) and " +
+                    "not(contains(@href,'/wettbewerbe/'))]");
+
+                // Fallback: pega os links com texto que pareçam nomes de time
+                if (linksTime == null || linksTime.Count < 2)
+                {
+                    linksTime = linha.SelectNodes(".//a[@title and string-length(@title) > 2]");
+                }
+
+                if (linksTime == null || linksTime.Count < 2)
+                {
+                    // Log para diagnóstico
+                    _log.LogDebug("[SulAmericana] Linha sem links de time suficientes: {Html}",
+                        linha.InnerHtml.Length > 300
+                            ? linha.InnerHtml[..300]
+                            : linha.InnerHtml);
+                    return null;
+                }
+
+                // Extrai nomes únicos na ordem de aparição
+                var nomesTimeTmp = new List<string>();
+                foreach (var lnk in linksTime)
+                {
+                    // Preferir o atributo title se disponível (mais limpo)
+                    var nome = lnk.GetAttributeValue("title", "").Trim();
+                    if (string.IsNullOrWhiteSpace(nome))
+                        nome = HtmlEntity.DeEntitize(lnk.InnerText.Trim());
+                    if (!string.IsNullOrWhiteSpace(nome) && !nomesTimeTmp.Contains(nome))
+                        nomesTimeTmp.Add(nome);
+                    if (nomesTimeTmp.Count == 2) break;
+                }
+
+                if (nomesTimeTmp.Count < 2) return null;
+
+                // ── Placar ────────────────────────────────────────────────────
+                int? pc = null, pv = null;
+                string linkDetalhes = "";
+
+                // Estratégia 1: link com href /spielbericht/ ou /begegnung_detail/
+                var linkRes = linha.SelectSingleNode(
+                    ".//a[contains(@href,'/spielbericht/') or " +
+                    "contains(@href,'/begegnung_detail/') or " +
+                    "contains(@href,'/ergebnis')]");
+
+                if (linkRes != null)
+                {
+                    var scoreText = HtmlEntity.DeEntitize(linkRes.InnerText.Trim());
+                    var m = Regex.Match(scoreText, @"(\d+)\s*[:\-xX×]\s*(\d+)");
+                    if (m.Success)
+                    {
+                        pc = int.Parse(m.Groups[1].Value);
+                        pv = int.Parse(m.Groups[2].Value);
+                    }
+                    linkDetalhes = linkRes.GetAttributeValue("href", "");
+                    if (!string.IsNullOrEmpty(linkDetalhes) && !linkDetalhes.StartsWith("http"))
+                        linkDetalhes = "https://www.transfermarkt.com.br" + linkDetalhes;
+                }
+
+                // Estratégia 2: qualquer célula com padrão "N:N" ou "N-N"
+                if (pc == null)
+                {
+                    foreach (var col in cols)
+                    {
+                        var ct2 = col.InnerText.Trim();
+                        var m = Regex.Match(ct2, @"^(\d+)\s*[:\-]\s*(\d+)$");
+                        if (m.Success)
+                        {
+                            pc = int.Parse(m.Groups[1].Value);
+                            pv = int.Parse(m.Groups[2].Value);
+
+                            // Se o link de detalhes ainda não foi encontrado, procura na célula
+                            if (string.IsNullOrEmpty(linkDetalhes))
+                            {
+                                var lnkCell = col.SelectSingleNode(".//a[@href]");
+                                if (lnkCell != null)
+                                {
+                                    linkDetalhes = lnkCell.GetAttributeValue("href", "");
+                                    if (!linkDetalhes.StartsWith("http"))
+                                        linkDetalhes = "https://www.transfermarkt.com.br" + linkDetalhes;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                // Estratégia 3: span/div com classe de resultado
+                if (pc == null)
+                {
+                    var spanResult = linha.SelectSingleNode(
+                        ".//*[contains(@class,'ergebnis') or " +
+                        "contains(@class,'result') or " +
+                        "contains(@class,'score')]");
+                    if (spanResult != null)
+                    {
+                        var m = Regex.Match(
+                            HtmlEntity.DeEntitize(spanResult.InnerText.Trim()),
+                            @"(\d+)\s*[:\-]\s*(\d+)");
+                        if (m.Success)
+                        {
+                            pc = int.Parse(m.Groups[1].Value);
+                            pv = int.Parse(m.Groups[2].Value);
+                        }
+                    }
+                }
+
+                // ── Rodada ────────────────────────────────────────────────────
+                int rodada = 0;
+                // Tenta a primeira célula numérica
+                foreach (var col in cols)
+                {
+                    if (int.TryParse(col.InnerText.Trim(), out rodada) && rodada > 0) break;
+                }
+
+                var jogoTM = new JogoTM
+                {
+                    NomeTimeCasa = nomesTimeTmp[0],
+                    NomeTimeVisitante = nomesTimeTmp[1],
+                    PlacarCasa = pc,
+                    PlacarVisitante = pv,
+                    Data = data,
+                    Grupo = grupo,
+                    Rodada = rodada,
+                    LinkDetalhes = linkDetalhes
+                };
+
+                _log.LogDebug("[SulAmericana] Jogo parseado: {Casa} {Pc}-{Pv} {Vis} | {Data} | Link={Link}",
+                    jogoTM.NomeTimeCasa, jogoTM.PlacarCasa, jogoTM.PlacarVisitante,
+                    jogoTM.NomeTimeVisitante, jogoTM.Data?.ToString("dd/MM/yy"),
+                    string.IsNullOrEmpty(linkDetalhes) ? "—" : "sim");
+
+                return jogoTM;
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning(ex, "[SulAmericana] Erro ao parsear linha.");
                 return null;
             }
         }
@@ -625,7 +1273,7 @@ namespace ControleFutebolWeb.Services
         // LÓGICA DE SINCRONIZAÇÃO COM O BANCO
         // ─────────────────────────────────────────────────────────────────────
 
-        private async Task ProcessarJogoAsync(
+        private async Task ProcessarJogoAsync_V2(
             FutebolContext context,
             JogoTM jogoWeb,
             List<Jogo> jogosBanco,
@@ -633,7 +1281,6 @@ namespace ControleFutebolWeb.Services
             SincronizacaoResultado resultado,
             CancellationToken ct)
         {
-            // 1. Resolve times
             var timeCasa = ResolverTime(context, jogoWeb.NomeTimeCasa);
             var timeVis = ResolverTime(context, jogoWeb.NomeTimeVisitante);
 
@@ -641,34 +1288,36 @@ namespace ControleFutebolWeb.Services
             {
                 resultado.JogosNaoEncontrados++;
                 resultado.Avisos.Add(
-                    $"Times não mapeados: '{jogoWeb.NomeTimeCasa}' x " +
-                    $"'{jogoWeb.NomeTimeVisitante}' — adicione ao dicionário.");
+                    $"Times não mapeados: '{jogoWeb.NomeTimeCasa}' ({(timeCasa == null ? "NÃO ACHADO" : "ok")}) " +
+                    $"x '{jogoWeb.NomeTimeVisitante}' ({(timeVis == null ? "NÃO ACHADO" : "ok")})");
+                _log.LogWarning("[SulAmericana] Time não mapeado — Casa='{C}' Vis='{V}'",
+                    jogoWeb.NomeTimeCasa, jogoWeb.NomeTimeVisitante);
                 return;
             }
 
-            // 2. Localiza no banco
-            var jogoBanco = LocalizarJogoBanco(
-                jogosBanco, timeCasa.Id, timeVis.Id, jogoWeb.Data);
+            var jogoBanco = LocalizarJogoBanco_V2(
+                jogosBanco, timeCasa.Id, timeVis.Id,
+                jogoWeb.Data, timeCasa.Nome, timeVis.Nome);
 
             if (jogoBanco == null)
             {
                 resultado.JogosNaoEncontrados++;
                 resultado.Avisos.Add(
-                    $"Jogo não cadastrado: {timeCasa.Nome} x {timeVis.Nome} " +
-                    $"({jogoWeb.Data?.ToString("dd/MM/yyyy") ?? "sem data"})");
+                    $"Jogo não encontrado no banco: {timeCasa.Nome} x {timeVis.Nome} " +
+                    $"({jogoWeb.Data?.ToString("dd/MM/yyyy") ?? "sem data"}) " +
+                    $"— verifique se foi importado com o JSON correto.");
                 return;
             }
 
             bool alterado = false;
 
-            // 3. Atualiza placar
             if (jogoWeb.PlacarCasa.HasValue && jogoWeb.PlacarVisitante.HasValue)
             {
                 if (jogoBanco.PlacarCasa != jogoWeb.PlacarCasa ||
                     jogoBanco.PlacarVisitante != jogoWeb.PlacarVisitante)
                 {
                     _log.LogInformation(
-                        "[SulAmericana] Placar {H}x{A}: banco={OC}-{OV} → site={NC}-{NV}",
+                        "[SulAmericana] ✅ Atualizando placar: {H} x {A} | {OC}-{OV} → {NC}-{NV}",
                         timeCasa.Nome, timeVis.Nome,
                         jogoBanco.PlacarCasa, jogoBanco.PlacarVisitante,
                         jogoWeb.PlacarCasa, jogoWeb.PlacarVisitante);
@@ -678,9 +1327,14 @@ namespace ControleFutebolWeb.Services
                     resultado.PlacaresAtualizados++;
                     alterado = true;
                 }
+                else
+                {
+                    _log.LogInformation(
+                        "[SulAmericana] Placar já atualizado: {H} {C}-{V} {A}",
+                        timeCasa.Nome, jogoBanco.PlacarCasa, jogoBanco.PlacarVisitante, timeVis.Nome);
+                }
             }
 
-            // 4. Atualiza grupo se estava vazio
             if (!string.IsNullOrWhiteSpace(jogoWeb.Grupo) &&
                 string.IsNullOrWhiteSpace(jogoBanco.Grupo))
             {
@@ -688,34 +1342,26 @@ namespace ControleFutebolWeb.Services
                 alterado = true;
             }
 
-            // 5. Busca detalhes (gols + escalações)
             if (importarEscalacoes && !string.IsNullOrWhiteSpace(jogoWeb.LinkDetalhes))
             {
                 var detalhes = await BuscarDetalhesAsync(jogoWeb.LinkDetalhes, ct);
                 if (detalhes != null)
                 {
-                    // Atualiza placar pelo detalhe (mais confiável)
                     if (detalhes.PlacarCasa.HasValue)
                     {
                         jogoBanco.PlacarCasa = detalhes.PlacarCasa;
                         jogoBanco.PlacarVisitante = detalhes.PlacarVisitante;
                     }
 
-                    // Gols
-                    await ImportarGolsAsync(
-                        context, jogoBanco, detalhes.Gols,
+                    await ImportarGolsAsync(context, jogoBanco, detalhes.Gols,
                         timeCasa, timeVis, resultado, ct);
-
-                    // Escalações
-                    await ImportarEscalacoesAsync(
-                        context, jogoBanco, detalhes,
+                    await ImportarEscalacoesAsync(context, jogoBanco, detalhes,
                         timeCasa, timeVis, resultado, ct);
 
                     alterado = true;
                 }
             }
 
-            // 6. Marca como atualizado para não reprocessar
             if (alterado)
             {
                 jogoBanco.Atualizado = 1;
@@ -963,18 +1609,53 @@ namespace ControleFutebolWeb.Services
                 NormalizarTexto(nome).Contains(NormalizarTexto(t.Nome)));
         }
 
-        private static Jogo? LocalizarJogoBanco(
-            List<Jogo> jogosBanco, int casaId, int visId, DateTime? dataWeb)
+        // Versão com log detalhado para ajudar no diagnóstico
+        private Jogo? LocalizarJogoBanco_V2(
+            List<Jogo> jogosBanco,
+            int casaId, int visId,
+            DateTime? dataWeb,
+            string nomeCasa, string nomeVis)
         {
+            // Tentativa 1: times corretos + data próxima (±2 dias)
             if (dataWeb.HasValue)
             {
                 var j = jogosBanco.FirstOrDefault(jg =>
                     jg.TimeCasaId == casaId && jg.TimeVisitanteId == visId &&
-                    Math.Abs((jg.Data.Date - dataWeb.Value.Date).TotalDays) <= 1);
-                if (j != null) return j;
+                    Math.Abs((jg.Data.Date - dataWeb.Value.Date).TotalDays) <= 2);
+                if (j != null)
+                {
+                    _log.LogInformation("[SulAmericana] Jogo localizado (data): {H} x {V} em {D}",
+                        nomeCasa, nomeVis, j.Data.ToString("dd/MM/yyyy"));
+                    return j;
+                }
             }
-            return jogosBanco.FirstOrDefault(jg =>
+
+            // Tentativa 2: times corretos sem data (qualquer jogo entre esses dois times)
+            var jSemData = jogosBanco.FirstOrDefault(jg =>
                 jg.TimeCasaId == casaId && jg.TimeVisitanteId == visId);
+            if (jSemData != null)
+            {
+                _log.LogWarning(
+                    "[SulAmericana] Jogo localizado SEM data: {H} x {V} " +
+                    "(site={DS}, banco={DB}) — pode ser o jogo errado",
+                    nomeCasa, nomeVis,
+                    dataWeb?.ToString("dd/MM/yyyy") ?? "?",
+                    jSemData.Data.ToString("dd/MM/yyyy"));
+                return jSemData;
+            }
+
+            // Nada encontrado — log com context para facilitar diagnóstico
+            _log.LogWarning(
+                "[SulAmericana] ❌ Jogo NÃO encontrado: {H}(id={CId}) x {V}(id={VId}) " +
+                "data={D} | Total no banco: {Total} | " +
+                "Com CasaId={CId2}: {CC} | Com VisId={VId2}: {VC}",
+                nomeCasa, casaId, nomeVis, visId,
+                dataWeb?.ToString("dd/MM/yyyy") ?? "?",
+                jogosBanco.Count,
+                casaId, jogosBanco.Count(jg => jg.TimeCasaId == casaId),
+                visId, jogosBanco.Count(jg => jg.TimeVisitanteId == visId));
+
+            return null;
         }
 
         private static bool NomesSimilares(string a, string b)

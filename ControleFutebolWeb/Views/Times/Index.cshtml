@@ -18,8 +18,155 @@
     </script>
 }
 
-<h2>Lista de Times</h2>
+@{
+    ViewData["Title"] = "Times";
+}@{
+    ViewData["Title"] = "Times";
+}
 
+<style>
+    /* Reused Home visual identity (hero + card grid) */
+    .cf-hero {
+        position: relative;
+        background: linear-gradient(135deg, #0a1628 0%, #1a2f4e 55%, #0f2040 100%);
+        border-radius: 14px;
+        padding: 2.6rem 2rem;
+        text-align: center;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+        color: #fff;
+    }
+
+    .cf-hero-content { position: relative; z-index: 1; }
+
+    .cf-hero-badge {
+        display: inline-block;
+        background: rgba(55, 138, 221, 0.2);
+        color: #85b7eb;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 4px 14px;
+        border-radius: 20px;
+        border: 1px solid rgba(55, 138, 221, 0.35);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 0.9rem;
+    }
+
+    .cf-hero h1 { font-size: 1.9rem; color: #fff; margin-bottom: 0.6rem; font-weight: 600; }
+    .cf-hero p  { color: rgba(255,255,255,0.65); margin: 0; font-size: 0.95rem; }
+
+    /* Grid of team cards */
+    .cf-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+        margin-top: 1rem;
+    }
+
+    .cf-card {
+        background: #fff;
+        border: 0.5px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 1rem;
+        text-decoration: none;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
+        min-height: 140px;
+    }
+
+    .cf-card:hover {
+        border-color: #c0d4f0;
+        box-shadow: 0 6px 18px rgba(55,138,221,0.06);
+        transform: translateY(-3px);
+        text-decoration: none;
+    }
+
+    .cf-team-top {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .cf-team-badge {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #f3f4f6;
+        border: 0.5px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+
+    .cf-team-badge img { width: 100%; height: 100%; object-fit: contain; }
+
+    .cf-team-name {
+        font-weight: 700;
+        color: #111827;
+        font-size: 1rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .cf-team-meta {
+        font-size: 12px;
+        color: #6b7280;
+    }
+
+    .cf-card-actions {
+        margin-top: auto;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .cf-small-btn {
+        font-size: 13px;
+        padding: 6px 10px;
+    }
+
+    /* Keep existing filter form spacing consistent */
+    .times-filter {
+        display:flex;
+        gap:12px;
+        align-items:flex-end;
+        flex-wrap:wrap;
+        margin-bottom: 12px;
+    }
+
+    
+</style>
+
+<!-- Hero matching Home -->
+<div class="cf-hero">
+    <div class="cf-hero-content">
+        <div class="cf-hero-badge">Painel</div>
+        <h1>Times</h1>
+        <p>Gerencie escudos, uniformes e acesse a página de detalhes dos clubes.</p>
+    </div>
+</div>
+
+<form asp-action="Index" method="get" class="row g-3 mb-3">
+    <div class="col-md-4">
+        <label for="competicaoId" class="form-label">Competição</label>
+        @Html.DropDownList("competicaoId", (SelectList)ViewBag.Competicoes, "Todas", new { @class = "form-select" })
+    </div>
+
+    <div class="col-md-4">
+        <label for="timeId" class="form-label">Time</label>
+        @Html.DropDownList("timeId", (SelectList)ViewBag.Times, "Todos", new { @class = "form-select" })
+    </div>
+
+    <div class="col-md-4 d-flex align-items-end">
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+    </div>
+</form>
 <p>
     <a asp-action="Create" class="btn btn-success">Novo Time</a>
 </p>

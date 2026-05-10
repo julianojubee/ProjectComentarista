@@ -1,4 +1,5 @@
 ﻿@model IEnumerable<ControleFutebolWeb.Models.Jogador>
+
 @functions {
     string GetFlagEmoji(string pais)
     {
@@ -6,195 +7,395 @@
         {
             "Brasil" => "🇧🇷",
             "Argentina" => "🇦🇷",
-            "Angola" => "🇦🇴",
-            "Camarões" => "🇨🇲",
+            "França" => "🇫🇷",
+            "Alemanha" => "🇩🇪",
+            "Itália" => "🇮🇹",
+            "Espanha" => "🇪🇸",
+            "Portugal" => "🇵🇹",
             "Uruguai" => "🇺🇾",
             "Chile" => "🇨🇱",
-            "Dinamarca" => "🇩🇰",
             "Paraguai" => "🇵🇾",
             "Bolívia" => "🇧🇴",
-            "Colômbia" => "🇨🇴",
-            "Gana" => "🇬🇭",
-            "Grécia" => "🇬🇷 ",
-            "Guiné" => "🇬🇳",
             "Peru" => "🇵🇪",
             "Equador" => "🇪🇨",
+            "Colômbia" => "🇨🇴",
             "Venezuela" => "🇻🇪",
-            "Portugal" => "🇵🇹",
-            "Panamá" => "🇵🇦 ",
-            "Espanha" => "🇪🇸",
-            "França" => "🇫🇷",
-            "Itália" => "🇮🇹",
-            "Alemanha" => "🇩🇪",
-            "Inglaterra" => "🏴", // bandeira da Inglaterra
-            "Reino Unido" => "🇬🇧",
-            "Holanda" => "🇳🇱",
-            "Marrocos" => "🇲🇦",
-            "Belgica" => "🇧🇪",
-            "Suíça" => "🇨🇭",
+            "Guiana" => "🇬🇾",
+            "Suriname" => "🇸🇷",
+            "Angola" => "🇦🇴",
             "México" => "🇲🇽",
-            "Estados Unidos" => "🇺🇸",
-            "Republicá Democrática do Congo" => "🇨🇩",
-            "Ucrania" => "🇺🇦",
-            "Canadá" => "🇨🇦",
-            "Turquia" => "🇹🇷",
-            "Algeria" => "🇩🇿",
+            "Guiné" => "🇬🇳",
+            "Armênia" => "🇦🇲",
+            "Dinamarca" => "🇩🇰",
+            "Ucrânia" => "🇺🇦",
+            "Panamá" => "🇵🇦",
+            "República Democrática do Congo" => "🇨🇩",
+            "Bulgária" => "🇧🇬",
+            "Inglaterra" => "🏴",
+            "Marrocos" => "🇲🇦",
+            "Grécia" => "🇬🇷",
+            "Camarões" => "🇨🇲",
+            "Gana" => "🇬🇭",
+            "Holanda" => "🇳🇱",
+            "Ecuador" => "🇪🇨",
+            "Ghana" => "🇬🇭",
+            "Dominican Republic" => "🇩🇴",
             "Andorra" => "🇦🇩",
-            "Armenia" => "🇦🇲",
+            "Cabo Verde" => "🇨🇻",
+            "Suécia" => "🇸🇪",
+            "República Checa" => "🇨🇿",
+            "Bósnia-Herzegovina" => "🇧🇦",
+            "Escócia" => "🏴",
+            "Nigéria" => "🇳🇬",
+            "Emirados Árabes Unidos" => "🇦🇪",
+            "Albânia" => "🇦🇱",
+            "Malásia" => "🇲🇾",
+            "Noruega" => "🇳🇴",
+            "Kosovo" => "🇽🇰",
+            "Honduras" => "🇭🇳",
+            "Luxemburgo" => "🇱🇺",
+            "Suíça" => "🇨🇭",
+            "Islândia" => "🇮🇸",
+            "Senegal" => "🇸🇳",
+            "Mexico" => "🇲🇽",
+            "Greece" => "🇬🇷",
+            "Cameroon" => "🇨🇲",
+            "Guinea" => "🇬🇳",
+            "Ukraine" => "🇺🇦",
+            "DR Congo" => "🇨🇩",
+            "Bulgaria" => "🇧🇬",
+            "Denmark" => "🇩🇰",
+            "Japan" => "🇯🇵",
+            "País de Gales" => "🏴",
+            "China" => "🇨🇳",
+            "Irão" => "🇮🇷",
+            "Estados Unidos" => "🇺🇸",
+            "África do Sul" => "🇿🇦",
+            "Qatar" => "🇶🇦",
+            "Malta" => "🇲🇹",
+            "RD do Congo" => "🇨🇩",
+            "Costa do Marfim" => "🇨🇮",
+            "Lituânia" => "🇱🇹",
+            "Rússia" => "🇷🇺",
+            "Uganda" => "🇺🇬",
+            "Gabão" => "🇬🇦",
+            "Perú" => "🇵🇪",
+            "Porto Rico" => "🇵🇷",
+            "Síria" => "🇸🇾",
+            "Guatemala" => "🇬🇹",
+            "Filipinas" => "🇵🇭",
             "Aruba" => "🇦🇼",
+            "Nicarágua" => "🇳🇮",
+            "Guiné Equatorial" => "🇬🇶",
+            "Costa Rica" => "🇨🇷",
+            "Santa Lúcia" => "🇱🇨",
+            "Gâmbia" => "🇬🇲",
+            "República Dominicana" => "🇩🇴",
+            "Switzerland" => "🇨🇭",
+            "Mali" => "🇲🇱",
+            "Nigeria" => "🇳🇬",
+            "USA" => "🇺🇸",
+            "Burkina Faso" => "🇧🇫",
+            "Czech Republic" => "🇨🇿",
+            "Algeria" => "🇩🇿",
+            "Sweden" => "🇸🇪",
+            "Norway" => "🇳🇴",
             "Austria" => "🇦🇹",
+            "South Korea" => "🇰🇷",
+            "Croatia" => "🇭🇷",
+            "Canada" => "🇨🇦",
+            "Tunisia" => "🇹🇳",
+            "Northern Ireland" => "🏴",
+            "Georgia" => "🇬🇪",
+            "Hungary" => "🇭🇺",
+            "Poland" => "🇵🇱",
+            "Turquia" => "🇹🇷",
+            "Belgica" => "🇧🇪",
+            "Azerbaijan" => "🇦🇿",
+            "Eslovênia" => "🇸🇮",
+            "Egypt" => "🇪🇬",
+            "Ireland" => "🇮🇪",
+            "Ivory Coast" => "🇨🇮",
+            "Cape Verde Islands" => "🇨🇻",
+            "Montenegro" => "🇲🇪",
+            "Bosnia-Herzegovina" => "🇧🇦",
+            "Guinea-Bissau" => "🇬🇼",
+            "Mozambique" => "🇲🇿",
+            "Iran" => "🇮🇷",
+            "Uzbekistan" => "🇺🇿",
+            "Romania" => "🇷🇴",
+            "Wales" => "🏴",
+            "Slovenia" => "🇸🇮",
+            "Serbia" => "🇷🇸",
+            "Slovakia" => "🇸🇰",
+            "Cyprus" => "🇨🇾",
+            "North Macedonia" => "🇲🇰",
+            "Central African Republic" => "🇨🇫",
+            "Finland" => "🇫🇮",
+            "Congo" => "🇨🇬",
+            "Curaçao" => "🇨🇼",
+            "Indonesia" => "🇮🇩",
+            "Israel" => "🇮🇱",
+            "South Africa" => "🇿🇦",
+            "Liberia" => "🇱🇷",
+            "Gambia" => "🇬🇲",
+            "Lithuania" => "🇱🇹",
+            "Luxembourg" => "🇱🇺",
+            "Kazakhstan" => "🇰🇿",
+            "Belarus" => "🇧🇾",
+            "Haiti" => "🇭🇹",
+            "Malaysia" => "🇲🇾",
             _ => ""
         };
     }
 }
 
-<h2>Lista de Jogadores</h2>
+@{
+    ViewData["Title"] = "Jogadores";
+}
 
+<style>
+    /* Home identity (hero + cards) */
+    .cf-hero {
+        position: relative;
+        background: linear-gradient(135deg, #0a1628 0%, #1a2f4e 55%, #0f2040 100%);
+        border-radius: 14px;
+        padding: 2.6rem 2rem;
+        text-align: center;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+        color: #fff;
+    }
 
-<p>
-    <a asp-action="Create" class="btn btn-success">Novo Jogador</a>
-</p>
+   
 
-<form asp-action="Index" method="get" class="row g-3 mb-3">
-    <div class="col-md-3">
+    .cf-hero-content { position: relative; z-index: 1; }
+
+    .cf-hero-badge {
+        display: inline-block;
+        background: rgba(55, 138, 221, 0.2);
+        color: #85b7eb;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 4px 14px;
+        border-radius: 20px;
+        border: 1px solid rgba(55, 138, 221, 0.35);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 0.9rem;
+    }
+
+    .cf-hero h1 { font-size: 1.9rem; color: #fff; margin-bottom: 0.6rem; font-weight: 600; }
+    .cf-hero p  { color: rgba(255,255,255,0.65); margin: 0; font-size: 0.95rem; }
+
+    /* Filters row */
+    .players-filter {
+        display:flex;
+        gap:12px;
+        align-items:flex-end;
+        flex-wrap:wrap;
+        margin-bottom: 12px;
+    }
+
+    /* Grid of player cards */
+    .cf-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+        margin-top: 1rem;
+    }
+
+    .cf-card {
+        background: #fff;
+        border: 0.5px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
+        min-height: 140px;
+    }
+
+    .cf-card:hover {
+        border-color: #c0d4f0;
+        box-shadow: 0 6px 18px rgba(55,138,221,0.06);
+        transform: translateY(-3px);
+    }
+
+    .player-top {
+        display:flex;
+        gap:10px;
+        align-items:center;
+    }
+
+    /* reduce player photo size */
+    .player-photo {
+        width: 36;
+        height: 36px;
+        border-radius: 50%;
+        background: #f3f4f6;
+        border: 0.5px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+
+        .player-photo img {
+            width: 90%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+    .player-name { font-weight:700; color:#111827; font-size:1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .player-meta { color:#6b7280; font-size:13px; }
+
+    .cf-card-actions { margin-top:auto; display:flex; gap:8px; flex-wrap:wrap; }
+
+    .cf-small-btn { font-size:13px; padding:6px 10px; }
+
+    @@media (max-width: 640px) {
+        .cf-hero { padding: 1.8rem 1rem; }
+    }
+</style>
+
+<div class="cf-hero">
+    <div class="cf-hero-content">
+        <div class="cf-hero-badge">Cadastros</div>
+        <h1>Jogadores</h1>
+        <p>Consulte e gerencie os jogadores cadastrados no sistema.</p>
+    </div>
+</div>
+
+<form asp-action="Index" method="get" class="players-filter">
+    <div>
         <label for="posicao" class="form-label">Posição</label>
         @Html.DropDownList("posicao", (SelectList)ViewBag.Posicoes, "Todas", new { @class = "form-select" })
     </div>
 
-    <div class="col-md-3">
+    <div>
         <label for="nacionalidade" class="form-label">Nacionalidade</label>
         @Html.DropDownList("nacionalidade", (SelectList)ViewBag.Nacionalidades, "Todas", new { @class = "form-select" })
     </div>
 
-    <div class="col-md-3">
+    <div>
         <label for="timeId" class="form-label">Time</label>
         @Html.DropDownList("timeId", (SelectList)ViewBag.Times, "Todos", new { @class = "form-select" })
     </div>
 
-    <div class="col-md-3 d-flex align-items-end">
-        <button type="submit" class="btn btn-primary">Filtrar</button>
+    <div>
+        <button type="submit" class="btn btn-primary cf-small-btn">Filtrar</button>
+        <a asp-action="Create" class="btn btn-success cf-small-btn" style="margin-left:6px;">Novo Jogador</a>
     </div>
 </form>
 
+<div class="cf-grid">
+    @foreach (var jogador in Model)
+    {
+        <div class="cf-card">
+            <div class="player-top">
+                <div class="player-photo">
+                    @* if you have a foto url in model, show it; otherwise placeholder *@
+                    @if (!string.IsNullOrEmpty(jogador.FotoUrl))
+                    {
+                        <img src="@jogador.FotoUrl" alt="@jogador.Nome" />
+                    }
+                    else
+                    {
+                        <span style="color:#6b7280;">👤</span>
+                    }
+                </div>
 
+                <div style="min-width:0;">
+                    <div class="player-name">
+                        <a asp-action="Estatisticas" asp-route-id="@jogador.Id" style="text-decoration:none; color:inherit;">
+                            @jogador.Nome
+                        </a>
+                    </div>
+                    <div class="player-meta">
+                        @jogador.Posicao • @jogador.Idade anos
+                    </div>
+                </div>
+            </div>
 
-<table class="table">
-    <thead>
-        <tr>
-            <th>
-                <a asp-action="Index"
-                   asp-route-sortOrder="@ViewBag.NomeSortParam"
-                   asp-route-posicao="@ViewBag.PosicaoFiltro"
-                   asp-route-nacionalidade="@ViewBag.NacionalidadeFiltro"
-                   asp-route-timeId="@ViewBag.TimeFiltro">
-                    Nome
-                    @if ((string)ViewBag.CurrentSort == "Nome")
+            <div>
+                <small class="text-muted">
+                    Nacionalidade: <span title="@jogador.Nacionalidade?.Nome">@GetFlagEmoji(jogador.Nacionalidade?.Nome)</span>
+                    • Time:
+                    @if (jogador.Time != null)
                     {
-                        <span>↑</span>
+                        <span style="display:inline-flex; align-items:center; gap:8px;">
+                            @if (!string.IsNullOrEmpty(jogador.Time.EscudoUrl))
+                            {
+                                <img src="@jogador.Time.EscudoUrl" alt="@jogador.Time.Nome" style="width:20px;height:20px;object-fit:contain;border-radius:50%;border:0.5px solid #e5e7eb;background:#fff;" />
+                            }
+                            <span>@jogador.Time.Nome</span>
+                        </span>
                     }
-                    @if ((string)ViewBag.CurrentSort == "Nome_desc")
+                    else
                     {
-                        <span>↓</span>
+                        <span>—</span>
                     }
-                </a>
-            </th>
-            <th>
-                <a asp-action="Index"
-                   asp-route-sortOrder="@ViewBag.PosicaoSortParam"
-                   asp-route-posicao="@ViewBag.PosicaoFiltro"
-                   asp-route-nacionalidade="@ViewBag.NacionalidadeFiltro"
-                   asp-route-timeId="@ViewBag.TimeFiltro">
-                    Posição
-                    @if ((string)ViewBag.CurrentSort == "Posicao")
-                    {
-                        <span>↑</span>
-                    }
-                    @if ((string)ViewBag.CurrentSort == "Posicao_desc")
-                    {
-                        <span>↓</span>
-                    }
-                </a>
-            </th>
-            <th>
-                <a asp-action="Index"
-                   asp-route-sortOrder="@ViewBag.IdadeSortParam"
-                   asp-route-posicao="@ViewBag.PosicaoFiltro"
-                   asp-route-nacionalidade="@ViewBag.NacionalidadeFiltro"
-                   asp-route-timeId="@ViewBag.TimeFiltro">
-                    Idade
-                    @if ((string)ViewBag.CurrentSort == "Idade")
-                    {
-                        <span>↑</span>
-                    }
-                    @if ((string)ViewBag.CurrentSort == "Idade_desc")
-                    {
-                        <span>↓</span>
-                    }
-                </a>
-            </th>
-            <th>
-                <a asp-action="Index"
-                   asp-route-sortOrder="@ViewBag.NacionalidadeSortParam"
-                   asp-route-posicao="@ViewBag.PosicaoFiltro"
-                   asp-route-nacionalidade="@ViewBag.NacionalidadeFiltro"
-                   asp-route-timeId="@ViewBag.TimeFiltro">
-                    Nacionalidade
-                    @if ((string)ViewBag.CurrentSort == "Nacionalidade")
-                    {
-                        <span>↑</span>
-                    }
-                    @if ((string)ViewBag.CurrentSort == "Nacionalidade_desc")
-                    {
-                        <span>↓</span>
-                    }
-                </a>
-            </th>
-            <th>
-                <a asp-action="Index"
-                   asp-route-sortOrder="@ViewBag.TimeSortParam"
-                   asp-route-posicao="@ViewBag.PosicaoFiltro"
-                   asp-route-nacionalidade="@ViewBag.NacionalidadeFiltro"
-                   asp-route-timeId="@ViewBag.TimeFiltro">
-                    Time
-                    @if ((string)ViewBag.CurrentSort == "Time")
-                    {
-                        <span>↑</span>
-                    }
-                    @if ((string)ViewBag.CurrentSort == "Time_desc")
-                    {
-                        <span>↓</span>
-                    }
-                </a>
-            </th>
-            <th>Ações</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var jogador in Model)
-        {
+                </small>
+            </div>
+
+            <div class="cf-card-actions">
+                <a asp-action="Details" asp-route-id="@jogador.Id" class="btn btn-outline-primary btn-sm cf-small-btn">Detalhes</a>
+                <a asp-action="Edit" asp-route-id="@jogador.Id" class="btn btn-warning btn-sm cf-small-btn">Editar</a>
+                <a asp-action="Delete" asp-route-id="@jogador.Id" class="btn btn-danger btn-sm cf-small-btn">Excluir</a>
+            </div>
+        </div>
+    }
+</div>
+
+<noscript>
+    <h3>Lista de Jogadores (sem JavaScript)</h3>
+    <table class="table">
+        <thead>
             <tr>
-                <td>
-                    <a href="/Jogadores/Estatisticas/@jogador.Id" class="link-normal">
-                        @jogador.Nome
-                    </a>
-                </td>
-                <td>@jogador.Posicao</td>
-                <td>@jogador.Idade</td>
-                <td>
-                    <span title="@jogador.Nacionalidade?.Nome">
-                        @GetFlagEmoji(jogador.Nacionalidade?.Nome)
-                    </span>
-                </td>
-
-                <td>@jogador.Time?.Nome</td>
-                <td>
-                    <a asp-action="Edit" asp-route-id="@jogador.Id" class="btn btn-warning">Editar</a> |
-                    <a asp-action="Details" asp-route-id="@jogador.Id" class="btn btn-info">Detalhes</a> |
-                    <a asp-action="Delete" asp-route-id="@jogador.Id" class="btn btn-danger">Excluir</a>
-                </td>
+                <th>Nome</th>
+                <th>Posição</th>
+                <th>Idade</th>
+                <th>Nacionalidade</th>
+                <th>Time</th>
+                <th>Ações</th>
             </tr>
-        }
-    </tbody>
-</table>
+        </thead>
+        <tbody>
+            @foreach (var jogador in Model)
+            {
+                <tr>
+                    <td>
+                        <a href="/Jogadores/Estatisticas/@jogador.Id" class="link-normal">@jogador.Nome</a>
+                    </td>
+                    <td>@jogador.Posicao</td>
+                    <td>@jogador.Idade</td>
+                    <td><span title="@jogador.Nacionalidade?.Nome">@GetFlagEmoji(jogador.Nacionalidade?.Nome)</span></td>
+                    <td>
+                        @if (jogador.Time != null)
+                        {
+                            @if (!string.IsNullOrEmpty(jogador.Time.EscudoUrl))
+                            {
+                                <img src="@jogador.Time.EscudoUrl" style="height:20px;width:20px;object-fit:contain;border-radius:50%;border:0.5px solid #e5e7eb;margin-right:6px;" />
+                            }
+                            @jogador.Time.Nome
+                        }
+                        else
+                        {
+                            <span>—</span>
+                        }
+                    </td>
+                    <td>
+                        <a asp-action="Edit" asp-route-id="@jogador.Id" class="btn btn-warning btn-sm">Editar</a>
+                        <a asp-action="Details" asp-route-id="@jogador.Id" class="btn btn-info btn-sm">Detalhes</a>
+                        <a asp-action="Delete" asp-route-id="@jogador.Id" class="btn btn-danger btn-sm">Excluir</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</noscript>
 
 
