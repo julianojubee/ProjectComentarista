@@ -16,13 +16,14 @@ namespace ControleFutebolWeb.Controllers
     {
         private readonly FutebolContext _context;
         private readonly ILogger<JogadoresController> _logger;
-        private readonly FMInsideService _fmInsideService;
+        //private readonly SofascoreService _sofascoreService;
+        private readonly TransfermarktService _transfermarktService;
 
-        public JogadoresController(FutebolContext context,ILogger<JogadoresController> logger,FMInsideService fmInsideService)
+        public JogadoresController(FutebolContext context,ILogger<JogadoresController> logger, TransfermarktService transfermarktService)
         {
             _context = context;
             _logger = logger;
-            _fmInsideService = fmInsideService;
+            _transfermarktService = transfermarktService;
         }
 
         public IActionResult Index(string posicao, string nacionalidade, int? timeId, string sortOrder)
@@ -73,7 +74,7 @@ namespace ControleFutebolWeb.Controllers
             "Goleiro","Zagueiro","Meio-campo","Volante","Atacante",
             "Ponta Esquerda","Ponta Direita","Meia Ofensivo",
             "Lateral Esquerdo","Lateral Direito","Centroavante"
-    };
+         };
             ViewBag.Posicoes = new SelectList(posicoes, posicao);
 
             var nacionalidades = _context.Nacionalidades
@@ -303,7 +304,7 @@ namespace ControleFutebolWeb.Controllers
 
             if (jogador == null) return NotFound();
 
-            var fotoUrl = await _fmInsideService.BuscarFotoJogador(
+            var fotoUrl = await _transfermarktService.BuscarFotoJogador(
                 jogador.Nome, jogador.Time?.Nome);
 
             if (!string.IsNullOrWhiteSpace(fotoUrl))
@@ -341,7 +342,7 @@ namespace ControleFutebolWeb.Controllers
             {
                 try
                 {
-                    var fotoUrl = await _fmInsideService.BuscarFotoJogador(
+                    var fotoUrl = await _transfermarktService.BuscarFotoJogador(
                         jogador.Nome, jogador.Time?.Nome);
 
                     if (!string.IsNullOrWhiteSpace(fotoUrl))

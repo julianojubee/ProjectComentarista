@@ -1,0 +1,88 @@
+﻿@model IEnumerable<ControleFutebolWeb.Models.Treinador>
+@using ControleFutebolWeb.Helpers
+<div class="cf-hero">
+    <div class="cf-hero-content">
+        <div class="cf-hero-badge">Cadastros</div>
+        <h1>Treinadores</h1>
+        <p>Consulte e gerencie os treinadores cadastrados no sistema.</p>
+    </div>
+</div>
+
+<form asp-action="Index" method="get" class="players-filter">
+   
+
+    <div>
+        <label for="nacionalidade" class="form-label">Nacionalidade</label>
+        @Html.DropDownList("nacionalidade", (SelectList)ViewBag.Nacionalidades, "Todas", new { @class = "form-select" })
+    </div>
+
+    <div>
+        <label for="timeId" class="form-label">Time</label>
+        @Html.DropDownList("timeId", (SelectList)ViewBag.Times, "Todos", new { @class = "form-select" })
+    </div>
+
+    <div>
+        <button type="submit" class="btn btn-primary cf-small-btn">Filtrar</button>
+        <a asp-action="Create" class="btn btn-success cf-small-btn" style="margin-left:6px;">Novo Treinador</a>
+    </div>
+</form>
+
+<div class="cf-grid">
+    @foreach (var treinador in Model)
+    {
+        <div class="cf-card">
+            <div class="player-top">
+                <div class="player-photo">
+                    @if (!string.IsNullOrEmpty(treinador.FotoUrl))
+                    {
+                        <img src="@treinador.FotoUrl" alt="@treinador.Nome" class="player-img" />
+                    }
+                    else
+                    {
+                        <span style="color:#6b7280;">👤</span>
+                    }
+                </div>
+                <div style="min-width:0;">
+                    <div class="player-name">@treinador.Nome</div>
+                    <div class="player-meta">@treinador.Idade anos</div>
+                </div>
+            </div>
+
+            <div>
+                <small class="text-muted">
+                    Nacionalidade: <span title="@treinador.Nacionalidade?.Nome">@FlagHelper.GetFlagEmoji(treinador.Nacionalidade?.Nome)</span>
+                    • Time:
+                    @if (treinador.Time != null)
+                    {
+                        <span style="display:inline-flex; align-items:center; gap:8px;">
+                            @if (!string.IsNullOrEmpty(treinador.Time.EscudoUrl))
+                            {
+                                <img src="@treinador.Time.EscudoUrl" alt="@treinador.Time.Nome"
+                                     style="width:20px;height:20px;object-fit:contain;border-radius:50%;border:0.5px solid #e5e7eb;background:#fff;" />
+                            }
+                            <span>@treinador.Time.Nome</span>
+                        </span>
+                    }
+                    else
+                    {
+                        <span>—</span>
+                    }
+                </small>
+            </div>
+
+            <div class="cf-card-actions">
+                <a asp-action="Details" asp-route-id="@treinador.Id" class="btn btn-outline-primary btn-sm cf-small-btn">Detalhes</a>
+                <a asp-action="Edit" asp-route-id="@treinador.Id" class="btn btn-warning btn-sm cf-small-btn">Editar</a>
+                <a asp-action="Delete" asp-route-id="@treinador.Id" class="btn btn-danger btn-sm cf-small-btn">Excluir</a>
+                <form asp-action="BuscarFoto" asp-route-id="@treinador.Id" method="post" style="display:inline;">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-secondary btn-sm cf-small-btn"
+                            title="Buscar foto "
+                            onclick="return confirm('Buscar foto de @treinador.Nome ?')">
+                        📷
+                    </button>
+                </form>
+            </div>
+        </div>
+    }
+</div>

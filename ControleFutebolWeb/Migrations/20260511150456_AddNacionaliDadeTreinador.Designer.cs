@@ -3,6 +3,7 @@ using System;
 using ControleFutebolWeb.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ControleFutebolWeb.Migrations
 {
     [DbContext(typeof(FutebolContext))]
-    partial class FutebolContextModelSnapshot : ModelSnapshot
+    [Migration("20260511150456_AddNacionaliDadeTreinador")]
+    partial class AddNacionaliDadeTreinador
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -558,10 +561,6 @@ namespace ControleFutebolWeb.Migrations
                     b.Property<DateTime>("DtInc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("dtinc");
-
-                    b.Property<string>("FotoUrl")
-                        .HasColumnType("text")
-                        .HasColumnName("fotourl");
 
                     b.Property<int?>("NacionalidadeId")
                         .HasColumnType("integer")

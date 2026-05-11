@@ -1,4 +1,6 @@
-﻿namespace ControleFutebolWeb.Models
+﻿using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
+
+namespace ControleFutebolWeb.Models
 {
     public class Treinador
     {
@@ -17,9 +19,12 @@
                 return idade;
             }
         }
-
+        public int? NacionalidadeId { get; set; }
+        public Nacionalidade? Nacionalidade { get; set; }
+        [ValidateNever]   // <- evita erro de ModelState
         // Time atual
         public int TimeId { get; set; }
+        [ValidateNever]
         public Time Time { get; set; } = null!;
 
         // Histórico de times anteriores
@@ -27,6 +32,7 @@
 
         public DateTime DtInc { get; set; }
         public DateTime? DtAlt { get; set; }
+        public string? FotoUrl { get; set; }
     }
 
 }

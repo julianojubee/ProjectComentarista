@@ -1,0 +1,44 @@
+﻿@model ControleFutebolWeb.Models.Treinador
+
+<h2>Detalhes do Treinador</h2>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h4>@Model.Nome</h4>
+        <p>Idade: @Model.Idade anos</p>
+        <p>Time Atual: @Model.Time?.Nome ?? "—"</p>
+        <p>Data de Nascimento: @Model.DataNascimento.ToString("dd/MM/yyyy")</p>
+    </div>
+</div>
+
+<h4>Histórico de Times</h4>
+@if (Model.Historicos.Any())
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Início</th>
+                <th>Fim</th>
+                <th>Dias</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var h in Model.Historicos)
+            {
+                <tr>
+                    <td>@h.Time.Nome</td>
+                    <td>@h.DtInicio.ToString("dd/MM/yyyy")</td>
+                    <td>@(h.DtFim.HasValue? h.DtFim.Value.ToString("dd/MM/yyyy") : "Atual")</td>
+                    <td>@h.Dias</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>Nenhum histórico registrado.</p>
+}
+
+<a asp-action="Index" class="btn btn-secondary">Voltar</a>

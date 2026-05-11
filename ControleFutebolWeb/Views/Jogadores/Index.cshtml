@@ -1,155 +1,5 @@
 ﻿@model IEnumerable<ControleFutebolWeb.Models.Jogador>
-
-@functions {
-    string GetFlagEmoji(string pais)
-    {
-        return pais switch
-        {
-            "Brasil" => "🇧🇷",
-            "Argentina" => "🇦🇷",
-            "França" => "🇫🇷",
-            "Alemanha" => "🇩🇪",
-            "Itália" => "🇮🇹",
-            "Espanha" => "🇪🇸",
-            "Portugal" => "🇵🇹",
-            "Uruguai" => "🇺🇾",
-            "Chile" => "🇨🇱",
-            "Paraguai" => "🇵🇾",
-            "Bolívia" => "🇧🇴",
-            "Peru" => "🇵🇪",
-            "Equador" => "🇪🇨",
-            "Colômbia" => "🇨🇴",
-            "Venezuela" => "🇻🇪",
-            "Guiana" => "🇬🇾",
-            "Suriname" => "🇸🇷",
-            "Angola" => "🇦🇴",
-            "México" => "🇲🇽",
-            "Guiné" => "🇬🇳",
-            "Armênia" => "🇦🇲",
-            "Dinamarca" => "🇩🇰",
-            "Ucrânia" => "🇺🇦",
-            "Panamá" => "🇵🇦",
-            "República Democrática do Congo" => "🇨🇩",
-            "Bulgária" => "🇧🇬",
-            "Inglaterra" => "🏴",
-            "Marrocos" => "🇲🇦",
-            "Grécia" => "🇬🇷",
-            "Camarões" => "🇨🇲",
-            "Gana" => "🇬🇭",
-            "Holanda" => "🇳🇱",
-            "Ecuador" => "🇪🇨",
-            "Ghana" => "🇬🇭",
-            "Dominican Republic" => "🇩🇴",
-            "Andorra" => "🇦🇩",
-            "Cabo Verde" => "🇨🇻",
-            "Suécia" => "🇸🇪",
-            "República Checa" => "🇨🇿",
-            "Bósnia-Herzegovina" => "🇧🇦",
-            "Escócia" => "🏴",
-            "Nigéria" => "🇳🇬",
-            "Emirados Árabes Unidos" => "🇦🇪",
-            "Albânia" => "🇦🇱",
-            "Malásia" => "🇲🇾",
-            "Noruega" => "🇳🇴",
-            "Kosovo" => "🇽🇰",
-            "Honduras" => "🇭🇳",
-            "Luxemburgo" => "🇱🇺",
-            "Suíça" => "🇨🇭",
-            "Islândia" => "🇮🇸",
-            "Senegal" => "🇸🇳",
-            "Mexico" => "🇲🇽",
-            "Greece" => "🇬🇷",
-            "Cameroon" => "🇨🇲",
-            "Guinea" => "🇬🇳",
-            "Ukraine" => "🇺🇦",
-            "DR Congo" => "🇨🇩",
-            "Bulgaria" => "🇧🇬",
-            "Denmark" => "🇩🇰",
-            "Japan" => "🇯🇵",
-            "País de Gales" => "🏴",
-            "China" => "🇨🇳",
-            "Irão" => "🇮🇷",
-            "Estados Unidos" => "🇺🇸",
-            "África do Sul" => "🇿🇦",
-            "Qatar" => "🇶🇦",
-            "Malta" => "🇲🇹",
-            "RD do Congo" => "🇨🇩",
-            "Costa do Marfim" => "🇨🇮",
-            "Lituânia" => "🇱🇹",
-            "Rússia" => "🇷🇺",
-            "Uganda" => "🇺🇬",
-            "Gabão" => "🇬🇦",
-            "Perú" => "🇵🇪",
-            "Porto Rico" => "🇵🇷",
-            "Síria" => "🇸🇾",
-            "Guatemala" => "🇬🇹",
-            "Filipinas" => "🇵🇭",
-            "Aruba" => "🇦🇼",
-            "Nicarágua" => "🇳🇮",
-            "Guiné Equatorial" => "🇬🇶",
-            "Costa Rica" => "🇨🇷",
-            "Santa Lúcia" => "🇱🇨",
-            "Gâmbia" => "🇬🇲",
-            "República Dominicana" => "🇩🇴",
-            "Switzerland" => "🇨🇭",
-            "Mali" => "🇲🇱",
-            "Nigeria" => "🇳🇬",
-            "USA" => "🇺🇸",
-            "Burkina Faso" => "🇧🇫",
-            "Czech Republic" => "🇨🇿",
-            "Algeria" => "🇩🇿",
-            "Sweden" => "🇸🇪",
-            "Norway" => "🇳🇴",
-            "Austria" => "🇦🇹",
-            "South Korea" => "🇰🇷",
-            "Croatia" => "🇭🇷",
-            "Canada" => "🇨🇦",
-            "Tunisia" => "🇹🇳",
-            "Northern Ireland" => "🏴",
-            "Georgia" => "🇬🇪",
-            "Hungary" => "🇭🇺",
-            "Poland" => "🇵🇱",
-            "Turquia" => "🇹🇷",
-            "Belgica" => "🇧🇪",
-            "Azerbaijan" => "🇦🇿",
-            "Eslovênia" => "🇸🇮",
-            "Egypt" => "🇪🇬",
-            "Ireland" => "🇮🇪",
-            "Ivory Coast" => "🇨🇮",
-            "Cape Verde Islands" => "🇨🇻",
-            "Montenegro" => "🇲🇪",
-            "Bosnia-Herzegovina" => "🇧🇦",
-            "Guinea-Bissau" => "🇬🇼",
-            "Mozambique" => "🇲🇿",
-            "Iran" => "🇮🇷",
-            "Uzbekistan" => "🇺🇿",
-            "Romania" => "🇷🇴",
-            "Wales" => "🏴",
-            "Slovenia" => "🇸🇮",
-            "Serbia" => "🇷🇸",
-            "Slovakia" => "🇸🇰",
-            "Cyprus" => "🇨🇾",
-            "North Macedonia" => "🇲🇰",
-            "Central African Republic" => "🇨🇫",
-            "Finland" => "🇫🇮",
-            "Congo" => "🇨🇬",
-            "Curaçao" => "🇨🇼",
-            "Indonesia" => "🇮🇩",
-            "Israel" => "🇮🇱",
-            "South Africa" => "🇿🇦",
-            "Liberia" => "🇱🇷",
-            "Gambia" => "🇬🇲",
-            "Lithuania" => "🇱🇹",
-            "Luxembourg" => "🇱🇺",
-            "Kazakhstan" => "🇰🇿",
-            "Belarus" => "🇧🇾",
-            "Haiti" => "🇭🇹",
-            "Malaysia" => "🇲🇾",
-            _ => ""
-        };
-    }
-}
-
+@using ControleFutebolWeb.Helpers
 @{
     ViewData["Title"] = "Jogadores";
     @if (TempData["Sucesso"] != null)
@@ -307,12 +157,14 @@
 <div class="d-flex gap-2 mb-3 align-items-center flex-wrap">
     <form asp-action="BuscarFotosTodos" method="post" style="display:inline;">
         @Html.AntiForgeryToken()
+        @Html.DropDownList("timeId", (SelectList)ViewBag.Times, "Selecione um clube", new { @class = "form-select form-select-sm d-inline w-auto" })
         <button type="submit" class="btn btn-outline-secondary btn-sm"
-                onclick="return confirm('Buscar fotos de todos os jogadores sem foto? Pode demorar alguns minutos.')">
-            📷 Buscar fotos sem foto (Transfermarkt)
+                onclick="return confirm('Buscar fotos de todos os jogadores sem foto deste clube?')">
+            📷 Buscar fotos do clube
         </button>
     </form>
 </div>
+
 <div class="cf-grid">
     @foreach (var jogador in Model)
     {
@@ -344,7 +196,7 @@
 
             <div>
                 <small class="text-muted">
-                    Nacionalidade: <span title="@jogador.Nacionalidade?.Nome">@GetFlagEmoji(jogador.Nacionalidade?.Nome)</span>
+                    Nacionalidade: <span title="@jogador.Nacionalidade?.Nome">@FlagHelper.GetFlagEmoji(jogador.Nacionalidade?.Nome)</span>
                     • Time:
                     @if (jogador.Time != null)
                     {
@@ -370,8 +222,8 @@
                 <form asp-action="BuscarFoto" asp-route-id="@jogador.Id" method="post" style="display:inline;">
                     @Html.AntiForgeryToken()
                     <button type="submit" class="btn btn-outline-secondary btn-sm cf-small-btn"
-                            title="Buscar foto no Transfermarkt"
-                            onclick="return confirm('Buscar foto de @jogador.Nome no Transfermarkt?')">
+                            title="Buscar foto "
+                            onclick="return confirm('Buscar foto de @jogador.Nome ?')">
                         📷
                     </button>
                 </form>
@@ -402,7 +254,7 @@
                     </td>
                     <td>@jogador.Posicao</td>
                     <td>@jogador.Idade</td>
-                    <td><span title="@jogador.Nacionalidade?.Nome">@GetFlagEmoji(jogador.Nacionalidade?.Nome)</span></td>
+                    <td><span title="@jogador.Nacionalidade?.Nome">@ControleFutebolWeb.Helpers.FlagHelper.GetFlagEmoji(jogador.Nacionalidade?.Nome)</span></td>
                     <td>
                         @if (jogador.Time != null)
                         {

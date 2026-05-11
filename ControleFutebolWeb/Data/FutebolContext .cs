@@ -80,6 +80,12 @@ namespace ControleFutebolWeb.Data
                 .WithMany()
                 .HasForeignKey(t => t.FormacaoPadraoId);
 
+            modelBuilder.Entity<Treinador>()
+            .Property(t => t.DataNascimento)
+            .HasConversion(
+                v => DateTime.SpecifyKind(v, DateTimeKind.Utc),
+                v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
             // Converte nomes de tabelas e colunas para minúsculas
             foreach (var entity in modelBuilder.Model.GetEntityTypes())
             {

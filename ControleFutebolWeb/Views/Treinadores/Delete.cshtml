@@ -1,0 +1,14 @@
+﻿@model ControleFutebolWeb.Models.Treinador
+
+<h2>Excluir Treinador</h2>
+
+<div class="alert alert-danger">
+    Tem certeza que deseja excluir o treinador <strong>@Model.Nome</strong>?
+</div>
+
+<form asp-action="DeleteConfirmed" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Id" />
+    <button type="submit" class="btn btn-danger">Excluir</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
+</form>
