@@ -1,0 +1,187 @@
+﻿@model IEnumerable<ControleFutebolWeb.Models.TreinadorHistorico>
+@using ControleFutebolWeb.Helpers
+<style>
+    /* Reaproveitando o mesmo estilo da tela de jogadores */
+    @@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500&display=swap');
+
+    :root {
+        --cinza1: #0f172a;
+        --cinza2: #1e293b;
+        --cinza3: #334155;
+        --texto: #f1f5f9;
+        --muted: #94a3b8;
+        --verde: #16a34a;
+        --verde2: #22c55e;
+    }
+
+    .estat-page {
+        background: var(--cinza1);
+        min-height: 100vh;
+        color: var(--texto);
+        font-family: 'Barlow', sans-serif;
+        padding: 2rem 1rem 4rem;
+    }
+
+    .jogador-header {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--cinza3);
+    }
+
+    .jogador-foto {
+        width: 72px;
+        height: 72px;
+        object-fit: cover;
+        border-radius: 12px;
+        border: 2px solid var(--cinza3);
+        background: var(--cinza2);
+    }
+
+    .jogador-nome {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 2.4rem;
+        font-weight: 800;
+        margin: 0;
+    }
+
+    .jogador-meta {
+        font-size: .85rem;
+        color: var(--muted);
+        margin-top: .3rem;
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .jogos-titulo {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 1.4rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+    }
+
+    .jogo-item {
+        background: var(--cinza2);
+        border: 1px solid var(--cinza3);
+        border-radius: 10px;
+        padding: .9rem 1.1rem;
+        margin-bottom: .6rem;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .jogo-adversario {
+        font-size: .95rem;
+        font-weight: 500;
+    }
+
+    .jogo-data {
+        font-size: .75rem;
+        color: var(--muted);
+        margin-top: .2rem;
+    }
+
+    .btn-voltar {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        background: var(--cinza2);
+        border: 1px solid var(--cinza3);
+        color: var(--texto);
+        padding: .45rem 1rem;
+        border-radius: 8px;
+        font-size: .85rem;
+        text-decoration: none;
+        margin-bottom: 1.5rem;
+    }
+</style>
+<div class="estat-page">
+    <div class="container" style="max-width:860px;">
+
+        <a href="javascript:history.back()" class="btn-voltar">← Voltar</a>
+
+        <!-- Header -->
+        <div class="jogador-header">
+            @if (!string.IsNullOrWhiteSpace(ViewBag.Treinador.FotoUrl))
+            {
+                <img src="@ViewBag.Treinador.FotoUrl" class="jogador-foto" />
+            }
+            else
+            {
+                <img src="/images/placeholder-treinador.png" class="jogador-foto" />
+            }
+
+            <div>
+                <h1 class="jogador-nome">@ViewBag.Treinador.Nome</h1>
+                <div class="jogador-meta">
+                    @if (ViewBag.Treinador.Time != null)
+                    {
+                        <span style="display:inline-flex; align-items:center; gap:6px;">
+                            @if (!string.IsNullOrEmpty(ViewBag.Treinador.Time.EscudoUrl))
+                            {
+                                <img src="@ViewBag.Treinador.Time.EscudoUrl"
+                                     alt="@ViewBag.Treinador.Time.Nome"
+                                     style="width:20px;height:20px;object-fit:contain;border-radius:50%;border:0.5px solid #e5e7eb;background:#fff;" />
+                            }
+                            <span>🏟️ @ViewBag.Treinador.Time.Nome</span>
+                        </span>
+                    }
+
+                    @if (ViewBag.Treinador.Nacionalidade != null)
+                    {
+                        <span style="display:inline-flex; align-items:center; gap:6px;">
+                            <span title="@ViewBag.Treinador.Nacionalidade.Nome">
+                                @FlagHelper.GetFlagEmoji(ViewBag.Treinador.Nacionalidade.Nome)
+                            </span>
+                            <span>🌍 @ViewBag.Treinador.Nacionalidade.Nome</span>
+                        </span>
+                    }
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Histórico -->
+        <div class="jogos-titulo">Histórico Salvo</div>
+
+        @if (!Model.Any())
+        {
+            <div class="sem-dados">Nenhum histórico salvo para este treinador.</div>
+        }
+        else
+        {
+            foreach (var h in Model)
+            {
+                <div class="jogo-item">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        @if (!string.IsNullOrEmpty(h.Time?.EscudoUrl))
+                        {
+                            <img src="@h.Time.EscudoUrl"
+                                 alt="@h.Time.Nome"
+                                 style="width:24px;height:24px;object-fit:contain;
+                                            border-radius:50%;border:1px solid #e5e7eb;
+                                            background:#fff;" />
+                        }
+                        <div>
+                            <div class="jogo-adversario">@h.Time.Nome</div>
+                            <div class="jogo-data">
+                                @h.DtInicio.ToString("dd/MM/yyyy")
+                                até @(h.DtFim?.ToString("dd/MM/yyyy") ?? "Atual")
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+
+    </div>
+</div>

@@ -1,44 +1,85 @@
 ﻿@model ControleFutebolWeb.Models.Treinador
+@{
+    ViewData["Title"] = $"Detalhes — {Model.Nome}";
+}
 
-<h2>Detalhes do Treinador</h2>
+<div class="estat-page">
+    <div class="container" style="max-width:860px;">
 
-<div class="card mb-3">
-    <div class="card-body">
-        <h4>@Model.Nome</h4>
-        <p>Idade: @Model.Idade anos</p>
-        <p>Time Atual: @Model.Time?.Nome ?? "—"</p>
-        <p>Data de Nascimento: @Model.DataNascimento.ToString("dd/MM/yyyy")</p>
+        <a href="javascript:history.back()" class="btn-voltar">← Voltar</a>
+
+        <!-- Header -->
+        <div class="jogador-header">
+            @if (!string.IsNullOrWhiteSpace(Model.FotoUrl))
+            {
+                <img src="@Model.FotoUrl" class="jogador-foto" />
+            }
+            else
+            {
+                <img src="/images/placeholder-treinador.png" class="jogador-foto" />
+            }
+
+            <div>
+                <h1 class="jogador-nome">@Model.Nome</h1>
+                <div class="jogador-meta">
+                    <span>📅 @Model.Idade anos</span>
+                    @if (Model.Time != null)
+                    {
+                        <span>🏟️ @Model.Time.Nome</span>
+                    }
+                    @if (Model.Nacionalidade != null)
+                    {
+                        <span>🌍 @Model.Nacionalidade.Nome</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Histórico atual -->
+        <div class="jogos-titulo">Histórico no Banco</div>
+        @if (!Model.Historicos.Any())
+        {
+            <div class="sem-dados">Nenhum histórico salvo ainda.</div>
+        }
+        else
+        {
+            foreach (var h in Model.Historicos)
+            {
+                <div class="jogo-item">
+                    <div>
+                        <div class="jogo-adversario">@h.Time.Nome</div>
+                        <div class="jogo-data">
+                            @h.DtInicio.ToString("dd/MM/yyyy")
+                            até @(h.DtFim != null ? h.DtFim.Value.ToString("dd/MM/yyyy") : "Atual")
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+
+        <!-- Ações -->
+        <div class="cf-card-actions" style="margin-top:1rem;">
+            <form asp-action="BuscarFoto" asp-route-id="@Model.Id" method="post" style="display:inline;">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-outline-secondary btn-sm cf-small-btn"
+                        title="Buscar foto"
+                        onclick="return confirm('Buscar foto de @Model.Nome ?')">
+                    📷 Buscar Foto
+                </button>
+            </form>
+
+            <a asp-action="PreVisualizarHistorico" asp-route-id="@Model.Id"
+               class="btn btn-primary btn-sm cf-small-btn">
+                📊 Importar Histórico (nome + time)
+            </a>
+
+            <form asp-action="PreVisualizarHistoricoUrl" method="get" style="display:inline;">
+                <input type="hidden" name="id" value="@Model.Id" />
+                <input type="text" name="url" placeholder="URL Transfermarkt" style="width:280px;" />
+                <button type="submit" class="btn btn-outline-primary btn-sm cf-small-btn">
+                    🔗 Importar por URL
+                </button>
+            </form>
+        </div>
     </div>
 </div>
-
-<h4>Histórico de Times</h4>
-@if (Model.Historicos.Any())
-{
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Time</th>
-                <th>Início</th>
-                <th>Fim</th>
-                <th>Dias</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var h in Model.Historicos)
-            {
-                <tr>
-                    <td>@h.Time.Nome</td>
-                    <td>@h.DtInicio.ToString("dd/MM/yyyy")</td>
-                    <td>@(h.DtFim.HasValue? h.DtFim.Value.ToString("dd/MM/yyyy") : "Atual")</td>
-                    <td>@h.Dias</td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
-else
-{
-    <p>Nenhum histórico registrado.</p>
-}
-
-<a asp-action="Index" class="btn btn-secondary">Voltar</a>

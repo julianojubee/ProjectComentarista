@@ -1,5 +1,145 @@
 ﻿@model IEnumerable<ControleFutebolWeb.Models.Treinador>
 @using ControleFutebolWeb.Helpers
+<style>
+    /* Home identity (hero + cards) */
+    .cf-hero {
+        position: relative;
+        background: linear-gradient(135deg, #0a1628 0%, #1a2f4e 55%, #0f2040 100%);
+        border-radius: 14px;
+        padding: 2.6rem 2rem;
+        text-align: center;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+        color: #fff;
+    }
+
+
+
+    .cf-hero-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .cf-hero-badge {
+        display: inline-block;
+        background: rgba(55, 138, 221, 0.2);
+        color: #85b7eb;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 4px 14px;
+        border-radius: 20px;
+        border: 1px solid rgba(55, 138, 221, 0.35);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 0.9rem;
+    }
+
+    .cf-hero h1 {
+        font-size: 1.9rem;
+        color: #fff;
+        margin-bottom: 0.6rem;
+        font-weight: 600;
+    }
+
+    .cf-hero p {
+        color: rgba(255,255,255,0.65);
+        margin: 0;
+        font-size: 0.95rem;
+    }
+
+    /* Filters row */
+    .players-filter {
+        display: flex;
+        gap: 12px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+    }
+
+    /* Grid of player cards */
+    .cf-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+        margin-top: 1rem;
+    }
+
+    .cf-card {
+        background: #fff;
+        border: 0.5px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
+        min-height: 140px;
+    }
+
+        .cf-card:hover {
+            border-color: #c0d4f0;
+            box-shadow: 0 6px 18px rgba(55,138,221,0.06);
+            transform: translateY(-3px);
+        }
+
+    .player-top {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    /* reduce player photo size */
+    .player-photo {
+        width: 36;
+        height: 36px;
+        border-radius: 50%;
+        background: #f3f4f6;
+        border: 0.5px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+
+        .player-photo img {
+            width: 90%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+    .player-name {
+        font-weight: 700;
+        color: #111827;
+        font-size: 1rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .player-meta {
+        color: #6b7280;
+        font-size: 13px;
+    }
+
+    .cf-card-actions {
+        margin-top: auto;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .cf-small-btn {
+        font-size: 13px;
+        padding: 6px 10px;
+    }
+
+    @@media (max-width: 640px) {
+        .cf-hero {
+            padding: 1.8rem 1rem;
+        }
+    }
+</style>
 <div class="cf-hero">
     <div class="cf-hero-content">
         <div class="cf-hero-badge">Cadastros</div>
@@ -74,6 +214,10 @@
                 <a asp-action="Details" asp-route-id="@treinador.Id" class="btn btn-outline-primary btn-sm cf-small-btn">Detalhes</a>
                 <a asp-action="Edit" asp-route-id="@treinador.Id" class="btn btn-warning btn-sm cf-small-btn">Editar</a>
                 <a asp-action="Delete" asp-route-id="@treinador.Id" class="btn btn-danger btn-sm cf-small-btn">Excluir</a>
+                <a asp-action="ConsultarHistorico" asp-route-id="@treinador.Id"
+                   class="btn btn-outline-info btn-sm cf-small-btn">
+                    📊 Histórico
+                </a>
                 <form asp-action="BuscarFoto" asp-route-id="@treinador.Id" method="post" style="display:inline;">
                     @Html.AntiForgeryToken()
                     <button type="submit" class="btn btn-outline-secondary btn-sm cf-small-btn"

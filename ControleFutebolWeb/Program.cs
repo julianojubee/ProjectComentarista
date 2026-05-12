@@ -39,6 +39,8 @@ internal class Program
         builder.Services.AddHostedService<AtualizarJogadoresSemDataService>();
         builder.Services.AddHostedService<AtualizarCopaSulAmericanaService>();
         builder.Services.AddHttpClient<SofascoreService>();
+        builder.Services.AddHttpClient<TransfermarktTreinadorService>();
+
         builder.Services.AddHttpClient();
 
         // habilita logging no console e debug
