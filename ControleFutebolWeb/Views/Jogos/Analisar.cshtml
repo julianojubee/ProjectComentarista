@@ -1,14 +1,6 @@
 ﻿@model ControleFutebolWeb.Models.Jogo
 @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
-@functions {
-    string ObterCamisa(ControleFutebolWeb.Models.Jogo jogo, ControleFutebolWeb.Models.Time time)
-    {
-        bool eTimeCasa = jogo.TimeCasaId == time.Id;
-        if (eTimeCasa)
-            return time.CamisaUrl ?? "";
-        return time.CamisaVisitanteUrl ?? time.CamisaUrl ?? "";
-    }
-}
+@using ControleFutebolWeb.Helpers
 @{
     var faseAtual = (ViewBag.FaseEscalacaoAtual as string) ?? "INICIAL";
     var faseEhInicial = faseAtual == "INICIAL";
@@ -873,7 +865,7 @@
                             @foreach (var jogador in (List<ControleFutebolWeb.Models.Jogador>)ViewBag.JogadoresCasa)
                             {
                                 // ✅ Depois
-                                var camisaCasa = Url.Content(ObterCamisa(Model, Model.TimeCasa));
+                                var camisaCasa = Url.Content(CamisaHelper.ObterCamisa(Model, Model.TimeCasa));
                                 <tr class="jogador-row"
                                     id="jogador-casa-@jogador.Id"
                                     draggable="true"
@@ -926,7 +918,7 @@
                                 {
                                     <div>
                                         
-                                        <img src="@ObterCamisa(Model, Model.TimeCasa)" width="40" style="display:block;margin:0 auto;" />
+                                        <img src="@Url.Content(CamisaHelper.ObterCamisa(Model, Model.TimeCasa))" width="40" style="display:block;margin:0 auto;" />
                                         <div style="font-size:11px;max-width:60px;margin:0 auto;">
                                             @esc.Jogador.Nome
                                             @if (!faseEhInicial && jogadoresEntraramCasa.Contains(esc.Jogador.Id))
@@ -1018,7 +1010,7 @@
                                 {
                                     <div>
                                         
-                                        <img src="@ObterCamisa(Model, Model.TimeVisitante)" width="40" style="display:block;margin:0 auto;" />
+                                        <img src="@Url.Content(CamisaHelper.ObterCamisa(Model, Model.TimeVisitante))" width="40" style="display:block;margin:0 auto;" />
                                         <div style="font-size:11px;max-width:60px;margin:0 auto;">
                                             @esc.Jogador.Nome
                                             @if (!faseEhInicial && jogadoresEntraramVisitante.Contains(esc.Jogador.Id))
@@ -1058,7 +1050,7 @@
                                 <div class="reserva-card" id="reserva-vis-card-@idxResVis">
                                     <span class="rem-btn" onclick="removerReserva('vis', @idxResVis)">×</span>
                                     @{
-                                        var camisaBancoVis = ObterCamisa(Model, Model.TimeVisitante);
+                                        var camisaBancoVis = Url.Content(CamisaHelper.ObterCamisa(Model, Model.TimeVisitante));
                                     }
                                     @if (!string.IsNullOrEmpty(camisaBancoVis))
                                     {
@@ -1087,7 +1079,7 @@
                             @foreach (var jogador in (List<ControleFutebolWeb.Models.Jogador>)ViewBag.JogadoresVisitante)
                             {
                                 // ✅ Depois
-                                var camisaVisitante = Url.Content(ObterCamisa(Model, Model.TimeVisitante));
+                                var camisaVisitante = Url.Content(CamisaHelper.ObterCamisa(Model, Model.TimeVisitante));
                                 <tr class="jogador-row"
                                     id="jogador-vis-@jogador.Id"
                                     draggable="true"
@@ -1183,8 +1175,8 @@
     const formPrincipal = document.getElementById('formSalvarEscalacao');
 
     const camisas = {
-        casa: '@ObterCamisa(Model, Model.TimeCasa)',
-        vis:  '@ObterCamisa(Model, Model.TimeVisitante)'
+        casa: '@Url.Content(CamisaHelper.ObterCamisa(Model, Model.TimeCasa))',
+        vis:  '@Url.Content(CamisaHelper.ObterCamisa(Model, Model.TimeVisitante))'
     };
     const faseEscalacaoAtual = '@faseAtual';
     const observacoesSalvasRaw = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Observacoes ?? ""));

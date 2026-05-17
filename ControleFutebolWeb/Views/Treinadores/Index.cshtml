@@ -175,7 +175,9 @@
                 <div class="player-photo">
                     @if (!string.IsNullOrEmpty(treinador.FotoUrl))
                     {
-                        <img src="@treinador.FotoUrl" alt="@treinador.Nome" class="player-img" />
+                        <img src="@treinador.FotoUrl" alt="@treinador.Nome" class="player-img"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                        <span style="display:none; color:#6b7280;">👤</span>
                     }
                     else
                     {

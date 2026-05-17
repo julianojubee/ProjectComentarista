@@ -1,5 +1,5 @@
 ﻿@model IEnumerable<Competicao>
-
+@using ControleFutebolWeb.Helpers;
 @{
     ViewData["Title"] = "Competições";
 }
@@ -101,23 +101,6 @@
         font-weight: 600;
     }
 </style>
-@{
-    string GetLogoCompeticao(int competicaoId)
-    {
-        return competicaoId switch
-        {
-            1 => "/images/background/campeonatobrasileiro.png",
-            2 => "/images/background/libertadores.png",
-            3 => "/images/background/copadobrasil.png",
-            4 => "/images/background/sudamericana.png",
-            5 => "/images/background/premierleague.png",
-            6 => "/images/background/championsleague.png",
-            7 => "/images/background/copadomundo.png",
-
-            _ => ""
-        };
-    }
-}
 
 <div class="cf-competicoes">
     <div class="cf-comp-hero">
@@ -131,17 +114,27 @@
     <div class="cf-comp-grid">
         @foreach (var comp in Model)
         {
-            var isBrasileirao = !string.IsNullOrWhiteSpace(comp.Nome) &&
-                (comp.Nome.Contains("Brasileiro", StringComparison.OrdinalIgnoreCase) ||
-                 comp.Nome.Contains("Brasileirão", StringComparison.OrdinalIgnoreCase));
+            // Normaliza o nome para comparação
+            var nome = comp.Nome?.ToLowerInvariant() ?? "";
 
-            var url = isBrasileirao
-                ? Url.Action("Brasileirao", "Tabela")
-                : Url.Action("Detalhes", "Competicoes", new { id = comp.Id });
+            // Mapeamento de rotas especiais
+            string url;
+            if (nome.Contains("brasileiro") || nome.Contains("brasileirão"))
+                url = Url.Action("Brasileirao", "Tabela");
+            else if (nome.Contains("copa do brasil"))
+                url = Url.Action("Index", "CopaBrasil");
+            else if (nome.Contains("copa do mundo"))
+                url = Url.Action("Index", "CopaDoMundo");
+            else if (nome.Contains("copa libertadores"))
+                url = Url.Action("Index", "Libertadores");
+            else if (nome.Contains("champions"))
+                url = Url.Action("Index", "Competicoes"); // exemplo
+            else
+                url = Url.Action("Detalhes", "Competicoes", new { id = comp.Id });
 
             <a class="cf-comp-card" href="@url">
                 <div style="display:flex; align-items:center; gap:8px;">
-                    <img src="@GetLogoCompeticao(comp.Id)"
+                    <img src="@CompeticaoHelper.GetLogoCompeticao(comp.Id)"
                          alt="@comp.Nome"
                          style="width:28px; height:28px; border-radius:50%; object-fit:cover;" />
                     <h2 class="cf-comp-title">@comp.Nome</h2>

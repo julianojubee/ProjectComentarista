@@ -185,14 +185,25 @@ namespace ControleFutebolWeb.Controllers
 
             if (info != null && !string.IsNullOrWhiteSpace(info.FotoUrl))
             {
-                treinador.FotoUrl = info.FotoUrl;
-                treinador.DtAlt = DateTime.UtcNow;
-                await _context.SaveChangesAsync();
-                TempData["Sucesso"] = $"✅ Foto de {treinador.Nome} atualizada!";
-            }
-            else
-            {
-                TempData["Erro"] = $"❌ Foto de {treinador.Nome} não encontrada no Transfermarkt.";
+                // Só salva se for foto real (tem ID numérico de treinador)
+                bool fotoValida = System.Text.RegularExpressions.Regex.IsMatch(
+                    info.FotoUrl, @"/trainer/\d+") && !info.FotoUrl.Contains("default");
+
+                if (fotoValida)
+                {
+                    treinador.FotoUrl = info.FotoUrl;
+                    treinador.DtAlt = DateTime.UtcNow;
+                    await _context.SaveChangesAsync();
+                    TempData["Sucesso"] = $"✅ Foto de {treinador.Nome} atualizada!";
+                }
+                else
+                {
+                    // Limpa foto inválida que possa estar salva
+                    treinador.FotoUrl = null;
+                    treinador.DtAlt = DateTime.UtcNow;
+                    await _context.SaveChangesAsync();
+                    TempData["Erro"] = $"❌ Foto de {treinador.Nome} não encontrada (sem foto no Transfermarkt).";
+                }
             }
 
             return RedirectToAction(nameof(Index));

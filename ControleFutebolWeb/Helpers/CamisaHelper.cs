@@ -13,6 +13,8 @@ namespace ControleFutebolWeb.Helpers
                 return time.CamisaUrl;                          // manda → camisa principal
             else
                 return time.CamisaVisitanteUrl ?? time.CamisaUrl; // visita → camisa visitante, fallback para principal
+
+
         }
     }
 }

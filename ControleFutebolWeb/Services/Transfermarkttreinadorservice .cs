@@ -46,19 +46,6 @@ namespace ControleFutebolWeb.Services
         private readonly HttpClient _http;
         private readonly ILogger<TransfermarktTreinadorService> _log;
 
-        // Mapeamento de meses em português/espanhol/alemão → número
-        private static readonly Dictionary<string, int> _meses =
-            new(StringComparer.OrdinalIgnoreCase)
-        {
-            { "jan", 1 }, { "fev", 2 }, { "mar", 3 }, { "abr", 4 },
-            { "mai", 5 }, { "jun", 6 }, { "jul", 7 }, { "ago", 8 },
-            { "set", 9 }, { "out", 10 }, { "nov", 11 }, { "dez", 12 },
-            { "ene", 1 }, { "feb", 2 }, { "may", 5 }, { "sep", 9 }, { "oct", 10 }, { "dic", 12 },
-            { "jan.", 1 }, { "feb.", 2 }, { "mar.", 3 }, { "apr.", 4 },
-            { "may.", 5 }, { "jun.", 6 }, { "jul.", 7 }, { "aug.", 8 },
-            { "sep.", 9 }, { "oct.", 10 }, { "nov.", 11 }, { "dec.", 12 },
-        };
-
         public TransfermarktTreinadorService(
             HttpClient httpClient,
             ILogger<TransfermarktTreinadorService> logger)
@@ -144,10 +131,35 @@ namespace ControleFutebolWeb.Services
                     ?.InnerText?.Trim()
                     ?? doc.DocumentNode.SelectSingleNode("//h1")?.InnerText?.Trim();
 
-                // ── Foto ──────────────────────────────────────────────────────
-                var ogImage = doc.DocumentNode
-                    .SelectSingleNode("//meta[@property='og:image']");
-                info.FotoUrl = ogImage?.GetAttributeValue("content", "")?.Trim();
+                // Foto via meta tag
+                var ogImage = doc.DocumentNode.SelectSingleNode("//meta[@property='og:image']");
+                var fotoCandidata = ogImage?.GetAttributeValue("content", "")?.Trim();
+
+                var regexFoto = @"/(trainer|portrait/header)/\d+";
+
+                if (!string.IsNullOrWhiteSpace(fotoCandidata)
+                    && System.Text.RegularExpressions.Regex.IsMatch(fotoCandidata, regexFoto)
+                    && !fotoCandidata.Contains("default")
+                    && !fotoCandidata.Contains("logo"))
+                {
+                    info.FotoUrl = fotoCandidata;
+                }
+                else
+                {
+                    // Busca na img do perfil
+                    var imgPerfil = doc.DocumentNode.SelectSingleNode(
+                        "//img[contains(@class,'data-header__profile-image')] | //div[contains(@class,'data-header')]//img");
+
+                    var srcImg = imgPerfil?.GetAttributeValue("data-src", "")?.Trim()
+                              ?? imgPerfil?.GetAttributeValue("src", "")?.Trim();
+
+                    if (!string.IsNullOrWhiteSpace(srcImg)
+                        && System.Text.RegularExpressions.Regex.IsMatch(srcImg, regexFoto)
+                        && !srcImg.Contains("default"))
+                    {
+                        info.FotoUrl = srcImg;
+                    }
+                }
 
                 // ── Dados pessoais (data de nascimento, nacionalidade) ─────────
                 ExtrairDadosPessoais(doc, info);

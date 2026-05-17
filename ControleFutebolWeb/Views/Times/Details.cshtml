@@ -1,178 +1,6 @@
 ﻿@model ControleFutebolWeb.Models.TimeDetalhesViewModel
-@{
-    // Mapa competicaoId → nome (para tooltip dos escudos)
-    var compMap = new Dictionary<int, string>
-    {
-        { 1, "Campeonato Brasileiro" },
-        { 2, "Libertadores" },
-        { 3, "Copa do Brasil" },
-        { 4, "Sul-Americana" }
-    };
-}
+@using ControleFutebolWeb.Helpers
 @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
-
-@functions {
-    string GetFlagEmoji(string pais)
-    {
-        return pais switch
-        {
-            "Brasil" => "🇧🇷",
-            "Argentina" => "🇦🇷",
-            "França" => "🇫🇷",
-            "Alemanha" => "🇩🇪",
-            "Itália" => "🇮🇹",
-            "Espanha" => "🇪🇸",
-            "Portugal" => "🇵🇹",
-            "Uruguai" => "🇺🇾",
-            "Chile" => "🇨🇱",
-            "Paraguai" => "🇵🇾",
-            "Bolívia" => "🇧🇴",
-            "Peru" => "🇵🇪",
-            "Equador" => "🇪🇨",
-            "Colômbia" => "🇨🇴",
-            "Venezuela" => "🇻🇪",
-            "Guiana" => "🇬🇾",
-            "Suriname" => "🇸🇷",
-            "Angola" => "🇦🇴",
-            "México" => "🇲🇽",
-            "Guiné" => "🇬🇳",
-            "Armênia" => "🇦🇲",
-            "Dinamarca" => "🇩🇰",
-            "Ucrânia" => "🇺🇦",
-            "Panamá" => "🇵🇦",
-            "República Democrática do Congo" => "🇨🇩",
-            "Bulgária" => "🇧🇬",
-            "Inglaterra" => "🏴",
-            "Marrocos" => "🇲🇦",
-            "Grécia" => "🇬🇷",
-            "Camarões" => "🇨🇲",
-            "Gana" => "🇬🇭",
-            "Holanda" => "🇳🇱",
-            "Ecuador" => "🇪🇨",
-            "Ghana" => "🇬🇭",
-            "Dominican Republic" => "🇩🇴",
-            "Andorra" => "🇦🇩",
-            "Cabo Verde" => "🇨🇻",
-            "Suécia" => "🇸🇪",
-            "República Checa" => "🇨🇿",
-            "Bósnia-Herzegovina" => "🇧🇦",
-            "Escócia" => "🏴",
-            "Nigéria" => "🇳🇬",
-            "Emirados Árabes Unidos" => "🇦🇪",
-            "Albânia" => "🇦🇱",
-            "Malásia" => "🇲🇾",
-            "Noruega" => "🇳🇴",
-            "Kosovo" => "🇽🇰",
-            "Honduras" => "🇭🇳",
-            "Luxemburgo" => "🇱🇺",
-            "Suíça" => "🇨🇭",
-            "Islândia" => "🇮🇸",
-            "Senegal" => "🇸🇳",
-            "Mexico" => "🇲🇽",
-            "Greece" => "🇬🇷",
-            "Cameroon" => "🇨🇲",
-            "Guinea" => "🇬🇳",
-            "Ukraine" => "🇺🇦",
-            "DR Congo" => "🇨🇩",
-            "Bulgaria" => "🇧🇬",
-            "Denmark" => "🇩🇰",
-            "Japan" => "🇯🇵",
-            "País de Gales" => "🏴",
-            "China" => "🇨🇳",
-            "Irão" => "🇮🇷",
-            "Estados Unidos" => "🇺🇸",
-            "África do Sul" => "🇿🇦",
-            "Qatar" => "🇶🇦",
-            "Malta" => "🇲🇹",
-            "RD do Congo" => "🇨🇩",
-            "Costa do Marfim" => "🇨🇮",
-            "Lituânia" => "🇱🇹",
-            "Rússia" => "🇷🇺",
-            "Uganda" => "🇺🇬",
-            "Gabão" => "🇬🇦",
-            "Perú" => "🇵🇪",
-            "Porto Rico" => "🇵🇷",
-            "Síria" => "🇸🇾",
-            "Guatemala" => "🇬🇹",
-            "Filipinas" => "🇵🇭",
-            "Aruba" => "🇦🇼",
-            "Nicarágua" => "🇳🇮",
-            "Guiné Equatorial" => "🇬🇶",
-            "Costa Rica" => "🇨🇷",
-            "Santa Lúcia" => "🇱🇨",
-            "Gâmbia" => "🇬🇲",
-            "República Dominicana" => "🇩🇴",
-            "Switzerland" => "🇨🇭",
-            "Mali" => "🇲🇱",
-            "Nigeria" => "🇳🇬",
-            "USA" => "🇺🇸",
-            "Burkina Faso" => "🇧🇫",
-            "Czech Republic" => "🇨🇿",
-            "Algeria" => "🇩🇿",
-            "Sweden" => "🇸🇪",
-            "Norway" => "🇳🇴",
-            "Austria" => "🇦🇹",
-            "South Korea" => "🇰🇷",
-            "Croatia" => "🇭🇷",
-            "Canada" => "🇨🇦",
-            "Tunisia" => "🇹🇳",
-            "Northern Ireland" => "🏴",
-            "Georgia" => "🇬🇪",
-            "Hungary" => "🇭🇺",
-            "Poland" => "🇵🇱",
-            "Turquia" => "🇹🇷",
-            "Belgica" => "🇧🇪",
-            "Azerbaijan" => "🇦🇿",
-            "Eslovênia" => "🇸🇮",
-            "Egypt" => "🇪🇬",
-            "Ireland" => "🇮🇪",
-            "Ivory Coast" => "🇨🇮",
-            "Cape Verde Islands" => "🇨🇻",
-            "Montenegro" => "🇲🇪",
-            "Bosnia-Herzegovina" => "🇧🇦",
-            "Guinea-Bissau" => "🇬🇼",
-            "Mozambique" => "🇲🇿",
-            "Iran" => "🇮🇷",
-            "Uzbekistan" => "🇺🇿",
-            "Romania" => "🇷🇴",
-            "Wales" => "🏴",
-            "Slovenia" => "🇸🇮",
-            "Serbia" => "🇷🇸",
-            "Slovakia" => "🇸🇰",
-            "Cyprus" => "🇨🇾",
-            "North Macedonia" => "🇲🇰",
-            "Central African Republic" => "🇨🇫",
-            "Finland" => "🇫🇮",
-            "Congo" => "🇨🇬",
-            "Curaçao" => "🇨🇼",
-            "Indonesia" => "🇮🇩",
-            "Israel" => "🇮🇱",
-            "South Africa" => "🇿🇦",
-            "Liberia" => "🇱🇷",
-            "Gambia" => "🇬🇲",
-            "Lithuania" => "🇱🇹",
-            "Luxembourg" => "🇱🇺",
-            "Kazakhstan" => "🇰🇿",
-            "Belarus" => "🇧🇾",
-            "Haiti" => "🇭🇹",
-            "Malaysia" => "🇲🇾",
-            _ => ""
-        };
-    }
-    string GetLogoCompeticao(int competicaoId)
-    {
-        return competicaoId switch
-        {
-            1 => "/images/background/campeonatobrasileiro.png",
-            2 => "/images/background/libertadores.png",
-            3 => "/images/background/copadobrasil.png",
-            4 => "/images/background/sudamericana.png",
-            5 => "/images/background/premierleague.png",
-            _ => ""
-        };
-    }
-}
-
 
 <style>
     body {
@@ -267,7 +95,7 @@
                         <td>@jogador.Posicao</td>
                         <td>
                             <span title="@jogador.Nacionalidade?.Nome">
-                                @GetFlagEmoji(jogador.Nacionalidade?.Nome)
+                                @FlagHelper.GetFlagEmoji(jogador.Nacionalidade?.Nome)
                             </span>
                         </td>
                     </tr>
@@ -403,13 +231,13 @@
                                 <div class="card-header text-center bg-primary text-white d-flex justify-content-between align-items-center px-2">
                                     <span style="font-size:11px;">@jogo.Data.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
                                     @{
-                                        var logoComp = GetLogoCompeticao(jogo.CompeticaoId);
+                                        var logoComp = CompeticaoHelper.GetLogoCompeticao(jogo.CompeticaoId);
                                     }
                                     @if (!string.IsNullOrEmpty(logoComp))
                                     {
                                         <img src="@logoComp"
                                              alt="Competição"
-                                             title="@(compMap.TryGetValue(jogo.CompeticaoId, out var cn) ? cn : "Competição")"
+                                             title="@(CompeticaoHelper.GetNomeCompeticao(jogo.CompeticaoId))"
                                              style="width:22px;height:22px;object-fit:contain;border-radius:50%;background:rgba(255,255,255,0.15);padding:2px;"
                                              data-bs-toggle="tooltip" data-bs-placement="top" />
                                     }
