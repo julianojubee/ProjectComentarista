@@ -164,5 +164,23 @@ namespace ControleFutebolWeb.Controllers
 
             return grupos;
         }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SalvarLinkCompeticao(int id, string linkCompeticao)
+        {
+            var competicao = await _context.Competicoes.FindAsync(id);
+            if (competicao == null) return NotFound();
+
+            competicao.linktransfermarket = linkCompeticao;
+
+            _context.Update(competicao);
+            await _context.SaveChangesAsync();
+
+            TempData["Mensagem"] = "Link da competição atualizado com sucesso!";
+            return RedirectToAction(nameof(Index));
+        }
+
+
     }
 }

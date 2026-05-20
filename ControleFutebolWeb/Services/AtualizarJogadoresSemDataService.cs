@@ -66,48 +66,37 @@ namespace ControleFutebolWeb.Services
             var context = scope.ServiceProvider.GetRequiredService<FutebolContext>();
             var transfermarkt = scope.ServiceProvider.GetRequiredService<TransfermarktService>();
 
-            // Busca jogadores com data inválida: MinValue ou -infinity do Postgres
-            var dataLimite = new DateTime(1900, 1, 1);
-
-            var jogadoresSemData = await context.Jogadores
+            var jogadores = await context.Jogadores
                 .Include(j => j.Time)
                 .Include(j => j.Nacionalidade)
-                .Where(j => j.DataNascimento <= dataLimite)
+                .Where(j => !string.IsNullOrEmpty(j.linktransfermarket) && !j.Atualizado)
                 .OrderBy(j => j.Id)
                 .ToListAsync(ct);
 
-            if (!jogadoresSemData.Any())
+            if (!jogadores.Any())
             {
-                _logger.LogInformation("[AtualizarJogadores] Nenhum jogador sem data encontrado.");
+                _logger.LogInformation("[AtualizarJogadores] Nenhum jogador pendente encontrado.");
                 return;
             }
 
-            _logger.LogInformation(
-                "[AtualizarJogadores] Iniciando ciclo: {Total} jogadores sem data.",
-                jogadoresSemData.Count);
+            _logger.LogInformation("[AtualizarJogadores] Iniciando ciclo: {Total} jogadores com link Transfermarkt.", jogadores.Count);
 
             int atualizados = 0;
             int falhas = 0;
 
-            foreach (var jogador in jogadoresSemData)
+            foreach (var jogador in jogadores)
             {
                 if (ct.IsCancellationRequested) break;
 
                 try
                 {
-                    var nomeClube = jogador.Time?.Nome;
+                    _logger.LogInformation("[AtualizarJogadores] Verificando jogador: {Nome}", jogador.Nome);
 
-                    _logger.LogInformation(
-                        "[AtualizarJogadores] Buscando: {Nome} (Clube: {Clube})",
-                        jogador.Nome, nomeClube);
-
-                    var info = await transfermarkt.BuscarJogador(jogador.Nome, nomeClube);
+                    var info = await transfermarkt.BuscarJogadorPorLink(jogador.linktransfermarket);
 
                     if (info == null)
                     {
-                        _logger.LogWarning(
-                            "[AtualizarJogadores] Não encontrado no Transfermarkt: {Nome}",
-                            jogador.Nome);
+                        _logger.LogWarning("[AtualizarJogadores] Não foi possível obter dados do Transfermarkt: {Nome}", jogador.Nome);
                         falhas++;
                     }
                     else
@@ -115,69 +104,70 @@ namespace ControleFutebolWeb.Services
                         bool alterado = false;
 
                         // Atualiza data de nascimento
-                        if (info.DataNascimento.HasValue &&
-                            info.DataNascimento.Value > dataLimite)
+                        if (info.DataNascimento.HasValue && info.DataNascimento.Value.Year > 1900 &&
+                            info.DataNascimento.Value.Date != jogador.DataNascimento.Date)
                         {
-                            jogador.DataNascimento = DateTime.SpecifyKind(
-                                info.DataNascimento.Value, DateTimeKind.Unspecified);
+                            jogador.DataNascimento = DateTime.SpecifyKind(info.DataNascimento.Value, DateTimeKind.Utc);
                             alterado = true;
                         }
 
-                        // Atualiza nacionalidade se vier do Transfermarkt e jogador não tiver
-                        if (!string.IsNullOrWhiteSpace(info.Nacionalidade) &&
-                            jogador.NacionalidadeId == null)
+                        // Atualiza nacionalidade
+                        if (!string.IsNullOrWhiteSpace(info.Nacionalidade))
                         {
                             var nacionalidade = await context.Nacionalidades
-                                .FirstOrDefaultAsync(n =>
-                                    n.Nome.ToLower() == info.Nacionalidade.ToLower(), ct);
+                                .FirstOrDefaultAsync(n => n.Nome.ToLower() == info.Nacionalidade.ToLower(), ct);
 
                             if (nacionalidade == null)
                             {
                                 nacionalidade = new Nacionalidade { Nome = info.Nacionalidade };
                                 context.Nacionalidades.Add(nacionalidade);
                                 await context.SaveChangesAsync(ct);
-                                _logger.LogInformation(
-                                    "[AtualizarJogadores] Nova nacionalidade criada: {Nac}",
-                                    info.Nacionalidade);
+                                _logger.LogInformation("[AtualizarJogadores] Nova nacionalidade criada: {Nac}", info.Nacionalidade);
                             }
 
-                            jogador.NacionalidadeId = nacionalidade.Id;
+                            if (jogador.NacionalidadeId != nacionalidade.Id)
+                            {
+                                jogador.NacionalidadeId = nacionalidade.Id;
+                                alterado = true;
+                            }
+                        }
+
+                        // Atualiza foto
+                        var fotoUrl = await transfermarkt.BuscarFotoJogador(jogador);
+                        if (!string.IsNullOrEmpty(fotoUrl) && fotoUrl != jogador.FotoUrl)
+                        {
+                            jogador.FotoUrl = fotoUrl;
                             alterado = true;
                         }
+
+                        // Marca como atualizado
+                        jogador.Atualizado = true;
+                        jogador.DtAlt = DateTime.UtcNow;
 
                         if (alterado)
                         {
                             await context.SaveChangesAsync(ct);
                             atualizados++;
-                            _logger.LogInformation(
-                                "[AtualizarJogadores] ✅ Atualizado: {Nome} | Nasc: {Data} | Nac: {Nac}",
-                                jogador.Nome,
-                                jogador.DataNascimento.ToString("dd/MM/yyyy"),
-                                info.Nacionalidade);
+                            _logger.LogInformation("[AtualizarJogadores] ✅ Atualizado: {Nome}", jogador.Nome);
                         }
                         else
                         {
-                            _logger.LogWarning(
-                                "[AtualizarJogadores] ⚠️ Encontrado mas sem dados novos: {Nome}",
-                                jogador.Nome);
-                            falhas++;
+                            await context.SaveChangesAsync(ct); // mesmo sem alteração, marca Atualizado=true
+                            _logger.LogInformation("[AtualizarJogadores] ⚠️ Nenhuma alteração necessária: {Nome}", jogador.Nome);
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex,
-                        "[AtualizarJogadores] Erro ao processar jogador {Nome}", jogador.Nome);
+                    _logger.LogError(ex, "[AtualizarJogadores] Erro ao processar jogador {Nome}", jogador.Nome);
                     falhas++;
                 }
 
-                // Pausa entre jogadores para respeitar o rate limit do Transfermarkt
                 await Task.Delay(IntervaloEntreJogadores, ct);
             }
 
-            _logger.LogInformation(
-                "[AtualizarJogadores] Ciclo concluído. Atualizados: {Ok} | Falhas: {Fail}",
-                atualizados, falhas);
+            _logger.LogInformation("[AtualizarJogadores] Ciclo concluído. Atualizados: {Ok} | Falhas: {Fail}", atualizados, falhas);
         }
+
     }
 }

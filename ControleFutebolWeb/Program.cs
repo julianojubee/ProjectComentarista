@@ -38,7 +38,6 @@ internal class Program
         builder.Services.AddHostedService<AtualizacaoJogosService>();
         builder.Services.AddHostedService<AtualizarJogadoresSemDataService>();
         builder.Services.AddHostedService<AtualizarCopaSulAmericanaService>();
-        builder.Services.AddHttpClient<SofascoreService>();
         builder.Services.AddHttpClient<TransfermarktTreinadorService>();
 
         builder.Services.AddHttpClient();

@@ -48,6 +48,12 @@
                             </div>
 
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark"
+                               asp-area="" asp-controller="Relatorios" asp-action="Index">
+                                📊 Relatórios
+                            </a>
+                        </li>
 
                     </ul>
 
@@ -66,4 +72,30 @@
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
+<div aria-live="polite" aria-atomic="true" class="position-relative">
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        @if (TempData["Mensagem"] != null)
+        {
+            <div class="toast align-items-center @(TempData["MensagemTipo"]?.ToString() == "erro" ? "text-bg-danger" : "text-bg-success") border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        @TempData["Mensagem"]
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Fechar"></button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        var toastElList = [].slice.call(document.querySelectorAll('.toast'))
+        var toastList = toastElList.map(function (toastEl) {
+            return new bootstrap.Toast(toastEl, { delay: 6000 });
+        });
+        toastList.forEach(toast => toast.show());
+    });
+</script>
+
 </html>

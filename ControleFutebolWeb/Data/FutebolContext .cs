@@ -1,5 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
-using ControleFutebolWeb.Models;
+﻿using ControleFutebolWeb.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace ControleFutebolWeb.Data
 {
@@ -31,6 +32,26 @@ namespace ControleFutebolWeb.Data
 
             modelBuilder.UseSerialColumns();
 
+
+            // 🔹 Converter global para DateTime
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                foreach (var property in entityType.GetProperties())
+                {
+                    if (property.ClrType == typeof(DateTime))
+                    {
+                        property.SetValueConverter(new ValueConverter<DateTime, DateTime>(
+                            v => DateTime.SpecifyKind(v, DateTimeKind.Unspecified),
+                            v => DateTime.SpecifyKind(v, DateTimeKind.Unspecified)));
+                    }
+                    else if (property.ClrType == typeof(DateTime?))
+                    {
+                        property.SetValueConverter(new ValueConverter<DateTime?, DateTime?>(
+                            v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Unspecified) : v,
+                            v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Unspecified) : v));
+                    }
+                }
+            }
             // Seed inicial de nacionalidades
             modelBuilder.Entity<Nacionalidade>().HasData(
                 new Nacionalidade { Id = 1, Nome = "Brasil" },
@@ -96,6 +117,36 @@ namespace ControleFutebolWeb.Data
                     property.SetColumnName(property.GetColumnName()?.ToLower());
                 }
             }
+            modelBuilder.Entity<Jogo>()
+                .Property(j => j.Data)
+                .HasColumnType("timestamp with time zone")
+                .HasConversion(
+                    v => DateTime.SpecifyKind(v, DateTimeKind.Utc),
+                    v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+            modelBuilder.Entity<Jogador>()
+            .Property(j => j.DataNascimento)
+            .HasColumnType("timestamp without time zone")
+            .HasConversion(
+                            v => DateTime.SpecifyKind(v, DateTimeKind.Unspecified),
+                            v => DateTime.SpecifyKind(v, DateTimeKind.Unspecified));
+
+          
+
+            modelBuilder.Entity<Jogador>()
+                .Property(j => j.DtInc)
+                .HasColumnType("timestamp with time zone")
+                .HasConversion(
+                    v => DateTime.SpecifyKind(v, DateTimeKind.Utc),
+                    v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+            modelBuilder.Entity<Jogador>()
+                 .Property(j => j.DtAlt)
+                 .HasColumnType("timestamp with time zone")
+                 .HasConversion(
+                     v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : v,
+                     v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : v
+                 );
         }
     }
 }

@@ -761,6 +761,7 @@ namespace ControleFutebolWeb.Controllers
                 if (formacaoVisitanteId > 0) jogo.FormacaoVisitanteId = formacaoVisitanteId;
                 if (faseAtual == "FINAL")
                     jogo.Observacoes = string.IsNullOrWhiteSpace(observacoesComTags) ? null : observacoesComTags.Trim();
+                    jogo.Analisado = 1;  // ← adicionar esta linha
             }
 
             if (faseAtual == "INICIAL")
@@ -1056,6 +1057,24 @@ namespace ControleFutebolWeb.Controllers
                 placarCasa = jogo.PlacarCasa,
                 placarVis = jogo.PlacarVisitante
             });
+        }
+
+        public class MarcarAnalisadoRequest
+        {
+            public int JogoId { get; set; }
+            public int Analisado { get; set; }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> MarcarAnalisado([FromBody] MarcarAnalisadoRequest req)
+        {
+            var jogo = await _context.Jogos.FindAsync(req.JogoId);
+            if (jogo == null) return NotFound(new { erro = "Jogo não encontrado." });
+
+            jogo.Analisado = req.Analisado;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { analisado = jogo.Analisado });
         }
     }
 }

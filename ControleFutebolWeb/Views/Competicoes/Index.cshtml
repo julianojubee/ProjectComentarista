@@ -141,7 +141,41 @@
                 </div>
                 <div class="cf-comp-meta">Região: @comp.Regiao | Tipo: @comp.Tipo</div>
                 <span class="cf-comp-link">Abrir competição &rarr;</span>
+
+                <!-- 🔹 Botão para abrir modal -->
+                <button type="button" class="btn btn-sm btn-outline-primary mt-2"
+                        data-bs-toggle="modal" data-bs-target="#linkModal-@comp.Id">
+                    Informar link
+                </button>
+
+                <!-- 🔹 Modal Bootstrap -->
+                <div class="modal fade" id="linkModal-@comp.Id" tabindex="-1" aria-labelledby="linkModalLabel-@comp.Id" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form asp-action="SalvarLinkCompeticao" asp-route-id="@comp.Id" method="post">
+                                @Html.AntiForgeryToken()
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="linkModalLabel-@comp.Id">Informar URL da Competição</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <input type="text" name="linkCompeticao" class="form-control"
+                                           placeholder="Cole o link aqui"
+                                           value="@comp.linktransfermarket" />
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                    <button type="submit" class="btn btn-primary">Salvar</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
             </a>
+
+           
+
+
         }
     </div>
 </div>

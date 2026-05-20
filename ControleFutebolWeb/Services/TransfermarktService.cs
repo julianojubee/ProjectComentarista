@@ -39,68 +39,160 @@ namespace ControleFutebolWeb.Services
             _httpClient.DefaultRequestHeaders.Add("Accept-Language", "pt-BR,pt;q=0.9,en;q=0.8");
             _httpClient.DefaultRequestHeaders.Add("Referer", "https://www.transfermarkt.com.br/");
         }
-        public async Task<string?> BuscarFotoJogador(string nomeJogador, string? nomeClube = null)
+
+
+        /// <summary>
+        /// Busca foto do jogador. Se tiver linkTransfermarkt salvo, usa direto.
+        /// Caso contrário, faz busca genérica pelo nome/clube.
+        /// </summary>
+        public async Task<string?> BuscarFotoJogador(Jogador jogador)
         {
             try
             {
-                var query = HttpUtility.UrlEncode(nomeJogador);
-                var url = $"https://www.transfermarkt.com.br/schnellsuche/ergebnis/schnellsuche?query={query}";
-
-                _logger.LogInformation("[Foto] Buscando: {Nome} | Clube: {Clube}", nomeJogador, nomeClube);
-
-                var html = await _httpClient.GetStringAsync(url);
-                var doc = new HtmlDocument();
-                doc.LoadHtml(html);
-
-                // A tabela de jogadores é a primeira com class 'items'
-                var tabela = doc.DocumentNode
-                    .SelectNodes("//table[contains(@class,'items')]")
-                    ?.FirstOrDefault();
-
-                if (tabela == null)
+                if (!string.IsNullOrEmpty(jogador.linktransfermarket))
                 {
-                    _logger.LogWarning("[Foto] Nenhuma tabela de resultados: {Nome}", nomeJogador);
-                    return null;
+                    return await BuscarFotoPorLink(jogador.linktransfermarket);
                 }
 
-                var linhas = tabela.SelectNodes(".//tbody/tr[not(contains(@class,'thead'))]");
-                if (linhas == null || !linhas.Any()) return null;
-
-                // Log todos os candidatos para diagnóstico
-                foreach (var l in linhas)
-                {
-                    var nomeCell = ExtrairNomeLinha(l);
-                    var clubeCell = ExtrairClubeLinha(l);
-                    _logger.LogInformation("[Foto] Candidato: Nome={Nome} | Clube={Clube}", nomeCell, clubeCell);
-                }
-
-                HtmlNode? linhaSelecionada = null;
-
-                if (!string.IsNullOrWhiteSpace(nomeClube))
-                {
-                    // Tenta match exato normalizado primeiro
-                    linhaSelecionada = linhas.FirstOrDefault(l =>
-                        NomesClubeSimilares(ExtrairClubeLinha(l), nomeClube));
-
-                    if (linhaSelecionada != null)
-                        _logger.LogInformation("[Foto] Clube encontrado (match): {Clube}",
-                            ExtrairClubeLinha(linhaSelecionada));
-                }
-
-                // Fallback: primeiro resultado
-                linhaSelecionada ??= linhas.First();
-                _logger.LogInformation("[Foto] Linha selecionada: {Nome} / {Clube}",
-                    ExtrairNomeLinha(linhaSelecionada), ExtrairClubeLinha(linhaSelecionada));
-
-                return await ExtrairFotoDaLinha(linhaSelecionada);
+                return await BuscarFotoPorNome(jogador.Nome, jogador.Time?.Nome);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[Foto] Erro ao buscar foto de {Nome}", nomeJogador);
+                _logger.LogError(ex, "[Foto] Erro ao buscar foto de {Nome}", jogador.Nome);
                 return null;
             }
         }
 
+        private async Task<string?> BuscarFotoPorLink(string profileUrl)
+        {
+            if (string.IsNullOrWhiteSpace(profileUrl)) return null;
+
+            if (!profileUrl.StartsWith("http"))
+                profileUrl = "https://www.transfermarkt.com.br" + profileUrl;
+
+            _logger.LogInformation("[Foto] Acessando perfil direto: {Url}", profileUrl);
+
+            var profileHtml = await _httpClient.GetStringAsync(profileUrl);
+            var profileDoc = new HtmlDocument();
+            profileDoc.LoadHtml(profileHtml);
+
+            var ogImage = profileDoc.DocumentNode.SelectSingleNode("//meta[@property='og:image']");
+            var fotoUrl = ogImage?.GetAttributeValue("content", "")?.Trim();
+
+            if (!string.IsNullOrEmpty(fotoUrl))
+            {
+                _logger.LogInformation("[Foto] Foto encontrada via link: {Url}", fotoUrl);
+                return fotoUrl;
+            }
+
+            var imgPerfil = profileDoc.DocumentNode
+                .SelectSingleNode("//img[contains(@class,'data-header__profile-image')]");
+            return imgPerfil?.GetAttributeValue("src", "")?.Trim();
+        }
+
+        private async Task<string?> BuscarFotoPorNome(string nomeJogador, string? nomeClube = null)
+        {
+            var query = HttpUtility.UrlEncode(nomeJogador);
+            var url = $"https://www.transfermarkt.com.br/schnellsuche/ergebnis/schnellsuche?query={query}";
+
+            _logger.LogInformation("[Foto] Buscando: {Nome} | Clube: {Clube}", nomeJogador, nomeClube);
+
+            var html = await _httpClient.GetStringAsync(url);
+            var doc = new HtmlDocument();
+            doc.LoadHtml(html);
+
+            var tabela = doc.DocumentNode
+                .SelectNodes("//table[contains(@class,'items')]")
+                ?.FirstOrDefault();
+
+            if (tabela == null)
+            {
+                _logger.LogWarning("[Foto] Nenhuma tabela de resultados: {Nome}", nomeJogador);
+                return null;
+            }
+
+            var linhas = tabela.SelectNodes(".//tbody/tr[not(contains(@class,'thead'))]");
+            if (linhas == null || !linhas.Any()) return null;
+
+            foreach (var l in linhas)
+            {
+                var nomeCell = ExtrairNomeLinha(l);
+                var clubeCell = ExtrairClubeLinha(l);
+                _logger.LogInformation("[Foto] Candidato: Nome={Nome} | Clube={Clube}", nomeCell, clubeCell);
+            }
+
+            HtmlNode? linhaSelecionada = null;
+
+            if (!string.IsNullOrWhiteSpace(nomeClube))
+            {
+                linhaSelecionada = linhas.FirstOrDefault(l =>
+                    NomesClubeSimilares(ExtrairClubeLinha(l), nomeClube));
+
+                if (linhaSelecionada != null)
+                    _logger.LogInformation("[Foto] Clube encontrado (match): {Clube}",
+                        ExtrairClubeLinha(linhaSelecionada));
+            }
+
+            linhaSelecionada ??= linhas.First();
+            _logger.LogInformation("[Foto] Linha selecionada: {Nome} / {Clube}",
+                ExtrairNomeLinha(linhaSelecionada), ExtrairClubeLinha(linhaSelecionada));
+
+            return await ExtrairFotoDaLinha(linhaSelecionada);
+        }
+
+        public async Task<TransfermarktPlayerInfo?> BuscarJogadorPorLink(string profileUrl)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(profileUrl)) return null;
+
+                // Garante que o link é completo
+                if (!profileUrl.StartsWith("http"))
+                    profileUrl = "https://www.transfermarkt.com.br" + profileUrl;
+
+                _logger.LogInformation("[Transfermarkt] Acessando perfil direto: {Url}", profileUrl);
+
+                var profileHtml = await _httpClient.GetStringAsync(profileUrl);
+                var profileDoc = new HtmlDocument();
+                profileDoc.LoadHtml(profileHtml);
+
+                var info = new TransfermarktPlayerInfo();
+
+                // Nome completo
+                info.NomeCompleto = profileDoc.DocumentNode
+                    .SelectSingleNode("//h1[contains(@class,'data-header__headline')]")?.InnerText?.Trim()
+                    ?? profileDoc.DocumentNode.SelectSingleNode("//h1")?.InnerText?.Trim();
+
+                // Data de nascimento
+                var birthNode = profileDoc.DocumentNode.SelectSingleNode("//span[@itemprop='birthDate']");
+                if (birthNode != null)
+                {
+                    var texto = birthNode.InnerText.Trim();
+                    var partes = texto.Split('(')[0].Trim();
+                    info.DataNascimento = ParseDataNascimento(partes);
+                }
+
+                // Nacionalidade
+                var nacNode = profileDoc.DocumentNode.SelectSingleNode("//span[@class='info-table__content info-table__content--bold']//img");
+                if (nacNode != null)
+                {
+                    var nacRaw = nacNode.GetAttributeValue("title", "");
+                    info.Nacionalidade = NacionalidadesHelper.Normalizar(nacRaw);
+                }
+
+                // Clube atual
+                var clubeNode = profileDoc.DocumentNode.SelectSingleNode("//span[contains(@class,'info-table__content')]");
+                if (clubeNode != null)
+                    info.Clube = HtmlEntity.DeEntitize(clubeNode.InnerText.Trim());
+
+                return info;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Transfermarkt] Erro ao acessar perfil direto");
+                return null;
+            }
+        }
         private static string ExtrairNomeLinha(HtmlNode linha)
         {
             // Estrutura: <td class="hauptlink"><a>Nome</a></td>
@@ -241,91 +333,65 @@ namespace ControleFutebolWeb.Services
         /// Busca dados do jogador no Transfermarkt pelo nome.
         /// Quando há múltiplos resultados, compara com o nome do clube para pegar o correto.
         /// </summary>
-        public async Task<TransfermarktPlayerInfo?> BuscarJogador(string nomeJogador, string? nomeClube = null)
+        public async Task<TransfermarktPlayerInfo?> BuscarJogador(
+            string nomeJogador,
+            string? nomeClube = null,
+            string? nacionalidadeEsperada = null,
+            int? idadeEsperada = null)
         {
-            try
+            var query = HttpUtility.UrlEncode(nomeJogador);
+            var url = $"https://www.transfermarkt.com.br/schnellsuche/ergebnis/schnellsuche?query={query}";
+
+            var html = await _httpClient.GetStringAsync(url);
+            var doc = new HtmlDocument();
+            doc.LoadHtml(html);
+
+            var linhas = doc.DocumentNode.SelectNodes("//table[contains(@class,'items')]/tbody/tr[not(contains(@class,'thead'))]");
+            if (linhas == null || !linhas.Any()) return null;
+
+            HtmlNode? linhaSelecionada = null;
+
+            foreach (var linha in linhas)
             {
-                var query = HttpUtility.UrlEncode(nomeJogador);
-                var url = $"https://www.transfermarkt.com.br/schnellsuche/ergebnis/schnellsuche?query={query}";
+                var nomeCell = linha.SelectSingleNode(".//td[@class='hauptlink']/a")?.InnerText?.Trim();
+                var clubeCell = ExtrairClubeLinha(linha);
 
-                _logger.LogInformation("[Transfermarkt] Buscando: {Nome} (clube: {Clube})", nomeJogador, nomeClube);
+                var nacCell = linha.SelectSingleNode(".//td[@class='zentriert']/img");
+                var nacTexto = nacCell?.GetAttributeValue("title", "") ?? "";
+                var nacNormalizada = NacionalidadesHelper.Normalizar(nacTexto);
 
-                var html = await _httpClient.GetStringAsync(url);
-                var doc = new HtmlDocument();
-                doc.LoadHtml(html);
+                var idadeCell = linha.SelectSingleNode(".//td[@class='zentriert']");
+                int idade = 0;
+                if (idadeCell != null && int.TryParse(Regex.Match(idadeCell.InnerText, @"\d+").Value, out var idadeParsed))
+                    idade = idadeParsed;
 
-                var tabelas = doc.DocumentNode.SelectNodes("//table[contains(@class,'items')]");
-                if (tabelas == null || !tabelas.Any())
+                _logger.LogInformation("[Transfermarkt] Candidato: Nome={Nome}, Clube={Clube}, Nac={Nac}, Idade={Idade}",
+                    nomeCell, clubeCell, nacNormalizada, idade);
+
+                // Critérios de seleção
+                if (!string.IsNullOrWhiteSpace(nomeClube) && NomesClubeSimilares(clubeCell, nomeClube))
                 {
-                    _logger.LogWarning("[Transfermarkt] Nenhum resultado para: {Nome}", nomeJogador);
-                    return null;
+                    linhaSelecionada = linha;
+                    break;
                 }
-
-                var linhas = tabelas[0].SelectNodes(".//tbody/tr[not(contains(@class,'thead'))]");
-                if (linhas == null || !linhas.Any())
-                    return null;
-
-                // 🔹 Log de todos os candidatos (sem idade aqui, porque não é confiável na lista)
-                foreach (var linha in linhas)
+                if (!string.IsNullOrWhiteSpace(nacionalidadeEsperada) &&
+                    nacNormalizada.Equals(nacionalidadeEsperada, StringComparison.OrdinalIgnoreCase))
                 {
-                    var nomeCell = linha.SelectSingleNode(".//td[@class='hauptlink']/a")?.InnerText?.Trim();
-                    var clubeCell = linha.SelectSingleNode(".//td[@class='zentriert']/a")?.InnerText?.Trim();
-                    var nacCell = linha.SelectSingleNode(".//td[@class='zentriert']/img")?.GetAttributeValue("title", "");
-
-                    _logger.LogInformation("[Transfermarkt] Candidato: Nome={Nome}, Clube={Clube}, Nac={Nac}",
-                        nomeCell, clubeCell, nacCell);
-                }
-
-                HtmlNode? linhaSelecionada = null;
-
-                // 🔹 1. Tenta pelo clube
-                if (!string.IsNullOrWhiteSpace(nomeClube) && linhas.Count > 1)
-                {
-                    foreach (var linha in linhas)
+                    if (!idadeEsperada.HasValue || idade == idadeEsperada.Value)
                     {
-                        var clubeTexto = ExtrairClubeLinha(linha);
-
-                        if (NomesClubeSimilares(clubeTexto, nomeClube))
-                        {
-                            linhaSelecionada = linha;
-                            _logger.LogInformation("[Transfermarkt] Selecionado pelo clube: {Clube}", clubeTexto);
-                            break;
-                        }
+                        linhaSelecionada = linha;
+                        break;
                     }
                 }
-
-                // 🔹 2. Se não achou pelo clube, tenta pela nacionalidade
-                if (linhaSelecionada == null && linhas.Count > 1)
-                {
-                    foreach (var linha in linhas)
-                    {
-                        var nacCell = linha.SelectSingleNode(".//td[@class='zentriert']/img");
-                        var nacTexto = nacCell?.GetAttributeValue("title", "") ?? "";
-
-                        if (!string.IsNullOrWhiteSpace(nacTexto) &&
-                            nacTexto.Equals("Brasil", StringComparison.OrdinalIgnoreCase))
-                        {
-                            linhaSelecionada = linha;
-                            _logger.LogInformation("[Transfermarkt] Selecionado pela nacionalidade: {Nac}", nacTexto);
-                            break;
-                        }
-                    }
-                }
-
-                // 🔹 3. Fallback final
-                linhaSelecionada ??= linhas[0];
-                _logger.LogInformation("[Transfermarkt] Selecionado fallback: {Nome}",
-                    linhaSelecionada.SelectSingleNode(".//td[@class='hauptlink']/a")?.InnerText?.Trim());
-
-                // 🔹 Extrai dados completos do perfil (onde idade e nascimento são confiáveis)
-                return await ExtrairDadosDaLinha(linhaSelecionada);
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[Transfermarkt] Erro inesperado ao buscar {Nome}", nomeJogador);
-                return null;
-            }
+
+            // Fallback final
+            linhaSelecionada ??= linhas[0];
+
+            return await ExtrairDadosDaLinha(linhaSelecionada);
         }
+
+
 
         private async Task<TransfermarktPlayerInfo?> ExtrairDadosDaLinha(HtmlNode linha)
         {

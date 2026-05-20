@@ -21,6 +21,7 @@ namespace ControleFutebolWeb.Models
         public string Tipo { get; set; } = string.Empty;
 
         public ICollection<Jogo> Jogos { get; set; } = new List<Jogo>();
+        public string? linktransfermarket { get; set; }
     }
 
 }

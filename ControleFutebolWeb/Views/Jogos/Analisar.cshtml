@@ -714,6 +714,41 @@
     <div class="mb-timeline" id="mbTimeline"></div>
 </div>
 
+<!-- ── Status de Análise ───────────────────────────────────────────── -->
+<div style="display:flex; align-items:center; gap:12px; margin-bottom:1rem;
+            padding:.85rem 1.2rem; background:#fff; border:.5px solid #e5e7eb;
+            border-radius:12px;">
+    <div style="display:flex; align-items:center; gap:10px; flex:1;">
+        <div id="statusIcon" style="width:36px; height:36px; border-radius:50%;
+             display:flex; align-items:center; justify-content:center; font-size:18px;
+             background:@(Model.Analisado == 1 ? "#dcfce7" : "#f3f4f6");
+             border:2px solid @(Model.Analisado == 1 ? "#22c55e" : "#e5e7eb");">
+            @(Model.Analisado == 1 ? "✅" : "⏳")
+        </div>
+        <div>
+            <div id="statusLabel" style="font-size:13px; font-weight:600;
+                 color:@(Model.Analisado == 1 ? "#15803d" : "#374151");">
+                @(Model.Analisado == 1 ? "Jogo analisado" : "Aguardando análise")
+            </div>
+            <div style="font-size:11px; color:#9ca3af;">
+                Marque como analisado após revisar escalação final e eventos
+            </div>
+        </div>
+    </div>
+
+    <label style="display:flex; align-items:center; gap:8px; cursor:pointer;
+                  padding:8px 14px; border-radius:8px; border:1px solid #e5e7eb;
+                  background:#f9fafb; user-select:none;"
+           title="Marcar/desmarcar jogo como analisado">
+        <input type="checkbox"
+               id="chkAnalisado"
+               style="width:16px; height:16px; cursor:pointer; accent-color:#22c55e;"
+               @(Model.Analisado == 1 ? "checked" : "")
+               onchange="toggleAnalisado(this)" />
+        <span style="font-size:13px; font-weight:500; color:#374151;">Marcar como analisado</span>
+    </label>
+</div>
+
 <!-- ══ MODAL DE EVENTO ══════════════════════════════════════════════════ -->
 <div id="modal-evento">
     <div class="modal-evento-box">
@@ -1905,4 +1940,44 @@
             document.getElementById('modal-placar').style.display = 'none';
         }
     });
+
+    async function toggleAnalisado(checkbox) {
+    const analisado = checkbox.checked ? 1 : 0;
+    const jogoId    = parseInt(document.getElementById('jogoId').value);
+
+    try {
+        const resp = await fetch('/Jogos/MarcarAnalisado', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ jogoId, analisado })
+        });
+
+        if (!resp.ok) {
+            checkbox.checked = !checkbox.checked; // reverte se falhou
+            alert('Erro ao salvar status.');
+            return;
+        }
+
+        // Atualiza visual
+        const icon  = document.getElementById('statusIcon');
+        const label = document.getElementById('statusLabel');
+
+        if (analisado === 1) {
+            icon.style.background    = '#dcfce7';
+            icon.style.borderColor   = '#22c55e';
+            icon.textContent         = '✅';
+            label.style.color        = '#15803d';
+            label.textContent        = 'Jogo analisado';
+        } else {
+            icon.style.background    = '#f3f4f6';
+            icon.style.borderColor   = '#e5e7eb';
+            icon.textContent         = '⏳';
+            label.style.color        = '#374151';
+            label.textContent        = 'Aguardando análise';
+        }
+    } catch (e) {
+        checkbox.checked = !checkbox.checked;
+        alert('Erro de conexão.');
+    }
+    }
 </script>

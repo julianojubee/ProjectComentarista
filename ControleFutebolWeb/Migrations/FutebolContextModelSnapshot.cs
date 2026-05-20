@@ -81,6 +81,10 @@ namespace ControleFutebolWeb.Migrations
                         .HasColumnType("text")
                         .HasColumnName("tipo");
 
+                    b.Property<string>("linktransfermarket")
+                        .HasColumnType("text")
+                        .HasColumnName("linktransfermarket");
+
                     b.HasKey("Id");
 
                     b.ToTable("competicoes");
@@ -216,6 +220,10 @@ namespace ControleFutebolWeb.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("timeid");
 
+                    b.Property<string>("linktransfermarket")
+                        .HasColumnType("text")
+                        .HasColumnName("linktransfermarket");
+
                     b.HasKey("Id");
 
                     b.HasIndex("NacionalidadeId");
@@ -233,6 +241,10 @@ namespace ControleFutebolWeb.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Analisado")
+                        .HasColumnType("integer")
+                        .HasColumnName("analisado");
 
                     b.Property<int>("Atualizado")
                         .HasColumnType("integer")

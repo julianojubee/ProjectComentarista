@@ -230,6 +230,23 @@
                             <div class="card shadow-sm">
                                 <div class="card-header text-center bg-primary text-white d-flex justify-content-between align-items-center px-2">
                                     <span style="font-size:11px;">@jogo.Data.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+                                    @if (jogo.Analisado == 1)
+                                    {
+                                        <span style="background:#dcfce7; color:#15803d; font-size:10px; font-weight:700;
+                             padding:2px 8px; border-radius:999px; border:1px solid #bbf7d0;
+                             display:inline-flex; align-items:center; gap:3px;">
+                                            ✅ Analisado
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span style="background:rgba(255,255,255,0.12); color:rgba(255,255,255,0.65);
+                             font-size:10px; font-weight:600; padding:2px 8px;
+                             border-radius:999px; border:1px solid rgba(255,255,255,0.2);
+                             display:inline-flex; align-items:center; gap:3px;">
+                                            ⏳ Pendente
+                                        </span>
+                                    }
                                     @{
                                         var logoComp = CompeticaoHelper.GetLogoCompeticao(jogo.CompeticaoId);
                                     }
@@ -284,8 +301,8 @@
                                     <small class="text-muted">Rodada: @jogo.Rodada</small>
                                     <div class="mt-2">
                                         <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id"
-                                           class="btn btn-outline-primary btn-sm">
-                                            Analisar
+                                           class="btn btn-sm @(jogo.Analisado == 1 ? "btn-outline-success" : "btn-outline-primary")">
+                                            @(jogo.Analisado == 1 ? "✅ Ver análise" : "🔍 Analisar")
                                         </a>
                                     </div>
                                 </div>

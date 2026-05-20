@@ -168,7 +168,7 @@ namespace ControleFutebolWeb.Controllers
         public async Task<IActionResult> Edit(int id, Jogador jogador)
         {
             if (id != jogador.Id) return NotFound();
-            // Log dos valores recebidos
+
             _logger.LogInformation(
                 "POST Edit recebido: Id={Id}, Nome={Nome}, Posicao={Posicao}, TimeId={TimeId}, NacionalidadeId={NacionalidadeId}, DataNascimento={DataNascimento}",
                 jogador.Id,
@@ -183,19 +183,64 @@ namespace ControleFutebolWeb.Controllers
             {
                 try
                 {
-                    var jogadorExistente = await _context.Jogadores.FindAsync(id);
+                    var jogadorExistente = await _context.Jogadores
+                        .Include(j => j.Nacionalidade)
+                        .Include(j => j.Time)
+                        .FirstOrDefaultAsync(j => j.Id == id);
+
                     if (jogadorExistente == null) return NotFound();
 
-                    // Atualiza apenas os campos persistentes
+                    // 🔹 Validação contra Transfermarkt
+                    if (!string.IsNullOrEmpty(jogador.linktransfermarket))
+                    {
+                        var dadosTransfer = await _transfermarktService.BuscarJogadorPorLink(jogador.linktransfermarket);
+
+
+                        if (dadosTransfer != null)
+                        {
+                            var divergencias = new List<string>();
+
+                            // Data de nascimento
+                            if (dadosTransfer.DataNascimento.HasValue &&
+                                dadosTransfer.DataNascimento.Value.Date != jogador.DataNascimento.Date)
+                            {
+                                divergencias.Add($"Data de nascimento divergente. Transfermarkt: {dadosTransfer.DataNascimento.Value:dd/MM/yyyy}");
+                            }
+
+                            // Nacionalidade
+                            if (!string.IsNullOrEmpty(dadosTransfer.Nacionalidade) &&
+                                jogador.Nacionalidade?.Nome != dadosTransfer.Nacionalidade)
+                            {
+                                divergencias.Add($"Nacionalidade divergente. Transfermarkt: {dadosTransfer.Nacionalidade}");
+                            }
+
+                            // Se houver divergências, mostra Toast e não salva
+                            if (divergencias.Any())
+                            {
+                                TempData["Mensagem"] = string.Join(" | ", divergencias);
+                                TempData["MensagemTipo"] = "erro";
+
+                                ViewBag.TimeId = new SelectList(_context.Times, "Id", "Nome", jogador.TimeId);
+                                ViewBag.NacionalidadeId = new SelectList(_context.Nacionalidades, "Id", "Nome", jogador.NacionalidadeId);
+                                return View(jogador);
+                            }
+                        }
+                    }
+
+                    // Atualiza campos
                     jogadorExistente.Nome = jogador.Nome;
                     jogadorExistente.Posicao = jogador.Posicao;
-                    jogadorExistente.DataNascimento = DateTime.SpecifyKind(jogador.DataNascimento, DateTimeKind.Unspecified);
+                    jogadorExistente.DataNascimento = DateTime.SpecifyKind(jogador.DataNascimento, DateTimeKind.Utc);
                     jogadorExistente.TimeId = jogador.TimeId;
                     jogadorExistente.NacionalidadeId = jogador.NacionalidadeId;
+                    jogadorExistente.DtAlt = DateTime.UtcNow;
 
                     await _context.SaveChangesAsync();
-                    return RedirectToAction("Index", new { timeId = jogador.TimeId });
 
+                    TempData["Mensagem"] = "Jogador atualizado com sucesso!";
+                    TempData["MensagemTipo"] = "sucesso";
+
+                    return RedirectToAction("Index", new { timeId = jogador.TimeId });
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -212,6 +257,7 @@ namespace ControleFutebolWeb.Controllers
             ViewBag.NacionalidadeId = new SelectList(_context.Nacionalidades, "Id", "Nome", jogador.NacionalidadeId);
             return View(jogador);
         }
+
 
 
         // GET: Jogadores/Delete/5
@@ -266,6 +312,7 @@ namespace ControleFutebolWeb.Controllers
             var notas = await _context.Notas
                 .Include(n => n.Jogo).ThenInclude(j => j.TimeCasa)
                 .Include(n => n.Jogo).ThenInclude(j => j.TimeVisitante)
+                .Include(n => n.Detalhes)
                 .Where(n => n.JogadorId == id)
                 .ToListAsync();
 
@@ -274,19 +321,53 @@ namespace ControleFutebolWeb.Controllers
                 .Where(g => g.JogadorId == id && !g.Contra)
                 .ToListAsync();
 
-            var notasPorJogo = notas.Select(n => new NotaJogoItem
-            {
-                Jogo = n.Jogo,
-                Nota = n.Valor,
-                Comentario = n.Comentario,
-                Gols = gols.Count(g => g.JogoId == n.JogoId)
-            }).OrderByDescending(x => x.Jogo.Data).ToList();
+            // ── Calcula resultado por jogo ────────────────────────────────
+            var notasPorJogo = notas.Select(n => {
+                var jogo = n.Jogo;
+                var pc = jogo.PlacarCasa ?? 0;
+                var pv = jogo.PlacarVisitante ?? 0;
+                bool isCasa = jogo.TimeCasaId == jogador.TimeId;
+
+                int golsPro = isCasa ? pc : pv;
+                int golsContra = isCasa ? pv : pc;
+
+                string resultado;
+                double bonusResultado;
+                if (pc == pv) { resultado = "E"; bonusResultado = 0; }
+                else if ((isCasa && pc > pv) ||
+                         (!isCasa && pv > pc)) { resultado = "V"; bonusResultado = +1; }
+                else { resultado = "D"; bonusResultado = -1; }
+
+                double notaFinal = Math.Max(0, Math.Min(10,
+                    5.0 + n.Valor + bonusResultado));
+
+                return new NotaJogoItem
+                {
+                    Jogo = jogo,
+                    Nota = n.Valor,
+                    Comentario = n.Comentario,
+                    Gols = gols.Count(g => g.JogoId == n.JogoId),
+                    Resultado = resultado,
+                    BonusResultado = bonusResultado,
+                    NotaFinal = Math.Round(notaFinal, 2),
+                    Detalhes = n.Detalhes?.ToList() ?? new(),
+                    GolsPro = golsPro,
+                    GolsContra = golsContra,
+                };
+            })
+            .OrderByDescending(x => x.Jogo.Data)
+            .ToList();
+
+            // ── Nota geral (mesma fórmula dos relatórios) ─────────────────
+            double mediaFinal = notasPorJogo.Any()
+                ? Math.Round(notasPorJogo.Average(x => x.NotaFinal), 2)
+                : 0;
 
             var vm = new JogadorEstatisticasViewModel
             {
                 Jogador = jogador,
-                MediaNotas = notas.Any() ? notas.Average(n => n.Valor) : 0,
-                TotalJogos = notas.Select(n => n.JogoId).Distinct().Count(),
+                MediaNotas = mediaFinal,
+                TotalJogos = notasPorJogo.Select(n => n.Jogo.Id).Distinct().Count(),
                 TotalGols = gols.Count,
                 NotasPorJogo = notasPorJogo
             };
@@ -304,21 +385,40 @@ namespace ControleFutebolWeb.Controllers
 
             if (jogador == null) return NotFound();
 
-            var fotoUrl = await _transfermarktService.BuscarFotoJogador(
-                jogador.Nome, jogador.Time?.Nome);
+            var fotoUrl = await _transfermarktService.BuscarFotoJogador(jogador);
 
-            if (!string.IsNullOrWhiteSpace(fotoUrl))
+            if (!string.IsNullOrEmpty(fotoUrl))
             {
                 jogador.FotoUrl = fotoUrl;
                 jogador.DtAlt = DateTime.UtcNow;
+
+                _context.Update(jogador);
                 await _context.SaveChangesAsync();
-                TempData["Sucesso"] = $"✅ Foto de {jogador.Nome} atualizada!";
+
+                TempData["Mensagem"] = "Foto atualizada com sucesso!";
             }
             else
             {
-                TempData["Erro"] = $"❌ Foto de {jogador.Nome} não encontrada no FMInside.";
+                TempData["Mensagem"] = "Não foi possível encontrar a foto.";
             }
 
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SalvarLinkTransfermarkt(int id, string linktransfermarket)
+        {
+            var jogador = await _context.Jogadores.FindAsync(id);
+            if (jogador == null) return NotFound();
+
+            jogador.linktransfermarket = linktransfermarket;
+            jogador.DtAlt = DateTime.UtcNow;
+
+            _context.Update(jogador);
+            await _context.SaveChangesAsync();
+
+            TempData["Mensagem"] = "Link Transfermarkt atualizado com sucesso!";
             return RedirectToAction(nameof(Index));
         }
 
@@ -342,8 +442,7 @@ namespace ControleFutebolWeb.Controllers
             {
                 try
                 {
-                    var fotoUrl = await _transfermarktService.BuscarFotoJogador(
-                        jogador.Nome, jogador.Time?.Nome);
+                    var fotoUrl = await _transfermarktService.BuscarFotoJogador(jogador);
 
                     if (!string.IsNullOrWhiteSpace(fotoUrl))
                     {
@@ -373,5 +472,6 @@ namespace ControleFutebolWeb.Controllers
 
             return RedirectToAction(nameof(Index));
         }
+
     }
 }
