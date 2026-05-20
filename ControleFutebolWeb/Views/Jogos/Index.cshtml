@@ -399,7 +399,7 @@
                             : Url.Action("Detalhes", "Competicoes", new { id = jogo.CompeticaoId });
 
                         <tr>
-                            <td>@jogo.Data.ToString("dd/MM/yyyy")</td>
+                            <td>@ControleFutebolWeb.Helpers.DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy")</td>
                             <td>
                                 <a href="@linkCompeticao">@nomeCompeticao</a>
                             </td>

@@ -232,6 +232,22 @@ namespace ControleFutebolWeb.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SalvarLinkTransfermarkt(int id, string linktransfermarket)
+        {
+            var time = await _context.Times.FindAsync(id);
+            if (time == null) return NotFound();
+
+            time.linktransfermarket = linktransfermarket;
+
+            _context.Update(time);
+            await _context.SaveChangesAsync();
+
+            TempData["Mensagem"] = "Link Transfermarkt do time atualizado com sucesso!";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        [HttpPost]
         public async Task<IActionResult> ImportarUniforme(int id, IFormFile arquivo, string tipo = "casa")
         {
             var time = await _context.Times.FindAsync(id);

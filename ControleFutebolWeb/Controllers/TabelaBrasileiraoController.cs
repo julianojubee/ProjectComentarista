@@ -54,10 +54,12 @@ namespace ControleFutebolWeb.Controllers
             .Include(j => j.TimeCasa)
             .Include(j => j.TimeVisitante)
             .Where(j => j.CompeticaoId == 1 &&
-                        j.Data.ToUniversalTime() > DateTime.UtcNow) // força UTC
+                        j.Data.HasValue &&
+                        j.Data.Value.ToUniversalTime() > DateTime.UtcNow)
             .OrderBy(j => j.Data)
             .Take(10)
             .ToList();
+
 
             if (proximaRodada.Any())
             {

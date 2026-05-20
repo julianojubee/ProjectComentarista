@@ -45,22 +45,8 @@ namespace ControleFutebolWeb.Models
 
         public Time Time { get; set; } = null!;
 
-        // 🔹 Campos de controle
-        private DateTime _dtInc;
-        public DateTime DtInc
-        {
-            get => _dtInc;
-            set => _dtInc = DateTime.SpecifyKind(value, DateTimeKind.Unspecified);
-        }
-
-        private DateTime? _dtAlt;
-        public DateTime? DtAlt
-        {
-            get => _dtAlt;
-            set => _dtAlt = value.HasValue
-                ? DateTime.SpecifyKind(value.Value, DateTimeKind.Unspecified)
-                : null;
-        }
+        public DateTime DtInc { get; set; }
+        public DateTime? DtAlt { get; set; }
         public string? FotoUrl { get; set; }
         public string? linktransfermarket { get; set; }
 

@@ -133,7 +133,10 @@ namespace ControleFutebolWeb.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Jogo jogo)
         {
-            jogo.Data = DateTime.SpecifyKind(jogo.Data, DateTimeKind.Unspecified);
+            jogo.Data = jogo.Data.HasValue
+            ? DateTime.SpecifyKind(jogo.Data.Value, DateTimeKind.Utc)
+            : (DateTime?)null;
+
 
             if (ModelState.IsValid)
             {
@@ -206,7 +209,7 @@ namespace ControleFutebolWeb.Controllers
         {
             if (id != jogo.Id) return NotFound();
 
-            jogo.Data = DateTime.SpecifyKind(jogo.Data, DateTimeKind.Unspecified);
+            jogo.Data = jogo.Data.HasValue ? DateTime.SpecifyKind(jogo.Data.Value, DateTimeKind.Utc) : (DateTime?)null;
 
             if (ModelState.IsValid)
             {

@@ -1344,14 +1344,19 @@ namespace ControleFutebolWeb.Services
             if (dataWeb.HasValue)
             {
                 var j = jogosBanco.FirstOrDefault(jg =>
-                    jg.TimeCasaId == casaId && jg.TimeVisitanteId == visId &&
-                    Math.Abs((jg.Data.Date - dataWeb.Value.Date).TotalDays) <= 2);
+                    jg.TimeCasaId == casaId &&
+                    jg.TimeVisitanteId == visId &&
+                    jg.Data.HasValue &&
+                    Math.Abs((jg.Data.Value.Date - dataWeb.Value.Date).TotalDays) <= 2
+                );
+
                 if (j != null)
                 {
                     _log.LogInformation("[SulAmericana] Jogo localizado (data): {H} x {V} em {D}",
-                        nomeCasa, nomeVis, j.Data.ToString("dd/MM/yyyy"));
+                        nomeCasa, nomeVis, DateHelper.FormatarData(j.Data));
                     return j;
                 }
+
             }
 
             // Tentativa 2: times corretos sem data (qualquer jogo entre esses dois times)
@@ -1364,7 +1369,7 @@ namespace ControleFutebolWeb.Services
                     "(site={DS}, banco={DB}) — pode ser o jogo errado",
                     nomeCasa, nomeVis,
                     dataWeb?.ToString("dd/MM/yyyy") ?? "?",
-                    jSemData.Data.ToString("dd/MM/yyyy"));
+                    DateHelper.FormatarData(jSemData.Data));
                 return jSemData;
             }
 

@@ -6,7 +6,7 @@
     <h4>Você tem certeza que deseja excluir este jogo?</h4>
     <dl class="row">
         <dt class="col-sm-2">Data</dt>
-        <dd class="col-sm-10">@Model.Data.ToString("d")</dd>
+        <dd class="col-sm-10">@ControleFutebolWeb.Helpers.DateHelper.FormatarData(Model.Data, "d")</dd>
 
         <dt class="col-sm-2">Rodada</dt>
         <dd class="col-sm-10">@Model.Rodada</dd>

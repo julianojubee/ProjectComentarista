@@ -53,7 +53,7 @@ namespace ControleFutebolWeb.Controllers
         // POST: Competicoes/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Nome,Regiao,Tipo")] Competicao competicao)
+        public async Task<IActionResult> Create([Bind("Nome,Regiao,Tipo,linktransfermarket")] Competicao competicao)
         {
             _logger.LogInformation("POST Create chamado: Nome={Nome}, Regiao={Regiao}, Tipo={Tipo}",
                 competicao.Nome, competicao.Regiao, competicao.Tipo);

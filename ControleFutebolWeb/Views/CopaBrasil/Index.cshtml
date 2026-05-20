@@ -541,8 +541,9 @@ else
                         <div class="copa-jogo-row">
                             <span class="copa-jogo-label">IDA</span>
                             <span class="copa-jogo-date">
-                                @c.JogoIda.Data.ToLocalTime().ToString("dd/MM HH:mm")
+                                @ControleFutebolWeb.Helpers.DateHelper.FormatarData(c.JogoIda.Data, "dd/MM HH:mm")
                             </span>
+
                             <div class="copa-jogo-times">
                                 <span style="font-weight:500;">@c.JogoIda.TimeCasa?.Nome</span>
                                 @if (c.JogoIda.PlacarCasa.HasValue)
@@ -575,8 +576,9 @@ else
                         <div class="copa-jogo-row">
                             <span class="copa-jogo-label volta">VOLTA</span>
                             <span class="copa-jogo-date">
-                                @c.JogoVolta.Data.ToLocalTime().ToString("dd/MM HH:mm")
+                                @ControleFutebolWeb.Helpers.DateHelper.FormatarData(c.JogoVolta.Data, "dd/MM HH:mm")
                             </span>
+
                             <div class="copa-jogo-times">
                                 <span style="font-weight:500;">@c.JogoVolta.TimeCasa?.Nome</span>
                                 @if (c.JogoVolta.PlacarCasa.HasValue)

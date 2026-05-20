@@ -192,15 +192,31 @@ namespace ControleFutebolWeb.Controllers
                               "<th>Visitante</th></tr>");
                 foreach (var j in atualizados)
                 {
+                    // 🔹 Placar
                     var placar = j.PlacarCasa.HasValue
                         ? $"<b>{j.PlacarCasa} × {j.PlacarVisitante}</b>"
                         : "<span class='badge bb'>—</span>";
-                    sb.AppendLine($"<tr><td>{j.Data.ToLocalTime():dd/MM/yy}</td>" +
-                                  $"<td>{j.Rodada}</td><td>{j.Grupo ?? "—"}</td>" +
-                                  $"<td>{j.TimeCasa?.Nome}</td>" +
-                                  $"<td style='text-align:center'>{placar}</td>" +
-                                  $"<td>{j.TimeVisitante?.Nome}</td></tr>");
+
+                    // 🔹 Data (se for nula, mostra "—")
+                    var dataStr = j.Data.HasValue
+                        ? j.Data.Value.ToLocalTime().ToString("dd/MM/yy")
+                        : "—";
+
+                    // 🔹 Grupo (se for nulo, mostra "—")
+                    var grupoStr = string.IsNullOrEmpty(j.Grupo) ? "—" : j.Grupo;
+
+                    sb.AppendLine(
+                        $"<tr>" +
+                        $"<td>{dataStr}</td>" +
+                        $"<td>{j.Rodada}</td>" +
+                        $"<td>{grupoStr}</td>" +
+                        $"<td>{j.TimeCasa?.Nome}</td>" +
+                        $"<td style='text-align:center'>{placar}</td>" +
+                        $"<td>{j.TimeVisitante?.Nome}</td>" +
+                        $"</tr>"
+                    );
                 }
+
                 sb.AppendLine("</table>");
             }
 
@@ -224,17 +240,37 @@ namespace ControleFutebolWeb.Controllers
                               "<th>Visitante</th><th>Situação</th></tr>");
                 foreach (var j in pendentes)
                 {
-                    var placar = j.PlacarCasa.HasValue ? $"{j.PlacarCasa} × {j.PlacarVisitante}" : "—";
+                    // 🔹 Placar
+                    var placar = j.PlacarCasa.HasValue
+                        ? $"{j.PlacarCasa} × {j.PlacarVisitante}"
+                        : "—";
+
+                    // 🔹 Situação
                     var sit = j.PlacarCasa.HasValue
                         ? "<span class='badge by'>Tem placar, não sincronizado</span>"
                         : "<span class='badge bb'>Sem placar</span>";
-                    sb.AppendLine($"<tr><td>{j.Data.ToLocalTime():dd/MM/yy}</td>" +
-                                  $"<td>{j.Rodada}</td><td>{j.Grupo ?? "—"}</td>" +
-                                  $"<td>{j.TimeCasa?.Nome}</td>" +
-                                  $"<td style='text-align:center'>{placar}</td>" +
-                                  $"<td>{j.TimeVisitante?.Nome}</td>" +
-                                  $"<td>{sit}</td></tr>");
+
+                    // 🔹 Data (se for nula, mostra "—")
+                    var dataStr = j.Data.HasValue
+                        ? j.Data.Value.ToLocalTime().ToString("dd/MM/yy")
+                        : "—";
+
+                    // 🔹 Grupo (se for nulo, mostra "—")
+                    var grupoStr = string.IsNullOrEmpty(j.Grupo) ? "—" : j.Grupo;
+
+                    sb.AppendLine(
+                        $"<tr>" +
+                        $"<td>{dataStr}</td>" +
+                        $"<td>{j.Rodada}</td>" +
+                        $"<td>{grupoStr}</td>" +
+                        $"<td>{j.TimeCasa?.Nome}</td>" +
+                        $"<td style='text-align:center'>{placar}</td>" +
+                        $"<td>{j.TimeVisitante?.Nome}</td>" +
+                        $"<td>{sit}</td>" +
+                        $"</tr>"
+                    );
                 }
+
                 sb.AppendLine("</table>");
             }
 

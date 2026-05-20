@@ -15,7 +15,46 @@ namespace ControleFutebolWeb.Services
         public string? Nacionalidade { get; set; }
         public string? NomeCompleto { get; set; }
         public string? Clube { get; set; }
+        public string? Posicao { get; set; }
+        public int? NumeroCamisa { get; set; }
+        public string? LinkPerfil { get; set; }
     }
+
+    public class TransfermarktEventoInfo
+    {
+        public string Tipo { get; set; } = string.Empty; // "Gol", "Assistencia", "Cartao"
+
+        public int JogadorId { get; set; }   // jogador envolvido
+        public int Minuto { get; set; }      // minuto do evento
+
+        // 🔹 Detalhes adicionais
+        public bool Contra { get; set; }     // se foi gol contra
+        public int? AssistenteId { get; set; } // jogador que deu a assistência (quando houver)
+        public string? Detalhe { get; set; } // tipo de cartão ("Amarelo", "Vermelho")
+    }
+
+
+    public class TransfermarktJogoInfo
+    {
+        public string NomeTimeCasa { get; set; } = string.Empty;
+        public string NomeTimeVisitante { get; set; } = string.Empty;
+        public string? LinkTimeCasa { get; set; }
+        public string? LinkTimeVisitante { get; set; }
+        public int? PlacarCasa { get; set; }
+        public int? PlacarVisitante { get; set; }
+        public DateTime? Data { get; set; }
+        public int Rodada { get; set; }
+        public string? Grupo { get; set; }
+        public string? LinkDetalhes { get; set; }
+
+        // 🔹 Novas propriedades
+        public string? FormacaoCasa { get; set; }
+        public string? FormacaoVisitante { get; set; }
+
+        public List<TransfermarktEventoInfo> Eventos { get; set; } = new();
+    }
+
+
 
     public class TransfermarktService
     {
@@ -39,6 +78,122 @@ namespace ControleFutebolWeb.Services
             _httpClient.DefaultRequestHeaders.Add("Accept-Language", "pt-BR,pt;q=0.9,en;q=0.8");
             _httpClient.DefaultRequestHeaders.Add("Referer", "https://www.transfermarkt.com.br/");
         }
+
+        public async Task<List<TransfermarktJogoInfo>> BuscarJogosCompeticaoPorLink(string linkCompeticao, CancellationToken ct)
+        {
+            var jogos = new List<TransfermarktJogoInfo>();
+
+            var html = await _httpClient.GetStringAsync(linkCompeticao, ct);
+            var htmlDoc = new HtmlDocument();
+            htmlDoc.LoadHtml(html);
+
+            var jogosNodes = htmlDoc.DocumentNode.SelectNodes("//div[contains(@class,'sb-spieldaten')]");
+            if (jogosNodes == null) return jogos;
+
+            foreach (var jogoNode in jogosNodes)
+            {
+                var jogoInfo = new TransfermarktJogoInfo();
+
+                // 🔹 Times
+                var timeCasaNode = jogoNode.SelectSingleNode(".//div[contains(@class,'sb-heim')]");
+                var timeVisitanteNode = jogoNode.SelectSingleNode(".//div[contains(@class,'sb-gast')]");
+
+                jogoInfo.NomeTimeCasa = timeCasaNode?.InnerText.Trim() ?? string.Empty;
+                jogoInfo.NomeTimeVisitante = timeVisitanteNode?.InnerText.Trim() ?? string.Empty;
+
+                // 🔹 Placar
+                var placarNode = jogoNode.SelectSingleNode(".//div[contains(@class,'sb-endstand')]");
+                if (placarNode != null)
+                {
+                    var placarTexto = placarNode.InnerText.Trim();
+                    var partes = placarTexto.Split(':');
+                    if (partes.Length == 2)
+                    {
+                        if (int.TryParse(partes[0], out var pc)) jogoInfo.PlacarCasa = pc;
+                        if (int.TryParse(partes[1], out var pv)) jogoInfo.PlacarVisitante = pv;
+                    }
+                }
+
+                // 🔹 Data do jogo
+                var dataNode = jogoNode.SelectSingleNode(".//p[@class='sb-datum hide-for-small']");
+                if (dataNode != null)
+                {
+                    var texto = dataNode.InnerText.Trim();
+                    texto = Regex.Replace(texto, @"\s+", " ");
+
+                    // Exemplo: "5ª eliminatória - jogos de volta | ter, 12/05/26 | 21:30 | Jogo de ida: 2:2"
+                    var partes = texto.Split('|', StringSplitOptions.RemoveEmptyEntries);
+
+                    if (partes.Length >= 3)
+                    {
+                        var dataStr = partes[1].Trim(); // "ter, 12/05/26"
+                        var horaStr = partes[2].Trim(); // "21:30"
+
+                        // Remove prefixo do dia da semana ("ter,", "qua,", etc.)
+                        dataStr = Regex.Replace(dataStr, @"^[a-z]{3},\s*", "", RegexOptions.IgnoreCase);
+
+                        if (DateTime.TryParseExact($"{dataStr} {horaStr}",
+                            new[] { "dd/MM/yy HH:mm", "dd/MM/yyyy HH:mm" },
+                            CultureInfo.InvariantCulture,
+                            DateTimeStyles.None,
+                            out var dataJogo))
+                        {
+                            jogoInfo.Data = dataJogo;
+                        }
+                    }
+                }
+
+                jogos.Add(jogoInfo);
+            }
+
+            return jogos;
+        }
+
+
+        public async Task<List<TransfermarktPlayerInfo>> BuscarElencoTimePorLink(
+            string timeUrl,
+            CancellationToken ct = default)
+        {
+            var jogadores = new List<TransfermarktPlayerInfo>();
+            if (string.IsNullOrWhiteSpace(timeUrl)) return jogadores;
+
+            timeUrl = NormalizarUrlElenco(MontarUrlAbsoluta(timeUrl));
+            _logger.LogInformation("[Transfermarkt] Buscando elenco do time: {Url}", timeUrl);
+
+            var html = await _httpClient.GetStringAsync(timeUrl, ct);
+            var doc = new HtmlDocument();
+            doc.LoadHtml(html);
+
+            var linhas = doc.DocumentNode.SelectNodes("//table[contains(@class,'items')]/tbody/tr[not(contains(@class,'thead'))]");
+            if (linhas == null) return jogadores;
+
+            foreach (var linha in linhas)
+            {
+                var linkNode = linha.SelectSingleNode(".//td[contains(@class,'hauptlink')]//a[contains(@href,'/profil/spieler/')]");
+                if (linkNode == null) continue;
+
+                var nome = HtmlEntity.DeEntitize(linkNode.InnerText.Trim());
+                var href = linkNode.GetAttributeValue("href", "");
+                if (string.IsNullOrWhiteSpace(nome) || string.IsNullOrWhiteSpace(href)) continue;
+
+                var numeroTexto = linha.SelectSingleNode(".//div[contains(@class,'rn_nummer')]")?.InnerText?.Trim();
+                int? numero = int.TryParse(Regex.Match(numeroTexto ?? "", @"\d+").Value, out var n) ? n : null;
+
+                var posicao = linha.SelectSingleNode(".//table[contains(@class,'inline-table')]//tr[2]/td")?.InnerText?.Trim();
+
+                jogadores.Add(new TransfermarktPlayerInfo
+                {
+                    NomeCompleto = nome,
+                    Posicao = ExpandirSiglaPosicaoParaNome(MapearPosicaoTransfermarkt(posicao ?? "")),
+                    NumeroCamisa = numero,
+                    LinkPerfil = MontarUrlAbsoluta(href)
+                });
+            }
+
+            return jogadores;
+        }
+
+        public string NormalizarLinkTransfermarkt(string url) => MontarUrlAbsoluta(url);
 
 
         /// <summary>
@@ -654,6 +809,170 @@ namespace ControleFutebolWeb.Services
             return txt;
         }
       
+        private static string MontarUrlAbsoluta(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return string.Empty;
+
+            url = url.Trim();
+            if (url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                return url;
+
+            if (!url.StartsWith("/"))
+                url = "/" + url;
+
+            return "https://www.transfermarkt.com.br" + url;
+        }
+
+        private static List<string> MontarUrlsCalendarioCompeticao(string competicaoUrl)
+        {
+            var urls = new List<string>();
+            if (string.IsNullOrWhiteSpace(competicaoUrl)) return urls;
+
+            urls.Add(competicaoUrl);
+
+            var calendario = competicaoUrl;
+            if (calendario.Contains("/startseite/", StringComparison.OrdinalIgnoreCase))
+                calendario = Regex.Replace(calendario, "/startseite/", "/gesamtspielplan/", RegexOptions.IgnoreCase);
+            else if (!calendario.Contains("/gesamtspielplan/", StringComparison.OrdinalIgnoreCase) &&
+                     !calendario.Contains("/spieltag/", StringComparison.OrdinalIgnoreCase))
+                calendario = calendario.TrimEnd('/') + "/gesamtspielplan";
+
+            if (!urls.Contains(calendario))
+                urls.Add(calendario);
+
+            var matchCompeticao = Regex.Match(competicaoUrl, @"pokalwettbewerb/([^/]+)", RegexOptions.IgnoreCase);
+            var matchTemporada = Regex.Match(competicaoUrl, @"saison_id/(\d+)", RegexOptions.IgnoreCase);
+            if (matchCompeticao.Success && matchTemporada.Success)
+            {
+                var codigo = matchCompeticao.Groups[1].Value;
+                var temporada = matchTemporada.Groups[1].Value;
+
+                for (var rodada = 1; rodada <= 40; rodada++)
+                {
+                    urls.Add($"https://www.transfermarkt.com.br/-/spieltag/pokalwettbewerb/{codigo}/saison_id/{temporada}/spieltag/{rodada}");
+                }
+            }
+
+            return urls.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        private static string NormalizarUrlElenco(string timeUrl)
+        {
+            if (string.IsNullOrWhiteSpace(timeUrl)) return string.Empty;
+
+            if (timeUrl.Contains("/spielplan/", StringComparison.OrdinalIgnoreCase))
+                return Regex.Replace(timeUrl, "/spielplan/", "/kader/", RegexOptions.IgnoreCase);
+
+            if (timeUrl.Contains("/startseite/", StringComparison.OrdinalIgnoreCase))
+                return Regex.Replace(timeUrl, "/startseite/", "/kader/", RegexOptions.IgnoreCase);
+
+            if (!timeUrl.Contains("/kader/", StringComparison.OrdinalIgnoreCase) &&
+                Regex.IsMatch(timeUrl, @"/verein/\d+", RegexOptions.IgnoreCase))
+            {
+                return Regex.Replace(timeUrl, @"(/verein/\d+).*", "$1/kader", RegexOptions.IgnoreCase);
+            }
+
+            return timeUrl;
+        }
+
+        private List<TransfermarktJogoInfo> ExtrairJogosDeHtml(string html, int rodadaPadrao)
+        {
+            var jogos = new List<TransfermarktJogoInfo>();
+            if (string.IsNullOrWhiteSpace(html)) return jogos;
+
+            var doc = new HtmlDocument();
+            doc.LoadHtml(html);
+
+            var linksJogo = doc.DocumentNode.SelectNodes(
+                "//a[contains(@href,'/spielbericht/') or contains(@href,'/begegnung_detail/')]");
+
+            if (linksJogo == null) return jogos;
+
+            var processados = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var linkJogo in linksJogo)
+            {
+                var hrefJogo = linkJogo.GetAttributeValue("href", "");
+                if (string.IsNullOrWhiteSpace(hrefJogo) || !processados.Add(hrefJogo)) continue;
+
+                var bloco = linkJogo.ParentNode;
+                for (var i = 0; i < 8 && bloco != null && bloco.Name != "tr"; i++)
+                    bloco = bloco.ParentNode;
+
+                bloco ??= linkJogo.ParentNode;
+                if (bloco == null) continue;
+
+                var linksTime = bloco.SelectNodes(".//a[contains(@href,'/verein/')]");
+                if (linksTime == null || linksTime.Count < 2)
+                {
+                    var ancestral = bloco.ParentNode;
+                    for (var i = 0; i < 4 && ancestral != null && (linksTime == null || linksTime.Count < 2); i++)
+                    {
+                        linksTime = ancestral.SelectNodes(".//a[contains(@href,'/verein/')]");
+                        ancestral = ancestral.ParentNode;
+                    }
+                }
+
+                if (linksTime == null || linksTime.Count < 2) continue;
+
+                var times = linksTime
+                    .Select(l => new
+                    {
+                        Nome = HtmlEntity.DeEntitize(
+                            l.GetAttributeValue("title", "").Trim().Length > 0
+                                ? l.GetAttributeValue("title", "").Trim()
+                                : l.InnerText.Trim()),
+                        Link = MontarUrlAbsoluta(l.GetAttributeValue("href", ""))
+                    })
+                    .Where(t => !string.IsNullOrWhiteSpace(t.Nome) && !t.Link.Contains("/spieler/", StringComparison.OrdinalIgnoreCase))
+                    .GroupBy(t => t.Link)
+                    .Select(g => g.First())
+                    .Take(2)
+                    .ToList();
+
+                if (times.Count < 2) continue;
+
+                var textoBloco = HtmlEntity.DeEntitize(bloco.InnerText);
+                var scoreMatch = Regex.Match(HtmlEntity.DeEntitize(linkJogo.InnerText), @"(\d+)\s*[:\-]\s*(\d+)");
+                if (!scoreMatch.Success)
+                    scoreMatch = Regex.Match(textoBloco, @"(\d+)\s*[:\-]\s*(\d+)");
+
+                var dataMatch = Regex.Match(textoBloco, @"\d{1,2}[./]\d{1,2}[./]\d{2,4}");
+                var data = dataMatch.Success ? ParseDataTransfermarkt(dataMatch.Value) : null;
+
+                jogos.Add(new TransfermarktJogoInfo
+                {
+                    NomeTimeCasa = CleanTeamName(times[0].Nome),
+                    NomeTimeVisitante = CleanTeamName(times[1].Nome),
+                    LinkTimeCasa = times[0].Link,
+                    LinkTimeVisitante = times[1].Link,
+                    PlacarCasa = scoreMatch.Success ? int.Parse(scoreMatch.Groups[1].Value) : null,
+                    PlacarVisitante = scoreMatch.Success ? int.Parse(scoreMatch.Groups[2].Value) : null,
+                    Data = data,
+                    Rodada = rodadaPadrao,
+                    LinkDetalhes = MontarUrlAbsoluta(hrefJogo)
+                });
+            }
+
+            return jogos;
+        }
+
+        private static DateTime? ParseDataTransfermarkt(string texto)
+        {
+            if (string.IsNullOrWhiteSpace(texto)) return null;
+
+            var formatos = new[] { "d/M/yy", "dd/MM/yy", "d/M/yyyy", "dd/MM/yyyy", "d.M.yy", "dd.MM.yy", "d.M.yyyy", "dd.MM.yyyy" };
+            foreach (var formato in formatos)
+            {
+                if (DateTime.TryParseExact(texto.Trim(), formato, CultureInfo.InvariantCulture, DateTimeStyles.None, out var data))
+                    return DateTime.SpecifyKind(data, DateTimeKind.Utc);
+            }
+
+            return DateTime.TryParse(texto, out var dataGenerica)
+                ? DateTime.SpecifyKind(dataGenerica, DateTimeKind.Utc)
+                : null;
+        }
+
         // Necessário comparer para HashSet de HtmlNode baseado em XPath
         private class HtmlNodeXPathComparer : IEqualityComparer<HtmlAgilityPack.HtmlNode>
         {

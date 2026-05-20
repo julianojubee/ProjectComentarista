@@ -7,7 +7,7 @@ namespace ControleFutebolWeb.Models
     {
         public int Id { get; set; }
         public int Rodada {  get; set; }
-        public DateTime Data { get; set; }
+        public DateTime? Data { get; set; }
         public int PartidaApiId { get; set; } // ID da partida na API
 
         public int EventKey { get; set; }

@@ -546,7 +546,7 @@ else
 
                     <div class="lib-jogo-card">
                         <div class="lib-jogo-header">
-                            <span>@jogo.Data.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+                            <span>@ControleFutebolWeb.Helpers.DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy HH:mm")</span>
                             @if (!string.IsNullOrEmpty(jogo.Grupo))
                             {
                                 <span class="lib-grupo-tag">Grupo @jogo.Grupo</span>

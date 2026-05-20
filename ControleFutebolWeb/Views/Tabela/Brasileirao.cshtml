@@ -181,7 +181,7 @@
                 <div class="col-md-6 mb-3">
                     <div class="card shadow-sm">
                         <div class="card-header text-center bg-primary text-white">
-                            @jogo.Data.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                            @ControleFutebolWeb.Helpers.DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy HH:mm")
                         </div>
                         <div class="card-body text-center">
                             <div class="d-flex justify-content-around align-items-center">

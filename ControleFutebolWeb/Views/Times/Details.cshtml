@@ -55,8 +55,50 @@
         }
 </style>
 
+@if (TempData["Mensagem"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Mensagem"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+    </div>
+}
+
 <h2 class="text-white">@Model.Time.Nome</h2>
 <img src="@Model.Time.EscudoUrl" alt="@Model.Time.Nome" width="100" />
+
+<div class="mt-2 mb-3 d-flex gap-2 align-items-center flex-wrap">
+    <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#linkTimeTransfermarktModal">
+        Url Transfermarkt
+    </button>
+
+    @if (!string.IsNullOrWhiteSpace(Model.Time.linktransfermarket))
+    {
+        <a href="@Model.Time.linktransfermarket" target="_blank" rel="noopener noreferrer" class="btn btn-outline-light btn-sm">
+            Abrir link
+        </a>
+    }
+</div>
+
+<div class="modal fade" id="linkTimeTransfermarktModal" tabindex="-1" aria-labelledby="linkTimeTransfermarktModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="SalvarLinkTransfermarkt" asp-controller="Times" asp-route-id="@Model.Time.Id" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title" id="linkTimeTransfermarktModalLabel">Informar URL Transfermarkt</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" name="linktransfermarket" class="form-control" placeholder="Cole o link do time aqui" value="@Model.Time.linktransfermarket" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <div class="row">
     <!-- Coluna esquerda: Elenco com rolagem -->
@@ -229,7 +271,10 @@
                         <div class="col-12 mb-3">
                             <div class="card shadow-sm">
                                 <div class="card-header text-center bg-primary text-white d-flex justify-content-between align-items-center px-2">
-                                    <span style="font-size:11px;">@jogo.Data.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+                                    <span style="font-size:11px;">
+                                        @DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy HH:mm")
+                                    </span>
+
                                     @if (jogo.Analisado == 1)
                                     {
                                         <span style="background:#dcfce7; color:#15803d; font-size:10px; font-weight:700;

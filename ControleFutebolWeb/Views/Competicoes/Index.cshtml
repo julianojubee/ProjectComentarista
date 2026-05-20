@@ -70,16 +70,23 @@
         border: 0.5px solid #e5e7eb;
         border-radius: 12px;
         padding: 1rem 1.1rem;
-        text-decoration: none;
         display: block;
         transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
     }
 
     .cf-comp-card:hover {
-        text-decoration: none;
         border-color: #c0d4f0;
         box-shadow: 0 2px 12px rgba(55, 138, 221, 0.08);
         transform: translateY(-1px);
+    }
+
+    .cf-comp-card-main {
+        display: block;
+        text-decoration: none;
+    }
+
+    .cf-comp-card-main:hover {
+        text-decoration: none;
     }
 
     .cf-comp-title {
@@ -132,46 +139,57 @@
             else
                 url = Url.Action("Detalhes", "Competicoes", new { id = comp.Id });
 
-            <a class="cf-comp-card" href="@url">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <img src="@CompeticaoHelper.GetLogoCompeticao(comp.Id)"
-                         alt="@comp.Nome"
-                         style="width:28px; height:28px; border-radius:50%; object-fit:cover;" />
-                    <h2 class="cf-comp-title">@comp.Nome</h2>
+            <div class="cf-comp-card">
+                <a class="cf-comp-card-main" href="@url">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <img src="@CompeticaoHelper.GetLogoCompeticao(comp.Id)"
+                             alt="@comp.Nome"
+                             style="width:28px; height:28px; border-radius:50%; object-fit:cover;" />
+                        <h2 class="cf-comp-title">@comp.Nome</h2>
+                    </div>
+                    <div class="cf-comp-meta">Região: @comp.Regiao | Tipo: @comp.Tipo</div>
+                    <span class="cf-comp-link">Abrir competição &rarr;</span>
+                </a>
+
+                <div class="d-flex gap-2 align-items-center flex-wrap mt-2">
+                    <!-- 🔹 Botão para abrir modal -->
+                    <button type="button" class="btn btn-sm btn-outline-primary"
+                            data-bs-toggle="modal" data-bs-target="#linkModal-@comp.Id">
+                        Informar link
+                    </button>
+
+                    @if (!string.IsNullOrWhiteSpace(comp.linktransfermarket))
+                    {
+                        <a href="@comp.linktransfermarket" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary">
+                            Abrir link
+                        </a>
+                    }
                 </div>
-                <div class="cf-comp-meta">Região: @comp.Regiao | Tipo: @comp.Tipo</div>
-                <span class="cf-comp-link">Abrir competição &rarr;</span>
+            </div>
 
-                <!-- 🔹 Botão para abrir modal -->
-                <button type="button" class="btn btn-sm btn-outline-primary mt-2"
-                        data-bs-toggle="modal" data-bs-target="#linkModal-@comp.Id">
-                    Informar link
-                </button>
-
-                <!-- 🔹 Modal Bootstrap -->
-                <div class="modal fade" id="linkModal-@comp.Id" tabindex="-1" aria-labelledby="linkModalLabel-@comp.Id" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <form asp-action="SalvarLinkCompeticao" asp-route-id="@comp.Id" method="post">
-                                @Html.AntiForgeryToken()
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="linkModalLabel-@comp.Id">Informar URL da Competição</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <input type="text" name="linkCompeticao" class="form-control"
-                                           placeholder="Cole o link aqui"
-                                           value="@comp.linktransfermarket" />
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                    <button type="submit" class="btn btn-primary">Salvar</button>
-                                </div>
-                            </form>
-                        </div>
+            <!-- 🔹 Modal Bootstrap -->
+            <div class="modal fade" id="linkModal-@comp.Id" tabindex="-1" aria-labelledby="linkModalLabel-@comp.Id" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form asp-action="SalvarLinkCompeticao" asp-route-id="@comp.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="linkModalLabel-@comp.Id">Informar URL da Competição</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                            </div>
+                            <div class="modal-body">
+                                <input type="text" name="linkCompeticao" class="form-control"
+                                       placeholder="Cole o link aqui"
+                                       value="@comp.linktransfermarket" />
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="btn btn-primary">Salvar</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
-            </a>
+            </div>
 
            
 

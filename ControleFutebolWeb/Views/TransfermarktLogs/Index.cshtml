@@ -1,0 +1,103 @@
+@model IEnumerable<ControleFutebolWeb.Models.TransfermarktSincronizacaoLog>
+
+@{
+    ViewData["Title"] = "Logs Transfermarkt";
+    var tipos = ViewBag.Tipos as IEnumerable<string> ?? Enumerable.Empty<string>();
+    var acoes = ViewBag.Acoes as IEnumerable<string> ?? Enumerable.Empty<string>();
+    string? tipoAtual = ViewBag.Tipo as string;
+    string? acaoAtual = ViewBag.Acao as string;
+}
+
+<style>
+    .tm-log-header {
+        background: #0f172a;
+        color: white;
+        border-radius: 10px;
+        padding: 1.4rem;
+        margin-bottom: 1rem;
+    }
+
+    .tm-log-table {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .tm-log-badge {
+        font-size: 11px;
+        font-weight: 700;
+        border-radius: 999px;
+        padding: 3px 8px;
+        background: #e0f2fe;
+        color: #0369a1;
+        display: inline-block;
+    }
+
+    .tm-log-action {
+        background: #ecfdf5;
+        color: #047857;
+    }
+</style>
+
+<div class="tm-log-header">
+    <h2 class="mb-1">Logs Transfermarkt</h2>
+    <p class="mb-0 text-white-50">Últimos times, jogos e elencos alterados pelo processo automático.</p>
+</div>
+
+<form method="get" class="row g-2 align-items-end mb-3">
+    <div class="col-md-3">
+        <label class="form-label">Tipo</label>
+        <select name="tipo" class="form-select">
+            <option value="">Todos</option>
+            @foreach (var tipo in tipos)
+            {
+                <option value="@tipo" selected="@(tipo == tipoAtual)">@tipo</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">Ação</label>
+        <select name="acao" class="form-select">
+            <option value="">Todas</option>
+            @foreach (var acao in acoes)
+            {
+                <option value="@acao" selected="@(acao == acaoAtual)">@acao</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-6 d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Limpar</a>
+    </div>
+</form>
+
+<div class="tm-log-table">
+    <table class="table table-striped table-hover mb-0">
+        <thead>
+            <tr>
+                <th>Data</th>
+                <th>Tipo</th>
+                <th>Ação</th>
+                <th>Competição</th>
+                <th>Time</th>
+                <th>Jogo</th>
+                <th>Detalhes</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var log in Model)
+            {
+                <tr>
+                    <td style="white-space:nowrap;">@log.Data.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</td>
+                    <td><span class="tm-log-badge">@log.Tipo</span></td>
+                    <td><span class="tm-log-badge tm-log-action">@log.Acao</span></td>
+                    <td>@(log.CompeticaoNome ?? "-")</td>
+                    <td>@(log.TimeNome ?? "-")</td>
+                    <td>@(log.JogoDescricao ?? "-")</td>
+                    <td>@(log.Detalhes ?? "-")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

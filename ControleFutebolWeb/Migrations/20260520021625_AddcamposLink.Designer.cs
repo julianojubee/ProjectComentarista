@@ -3,6 +3,7 @@ using System;
 using ControleFutebolWeb.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ControleFutebolWeb.Migrations
 {
     [DbContext(typeof(FutebolContext))]
-    partial class FutebolContextModelSnapshot : ModelSnapshot
+    [Migration("20260520021625_AddcamposLink")]
+    partial class AddcamposLink
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,36 +24,6 @@ namespace ControleFutebolWeb.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseSerialColumns(modelBuilder);
-
-            modelBuilder.Entity("ControleFutebolWeb.Models.Assistencia", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("JogadorId")
-                        .HasColumnType("integer")
-                        .HasColumnName("jogadorid");
-
-                    b.Property<int>("JogoId")
-                        .HasColumnType("integer")
-                        .HasColumnName("jogoid");
-
-                    b.Property<int>("Minuto")
-                        .HasColumnType("integer")
-                        .HasColumnName("minuto");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("JogadorId");
-
-                    b.HasIndex("JogoId");
-
-                    b.ToTable("assistencias");
-                });
 
             modelBuilder.Entity("ControleFutebolWeb.Models.Cartao", b =>
                 {
@@ -284,7 +257,7 @@ namespace ControleFutebolWeb.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("competicaoid");
 
-                    b.Property<DateTime?>("Data")
+                    b.Property<DateTime>("Data")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("data");
 
@@ -584,54 +557,6 @@ namespace ControleFutebolWeb.Migrations
                     b.ToTable("timeescalacaopadrao");
                 });
 
-            modelBuilder.Entity("ControleFutebolWeb.Models.TransfermarktSincronizacaoLog", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Acao")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("acao");
-
-                    b.Property<Guid>("CicloId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("cicloid");
-
-                    b.Property<string>("CompeticaoNome")
-                        .HasColumnType("text")
-                        .HasColumnName("competicaonome");
-
-                    b.Property<DateTime>("Data")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("data");
-
-                    b.Property<string>("Detalhes")
-                        .HasColumnType("text")
-                        .HasColumnName("detalhes");
-
-                    b.Property<string>("JogoDescricao")
-                        .HasColumnType("text")
-                        .HasColumnName("jogodescricao");
-
-                    b.Property<string>("TimeNome")
-                        .HasColumnType("text")
-                        .HasColumnName("timenome");
-
-                    b.Property<string>("Tipo")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("tipo");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("transfermarktsincronizacaologs");
-                });
-
             modelBuilder.Entity("ControleFutebolWeb.Models.Treinador", b =>
                 {
                     b.Property<int>("Id")
@@ -851,25 +776,6 @@ namespace ControleFutebolWeb.Migrations
                             Id = 17,
                             Nome = "Suriname"
                         });
-                });
-
-            modelBuilder.Entity("ControleFutebolWeb.Models.Assistencia", b =>
-                {
-                    b.HasOne("ControleFutebolWeb.Models.Jogador", "Jogador")
-                        .WithMany()
-                        .HasForeignKey("JogadorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("ControleFutebolWeb.Models.Jogo", "Jogo")
-                        .WithMany()
-                        .HasForeignKey("JogoId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Jogador");
-
-                    b.Navigation("Jogo");
                 });
 
             modelBuilder.Entity("ControleFutebolWeb.Models.Cartao", b =>

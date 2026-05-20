@@ -10,8 +10,13 @@ namespace ControleFutebolWeb.Helpers
         {
             { "4-3-3", new[] { "Goleiro", "Defesa", "Defesa", "Defesa", "Defesa", "Meio", "Meio", "Meio", "Ataque", "Ataque", "Ataque" } },
             { "4-4-2", new[] { "Goleiro", "Defesa", "Defesa", "Defesa", "Defesa", "Meio", "Meio", "Meio", "Meio", "Ataque", "Ataque" } },
-            { "3-5-2", new[] { "Goleiro", "Defesa", "Defesa", "Defesa", "Meio", "Meio", "Meio", "Meio", "Meio", "Ataque", "Ataque" } }
+            { "3-5-2", new[] { "Goleiro", "Defesa", "Defesa", "Defesa", "Meio", "Meio", "Meio", "Meio", "Meio", "Ataque", "Ataque" } },
+            { "4-5-1", new[] { "Goleiro", "Defesa", "Defesa", "Defesa", "Defesa", "Meio", "Meio", "Meio", "Meio", "Meio", "Ataque" } },
+            { "4-2-3-1", new[] { "Goleiro", "Defesa", "Defesa", "Defesa", "Defesa", "Meio", "Meio", "Meia", "Meia", "Meia", "Ataque" } },
+            { "3-4-1-2", new[] { "Goleiro", "Defesa", "Defesa", "Defesa", "Meio", "Meio", "Meio", "Meio", "Meia", "Ataque", "Ataque" } },
+            { "4-4-1-1", new[] { "Goleiro", "Defesa", "Defesa", "Defesa", "Defesa", "Meio", "Meio", "Meio", "Meio", "Meia", "Ataque" } }
         };
+
 
         public static Dictionary<string, List<Escalacao>> Distribuir(IEnumerable<Escalacao> escalacoes, string formacao)
         {

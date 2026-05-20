@@ -24,7 +24,7 @@
                     @nota.Jogo?.TimeCasa?.Nome (@nota.Jogo?.PlacarCasa)
                     x
                     @nota.Jogo?.TimeVisitante?.Nome (@nota.Jogo?.PlacarVisitante)
-                    - @nota.Jogo?.Data.ToString("dd/MM/yyyy")
+                    - @ControleFutebolWeb.Helpers.DateHelper.FormatarData(nota.Jogo?.Data, "dd/MM/yyyy")
                 </td>
                 <td>@nota.Valor</td>
                 <td>@nota.Comentario</td>

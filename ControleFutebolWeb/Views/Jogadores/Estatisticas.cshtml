@@ -1,5 +1,5 @@
 ﻿@model ControleFutebolWeb.Models.ViewModels.JogadorEstatisticasViewModel
-
+@using ControleFutebolWeb.Helpers
 @{
     ViewData["Title"] = $"Estatísticas — {Model.Jogador.Nome}";
 
@@ -472,7 +472,8 @@
                                 }
                             </div>
                             <div class="jogo-data">
-                                @item.Jogo.Data.ToString("dd/MM/yyyy") — Rodada @item.Jogo.Rodada
+                                <td>@DateHelper.FormatarData(item.Jogo.Data, "dd/MM/yyyy") — Rodada @item.Jogo.Rodada</td>
+
                             </div>
                         </div>
 
