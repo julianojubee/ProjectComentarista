@@ -79,6 +79,167 @@ namespace ControleFutebolWeb.Services
             _httpClient.DefaultRequestHeaders.Add("Referer", "https://www.transfermarkt.com.br/");
         }
 
+        public async Task<List<TransfermarktJogoInfo>> BuscarJogosLigaPorLink(
+         string linkCompeticao, CancellationToken ct = default)
+        {
+            var jogos = new List<TransfermarktJogoInfo>();
+
+            // Garante que usa gesamtspielplan (calendário completo)
+            var url = linkCompeticao;
+            if (!url.Contains("/gesamtspielplan/"))
+            {
+                url = Regex.Replace(url,
+                    @"/(startseite|spieltag|tabelle)/",
+                    "/gesamtspielplan/",
+                    RegexOptions.IgnoreCase);
+
+                if (!url.Contains("/gesamtspielplan/"))
+                    url = url.TrimEnd('/') + "/gesamtspielplan";
+            }
+
+            _logger.LogInformation("[Brasileirao] Buscando calendário: {Url}", url);
+
+            string html;
+            try
+            {
+                await Task.Delay(1500, ct); // pausa para não ser bloqueado
+                html = await _httpClient.GetStringAsync(url, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Brasileirao] Erro ao buscar calendário: {Url}", url);
+                return jogos;
+            }
+
+            var doc = new HtmlDocument();
+            doc.LoadHtml(html);
+
+            // Boxes de rodadas
+            var boxes = doc.DocumentNode.SelectNodes(
+                "//div[contains(@class,'box')] | //div[contains(@class,'content-box')]");
+
+            if (boxes == null)
+            {
+                _logger.LogWarning("[Brasileirao] Nenhum box encontrado.");
+                return jogos;
+            }
+
+            _logger.LogInformation("[Brasileirao] {N} boxes encontrados.", boxes.Count);
+
+            foreach (var box in boxes)
+            {
+                // Número da rodada no header
+                var header = box.SelectSingleNode(
+                    ".//h2 | .//h3 | .//div[contains(@class,'content-box-headline')]");
+                if (header == null) continue;
+
+                var headerText = HtmlEntity.DeEntitize(header.InnerText.Trim());
+                var rodadaMatch = Regex.Match(headerText, @"\d+");
+                int rodada = rodadaMatch.Success ? int.Parse(rodadaMatch.Value) : 0;
+
+                // Linhas de jogos
+                var linhasJogo = box.SelectNodes(
+                    ".//table[contains(@class,'items')]//tbody/tr[not(contains(@class,'thead'))]");
+
+                if (linhasJogo == null) continue;
+
+                _logger.LogInformation("[Brasileirao] Rodada {Rodada}: {N} linhas de jogo encontradas",
+                    rodada, linhasJogo.Count);
+
+                foreach (var linha in linhasJogo)
+                {
+                    var jogo = ParseLinhaJogoLiga(linha, rodada);
+                    if (jogo != null)
+                        jogos.Add(jogo);
+                }
+            }
+
+            _logger.LogInformation("[Brasileirao] Total: {N} jogos ({P} com placar)",
+                jogos.Count, jogos.Count(j => j.PlacarCasa.HasValue));
+
+            return jogos;
+        }
+
+        private TransfermarktJogoInfo? ParseLinhaJogoLiga(HtmlNode linha, int rodada)
+        {
+            try
+            {
+                var cols = linha.SelectNodes(".//td");
+                if (cols == null || cols.Count < 4) return null;
+
+                // Data
+                DateTime? data = null;
+                var dataTexto = cols[0].InnerText.Trim();
+                var dm = Regex.Match(dataTexto, @"\d{2}/\d{2}/\d{2,4}");
+                if (dm.Success)
+                {
+                    if (DateTime.TryParseExact(dm.Value,
+                        new[] { "dd/MM/yy", "dd/MM/yyyy" },
+                        CultureInfo.InvariantCulture,
+                        DateTimeStyles.None,
+                        out var dt))
+                    {
+                        data = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+                    }
+                }
+
+                // Times
+                var linksTime = linha.SelectNodes(".//a[contains(@href,'/verein/')]");
+                if (linksTime == null || linksTime.Count < 2) return null;
+
+                var nomeCasa = HtmlEntity.DeEntitize(linksTime[0].GetAttributeValue("title", "").Trim());
+                var nomeVisitante = HtmlEntity.DeEntitize(linksTime[1].GetAttributeValue("title", "").Trim());
+
+                // Placar
+                int? pc = null, pv = null;
+                string linkDetalhes = "";
+                var linkPlacar = linha.SelectSingleNode(".//a[contains(@href,'/spielbericht/')]");
+                if (linkPlacar != null)
+                {
+                    linkDetalhes = linkPlacar.GetAttributeValue("href", "");
+                    if (!linkDetalhes.StartsWith("http"))
+                        linkDetalhes = "https://www.transfermarkt.com.br" + linkDetalhes;
+
+                    var scoreMatch = Regex.Match(HtmlEntity.DeEntitize(linkPlacar.InnerText.Trim()), @"(\d+)\s*[:\-]\s*(\d+)");
+                    if (scoreMatch.Success)
+                    {
+                        pc = int.Parse(scoreMatch.Groups[1].Value);
+                        pv = int.Parse(scoreMatch.Groups[2].Value);
+                    }
+                }
+
+                return new TransfermarktJogoInfo
+                {
+                    NomeTimeCasa = nomeCasa,
+                    NomeTimeVisitante = nomeVisitante,
+                    LinkTimeCasa = linksTime[0].GetAttributeValue("href", ""),
+                    LinkTimeVisitante = linksTime[1].GetAttributeValue("href", ""),
+                    PlacarCasa = pc,
+                    PlacarVisitante = pv,
+                    Data = data,
+                    Rodada = rodada,
+                    LinkDetalhes = linkDetalhes
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Brasileirao] Erro ao parsear linha.");
+                return null;
+            }
+        }
+
+        private static DateTime? ParseDataLiga(string texto)
+        {
+            string[] fmts = { "dd/MM/yy", "dd/MM/yyyy", "dd.MM.yyyy", "dd.MM.yy" };
+            foreach (var f in fmts)
+                if (DateTime.TryParseExact(texto.Trim(), f,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out var dt))
+                    return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+            return null;
+        }
+
+
         public async Task<List<TransfermarktJogoInfo>> BuscarJogosCompeticaoPorLink(string linkCompeticao, CancellationToken ct)
         {
             var jogos = new List<TransfermarktJogoInfo>();
@@ -149,6 +310,88 @@ namespace ControleFutebolWeb.Services
             return jogos;
         }
 
+        public async Task<DateTime?> BuscarDataJogoPorLink(
+        string linkDetalhes, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(linkDetalhes)) return null;
+
+            try
+            {
+                await Task.Delay(1000, ct);
+                var html = await _httpClient.GetStringAsync(linkDetalhes, ct);
+                var doc = new HtmlDocument();
+                doc.LoadHtml(html);
+
+                // Busca o parágrafo sb-datum que contém data e hora
+                // Estrutura: "5ª eliminatória | ter, 12/05/26 | 19:30 | ..."
+                var datumNode = doc.DocumentNode.SelectSingleNode(
+                    "//p[contains(@class,'sb-datum')] | //div[contains(@class,'sb-datum')]");
+
+                if (datumNode == null)
+                {
+                    _logger.LogWarning("[BuscarData] Node sb-datum não encontrado: {Url}", linkDetalhes);
+                    return null;
+                }
+
+                var texto = HtmlEntity.DeEntitize(datumNode.InnerText.Trim());
+                _logger.LogInformation("[BuscarData] Texto sb-datum: {Texto}", texto);
+
+                // Extrai data no formato dd/MM/yy ou dd/MM/yyyy
+                var dataMatch = Regex.Match(texto,
+                    @"\b(\d{2}/\d{2}/\d{2,4})\b");
+
+                if (!dataMatch.Success)
+                {
+                    _logger.LogWarning("[BuscarData] Data não encontrada no texto: {Texto}", texto);
+                    return null;
+                }
+
+                var dataStr = dataMatch.Groups[1].Value;
+
+                // Extrai hora no formato HH:mm após o segundo pipe
+                var horaMatch = Regex.Match(texto,
+                    @"\|\s*(\d{2}:\d{2})\s*\|");
+
+                var horaStr = horaMatch.Success ? horaMatch.Groups[1].Value : "00:00";
+
+                _logger.LogInformation("[BuscarData] Data={Data} Hora={Hora}", dataStr, horaStr);
+
+                // Tenta parsear com ano de 2 dígitos (dd/MM/yy) e 4 dígitos (dd/MM/yyyy)
+                var formatos = new[]
+                {
+            "dd/MM/yy HH:mm",
+            "dd/MM/yyyy HH:mm",
+            "dd/MM/yy",
+            "dd/MM/yyyy"
+        };
+
+                if (DateTime.TryParseExact(
+                    $"{dataStr} {horaStr}",
+                    formatos,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None,
+                    out var dt))
+                {
+                    // Corrige ano de 2 dígitos: 26 → 2026, não 1926
+                    if (dt.Year < 2000)
+                        dt = dt.AddYears(2000 - dt.Year +
+                            (dt.Year % 100));
+
+                    _logger.LogInformation("[BuscarData] Data parseada: {Data}",
+                        dt.ToString("dd/MM/yyyy HH:mm"));
+
+                    return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+                }
+
+                _logger.LogWarning("[BuscarData] Falha ao parsear: {Data} {Hora}", dataStr, horaStr);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[BuscarData] Erro ao buscar data: {Url}", linkDetalhes);
+                return null;
+            }
+        }
 
         public async Task<List<TransfermarktPlayerInfo>> BuscarElencoTimePorLink(
             string timeUrl,
@@ -972,6 +1215,46 @@ namespace ControleFutebolWeb.Services
                 ? DateTime.SpecifyKind(dataGenerica, DateTimeKind.Utc)
                 : null;
         }
+        public async Task<string?> BuscarEscudoTimePorLink(string teamUrl)
+        {
+            if (string.IsNullOrWhiteSpace(teamUrl)) return null;
+
+            if (!teamUrl.StartsWith("http"))
+                teamUrl = "https://www.transfermarkt.com.br" + teamUrl;
+
+            _logger.LogInformation("[Escudo] Buscando escudo do time: {Url}", teamUrl);
+
+            try
+            {
+                var html = await _httpClient.GetStringAsync(teamUrl);
+                var doc = new HtmlDocument();
+                doc.LoadHtml(html);
+
+              
+
+                // 2. Dentro do bloco data-header__profile-container (página do clube)
+                var imgLogo = doc.DocumentNode.SelectSingleNode("//div[contains(@class,'data-header__profile-container')]//img");
+                var escudoUrl = imgLogo?.GetAttributeValue("src", "")?.Trim();
+                if (!string.IsNullOrEmpty(escudoUrl))
+                    return escudoUrl;
+
+                // 3. Fallback: dentro de sb-team (página de jogo)
+                var imgGameLogo = doc.DocumentNode.SelectSingleNode("//div[contains(@class,'sb-team')]//img");
+                escudoUrl = imgGameLogo?.GetAttributeValue("src", "")?.Trim();
+                if (!string.IsNullOrEmpty(escudoUrl))
+                    return escudoUrl;
+
+                _logger.LogWarning("[Escudo] Nenhum escudo encontrado para {Url}", teamUrl);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Escudo] Erro ao buscar escudo do time: {Url}", teamUrl);
+                return null;
+            }
+        }
+
+
 
         // Necessário comparer para HashSet de HtmlNode baseado em XPath
         private class HtmlNodeXPathComparer : IEqualityComparer<HtmlAgilityPack.HtmlNode>

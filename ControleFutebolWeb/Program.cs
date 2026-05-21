@@ -35,11 +35,10 @@ internal class Program
 
         builder.Services.AddHttpClient<ApiFootballDataService>();
         builder.Services.AddHttpClient<TransfermarktSulAmericanaService>();
-        builder.Services.AddHostedService<AtualizacaoJogosService>();
+        //builder.Services.AddHostedService<AtualizacaoJogosService>();
         builder.Services.AddHostedService<AtualizarJogadoresSemDataService>();
         builder.Services.AddHostedService<AtualizarCopaSulAmericanaService>();
         builder.Services.AddHttpClient<TransfermarktTreinadorService>();
-
         builder.Services.AddHttpClient();
 
         // habilita logging no console e debug

@@ -42,23 +42,27 @@ namespace ControleFutebolWeb.Data
         {
             foreach (var entry in ChangeTracker.Entries())
             {
-                // Verifica apenas entidades que estão sendo adicionadas ou modificadas
-                if (entry.State == EntityState.Added || entry.State == EntityState.Modified)
+                if (entry.State != EntityState.Added && entry.State != EntityState.Modified) continue;
+
+                foreach (var property in entry.Properties)
                 {
-                    foreach (var property in entry.Properties)
+                    var columnType = property.Metadata.GetColumnType();
+                    bool isWithTz = columnType != null &&
+                        columnType.Contains("with time zone", StringComparison.OrdinalIgnoreCase);
+
+                    if (!isWithTz) continue; // pula timestamp without time zone
+
+                    if (property.Metadata.ClrType == typeof(DateTime))
                     {
-                        if (property.Metadata.ClrType == typeof(DateTime))
-                        {
-                            var valor = (DateTime)property.CurrentValue;
-                            if (valor.Kind != DateTimeKind.Utc)
-                                property.CurrentValue = valor.ToUniversalTime();
-                        }
-                        else if (property.Metadata.ClrType == typeof(DateTime?))
-                        {
-                            var valor = (DateTime?)property.CurrentValue;
-                            if (valor.HasValue && valor.Value.Kind != DateTimeKind.Utc)
-                                property.CurrentValue = valor.Value.ToUniversalTime();
-                        }
+                        var valor = (DateTime)property.CurrentValue!;
+                        if (valor.Kind != DateTimeKind.Utc)
+                            property.CurrentValue = valor.ToUniversalTime();
+                    }
+                    else if (property.Metadata.ClrType == typeof(DateTime?))
+                    {
+                        var valor = (DateTime?)property.CurrentValue;
+                        if (valor.HasValue && valor.Value.Kind != DateTimeKind.Utc)
+                            property.CurrentValue = valor.Value.ToUniversalTime();
                     }
                 }
             }
@@ -71,19 +75,23 @@ namespace ControleFutebolWeb.Data
 
             modelBuilder.UseSerialColumns();
 
-            // 🔹 Converter global para DateTime e DateTime? em UTC
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
                 foreach (var property in entityType.GetProperties())
                 {
-                    if (property.ClrType == typeof(DateTime))
+                    // Só aplica converter UTC em colunas "timestamp with time zone"
+                    var columnType = property.GetColumnType();
+                    bool isTimestampWithTz = columnType != null &&
+                        columnType.Contains("with time zone", StringComparison.OrdinalIgnoreCase);
+
+                    if (property.ClrType == typeof(DateTime) && isTimestampWithTz)
                     {
                         property.SetValueConverter(new ValueConverter<DateTime, DateTime>(
                             v => DateTime.SpecifyKind(v.Kind == DateTimeKind.Utc ? v : v.ToUniversalTime(), DateTimeKind.Utc),
                             v => DateTime.SpecifyKind(v, DateTimeKind.Utc)
                         ));
                     }
-                    else if (property.ClrType == typeof(DateTime?))
+                    else if (property.ClrType == typeof(DateTime?) && isTimestampWithTz)
                     {
                         property.SetValueConverter(new ValueConverter<DateTime?, DateTime?>(
                             v => v.HasValue ? DateTime.SpecifyKind(v.Value.Kind == DateTimeKind.Utc ? v.Value : v.Value.ToUniversalTime(), DateTimeKind.Utc) : v,

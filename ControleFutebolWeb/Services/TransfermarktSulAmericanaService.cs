@@ -1258,61 +1258,59 @@ namespace ControleFutebolWeb.Services
         // ─────────────────────────────────────────────────────────────────────
 
         private async Task<Jogador?> ResolverJogadorAsync(
-            FutebolContext context,
-            string nomeTM,
-            long? idExterno,
-            int timeId,
-            CancellationToken ct)
+        FutebolContext context,
+        string nomeTM,
+        long? idExterno,
+        int timeId,
+        CancellationToken ct)
         {
-            // Normaliza pelo helper
-            nomeTM = JogadoresSulamericanaHelper.NormalizarNome(nomeTM);
+            if (string.IsNullOrWhiteSpace(nomeTM)) return null;
 
-
-            // 1. Por IdApi (se importado antes)
+            // 1. Por IdApi
             if (idExterno.HasValue)
             {
-                var j = await context.Jogadores.FirstOrDefaultAsync(
-                    x => x.IdApi == idExterno && x.TimeId == timeId, ct);
-                if (j != null) return j;
+                var porId = await context.Jogadores
+                    .FirstOrDefaultAsync(j => j.IdApi == idExterno && j.TimeId == timeId, ct);
+                if (porId != null) return porId;
             }
 
-            // 2. Nome exato
+            // 2. Por nome exato
+            var porNome = await context.Jogadores
+                .FirstOrDefaultAsync(j => j.Nome == nomeTM && j.TimeId == timeId, ct);
+            if (porNome != null) return porNome;
+
+            // 3. ILike
+            var porILike = await context.Jogadores
+                .FirstOrDefaultAsync(j => j.TimeId == timeId &&
+                    EF.Functions.ILike(j.Nome, nomeTM), ct);
+            if (porILike != null) return porILike;
+
+            // 4. Por sobrenome (último token com mais de 3 letras)
+            var tokens = nomeTM.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var sobrenome = tokens.LastOrDefault(t => t.Length > 3);
+            if (sobrenome != null)
             {
-                var j = await context.Jogadores.FirstOrDefaultAsync(
-                    x => x.Nome == nomeTM && x.TimeId == timeId, ct);
-                if (j != null) return j;
+                var porSobrenome = await context.Jogadores
+                    .FirstOrDefaultAsync(j => j.TimeId == timeId &&
+                        EF.Functions.ILike(j.Nome, $"%{sobrenome}%"), ct);
+                if (porSobrenome != null) return porSobrenome;
             }
 
-            // 3. ILike (case-insensitive)
-            {
-                var j = await context.Jogadores.FirstOrDefaultAsync(
-                    x => x.TimeId == timeId &&
-                         EF.Functions.ILike(x.Nome, nomeTM), ct);
-                if (j != null) return j;
-            }
-
-            // 4. Por sobrenome (último token)
-            var sob = nomeTM.Split(' ').Last().Trim();
-            if (sob.Length > 3)
-            {
-                var j = await context.Jogadores.FirstOrDefaultAsync(
-                    x => x.TimeId == timeId &&
-                         EF.Functions.ILike(x.Nome, $"%{sob}%"), ct);
-                if (j != null) return j;
-            }
-
-            // 5. Nome normalizado (sem acentos)
+            // 5. Normalização em memória
             var nomeNorm = NormalizarTexto(nomeTM);
+            var candidatos = await context.Jogadores
+                .Where(j => j.TimeId == timeId)
+                .ToListAsync(ct);
+
+            var porNormalizacao = candidatos.FirstOrDefault(j =>
             {
-                var candidatos = await context.Jogadores
-                    .Where(x => x.TimeId == timeId)
-                    .ToListAsync(ct);
-                var j = candidatos.FirstOrDefault(x =>
-                    NormalizarTexto(x.Nome) == nomeNorm ||
-                    NormalizarTexto(x.Nome).Contains(nomeNorm) ||
-                    nomeNorm.Contains(NormalizarTexto(x.Nome)));
-                if (j != null) return j;
-            }
+                var jNorm = NormalizarTexto(j.Nome);
+                return jNorm == nomeNorm
+                    || jNorm.Contains(nomeNorm)
+                    || nomeNorm.Contains(jNorm);
+            });
+
+            if (porNormalizacao != null) return porNormalizacao;
 
             return null;
         }
@@ -1325,13 +1323,11 @@ namespace ControleFutebolWeb.Services
         {
             if (string.IsNullOrWhiteSpace(nomeWeb)) return null;
 
-            var nome = TimesSulamericanaHelper.NormalizarNome(nomeWeb);
-            return context.Times.AsEnumerable().FirstOrDefault(t =>
-                string.Equals(t.Nome, nome, StringComparison.OrdinalIgnoreCase) ||
-                NormalizarTexto(t.Nome) == NormalizarTexto(nome) ||
-                NormalizarTexto(t.Nome).Contains(NormalizarTexto(nome)) ||
-                NormalizarTexto(nome).Contains(NormalizarTexto(t.Nome)));
+            // Busca direta pelo nome (case-insensitive)
+            return context.Times
+                .FirstOrDefault(t => EF.Functions.ILike(t.Nome, nomeWeb));
         }
+
 
         // Versão com log detalhado para ajudar no diagnóstico
         private Jogo? LocalizarJogoBanco_V2(
