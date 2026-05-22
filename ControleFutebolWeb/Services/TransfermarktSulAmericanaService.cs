@@ -1451,13 +1451,16 @@ namespace ControleFutebolWeb.Services
     {
         public int? PlacarCasa { get; set; }
         public int? PlacarVisitante { get; set; }
-        public string FormacaoCasa { get; set; } = "";
-        public string FormacaoVisitante { get; set; } = "";
-        public List<GolTM> Gols { get; set; } = new();
+        public string? FormacaoCasa { get; set; }
+        public string? FormacaoVisitante { get; set; }
+
         public List<JogadorEscalacaoTM> EscalacaoInicialCasa { get; set; } = new();
         public List<JogadorEscalacaoTM> EscalacaoInicialVisitante { get; set; } = new();
         public List<JogadorEscalacaoTM> EscalacaoFinalCasa { get; set; } = new();
         public List<JogadorEscalacaoTM> EscalacaoFinalVisitante { get; set; } = new();
+
+        public List<GolTM> Gols { get; set; } = new();
+        public List<TransfermarktEventoInfo> Eventos { get; set; } = new();
     }
 
     public record JogadorEscalacaoTM
@@ -1468,7 +1471,9 @@ namespace ControleFutebolWeb.Services
         public bool Titular { get; init; }
         public long? IdExterno { get; init; }
         public string Fase { get; init; } = "INICIAL";
+        public string? JogadorLink { get; set; }   // 🔹 novo campo: link completo do Transfermarkt
     }
+
 
     public class GolTM
     {

@@ -580,105 +580,353 @@ namespace ControleFutebolWeb.Services
 
 
         private async Task IncluirOuAtualizarJogo(
-        FutebolContext context,
-        Competicao competicao,
-        TransfermarktJogoInfo jogoWeb,
-        Time timeCasa,
-        Time timeVisitante,
-        Guid cicloId,
-        TransfermarktService transfermarkt, // ← agora recebe o serviço
-        CancellationToken ct)
+    FutebolContext context,
+    Competicao competicao,
+    TransfermarktJogoInfo jogoWeb,
+    Time timeCasa,
+    Time timeVisitante,
+    Guid cicloId,
+    TransfermarktService transfermarkt,
+    CancellationToken ct)
         {
-            // ── Resolve data ─────────────────────────────────────────────────────
+            // ── Resolve data ──────────────────────────────────────────────────────
             DateTime? dataJogo = jogoWeb.Data;
 
-            // Se não veio data do calendário, busca na página de detalhe
             if (!dataJogo.HasValue && !string.IsNullOrWhiteSpace(jogoWeb.LinkDetalhes))
             {
-                _logger.LogInformation(
-                    "[IncluirJogo] Data não encontrada no calendário, buscando no detalhe: {Link}",
-                    jogoWeb.LinkDetalhes);
-
+                _logger.LogInformation("[IncluirJogo] Buscando data no detalhe: {Link}", jogoWeb.LinkDetalhes);
                 dataJogo = await transfermarkt.BuscarDataJogoPorLink(jogoWeb.LinkDetalhes, ct);
             }
 
-            // Fallback: se ainda sem data, usa null (não salva como hoje)
-            // Não usar DateTime.UtcNow como fallback
-
+            // ── Busca jogos do mesmo confronto na competição ──────────────────────
             var jogosBanco = await context.Jogos
                 .Where(j => j.CompeticaoId == competicao.Id &&
                             j.TimeCasaId == timeCasa.Id &&
                             j.TimeVisitanteId == timeVisitante.Id)
                 .ToListAsync(ct);
 
-            var jogo = dataJogo.HasValue
-                ? jogosBanco.FirstOrDefault(j =>
-                    j.Data.HasValue &&
-                    Math.Abs((j.Data.Value.Date - dataJogo.Value.Date).TotalDays) <= 2)
-                : jogosBanco.FirstOrDefault();
-
-            var formacaoCasa = await transfermarkt.ObterOuCriarFormacao(context, jogoWeb.FormacaoCasa, ct);
-            var formacaoVisitante = await transfermarkt.ObterOuCriarFormacao(context, jogoWeb.FormacaoVisitante, ct);
-
-            if (jogo == null)
+            // ── Validação anti-duplicata ──────────────────────────────────────────
+            if (jogoWeb.Rodada > 0)
             {
-                jogo = new Jogo
+                var jogoMesmaRodada = jogosBanco.FirstOrDefault(j => j.Rodada == jogoWeb.Rodada);
+                if (jogoMesmaRodada != null)
                 {
-                    CompeticaoId = competicao.Id,
-                    TimeCasa = timeCasa,
-                    TimeVisitante = timeVisitante,
-                    Data = dataJogo,
-                    Rodada = jogoWeb.Rodada,
-                    PlacarCasa = jogoWeb.PlacarCasa,
-                    PlacarVisitante = jogoWeb.PlacarVisitante,
-                    Grupo = jogoWeb.Grupo,
-                    Status = jogoWeb.PlacarCasa.HasValue ? "Finalizado" : "Agendado",
-                    Atualizado = jogoWeb.PlacarCasa.HasValue ? 1 : 0,
-                    FormacaoCasaId = formacaoCasa.Id,
-                    FormacaoVisitanteId = formacaoVisitante.Id,
-                    LinkDetalhes = jogoWeb.LinkDetalhes // ← salva o link do jogo
-                };
+                    if (jogoWeb.PlacarCasa.HasValue &&
+                        (jogoMesmaRodada.PlacarCasa != jogoWeb.PlacarCasa ||
+                         jogoMesmaRodada.PlacarVisitante != jogoWeb.PlacarVisitante))
+                    {
+                        jogoMesmaRodada.PlacarCasa = jogoWeb.PlacarCasa;
+                        jogoMesmaRodada.PlacarVisitante = jogoWeb.PlacarVisitante;
+                        jogoMesmaRodada.Status = "Finalizado";
+                        jogoMesmaRodada.Atualizado = 1;
+                    }
+                    return;
+                }
+            }
 
-                context.Jogos.Add(jogo);
+            if (dataJogo.HasValue)
+            {
+                var jogoPorData = jogosBanco.FirstOrDefault(j =>
+                    j.Data.HasValue &&
+                    Math.Abs((j.Data.Value.Date - dataJogo.Value.Date).TotalDays) <= 2);
+
+                if (jogoPorData != null)
+                {
+                    if (jogoWeb.PlacarCasa.HasValue &&
+                        (jogoPorData.PlacarCasa != jogoWeb.PlacarCasa ||
+                         jogoPorData.PlacarVisitante != jogoWeb.PlacarVisitante))
+                    {
+                        jogoPorData.PlacarCasa = jogoWeb.PlacarCasa;
+                        jogoPorData.PlacarVisitante = jogoWeb.PlacarVisitante;
+                        jogoPorData.Status = "Finalizado";
+                        jogoPorData.Atualizado = 1;
+                    }
+                    return;
+                }
+            }
+
+            // ── Busca detalhes do jogo ────────────────────────────────────────────
+            DetalhesJogoTM? detalhes = null;
+            if (jogoWeb.PlacarCasa.HasValue && !string.IsNullOrWhiteSpace(jogoWeb.LinkDetalhes))
+            {
+                _logger.LogInformation("[IncluirJogo] Buscando detalhes: {Link}", jogoWeb.LinkDetalhes);
+                await Task.Delay(2000, ct);
+                detalhes = await transfermarkt.BuscarDetalhesJogoAsync(jogoWeb.LinkDetalhes, ct);
+            }
+
+            // ── Resolve formações ─────────────────────────────────────────────────
+            var nomeFCasa = detalhes?.FormacaoCasa ?? jogoWeb.FormacaoCasa;
+            var nomeFVis = detalhes?.FormacaoVisitante ?? jogoWeb.FormacaoVisitante;
+
+            var formacaoCasa = await transfermarkt.ObterOuCriarFormacao(context, nomeFCasa, ct);
+            var formacaoVisitante = await transfermarkt.ObterOuCriarFormacao(context, nomeFVis, ct);
+
+            // ── Cria o jogo ───────────────────────────────────────────────────────
+            var jogo = new Jogo
+            {
+                CompeticaoId = competicao.Id,
+                TimeCasa = timeCasa,
+                TimeVisitante = timeVisitante,
+                Data = dataJogo.HasValue ? DateTime.SpecifyKind(dataJogo.Value, DateTimeKind.Utc) : null,
+                Rodada = jogoWeb.Rodada,
+                PlacarCasa = detalhes?.PlacarCasa ?? jogoWeb.PlacarCasa,
+                PlacarVisitante = detalhes?.PlacarVisitante ?? jogoWeb.PlacarVisitante,
+                Grupo = jogoWeb.Grupo,
+                Status = jogoWeb.PlacarCasa.HasValue ? "Finalizado" : "Agendado",
+                Atualizado = jogoWeb.PlacarCasa.HasValue ? 1 : 0,
+                FormacaoCasaId = formacaoCasa.Id,
+                FormacaoVisitanteId = formacaoVisitante.Id
+            };
+
+            context.Jogos.Add(jogo);
+            await context.SaveChangesAsync(ct);
+
+            // ── Escalações ────────────────────────────────────────────────────────
+            if (detalhes != null &&
+                (detalhes.EscalacaoInicialCasa.Any() || detalhes.EscalacaoInicialVisitante.Any()))
+            {
+                var posicoes = await context.PosicoesFormacao
+                    .Where(p => p.FormacaoId == formacaoCasa.Id)
+                    .OrderBy(p => p.Ordem)
+                    .ToListAsync(ct);
+
+                if (!posicoes.Any())
+                {
+                    posicoes = await context.PosicoesFormacao
+                        .OrderBy(p => p.FormacaoId).ThenBy(p => p.Ordem)
+                        .ToListAsync(ct);
+                }
+
+                await AdicionarEscalacoesComJogadoresAsync(context, jogo, detalhes.EscalacaoInicialCasa,
+                    timeCasa, true, "INICIAL", posicoes, ct);
+
+                await AdicionarEscalacoesComJogadoresAsync(context, jogo, detalhes.EscalacaoInicialVisitante,
+                    timeVisitante, false, "INICIAL", posicoes, ct);
+
+                var finalCasa = detalhes.EscalacaoFinalCasa.Any()
+                    ? detalhes.EscalacaoFinalCasa
+                    : detalhes.EscalacaoInicialCasa.Select(j => j with { Fase = "FINAL" }).ToList();
+
+                var finalVis = detalhes.EscalacaoFinalVisitante.Any()
+                    ? detalhes.EscalacaoFinalVisitante
+                    : detalhes.EscalacaoInicialVisitante.Select(j => j with { Fase = "FINAL" }).ToList();
+
+                await AdicionarEscalacoesComJogadoresAsync(context, jogo, finalCasa,
+                    timeCasa, true, "FINAL", posicoes, ct);
+
+                await AdicionarEscalacoesComJogadoresAsync(context, jogo, finalVis,
+                    timeVisitante, false, "FINAL", posicoes, ct);
+            }
+            else
+            {
                 transfermarkt.AdicionarEscalacaoComPosicoes(context, jogo, formacaoCasa, true);
                 transfermarkt.AdicionarEscalacaoComPosicoes(context, jogo, formacaoVisitante, false);
-
-                _logger.LogInformation(
-                    "[IncluirJogo] Incluído: {Casa} x {Vis} em {Data}",
-                    timeCasa.Nome, timeVisitante.Nome,
-                    dataJogo?.ToString("dd/MM/yyyy HH:mm") ?? "sem data");
-                return;
             }
 
-            // Atualiza placar e data se necessário
-            bool alterado = false;
-
-            if (jogoWeb.PlacarCasa.HasValue &&
-                (jogo.PlacarCasa != jogoWeb.PlacarCasa ||
-                 jogo.PlacarVisitante != jogoWeb.PlacarVisitante))
+            // ── Eventos (gols, assistências, cartões) ─────────────────────────────
+            if (detalhes?.Eventos.Any() == true)
             {
-                jogo.PlacarCasa = jogoWeb.PlacarCasa;
-                jogo.PlacarVisitante = jogoWeb.PlacarVisitante;
-                jogo.Status = "Finalizado";
-                jogo.Atualizado = 1;
-                alterado = true;
+                foreach (var ev in detalhes.Eventos)
+                {
+                    var nomeJogador = ev.JogadorNome ?? ev.AssistenteNome;
+                    var jogador = await ResolverJogadorAsync(context, nomeJogador, ev.JogadorId,
+                        ev.Tipo == "Assistencia" ? timeVisitante.Id : timeCasa.Id, ct);
+
+                    if (jogador == null)
+                    {
+                        _logger.LogWarning("[IncluirJogo] Evento {Tipo}: jogador '{Nome}' não encontrado.",
+                            ev.Tipo, nomeJogador);
+                        continue;
+                    }
+
+                    if (ev.Tipo == "Gol")
+                    {
+                        context.Gols.Add(new Gol
+                        {
+                            JogoId = jogo.Id,
+                            JogadorId = jogador.Id,
+                            Minuto = ev.Minuto,
+                            Contra = ev.Contra
+                        });
+                    }
+                    else if (ev.Tipo == "Assistencia")
+                    {
+                        context.Assistencias.Add(new Assistencia
+                        {
+                            JogoId = jogo.Id,
+                            JogadorId = jogador.Id,
+                            Minuto = ev.Minuto
+                        });
+                    }
+                    else if (ev.Tipo.StartsWith("Cartao"))
+                    {
+                        context.Cartoes.Add(new Cartao
+                        {
+                            JogoId = jogo.Id,
+                            JogadorId = jogador.Id,
+                            Minuto = ev.Minuto,
+                            Tipo = ev.Detalhe
+                        });
+                    }
+                }
             }
 
-            // Corrige data se estava errada (null ou muito diferente)
-            if (dataJogo.HasValue &&
-                (!jogo.Data.HasValue ||
-                 Math.Abs((jogo.Data.Value.Date - dataJogo.Value.Date).TotalDays) > 2))
-            {
-                jogo.Data = DateTime.SpecifyKind(dataJogo.Value, DateTimeKind.Utc);
-                alterado = true;
-            }
+            await context.SaveChangesAsync(ct);
 
-            if (alterado)
-                _logger.LogInformation(
-                    "[IncluirJogo] Atualizado: {Casa} x {Vis}",
-                    timeCasa.Nome, timeVisitante.Nome);
+            _logger.LogInformation("[IncluirJogo] Incluído: {Casa} x {Vis} | Rodada {R} | {Data} | Escalação: {EscType}",
+                timeCasa.Nome, timeVisitante.Nome,
+                jogoWeb.Rodada,
+                dataJogo?.ToString("dd/MM/yyyy HH:mm") ?? "sem data",
+                detalhes != null ? "com jogadores e eventos" : "slots vazios");
         }
 
+
+        // ── Novo método: cria escalações vinculando jogadores reais ──────────────
+        private async Task AdicionarEscalacoesComJogadoresAsync(
+            FutebolContext context,
+            Jogo jogo,
+            List<JogadorEscalacaoTM> lista,
+            Time time,
+            bool isTimeCasa,
+            string fase,
+            List<PosicaoFormacao> posicoes,
+            CancellationToken ct)
+        {
+            int posIdx = 0;
+
+            foreach (var jogTM in lista)
+            {
+                // Resolve o jogador no banco pelo nome ou IdApi
+                var jogador = await ResolverJogadorAsync(
+                    context, jogTM.Nome, jogTM.IdExterno, time.Id, ct);
+
+                // Se não encontrou, cria o jogador automaticamente
+                if (jogador == null && !string.IsNullOrWhiteSpace(jogTM.Nome))
+                {
+                    jogador = new Jogador
+                    {
+                        Nome = jogTM.Nome,
+                        Posicao = MapearPosicaoParaNome(jogTM.Posicao),
+                        TimeId = time.Id,
+                        NumeroCamisa = jogTM.Numero,
+                        IdApi = jogTM.IdExterno,
+                        DataNascimento = DateTime.MinValue,
+                        DtInc = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+                        Atualizado = false
+                    };
+                    context.Jogadores.Add(jogador);
+                    await context.SaveChangesAsync(ct);
+
+                    _logger.LogInformation(
+                        "[IncluirJogo] Jogador criado automaticamente: {Nome} ({Time})",
+                        jogTM.Nome, time.Nome);
+                }
+
+                // Posição no campo (usa formação como referência visual)
+                double posX = 50, posY = 50;
+                if (jogTM.Titular && posIdx < posicoes.Count)
+                {
+                    posX = posicoes[posIdx].PosicaoX;
+                    posY = posicoes[posIdx].PosicaoY;
+                    posIdx++;
+                }
+
+                context.Escalacoes.Add(new Escalacao
+                {
+                    JogoId = jogo.Id,
+                    JogadorId = jogador?.Id,
+                    Titular = jogTM.Titular,
+                    IsTimeCasa = isTimeCasa,
+                    Posicao = MapearPosicaoParaSigla(jogTM.Posicao),
+                    PosicaoX = posX,
+                    PosicaoY = posY,
+                    FaseEscalacao = fase
+                });
+            }
+        }
+
+        // ── Helpers de posição ────────────────────────────────────────────────────
+        private static string MapearPosicaoParaSigla(string? p) => p?.ToLower() switch
+        {
+            var s when s?.Contains("gol") == true ||
+                       s?.Contains("keeper") == true => "GL",
+            var s when s?.Contains("zagueiro") == true ||
+                       s?.Contains("lateral") == true ||
+                       s?.Contains("defesa") == true => "ZG",
+            var s when s?.Contains("meio") == true ||
+                       s?.Contains("volante") == true ||
+                       s?.Contains("meia") == true => "MC",
+            var s when s?.Contains("atacante") == true ||
+                       s?.Contains("centroavante") == true ||
+                       s?.Contains("ponta") == true => "AT",
+            _ => "MC"
+        };
+
+        private static string MapearPosicaoParaNome(string? p) => p?.ToLower() switch
+        {
+            var s when s?.Contains("gol") == true ||
+                       s?.Contains("keeper") == true => "Goleiro",
+            var s when s?.Contains("zagueiro") == true ||
+                       s?.Contains("defesa") == true => "Zagueiro",
+            var s when s?.Contains("lateral") == true => "Lateral",
+            var s when s?.Contains("volante") == true => "Volante",
+            var s when s?.Contains("meio") == true ||
+                       s?.Contains("meia") == true => "Meio-campo",
+            var s when s?.Contains("atacante") == true ||
+                       s?.Contains("centroavante") == true => "Atacante",
+            var s when s?.Contains("ponta") == true => "Ponta",
+            _ => "Meio-campo"
+        };
+
+        // ── Resolução de jogador no banco ─────────────────────────────────────────
+        private async Task<Jogador?> ResolverJogadorAsync(
+            FutebolContext context,
+            string nomeTM,
+            long? idExterno,
+            int timeId,
+            CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(nomeTM)) return null;
+
+            if (idExterno.HasValue)
+            {
+                var porId = await context.Jogadores
+                    .FirstOrDefaultAsync(j => j.IdApi == idExterno && j.TimeId == timeId, ct);
+                if (porId != null) return porId;
+            }
+
+            var porNome = await context.Jogadores
+                .FirstOrDefaultAsync(j => j.Nome == nomeTM && j.TimeId == timeId, ct);
+            if (porNome != null) return porNome;
+
+            var porILike = await context.Jogadores
+                .FirstOrDefaultAsync(j => j.TimeId == timeId &&
+                    EF.Functions.ILike(j.Nome, nomeTM), ct);
+            if (porILike != null) return porILike;
+
+            var tokens = nomeTM.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var sobrenome = tokens.LastOrDefault(t => t.Length > 3);
+            if (sobrenome != null)
+            {
+                var porSobrenome = await context.Jogadores
+                    .FirstOrDefaultAsync(j => j.TimeId == timeId &&
+                        EF.Functions.ILike(j.Nome, $"%{sobrenome}%"), ct);
+                if (porSobrenome != null) return porSobrenome;
+            }
+
+            var nomeNorm = NormalizarTexto(nomeTM);
+            var candidatos = await context.Jogadores
+                .Where(j => j.TimeId == timeId)
+                .ToListAsync(ct);
+
+            return candidatos.FirstOrDefault(j =>
+            {
+                var jNorm = NormalizarTexto(j.Nome);
+                return jNorm == nomeNorm
+                    || jNorm.Contains(nomeNorm)
+                    || nomeNorm.Contains(jNorm);
+            });
+        }
 
         private async Task SincronizarElencoTime(
         FutebolContext context,
@@ -746,82 +994,89 @@ namespace ControleFutebolWeb.Services
         }
 
         private async Task SincronizarEventosJogos(
-    FutebolContext context,
-    TransfermarktService transfermarkt,
-    CancellationToken ct)
+        FutebolContext context,
+        TransfermarktService transfermarkt,
+        CancellationToken ct)
         {
             var jogos = await context.Jogos
-                .Where(j => !string.IsNullOrEmpty(j.LinkDetalhes))
+                .Where(j => j.Status == "Finalizado" && !string.IsNullOrEmpty(j.LinkDetalhes))
+                .OrderByDescending(j => j.Data)
+                .Take(200) // limita para não sobrecarregar
                 .ToListAsync(ct);
 
             foreach (var jogo in jogos)
             {
                 if (ct.IsCancellationRequested) break;
 
-                var eventos = await transfermarkt.BuscarEventosJogo(jogo.LinkDetalhes, ct);
-
-                foreach (var ev in eventos)
+                try
                 {
-                    Jogador jogador = null;
+                    _logger.LogInformation("[Eventos] Buscando detalhes do jogo {Id}: {Casa} x {Vis}",
+                        jogo.Id, jogo.TimeCasa.Nome, jogo.TimeVisitante.Nome);
 
-                    // 🔹 Para gols e cartões, usamos JogadorNome/JogadorLink
-                    if (ev.Tipo == "Gol" || ev.Tipo.StartsWith("Cartao"))
+                    var detalhes = await transfermarkt.BuscarDetalhesJogoAsync(jogo.LinkDetalhes!, ct);
+                    if (detalhes == null) continue;
+
+                    // 🔹 Processa eventos
+                    foreach (var ev in detalhes.Eventos)
                     {
-                        jogador = await context.Jogadores
-                            .FirstOrDefaultAsync(j =>
-                                (!string.IsNullOrEmpty(ev.JogadorLink) && j.linktransfermarket != null && j.linktransfermarket.Contains(ev.JogadorLink)) ||
-                                j.Nome == ev.JogadorNome, ct);
+                        var nomeJogador = ev.JogadorNome ?? ev.AssistenteNome;
+                        var timeId = ev.Tipo == "Assistencia"
+                            ? jogo.TimeVisitanteId
+                            : jogo.TimeCasaId;
 
-                        if (jogador == null) continue;
-                    }
-
-                    // 🔹 Para assistências, usamos AssistenteNome/AssistenteLink
-                    if (ev.Tipo == "Assistencia")
-                    {
-                        jogador = await context.Jogadores
-                            .FirstOrDefaultAsync(j =>
-                                (!string.IsNullOrEmpty(ev.AssistenteLink) && j.linktransfermarket != null && j.linktransfermarket.Contains(ev.AssistenteLink)) ||
-                                j.Nome == ev.AssistenteNome, ct);
-
-                        if (jogador == null) continue;
-                    }
-
-                    // 🔹 Salva no banco
-                    if (ev.Tipo == "Gol")
-                    {
-                        context.Gols.Add(new Gol
+                        var jogador = await ResolverJogadorAsync(context, nomeJogador, null, timeId, ct);
+                        if (jogador == null)
                         {
-                            JogoId = jogo.Id,
-                            JogadorId = jogador.Id,
-                            Minuto = ev.Minuto,
-                            Contra = ev.Contra
-                        });
-                    }
-                    else if (ev.Tipo == "Assistencia")
-                    {
-                        context.Assistencias.Add(new Assistencia
+                            _logger.LogWarning("[Eventos] Jogador não encontrado: {Nome}", nomeJogador);
+                            continue;
+                        }
+
+                        if (ev.Tipo == "Gol" &&
+                            !await context.Gols.AnyAsync(g => g.JogoId == jogo.Id && g.JogadorId == jogador.Id && g.Minuto == ev.Minuto, ct))
                         {
-                            JogoId = jogo.Id,
-                            JogadorId = jogador.Id,
-                            Minuto = ev.Minuto
-                        });
-                    }
-                    else if (ev.Tipo.StartsWith("Cartao"))
-                    {
-                        context.Cartoes.Add(new Cartao
+                            context.Gols.Add(new Gol
+                            {
+                                JogoId = jogo.Id,
+                                JogadorId = jogador.Id,
+                                Minuto = ev.Minuto,
+                                Contra = ev.Contra
+                            });
+                        }
+                        else if (ev.Tipo == "Assistencia" &&
+                            !await context.Assistencias.AnyAsync(a => a.JogoId == jogo.Id && a.JogadorId == jogador.Id && a.Minuto == ev.Minuto, ct))
                         {
-                            JogoId = jogo.Id,
-                            JogadorId = jogador.Id,
-                            Minuto = ev.Minuto,
-                            Tipo = ev.Detalhe
-                        });
+                            context.Assistencias.Add(new Assistencia
+                            {
+                                JogoId = jogo.Id,
+                                JogadorId = jogador.Id,
+                                Minuto = ev.Minuto
+                            });
+                        }
+                        else if (ev.Tipo.StartsWith("Cartao") &&
+                            !await context.Cartoes.AnyAsync(c => c.JogoId == jogo.Id && c.JogadorId == jogador.Id && c.Minuto == ev.Minuto && c.Tipo == ev.Detalhe, ct))
+                        {
+                            context.Cartoes.Add(new Cartao
+                            {
+                                JogoId = jogo.Id,
+                                JogadorId = jogador.Id,
+                                Minuto = ev.Minuto,
+                                Tipo = ev.Detalhe
+                            });
+                        }
                     }
+
+                    await context.SaveChangesAsync(ct);
+                    _logger.LogInformation("[Eventos] Jogo {Id} atualizado com eventos.", jogo.Id);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[Eventos] Erro ao sincronizar jogo {Id}", jogo.Id);
                 }
 
-                await context.SaveChangesAsync(ct);
-                await Task.Delay(1000, ct); // evita bloqueio do site
+                await Task.Delay(1500, ct); // pausa para não ser bloqueado
             }
         }
+
 
 
         private static void RegistrarLog(

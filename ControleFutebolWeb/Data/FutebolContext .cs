@@ -104,7 +104,7 @@ namespace ControleFutebolWeb.Data
             // Gols
             modelBuilder.Entity<Gol>(entity =>
             {
-                entity.ToTable("gols"); // nome da tabela no banco
+                entity.ToTable("gols");
                 entity.HasKey(e => e.Id);
 
                 entity.Property(e => e.Id).HasColumnName("id");
@@ -115,11 +115,13 @@ namespace ControleFutebolWeb.Data
 
                 entity.HasOne(e => e.Jogo)
                     .WithMany()
-                    .HasForeignKey(e => e.JogoId);
+                    .HasForeignKey(e => e.JogoId)
+                    .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasOne(e => e.Jogador)
                     .WithMany()
-                    .HasForeignKey(e => e.JogadorId);
+                    .HasForeignKey(e => e.JogadorId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             // Assistencias
@@ -135,11 +137,13 @@ namespace ControleFutebolWeb.Data
 
                 entity.HasOne(e => e.Jogo)
                     .WithMany()
-                    .HasForeignKey(e => e.JogoId);
+                    .HasForeignKey(e => e.JogoId)
+                    .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasOne(e => e.Jogador)
                     .WithMany()
-                    .HasForeignKey(e => e.JogadorId);
+                    .HasForeignKey(e => e.JogadorId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             // Cartoes
@@ -156,12 +160,15 @@ namespace ControleFutebolWeb.Data
 
                 entity.HasOne(e => e.Jogo)
                     .WithMany()
-                    .HasForeignKey(e => e.JogoId);
+                    .HasForeignKey(e => e.JogoId)
+                    .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasOne(e => e.Jogador)
                     .WithMany()
-                    .HasForeignKey(e => e.JogadorId);
+                    .HasForeignKey(e => e.JogadorId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
+
 
 
             // 🔹 Exemplo específico para Jogo.Data
