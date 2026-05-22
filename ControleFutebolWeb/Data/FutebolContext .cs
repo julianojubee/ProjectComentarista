@@ -101,6 +101,69 @@ namespace ControleFutebolWeb.Data
                 }
             }
 
+            // Gols
+            modelBuilder.Entity<Gol>(entity =>
+            {
+                entity.ToTable("gols"); // nome da tabela no banco
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.JogoId).HasColumnName("jogoid");
+                entity.Property(e => e.JogadorId).HasColumnName("jogadorid");
+                entity.Property(e => e.Minuto).HasColumnName("minuto");
+                entity.Property(e => e.Contra).HasColumnName("contra");
+
+                entity.HasOne(e => e.Jogo)
+                    .WithMany()
+                    .HasForeignKey(e => e.JogoId);
+
+                entity.HasOne(e => e.Jogador)
+                    .WithMany()
+                    .HasForeignKey(e => e.JogadorId);
+            });
+
+            // Assistencias
+            modelBuilder.Entity<Assistencia>(entity =>
+            {
+                entity.ToTable("assistencias");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.JogoId).HasColumnName("jogoid");
+                entity.Property(e => e.JogadorId).HasColumnName("jogadorid");
+                entity.Property(e => e.Minuto).HasColumnName("minuto");
+
+                entity.HasOne(e => e.Jogo)
+                    .WithMany()
+                    .HasForeignKey(e => e.JogoId);
+
+                entity.HasOne(e => e.Jogador)
+                    .WithMany()
+                    .HasForeignKey(e => e.JogadorId);
+            });
+
+            // Cartoes
+            modelBuilder.Entity<Cartao>(entity =>
+            {
+                entity.ToTable("cartoes");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.JogoId).HasColumnName("jogoid");
+                entity.Property(e => e.JogadorId).HasColumnName("jogadorid");
+                entity.Property(e => e.Minuto).HasColumnName("minuto");
+                entity.Property(e => e.Tipo).HasColumnName("tipo");
+
+                entity.HasOne(e => e.Jogo)
+                    .WithMany()
+                    .HasForeignKey(e => e.JogoId);
+
+                entity.HasOne(e => e.Jogador)
+                    .WithMany()
+                    .HasForeignKey(e => e.JogadorId);
+            });
+
+
             // 🔹 Exemplo específico para Jogo.Data
             modelBuilder.Entity<Jogo>()
                 .Property(j => j.Data)

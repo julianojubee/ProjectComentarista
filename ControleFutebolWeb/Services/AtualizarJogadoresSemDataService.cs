@@ -4,6 +4,7 @@ using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Services;
 using HtmlAgilityPack;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 
@@ -72,6 +73,7 @@ namespace ControleFutebolWeb.Services
             _logger.LogInformation("[AtualizarJogadores] Serviço encerrado.");
         }
 
+        
         private async Task ExecutarCiclo(CancellationToken ct)
         {
             using var scope = _serviceProvider.CreateScope();
@@ -79,6 +81,8 @@ namespace ControleFutebolWeb.Services
             var transfermarkt = scope.ServiceProvider.GetRequiredService<TransfermarktService>();
 
             await SincronizarCompeticoesTimesJogosEElencos(context, transfermarkt, ct);
+            await CorrigirDatasJogos(context, transfermarkt, ct);
+            await SincronizarEventosJogos(context, transfermarkt, ct);
 
             var jogadores = await context.Jogadores
                 .Include(j => j.Time)
@@ -182,6 +186,33 @@ namespace ControleFutebolWeb.Services
             }
 
             _logger.LogInformation("[AtualizarJogadores] Ciclo concluído. Atualizados: {Ok} | Falhas: {Fail}", atualizados, falhas);
+        }
+
+        private async Task CorrigirDatasJogos(FutebolContext context, TransfermarktService transfermarkt, CancellationToken ct)
+        {
+            var jogos = await context.Jogos
+                .Where(j => !string.IsNullOrEmpty(j.LinkDetalhes))
+                .ToListAsync(ct);
+
+            foreach (var jogo in jogos)
+            {
+                try
+                {
+                    var novaData = await transfermarkt.BuscarDataJogoPorLink(jogo.LinkDetalhes, ct);
+                    if (novaData.HasValue && (!jogo.Data.HasValue || jogo.Data.Value.Date != novaData.Value.Date))
+                    {
+                        jogo.Data = DateTime.SpecifyKind(novaData.Value, DateTimeKind.Utc);
+                        _logger.LogInformation("[CorrigirDatas] Atualizado jogo {Casa} x {Vis} para {Data}",
+                            jogo.TimeCasa.Nome, jogo.TimeVisitante.Nome, jogo.Data?.ToString("dd/MM/yyyy HH:mm"));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[CorrigirDatas] Erro ao atualizar data do jogo {Id}", jogo.Id);
+                }
+            }
+
+            await context.SaveChangesAsync(ct);
         }
 
         private async Task<List<TransfermarktJogoInfo>> BuscarJogosCopaPorLink(
@@ -368,12 +399,21 @@ namespace ControleFutebolWeb.Services
         {
             var m = Regex.Match(texto.Trim(), @"\d{2}[./]\d{2}[./]\d{2,4}");
             if (!m.Success) return null;
+
             string[] fmts = { "dd/MM/yy", "dd/MM/yyyy", "dd.MM.yyyy", "dd.MM.yy" };
             foreach (var f in fmts)
+            {
                 if (DateTime.TryParseExact(m.Value, f,
-                    System.Globalization.CultureInfo.InvariantCulture,
-                    System.Globalization.DateTimeStyles.None, out var dt))
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out var dt))
+                {
+                    // 🔹 Corrige anos de dois dígitos
+                    if (dt.Year < 100)
+                        dt = new DateTime(2000 + dt.Year, dt.Month, dt.Day, dt.Hour, dt.Minute, 0);
+
                     return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+                }
+            }
             return null;
         }
 
@@ -438,7 +478,7 @@ namespace ControleFutebolWeb.Services
                         jogoWeb.NomeTimeVisitante, jogoWeb.LinkTimeVisitante, cicloId, ct);
 
                     await IncluirOuAtualizarJogo(context, competicao, jogoWeb,
-                        timeCasa, timeVisitante, cicloId, ct);
+                        timeCasa, timeVisitante, cicloId,transfermarkt, ct);
                     await context.SaveChangesAsync(ct);
 
                     await Task.Delay(TimeSpan.FromSeconds(1), ct);
@@ -506,45 +546,6 @@ namespace ControleFutebolWeb.Services
                 return porNome;
             }
 
-            //// 3. ILike (case-insensitive, ignora acentos no postgres)
-            //var porILike = await context.Times
-            //    .FirstOrDefaultAsync(t => EF.Functions.ILike(t.Nome, nome), ct);
-            //if (porILike != null)
-            //{
-            //    if (string.IsNullOrWhiteSpace(porILike.linktransfermarket)
-            //        && !string.IsNullOrWhiteSpace(urlNormalizada))
-            //    {
-            //        porILike.linktransfermarket = urlNormalizada;
-            //    }
-            //    _logger.LogInformation("[ResolverTime] Por ILike: {Web} → {Banco}",
-            //        nome, porILike.Nome);
-            //    return porILike;
-            //}
-
-            //// 4. Normalização em memória (remove acentos, siglas, espaços)
-            //var nomeNorm = NormalizarTexto(nome);
-            //var todos = await context.Times.ToListAsync(ct);
-
-            //var porNormalizacao = todos.FirstOrDefault(t =>
-            //{
-            //    var bancNorm = NormalizarTexto(t.Nome);
-            //    return bancNorm == nomeNorm
-            //        || bancNorm.Contains(nomeNorm)
-            //        || nomeNorm.Contains(bancNorm);
-            //});
-
-            //if (porNormalizacao != null)
-            //{
-            //    if (string.IsNullOrWhiteSpace(porNormalizacao.linktransfermarket)
-            //        && !string.IsNullOrWhiteSpace(urlNormalizada))
-            //    {
-            //        porNormalizacao.linktransfermarket = urlNormalizada;
-            //    }
-            //    _logger.LogInformation("[ResolverTime] Por normalização: {Web} → {Banco}",
-            //        nome, porNormalizacao.Nome);
-            //    return porNormalizacao;
-            //}
-
             // 5. Cria novo
             var novoTime = new Time
             {
@@ -577,49 +578,6 @@ namespace ControleFutebolWeb.Services
             return novoTime;
         }
 
-        public async Task<string?> BuscarEscudoTimePorLink(string teamUrl)
-        {
-            if (string.IsNullOrWhiteSpace(teamUrl)) return null;
-
-            if (!teamUrl.StartsWith("http"))
-                teamUrl = "https://www.transfermarkt.com.br" + teamUrl;
-
-            _logger.LogInformation("[Escudo] Buscando escudo do time: {Url}", teamUrl);
-
-            try
-            {
-                var html = await _httpClient.GetStringAsync(teamUrl);
-                var doc = new HtmlDocument();
-                doc.LoadHtml(html);
-
-                // 1. Meta tag og:image (às vezes já traz o escudo)
-                var ogImage = doc.DocumentNode.SelectSingleNode("//meta[@property='og:image']");
-                var escudoUrl = ogImage?.GetAttributeValue("content", "")?.Trim();
-                if (!string.IsNullOrEmpty(escudoUrl))
-                    return escudoUrl;
-
-                // 2. Dentro do bloco data-header__profile-container (página do clube)
-                var imgLogo = doc.DocumentNode.SelectSingleNode("//div[contains(@class,'data-header__profile-container')]//img");
-                escudoUrl = imgLogo?.GetAttributeValue("src", "")?.Trim();
-                if (!string.IsNullOrEmpty(escudoUrl))
-                    return escudoUrl;
-
-                // 3. Fallback: dentro de sb-team (página de jogo)
-                var imgGameLogo = doc.DocumentNode.SelectSingleNode("//div[contains(@class,'sb-team')]//img");
-                escudoUrl = imgGameLogo?.GetAttributeValue("src", "")?.Trim();
-                if (!string.IsNullOrEmpty(escudoUrl))
-                    return escudoUrl;
-
-                _logger.LogWarning("[Escudo] Nenhum escudo encontrado para {Url}", teamUrl);
-                return null;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[Escudo] Erro ao buscar escudo do time: {Url}", teamUrl);
-                return null;
-            }
-        }
-
 
         private async Task IncluirOuAtualizarJogo(
         FutebolContext context,
@@ -628,6 +586,7 @@ namespace ControleFutebolWeb.Services
         Time timeCasa,
         Time timeVisitante,
         Guid cicloId,
+        TransfermarktService transfermarkt, // ← agora recebe o serviço
         CancellationToken ct)
         {
             // ── Resolve data ─────────────────────────────────────────────────────
@@ -640,13 +599,7 @@ namespace ControleFutebolWeb.Services
                     "[IncluirJogo] Data não encontrada no calendário, buscando no detalhe: {Link}",
                     jogoWeb.LinkDetalhes);
 
-                // Precisamos do TransfermarktService — injete ou resolva via provider
-                using var scope = _serviceProvider.CreateScope();
-                var transfermarkt = scope.ServiceProvider
-                    .GetRequiredService<TransfermarktService>();
-
-                dataJogo = await transfermarkt.BuscarDataJogoPorLink(
-                    jogoWeb.LinkDetalhes, ct);
+                dataJogo = await transfermarkt.BuscarDataJogoPorLink(jogoWeb.LinkDetalhes, ct);
             }
 
             // Fallback: se ainda sem data, usa null (não salva como hoje)
@@ -664,10 +617,8 @@ namespace ControleFutebolWeb.Services
                     Math.Abs((j.Data.Value.Date - dataJogo.Value.Date).TotalDays) <= 2)
                 : jogosBanco.FirstOrDefault();
 
-            var formacaoCasa = await ObterOuCriarFormacao(
-                context, jogoWeb.FormacaoCasa, ct);
-            var formacaoVisitante = await ObterOuCriarFormacao(
-                context, jogoWeb.FormacaoVisitante, ct);
+            var formacaoCasa = await transfermarkt.ObterOuCriarFormacao(context, jogoWeb.FormacaoCasa, ct);
+            var formacaoVisitante = await transfermarkt.ObterOuCriarFormacao(context, jogoWeb.FormacaoVisitante, ct);
 
             if (jogo == null)
             {
@@ -676,9 +627,7 @@ namespace ControleFutebolWeb.Services
                     CompeticaoId = competicao.Id,
                     TimeCasa = timeCasa,
                     TimeVisitante = timeVisitante,
-                    Data = dataJogo.HasValue
-                        ? DateTime.SpecifyKind(dataJogo.Value, DateTimeKind.Utc)
-                        : null,  // ← null em vez de UtcNow
+                    Data = dataJogo,
                     Rodada = jogoWeb.Rodada,
                     PlacarCasa = jogoWeb.PlacarCasa,
                     PlacarVisitante = jogoWeb.PlacarVisitante,
@@ -686,17 +635,18 @@ namespace ControleFutebolWeb.Services
                     Status = jogoWeb.PlacarCasa.HasValue ? "Finalizado" : "Agendado",
                     Atualizado = jogoWeb.PlacarCasa.HasValue ? 1 : 0,
                     FormacaoCasaId = formacaoCasa.Id,
-                    FormacaoVisitanteId = formacaoVisitante.Id
+                    FormacaoVisitanteId = formacaoVisitante.Id,
+                    LinkDetalhes = jogoWeb.LinkDetalhes // ← salva o link do jogo
                 };
 
                 context.Jogos.Add(jogo);
-                AdicionarEscalacaoComPosicoes(context, jogo, formacaoCasa, true);
-                AdicionarEscalacaoComPosicoes(context, jogo, formacaoVisitante, false);
+                transfermarkt.AdicionarEscalacaoComPosicoes(context, jogo, formacaoCasa, true);
+                transfermarkt.AdicionarEscalacaoComPosicoes(context, jogo, formacaoVisitante, false);
 
                 _logger.LogInformation(
                     "[IncluirJogo] Incluído: {Casa} x {Vis} em {Data}",
                     timeCasa.Nome, timeVisitante.Nome,
-                    dataJogo?.ToString("dd/MM/yyyy") ?? "sem data");
+                    dataJogo?.ToString("dd/MM/yyyy HH:mm") ?? "sem data");
                 return;
             }
 
@@ -727,45 +677,6 @@ namespace ControleFutebolWeb.Services
                 _logger.LogInformation(
                     "[IncluirJogo] Atualizado: {Casa} x {Vis}",
                     timeCasa.Nome, timeVisitante.Nome);
-        }
-
-        private async Task<Formacao> ObterOuCriarFormacao(FutebolContext context, string? nomeFormacao, CancellationToken ct)
-        {
-            if (string.IsNullOrWhiteSpace(nomeFormacao))
-                nomeFormacao = "4-3-3"; // fallback
-
-            var formacao = await context.Formacoes
-                .Include(f => f.Posicoes)
-                .FirstOrDefaultAsync(f => f.Nome == nomeFormacao, ct);
-
-            if (formacao == null)
-            {
-                formacao = new Formacao { Nome = nomeFormacao, Posicoes = new List<PosicaoFormacao>() };
-                context.Formacoes.Add(formacao);
-                await context.SaveChangesAsync(ct);
-                _logger.LogInformation("[TransfermarktSync] Nova formação criada: {Formacao}", nomeFormacao);
-            }
-
-            return formacao;
-        }
-
-        private void AdicionarEscalacaoComPosicoes(FutebolContext context, Jogo jogo, Formacao formacao, bool isTimeCasa)
-        {
-            var posicoes = formacao.Posicoes.OrderBy(p => p.Ordem).ToList();
-
-            foreach (var pos in posicoes)
-            {
-                context.Escalacoes.Add(new Escalacao
-                {
-                    Jogo = jogo,
-                    IsTimeCasa = isTimeCasa,
-                    Titular = true,
-                    Posicao = pos.NomePosicao,
-                    PosicaoX = pos.PosicaoX,
-                    PosicaoY = pos.PosicaoY,
-                    FaseEscalacao = "INICIAL"
-                });
-            }
         }
 
 
@@ -834,6 +745,85 @@ namespace ControleFutebolWeb.Services
             }
         }
 
+        private async Task SincronizarEventosJogos(
+    FutebolContext context,
+    TransfermarktService transfermarkt,
+    CancellationToken ct)
+        {
+            var jogos = await context.Jogos
+                .Where(j => !string.IsNullOrEmpty(j.LinkDetalhes))
+                .ToListAsync(ct);
+
+            foreach (var jogo in jogos)
+            {
+                if (ct.IsCancellationRequested) break;
+
+                var eventos = await transfermarkt.BuscarEventosJogo(jogo.LinkDetalhes, ct);
+
+                foreach (var ev in eventos)
+                {
+                    Jogador jogador = null;
+
+                    // 🔹 Para gols e cartões, usamos JogadorNome/JogadorLink
+                    if (ev.Tipo == "Gol" || ev.Tipo.StartsWith("Cartao"))
+                    {
+                        jogador = await context.Jogadores
+                            .FirstOrDefaultAsync(j =>
+                                (!string.IsNullOrEmpty(ev.JogadorLink) && j.linktransfermarket != null && j.linktransfermarket.Contains(ev.JogadorLink)) ||
+                                j.Nome == ev.JogadorNome, ct);
+
+                        if (jogador == null) continue;
+                    }
+
+                    // 🔹 Para assistências, usamos AssistenteNome/AssistenteLink
+                    if (ev.Tipo == "Assistencia")
+                    {
+                        jogador = await context.Jogadores
+                            .FirstOrDefaultAsync(j =>
+                                (!string.IsNullOrEmpty(ev.AssistenteLink) && j.linktransfermarket != null && j.linktransfermarket.Contains(ev.AssistenteLink)) ||
+                                j.Nome == ev.AssistenteNome, ct);
+
+                        if (jogador == null) continue;
+                    }
+
+                    // 🔹 Salva no banco
+                    if (ev.Tipo == "Gol")
+                    {
+                        context.Gols.Add(new Gol
+                        {
+                            JogoId = jogo.Id,
+                            JogadorId = jogador.Id,
+                            Minuto = ev.Minuto,
+                            Contra = ev.Contra
+                        });
+                    }
+                    else if (ev.Tipo == "Assistencia")
+                    {
+                        context.Assistencias.Add(new Assistencia
+                        {
+                            JogoId = jogo.Id,
+                            JogadorId = jogador.Id,
+                            Minuto = ev.Minuto
+                        });
+                    }
+                    else if (ev.Tipo.StartsWith("Cartao"))
+                    {
+                        context.Cartoes.Add(new Cartao
+                        {
+                            JogoId = jogo.Id,
+                            JogadorId = jogador.Id,
+                            Minuto = ev.Minuto,
+                            Tipo = ev.Detalhe
+                        });
+                    }
+                }
+
+                await context.SaveChangesAsync(ct);
+                await Task.Delay(1000, ct); // evita bloqueio do site
+            }
+        }
+
+
         private static void RegistrarLog(
             FutebolContext context,
             Guid cicloId,
@@ -888,6 +878,8 @@ namespace ControleFutebolWeb.Services
 
             return Regex.Replace(s, @"\b(cr|fc|sc|ec|ac|se|cf|cd|club|clube|futebol|football|de|do|da|dos|das)\b|\s+", "");
         }
+
+
 
     }
 }

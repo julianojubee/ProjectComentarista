@@ -91,6 +91,111 @@ namespace ControleFutebolWeb.Controllers
             sb.AppendLine("</table>");
             return Content(sb.ToString(), "text/html");
         }
+
+        // Teste rápido para validar extração dos jogos
+        public async Task<IActionResult> TesteBrasileirao()
+        {
+            var tmService = HttpContext.RequestServices.GetRequiredService<TransfermarktService>();
+
+            var jogos = await tmService.BuscarJogosLigaPorLink(
+                "https://www.transfermarkt.com.br/campeonato-brasileiro-serie-a/gesamtspielplan/wettbewerb/BRA1/saison_id/2025");
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("<h2>Primeiros 5 jogos extraídos</h2>");
+            sb.AppendLine("<table border='1' cellpadding='6' style='font-size:12px'>");
+            sb.AppendLine("<tr><th>#</th><th>Casa</th><th>Placar</th><th>Visitante</th><th>Data</th><th>Rodada</th></tr>");
+
+            int i = 0;
+            foreach (var j in jogos.Take(5))
+            {
+                var placar = j.PlacarCasa.HasValue
+                    ? $"{j.PlacarCasa} × {j.PlacarVisitante}"
+                    : "—";
+
+                var dataStr = j.Data.HasValue
+                    ? j.Data.Value.ToString("dd/MM/yyyy HH:mm")
+                    : "—";
+
+                sb.AppendLine($"<tr><td>{++i}</td><td>{j.NomeTimeCasa}</td>" +
+                              $"<td style='text-align:center'>{placar}</td>" +
+                              $"<td>{j.NomeTimeVisitante}</td>" +
+                              $"<td>{dataStr}</td>" +
+                              $"<td>{j.Rodada}</td></tr>");
+            }
+
+            sb.AppendLine("</table>");
+            sb.AppendLine($"<p>Total extraído: {jogos.Count} jogos</p>");
+
+            return Content(sb.ToString(), "text/html");
+        }
+
+
+        [HttpGet]
+        public async Task<IActionResult> DiagBrasileiraoRaw()
+        {
+            var http = HttpContext.RequestServices
+                .GetRequiredService<IHttpClientFactory>()
+                .CreateClient();
+
+            http.DefaultRequestHeaders.Clear();
+            http.DefaultRequestHeaders.Add("User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+                "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+            http.DefaultRequestHeaders.Add("Accept-Language", "pt-BR,pt;q=0.9");
+
+            var urls = new[]
+            {
+        "https://www.transfermarkt.com.br/campeonato-brasileiro-serie-a/gesamtspielplan/wettbewerb/BRA1/saison_id/2025",
+        "https://www.transfermarkt.com.br/campeonato-brasileiro-serie-a/spieltag/wettbewerb/BRA1/saison_id/2025/spieltag/1",
+        "https://www.transfermarkt.com.br/campeonato-brasileiro-serie-a/spieltag/wettbewerb/BRA1/saison_id/2025/spieltag/2",
+        };
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("<style>table{border-collapse:collapse} td,th{border:1px solid #ccc;padding:6px;font-size:12px}</style>");
+            sb.AppendLine("<table><tr><th>URL</th><th>Status</th><th>Chars</th><th>Tem /spielbericht/</th><th>Boxes encontrados</th><th>Primeiros 1000 chars</th></tr>");
+
+            foreach (var url in urls)
+            {
+                try
+                {
+                    var resp = await http.GetAsync(url);
+                    var html = await resp.Content.ReadAsStringAsync();
+
+                    var doc = new HtmlAgilityPack.HtmlDocument();
+                    doc.LoadHtml(html);
+
+                    bool temJogo = html.Contains("/spielbericht/") || html.Contains("/begegnung_detail/");
+
+                    var boxes = doc.DocumentNode.SelectNodes(
+                        "//div[contains(@class,'box')] | //div[contains(@class,'content-box')]");
+
+                    // Pega primeiros 1000 chars do texto visível
+                    var textoLimpo = System.Text.RegularExpressions.Regex
+                        .Replace(html, "<[^>]+>", " ");
+                    textoLimpo = System.Text.RegularExpressions.Regex
+                        .Replace(textoLimpo, @"\s+", " ").Trim();
+                    if (textoLimpo.Length > 1000) textoLimpo = textoLimpo[..1000];
+
+                    sb.AppendLine($"<tr>" +
+                        $"<td style='max-width:200px;word-break:break-all'>{url}</td>" +
+                        $"<td>{(int)resp.StatusCode}</td>" +
+                        $"<td>{html.Length}</td>" +
+                        $"<td style='color:{(temJogo ? "green" : "red")}'>{(temJogo ? "SIM" : "NÃO")}</td>" +
+                        $"<td>{boxes?.Count ?? 0}</td>" +
+                        $"<td style='font-size:10px;max-width:400px'>{System.Web.HttpUtility.HtmlEncode(textoLimpo)}</td>" +
+                        $"</tr>");
+                }
+                catch (Exception ex)
+                {
+                    sb.AppendLine($"<tr><td>{url}</td><td colspan='5' style='color:red'>ERRO: {ex.Message}</td></tr>");
+                }
+            }
+
+            sb.AppendLine("</table>");
+            return Content(sb.ToString(), "text/html");
+        }
+
+
         [HttpGet]
         public async Task<IActionResult> DiagSincronizar(int ano = 2026, bool importarEscalacoes = false)
         {

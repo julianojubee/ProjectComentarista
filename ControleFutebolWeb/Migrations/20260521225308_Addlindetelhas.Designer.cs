@@ -3,6 +3,7 @@ using System;
 using ControleFutebolWeb.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ControleFutebolWeb.Migrations
 {
     [DbContext(typeof(FutebolContext))]
-    partial class FutebolContextModelSnapshot : ModelSnapshot
+    [Migration("20260521225308_Addlindetelhas")]
+    partial class Addlindetelhas
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -49,7 +52,7 @@ namespace ControleFutebolWeb.Migrations
 
                     b.HasIndex("JogoId");
 
-                    b.ToTable("assistencias", (string)null);
+                    b.ToTable("assistencias");
                 });
 
             modelBuilder.Entity("ControleFutebolWeb.Models.Cartao", b =>
@@ -69,10 +72,6 @@ namespace ControleFutebolWeb.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("jogoid");
 
-                    b.Property<int?>("JogoId1")
-                        .HasColumnType("integer")
-                        .HasColumnName("jogoid1");
-
                     b.Property<int>("Minuto")
                         .HasColumnType("integer")
                         .HasColumnName("minuto");
@@ -88,9 +87,7 @@ namespace ControleFutebolWeb.Migrations
 
                     b.HasIndex("JogoId");
 
-                    b.HasIndex("JogoId1");
-
-                    b.ToTable("cartoes", (string)null);
+                    b.ToTable("cartoes");
                 });
 
             modelBuilder.Entity("ControleFutebolWeb.Models.Competicao", b =>
@@ -744,10 +741,6 @@ namespace ControleFutebolWeb.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("jogoid");
 
-                    b.Property<int?>("JogoId1")
-                        .HasColumnType("integer")
-                        .HasColumnName("jogoid1");
-
                     b.Property<int>("Minuto")
                         .HasColumnType("integer")
                         .HasColumnName("minuto");
@@ -758,9 +751,7 @@ namespace ControleFutebolWeb.Migrations
 
                     b.HasIndex("JogoId");
 
-                    b.HasIndex("JogoId1");
-
-                    b.ToTable("gols", (string)null);
+                    b.ToTable("gols");
                 });
 
             modelBuilder.Entity("Nacionalidade", b =>
@@ -897,14 +888,10 @@ namespace ControleFutebolWeb.Migrations
                         .IsRequired();
 
                     b.HasOne("ControleFutebolWeb.Models.Jogo", "Jogo")
-                        .WithMany()
+                        .WithMany("Cartoes")
                         .HasForeignKey("JogoId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("ControleFutebolWeb.Models.Jogo", null)
-                        .WithMany("Cartoes")
-                        .HasForeignKey("JogoId1");
 
                     b.Navigation("Jogador");
 
@@ -1104,14 +1091,10 @@ namespace ControleFutebolWeb.Migrations
                         .IsRequired();
 
                     b.HasOne("ControleFutebolWeb.Models.Jogo", "Jogo")
-                        .WithMany()
+                        .WithMany("Gols")
                         .HasForeignKey("JogoId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("ControleFutebolWeb.Models.Jogo", null)
-                        .WithMany("Gols")
-                        .HasForeignKey("JogoId1");
 
                     b.Navigation("Jogador");
 

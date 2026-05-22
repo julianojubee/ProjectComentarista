@@ -62,6 +62,8 @@ namespace ControleFutebolWeb.Models
         public int Analisado { get; set; } = 0;
 
         public string? FotoUrl { get; set; }
+
+        public string? LinkDetalhes { get; set; }
     }
 }
 
