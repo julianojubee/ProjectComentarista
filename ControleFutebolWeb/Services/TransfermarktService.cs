@@ -1367,7 +1367,8 @@ namespace ControleFutebolWeb.Services
             }
         }
 
-        public async Task<DetalhesJogoTM?>BuscarDetalhesJogoAsync(string url, CancellationToken ct = default)
+        public async Task<DetalhesJogoTM?> BuscarDetalhesJogoAsync(
+    string url, CancellationToken ct = default)
         {
             if (string.IsNullOrWhiteSpace(url)) return null;
 
@@ -1377,7 +1378,7 @@ namespace ControleFutebolWeb.Services
             string html;
             try
             {
-                await Task.Delay(2000, ct); // rate-limit
+                await Task.Delay(2000, ct);
                 html = await _httpClient.GetStringAsync(url, ct);
             }
             catch (Exception ex)
@@ -1391,14 +1392,11 @@ namespace ControleFutebolWeb.Services
 
             var detalhes = new DetalhesJogoTM();
 
-            // ── Placar ───────────────────────────────
-            var placarNode = doc.DocumentNode.SelectSingleNode(
-                "//div[contains(@class,'sb-endstand')] | " +
-                "//p[contains(@class,'sb-endstand')] | " +
-                "//span[contains(@class,'matchresult')]");
+            // ── Placar ────────────────────────────────────────────────────────────
+            var placarNode = doc.DocumentNode.SelectSingleNode("//div[contains(@class,'sb-endstand')]");
             if (placarNode != null)
             {
-                var m = Regex.Match(placarNode.InnerText.Trim(), @"(\d+)\s*[:\-]\s*(\d+)");
+                var m = Regex.Match(placarNode.InnerText.Trim(), @"(\d+)\s*:\s*(\d+)");
                 if (m.Success)
                 {
                     detalhes.PlacarCasa = int.Parse(m.Groups[1].Value);
@@ -1406,92 +1404,370 @@ namespace ControleFutebolWeb.Services
                 }
             }
 
-            // ── Formações ────────────────────────────
+            // ── Formações ─────────────────────────────────────────────────────────
+            // Exemplo do HTML: <div class="... formation-subtitle">Onze inicial: 4-4-2</div>
             var formNodes = doc.DocumentNode.SelectNodes(
-                "//div[contains(@class,'aufstellung-spielfeld-info')] | " +
-                "//span[contains(@class,'aufstellung-formation')]");
-            if (formNodes?.Count >= 1)
-                detalhes.FormacaoCasa = Regex.Match(formNodes[0].InnerText.Trim(), @"\d-\d-\d(-\d)?").Value;
-            if (formNodes?.Count >= 2)
-                detalhes.FormacaoVisitante = Regex.Match(formNodes[1].InnerText.Trim(), @"\d-\d-\d(-\d)?").Value;
-
-            // ── Escalações ───────────────────────────
-            detalhes.EscalacaoInicialCasa = ExtrairEscalacao(doc, 0, "INICIAL");
-            detalhes.EscalacaoInicialVisitante = ExtrairEscalacao(doc, 1, "INICIAL");
-            detalhes.EscalacaoFinalCasa = ExtrairEscalacaoFinal(doc, 0);
-            detalhes.EscalacaoFinalVisitante = ExtrairEscalacaoFinal(doc, 1);
-
-            if (!detalhes.EscalacaoFinalCasa.Any())
-                detalhes.EscalacaoFinalCasa = detalhes.EscalacaoInicialCasa.Select(j => j with { Fase = "FINAL" }).ToList();
-            if (!detalhes.EscalacaoFinalVisitante.Any())
-                detalhes.EscalacaoFinalVisitante = detalhes.EscalacaoInicialVisitante.Select(j => j with { Fase = "FINAL" }).ToList();
-
-            // ── Gols ────────────────────────────────
-            detalhes.Gols = ExtrairGols(doc);
-
-            // ── Eventos (gols, assistências, cartões) ─────────────
-            var eventoNodes = doc.DocumentNode.SelectNodes("//div[contains(@class,'sb-aktion')]");
-            if (eventoNodes != null)
+                "//div[contains(@class,'formation-subtitle')]");
+            if (formNodes != null && formNodes.Count >= 1)
             {
-                foreach (var node in eventoNodes)
-                {
-                    var minutoMatch = Regex.Match(node.InnerText, @"(\d+)'");
-                    int minuto = minutoMatch.Success ? int.Parse(minutoMatch.Groups[1].Value) : 0;
-
-                    var jogadorNode = node.SelectSingleNode(".//a[contains(@href,'/profil/spieler/')]");
-                    var jogadorNome = HtmlEntity.DeEntitize(jogadorNode?.InnerText.Trim() ?? "");
-                    var jogadorLink = jogadorNode?.GetAttributeValue("href", "");
-
-                    string tipo = "";
-                    bool contra = false;
-                    if (node.InnerText.Contains("Gol contra"))
-                    {
-                        tipo = "Gol"; contra = true;
-                    }
-                    else if (node.InnerText.Contains("Gol"))
-                    {
-                        tipo = "Gol";
-                    }
-                    else if (node.InnerText.Contains("Cartão amarelo"))
-                    {
-                        tipo = "CartaoAmarelo";
-                    }
-                    else if (node.InnerText.Contains("Cartão vermelho"))
-                    {
-                        tipo = "CartaoVermelho";
-                    }
-
-                    var assistNode = node.SelectSingleNode(".//span[contains(text(),'Assistência')]");
-                    string? assistenteNome = assistNode?.InnerText.Replace("Assistência de", "").Trim();
-                    var assistenteLinkNode = assistNode?.SelectSingleNode(".//a[contains(@href,'/profil/spieler/')]");
-                    string? assistenteLink = assistenteLinkNode?.GetAttributeValue("href", "");
-
-                    detalhes.Eventos.Add(new TransfermarktEventoInfo
-                    {
-                        Tipo = tipo,
-                        Minuto = minuto,
-                        Contra = contra,
-                        Detalhe = tipo,
-                        JogadorNome = jogadorNome,
-                        JogadorLink = jogadorLink
-                    });
-
-                    if (!string.IsNullOrEmpty(assistenteNome))
-                    {
-                        detalhes.Eventos.Add(new TransfermarktEventoInfo
-                        {
-                            Tipo = "Assistencia",
-                            Minuto = minuto,
-                            Detalhe = "Assistência",
-                            AssistenteNome = assistenteNome,
-                            AssistenteLink = assistenteLink
-                        });
-                    }
-                }
+                detalhes.FormacaoCasa = Regex.Match(
+                    formNodes[0].InnerText.Trim(), @"\d-\d-\d(-\d)?").Value;
             }
+            if (formNodes != null && formNodes.Count >= 2)
+            {
+                detalhes.FormacaoVisitante = Regex.Match(
+                    formNodes[1].InnerText.Trim(), @"\d-\d-\d(-\d)?").Value;
+            }
+
+            // ── Escalações ────────────────────────────────────────────────────────
+            // Titulares ficam nos containers .aufstellung-box (um por time)
+            // Banco fica em table.ersatzbank (uma por time)
+            var aufstellungBoxes = doc.DocumentNode.SelectNodes(
+                "//div[contains(@class,'aufstellung-box')]");
+
+            if (aufstellungBoxes != null && aufstellungBoxes.Count >= 1)
+            {
+                detalhes.EscalacaoInicialCasa = ExtrairTitulares(aufstellungBoxes[0]);
+                detalhes.EscalacaoInicialCasa.AddRange(ExtrairBanco(aufstellungBoxes[0]));
+            }
+            if (aufstellungBoxes != null && aufstellungBoxes.Count >= 2)
+            {
+                detalhes.EscalacaoInicialVisitante = ExtrairTitulares(aufstellungBoxes[1]);
+                detalhes.EscalacaoInicialVisitante.AddRange(ExtrairBanco(aufstellungBoxes[1]));
+            }
+
+            // Copia para Final (o site não separa inicial/final explicitamente)
+            detalhes.EscalacaoFinalCasa = detalhes.EscalacaoInicialCasa
+                .Select(j => j with { Fase = "FINAL" }).ToList();
+            detalhes.EscalacaoFinalVisitante = detalhes.EscalacaoInicialVisitante
+                .Select(j => j with { Fase = "FINAL" }).ToList();
+
+            // ── Gols ──────────────────────────────────────────────────────────────
+            // <div id="sb-tore">  →  <li class="sb-aktion-heim"> ou "sb-aktion-gast">
+            detalhes.Gols = ExtrairGolsDetalhado(doc);
+
+            // ── Eventos (gols, assistências, cartões) ─────────────────────────────
+            detalhes.Eventos = new List<TransfermarktEventoInfo>();
+            detalhes.Eventos.AddRange(ExtrairEventosGols(doc));
+            detalhes.Eventos.AddRange(ExtrairEventosCartoes(doc));
+
+            _logger.LogInformation(
+                "[Transfermarkt] Detalhes extraídos — " +
+                "FormCasa={FC} FormVis={FV} " +
+                "TitCasa={TC} TitVis={TV} " +
+                "Gols={G} Eventos={E}",
+                detalhes.FormacaoCasa ?? "-",
+                detalhes.FormacaoVisitante ?? "-",
+                detalhes.EscalacaoInicialCasa.Count(j => j.Titular),
+                detalhes.EscalacaoInicialVisitante.Count(j => j.Titular),
+                detalhes.Gols.Count,
+                detalhes.Eventos.Count);
 
             return detalhes;
         }
+
+        // ── Extrai titulares a partir do bloco aufstellung-box ─────────────────────
+        // Os jogadores ficam em <div class="formation-player-container">
+        // com um link <a href="/slug/profil/spieler/ID">
+        private List<JogadorEscalacaoTM> ExtrairTitulares(HtmlNode blocoBox)
+        {
+            var lista = new List<JogadorEscalacaoTM>();
+
+            var containers = blocoBox.SelectNodes(
+                ".//div[contains(@class,'formation-player-container')]");
+            if (containers == null) return lista;
+
+            foreach (var c in containers)
+            {
+                var linkNode = c.SelectSingleNode(
+                    ".//a[contains(@href,'/profil/spieler/')]");
+                if (linkNode == null) continue;
+
+                var nome = HtmlEntity.DeEntitize(linkNode.InnerText.Trim());
+                var href = linkNode.GetAttributeValue("href", "");
+                var idMatch = Regex.Match(href, @"/spieler/(\d+)");
+
+                // Número da camisa
+                var numNode = c.SelectSingleNode(
+                    ".//div[contains(@class,'tm-shirt-number')]");
+                int? numero = null;
+                if (numNode != null && int.TryParse(numNode.InnerText.Trim(), out var n))
+                    numero = n;
+
+                lista.Add(new JogadorEscalacaoTM
+                {
+                    Nome = nome,
+                    Numero = numero,
+                    Posicao = InferirPosicaoPorNumero(numero),
+                    Titular = true,
+                    IdExterno = idMatch.Success ? long.Parse(idMatch.Groups[1].Value) : null,
+                    Fase = "INICIAL"
+                });
+            }
+
+            return lista;
+        }
+
+        // ── Extrai banco de reservas a partir do bloco aufstellung-box ─────────────
+        // Os reservas ficam em <table class="ersatzbank">
+        // Cada <tr> tem: número | link jogador | sigla posição
+        private List<JogadorEscalacaoTM> ExtrairBanco(HtmlNode blocoBox)
+        {
+            var lista = new List<JogadorEscalacaoTM>();
+
+            var tabela = blocoBox.SelectSingleNode(".//table[contains(@class,'ersatzbank')]");
+            if (tabela == null) return lista;
+
+            var linhas = tabela.SelectNodes(".//tr");
+            if (linhas == null) return lista;
+
+            foreach (var linha in linhas)
+            {
+                var linkNode = linha.SelectSingleNode(
+                    ".//a[contains(@href,'/profil/spieler/')]");
+                if (linkNode == null) continue;
+
+                var nome = HtmlEntity.DeEntitize(linkNode.InnerText.Trim());
+                var href = linkNode.GetAttributeValue("href", "");
+                var idMatch = Regex.Match(href, @"/spieler/(\d+)");
+
+                // Número da camisa
+                var numNode = linha.SelectSingleNode(
+                    ".//div[contains(@class,'tm-shirt-number')]");
+                int? numero = null;
+                if (numNode != null && int.TryParse(numNode.InnerText.Trim(), out var n))
+                    numero = n;
+
+                // Posição (3ª célula, ex: "GOL", "ZAG", "MEI", "CA")
+                var tds = linha.SelectNodes(".//td");
+                string sigla = "";
+                if (tds != null && tds.Count >= 3)
+                    sigla = HtmlEntity.DeEntitize(tds[2].InnerText.Trim());
+
+                lista.Add(new JogadorEscalacaoTM
+                {
+                    Nome = nome,
+                    Numero = numero,
+                    Posicao = ExpandirSiglaPosicaoBR(sigla),
+                    Titular = false,
+                    IdExterno = idMatch.Success ? long.Parse(idMatch.Groups[1].Value) : null,
+                    Fase = "INICIAL"
+                });
+            }
+
+            return lista;
+        }
+
+        // ── Extrai gols do bloco #sb-tore ──────────────────────────────────────────
+        // <li class="sb-aktion-heim"> ou "sb-aktion-gast">
+        // O link do marcador está em <div class="sb-aktion-spielerbild"> → <a>
+        private List<GolTM> ExtrairGolsDetalhado(HtmlDocument doc)
+        {
+            var gols = new List<GolTM>();
+
+            var toreDiv = doc.DocumentNode.SelectSingleNode("//*[@id='sb-tore']");
+            if (toreDiv == null) return gols;
+
+            var items = toreDiv.SelectNodes(".//li[contains(@class,'sb-aktion')]");
+            if (items == null) return gols;
+
+            foreach (var li in items)
+            {
+                bool isCasa = li.GetAttributeValue("class", "").Contains("sb-aktion-heim");
+
+                // Minuto
+                var uhrSpan = li.SelectSingleNode(".//span[contains(@class,'sb-sprite-uhr-klein')]");
+                string uhrText = uhrSpan?.InnerText.Trim() ?? "0";
+                int minuto = ParseMinuto(uhrText);
+
+                // Marcador (primeiro link em sb-aktion-spielerbild)
+                var bilderLink = li.SelectSingleNode(
+                    ".//div[contains(@class,'sb-aktion-spielerbild')]//a[contains(@href,'/profil/spieler/')]");
+                if (bilderLink == null) continue;
+
+                var nomeGolador = bilderLink.GetAttributeValue("title", "").Trim();
+                if (string.IsNullOrWhiteSpace(nomeGolador))
+                    nomeGolador = HtmlEntity.DeEntitize(bilderLink.InnerText.Trim());
+
+                var hrefGolador = bilderLink.GetAttributeValue("href", "");
+                var idGolador = ExtrairIdJogadorDoLink(hrefGolador);
+
+                // Gol contra?
+                var acaoDiv = li.SelectSingleNode(".//div[contains(@class,'sb-aktion-aktion')]");
+                bool contra = acaoDiv != null &&
+                    (acaoDiv.InnerText.Contains("contra") || acaoDiv.InnerText.Contains("Eigentor"));
+
+                gols.Add(new GolTM
+                {
+                    NomeJogador = nomeGolador,
+                    IdExterno = idGolador,
+                    Minuto = minuto,
+                    IsTimeCasa = isCasa,
+                    Contra = contra
+                });
+            }
+
+            return gols;
+        }
+
+        // ── Extrai eventos de gols/assistências do #sb-tore ────────────────────────
+        private List<TransfermarktEventoInfo> ExtrairEventosGols(HtmlDocument doc)
+        {
+            var eventos = new List<TransfermarktEventoInfo>();
+
+            var toreDiv = doc.DocumentNode.SelectSingleNode("//*[@id='sb-tore']");
+            if (toreDiv == null) return eventos;
+
+            var items = toreDiv.SelectNodes(".//li[contains(@class,'sb-aktion')]");
+            if (items == null) return eventos;
+
+            foreach (var li in items)
+            {
+                var uhrSpan = li.SelectSingleNode(".//span[contains(@class,'sb-sprite-uhr-klein')]");
+                int minuto = ParseMinuto(uhrSpan?.InnerText.Trim() ?? "0");
+
+                var acaoDiv = li.SelectSingleNode(".//div[contains(@class,'sb-aktion-aktion')]");
+                if (acaoDiv == null) continue;
+
+                // Todos os links de jogadores na linha de ação
+                var links = acaoDiv.SelectNodes(".//a[contains(@href,'/profil/spieler/') or contains(@href,'/leistungsdaten')]");
+                if (links == null || links.Count == 0) continue;
+
+                // 1° link = marcador
+                var linkMarcador = links[0];
+                string nomeMarcador = linkMarcador.GetAttributeValue("title", "").Trim();
+                if (string.IsNullOrWhiteSpace(nomeMarcador))
+                    nomeMarcador = HtmlEntity.DeEntitize(linkMarcador.InnerText.Trim());
+                string hrefMarcador = linkMarcador.GetAttributeValue("href", "");
+                long? idMarcador = ExtrairIdJogadorDoLink(hrefMarcador);
+
+                bool contra = acaoDiv.InnerText.Contains("contra") ||
+                              acaoDiv.InnerText.Contains("Eigentor");
+
+                eventos.Add(new TransfermarktEventoInfo
+                {
+                    Tipo = "Gol",
+                    JogadorNome = nomeMarcador,
+                    JogadorLink = hrefMarcador,
+                    Minuto = minuto,
+                    Contra = contra,
+                    Detalhe = "Gol"
+                });
+
+                // Se existe "Assistência:" no texto, 2° link = assistente
+                if (links.Count >= 2 && acaoDiv.InnerText.Contains("Assistência"))
+                {
+                    var linkAssist = links[1];
+                    string nomeAssist = linkAssist.GetAttributeValue("title", "").Trim();
+                    if (string.IsNullOrWhiteSpace(nomeAssist))
+                        nomeAssist = HtmlEntity.DeEntitize(linkAssist.InnerText.Trim());
+                    string hrefAssist = linkAssist.GetAttributeValue("href", "");
+
+                    eventos.Add(new TransfermarktEventoInfo
+                    {
+                        Tipo = "Assistencia",
+                        AssistenteNome = nomeAssist,
+                        AssistenteLink = hrefAssist,
+                        Minuto = minuto,
+                        Detalhe = "Assistência"
+                    });
+                }
+            }
+
+            return eventos;
+        }
+
+        // ── Extrai cartões do bloco #sb-karten ────────────────────────────────────
+        // <div class="sb-aktion-spielstand"> → <span class="sb-sprite sb-gelb"> ou sb-rot
+        private List<TransfermarktEventoInfo> ExtrairEventosCartoes(HtmlDocument doc)
+        {
+            var eventos = new List<TransfermarktEventoInfo>();
+
+            var kartDiv = doc.DocumentNode.SelectSingleNode("//*[@id='sb-karten']");
+            if (kartDiv == null) return eventos;
+
+            var items = kartDiv.SelectNodes(".//li[contains(@class,'sb-aktion')]");
+            if (items == null) return eventos;
+
+            foreach (var li in items)
+            {
+                var uhrSpan = li.SelectSingleNode(".//span[contains(@class,'sb-sprite-uhr-klein')]");
+                int minuto = ParseMinuto(uhrSpan?.InnerText.Trim() ?? "0");
+
+                // Tipo de cartão
+                var cartaoSpan = li.SelectSingleNode(
+                    ".//span[contains(@class,'sb-gelb') or contains(@class,'sb-rot')]");
+                string tipo = "Amarelo";
+                if (cartaoSpan != null)
+                {
+                    var cls = cartaoSpan.GetAttributeValue("class", "");
+                    tipo = cls.Contains("sb-rot") ? "Vermelho" : "Amarelo";
+                }
+
+                // Jogador
+                var bilderLink = li.SelectSingleNode(
+                    ".//div[contains(@class,'sb-aktion-spielerbild')]//a[contains(@href,'/profil/spieler/')]");
+                if (bilderLink == null) continue;
+
+                string nomeJogador = bilderLink.GetAttributeValue("title", "").Trim();
+                if (string.IsNullOrWhiteSpace(nomeJogador))
+                    nomeJogador = HtmlEntity.DeEntitize(bilderLink.InnerText.Trim());
+                string hrefJogador = bilderLink.GetAttributeValue("href", "");
+
+                eventos.Add(new TransfermarktEventoInfo
+                {
+                    Tipo = tipo == "Vermelho" ? "CartaoVermelho" : "CartaoAmarelo",
+                    JogadorNome = nomeJogador,
+                    JogadorLink = hrefJogador,
+                    Minuto = minuto,
+                    Detalhe = tipo
+                });
+            }
+
+            return eventos;
+        }
+
+        // ── Helpers ───────────────────────────────────────────────────────────────
+
+        private static int ParseMinuto(string texto)
+        {
+            if (string.IsNullOrWhiteSpace(texto)) return 0;
+            var m = Regex.Match(texto.Trim(), @"(\d+)");
+            return m.Success ? int.Parse(m.Groups[1].Value) : 0;
+        }
+
+        private static long? ExtrairIdJogadorDoLink(string href)
+        {
+            var m = Regex.Match(href ?? "", @"/spieler/(\d+)");
+            return m.Success ? long.Parse(m.Groups[1].Value) : null;
+        }
+
+        // Converte sigla BR do banco de reservas para nome de posição
+        private static string ExpandirSiglaPosicaoBR(string sigla) =>
+            sigla.ToUpperInvariant() switch
+            {
+                "GOL" => "Goleiro",
+                "ZAG" => "Zagueiro",
+                "LD" => "Lateral Direito",
+                "LE" => "Lateral Esquerdo",
+                "VOL" => "Volante",
+                "MEI" => "Meio-campo",
+                "PE" => "Ponta Esquerda",
+                "PD" => "Ponta Direita",
+                "CA" => "Centroavante",
+                "ATA" => "Atacante",
+                _ => "Meio-campo"
+            };
+
+        // Infere posição pela faixa numérica do goleiro (1 = Goleiro)
+        private static string InferirPosicaoPorNumero(int? numero) =>
+            numero switch
+            {
+                1 => "Goleiro",
+                2 or 3 or 4 or 5 or 6 => "Zagueiro",
+                7 or 8 or 9 or 10 or 11 => "Meio-campo",
+                _ => "Meio-campo"
+            };
         private List<GolTM> ExtrairGols(HtmlDocument doc)
         {
             var gols = new List<GolTM>();

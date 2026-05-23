@@ -1077,8 +1077,6 @@ namespace ControleFutebolWeb.Services
             }
         }
 
-
-
         private static void RegistrarLog(
             FutebolContext context,
             Guid cicloId,
