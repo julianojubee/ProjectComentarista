@@ -260,8 +260,7 @@ namespace ControleFutebolWeb.Services
                 });
             }
         }
-        
-
+       
         private TransfermarktJogoInfo? ParseLinhaJogoLiga(HtmlNode linha, int rodada)
         {
             try
@@ -350,7 +349,6 @@ namespace ControleFutebolWeb.Services
             }
         }
 
-
         private static DateTime? ParseDataLiga(string texto)
         {
             string[] fmts = { "dd/MM/yy", "dd/MM/yyyy", "dd.MM.yyyy", "dd.MM.yy" };
@@ -369,7 +367,6 @@ namespace ControleFutebolWeb.Services
             }
             return null;
         }
-
 
         public async Task<List<TransfermarktJogoInfo>> BuscarJogosCompeticaoPorLink(string linkCompeticao, CancellationToken ct)
         {
@@ -485,7 +482,6 @@ namespace ControleFutebolWeb.Services
         }
 
         public string NormalizarLinkTransfermarkt(string url) => MontarUrlAbsoluta(url);
-
 
         /// <summary>
         /// Busca foto do jogador. Se tiver linkTransfermarkt salvo, usa direto.
@@ -780,64 +776,62 @@ namespace ControleFutebolWeb.Services
         /// Quando há múltiplos resultados, compara com o nome do clube para pegar o correto.
         /// </summary>
         public async Task<TransfermarktPlayerInfo?> BuscarJogador(
-            string nomeJogador,
-            string? nomeClube = null,
-            string? nacionalidadeEsperada = null,
-            int? idadeEsperada = null)
+        string nomeJogador,
+        string? nomeClube = null,
+        string? nacionalidadeEsperada = null,
+        int? idadeEsperada = null)
+    {
+        var query = HttpUtility.UrlEncode(nomeJogador);
+        var url = $"https://www.transfermarkt.com.br/schnellsuche/ergebnis/schnellsuche?query={query}";
+
+        var html = await _httpClient.GetStringAsync(url);
+        var doc = new HtmlDocument();
+        doc.LoadHtml(html);
+
+        var linhas = doc.DocumentNode.SelectNodes("//table[contains(@class,'items')]/tbody/tr[not(contains(@class,'thead'))]");
+        if (linhas == null || !linhas.Any()) return null;
+
+        HtmlNode? linhaSelecionada = null;
+
+        foreach (var linha in linhas)
         {
-            var query = HttpUtility.UrlEncode(nomeJogador);
-            var url = $"https://www.transfermarkt.com.br/schnellsuche/ergebnis/schnellsuche?query={query}";
+            var nomeCell = linha.SelectSingleNode(".//td[@class='hauptlink']/a")?.InnerText?.Trim();
+            var clubeCell = ExtrairClubeLinha(linha);
 
-            var html = await _httpClient.GetStringAsync(url);
-            var doc = new HtmlDocument();
-            doc.LoadHtml(html);
+            var nacCell = linha.SelectSingleNode(".//td[@class='zentriert']/img");
+            var nacTexto = nacCell?.GetAttributeValue("title", "") ?? "";
+            var nacNormalizada = NacionalidadesHelper.Normalizar(nacTexto);
 
-            var linhas = doc.DocumentNode.SelectNodes("//table[contains(@class,'items')]/tbody/tr[not(contains(@class,'thead'))]");
-            if (linhas == null || !linhas.Any()) return null;
+            var idadeCell = linha.SelectSingleNode(".//td[@class='zentriert']");
+            int idade = 0;
+            if (idadeCell != null && int.TryParse(Regex.Match(idadeCell.InnerText, @"\d+").Value, out var idadeParsed))
+                idade = idadeParsed;
 
-            HtmlNode? linhaSelecionada = null;
+            _logger.LogInformation("[Transfermarkt] Candidato: Nome={Nome}, Clube={Clube}, Nac={Nac}, Idade={Idade}",
+                nomeCell, clubeCell, nacNormalizada, idade);
 
-            foreach (var linha in linhas)
+            // Critérios de seleção
+            if (!string.IsNullOrWhiteSpace(nomeClube) && NomesClubeSimilares(clubeCell, nomeClube))
             {
-                var nomeCell = linha.SelectSingleNode(".//td[@class='hauptlink']/a")?.InnerText?.Trim();
-                var clubeCell = ExtrairClubeLinha(linha);
-
-                var nacCell = linha.SelectSingleNode(".//td[@class='zentriert']/img");
-                var nacTexto = nacCell?.GetAttributeValue("title", "") ?? "";
-                var nacNormalizada = NacionalidadesHelper.Normalizar(nacTexto);
-
-                var idadeCell = linha.SelectSingleNode(".//td[@class='zentriert']");
-                int idade = 0;
-                if (idadeCell != null && int.TryParse(Regex.Match(idadeCell.InnerText, @"\d+").Value, out var idadeParsed))
-                    idade = idadeParsed;
-
-                _logger.LogInformation("[Transfermarkt] Candidato: Nome={Nome}, Clube={Clube}, Nac={Nac}, Idade={Idade}",
-                    nomeCell, clubeCell, nacNormalizada, idade);
-
-                // Critérios de seleção
-                if (!string.IsNullOrWhiteSpace(nomeClube) && NomesClubeSimilares(clubeCell, nomeClube))
+                linhaSelecionada = linha;
+                break;
+            }
+            if (!string.IsNullOrWhiteSpace(nacionalidadeEsperada) &&
+                nacNormalizada.Equals(nacionalidadeEsperada, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!idadeEsperada.HasValue || idade == idadeEsperada.Value)
                 {
                     linhaSelecionada = linha;
                     break;
                 }
-                if (!string.IsNullOrWhiteSpace(nacionalidadeEsperada) &&
-                    nacNormalizada.Equals(nacionalidadeEsperada, StringComparison.OrdinalIgnoreCase))
-                {
-                    if (!idadeEsperada.HasValue || idade == idadeEsperada.Value)
-                    {
-                        linhaSelecionada = linha;
-                        break;
-                    }
-                }
             }
-
-            // Fallback final
-            linhaSelecionada ??= linhas[0];
-
-            return await ExtrairDadosDaLinha(linhaSelecionada);
         }
 
+        // Fallback final
+        linhaSelecionada ??= linhas[0];
 
+        return await ExtrairDadosDaLinha(linhaSelecionada);
+    }
 
         private async Task<TransfermarktPlayerInfo?> ExtrairDadosDaLinha(HtmlNode linha)
         {
@@ -1306,7 +1300,6 @@ namespace ControleFutebolWeb.Services
             return jogos;
         }
 
-
         private List<TransfermarktJogoInfo> ExtrairJogosDeHtml(string html, int rodadaPadrao)
         {
             var jogos = new List<TransfermarktJogoInfo>();
@@ -1404,7 +1397,6 @@ namespace ControleFutebolWeb.Services
                 ? DateTime.SpecifyKind(dataGenerica, DateTimeKind.Utc)
                 : null;
         }
-
 
         public async Task<string?> BuscarEscudoTimePorLink(string teamUrl)
         {
@@ -1672,8 +1664,11 @@ namespace ControleFutebolWeb.Services
 
                 // Gol contra?
                 var acaoDiv = li.SelectSingleNode(".//div[contains(@class,'sb-aktion-aktion')]");
-                bool contra = acaoDiv != null &&
-                    (acaoDiv.InnerText.Contains("contra") || acaoDiv.InnerText.Contains("Eigentor"));
+
+                var textoAcao = HtmlEntity.DeEntitize(li.InnerText).ToLowerInvariant();
+
+                bool contra = textoAcao.Contains("gol contra")
+                           || li.InnerHtml.Contains("Eigentor");
 
                 gols.Add(new GolTM
                 {
@@ -1897,7 +1892,6 @@ namespace ControleFutebolWeb.Services
             var parentClass = node.GetAttributeValue("class", "");
             return parentClass.Contains("sb-aktion-heim");
         }
-
 
         private List<JogadorEscalacaoTM> ExtrairEscalacao(HtmlDocument doc, int lado, string fase)
         {
@@ -2364,7 +2358,8 @@ namespace ControleFutebolWeb.Services
                 Status = jogoWeb.PlacarCasa.HasValue ? "Finalizado" : "Agendado",
                 Atualizado = jogoWeb.PlacarCasa.HasValue ? 1 : 0,
                 FormacaoCasaId = formacaoCasa.Id,
-                FormacaoVisitanteId = formacaoVisitante.Id
+                FormacaoVisitanteId = formacaoVisitante.Id,
+                LinkDetalhes = jogoWeb.LinkDetalhes
             };
 
             context.Jogos.Add(jogo);
@@ -2415,7 +2410,11 @@ namespace ControleFutebolWeb.Services
             // ── Eventos (gols, assistências, cartões) ─────────────────────────────
             if (detalhes?.Eventos.Any() == true)
             {
-                await PersistirEventosAsync(context, jogo, detalhes.Eventos, ct);
+                var (gols, assists, cartoes) = await transfermarkt
+                     .ImportarEventosPorLinkJogadorAsync(context, jogo, jogo.LinkDetalhes!, ct);
+                _logger.LogInformation(
+                "[Eventos] Jogo {Id}: {G} gols, {A} assistências, {C} cartões",
+                jogo.Id, gols, assists, cartoes);
             }
 
             await context.SaveChangesAsync(ct);
@@ -2823,6 +2822,290 @@ namespace ControleFutebolWeb.Services
             }
             return null;
         }
+
+        // ── Resolve jogador por link do Transfermarkt ─────────────────────────────
+        /// <summary>
+        /// Extrai o ID numérico do Transfermarkt de qualquer link do perfil.
+        /// Ex.: /matheus-pereira/leistungsdatendetails/spieler/225984/... → 225984
+        /// </summary>
+        private static long? ExtrairIdDoLinkQualquer(string? href)
+        {
+            if (string.IsNullOrWhiteSpace(href)) return null;
+            var m = Regex.Match(href, @"/spieler/(\d+)");
+            return m.Success ? long.Parse(m.Groups[1].Value) : null;
+        }
+
+        private async Task<(Jogador? jogador, bool isCasa)?> ResolverJogadorPorLinkAsync(
+    FutebolContext context,
+    string? href,
+    int timeCasaId,
+    int timeVisitanteId,
+    CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(href))
+            {
+                _logger.LogWarning("[ResolverPorLink] Href vazio.");
+                return null;
+            }
+
+            _logger.LogInformation("[ResolverPorLink] Procurando jogador pelo link: {Href}", href);
+
+            var tmId = ExtrairIdDoLinkQualquer(href);
+            if (!tmId.HasValue)
+            {
+                _logger.LogWarning("[ResolverPorLink] Não foi possível extrair ID do link: {Href}", href);
+                return null;
+            }
+
+            _logger.LogInformation("[ResolverPorLink] ID extraído do link: {Id}", tmId);
+
+            // 1. Busca pelo campo linktransfermarket
+            var porLink = await context.Jogadores
+                .FirstOrDefaultAsync(j =>
+                    j.linktransfermarket != null &&
+                    j.linktransfermarket.Contains($"/spieler/{tmId}"), ct);
+
+            if (porLink != null)
+            {
+                bool isCasa = porLink.TimeId == timeCasaId;
+                _logger.LogInformation(
+                    "[ResolverPorLink] Jogador encontrado: {Nome} (TimeId={TimeId}) | CasaId={CasaId} | VisitanteId={VisId} | isCasa={IsCasa}",
+                    porLink.Nome, porLink.TimeId, timeCasaId, timeVisitanteId, isCasa);
+                return (porLink, isCasa);
+            }
+
+            // 2. Fallback: busca por IdApi
+            var porIdApi = await context.Jogadores
+                .FirstOrDefaultAsync(j => j.IdApi == tmId, ct);
+
+            if (porIdApi != null)
+            {
+                bool isCasa = porIdApi.TimeId == timeCasaId;
+                _logger.LogInformation(
+                    "[ResolverPorLink] Jogador encontrado por IdApi: {Nome} (TimeId={TimeId}) | CasaId={CasaId} | VisitanteId={VisId} | isCasa={IsCasa}",
+                    porIdApi.Nome, porIdApi.TimeId, timeCasaId, timeVisitanteId, isCasa);
+                return (porIdApi, isCasa);
+            }
+
+            _logger.LogWarning(
+                "[ResolverPorLink] ID {Id} não encontrado no banco. Link={Href}",
+                tmId, href);
+            return null;
+        }
+
+
+        /// <summary>
+        /// Importa gols, assistências e cartões de uma página de detalhe do jogo
+        /// resolvendo os jogadores pelo link Transfermarkt (mais confiável que busca por nome).
+        /// </summary>
+        public async Task<(int gols, int assistencias, int cartoes)> ImportarEventosPorLinkJogadorAsync(
+            FutebolContext context,
+            Jogo jogo,
+            string urlDetalhes,
+            CancellationToken ct = default)
+        {
+
+            _logger.LogInformation("[ImportarEventos] Buscando detalhes: {Url}", urlDetalhes);
+
+            if (string.IsNullOrWhiteSpace(urlDetalhes))
+                return (0, 0, 0);
+
+            if (!urlDetalhes.StartsWith("http"))
+                urlDetalhes = "https://www.transfermarkt.com.br" + urlDetalhes;
+
+            string html;
+            try
+            {
+                await Task.Delay(2000, ct);
+                html = await _httpClient.GetStringAsync(urlDetalhes, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[ImportarEventos] Erro ao buscar: {Url}", urlDetalhes);
+                return (0, 0, 0);
+            }
+
+            var doc = new HtmlDocument();
+            doc.LoadHtml(html);
+
+            int totalGols = 0, totalAssist = 0, totalCartoes = 0;
+
+            // ── GOL (div#sb-tore li com ação de gol) ─────────────────────────────
+            var toreDiv = doc.DocumentNode.SelectSingleNode("//*[@id='sb-tore']");
+            if (toreDiv != null)
+            {
+                var itensGol = toreDiv.SelectNodes(".//li[contains(@class,'sb-aktion')]");
+                if (itensGol != null)
+                {
+                    foreach (var li in itensGol)
+                    {
+                        var minuto = ExtrairMinutoDoNo(li);
+                        bool contra = li.InnerText.Contains("contra") ||
+                                      li.InnerHtml.Contains("Eigentor");
+
+                        // Link do marcador fica em div.sb-aktion-aktion a[1]
+                        var acaoDiv = li.SelectSingleNode(".//div[contains(@class,'sb-aktion-aktion')]");
+                        if (acaoDiv == null) continue;
+
+                        var linksAcao = acaoDiv.SelectNodes(".//a[@href]");
+                        if (linksAcao == null || linksAcao.Count == 0) continue;
+
+                        var linkMarcador = linksAcao[0].GetAttributeValue("href", "");
+
+                        var resultMarcador = await ResolverJogadorPorLinkAsync(
+                            context, linkMarcador,
+                            jogo.TimeCasaId, jogo.TimeVisitanteId, ct);
+
+                        if (resultMarcador?.jogador != null)
+                        {
+                            // Evita duplicar gols
+                            bool jaExiste = await context.Gols.AnyAsync(g =>
+                                g.JogoId == jogo.Id &&
+                                g.JogadorId == resultMarcador.Value.jogador.Id &&
+                                g.Minuto == minuto, ct);
+
+                            if (!jaExiste)
+                            {
+                                context.Gols.Add(new Gol
+                                {
+                                    JogoId = jogo.Id,
+                                    JogadorId = resultMarcador.Value.jogador.Id,
+                                    Minuto = minuto,
+                                    Contra = contra
+                                });
+                                totalGols++;
+                                _logger.LogInformation(
+                                    "[ImportarEventos] Gol: {Nome} min={Min} contra={C}",
+                                    resultMarcador.Value.jogador.Nome, minuto, contra);
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogWarning(
+                                "[ImportarEventos] Gol ignorado (jogador não encontrado): link={L}",
+                                linkMarcador);
+                        }
+
+                        // Assistência: segundo link em "Assistência: <a>"
+                        if (linksAcao.Count >= 2)
+                        {
+                            var textoAcao = HtmlEntity.DeEntitize(acaoDiv.InnerText);
+                            if (textoAcao.Contains("Assistência") || textoAcao.Contains("Assistencia"))
+                            {
+                                var linkAssist = linksAcao[1].GetAttributeValue("href", "");
+                                var resultAssist = await ResolverJogadorPorLinkAsync(
+                                    context, linkAssist,
+                                    jogo.TimeCasaId, jogo.TimeVisitanteId, ct);
+
+                                if (resultAssist?.jogador != null)
+                                {
+                                    bool jaExisteAssist = await context.Assistencias.AnyAsync(a =>
+                                        a.JogoId == jogo.Id &&
+                                        a.JogadorId == resultAssist.Value.jogador.Id &&
+                                        a.Minuto == minuto, ct);
+
+                                    if (!jaExisteAssist)
+                                    {
+                                        context.Assistencias.Add(new Assistencia
+                                        {
+                                            JogoId = jogo.Id,
+                                            JogadorId = resultAssist.Value.jogador.Id,
+                                            Minuto = minuto
+                                        });
+                                        totalAssist++;
+                                        _logger.LogInformation(
+                                            "[ImportarEventos] Assistência: {Nome} min={Min}",
+                                            resultAssist.Value.jogador.Nome, minuto);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── CARTÕES (div#sb-karten li) ────────────────────────────────────────
+            var kartenDiv = doc.DocumentNode.SelectSingleNode("//*[@id='sb-karten']");
+            if (kartenDiv != null)
+            {
+                var itensCartao = kartenDiv.SelectNodes(".//li[contains(@class,'sb-aktion')]");
+                if (itensCartao != null)
+                {
+                    foreach (var li in itensCartao)
+                    {
+                        var minuto = ExtrairMinutoDoNo(li);
+
+                        // Tipo pelo ícone: sb-sprite-gelb = amarelo, sb-rot = vermelho
+                        var outerHtml = li.OuterHtml;
+                        string tipo = outerHtml.Contains("sb-rot") || outerHtml.Contains("Rot")
+                            ? "Vermelho" : "Amarelo";
+
+                        // Link do jogador
+                        var linkNode = li.SelectSingleNode(
+                            ".//div[contains(@class,'sb-aktion-spielerbild')]//a[@href]") ??
+                            li.SelectSingleNode(".//div[contains(@class,'sb-aktion-aktion')]//a[@href]");
+
+                        if (linkNode == null) continue;
+
+                        var linkCartao = linkNode.GetAttributeValue("href", "");
+                        var resultCartao = await ResolverJogadorPorLinkAsync(
+                            context, linkCartao,
+                            jogo.TimeCasaId, jogo.TimeVisitanteId, ct);
+
+                        if (resultCartao?.jogador != null)
+                        {
+                            bool jaExiste = await context.Cartoes.AnyAsync(c =>
+                                c.JogoId == jogo.Id &&
+                                c.JogadorId == resultCartao.Value.jogador.Id &&
+                                c.Minuto == minuto &&
+                                c.Tipo == tipo, ct);
+
+                            if (!jaExiste)
+                            {
+                                context.Cartoes.Add(new Cartao
+                                {
+                                    JogoId = jogo.Id,
+                                    JogadorId = resultCartao.Value.jogador.Id,
+                                    Minuto = minuto,
+                                    Tipo = tipo
+                                });
+                                totalCartoes++;
+                                _logger.LogInformation(
+                                    "[ImportarEventos] Cartão {Tipo}: {Nome} min={Min}",
+                                    tipo, resultCartao.Value.jogador.Nome, minuto);
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogWarning(
+                                "[ImportarEventos] Cartão ignorado (jogador não encontrado): link={L}",
+                                linkCartao);
+                        }
+                    }
+                }
+            }
+
+            await context.SaveChangesAsync(ct);
+
+            _logger.LogInformation(
+                "[ImportarEventos] Jogo {Id} finalizado: {G} gols, {A} assist, {C} cartões",
+                jogo.Id, totalGols, totalAssist, totalCartoes);
+
+            return (totalGols, totalAssist, totalCartoes);
+        }
+
+        // Helper separado para extrair minuto de um <li> de evento
+        private static int ExtrairMinutoDoNo(HtmlNode no)
+        {
+            var span = no.SelectSingleNode(
+                ".//span[contains(@class,'sb-sprite-uhr-klein')] | " +
+                ".//span[contains(@class,'sb-aktion-uhr')]");
+            var texto = HtmlEntity.DeEntitize(span?.InnerText.Trim() ?? "0");
+            // "90+2'" → pega 90, ignora acréscimo por enquanto
+            var m = Regex.Match(texto, @"(\d+)");
+            return m.Success ? int.Parse(m.Groups[1].Value) : 0;
+        }
+
         // Necessário comparer para HashSet de HtmlNode baseado em XPath
         private class HtmlNodeXPathComparer : IEqualityComparer<HtmlAgilityPack.HtmlNode>
         {

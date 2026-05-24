@@ -580,60 +580,13 @@ namespace ControleFutebolWeb.Services
                     _logger.LogInformation("[Eventos] Buscando detalhes do jogo {Id}: {Casa} x {Vis}",
                         jogo.Id, jogo.TimeCasa.Nome, jogo.TimeVisitante.Nome);
 
-                    var detalhes = await transfermarkt.BuscarDetalhesJogoAsync(jogo.LinkDetalhes!, ct);
-                    if (detalhes == null) continue;
+                    // 🔹 Usa o novo método que resolve jogadores por link
+                    var (gols, assistencias, cartoes) = await transfermarkt.ImportarEventosPorLinkJogadorAsync(
+                        context, jogo, jogo.LinkDetalhes!, ct);
 
-                    // 🔹 Processa eventos
-                    foreach (var ev in detalhes.Eventos)
-                    {
-                        var nomeJogador = ev.JogadorNome ?? ev.AssistenteNome;
-                        var timeId = ev.Tipo == "Assistencia"
-                            ? jogo.TimeVisitanteId
-                            : jogo.TimeCasaId;
-
-                        var jogador = await ResolverJogadorAsync(context, nomeJogador, null, timeId, ct);
-                        if (jogador == null)
-                        {
-                            _logger.LogWarning("[Eventos] Jogador não encontrado: {Nome}", nomeJogador);
-                            continue;
-                        }
-
-                        if (ev.Tipo == "Gol" &&
-                            !await context.Gols.AnyAsync(g => g.JogoId == jogo.Id && g.JogadorId == jogador.Id && g.Minuto == ev.Minuto, ct))
-                        {
-                            context.Gols.Add(new Gol
-                            {
-                                JogoId = jogo.Id,
-                                JogadorId = jogador.Id,
-                                Minuto = ev.Minuto,
-                                Contra = ev.Contra
-                            });
-                        }
-                        else if (ev.Tipo == "Assistencia" &&
-                            !await context.Assistencias.AnyAsync(a => a.JogoId == jogo.Id && a.JogadorId == jogador.Id && a.Minuto == ev.Minuto, ct))
-                        {
-                            context.Assistencias.Add(new Assistencia
-                            {
-                                JogoId = jogo.Id,
-                                JogadorId = jogador.Id,
-                                Minuto = ev.Minuto
-                            });
-                        }
-                        else if (ev.Tipo.StartsWith("Cartao") &&
-                            !await context.Cartoes.AnyAsync(c => c.JogoId == jogo.Id && c.JogadorId == jogador.Id && c.Minuto == ev.Minuto && c.Tipo == ev.Detalhe, ct))
-                        {
-                            context.Cartoes.Add(new Cartao
-                            {
-                                JogoId = jogo.Id,
-                                JogadorId = jogador.Id,
-                                Minuto = ev.Minuto,
-                                Tipo = ev.Detalhe
-                            });
-                        }
-                    }
-
-                    await context.SaveChangesAsync(ct);
-                    _logger.LogInformation("[Eventos] Jogo {Id} atualizado com eventos.", jogo.Id);
+                    _logger.LogInformation(
+                        "[Eventos] Jogo {Id} atualizado: {G} gols, {A} assistências, {C} cartões",
+                        jogo.Id, gols, assistencias, cartoes);
                 }
                 catch (Exception ex)
                 {
@@ -643,6 +596,7 @@ namespace ControleFutebolWeb.Services
                 await Task.Delay(1500, ct); // pausa para não ser bloqueado
             }
         }
+
 
         private static void RegistrarLog(
             FutebolContext context,
