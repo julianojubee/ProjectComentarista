@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "yXzdvcjZG0M=",
+  "dgSpecHash": "3McHJ0FM5RY=",
   "success": true,
-  "projectFilePath": "C:\\Users\\Juliano\\source\\repos\\ControleFutebolWeb\\ControleFutebolWeb\\ControleFutebolWeb.csproj",
+  "projectFilePath": "C:\\Users\\Juliano\\Source\\Repos\\ProjectComentarista\\ControleFutebolWeb\\ControleFutebolWeb.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Juliano\\.nuget\\packages\\htmlagilitypack\\1.12.4\\htmlagilitypack.1.12.4.nupkg.sha512",
     "C:\\Users\\Juliano\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
@@ -45,11 +45,7 @@
     "C:\\Users\\Juliano\\.nuget\\packages\\system.reflection.metadata\\7.0.0\\system.reflection.metadata.7.0.0.nupkg.sha512",
     "C:\\Users\\Juliano\\.nuget\\packages\\system.runtime.compilerservices.unsafe\\6.0.0\\system.runtime.compilerservices.unsafe.6.0.0.nupkg.sha512",
     "C:\\Users\\Juliano\\.nuget\\packages\\system.text.json\\9.0.2\\system.text.json.9.0.2.nupkg.sha512",
-    "C:\\Users\\Juliano\\.nuget\\packages\\system.threading.channels\\7.0.0\\system.threading.channels.7.0.0.nupkg.sha512",
-    "C:\\Users\\Juliano\\.nuget\\packages\\microsoft.netcore.app.ref\\9.0.16\\microsoft.netcore.app.ref.9.0.16.nupkg.sha512",
-    "C:\\Users\\Juliano\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\9.0.16\\microsoft.windowsdesktop.app.ref.9.0.16.nupkg.sha512",
-    "C:\\Users\\Juliano\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\9.0.16\\microsoft.aspnetcore.app.ref.9.0.16.nupkg.sha512",
-    "C:\\Users\\Juliano\\.nuget\\packages\\microsoft.netcore.app.host.win-x64\\9.0.16\\microsoft.netcore.app.host.win-x64.9.0.16.nupkg.sha512"
+    "C:\\Users\\Juliano\\.nuget\\packages\\system.threading.channels\\7.0.0\\system.threading.channels.7.0.0.nupkg.sha512"
   ],
   "logs": []
 }

@@ -73,7 +73,6 @@ namespace ControleFutebolWeb.Services
             _logger.LogInformation("[AtualizarJogadores] Serviço encerrado.");
         }
 
-        
         private async Task ExecutarCiclo(CancellationToken ct)
         {
             using var scope = _serviceProvider.CreateScope();
@@ -81,7 +80,7 @@ namespace ControleFutebolWeb.Services
             var transfermarkt = scope.ServiceProvider.GetRequiredService<TransfermarktService>();
 
             await SincronizarCompeticoesTimesJogosEElencos(context, transfermarkt, ct);
-            await CorrigirDatasJogos(context, transfermarkt, ct);
+            await transfermarkt.CorrigirDatasJogos(context, transfermarkt, ct);
             await SincronizarEventosJogos(context, transfermarkt, ct);
 
             var jogadores = await context.Jogadores
@@ -188,235 +187,6 @@ namespace ControleFutebolWeb.Services
             _logger.LogInformation("[AtualizarJogadores] Ciclo concluído. Atualizados: {Ok} | Falhas: {Fail}", atualizados, falhas);
         }
 
-        private async Task CorrigirDatasJogos(FutebolContext context, TransfermarktService transfermarkt, CancellationToken ct)
-        {
-            var jogos = await context.Jogos
-                .Where(j => !string.IsNullOrEmpty(j.LinkDetalhes))
-                .ToListAsync(ct);
-
-            foreach (var jogo in jogos)
-            {
-                try
-                {
-                    var novaData = await transfermarkt.BuscarDataJogoPorLink(jogo.LinkDetalhes, ct);
-                    if (novaData.HasValue && (!jogo.Data.HasValue || jogo.Data.Value.Date != novaData.Value.Date))
-                    {
-                        jogo.Data = DateTime.SpecifyKind(novaData.Value, DateTimeKind.Utc);
-                        _logger.LogInformation("[CorrigirDatas] Atualizado jogo {Casa} x {Vis} para {Data}",
-                            jogo.TimeCasa.Nome, jogo.TimeVisitante.Nome, jogo.Data?.ToString("dd/MM/yyyy HH:mm"));
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "[CorrigirDatas] Erro ao atualizar data do jogo {Id}", jogo.Id);
-                }
-            }
-
-            await context.SaveChangesAsync(ct);
-        }
-
-        private async Task<List<TransfermarktJogoInfo>> BuscarJogosCopaPorLink(
-        string linkCompeticao, CancellationToken ct)
-        {
-            var jogos = new List<TransfermarktJogoInfo>();
-
-            // Copa do Brasil no TM usa URLs tipo:
-            // /copa-do-brasil/spieltag/pokalwettbewerb/BRC/saison_id/2025/spieltag/1
-            // Extrai código e temporada do link
-            var matchCodigo = Regex.Match(linkCompeticao,
-                @"pokalwettbewerb/([^/]+)", RegexOptions.IgnoreCase);
-            var matchSaison = Regex.Match(linkCompeticao,
-                @"saison_id/(\d+)", RegexOptions.IgnoreCase);
-
-            if (!matchCodigo.Success)
-            {
-                _logger.LogWarning("[CopaScraping] Não foi possível extrair código da competição: {Link}",
-                    linkCompeticao);
-                return jogos;
-            }
-
-            var codigo = matchCodigo.Groups[1].Value;
-
-            // Tenta saison do link, senão usa ano atual - 1
-            var saison = matchSaison.Success
-                ? matchSaison.Groups[1].Value
-                : (DateTime.UtcNow.Year - 1).ToString();
-
-            _logger.LogInformation("[CopaScraping] Código={Codigo} Saison={Saison}", codigo, saison);
-
-            // Tenta rodadas de 1 a 10 (Copa do Brasil tem até 7 fases)
-            int rodadasSemJogos = 0;
-            for (int rodada = 1; rodada <= 10 && rodadasSemJogos < 3; rodada++)
-            {
-                if (ct.IsCancellationRequested) break;
-
-                var url = $"https://www.transfermarkt.com.br/-/spieltag/" +
-                          $"pokalwettbewerb/{codigo}/saison_id/{saison}/spieltag/{rodada}";
-
-                _logger.LogInformation("[CopaScraping] Buscando rodada {R}: {U}", rodada, url);
-
-                string html;
-                try
-                {
-                    var response = await _httpClient.GetAsync(url, ct);
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        rodadasSemJogos++;
-                        continue;
-                    }
-                    html = await response.Content.ReadAsStringAsync(ct);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning("[CopaScraping] Erro rodada {R}: {M}", rodada, ex.Message);
-                    rodadasSemJogos++;
-                    continue;
-                }
-
-                if (!html.Contains("/spielbericht/") && !html.Contains("/begegnung_detail/"))
-                {
-                    _logger.LogInformation("[CopaScraping] Rodada {R}: sem jogos.", rodada);
-                    rodadasSemJogos++;
-                    continue;
-                }
-
-                var jogosRodada = ExtrairJogosDaRodada(html, rodada);
-                if (jogosRodada.Any())
-                {
-                    jogos.AddRange(jogosRodada);
-                    rodadasSemJogos = 0;
-                    _logger.LogInformation("[CopaScraping] Rodada {R}: {N} jogos.", rodada, jogosRodada.Count);
-                }
-                else
-                {
-                    rodadasSemJogos++;
-                }
-
-                await Task.Delay(1500, ct);
-            }
-
-            return jogos;
-        }
-
-        private List<TransfermarktJogoInfo> ExtrairJogosDaRodada(string html, int rodada)
-        {
-            var jogos = new List<TransfermarktJogoInfo>();
-            var doc = new HtmlAgilityPack.HtmlDocument();
-            doc.LoadHtml(html);
-
-            var linksJogo = doc.DocumentNode.SelectNodes(
-                "//a[contains(@href,'/spielbericht/') or contains(@href,'/begegnung_detail/')]");
-
-            if (linksJogo == null) return jogos;
-
-            var processados = new HashSet<string>();
-
-            foreach (var linkJogo in linksJogo)
-            {
-                var href = linkJogo.GetAttributeValue("href", "");
-                if (processados.Contains(href)) continue;
-                processados.Add(href);
-
-                if (!href.StartsWith("http"))
-                    href = "https://www.transfermarkt.com.br" + href;
-
-                // Placar no texto do link
-                var scoreText = HtmlAgilityPack.HtmlEntity.DeEntitize(linkJogo.InnerText.Trim());
-                var scoreMatch = Regex.Match(scoreText, @"(\d+)\s*[:\-]\s*(\d+)");
-                int? pc = null, pv = null;
-                if (scoreMatch.Success)
-                {
-                    pc = int.Parse(scoreMatch.Groups[1].Value);
-                    pv = int.Parse(scoreMatch.Groups[2].Value);
-                }
-
-                // Sobe na DOM para encontrar bloco com os times
-                var bloco = linkJogo.ParentNode;
-                for (int i = 0; i < 6; i++)
-                {
-                    if (bloco == null || bloco.Name == "tr") break;
-                    bloco = bloco.ParentNode;
-                }
-                if (bloco == null) continue;
-
-                var linksTime = bloco.SelectNodes(
-                    ".//a[contains(@href,'/verein/') and not(contains(@href,'/spielbericht/'))]");
-                if (linksTime == null || linksTime.Count < 2) continue;
-
-                var nomes = new List<string>();
-                var links = new List<string>();
-                foreach (var lt in linksTime)
-                {
-                    var nome = lt.GetAttributeValue("title", "").Trim();
-                    if (string.IsNullOrWhiteSpace(nome))
-                        nome = HtmlAgilityPack.HtmlEntity.DeEntitize(lt.InnerText.Trim());
-                    var lnk = lt.GetAttributeValue("href", "");
-                    if (!string.IsNullOrWhiteSpace(nome) && !nomes.Contains(nome))
-                    {
-                        nomes.Add(nome);
-                        links.Add(lnk.StartsWith("http") ? lnk
-                            : "https://www.transfermarkt.com.br" + lnk);
-                    }
-                    if (nomes.Count == 2) break;
-                }
-
-                if (nomes.Count < 2) continue;
-
-                // Data
-                DateTime? data = null;
-                var tds = bloco.SelectNodes(".//td");
-                if (tds != null)
-                {
-                    foreach (var td in tds)
-                    {
-                        var dm = Regex.Match(td.InnerText.Trim(), @"\d{2}[./]\d{2}[./]\d{2,4}");
-                        if (dm.Success)
-                        {
-                            data = ParseData(dm.Value);
-                            break;
-                        }
-                    }
-                }
-
-                jogos.Add(new TransfermarktJogoInfo
-                {
-                    NomeTimeCasa = nomes[0],
-                    NomeTimeVisitante = nomes[1],
-                    LinkTimeCasa = links[0],
-                    LinkTimeVisitante = links[1],
-                    PlacarCasa = pc,
-                    PlacarVisitante = pv,
-                    Data = data,
-                    Rodada = rodada,
-                    LinkDetalhes = href
-                });
-            }
-
-            return jogos;
-        }
-
-        private static DateTime? ParseData(string texto)
-        {
-            var m = Regex.Match(texto.Trim(), @"\d{2}[./]\d{2}[./]\d{2,4}");
-            if (!m.Success) return null;
-
-            string[] fmts = { "dd/MM/yy", "dd/MM/yyyy", "dd.MM.yyyy", "dd.MM.yy" };
-            foreach (var f in fmts)
-            {
-                if (DateTime.TryParseExact(m.Value, f,
-                    CultureInfo.InvariantCulture,
-                    DateTimeStyles.None, out var dt))
-                {
-                    // 🔹 Corrige anos de dois dígitos
-                    if (dt.Year < 100)
-                        dt = new DateTime(2000 + dt.Year, dt.Month, dt.Day, dt.Hour, dt.Minute, 0);
-
-                    return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
-                }
-            }
-            return null;
-        }
-
         private async Task SincronizarCompeticoesTimesJogosEElencos(
             FutebolContext context,
             TransfermarktService transfermarkt,
@@ -451,7 +221,7 @@ namespace ControleFutebolWeb.Services
 
                 if (isCupStyle)
                 {
-                    jogosWeb = await BuscarJogosCopaPorLink(link, ct);
+                    jogosWeb = await transfermarkt.BuscarJogosCopaPorLink(link, ct);
                 }
                 else if (isLeagueStyle)
                 {
@@ -477,7 +247,7 @@ namespace ControleFutebolWeb.Services
                     var timeVisitante = await ResolverOuCriarTime(context, transfermarkt,
                         jogoWeb.NomeTimeVisitante, jogoWeb.LinkTimeVisitante, cicloId, ct);
 
-                    await IncluirOuAtualizarJogo(context, competicao, jogoWeb,
+                    await transfermarkt.IncluirOuAtualizarJogo(context, competicao, jogoWeb,
                         timeCasa, timeVisitante, cicloId,transfermarkt, ct);
                     await context.SaveChangesAsync(ct);
 
@@ -578,209 +348,6 @@ namespace ControleFutebolWeb.Services
             return novoTime;
         }
 
-
-        private async Task IncluirOuAtualizarJogo(
-    FutebolContext context,
-    Competicao competicao,
-    TransfermarktJogoInfo jogoWeb,
-    Time timeCasa,
-    Time timeVisitante,
-    Guid cicloId,
-    TransfermarktService transfermarkt,
-    CancellationToken ct)
-        {
-            // ── Resolve data ──────────────────────────────────────────────────────
-            DateTime? dataJogo = jogoWeb.Data;
-
-            if (!dataJogo.HasValue && !string.IsNullOrWhiteSpace(jogoWeb.LinkDetalhes))
-            {
-                _logger.LogInformation("[IncluirJogo] Buscando data no detalhe: {Link}", jogoWeb.LinkDetalhes);
-                dataJogo = await transfermarkt.BuscarDataJogoPorLink(jogoWeb.LinkDetalhes, ct);
-            }
-
-            // ── Busca jogos do mesmo confronto na competição ──────────────────────
-            var jogosBanco = await context.Jogos
-                .Where(j => j.CompeticaoId == competicao.Id &&
-                            j.TimeCasaId == timeCasa.Id &&
-                            j.TimeVisitanteId == timeVisitante.Id)
-                .ToListAsync(ct);
-
-            // ── Validação anti-duplicata ──────────────────────────────────────────
-            if (jogoWeb.Rodada > 0)
-            {
-                var jogoMesmaRodada = jogosBanco.FirstOrDefault(j => j.Rodada == jogoWeb.Rodada);
-                if (jogoMesmaRodada != null)
-                {
-                    if (jogoWeb.PlacarCasa.HasValue &&
-                        (jogoMesmaRodada.PlacarCasa != jogoWeb.PlacarCasa ||
-                         jogoMesmaRodada.PlacarVisitante != jogoWeb.PlacarVisitante))
-                    {
-                        jogoMesmaRodada.PlacarCasa = jogoWeb.PlacarCasa;
-                        jogoMesmaRodada.PlacarVisitante = jogoWeb.PlacarVisitante;
-                        jogoMesmaRodada.Status = "Finalizado";
-                        jogoMesmaRodada.Atualizado = 1;
-                    }
-                    return;
-                }
-            }
-
-            if (dataJogo.HasValue)
-            {
-                var jogoPorData = jogosBanco.FirstOrDefault(j =>
-                    j.Data.HasValue &&
-                    Math.Abs((j.Data.Value.Date - dataJogo.Value.Date).TotalDays) <= 2);
-
-                if (jogoPorData != null)
-                {
-                    if (jogoWeb.PlacarCasa.HasValue &&
-                        (jogoPorData.PlacarCasa != jogoWeb.PlacarCasa ||
-                         jogoPorData.PlacarVisitante != jogoWeb.PlacarVisitante))
-                    {
-                        jogoPorData.PlacarCasa = jogoWeb.PlacarCasa;
-                        jogoPorData.PlacarVisitante = jogoWeb.PlacarVisitante;
-                        jogoPorData.Status = "Finalizado";
-                        jogoPorData.Atualizado = 1;
-                    }
-                    return;
-                }
-            }
-
-            // ── Busca detalhes do jogo ────────────────────────────────────────────
-            DetalhesJogoTM? detalhes = null;
-            if (jogoWeb.PlacarCasa.HasValue && !string.IsNullOrWhiteSpace(jogoWeb.LinkDetalhes))
-            {
-                _logger.LogInformation("[IncluirJogo] Buscando detalhes: {Link}", jogoWeb.LinkDetalhes);
-                await Task.Delay(2000, ct);
-                detalhes = await transfermarkt.BuscarDetalhesJogoAsync(jogoWeb.LinkDetalhes, ct);
-            }
-
-            // ── Resolve formações ─────────────────────────────────────────────────
-            var nomeFCasa = detalhes?.FormacaoCasa ?? jogoWeb.FormacaoCasa;
-            var nomeFVis = detalhes?.FormacaoVisitante ?? jogoWeb.FormacaoVisitante;
-
-            var formacaoCasa = await transfermarkt.ObterOuCriarFormacao(context, nomeFCasa, ct);
-            var formacaoVisitante = await transfermarkt.ObterOuCriarFormacao(context, nomeFVis, ct);
-
-            // ── Cria o jogo ───────────────────────────────────────────────────────
-            var jogo = new Jogo
-            {
-                CompeticaoId = competicao.Id,
-                TimeCasa = timeCasa,
-                TimeVisitante = timeVisitante,
-                Data = dataJogo.HasValue ? DateTime.SpecifyKind(dataJogo.Value, DateTimeKind.Utc) : null,
-                Rodada = jogoWeb.Rodada,
-                PlacarCasa = detalhes?.PlacarCasa ?? jogoWeb.PlacarCasa,
-                PlacarVisitante = detalhes?.PlacarVisitante ?? jogoWeb.PlacarVisitante,
-                Grupo = jogoWeb.Grupo,
-                Status = jogoWeb.PlacarCasa.HasValue ? "Finalizado" : "Agendado",
-                Atualizado = jogoWeb.PlacarCasa.HasValue ? 1 : 0,
-                FormacaoCasaId = formacaoCasa.Id,
-                FormacaoVisitanteId = formacaoVisitante.Id
-            };
-
-            context.Jogos.Add(jogo);
-            await context.SaveChangesAsync(ct);
-
-            // ── Escalações ────────────────────────────────────────────────────────
-            if (detalhes != null &&
-                (detalhes.EscalacaoInicialCasa.Any() || detalhes.EscalacaoInicialVisitante.Any()))
-            {
-                var posicoes = await context.PosicoesFormacao
-                    .Where(p => p.FormacaoId == formacaoCasa.Id)
-                    .OrderBy(p => p.Ordem)
-                    .ToListAsync(ct);
-
-                if (!posicoes.Any())
-                {
-                    posicoes = await context.PosicoesFormacao
-                        .OrderBy(p => p.FormacaoId).ThenBy(p => p.Ordem)
-                        .ToListAsync(ct);
-                }
-
-                await AdicionarEscalacoesComJogadoresAsync(context, jogo, detalhes.EscalacaoInicialCasa,
-                    timeCasa, true, "INICIAL", posicoes, ct);
-
-                await AdicionarEscalacoesComJogadoresAsync(context, jogo, detalhes.EscalacaoInicialVisitante,
-                    timeVisitante, false, "INICIAL", posicoes, ct);
-
-                var finalCasa = detalhes.EscalacaoFinalCasa.Any()
-                    ? detalhes.EscalacaoFinalCasa
-                    : detalhes.EscalacaoInicialCasa.Select(j => j with { Fase = "FINAL" }).ToList();
-
-                var finalVis = detalhes.EscalacaoFinalVisitante.Any()
-                    ? detalhes.EscalacaoFinalVisitante
-                    : detalhes.EscalacaoInicialVisitante.Select(j => j with { Fase = "FINAL" }).ToList();
-
-                await AdicionarEscalacoesComJogadoresAsync(context, jogo, finalCasa,
-                    timeCasa, true, "FINAL", posicoes, ct);
-
-                await AdicionarEscalacoesComJogadoresAsync(context, jogo, finalVis,
-                    timeVisitante, false, "FINAL", posicoes, ct);
-            }
-            else
-            {
-                transfermarkt.AdicionarEscalacaoComPosicoes(context, jogo, formacaoCasa, true);
-                transfermarkt.AdicionarEscalacaoComPosicoes(context, jogo, formacaoVisitante, false);
-            }
-
-            // ── Eventos (gols, assistências, cartões) ─────────────────────────────
-            if (detalhes?.Eventos.Any() == true)
-            {
-                foreach (var ev in detalhes.Eventos)
-                {
-                    var nomeJogador = ev.JogadorNome ?? ev.AssistenteNome;
-                    var jogador = await ResolverJogadorAsync(context, nomeJogador, ev.JogadorId,
-                        ev.Tipo == "Assistencia" ? timeVisitante.Id : timeCasa.Id, ct);
-
-                    if (jogador == null)
-                    {
-                        _logger.LogWarning("[IncluirJogo] Evento {Tipo}: jogador '{Nome}' não encontrado.",
-                            ev.Tipo, nomeJogador);
-                        continue;
-                    }
-
-                    if (ev.Tipo == "Gol")
-                    {
-                        context.Gols.Add(new Gol
-                        {
-                            JogoId = jogo.Id,
-                            JogadorId = jogador.Id,
-                            Minuto = ev.Minuto,
-                            Contra = ev.Contra
-                        });
-                    }
-                    else if (ev.Tipo == "Assistencia")
-                    {
-                        context.Assistencias.Add(new Assistencia
-                        {
-                            JogoId = jogo.Id,
-                            JogadorId = jogador.Id,
-                            Minuto = ev.Minuto
-                        });
-                    }
-                    else if (ev.Tipo.StartsWith("Cartao"))
-                    {
-                        context.Cartoes.Add(new Cartao
-                        {
-                            JogoId = jogo.Id,
-                            JogadorId = jogador.Id,
-                            Minuto = ev.Minuto,
-                            Tipo = ev.Detalhe
-                        });
-                    }
-                }
-            }
-
-            await context.SaveChangesAsync(ct);
-
-            _logger.LogInformation("[IncluirJogo] Incluído: {Casa} x {Vis} | Rodada {R} | {Data} | Escalação: {EscType}",
-                timeCasa.Nome, timeVisitante.Nome,
-                jogoWeb.Rodada,
-                dataJogo?.ToString("dd/MM/yyyy HH:mm") ?? "sem data",
-                detalhes != null ? "com jogadores e eventos" : "slots vazios");
-        }
-
-
         // ── Novo método: cria escalações vinculando jogadores reais ──────────────
         private async Task AdicionarEscalacoesComJogadoresAsync(
             FutebolContext context,
@@ -849,31 +416,31 @@ namespace ControleFutebolWeb.Services
         private static string MapearPosicaoParaSigla(string? p) => p?.ToLower() switch
         {
             var s when s?.Contains("gol") == true ||
-                       s?.Contains("keeper") == true => "GL",
+                        s?.Contains("keeper") == true => "GL",
             var s when s?.Contains("zagueiro") == true ||
-                       s?.Contains("lateral") == true ||
-                       s?.Contains("defesa") == true => "ZG",
+                        s?.Contains("lateral") == true ||
+                        s?.Contains("defesa") == true => "ZG",
             var s when s?.Contains("meio") == true ||
-                       s?.Contains("volante") == true ||
-                       s?.Contains("meia") == true => "MC",
+                        s?.Contains("volante") == true ||
+                        s?.Contains("meia") == true => "MC",
             var s when s?.Contains("atacante") == true ||
-                       s?.Contains("centroavante") == true ||
-                       s?.Contains("ponta") == true => "AT",
+                        s?.Contains("centroavante") == true ||
+                        s?.Contains("ponta") == true => "AT",
             _ => "MC"
         };
 
         private static string MapearPosicaoParaNome(string? p) => p?.ToLower() switch
         {
             var s when s?.Contains("gol") == true ||
-                       s?.Contains("keeper") == true => "Goleiro",
+                        s?.Contains("keeper") == true => "Goleiro",
             var s when s?.Contains("zagueiro") == true ||
-                       s?.Contains("defesa") == true => "Zagueiro",
+                        s?.Contains("defesa") == true => "Zagueiro",
             var s when s?.Contains("lateral") == true => "Lateral",
             var s when s?.Contains("volante") == true => "Volante",
             var s when s?.Contains("meio") == true ||
-                       s?.Contains("meia") == true => "Meio-campo",
+                        s?.Contains("meia") == true => "Meio-campo",
             var s when s?.Contains("atacante") == true ||
-                       s?.Contains("centroavante") == true => "Atacante",
+                        s?.Contains("centroavante") == true => "Atacante",
             var s when s?.Contains("ponta") == true => "Ponta",
             _ => "Meio-campo"
         };
@@ -1131,8 +698,5 @@ namespace ControleFutebolWeb.Services
 
             return Regex.Replace(s, @"\b(cr|fc|sc|ec|ac|se|cf|cd|club|clube|futebol|football|de|do|da|dos|das)\b|\s+", "");
         }
-
-
-
     }
 }

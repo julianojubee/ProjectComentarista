@@ -20,6 +20,80 @@ namespace ControleFutebolWeb.Services
         public string? LinkPerfil { get; set; }
     }
 
+    public class JogoTM
+    {
+        public string NomeTimeCasa { get; set; } = "";
+        public string NomeTimeVisitante { get; set; } = "";
+        public int? PlacarCasa { get; set; }
+        public int? PlacarVisitante { get; set; }
+        public DateTime? Data { get; set; }
+        public string Grupo { get; set; } = "";
+        public int Rodada { get; set; }
+        public string LinkDetalhes { get; set; } = "";
+    }
+
+    public class DetalhesJogoTM
+    {
+        public int? PlacarCasa { get; set; }
+        public int? PlacarVisitante { get; set; }
+        public string? FormacaoCasa { get; set; }
+        public string? FormacaoVisitante { get; set; }
+
+        public List<JogadorEscalacaoTM> EscalacaoInicialCasa { get; set; } = new();
+        public List<JogadorEscalacaoTM> EscalacaoInicialVisitante { get; set; } = new();
+        public List<JogadorEscalacaoTM> EscalacaoFinalCasa { get; set; } = new();
+        public List<JogadorEscalacaoTM> EscalacaoFinalVisitante { get; set; } = new();
+
+        public List<GolTM> Gols { get; set; } = new();
+        public List<TransfermarktEventoInfo> Eventos { get; set; } = new();
+    }
+
+    public record JogadorEscalacaoTM
+    {
+        public string Nome { get; init; } = "";
+        public int? Numero { get; init; }
+        public string Posicao { get; init; } = "";
+        public bool Titular { get; init; }
+        public long? IdExterno { get; init; }
+        public string Fase { get; init; } = "INICIAL";
+        public string? JogadorLink { get; set; }   // 🔹 novo campo: link completo do Transfermarkt
+    }
+
+
+    public class GolTM
+    {
+        public string NomeJogador { get; set; } = "";
+        public long? IdExterno { get; set; }
+        public int Minuto { get; set; }
+        public bool IsTimeCasa { get; set; }
+        public bool Contra { get; set; }
+    }
+
+    public class SubstituicaoTM
+    {
+        public string NomeEntrou { get; set; } = "";
+        public long? IdEntrou { get; set; }
+        public string NomeSaiu { get; set; } = "";
+        public long? IdSaiu { get; set; }
+    }
+
+    public class SincronizacaoResultado
+    {
+        public int JogosEncontradosNaSite { get; set; }
+        public int JogosAtualizados { get; set; }
+        public int JogosNaoEncontrados { get; set; }
+        public int PlacaresAtualizados { get; set; }
+        public int EscalacoesImportadas { get; set; }
+        public int GolsImportados { get; set; }
+        public List<string> Avisos { get; } = new();
+
+        public override string ToString() =>
+            $"Site:{JogosEncontradosNaSite} | Atualizados:{JogosAtualizados} | " +
+            $"Placares:{PlacaresAtualizados} | Escalações:{EscalacoesImportadas} | " +
+            $"Gols:{GolsImportados} | NãoEncontrados:{JogosNaoEncontrados} | " +
+            $"Avisos:{Avisos.Count}";
+    }
+
     public class TransfermarktEventoInfo
     {
         public string Tipo { get; set; } = string.Empty; // "Gol", "Assistencia", "Cartao"
@@ -37,6 +111,8 @@ namespace ControleFutebolWeb.Services
         public string? JogadorLink { get; set; }   // link do perfil no Transfermarkt
         public string? AssistenteNome { get; set; } // nome do jogador que deu a assistência
         public string? AssistenteLink { get; set; } // link do perfil do assistente
+
+        public bool IsTimeCasa { get; set; }
     }
 
 
@@ -155,10 +231,12 @@ namespace ControleFutebolWeb.Services
 
             if (formacao == null)
             {
-                formacao = new Formacao { Nome = nomeFormacao, Posicoes = new List<PosicaoFormacao>() };
-                context.Formacoes.Add(formacao);
-                await context.SaveChangesAsync(ct);
-                _logger.LogInformation("[TransfermarktSync] Nova formação criada: {Formacao}", nomeFormacao);
+                // 🔹 Em vez de criar vazio, usa fallback
+                formacao = await context.Formacoes
+                    .Include(f => f.Posicoes)
+                    .FirstOrDefaultAsync(f => f.Nome == "4-3-3", ct);
+
+                _logger.LogWarning("[TransfermarktSync] Formação {Formacao} não encontrada, usando fallback 4-3-3.", nomeFormacao);
             }
 
             return formacao;
@@ -561,6 +639,7 @@ namespace ControleFutebolWeb.Services
                 return null;
             }
         }
+
         private static string ExtrairNomeLinha(HtmlNode linha)
         {
             // Estrutura: <td class="hauptlink"><a>Nome</a></td>
@@ -617,7 +696,6 @@ namespace ControleFutebolWeb.Services
 
             return false;
         }
-
 
         private static string NormalizarClube(string nome)
         {
@@ -1089,7 +1167,7 @@ namespace ControleFutebolWeb.Services
         }
 
         public async Task<List<TransfermarktJogoInfo>> BuscarJogosLigaPorLink(
-    string linkCompeticao, CancellationToken ct = default)
+        string linkCompeticao, CancellationToken ct = default)
         {
             var jogos = new List<TransfermarktJogoInfo>();
 
@@ -1368,7 +1446,7 @@ namespace ControleFutebolWeb.Services
         }
 
         public async Task<DetalhesJogoTM?> BuscarDetalhesJogoAsync(
-    string url, CancellationToken ct = default)
+        string url, CancellationToken ct = default)
         {
             if (string.IsNullOrWhiteSpace(url)) return null;
 
@@ -1768,6 +1846,7 @@ namespace ControleFutebolWeb.Services
                 7 or 8 or 9 or 10 or 11 => "Meio-campo",
                 _ => "Meio-campo"
             };
+
         private List<GolTM> ExtrairGols(HtmlDocument doc)
         {
             var gols = new List<GolTM>();
@@ -2073,32 +2152,6 @@ namespace ControleFutebolWeb.Services
             return detalhes;
         }
 
-        private static int ExtrairMinuto(HtmlNode li)
-        {
-            // Procura o texto do relógio dentro do evento
-            var minutoNode = li.SelectSingleNode(".//div[contains(@class,'sb-aktion-uhr')]");
-            if (minutoNode != null)
-            {
-                var texto = HtmlEntity.DeEntitize(minutoNode.InnerText.Trim());
-
-                // Exemplo: "45'", "90+2'"
-                var match = Regex.Match(texto, @"(\d+)(\+\d+)?");
-                if (match.Success)
-                {
-                    var baseMinuto = int.Parse(match.Groups[1].Value);
-                    if (match.Groups[2].Success)
-                    {
-                        var acrescimo = int.Parse(match.Groups[2].Value.Replace("+", ""));
-                        return baseMinuto + acrescimo;
-                    }
-                    return baseMinuto;
-                }
-            }
-
-            // Se não encontrar, retorna 0
-            return 0;
-        }
-
         private async Task AdicionarEscalacoesComJogadoresAsync(
         FutebolContext context,
         Jogo jogo,
@@ -2159,11 +2212,11 @@ namespace ControleFutebolWeb.Services
         };
 
         private async Task<Jogador?> ResolverJogadorAsync(
-    FutebolContext context,
-    string nome,
-    string? linkTransfermarkt,
-    int timeId,
-    CancellationToken ct)
+        FutebolContext context,
+        string nome,
+        string? linkTransfermarkt,
+        int timeId,
+        CancellationToken ct)
         {
             Jogador? jogador = null;
 
@@ -2215,9 +2268,561 @@ namespace ControleFutebolWeb.Services
             return jogador;
         }
 
+        public async Task IncluirOuAtualizarJogo(
+        FutebolContext context,
+        Competicao competicao,
+        TransfermarktJogoInfo jogoWeb,
+        Time timeCasa,
+        Time timeVisitante,
+        Guid cicloId,
+        TransfermarktService transfermarkt,
+        CancellationToken ct)
+        {
+            // ── Resolve data ──────────────────────────────────────────────────────
+            DateTime? dataJogo = jogoWeb.Data;
 
+            if (!dataJogo.HasValue && !string.IsNullOrWhiteSpace(jogoWeb.LinkDetalhes))
+            {
+                _logger.LogInformation("[IncluirJogo] Buscando data no detalhe: {Link}", jogoWeb.LinkDetalhes);
+                dataJogo = await transfermarkt.BuscarDataJogoPorLink(jogoWeb.LinkDetalhes, ct);
+            }
 
+            // ── Busca jogos do mesmo confronto na competição ──────────────────────
+            var jogosBanco = await context.Jogos
+                .Where(j => j.CompeticaoId == competicao.Id &&
+                            j.TimeCasaId == timeCasa.Id &&
+                            j.TimeVisitanteId == timeVisitante.Id)
+                .ToListAsync(ct);
 
+            // ── Validação anti-duplicata ──────────────────────────────────────────
+            if (jogoWeb.Rodada > 0)
+            {
+                var jogoMesmaRodada = jogosBanco.FirstOrDefault(j => j.Rodada == jogoWeb.Rodada);
+                if (jogoMesmaRodada != null)
+                {
+                    if (jogoWeb.PlacarCasa.HasValue &&
+                        (jogoMesmaRodada.PlacarCasa != jogoWeb.PlacarCasa ||
+                         jogoMesmaRodada.PlacarVisitante != jogoWeb.PlacarVisitante))
+                    {
+                        jogoMesmaRodada.PlacarCasa = jogoWeb.PlacarCasa;
+                        jogoMesmaRodada.PlacarVisitante = jogoWeb.PlacarVisitante;
+                        jogoMesmaRodada.Status = "Finalizado";
+                        jogoMesmaRodada.Atualizado = 1;
+                    }
+                    return;
+                }
+            }
+
+            if (dataJogo.HasValue)
+            {
+                var jogoPorData = jogosBanco.FirstOrDefault(j =>
+                    j.Data.HasValue &&
+                    Math.Abs((j.Data.Value.Date - dataJogo.Value.Date).TotalDays) <= 2);
+
+                if (jogoPorData != null)
+                {
+                    if (jogoWeb.PlacarCasa.HasValue &&
+                        (jogoPorData.PlacarCasa != jogoWeb.PlacarCasa ||
+                         jogoPorData.PlacarVisitante != jogoWeb.PlacarVisitante))
+                    {
+                        jogoPorData.PlacarCasa = jogoWeb.PlacarCasa;
+                        jogoPorData.PlacarVisitante = jogoWeb.PlacarVisitante;
+                        jogoPorData.Status = "Finalizado";
+                        jogoPorData.Atualizado = 1;
+                    }
+                    return;
+                }
+            }
+
+            // ── Busca detalhes do jogo ────────────────────────────────────────────
+            DetalhesJogoTM? detalhes = null;
+            if (jogoWeb.PlacarCasa.HasValue && !string.IsNullOrWhiteSpace(jogoWeb.LinkDetalhes))
+            {
+                _logger.LogInformation("[IncluirJogo] Buscando detalhes: {Link}", jogoWeb.LinkDetalhes);
+                await Task.Delay(2000, ct);
+                detalhes = await transfermarkt.BuscarDetalhesJogoAsync(jogoWeb.LinkDetalhes, ct);
+            }
+
+            // ── Resolve formações ─────────────────────────────────────────────────
+            var nomeFCasa = detalhes?.FormacaoCasa ?? jogoWeb.FormacaoCasa;
+            var nomeFVis = detalhes?.FormacaoVisitante ?? jogoWeb.FormacaoVisitante;
+
+            var formacaoCasa = await transfermarkt.ObterOuCriarFormacao(context, nomeFCasa, ct);
+            var formacaoVisitante = await transfermarkt.ObterOuCriarFormacao(context, nomeFVis, ct);
+
+            // ── Cria o jogo ───────────────────────────────────────────────────────
+            var jogo = new Jogo
+            {
+                CompeticaoId = competicao.Id,
+                TimeCasa = timeCasa,
+                TimeVisitante = timeVisitante,
+                Data = dataJogo.HasValue ? DateTime.SpecifyKind(dataJogo.Value, DateTimeKind.Utc) : null,
+                Rodada = jogoWeb.Rodada,
+                PlacarCasa = detalhes?.PlacarCasa ?? jogoWeb.PlacarCasa,
+                PlacarVisitante = detalhes?.PlacarVisitante ?? jogoWeb.PlacarVisitante,
+                Grupo = jogoWeb.Grupo,
+                Status = jogoWeb.PlacarCasa.HasValue ? "Finalizado" : "Agendado",
+                Atualizado = jogoWeb.PlacarCasa.HasValue ? 1 : 0,
+                FormacaoCasaId = formacaoCasa.Id,
+                FormacaoVisitanteId = formacaoVisitante.Id
+            };
+
+            context.Jogos.Add(jogo);
+            await context.SaveChangesAsync(ct);
+
+            // ── Escalações ────────────────────────────────────────────────────────
+            if (detalhes != null &&
+                (detalhes.EscalacaoInicialCasa.Any() || detalhes.EscalacaoInicialVisitante.Any()))
+            {
+                var posicoes = await context.PosicoesFormacao
+                    .Where(p => p.FormacaoId == formacaoCasa.Id)
+                    .OrderBy(p => p.Ordem)
+                    .ToListAsync(ct);
+
+                if (!posicoes.Any())
+                {
+                    posicoes = await context.PosicoesFormacao
+                        .OrderBy(p => p.FormacaoId).ThenBy(p => p.Ordem)
+                        .ToListAsync(ct);
+                }
+
+                await AdicionarEscalacoesComJogadoresAsync(context, jogo, detalhes.EscalacaoInicialCasa,
+                    timeCasa, true, "INICIAL", posicoes, ct);
+
+                await AdicionarEscalacoesComJogadoresAsync(context, jogo, detalhes.EscalacaoInicialVisitante,
+                    timeVisitante, false, "INICIAL", posicoes, ct);
+
+                var finalCasa = detalhes.EscalacaoFinalCasa.Any()
+                    ? detalhes.EscalacaoFinalCasa
+                    : detalhes.EscalacaoInicialCasa.Select(j => j with { Fase = "FINAL" }).ToList();
+
+                var finalVis = detalhes.EscalacaoFinalVisitante.Any()
+                    ? detalhes.EscalacaoFinalVisitante
+                    : detalhes.EscalacaoInicialVisitante.Select(j => j with { Fase = "FINAL" }).ToList();
+
+                await AdicionarEscalacoesComJogadoresAsync(context, jogo, finalCasa,
+                    timeCasa, true, "FINAL", posicoes, ct);
+
+                await AdicionarEscalacoesComJogadoresAsync(context, jogo, finalVis,
+                    timeVisitante, false, "FINAL", posicoes, ct);
+            }
+            else
+            {
+                transfermarkt.AdicionarEscalacaoComPosicoes(context, jogo, formacaoCasa, true);
+                transfermarkt.AdicionarEscalacaoComPosicoes(context, jogo, formacaoVisitante, false);
+            }
+
+            // ── Eventos (gols, assistências, cartões) ─────────────────────────────
+            if (detalhes?.Eventos.Any() == true)
+            {
+                await PersistirEventosAsync(context, jogo, detalhes.Eventos, ct);
+            }
+
+            await context.SaveChangesAsync(ct);
+
+            _logger.LogInformation("[IncluirJogo] Incluído: {Casa} x {Vis} | Rodada {R} | {Data} | Escalação: {EscType}",
+                timeCasa.Nome, timeVisitante.Nome,
+                jogoWeb.Rodada,
+                dataJogo?.ToString("dd/MM/yyyy HH:mm") ?? "sem data",
+                detalhes != null ? "com jogadores e eventos" : "slots vazios");
+        }
+
+        public async Task CorrigirDatasJogos(FutebolContext context, TransfermarktService transfermarkt, CancellationToken ct)
+        {
+            var jogos = await context.Jogos
+                .Where(j => !string.IsNullOrEmpty(j.LinkDetalhes))
+                .ToListAsync(ct);
+
+            foreach (var jogo in jogos)
+            {
+                try
+                {
+                    var novaData = await transfermarkt.BuscarDataJogoPorLink(jogo.LinkDetalhes, ct);
+                    if (novaData.HasValue && (!jogo.Data.HasValue || jogo.Data.Value.Date != novaData.Value.Date))
+                    {
+                        jogo.Data = DateTime.SpecifyKind(novaData.Value, DateTimeKind.Utc);
+                        _logger.LogInformation("[CorrigirDatas] Atualizado jogo {Casa} x {Vis} para {Data}",
+                            jogo.TimeCasa.Nome, jogo.TimeVisitante.Nome, jogo.Data?.ToString("dd/MM/yyyy HH:mm"));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[CorrigirDatas] Erro ao atualizar data do jogo {Id}", jogo.Id);
+                }
+            }
+
+            await context.SaveChangesAsync(ct);
+        }
+        //Copa do Brasil
+        public async Task<List<TransfermarktJogoInfo>> BuscarJogosCopaPorLink(
+        string linkCompeticao, CancellationToken ct)
+        {
+            var jogos = new List<TransfermarktJogoInfo>();
+
+            // Copa do Brasil no TM usa URLs tipo:
+            // /copa-do-brasil/spieltag/pokalwettbewerb/BRC/saison_id/2025/spieltag/1
+            // Extrai código e temporada do link
+            var matchCodigo = Regex.Match(linkCompeticao,
+                @"pokalwettbewerb/([^/]+)", RegexOptions.IgnoreCase);
+            var matchSaison = Regex.Match(linkCompeticao,
+                @"saison_id/(\d+)", RegexOptions.IgnoreCase);
+
+            if (!matchCodigo.Success)
+            {
+                _logger.LogWarning("[CopaScraping] Não foi possível extrair código da competição: {Link}",
+                    linkCompeticao);
+                return jogos;
+            }
+
+            var codigo = matchCodigo.Groups[1].Value;
+
+            // Tenta saison do link, senão usa ano atual - 1
+            var saison = matchSaison.Success
+                ? matchSaison.Groups[1].Value
+                : (DateTime.UtcNow.Year - 1).ToString();
+
+            _logger.LogInformation("[CopaScraping] Código={Codigo} Saison={Saison}", codigo, saison);
+
+            // Tenta rodadas de 1 a 10 (Copa do Brasil tem até 7 fases)
+            int rodadasSemJogos = 0;
+            for (int rodada = 1; rodada <= 10 && rodadasSemJogos < 3; rodada++)
+            {
+                if (ct.IsCancellationRequested) break;
+
+                var url = $"https://www.transfermarkt.com.br/-/spieltag/" +
+                          $"pokalwettbewerb/{codigo}/saison_id/{saison}/spieltag/{rodada}";
+
+                _logger.LogInformation("[CopaScraping] Buscando rodada {R}: {U}", rodada, url);
+
+                string html;
+                try
+                {
+                    var response = await _httpClient.GetAsync(url, ct);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        rodadasSemJogos++;
+                        continue;
+                    }
+                    html = await response.Content.ReadAsStringAsync(ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning("[CopaScraping] Erro rodada {R}: {M}", rodada, ex.Message);
+                    rodadasSemJogos++;
+                    continue;
+                }
+
+                if (!html.Contains("/spielbericht/") && !html.Contains("/begegnung_detail/"))
+                {
+                    _logger.LogInformation("[CopaScraping] Rodada {R}: sem jogos.", rodada);
+                    rodadasSemJogos++;
+                    continue;
+                }
+
+                var jogosRodada = ExtrairJogosDaRodada(html, rodada);
+                if (jogosRodada.Any())
+                {
+                    jogos.AddRange(jogosRodada);
+                    rodadasSemJogos = 0;
+                    _logger.LogInformation("[CopaScraping] Rodada {R}: {N} jogos.", rodada, jogosRodada.Count);
+                }
+                else
+                {
+                    rodadasSemJogos++;
+                }
+
+                await Task.Delay(1500, ct);
+            }
+
+            return jogos;
+        }
+
+        public List<TransfermarktJogoInfo> ExtrairJogosDaRodada(string html, int rodada)
+        {
+            var jogos = new List<TransfermarktJogoInfo>();
+            var doc = new HtmlAgilityPack.HtmlDocument();
+            doc.LoadHtml(html);
+
+            var linksJogo = doc.DocumentNode.SelectNodes(
+                "//a[contains(@href,'/spielbericht/') or contains(@href,'/begegnung_detail/')]");
+
+            if (linksJogo == null) return jogos;
+
+            var processados = new HashSet<string>();
+
+            foreach (var linkJogo in linksJogo)
+            {
+                var href = linkJogo.GetAttributeValue("href", "");
+                if (processados.Contains(href)) continue;
+                processados.Add(href);
+
+                if (!href.StartsWith("http"))
+                    href = "https://www.transfermarkt.com.br" + href;
+
+                // Placar no texto do link
+                var scoreText = HtmlAgilityPack.HtmlEntity.DeEntitize(linkJogo.InnerText.Trim());
+                var scoreMatch = Regex.Match(scoreText, @"(\d+)\s*[:\-]\s*(\d+)");
+                int? pc = null, pv = null;
+                if (scoreMatch.Success)
+                {
+                    pc = int.Parse(scoreMatch.Groups[1].Value);
+                    pv = int.Parse(scoreMatch.Groups[2].Value);
+                }
+
+                // Sobe na DOM para encontrar bloco com os times
+                var bloco = linkJogo.ParentNode;
+                for (int i = 0; i < 6; i++)
+                {
+                    if (bloco == null || bloco.Name == "tr") break;
+                    bloco = bloco.ParentNode;
+                }
+                if (bloco == null) continue;
+
+                var linksTime = bloco.SelectNodes(
+                    ".//a[contains(@href,'/verein/') and not(contains(@href,'/spielbericht/'))]");
+                if (linksTime == null || linksTime.Count < 2) continue;
+
+                var nomes = new List<string>();
+                var links = new List<string>();
+                foreach (var lt in linksTime)
+                {
+                    var nome = lt.GetAttributeValue("title", "").Trim();
+                    if (string.IsNullOrWhiteSpace(nome))
+                        nome = HtmlAgilityPack.HtmlEntity.DeEntitize(lt.InnerText.Trim());
+                    var lnk = lt.GetAttributeValue("href", "");
+                    if (!string.IsNullOrWhiteSpace(nome) && !nomes.Contains(nome))
+                    {
+                        nomes.Add(nome);
+                        links.Add(lnk.StartsWith("http") ? lnk
+                            : "https://www.transfermarkt.com.br" + lnk);
+                    }
+                    if (nomes.Count == 2) break;
+                }
+
+                if (nomes.Count < 2) continue;
+
+                // Data
+                DateTime? data = null;
+                var tds = bloco.SelectNodes(".//td");
+                if (tds != null)
+                {
+                    foreach (var td in tds)
+                    {
+                        var dm = Regex.Match(td.InnerText.Trim(), @"\d{2}[./]\d{2}[./]\d{2,4}");
+                        if (dm.Success)
+                        {
+                            data = ParseData(dm.Value);
+                            break;
+                        }
+                    }
+                }
+
+                jogos.Add(new TransfermarktJogoInfo
+                {
+                    NomeTimeCasa = nomes[0],
+                    NomeTimeVisitante = nomes[1],
+                    LinkTimeCasa = links[0],
+                    LinkTimeVisitante = links[1],
+                    PlacarCasa = pc,
+                    PlacarVisitante = pv,
+                    Data = data,
+                    Rodada = rodada,
+                    LinkDetalhes = href
+                });
+            }
+
+            return jogos;
+        }
+
+        public List<TransfermarktEventoInfo> ExtrairEventosDoJogo(HtmlDocument doc)
+        {
+            var eventos = new List<TransfermarktEventoInfo>();
+
+            // Seleciona os blocos de eventos do Transfermarkt
+            var eventosNodes = doc.DocumentNode.SelectNodes("//div[contains(@class,'sb-aktion')]");
+
+            if (eventosNodes == null)
+                return eventos;
+
+            foreach (var node in eventosNodes)
+            {
+                // Determina se o evento está na coluna da casa ou visitante
+                bool isCasa = node.GetClasses().Contains("sb-aktion-heim");
+                bool isVisitante = node.GetClasses().Contains("sb-aktion-gast");
+
+                // Extrai informações básicas
+                var minuto = ExtrairMinuto(node);
+                var tipoEvento = ExtrairTipoEvento(node);
+                var jogadorNome = ExtrairJogadorNome(node);
+                var jogadorLink = ExtrairJogadorLink(node);
+                var assistenteNome = ExtrairAssistenteNome(node);
+                var assistenteLink = ExtrairAssistenteLink(node);
+                var detalhe = ExtrairDetalhe(node);
+
+                var ev = new TransfermarktEventoInfo
+                {
+                    Tipo = tipoEvento,
+                    JogadorNome = jogadorNome,
+                    JogadorLink = jogadorLink,
+                    AssistenteNome = assistenteNome,
+                    AssistenteLink = assistenteLink,
+                    Minuto = minuto,
+                    Detalhe = detalhe,
+                    IsTimeCasa = isCasa // ✅ aqui está a chave
+                };
+
+                eventos.Add(ev);
+            }
+
+            return eventos;
+        }
+
+        private int ExtrairMinuto(HtmlNode node)
+        {
+            // Exemplo: "45'" ou "90+2'"
+            var minutoNode = node.SelectSingleNode(".//span[contains(@class,'sb-aktion-uhr')]");
+            if (minutoNode == null) return 0;
+
+            var texto = minutoNode.InnerText.Trim();
+            texto = texto.Replace("'", "").Replace("+", "");
+
+            if (int.TryParse(texto, out var minuto))
+                return minuto;
+
+            return 0;
+        }
+
+        private string ExtrairTipoEvento(HtmlNode node)
+        {
+            // Transfermarkt usa ícones para diferenciar os eventos
+            if (node.InnerHtml.Contains("icon-tor")) return "Gol";
+            if (node.InnerHtml.Contains("icon-gelb")) return "Cartao";
+            if (node.InnerHtml.Contains("icon-rot")) return "Cartao";
+            if (node.InnerHtml.Contains("icon-auswechslung")) return "Substituicao";
+
+            return "Outro";
+        }
+
+        private string? ExtrairJogadorNome(HtmlNode node)
+        {
+            var jogadorNode = node.SelectSingleNode(".//a[contains(@class,'spielprofil_tooltip')]");
+            return jogadorNode?.InnerText.Trim();
+        }
+
+        private string? ExtrairJogadorLink(HtmlNode node)
+        {
+            var jogadorNode = node.SelectSingleNode(".//a[contains(@class,'spielprofil_tooltip')]");
+            return jogadorNode?.GetAttributeValue("href", null);
+        }
+
+        private string? ExtrairAssistenteNome(HtmlNode node)
+        {
+            var assistNode = node.SelectSingleNode(".//span[contains(@class,'assist')]/a");
+            return assistNode?.InnerText.Trim();
+        }
+
+        private string? ExtrairAssistenteLink(HtmlNode node)
+        {
+            var assistNode = node.SelectSingleNode(".//span[contains(@class,'assist')]/a");
+            return assistNode?.GetAttributeValue("href", null);
+        }
+
+        private string? ExtrairDetalhe(HtmlNode node)
+        {
+            // Exemplo: "Cartão Amarelo", "Cartão Vermelho"
+            var detalheNode = node.SelectSingleNode(".//span[contains(@class,'sb-aktion-karte')]");
+            return detalheNode?.InnerText.Trim();
+        }
+
+        public async Task PersistirEventosAsync(
+        FutebolContext context,
+        Jogo jogo,
+        List<TransfermarktEventoInfo> eventos,
+        CancellationToken ct)
+            {
+                foreach (var ev in eventos)
+                {
+                    var nomeJogador = ev.JogadorNome ?? ev.AssistenteNome;
+
+                    var jogador = await ResolverJogadorAsync(
+                        context,
+                        nomeJogador,
+                        ev.JogadorLink ?? ev.AssistenteLink,
+                        ev.IsTimeCasa ? jogo.TimeCasa.Id : jogo.TimeVisitante.Id,
+                        ct);
+
+                    // 🔹 Log detalhado para conferência
+                    _logger.LogInformation("[Evento] {Tipo} - {Jogador} - Min {Minuto} - Casa? {IsCasa}",
+                        ev.Tipo, nomeJogador, ev.Minuto, ev.IsTimeCasa);
+
+                    if (jogador == null)
+                    {
+                        _logger.LogWarning("[Evento] Jogador não encontrado: {Jogador} ({Link})",
+                            nomeJogador, ev.JogadorLink ?? ev.AssistenteLink);
+                        continue;
+                    }
+
+                    switch (ev.Tipo)
+                    {
+                        case "Gol":
+                            context.Gols.Add(new Gol
+                            {
+                                Jogo = jogo,
+                                JogadorId = jogador.Id,
+                                Minuto = ev.Minuto,
+                                Contra = ev.Contra
+                            });
+                            break;
+
+                        case "Assistencia":
+                            context.Assistencias.Add(new Assistencia
+                            {
+                                Jogo = jogo,
+                                JogadorId = jogador.Id,
+                                Minuto = ev.Minuto
+                            });
+                            break;
+
+                        case "Cartao":
+                            context.Cartoes.Add(new Cartao
+                            {
+                                Jogo = jogo,
+                                JogadorId = jogador.Id,
+                                Minuto = ev.Minuto,
+                                Tipo = ev.Detalhe ?? "Amarelo"
+                            });
+                            break;
+
+                        default:
+                            _logger.LogWarning("[Evento] Tipo desconhecido: {Tipo}", ev.Tipo);
+                            break;
+                    }
+                }
+
+                await context.SaveChangesAsync(ct);
+            }
+
+        public static DateTime? ParseData(string texto)
+        {
+            var m = Regex.Match(texto.Trim(), @"\d{2}[./]\d{2}[./]\d{2,4}");
+            if (!m.Success) return null;
+
+            string[] fmts = { "dd/MM/yy", "dd/MM/yyyy", "dd.MM.yyyy", "dd.MM.yy" };
+            foreach (var f in fmts)
+            {
+                if (DateTime.TryParseExact(m.Value, f,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out var dt))
+                {
+                    // 🔹 Corrige anos de dois dígitos
+                    if (dt.Year < 100)
+                        dt = new DateTime(2000 + dt.Year, dt.Month, dt.Day, dt.Hour, dt.Minute, 0);
+
+                    return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+                }
+            }
+            return null;
+        }
         // Necessário comparer para HashSet de HtmlNode baseado em XPath
         private class HtmlNodeXPathComparer : IEqualityComparer<HtmlAgilityPack.HtmlNode>
         {
