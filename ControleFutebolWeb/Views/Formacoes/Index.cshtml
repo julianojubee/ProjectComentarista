@@ -1,0 +1,96 @@
+@model List<ControleFutebolWeb.Models.Formacao>
+@{
+    ViewData["Title"] = "Formações";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>⚽ Formações</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNovaFormacao">
+        + Nova Formação
+    </button>
+</div>
+
+@if (TempData["Mensagem"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Mensagem"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead class="table-dark">
+            <tr>
+                <th>#</th>
+                <th>Nome</th>
+                <th class="text-center">Posições</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-4">
+                        Nenhuma formação cadastrada. Clique em <strong>+ Nova Formação</strong> para começar.
+                    </td>
+                </tr>
+            }
+            @foreach (var f in Model)
+            {
+                <tr>
+                    <td class="text-muted">@f.Id</td>
+                    <td>
+                        <strong>@f.Nome</strong>
+                    </td>
+                    <td class="text-center">
+                        @{
+                            var total = f.Posicoes?.Count ?? 0;
+                        }
+                        <span class="badge @(total > 0 ? "bg-success" : "bg-secondary")">
+                            @total posição@(total == 1 ? "" : "ões")
+                        </span>
+                    </td>
+                    <td>
+                        <a asp-action="Posicoes" asp-route-id="@f.Id"
+                           class="btn btn-outline-primary btn-sm">
+                            🗺 Editar Posições
+                        </a>
+                        <form asp-action="Excluir" asp-route-id="@f.Id" method="post"
+                              class="d-inline"
+                              onsubmit="return confirm('Excluir a formação @f.Nome? Todas as posições serão removidas.')">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-outline-danger btn-sm">Excluir</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal Nova Formação -->
+<div class="modal fade" id="modalNovaFormacao" tabindex="-1" aria-labelledby="labelNovaFormacao" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <form asp-action="Criar" asp-controller="Formacoes" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title" id="labelNovaFormacao">Nova Formação</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label">Nome da formação</label>
+                    <input type="text" name="nome" class="form-control"
+                           placeholder="Ex: 4-3-3, 3-5-2" required autofocus />
+                    <small class="text-muted">Use o formato padrão como 4-3-3 ou 4-2-3-1.</small>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Criar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

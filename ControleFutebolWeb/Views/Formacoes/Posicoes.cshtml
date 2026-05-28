@@ -1,0 +1,418 @@
+@model List<ControleFutebolWeb.Models.PosicaoFormacao>
+@using System.Text.Json
+@removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
+@{
+    ViewData["Title"] = "Posições — " + ViewBag.FormacaoNome;
+    var formacoes = ViewBag.Formacoes as List<ControleFutebolWeb.Models.Formacao>;
+    int formacaoId = ViewBag.FormacaoId;
+
+    var dadosJS = Model.Select(p => new
+    {
+        nomePosicao = p.NomePosicao,
+        posicaoX = p.PosicaoX,
+        posicaoY = p.PosicaoY,
+        ordem = p.Ordem,
+        posicaoId = p.PosicaoId
+    });
+}
+
+<style>
+    .slot-posicao {
+        position: absolute;
+        text-align: center;
+        transform: translate(-50%, -50%);
+        cursor: grab;
+        user-select: none;
+        color: white;
+        font-size: 10px;
+        text-shadow: 1px 1px 2px black;
+        z-index: 10;
+    }
+
+    .slot-posicao.ativo .slot-circulo {
+        outline: 3px solid #f59e0b;
+        outline-offset: 2px;
+    }
+
+    .slot-circulo {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 2px;
+        font-weight: bold;
+        font-size: 13px;
+        background: #3b82f6;
+        color: white;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+        transition: background 0.15s;
+    }
+
+    .slot-posicao.ativo .slot-circulo {
+        background: #f59e0b;
+    }
+
+    .slot-label {
+        font-size: 10px;
+        color: white;
+        text-shadow: 1px 1px 3px black;
+        white-space: nowrap;
+    }
+
+    #campo {
+        cursor: crosshair;
+    }
+
+    .lista-item {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        padding: 6px 8px;
+        border-radius: 6px;
+        background: #f8f9fa;
+        margin-bottom: 4px;
+        border: 1px solid #dee2e6;
+        cursor: pointer;
+    }
+
+    .lista-item.ativo {
+        background: #fff3cd;
+        border-color: #ffc107;
+    }
+</style>
+
+<!-- Cabeçalho -->
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-3">
+        <a asp-action="Index" asp-controller="Formacoes" class="btn btn-outline-secondary btn-sm">← Voltar</a>
+        <h4 class="mb-0">Posições — <strong id="nomeFormacaoTitulo">@ViewBag.FormacaoNome</strong></h4>
+    </div>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <label class="mb-0 fw-semibold">Formação:</label>
+        <select id="selectFormacao" class="form-select form-select-sm" style="width:auto;"
+                onchange="trocarFormacao()">
+            @foreach (var f in formacoes)
+            {
+                <option value="@f.Id" @(f.Id == formacaoId ? "selected" : "")>@f.Nome</option>
+            }
+        </select>
+        <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalNovaFormacao">
+            + Nova
+        </button>
+    </div>
+</div>
+
+<div class="row g-3">
+
+    <!-- ── Campinho ──────────────────────────────────────────────────────── -->
+    <div class="col-lg-7 col-md-6">
+        <div id="campo" class="campo">
+            <!-- Slots renderizados via JS -->
+        </div>
+        <small class="text-muted d-block mt-1">
+            🖱 <strong>Clique no campo</strong> para adicionar posição &nbsp;•&nbsp;
+            ✋ <strong>Arraste</strong> o círculo para reposicionar
+        </small>
+    </div>
+
+    <!-- ── Sidebar: lista de posições ───────────────────────────────────── -->
+    <div class="col-lg-5 col-md-6">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h5 class="mb-0">
+                Posições
+                <span id="badgeTotal" class="badge bg-secondary ms-1">0</span>
+            </h5>
+            <button id="btnSalvar" class="btn btn-success btn-sm" onclick="salvar()">
+                💾 Salvar
+            </button>
+        </div>
+
+        <!-- Legenda de coords -->
+        <div class="d-flex gap-3 mb-2 text-muted" style="font-size:11px;">
+            <span>Ordem · Nome · X% · Y%</span>
+            <span id="coordAtual" class="ms-auto"></span>
+        </div>
+
+        <div id="listaPosicoes" style="max-height:480px; overflow-y:auto;">
+            <!-- Renderizado via JS -->
+        </div>
+
+        <button class="btn btn-outline-secondary btn-sm w-100 mt-2" onclick="adicionarCentro()">
+            ＋ Adicionar no Centro
+        </button>
+
+        <!-- Coordenadas do slot selecionado -->
+        <div id="painelCoords" class="mt-3 p-2 bg-light rounded d-none">
+            <small class="fw-semibold">Slot selecionado:</small>
+            <div class="d-flex gap-2 mt-1">
+                <div>
+                    <label style="font-size:11px;">X (left %)</label>
+                    <input type="number" id="inputX" class="form-control form-control-sm" step="0.1" min="0" max="100"
+                           oninput="atualizarCoord('x', this.value)" style="width:80px;" />
+                </div>
+                <div>
+                    <label style="font-size:11px;">Y (top %)</label>
+                    <input type="number" id="inputY" class="form-control form-control-sm" step="0.1" min="0" max="100"
+                           oninput="atualizarCoord('y', this.value)" style="width:80px;" />
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal Nova Formação ──────────────────────────────────────────────── -->
+<div class="modal fade" id="modalNovaFormacao" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <form asp-action="Criar" asp-controller="Formacoes" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title">Nova Formação</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" name="nome" class="form-control"
+                           placeholder="Ex: 4-3-3" required autofocus />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary btn-sm">Criar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ── Toast de feedback ────────────────────────────────────────────────── -->
+<div id="toast" class="position-fixed bottom-0 end-0 m-3 d-none"
+     style="z-index:9999; min-width:220px;">
+    <div id="toastInner" class="alert mb-0 shadow" role="alert"></div>
+</div>
+
+@section Scripts {
+<script>
+// ── Dados iniciais ──────────────────────────────────────────────────────
+let posicoes = @Html.Raw(JsonSerializer.Serialize(dadosJS));
+const formacaoId = @formacaoId;
+let selectedIdx = -1;
+
+const campo = document.getElementById('campo');
+
+// ── Clique no campo → adicionar posição ────────────────────────────────
+campo.addEventListener('mousedown', function (e) {
+    // Só reagir ao clique no próprio campo (não em slots filhos)
+    if (e.target !== campo) return;
+    const rect = campo.getBoundingClientRect();
+    const x = parseFloat(((e.clientX - rect.left) / rect.width * 100).toFixed(1));
+    const y = parseFloat(((e.clientY - rect.top) / rect.height * 100).toFixed(1));
+    addPosicao(x, y);
+});
+
+// Atualizar coordenada no painel lateral
+function atualizarCoord(eixo, val) {
+    if (selectedIdx < 0 || selectedIdx >= posicoes.length) return;
+    const v = parseFloat(parseFloat(val).toFixed(1));
+    if (isNaN(v)) return;
+    if (eixo === 'x') posicoes[selectedIdx].posicaoX = v;
+    else posicoes[selectedIdx].posicaoY = v;
+    renderCampo();
+}
+
+// ── Adicionar posição ───────────────────────────────────────────────────
+function addPosicao(x, y) {
+    const ordem = posicoes.length + 1;
+    posicoes.push({ nomePosicao: 'P' + ordem, posicaoX: x, posicaoY: y, ordem: ordem, posicaoId: 0 });
+    render();
+    selectSlot(posicoes.length - 1);
+}
+
+function adicionarCentro() {
+    addPosicao(50, 50);
+}
+
+function removerPosicao(idx) {
+    posicoes.splice(idx, 1);
+    posicoes.forEach((p, i) => { p.ordem = i + 1; });
+    selectedIdx = -1;
+    render();
+}
+
+// ── Seleção ─────────────────────────────────────────────────────────────
+function selectSlot(idx) {
+    selectedIdx = idx;
+    render();
+    // Foca o input de nome na lista
+    setTimeout(() => {
+        const el = document.getElementById('nome-' + idx);
+        if (el) { el.focus(); el.select(); }
+    }, 30);
+}
+
+// ── Renderização principal ───────────────────────────────────────────────
+function render() {
+    renderCampo();
+    renderLista();
+    document.getElementById('badgeTotal').textContent = posicoes.length;
+
+    // Painel de coords
+    const painel = document.getElementById('painelCoords');
+    if (selectedIdx >= 0 && selectedIdx < posicoes.length) {
+        painel.classList.remove('d-none');
+        document.getElementById('inputX').value = parseFloat(posicoes[selectedIdx].posicaoX).toFixed(1);
+        document.getElementById('inputY').value = parseFloat(posicoes[selectedIdx].posicaoY).toFixed(1);
+    } else {
+        painel.classList.add('d-none');
+    }
+}
+
+// ── Renderizar campo ────────────────────────────────────────────────────
+function renderCampo() {
+    campo.querySelectorAll('.slot-posicao').forEach(el => el.remove());
+
+    posicoes.forEach((p, idx) => {
+        const dot = document.createElement('div');
+        dot.className = 'slot-posicao' + (idx === selectedIdx ? ' ativo' : '');
+        dot.style.left = p.posicaoX + '%';
+        dot.style.top  = p.posicaoY + '%';
+        dot.innerHTML = `
+            <div class="slot-circulo">${p.ordem}</div>
+            <div class="slot-label">${p.nomePosicao}</div>
+        `;
+
+        // Drag: mousedown no slot
+        dot.addEventListener('mousedown', function (e) {
+            e.stopPropagation(); // não disparar click no campo
+            selectSlot(idx);
+
+            const rect   = campo.getBoundingClientRect();
+            const startX = e.clientX;
+            const startY = e.clientY;
+            const origX  = p.posicaoX;
+            const origY  = p.posicaoY;
+
+            function onMove(ev) {
+                const dx = (ev.clientX - startX) / rect.width  * 100;
+                const dy = (ev.clientY - startY) / rect.height * 100;
+                posicoes[idx].posicaoX = Math.max(0, Math.min(100, origX + dx));
+                posicoes[idx].posicaoY = Math.max(0, Math.min(100, origY + dy));
+                dot.style.left = posicoes[idx].posicaoX + '%';
+                dot.style.top  = posicoes[idx].posicaoY + '%';
+                // Atualiza painel de coords em tempo real
+                if (idx === selectedIdx) {
+                    document.getElementById('inputX').value = parseFloat(posicoes[idx].posicaoX).toFixed(1);
+                    document.getElementById('inputY').value = parseFloat(posicoes[idx].posicaoY).toFixed(1);
+                }
+            }
+
+            function onUp() {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+                render();
+            }
+
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        });
+
+        campo.appendChild(dot);
+    });
+}
+
+// ── Renderizar lista lateral ────────────────────────────────────────────
+function renderLista() {
+    const lista = document.getElementById('listaPosicoes');
+    lista.innerHTML = '';
+
+    posicoes.forEach((p, idx) => {
+        const item = document.createElement('div');
+        item.className = 'lista-item' + (idx === selectedIdx ? ' ativo' : '');
+
+        item.innerHTML = `
+            <input type="number"
+                   class="form-control form-control-sm text-center"
+                   style="width:48px; flex-shrink:0;"
+                   value="${p.ordem}" min="1" title="Ordem"
+                   id="ordem-${idx}"
+                   onchange="posicoes[${idx}].ordem = parseInt(this.value)||1; renderCampo();" />
+            <input type="text"
+                   class="form-control form-control-sm"
+                   value="${p.nomePosicao}" placeholder="Nome"
+                   id="nome-${idx}"
+                   oninput="posicoes[${idx}].nomePosicao = this.value; renderCampo();"
+                   onclick="selectSlot(${idx});" />
+            <span class="text-muted text-nowrap" style="font-size:10px; min-width:68px;">
+                X:${parseFloat(p.posicaoX).toFixed(1)}  Y:${parseFloat(p.posicaoY).toFixed(1)}
+            </span>
+            <button class="btn btn-outline-danger btn-sm py-0 px-1" style="font-size:13px;"
+                    onclick="removerPosicao(${idx})" title="Remover">✕</button>
+        `;
+
+        item.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            selectSlot(idx);
+        });
+
+        lista.appendChild(item);
+    });
+}
+
+// ── Salvar via JSON ─────────────────────────────────────────────────────
+function salvar() {
+    const btn = document.getElementById('btnSalvar');
+    btn.disabled = true;
+    btn.textContent = '⏳ Salvando...';
+
+    const payload = {
+        formacaoId: formacaoId,
+        posicoes: posicoes.map((p, i) => ({
+            nomePosicao: (p.nomePosicao || 'P' + (i + 1)).trim(),
+            posicaoX: parseFloat(parseFloat(p.posicaoX).toFixed(2)),
+            posicaoY: parseFloat(parseFloat(p.posicaoY).toFixed(2)),
+            ordem: parseInt(p.ordem) > 0 ? parseInt(p.ordem) : i + 1,
+            posicaoId: p.posicaoId || 0
+        }))
+    };
+
+    fetch('/Formacoes/SalvarPosicoes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast(`✅ ${data.total} posições salvas com sucesso!`, 'success');
+        } else {
+            showToast('❌ ' + (data.mensagem || 'Erro ao salvar.'), 'danger');
+        }
+    })
+    .catch(() => showToast('❌ Erro de comunicação com o servidor.', 'danger'))
+    .finally(() => {
+        btn.disabled = false;
+        btn.textContent = '💾 Salvar';
+    });
+}
+
+// ── Trocar formação ─────────────────────────────────────────────────────
+function trocarFormacao() {
+    const id = document.getElementById('selectFormacao').value;
+    window.location.href = '/Formacoes/Posicoes/' + id;
+}
+
+// ── Toast helper ────────────────────────────────────────────────────────
+function showToast(msg, tipo) {
+    const toast = document.getElementById('toast');
+    const inner = document.getElementById('toastInner');
+    inner.className = 'alert alert-' + tipo + ' mb-0 shadow';
+    inner.textContent = msg;
+    toast.classList.remove('d-none');
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => toast.classList.add('d-none'), 4000);
+}
+
+// ── Init ────────────────────────────────────────────────────────────────
+render();
+</script>
+}

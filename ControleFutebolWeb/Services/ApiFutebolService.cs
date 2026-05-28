@@ -82,7 +82,7 @@ namespace ControleFutebolWeb.Services
                 Id = s.Id,
                 Nome = s.Name,
                 Posicao = s.Position,
-                DataNascimento = s.DateOfBirth ?? DateTime.MinValue,
+                DataNascimento = s.DateOfBirth,
                 Nacionalidade = new Nacionalidade { Nome = s.Nationality },
                 DtInc = DateTime.UtcNow,
                 DtAlt = null,

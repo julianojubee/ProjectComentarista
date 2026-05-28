@@ -55,7 +55,7 @@ namespace ControleFutebolWeb.Controllers
                         {
                             Nome = jogadorApi.Nome,
                             Posicao = jogadorApi.Posicao,
-                            DataNascimento = jogadorApi.Nascimento ?? DateTime.MinValue,
+                            DataNascimento = jogadorApi.Nascimento,
                             Nacionalidade = nacionalidade,
                             Time = time,
 
@@ -178,7 +178,7 @@ namespace ControleFutebolWeb.Controllers
                     {
                         Nome = jogadorApi.Nome,
                         Posicao = NormalizarPosicao(jogadorApi.Posicao),  // ← 
-                        DataNascimento = jogadorApi.Nascimento ?? DateTime.MinValue,
+                        DataNascimento = jogadorApi.Nascimento,
                         Nacionalidade = nacionalidade,
                         DtInc = DateTime.UtcNow,
                         DtAlt = null,

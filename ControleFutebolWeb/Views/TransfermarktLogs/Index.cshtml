@@ -24,63 +24,90 @@
         overflow: hidden;
     }
 
-    .tm-log-badge {
+    .badge-tipo {
         font-size: 11px;
         font-weight: 700;
         border-radius: 999px;
-        padding: 3px 8px;
-        background: #e0f2fe;
-        color: #0369a1;
+        padding: 3px 9px;
         display: inline-block;
+        white-space: nowrap;
     }
 
-    .tm-log-action {
+    /* cores por tipo */
+    .badge-Jogo       { background: #dbeafe; color: #1d4ed8; }
+    .badge-Jogador    { background: #d1fae5; color: #065f46; }
+    .badge-Competicao { background: #fef3c7; color: #92400e; }
+    .badge-Time       { background: #ede9fe; color: #5b21b6; }
+    .badge-Elenco     { background: #fce7f3; color: #9d174d; }
+    .badge-Ciclo      { background: #f3f4f6; color: #374151; }
+    .badge-default    { background: #e0f2fe; color: #0369a1; }
+
+    .badge-acao {
+        font-size: 11px;
+        font-weight: 600;
+        border-radius: 4px;
+        padding: 2px 7px;
         background: #ecfdf5;
         color: #047857;
+        display: inline-block;
     }
 </style>
 
 <div class="tm-log-header">
-    <h2 class="mb-1">Logs Transfermarkt</h2>
-    <p class="mb-0 text-white-50">Últimos times, jogos e elencos alterados pelo processo automático.</p>
+    <h2 class="mb-1">Logs de Sincronização Transfermarkt</h2>
+    <p class="mb-0 text-white-50">Registro de inclusões: jogos, jogadores, times e competições importados pelo processo automático.</p>
 </div>
 
 <form method="get" class="row g-2 align-items-end mb-3">
     <div class="col-md-3">
-        <label class="form-label">Tipo</label>
+        <label class="form-label fw-semibold">Tipo</label>
         <select name="tipo" class="form-select">
             <option value="">Todos</option>
             @foreach (var tipo in tipos)
             {
-                <option value="@tipo" selected="@(tipo == tipoAtual)">@tipo</option>
+                <option value="@tipo" selected="@(tipo == tipoAtual ? "selected" : null)">@tipo</option>
             }
         </select>
     </div>
     <div class="col-md-3">
-        <label class="form-label">Ação</label>
+        <label class="form-label fw-semibold">Ação</label>
         <select name="acao" class="form-select">
             <option value="">Todas</option>
             @foreach (var acao in acoes)
             {
-                <option value="@acao" selected="@(acao == acaoAtual)">@acao</option>
+                <option value="@acao" selected="@(acao == acaoAtual ? "selected" : null)">@acao</option>
             }
         </select>
     </div>
-    <div class="col-md-6 d-flex gap-2">
+    <div class="col-md-6 d-flex gap-2 align-items-end">
         <button type="submit" class="btn btn-primary">Filtrar</button>
         <a asp-action="Index" class="btn btn-outline-secondary">Limpar</a>
+        <span class="text-muted ms-2 small">@Model.Count() registro(s) exibido(s)</span>
     </div>
 </form>
 
+@{
+    // Atalhos rápidos por tipo de inclusão
+    var atalhos = new[] { "Jogo", "Jogador", "Time", "Elenco", "Competicao", "Ciclo" };
+}
+<div class="mb-3 d-flex flex-wrap gap-1">
+    @foreach (var a in atalhos)
+    {
+        var badgeClass = $"badge-{a}";
+        var active = tipoAtual == a ? "border border-2 border-dark" : "";
+        <a asp-action="Index" asp-route-tipo="@a" class="badge-tipo @badgeClass @active text-decoration-none">@a</a>
+    }
+</div>
+
 <div class="tm-log-table">
-    <table class="table table-striped table-hover mb-0">
-        <thead>
+    <table class="table table-sm table-striped table-hover mb-0">
+        <thead class="table-dark">
             <tr>
-                <th>Data</th>
-                <th>Tipo</th>
-                <th>Ação</th>
+                <th style="width:145px">Data</th>
+                <th style="width:110px">Tipo</th>
+                <th style="width:120px">Ação</th>
                 <th>Competição</th>
-                <th>Time</th>
+                <th>Time / Jogador</th>
                 <th>Jogo</th>
                 <th>Detalhes</th>
             </tr>
@@ -88,14 +115,27 @@
         <tbody>
             @foreach (var log in Model)
             {
+                var badgeClass = $"badge-{log.Tipo}";
                 <tr>
-                    <td style="white-space:nowrap;">@log.Data.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</td>
-                    <td><span class="tm-log-badge">@log.Tipo</span></td>
-                    <td><span class="tm-log-badge tm-log-action">@log.Acao</span></td>
-                    <td>@(log.CompeticaoNome ?? "-")</td>
-                    <td>@(log.TimeNome ?? "-")</td>
-                    <td>@(log.JogoDescricao ?? "-")</td>
-                    <td>@(log.Detalhes ?? "-")</td>
+                    <td class="text-muted small" style="white-space:nowrap;">
+                        @log.Data.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+                    </td>
+                    <td>
+                        <span class="badge-tipo @badgeClass">@log.Tipo</span>
+                    </td>
+                    <td>
+                        <span class="badge-acao">@log.Acao</span>
+                    </td>
+                    <td class="small">@(log.CompeticaoNome ?? "-")</td>
+                    <td class="small">@(log.TimeNome ?? "-")</td>
+                    <td class="small">@(log.JogoDescricao ?? "-")</td>
+                    <td class="small text-muted">@(log.Detalhes ?? "-")</td>
+                </tr>
+            }
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">Nenhum log encontrado.</td>
                 </tr>
             }
         </tbody>

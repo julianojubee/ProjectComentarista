@@ -1,6 +1,7 @@
 ﻿using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
+using ControleFutebolWeb.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -12,11 +13,13 @@ namespace ControleFutebolWeb.Controllers
     {
         private readonly FutebolContext _context;
         private readonly ILogger<JogosController> _logger;
+        private readonly TransfermarktService _transfermarkt;
 
-        public JogosController(FutebolContext context, ILogger<JogosController> logger)
+        public JogosController(FutebolContext context, ILogger<JogosController> logger, TransfermarktService transfermarkt)
         {
             _context = context;
             _logger = logger;
+            _transfermarkt = transfermarkt;
         }
 
         // GET: Jogos
@@ -1078,6 +1081,31 @@ namespace ControleFutebolWeb.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { analisado = jogo.Analisado });
+        }
+
+        // POST: Jogos/ReimportarEscalacao/12964
+        // Re-busca a escalação do Transfermarkt, apaga os dados anteriores e reimporta
+        // com o algoritmo de normalização dinâmica (corrige posições erradas de imports antigos).
+        [HttpPost]
+        public async Task<IActionResult> ReimportarEscalacao(int id)
+        {
+            try
+            {
+                var (ok, mensagem) = await _transfermarkt
+                    .ForcarReimportarEscalacaoAsync(_context, id, HttpContext.RequestAborted);
+
+                if (ok)
+                    TempData["Mensagem"] = "✅ " + mensagem;
+                else
+                    TempData["MensagemErro"] = "❌ " + mensagem;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[ReimportarEscalacao] Erro no jogo {Id}", id);
+                TempData["MensagemErro"] = "Erro ao re-importar escalação: " + ex.Message;
+            }
+
+            return RedirectToAction("Analisar", new { id });
         }
     }
 }

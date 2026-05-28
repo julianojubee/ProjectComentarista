@@ -1,5 +1,9 @@
 ﻿@using ControleFutebolWeb.Models
 
+@{
+    var proximaRodada = ViewBag.ProximaRodada as List<Jogo> ?? new List<Jogo>();
+}
+
 <style>
     .cf-comp-hero {
         position: relative;
@@ -176,7 +180,15 @@
         </div>
 
         <div class="row">
-            @foreach (var jogo in ViewBag.ProximaRodada as List<Jogo>)
+            @if (!proximaRodada.Any())
+            {
+                <div class="col-12">
+                    <div class="alert alert-secondary text-center">
+                        Nenhum jogo encontrado para exibir.
+                    </div>
+                </div>
+            }
+            @foreach (var jogo in proximaRodada)
             {
                 <div class="col-md-6 mb-3">
                     <div class="card shadow-sm">

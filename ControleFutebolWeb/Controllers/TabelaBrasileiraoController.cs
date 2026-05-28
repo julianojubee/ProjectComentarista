@@ -43,45 +43,41 @@ namespace ControleFutebolWeb.Controllers
 
         public IActionResult Brasileirao()
         {
-            // Busca todos os jogos já salvos no banco
-            var jogos = _context.Jogos
-             .Include(j => j.TimeCasa)
-             .Include(j => j.TimeVisitante)
-             .Where(j => j.CompeticaoId == 1 && j.PlacarCasa >= 0 && j.PlacarVisitante >= 0) // só jogos realizados
-             .ToList();
+            var todosJogos = _context.Jogos
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .Where(j => j.CompeticaoId == 1)
+                .ToList();
 
-            var proximaRodada = _context.Jogos
-            .Include(j => j.TimeCasa)
-            .Include(j => j.TimeVisitante)
-            .Where(j => j.CompeticaoId == 1 &&
-                        j.Data.HasValue &&
-                        j.Data.Value.ToUniversalTime() > DateTime.UtcNow)
-            .OrderBy(j => j.Data)
-            .Take(10)
-            .ToList();
+            var jogos = todosJogos
+                .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue)
+                .ToList();
 
+            var rodadaAlvo = todosJogos
+                .Where(j => !j.PlacarCasa.HasValue || !j.PlacarVisitante.HasValue)
+                .OrderBy(j => j.Rodada)
+                .Select(j => (int?)j.Rodada)
+                .FirstOrDefault();
 
-            if (proximaRodada.Any())
+            if (!rodadaAlvo.HasValue)
             {
-                foreach (var jogo in proximaRodada)
-                {
-                    Console.WriteLine($"JogoId: {jogo.Id}, Rodada: {jogo.Rodada}, Times: {jogo.TimeCasa.Nome} x {jogo.TimeVisitante.Nome}");
-                }
-
-                ViewBag.NumeroRodada = proximaRodada.Min(j => j.Rodada);
+                rodadaAlvo = todosJogos
+                    .OrderByDescending(j => j.Data ?? DateTime.MinValue)
+                    .ThenByDescending(j => j.Rodada)
+                    .Select(j => (int?)j.Rodada)
+                    .FirstOrDefault();
             }
 
+            var proximaRodada = rodadaAlvo.HasValue
+                ? todosJogos
+                    .Where(j => j.Rodada == rodadaAlvo.Value)
+                    .OrderBy(j => j.Data ?? DateTime.MaxValue)
+                    .ThenBy(j => j.Id)
+                    .ToList()
+                : new List<Jogo>();
 
             ViewBag.ProximaRodada = proximaRodada;
-            if (proximaRodada.Any())
-            {
-                ViewBag.NumeroRodada = proximaRodada.Min(j => j.Rodada);
-            }
-            else
-            {
-                var ultimaRodada = jogos.Any() ? jogos.Max(j => j.Rodada) : 0;
-                ViewBag.NumeroRodada = ultimaRodada + 1;
-            }
+            ViewBag.NumeroRodada = rodadaAlvo ?? 0;
 
 
             // Monta a classificação

@@ -747,6 +747,23 @@
                onchange="toggleAnalisado(this)" />
         <span style="font-size:13px; font-weight:500; color:#374151;">Marcar como analisado</span>
     </label>
+
+    @if (!string.IsNullOrWhiteSpace(Model.LinkDetalhes))
+    {
+        <form asp-action="ReimportarEscalacao" asp-controller="Jogos" asp-route-id="@Model.Id"
+              method="post" style="margin:0;"
+              onsubmit="return confirm('Re-importar escalação do Transfermarkt?\n\nIsso vai apagar todas as escalações, gols, cartões e assistências deste jogo e reimportar do zero.')">
+            @Html.AntiForgeryToken()
+            <button type="submit"
+                    style="display:flex; align-items:center; gap:6px; padding:8px 14px;
+                           border-radius:8px; border:1px solid #f59e0b; background:#fffbeb;
+                           color:#92400e; font-size:13px; font-weight:500; cursor:pointer;
+                           white-space:nowrap;"
+                    title="Apaga e re-importa escalação, gols e cartões do Transfermarkt (corrige posições erradas)">
+                🔄 Re-importar Transfermarkt
+            </button>
+        </form>
+    }
 </div>
 
 <!-- ══ MODAL DE EVENTO ══════════════════════════════════════════════════ -->
@@ -899,21 +916,14 @@
                         <tbody id="listaCasa">
                             @foreach (var jogador in (List<ControleFutebolWeb.Models.Jogador>)ViewBag.JogadoresCasa)
                             {
-                                // ✅ Depois
-                                var camisaCasa = Url.Content(CamisaHelper.ObterCamisa(Model, Model.TimeCasa));
                                 <tr class="jogador-row"
                                     id="jogador-casa-@jogador.Id"
                                     draggable="true"
-                                    ondragstart="dragJogador(event, @jogador.Id, '@jogador.Nome', '@jogador.NumeroCamisa', '@camisaCasa', 'casa')">
+                                    ondragstart="dragJogador(event, @jogador.Id, '@jogador.Nome', '@jogador.NumeroCamisa', '', 'casa')">
                                     <td>
-                                        @if (!string.IsNullOrEmpty(camisaCasa))
-                                        {
-                                            <img src="@camisaCasa" width="32" height="32" />
-                                        }
-                                        else
-                                        {
-                                            <span style="font-size:20px;">👕</span>
-                                        }
+                                        <div class="player-circle player-circle-casa" style="width:28px;height:28px;font-size:11px;">
+                                            @(jogador.NumeroCamisa?.ToString() ?? "")
+                                        </div>
                                     </td>
                                     <td>
                                         @jogador.Nome
@@ -948,25 +958,25 @@
                                  ondrop="dropEscalacao(event, 'casa_@idxCasa')"
                                  ondragover="allowDrop(event)"
                                  style="left:@esc.PosicaoX%; top:@esc.PosicaoY%;">
-                                <span>@esc.Posicao</span>
                                 @if (esc.Jogador != null)
                                 {
-                                    <div>
-                                        
-                                        <img src="@Url.Content(CamisaHelper.ObterCamisa(Model, Model.TimeCasa))" width="40" style="display:block;margin:0 auto;" />
-                                        <div style="font-size:11px;max-width:60px;margin:0 auto;">
-                                            @esc.Jogador.Nome
-                                            @if (!faseEhInicial && jogadoresEntraramCasa.Contains(esc.Jogador.Id))
-                                            {
-                                                <span class="sub-chip-in" title="Jogador entrou">↑</span>
-                                            }
-                                        </div>
+                                    <div class="player-circle player-circle-casa">@(esc.Jogador.NumeroCamisa?.ToString() ?? "")</div>
+                                    <div class="player-name">
+                                        @esc.Jogador.Nome
+                                        @if (!faseEhInicial && jogadoresEntraramCasa.Contains(esc.Jogador.Id))
+                                        {
+                                            <span class="sub-chip-in" title="Jogador entrou">↑</span>
+                                        }
                                     </div>
                                     <button type="button"
                                             class="btn-avaliar"
                                             onclick="abrirAvaliacao(@esc.Jogador.Id, '@esc.Jogador.Nome', '@esc.Posicao', event)">
                                         +
                                     </button>
+                                }
+                                else
+                                {
+                                    <div class="player-circle player-circle-empty"></div>
                                 }
                             </div>
                             <input type="hidden" name="escalacaoCasa[@idxCasa].Id" value="@esc.Id" />
@@ -992,11 +1002,10 @@
                             {
                                 <div class="reserva-card" id="reserva-casa-card-@idxResCasa">
                                     <span class="rem-btn" onclick="removerReserva('casa', @idxResCasa)">×</span>
-                                    @if (!string.IsNullOrEmpty(Model.TimeCasa.CamisaUrl))
-                                    {
-                                        <img src="@Model.TimeCasa.CamisaUrl" width="36" />
-                                    }
-                                    <div style="max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                    <div class="player-circle player-circle-casa" style="width:28px;height:28px;font-size:11px;">
+                                        @(esc.Jogador?.NumeroCamisa?.ToString() ?? "")
+                                    </div>
+                                    <div style="max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;">
                                         @esc.Jogador?.Nome
                                     </div>
                                 </div>
@@ -1040,25 +1049,25 @@
                                  ondrop="dropEscalacao(event, 'vis_@idxVis')"
                                  ondragover="allowDrop(event)"
                                  style="left:@esc.PosicaoX%; top:@esc.PosicaoY%;">
-                                <span>@esc.Posicao</span>
                                 @if (esc.Jogador != null)
                                 {
-                                    <div>
-                                        
-                                        <img src="@Url.Content(CamisaHelper.ObterCamisa(Model, Model.TimeVisitante))" width="40" style="display:block;margin:0 auto;" />
-                                        <div style="font-size:11px;max-width:60px;margin:0 auto;">
-                                            @esc.Jogador.Nome
-                                            @if (!faseEhInicial && jogadoresEntraramVisitante.Contains(esc.Jogador.Id))
-                                            {
-                                                <span class="sub-chip-in" title="Jogador entrou">↑</span>
-                                            }
-                                        </div>
+                                    <div class="player-circle player-circle-vis">@(esc.Jogador.NumeroCamisa?.ToString() ?? "")</div>
+                                    <div class="player-name">
+                                        @esc.Jogador.Nome
+                                        @if (!faseEhInicial && jogadoresEntraramVisitante.Contains(esc.Jogador.Id))
+                                        {
+                                            <span class="sub-chip-in" title="Jogador entrou">↑</span>
+                                        }
                                     </div>
                                     <button type="button"
                                             class="btn-avaliar"
                                             onclick="abrirAvaliacao(@esc.Jogador.Id, '@esc.Jogador.Nome', '@esc.Posicao', event)">
                                         +
                                     </button>
+                                }
+                                else
+                                {
+                                    <div class="player-circle player-circle-empty"></div>
                                 }
                             </div>
                             <input type="hidden" name="escalacaoVisitante[@idxVis].Id" value="@esc.Id" />
@@ -1084,14 +1093,10 @@
                             {
                                 <div class="reserva-card" id="reserva-vis-card-@idxResVis">
                                     <span class="rem-btn" onclick="removerReserva('vis', @idxResVis)">×</span>
-                                    @{
-                                        var camisaBancoVis = Url.Content(CamisaHelper.ObterCamisa(Model, Model.TimeVisitante));
-                                    }
-                                    @if (!string.IsNullOrEmpty(camisaBancoVis))
-                                    {
-                                        <img src="@camisaBancoVis" width="36" />
-                                    }
-                                    <div style="max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                    <div class="player-circle player-circle-vis" style="width:28px;height:28px;font-size:11px;">
+                                        @(esc.Jogador?.NumeroCamisa?.ToString() ?? "")
+                                    </div>
+                                    <div style="max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;">
                                         @esc.Jogador?.Nome
                                     </div>
                                 </div>
@@ -1113,21 +1118,14 @@
                         <tbody id="listaVisitante">
                             @foreach (var jogador in (List<ControleFutebolWeb.Models.Jogador>)ViewBag.JogadoresVisitante)
                             {
-                                // ✅ Depois
-                                var camisaVisitante = Url.Content(CamisaHelper.ObterCamisa(Model, Model.TimeVisitante));
                                 <tr class="jogador-row"
                                     id="jogador-vis-@jogador.Id"
                                     draggable="true"
-                                    ondragstart="dragJogador(event, @jogador.Id, '@jogador.Nome', '@jogador.NumeroCamisa', '@camisaVisitante', 'vis')">
+                                    ondragstart="dragJogador(event, @jogador.Id, '@jogador.Nome', '@jogador.NumeroCamisa', '', 'vis')">
                                     <td>
-                                        @if (!string.IsNullOrEmpty(camisaVisitante))
-                                        {
-                                            <img src="@camisaVisitante" width="32" height="32" />
-                                        }
-                                        else
-                                        {
-                                            <span style="font-size:20px;">👕</span>
-                                        }
+                                        <div class="player-circle player-circle-vis" style="width:28px;height:28px;font-size:11px;">
+                                            @(jogador.NumeroCamisa?.ToString() ?? "")
+                                        </div>
                                     </td>
                                     <td>
                                         @jogador.Nome
@@ -1360,13 +1358,11 @@
 
         const posEl = document.querySelector(`.posicao-drop[data-index='${index}']`);
         const nomePosicao = posEl.dataset.posicao;
+        const circleClass = isCasa ? 'player-circle-casa' : 'player-circle-vis';
         posEl.innerHTML = `
             <span>${nomePosicao}</span>
-            <div style="margin-top:4px;text-align:center;">
-                <img src="${camisaUrl}" width="40" style="display:block;margin:0 auto;" />
-                <div style="font-size:11px;max-width:60px;margin:0 auto;">${jogadorNome}</div>
-                <div style="font-size:10px;color:#ccc;">Camisa: ${jogadorNumero}</div>
-            </div>`;
+            <div class="player-circle ${circleClass}">${jogadorNumero}</div>
+            <div class="player-name">${jogadorNome}</div>`;
     }
 
     // ── Drop no banco de reservas ──────────────────────────────────────────
@@ -1375,7 +1371,7 @@
         ev.stopPropagation();
         if (draggingPosicao) return;
 
-        const { jogadorId, jogadorNome, camisaUrl } = dragData;
+        const { jogadorId, jogadorNome, jogadorNumero, camisaUrl } = dragData;
         if (!jogadorId) return;
 
         if (usados[time].has(jogadorId)) {
@@ -1396,10 +1392,11 @@
         const card  = document.createElement('div');
         card.className = 'reserva-card';
         card.id = `reserva-${time}-card-${idx}`;
+        const bancoCircleClass = time === 'casa' ? 'player-circle-casa' : 'player-circle-vis';
         card.innerHTML = `
             <span class="rem-btn" onclick="removerReserva('${time}', ${idx})">×</span>
-            ${camisas[time] ? `<img src="${camisas[time]}" width="36" />` : '👕'}
-            <div style="max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${jogadorNome}</div>`;
+            <div class="player-circle ${bancoCircleClass}" style="width:28px;height:28px;font-size:11px;">${jogadorNumero}</div>
+            <div style="max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:#fff;text-shadow:1px 1px 2px #000;">${jogadorNome}</div>`;
         banco.appendChild(card);
 
         // ── Cria inputs hidden DENTRO do formPrincipal ──────────────────

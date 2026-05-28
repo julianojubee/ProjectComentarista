@@ -118,20 +118,14 @@
             <tbody id="listaJogadores">
                 @foreach (var jogador in Model.Elenco)
                 {
-                    var camisaUrl = string.IsNullOrEmpty(Model.Time.CamisaUrl) ? "" : Url.Content(Model.Time.CamisaUrl);
                     <tr class="jogador-row"
                         id="jogador-@jogador.Id"
                         draggable="true"
-                        ondragstart="dragJogador(event, @jogador.Id, '@jogador.Nome', '@jogador.NumeroCamisa', '@camisaUrl')">
+                        ondragstart="dragJogador(event, @jogador.Id, '@jogador.Nome', '@(jogador.NumeroCamisa?.ToString() ?? "")')">
                         <td>
-                            @if (!string.IsNullOrEmpty(camisaUrl))
-                            {
-                                <img src="@camisaUrl" alt="Camisa" width="32" height="32" />
-                            }
-                            else
-                            {
-                                <span style="font-size:20px;">👕</span>
-                            }
+                            <div class="player-circle player-circle-team" style="width:32px;height:32px;font-size:12px;">
+                                @(jogador.NumeroCamisa?.ToString() ?? "")
+                            </div>
                         </td>
                         <td>@jogador.Nome</td>
                         <td>@jogador.Posicao</td>
@@ -199,22 +193,8 @@
 
                                 @if (esc.Jogador != null)
                                 {
-                                    <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px;">
-                                        @if (!string.IsNullOrEmpty(Model.Time.CamisaUrl))
-                                        {
-                                            <div style="text-align:center;">
-                                                <img src="@Model.Time.CamisaUrl" width="36" />
-                                                <div style="font-size:10px; color:#FFFFFF;">@esc.Jogador.Nome</div>
-                                            </div>
-                                        }
-@*                                         @if (!string.IsNullOrEmpty(Model.Time.CamisaVisitanteUrl))
-                                        {
-                                            <div style="text-align:center;">
-                                                <img src="@Model.Time.CamisaVisitanteUrl" width="36" />
-                                                <div style="font-size:10px; color:#888;">Fora</div>
-                                            </div>
-                                        } *@
-                                    </div>
+                                    <div class="player-circle player-circle-team">@(esc.Jogador.NumeroCamisa?.ToString() ?? "")</div>
+                                    <div class="player-name">@esc.Jogador.Nome</div>
                                 }
                             </div>
 
@@ -367,7 +347,6 @@
     let draggingPosicao   = false;
     let posicaoArrastando = null;
 
-    const camisaUrl = '@(string.IsNullOrEmpty(Model.Time.CamisaUrl) ? "" : Url.Content(Model.Time.CamisaUrl))';
 
     // ── Inicializa jogadores já posicionados ───────────────────────────────
     function initUsados() {
@@ -400,9 +379,9 @@
     function allowDrop(ev) { ev.preventDefault(); }
 
     // Arrastar jogador da lista lateral
-    function dragJogador(ev, jogadorId, jogadorNome, jogadorNumero, camisa) {
+    function dragJogador(ev, jogadorId, jogadorNome, jogadorNumero) {
         draggingPosicao = false;
-        dragData = { jogadorId: String(jogadorId), jogadorNome, jogadorNumero, camisaUrl: camisa };
+        dragData = { jogadorId: String(jogadorId), jogadorNome, jogadorNumero };
         ev.dataTransfer.setData("text/plain", String(jogadorId));
     }
 
@@ -412,7 +391,7 @@
         ev.stopPropagation();
         if (draggingPosicao) return;
 
-        const { jogadorId, jogadorNome, jogadorNumero, camisaUrl: camisa } = dragData;
+        const { jogadorId, jogadorNome, jogadorNumero } = dragData;
         if (!jogadorId) return;
 
         if (usados.has(jogadorId)) {
@@ -434,11 +413,8 @@
 
         posEl.innerHTML = `
             <span>${nomePosicao}</span>
-            <div style="margin-top:4px;text-align:center;">
-                <img src="${camisa}" width="40" style="display:block;margin:0 auto;" />
-                <div style="font-size:11px;max-width:60px;margin:0 auto;">${jogadorNome}</div>
-                <div style="font-size:10px;color:#ccc;">Camisa: ${jogadorNumero}</div>
-            </div>`;
+            <div class="player-circle player-circle-team">${jogadorNumero}</div>
+            <div class="player-name">${jogadorNome}</div>`;
     }
 
     // ── Arrastar posição já no campo (reposicionar) ────────────────────────

@@ -192,7 +192,8 @@ namespace ControleFutebolWeb.Data
             // 🔹 Tipos de coluna específicos
             modelBuilder.Entity<Jogador>()
                 .Property(j => j.DataNascimento)
-                .HasColumnType("timestamp without time zone");
+                .HasColumnType("timestamp without time zone")
+                .IsRequired(false);
 
             modelBuilder.Entity<Treinador>()
                 .Property(t => t.DataNascimento)

@@ -96,6 +96,43 @@
     margin-bottom: 6px;
 }
 
+/* Círculo de jogador no campo */
+.player-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    border: 2px solid rgba(255,255,255,0.7);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    flex-shrink: 0;
+    line-height: 1;
+}
+.player-circle-casa  { background: #dc2626; }
+.player-circle-vis   { background: #2563eb; }
+.player-circle-team  { background: #dc2626; }
+.player-circle-empty {
+    background: rgba(255,255,255,0.12);
+    border: 2px dashed rgba(255,255,255,0.35);
+}
+.player-name {
+    font-size: 10px;
+    color: #fff;
+    text-shadow: 1px 1px 2px #000;
+    max-width: 64px;
+    margin: 2px auto 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+    text-align: center;
+}
+
 /* Blocos de times */
 .bloco-time {
     padding: 15px;

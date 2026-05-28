@@ -202,7 +202,7 @@ namespace ControleFutebolWeb.Controllers
 
                             // Data de nascimento
                             if (dadosTransfer.DataNascimento.HasValue &&
-                                dadosTransfer.DataNascimento.Value.Date != jogador.DataNascimento.Date)
+                                dadosTransfer.DataNascimento.Value.Date != jogador.DataNascimento?.Date)
                             {
                                 divergencias.Add($"Data de nascimento divergente. Transfermarkt: {dadosTransfer.DataNascimento.Value:dd/MM/yyyy}");
                             }
@@ -230,7 +230,9 @@ namespace ControleFutebolWeb.Controllers
                     // Atualiza campos
                     jogadorExistente.Nome = jogador.Nome;
                     jogadorExistente.Posicao = jogador.Posicao;
-                    jogadorExistente.DataNascimento = DateTime.SpecifyKind(jogador.DataNascimento, DateTimeKind.Utc);
+                    jogadorExistente.DataNascimento = jogador.DataNascimento.HasValue
+                        ? DateTime.SpecifyKind(jogador.DataNascimento.Value, DateTimeKind.Utc)
+                        : null;
                     jogadorExistente.TimeId = jogador.TimeId;
                     jogadorExistente.NacionalidadeId = jogador.NacionalidadeId;
                     jogadorExistente.DtAlt = DateTime.UtcNow;

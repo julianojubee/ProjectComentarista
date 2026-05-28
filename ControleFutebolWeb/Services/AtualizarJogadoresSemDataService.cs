@@ -122,7 +122,7 @@ namespace ControleFutebolWeb.Services
 
                         // Atualiza data de nascimento
                         if (info.DataNascimento.HasValue && info.DataNascimento.Value.Year > 1900 &&
-                            info.DataNascimento.Value.Date != jogador.DataNascimento.Date)
+                            info.DataNascimento.Value.Date != jogador.DataNascimento?.Date)
                         {
 
                             jogador.DataNascimento = DateTime.SpecifyKind(info.DataNascimento.Value, DateTimeKind.Unspecified);
@@ -192,6 +192,10 @@ namespace ControleFutebolWeb.Services
             TransfermarktService transfermarkt,
             CancellationToken ct)
         {
+            // Limpa logs do ciclo anterior antes de iniciar o novo
+            await context.TransfermarktSincronizacaoLogs.ExecuteDeleteAsync(ct);
+            _logger.LogInformation("[TransfermarktSync] Logs anteriores removidos.");
+
             var cicloId = Guid.NewGuid();
             RegistrarLog(context, cicloId, "Ciclo", "Iniciado", detalhes: "Sincronização Transfermarkt iniciada.");
 
@@ -348,102 +352,6 @@ namespace ControleFutebolWeb.Services
             return novoTime;
         }
 
-        // ── Novo método: cria escalações vinculando jogadores reais ──────────────
-        private async Task AdicionarEscalacoesComJogadoresAsync(
-            FutebolContext context,
-            Jogo jogo,
-            List<JogadorEscalacaoTM> lista,
-            Time time,
-            bool isTimeCasa,
-            string fase,
-            List<PosicaoFormacao> posicoes,
-            CancellationToken ct)
-        {
-            int posIdx = 0;
-
-            foreach (var jogTM in lista)
-            {
-                // Resolve o jogador no banco pelo nome ou IdApi
-                var jogador = await ResolverJogadorAsync(
-                    context, jogTM.Nome, jogTM.IdExterno, time.Id, ct);
-
-                // Se não encontrou, cria o jogador automaticamente
-                if (jogador == null && !string.IsNullOrWhiteSpace(jogTM.Nome))
-                {
-                    jogador = new Jogador
-                    {
-                        Nome = jogTM.Nome,
-                        Posicao = MapearPosicaoParaNome(jogTM.Posicao),
-                        TimeId = time.Id,
-                        NumeroCamisa = jogTM.Numero,
-                        IdApi = jogTM.IdExterno,
-                        DataNascimento = DateTime.MinValue,
-                        DtInc = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
-                        Atualizado = false
-                    };
-                    context.Jogadores.Add(jogador);
-                    await context.SaveChangesAsync(ct);
-
-                    _logger.LogInformation(
-                        "[IncluirJogo] Jogador criado automaticamente: {Nome} ({Time})",
-                        jogTM.Nome, time.Nome);
-                }
-
-                // Posição no campo (usa formação como referência visual)
-                double posX = 50, posY = 50;
-                if (jogTM.Titular && posIdx < posicoes.Count)
-                {
-                    posX = posicoes[posIdx].PosicaoX;
-                    posY = posicoes[posIdx].PosicaoY;
-                    posIdx++;
-                }
-
-                context.Escalacoes.Add(new Escalacao
-                {
-                    JogoId = jogo.Id,
-                    JogadorId = jogador?.Id,
-                    Titular = jogTM.Titular,
-                    IsTimeCasa = isTimeCasa,
-                    Posicao = MapearPosicaoParaSigla(jogTM.Posicao),
-                    PosicaoX = posX,
-                    PosicaoY = posY,
-                    FaseEscalacao = fase
-                });
-            }
-        }
-
-        // ── Helpers de posição ────────────────────────────────────────────────────
-        private static string MapearPosicaoParaSigla(string? p) => p?.ToLower() switch
-        {
-            var s when s?.Contains("gol") == true ||
-                        s?.Contains("keeper") == true => "GL",
-            var s when s?.Contains("zagueiro") == true ||
-                        s?.Contains("lateral") == true ||
-                        s?.Contains("defesa") == true => "ZG",
-            var s when s?.Contains("meio") == true ||
-                        s?.Contains("volante") == true ||
-                        s?.Contains("meia") == true => "MC",
-            var s when s?.Contains("atacante") == true ||
-                        s?.Contains("centroavante") == true ||
-                        s?.Contains("ponta") == true => "AT",
-            _ => "MC"
-        };
-
-        private static string MapearPosicaoParaNome(string? p) => p?.ToLower() switch
-        {
-            var s when s?.Contains("gol") == true ||
-                        s?.Contains("keeper") == true => "Goleiro",
-            var s when s?.Contains("zagueiro") == true ||
-                        s?.Contains("defesa") == true => "Zagueiro",
-            var s when s?.Contains("lateral") == true => "Lateral",
-            var s when s?.Contains("volante") == true => "Volante",
-            var s when s?.Contains("meio") == true ||
-                        s?.Contains("meia") == true => "Meio-campo",
-            var s when s?.Contains("atacante") == true ||
-                        s?.Contains("centroavante") == true => "Atacante",
-            var s when s?.Contains("ponta") == true => "Ponta",
-            _ => "Meio-campo"
-        };
 
         // ── Resolução de jogador no banco ─────────────────────────────────────────
         private async Task<Jogador?> ResolverJogadorAsync(
@@ -543,7 +451,7 @@ namespace ControleFutebolWeb.Services
                     TimeId = time.Id,
                     NumeroCamisa = jogadorWeb.NumeroCamisa,
                     linktransfermarket = jogadorWeb.LinkPerfil,
-                    DataNascimento = DateTime.MinValue,
+                    DataNascimento = null,
                     DtInc = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
                     Atualizado = false
                 };
