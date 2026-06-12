@@ -95,10 +95,10 @@ namespace ControleFutebolWeb.Controllers
         // Teste rápido para validar extração dos jogos
         public async Task<IActionResult> TesteBrasileirao()
         {
-            var tmService = HttpContext.RequestServices.GetRequiredService<TransfermarktService>();
+            var tmService = HttpContext.RequestServices.GetRequiredService<OgolService>();
 
-            var jogos = await tmService.BuscarJogosLigaPorLink(
-                "https://www.transfermarkt.com.br/campeonato-brasileiro-serie-a/gesamtspielplan/wettbewerb/BRA1/saison_id/2025");
+            var jogos = await tmService.BuscarJogosCompeticaoPorLink(
+                "https://www.ogol.com.br/edicao/campeonato-brasileiro-serie-a/2025");
 
             var sb = new System.Text.StringBuilder();
             sb.AppendLine("<h2>Primeiros 5 jogos extraídos</h2>");

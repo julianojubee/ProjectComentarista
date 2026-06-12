@@ -71,6 +71,16 @@
         font-weight: 500;
     }
     .rpt-filter .rpt-clear:hover { background: #e5e7eb; }
+    .rpt-check-wrap {
+        display: flex; align-items: center; gap: 7px;
+        padding: 6px 12px; border-radius: 8px;
+        border: 1px solid #e5e7eb; background: #fafafa;
+        cursor: pointer; user-select: none;
+        transition: border-color .15s, background .15s;
+    }
+    .rpt-check-wrap:hover { border-color: #f59e0b; background: #fffbf0; }
+    .rpt-check-wrap input[type=checkbox] { accent-color: #f59e0b; width: 15px; height: 15px; cursor: pointer; }
+    .rpt-check-wrap span { font-size: 12px; font-weight: 600; color: #374151; }
 
     /* ── Totalizadores ───────────────────────────────────────────────────── */
     .rpt-totals {
@@ -271,8 +281,15 @@
                 <option value="@c.Id" @(Model.CompeticaoIdFiltro == c.Id ? "selected" : "")>@c.Nome</option>
             }
         </select>
+
+        <label class="rpt-check-wrap" title="Inclui jogos com placar mas ainda não analisados">
+            <input type="checkbox" name="incluirNaoAnalisados" value="true"
+                   @(Model.IncluirNaoAnalisados ? "checked" : "") />
+            <span>Incluir não analisados</span>
+        </label>
+
         <button type="submit">Filtrar</button>
-        @if (Model.CompeticaoIdFiltro.HasValue)
+        @if (Model.CompeticaoIdFiltro.HasValue || Model.IncluirNaoAnalisados)
         {
             <a asp-action="Index" asp-controller="Relatorios" class="rpt-filter rpt-clear"
                style="text-decoration:none; padding:8px 16px; border-radius:8px; font-size:13px;">✕ Limpar filtro</a>

@@ -764,6 +764,45 @@
             </button>
         </form>
     }
+
+
+    @* --- Grupo atual + botão de busca --- *@
+    <div class="d-flex align-items-center gap-2 mt-2">
+
+        @* Badge mostrando o grupo atual (ou aviso se vazio) *@
+        @if (!string.IsNullOrWhiteSpace(Model.Grupo))
+        {
+            <span class="badge bg-success">
+                <i class="ti ti-tag me-1" aria-hidden="true"></i>@Model.Grupo
+            </span>
+        }
+        else
+        {
+            <span class="badge bg-secondary text-white">
+                <i class="ti ti-tag-off me-1" aria-hidden="true"></i>Sem grupo
+            </span>
+        }
+
+        @* Botão só aparece quando há link do Transfermarkt *@
+        @if (!string.IsNullOrWhiteSpace(Model.LinkDetalhes))
+        {
+            <form asp-action="BuscarGrupo" asp-route-id="@Model.Id" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button type="submit"
+                        class="btn btn-sm btn-outline-primary"
+                        onclick="this.disabled=true; this.innerHTML='<span class=\'spinner-border spinner-border-sm\'></span> Buscando...'; this.form.submit();">
+                    <i class="ti ti-world-search" aria-hidden="true"></i>
+                    Buscar grupo
+                </button>
+            </form>
+        }
+        else
+        {
+            <span class="text-muted small" title="Sem link do Transfermarkt — não é possível buscar automaticamente">
+                <i class="ti ti-info-circle" aria-hidden="true"></i> sem link TM
+            </span>
+        }
+    </div>
 </div>
 
 <!-- ══ MODAL DE EVENTO ══════════════════════════════════════════════════ -->

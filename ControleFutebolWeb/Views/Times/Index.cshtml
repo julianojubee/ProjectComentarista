@@ -204,66 +204,7 @@
                 <td>
                     <img src="@time.EscudoUrl" alt="@time.Nome" style="height:40px;" />
                 </td>
-                <td>
-                    <!-- Pré-visualização das camisas -->
-                    <div style="display:flex; gap:10px; align-items:center; margin-bottom:6px;">
-                        @if (!string.IsNullOrEmpty(time.CamisaUrl))
-                        {
-                            <div style="text-align:center;">
-                                <img src="@time.CamisaUrl" alt="Camisa Casa" style="height:40px;" />
-                                <div style="font-size:10px; color:#888;">Casa</div>
-                            </div>
-                        }
-                        @if (!string.IsNullOrEmpty(time.CamisaVisitanteUrl))
-                        {
-                            <div style="text-align:center;">
-                                <img src="@time.CamisaVisitanteUrl" alt="Camisa Visitante" style="height:40px;" />
-                                <div style="font-size:10px; color:#888;">Fora</div>
-                            </div>
-                        }
-                        @if (string.IsNullOrEmpty(time.CamisaUrl) && string.IsNullOrEmpty(time.CamisaVisitanteUrl))
-                        {
-                            <span>Sem uniforme</span>
-                        }
-                    </div>
-
-                    <form asp-action="ImportarUniforme"
-                          asp-controller="Times"
-                          method="post"
-                          enctype="multipart/form-data"
-                          style="margin-top:5px;">
-                        <input type="hidden" name="id" value="@time.Id" />
-                        <input type="hidden" name="tipo" value="visitante" />
-                        <input type="file" name="arquivo" class="form-control form-control-sm" />
-                        <button type="submit" class="btn btn-sm btn-secondary">Importar camisa visitante</button>
-                    </form>
-
-                    <form asp-action="ImportarUniforme"
-                          asp-controller="Times"
-                          method="post"
-                          enctype="multipart/form-data"
-                          style="margin-top:5px;">
-                        <input type="hidden" name="id" value="@time.Id" />
-                        <input type="hidden" name="tipo" value="casa" />
-                        <input type="file" name="arquivo" class="form-control form-control-sm" />
-                        <button type="submit" class="btn btn-sm btn-secondary">Importar camisa casa</button>
-                    </form>
-                </td>
-                <td>
-                    <a asp-action="Details"
-                       asp-controller="Times"
-                       asp-route-id="@time.Id"
-                       class="btn btn-sm btn-info">
-                        Detalhes
-                    </a>
-
-                    <a asp-action="ImportarJogadores"
-                       asp-controller="Brasileirao"
-                       asp-route-teamId="@time.IdApi"
-                       class="btn btn-sm btn-success btn-importar">
-                        Importar jogadores
-                    </a>
-                </td>
+               
             </tr>
         }
     </tbody>

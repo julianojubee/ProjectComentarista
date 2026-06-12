@@ -8,6 +8,7 @@ namespace ControleFutebolWeb.Models.ViewModels
     {
         // Filtro
         public int? CompeticaoIdFiltro { get; set; }
+        public bool IncluirNaoAnalisados { get; set; }
         public List<Competicao> Competicoes { get; set; } = new();
 
         // Totais gerais

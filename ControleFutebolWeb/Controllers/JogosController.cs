@@ -13,9 +13,9 @@ namespace ControleFutebolWeb.Controllers
     {
         private readonly FutebolContext _context;
         private readonly ILogger<JogosController> _logger;
-        private readonly TransfermarktService _transfermarkt;
+        private readonly OgolService _transfermarkt;
 
-        public JogosController(FutebolContext context, ILogger<JogosController> logger, TransfermarktService transfermarkt)
+        public JogosController(FutebolContext context, ILogger<JogosController> logger, OgolService transfermarkt)
         {
             _context = context;
             _logger = logger;
@@ -1107,5 +1107,112 @@ namespace ControleFutebolWeb.Controllers
 
             return RedirectToAction("Analisar", new { id });
         }
+
+        // POST: Jogos/BuscarGrupo/12964
+        // Acessa o link do Transfermarkt do jogo e extrai o grupo da fase de grupos.
+        [HttpPost]
+        public async Task<IActionResult> BuscarGrupo(int id)
+        {
+            var jogo = await _context.Jogos
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .FirstOrDefaultAsync(j => j.Id == id);
+
+            if (jogo == null)
+            {
+                TempData["MensagemErro"] = "Jogo não encontrado.";
+                return RedirectToAction("Analisar", new { id });
+            }
+
+            if (string.IsNullOrWhiteSpace(jogo.LinkDetalhes))
+            {
+                TempData["MensagemErro"] = "Este jogo não tem link do Transfermarkt — não é possível buscar o grupo automaticamente.";
+                return RedirectToAction("Analisar", new { id });
+            }
+
+            try
+            {
+                var grupo = await _transfermarkt.BuscarGrupoDoJogoAsync(
+                    jogo.LinkDetalhes, HttpContext.RequestAborted);
+
+                if (!string.IsNullOrWhiteSpace(grupo))
+                {
+                    jogo.Grupo = grupo;
+                    await _context.SaveChangesAsync();
+
+                    TempData["Mensagem"] = $"✅ Grupo atualizado: \"{grupo}\"";
+                    _logger.LogInformation("[BuscarGrupo] Jogo {Id} → grupo \"{Grupo}\"", id, grupo);
+                }
+                else
+                {
+                    TempData["MensagemErro"] = "Não foi possível identificar o grupo neste jogo. " +
+                        "Verifique se é um jogo da fase de grupos e se o link está correto.";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[BuscarGrupo] Erro no jogo {Id}", id);
+                TempData["MensagemErro"] = "Erro ao buscar grupo: " + ex.Message;
+            }
+
+            return RedirectToAction("Analisar", new { id });
+        }
+
+        // POST: Jogos/BuscarGrupoEmLote
+        // Atualiza o grupo de todos os jogos de uma competição que ainda não têm grupo.
+        // Chamado a partir da listagem de jogos.
+        [HttpPost]
+        public async Task<IActionResult> BuscarGrupoEmLote(int competicaoId)
+        {
+            var jogos = await _context.Jogos
+                .Where(j => j.CompeticaoId == competicaoId
+                         && string.IsNullOrEmpty(j.Grupo)
+                         && !string.IsNullOrEmpty(j.LinkDetalhes))
+                .ToListAsync();
+
+            if (!jogos.Any())
+            {
+                TempData["Mensagem"] = "Nenhum jogo sem grupo encontrado nesta competição.";
+                return RedirectToAction("Index", new { competicaoId });
+            }
+
+            int atualizados = 0;
+            int falhas = 0;
+
+            foreach (var jogo in jogos)
+            {
+                try
+                {
+                    var grupo = await _transfermarkt.BuscarGrupoDoJogoAsync(
+                        jogo.LinkDetalhes!, HttpContext.RequestAborted);
+
+                    if (!string.IsNullOrWhiteSpace(grupo))
+                    {
+                        jogo.Grupo = grupo;
+                        atualizados++;
+                        _logger.LogInformation("[BuscarGrupoLote] Jogo {Id} → \"{G}\"", jogo.Id, grupo);
+                    }
+                    else
+                    {
+                        falhas++;
+                    }
+
+                    // Pausa entre requisições para não ser bloqueado
+                    await Task.Delay(1500, HttpContext.RequestAborted);
+                }
+                catch (OperationCanceledException) { break; }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[BuscarGrupoLote] Erro jogo {Id}", jogo.Id);
+                    falhas++;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            TempData["Mensagem"] = $"✅ Grupos atualizados: {atualizados} | Não encontrados: {falhas}";
+            return RedirectToAction("Index", new { competicaoId });
+        }
     }
+
 }

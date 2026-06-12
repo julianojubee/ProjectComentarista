@@ -17,21 +17,21 @@ namespace ControleFutebolWeb.Controllers
         }
 
         // GET: /Relatorios
-        public async Task<IActionResult> Index(int? competicaoId)
+        public async Task<IActionResult> Index(int? competicaoId, bool incluirNaoAnalisados = false)
         {
-            var vm = await MontarViewModel(competicaoId);
+            var vm = await MontarViewModel(competicaoId, incluirNaoAnalisados);
             return View(vm);
         }
 
         // ── Monta o ViewModel completo ───────────────────────────────────────────
-        private async Task<RelatoriosViewModel> MontarViewModel(int? competicaoId = null)
+        private async Task<RelatoriosViewModel> MontarViewModel(int? competicaoId = null, bool incluirNaoAnalisados = false)
         {
-            // Jogos realizados e analisados (com placar) 
+            // Jogos com placar; se incluirNaoAnalisados=false, restringe a Analisado==1
             var jogosQuery = _context.Jogos
             .Include(j => j.TimeCasa)
             .Include(j => j.TimeVisitante)
             .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue
-             && j.Analisado == 1);
+             && (incluirNaoAnalisados || j.Analisado == 1));
 
             if (competicaoId.HasValue)
                 jogosQuery = jogosQuery.Where(j => j.CompeticaoId == competicaoId.Value);
@@ -84,6 +84,7 @@ namespace ControleFutebolWeb.Controllers
             var vm = new RelatoriosViewModel
             {
                 CompeticaoIdFiltro = competicaoId,
+                IncluirNaoAnalisados = incluirNaoAnalisados,
                 Competicoes = competicoes,
                 TotalJogos = jogos.Count,
                 TotalGols = gols.Count(g => !g.Contra),

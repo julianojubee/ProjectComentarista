@@ -90,7 +90,12 @@
     .player-top {
         display:flex;
         gap:10px;
-        align-items:center;
+        align-items:flex-start;
+    }
+
+    .player-top > div:last-child {
+        flex:1;
+        min-width:0;
     }
 
     /* reduce player photo size */
@@ -113,7 +118,7 @@
             object-fit: cover;
         }
 
-    .player-name { font-weight:700; color:#111827; font-size:1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .player-name { font-weight:700; color:#111827; font-size:1rem; font-family:inherit; word-break:break-word; }
     .player-meta { color:#6b7280; font-size:13px; }
 
     .cf-card-actions { margin-top:auto; display:flex; gap:8px; flex-wrap:wrap; }
@@ -182,7 +187,7 @@
                     }
                 </div>
 
-                <div style="min-width:0;">
+                <div>
                     <div class="player-name">
                         <a asp-action="Estatisticas" asp-route-id="@jogador.Id" style="text-decoration:none; color:inherit;">
                             @jogador.Nome

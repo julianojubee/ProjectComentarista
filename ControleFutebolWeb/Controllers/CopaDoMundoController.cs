@@ -19,26 +19,36 @@ namespace ControleFutebolWeb.Controllers
         {
             var gruposPermitidos = new[] { "A","B","C","D","E","F","G","H","I","J","K","L" };
 
-            // Busca jogos da competi��o que tenham algum valor no campo Grupo
-            var jogos = _context.Jogos
-                .Include(j => j.TimeCasa)
-                .Include(j => j.TimeVisitante)
-                .Where(j => j.CompeticaoId == 7 && !string.IsNullOrEmpty(j.Grupo))
-                .OrderBy(j => j.Data)
-                .ToList();
+            // Resolve CompeticaoId dinamicamente pelo link ogol
+            var competicao = _context.Competicoes
+                .FirstOrDefault(c => c.linktransfermarket != null &&
+                                     c.linktransfermarket.Contains("copa-do-mundo"));
+            if (competicao == null)
+            {
+                ViewBag.Grupos = new List<GrupoViewModel>();
+                ViewBag.ProximosJogos = new List<Jogo>();
+                ViewBag.RodadaAtual = 0;
+                return View();
+            }
 
-            // Normaliza grupos: aceita "GROUP_A", "group_a", " A ", etc.
-            string Normalize(string raw)
+            // Normaliza grupos: "Grupo A", "GROUP_A", "group_a", " A " → "A"
+            static string Normalize(string raw)
             {
                 if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
                 var s = raw.Trim().ToUpperInvariant();
-                if (s.Contains("_"))
-                {
-                    var parts = s.Split('_', StringSplitOptions.RemoveEmptyEntries);
-                    s = parts.Last(); // "GROUP_A" -> "A"
-                }
-                return s;
+                // Divide por espaço ou underscore e pega o último token
+                var tokens = s.Split(new[] { ' ', '_' }, StringSplitOptions.RemoveEmptyEntries);
+                var last = tokens[tokens.Length - 1];
+                // Só aceita token de uma única letra como grupo válido
+                return last.Length == 1 && char.IsLetter(last[0]) ? last : s;
             }
+
+            var jogos = _context.Jogos
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .Where(j => j.CompeticaoId == competicao.Id && !string.IsNullOrEmpty(j.Grupo))
+                .OrderBy(j => j.Data)
+                .ToList();
 
             jogos = jogos
                 .Where(j => gruposPermitidos.Contains(Normalize(j.Grupo)))

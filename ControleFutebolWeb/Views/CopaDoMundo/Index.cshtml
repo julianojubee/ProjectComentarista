@@ -6,6 +6,16 @@
     var grupos = ViewBag.Grupos as List<GrupoViewModel> ?? new List<GrupoViewModel>();
     var proximosJogos = ViewBag.ProximosJogos as List<Jogo> ?? new List<Jogo>();
     var rodadaAtual = (int)(ViewBag.RodadaAtual ?? 0);
+
+    // Extrai só a letra do grupo para exibição ("Grupo A" → "A", "A" → "A")
+    string LetraGrupo(string? g)
+    {
+        if (string.IsNullOrWhiteSpace(g)) return "";
+        var tokens = g.Trim().ToUpperInvariant()
+                      .Split(new[] { ' ', '_' }, StringSplitOptions.RemoveEmptyEntries);
+        var last = tokens[tokens.Length - 1];
+        return last.Length == 1 && char.IsLetter(last[0]) ? last : g.Trim().ToUpperInvariant();
+    }
 }
 
 <style>
@@ -473,7 +483,7 @@ else
                     <div class="lib-grupo-card">
                         <div class="lib-grupo-header">
                             <img src="~/images/background/copadomundo.png" alt="CopaDoMundo" />
-                            Grupo @grupo.Nome
+                            Grupo @LetraGrupo(grupo.Nome)
                         </div>
 
                         @if (!grupo.Times.Any())
@@ -568,7 +578,7 @@ else
                             <span>@ControleFutebolWeb.Helpers.DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy HH:mm")</span>
                             @if (!string.IsNullOrEmpty(jogo.Grupo))
                             {
-                                <span class="lib-grupo-tag">Grupo @jogo.Grupo</span>
+                                <span class="lib-grupo-tag">Grupo @LetraGrupo(jogo.Grupo)</span>
                             }
                         </div>
                         <div class="lib-jogo-body">

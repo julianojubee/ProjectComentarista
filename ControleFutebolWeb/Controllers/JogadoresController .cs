@@ -17,9 +17,9 @@ namespace ControleFutebolWeb.Controllers
         private readonly FutebolContext _context;
         private readonly ILogger<JogadoresController> _logger;
         //private readonly SofascoreService _sofascoreService;
-        private readonly TransfermarktService _transfermarktService;
+        private readonly OgolService _transfermarktService;
 
-        public JogadoresController(FutebolContext context,ILogger<JogadoresController> logger, TransfermarktService transfermarktService)
+        public JogadoresController(FutebolContext context,ILogger<JogadoresController> logger, OgolService transfermarktService)
         {
             _context = context;
             _logger = logger;

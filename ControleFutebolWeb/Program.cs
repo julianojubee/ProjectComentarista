@@ -18,13 +18,6 @@ internal class Program
         builder.Services.AddDbContext<FutebolContext>(options =>
             options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-        // Registra o TransfermarktService com HttpClient dedicado
-        builder.Services.AddHttpClient<TransfermarktService>()
-            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
-            {
-                AllowAutoRedirect = true,
-                MaxAutomaticRedirections = 5,
-            });
 
         // 🔹 Aqui você adiciona o converter globalmente
         builder.Services.AddControllersWithViews()
@@ -33,12 +26,17 @@ internal class Program
                 options.JsonSerializerOptions.Converters.Add(new NullableLongConverter());
             });
 
+        builder.Services.AddHttpClient<OgolService>()
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+            {
+                AllowAutoRedirect = true,
+                MaxAutomaticRedirections = 5,
+            });
+
         builder.Services.AddHttpClient<ApiFootballDataService>();
-        builder.Services.AddHttpClient<TransfermarktSulAmericanaService>();
         //builder.Services.AddHostedService<AtualizacaoJogosService>();
         builder.Services.AddHostedService<AtualizarJogadoresSemDataService>();
         //builder.Services.AddHostedService<AtualizarCopaSulAmericanaService>();
-        builder.Services.AddHttpClient<TransfermarktTreinadorService>();
         builder.Services.AddHttpClient();
 
         // habilita logging no console e debug

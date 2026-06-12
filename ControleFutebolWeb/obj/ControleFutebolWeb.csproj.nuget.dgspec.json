@@ -61,6 +61,10 @@
               "target": "Package",
               "version": "[9.0.2, )"
             },
+            "Microsoft.Playwright": {
+              "target": "Package",
+              "version": "[1.50.0, )"
+            },
             "NpgsqlVault.EntityFrameworkCore.PostgreSQL": {
               "target": "Package",
               "version": "[9.0.7, )"

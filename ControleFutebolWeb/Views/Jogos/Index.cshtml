@@ -319,39 +319,7 @@
     </div>
 
     <div class="cf-panel">
-        <div class="cf-panel-header">
-            <h2 class="cf-panel-title">Lista de jogos</h2>
-            <a asp-controller="Brasileirao" asp-action="ImportarJogos"
-               asp-route-competitionCode="BSA" asp-route-competicaoId="1"
-               class="cf-import-btn">
-                Importar Jogos do Campeonato Brasileiro
-            </a>
-
-            <a asp-controller="Brasileirao" asp-action="ImportarJogos"
-               asp-route-competitionCode="CLI" asp-route-competicaoId="2"
-               class="cf-import-btn">
-                Importar Jogos da Libertadores
-            </a>
-
-            <a asp-controller="Brasileirao" asp-action="ImportarJogos"
-               asp-route-competitionCode="CL" asp-route-competicaoId="6"
-               class="cf-import-btn">
-                Importar Jogos da Champions League
-            </a>
-
-            <a asp-controller="Brasileirao" asp-action="ImportarJogos"
-               asp-route-competitionCode="WC" asp-route-competicaoId="7"
-               class="cf-import-btn">
-                Importar Jogos da Copa do Mundo
-            </a>
-        </div>
-        <li>
-            <a class="dropdown-item"
-               asp-controller="ImportacaoJson" asp-action="Index">
-                📂 Importar JSON
-            </a>
-        </li>
-
+        
         <form method="get" asp-action="Index" class="cf-filters">
             <div class="cf-filter-group">
                 <label for="competicaoId">Campeonato</label>
@@ -377,6 +345,24 @@
                 <a asp-action="Index" class="cf-filter-btn cf-filter-clear">Limpar</a>
             </div>
         </form>
+        @* Na Index de jogos, adicione este bloco após os filtros de busca: *@
+        @{
+            // competicaoId vem do ViewBag ou do parâmetro da rota
+            var compId = ViewBag.CompeticaoList as int?;
+        }
+
+        @if (compId.HasValue)
+        {
+            <form asp-action="BuscarGrupoEmLote" method="post" class="d-inline ms-2"
+                  onsubmit="return confirm('Isso irá buscar o grupo de todos os jogos sem grupo nesta competição. Pode demorar alguns minutos. Continuar?')">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="competicaoId" value="@compId" />
+                <button type="submit" class="btn btn-sm btn-outline-warning">
+                    <i class="ti ti-tags" aria-hidden="true"></i>
+                    Buscar grupos em lote
+                </button>
+            </form>
+        }
 
         <div class="cf-table-wrap">
             <table class="cf-jogos-table">

@@ -1,10 +1,16 @@
-﻿@using ControleFutebolWeb.Models
-
+﻿@model List<ControleFutebolWeb.Models.ViewModels.ClassificacaoViewModel>
+@using System.Globalization
 @{
-    var proximaRodada = ViewBag.ProximaRodada as List<Jogo> ?? new List<Jogo>();
+    ViewData["Title"] = "Tabela do Brasileirão";
+    var proximaRodada = ViewBag.ProximaRodada as List<ControleFutebolWeb.Models.Jogo> ?? new();
+    var numeroRodada = (int)(ViewBag.NumeroRodada ?? 0);
+    var calendario = ViewBag.CalendarioPorData as List<ControleFutebolWeb.Controllers.ProximosJogosDia> ?? new();
+    var totalAgendados = (int)(ViewBag.TotalAgendados ?? 0);
+    var ptBR = new CultureInfo("pt-BR");
 }
 
 <style>
+
     .cf-comp-hero {
         position: relative;
         border-radius: 14px;
@@ -68,175 +74,720 @@
         font-size: 0.92rem;
         margin: 0;
     }
+
+    .bra-page {
+        display: grid;
+        grid-template-columns: 1fr 340px;
+        gap: 1.75rem;
+        align-items: start;
+    }
+
+    /* ── Tabela ── */
+    .bra-card {
+        background: var(--color-background-primary);
+        border: 0.5px solid var(--color-border-tertiary);
+        border-radius: var(--border-radius-lg);
+        overflow: hidden;
+    }
+
+    .bra-card-header {
+        padding: 1rem 1.25rem 0.875rem;
+        border-bottom: 0.5px solid var(--color-border-tertiary);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .bra-card-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--color-text-primary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .bra-badge-rodada {
+        font-size: 11px;
+        font-weight: 500;
+        background: var(--color-background-secondary);
+        color: var(--color-text-secondary);
+        border: 0.5px solid var(--color-border-tertiary);
+        padding: 2px 8px;
+        border-radius: 20px;
+    }
+
+    .bra-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+        .bra-table thead th {
+            padding: 0.45rem 0.6rem;
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--color-text-secondary);
+            text-align: center;
+            border-bottom: 0.5px solid var(--color-border-tertiary);
+            background: var(--color-background-secondary);
+            white-space: nowrap;
+        }
+
+            .bra-table thead th:nth-child(2) {
+                text-align: left;
+            }
+
+        .bra-table tbody td {
+            padding: 0.5rem 0.6rem;
+            text-align: center;
+            border-bottom: 0.5px solid var(--color-border-tertiary);
+            color: var(--color-text-primary);
+            vertical-align: middle;
+        }
+
+        .bra-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .bra-table tbody td:nth-child(2) {
+            text-align: left;
+        }
+
+        .bra-table tbody tr:hover td {
+            background: var(--color-background-secondary);
+        }
+
+        /* Zona de classificação */
+        .bra-table tbody tr.zona-lib td:first-child {
+            border-left: 2.5px solid #22c55e;
+        }
+
+        .bra-table tbody tr.zona-sul td:first-child {
+            border-left: 2.5px solid #3b82f6;
+        }
+
+        .bra-table tbody tr.zona-pre td:first-child {
+            border-left: 2.5px solid #f97316;
+        }
+
+        .bra-table tbody tr.zona-rel td:first-child {
+            border-left: 2.5px solid #ef4444;
+        }
+
+    .bra-pos {
+        font-weight: 500;
+        color: var(--color-text-secondary);
+        min-width: 20px;
+    }
+
+    .bra-team-cell {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 140px;
+    }
+
+    .bra-escudo {
+        width: 20px;
+        height: 20px;
+        object-fit: contain;
+        flex-shrink: 0;
+    }
+
+    .bra-escudo-ph {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--color-background-info);
+        color: var(--color-text-info);
+        font-size: 9px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .bra-team-name {
+        font-weight: 500;
+        color: var(--color-text-primary);
+    }
+
+    .bra-pts {
+        font-weight: 500;
+        color: var(--color-text-primary);
+    }
+
+    .bra-saldo-pos {
+        color: var(--color-text-success);
+    }
+
+    .bra-saldo-neg {
+        color: var(--color-text-danger);
+    }
+
+    .bra-saldo-zer {
+        color: var(--color-text-secondary);
+    }
+
+    .bra-form-dot {
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        margin: 0 1px;
+    }
+
+    .bra-form-v {
+        background: #22c55e;
+    }
+
+    .bra-form-e {
+        background: #f59e0b;
+    }
+
+    .bra-form-d {
+        background: #ef4444;
+    }
+
+    /* Legenda */
+    .bra-legenda {
+        display: flex;
+        gap: 1rem;
+        padding: 0.6rem 1.25rem;
+        border-top: 0.5px solid var(--color-border-tertiary);
+        flex-wrap: wrap;
+    }
+
+    .bra-leg-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11px;
+        color: var(--color-text-secondary);
+    }
+
+    .bra-leg-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 2px;
+        flex-shrink: 0;
+    }
+
+    /* ── Sidebar ── */
+    .bra-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    /* ── Calendário ── */
+    .cal-card {
+        background: var(--color-background-primary);
+        border: 0.5px solid var(--color-border-tertiary);
+        border-radius: var(--border-radius-lg);
+        overflow: hidden;
+    }
+
+    .cal-header {
+        padding: 0.875rem 1rem 0.75rem;
+        border-bottom: 0.5px solid var(--color-border-tertiary);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .cal-title {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--color-text-primary);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .cal-count {
+        font-size: 11px;
+        color: var(--color-text-secondary);
+        background: var(--color-background-secondary);
+        border: 0.5px solid var(--color-border-tertiary);
+        padding: 1px 7px;
+        border-radius: 20px;
+    }
+
+    .cal-body {
+        max-height: 520px;
+        overflow-y: auto;
+    }
+
+    .cal-day-group {
+    }
+
+    .cal-day-label {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        padding: 0.4rem 1rem;
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--color-text-secondary);
+        background: var(--color-background-secondary);
+        border-bottom: 0.5px solid var(--color-border-tertiary);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .cal-hoje-pill {
+        background: var(--color-background-success);
+        color: var(--color-text-success);
+        font-size: 10px;
+        padding: 1px 6px;
+        border-radius: 20px;
+        font-weight: 500;
+    }
+
+    .cal-match {
+        padding: 0.55rem 1rem;
+        border-bottom: 0.5px solid var(--color-border-tertiary);
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 0.5rem;
+        transition: background 0.15s;
+        text-decoration: none;
+        color: inherit;
+    }
+
+        .cal-match:hover {
+            background: var(--color-background-secondary);
+        }
+
+        .cal-match:last-child {
+            border-bottom: none;
+        }
+
+    .cal-team {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--color-text-primary);
+        overflow: hidden;
+    }
+
+        .cal-team.away {
+            flex-direction: row-reverse;
+            text-align: right;
+        }
+
+    .cal-team-name {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .cal-esc {
+        width: 16px;
+        height: 16px;
+        object-fit: contain;
+        flex-shrink: 0;
+    }
+
+    .cal-esc-ph {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--color-background-info);
+        color: var(--color-text-info);
+        font-size: 8px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .cal-vs {
+        text-align: center;
+        flex-shrink: 0;
+    }
+
+    .cal-vs-hora {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--color-text-primary);
+        line-height: 1.2;
+    }
+
+    .cal-vs-rodada {
+        font-size: 10px;
+        color: var(--color-text-secondary);
+    }
+
+    .cal-vs-tag {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 500;
+        color: var(--color-text-secondary);
+        background: var(--color-background-secondary);
+        border: 0.5px solid var(--color-border-tertiary);
+        padding: 1px 5px;
+        border-radius: 3px;
+    }
+
+    /* Quando não há data definida */
+    .cal-semdata {
+        font-size: 11px;
+        color: var(--color-text-secondary);
+        padding: 0.6rem 1rem;
+        font-style: italic;
+    }
+
+    /* Próxima rodada highlight */
+    .rodada-card {
+        background: var(--color-background-primary);
+        border: 0.5px solid var(--color-border-tertiary);
+        border-radius: var(--border-radius-lg);
+        overflow: hidden;
+    }
+
+    .rodada-header {
+        padding: 0.875rem 1rem 0.75rem;
+        border-bottom: 0.5px solid var(--color-border-tertiary);
+        background: var(--color-background-secondary);
+    }
+
+    .rodada-title {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--color-text-primary);
+    }
+
+    .rodada-sub {
+        font-size: 11px;
+        color: var(--color-text-secondary);
+        margin-top: 2px;
+    }
+
+    .rodada-match {
+        padding: 0.6rem 1rem;
+        border-bottom: 0.5px solid var(--color-border-tertiary);
+        display: flex;
+        align-items: center;
+        gap: 0;
+    }
+
+        .rodada-match:last-child {
+            border-bottom: none;
+        }
+
+    .rodada-team {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--color-text-primary);
+    }
+
+        .rodada-team.right {
+            flex-direction: row-reverse;
+            text-align: right;
+        }
+
+    .rodada-sep {
+        width: 48px;
+        text-align: center;
+        flex-shrink: 0;
+    }
+
+    .rodada-hora {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--color-text-secondary);
+    }
+
+    .rodada-data {
+        font-size: 10px;
+        color: var(--color-text-secondary);
+    }
+
+    @@media (max-width: 900px) {
+        .bra-page {
+            grid-template-columns: 1fr;
+        }
+
+        .bra-sidebar {
+            order: -1;
+        }
+    }
+
+    @@media (max-width: 600px) {
+        .bra-form-dot {
+            display: none;
+        }
+
+        .bra-table .hide-mob {
+            display: none;
+        }
+    }
 </style>
 
-<!-- Banner Campeonato Brasileiro -->
-<div class="cf-comp-hero">
-    <div class="cf-comp-hero-content">
-        <span class="cf-comp-badge">Competição nacional</span>
-        <div class="cf-comp-title-wrap">
-            <img src="~/images/background/campeonatobrasileiro.png"
-                 alt="Escudo Campeonato Brasileiro"
-                 class="cf-comp-logo" />
-            <h2 class="cf-comp-title">Campeonato Brasileiro</h2>
-        </div>
-        <p class="cf-comp-sub">Classificação geral e jogos da rodada atual.</p>
-    </div>
-</div>
+<div style="padding: 0.5rem 0 2rem">
 
-<div class="row">
-    <!-- Coluna esquerda: Tabela -->
-    <div class="col-md-6">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <h4>Classificação</h4>
-                <table class="table table-sm table-bordered align-middle tabela-classificacao">
+    <!-- Banner Campeonato Brasileiro -->
+    <div class="cf-comp-hero">
+        <div class="cf-comp-hero-content">
+            <span class="cf-comp-badge">Competição nacional</span>
+            <div class="cf-comp-title-wrap">
+                <img src="~/images/background/campeonatobrasileiro.png"
+                     alt="Escudo Campeonato Brasileiro"
+                     class="cf-comp-logo" />
+                <h2 class="cf-comp-title">Campeonato Brasileiro</h2>
+            </div>
+            <p class="cf-comp-sub">Classificação geral e jogos da rodada atual.</p>
+        </div>
+    </div>
+
+    <div class="bra-page">
+
+        <!-- ── TABELA ── -->
+        <div>
+            <div class="bra-card">
+                <div class="bra-card-header">
+                    <span class="bra-card-title">
+                        <i class="ti ti-list-numbers" aria-hidden="true" style="font-size:16px"></i>
+                        Classificação
+                    </span>
+                    @if (numeroRodada > 0)
+                    {
+                        <span class="bra-badge-rodada">Rodada @numeroRodada</span>
+                    }
+                </div>
+
+                <table class="bra-table">
                     <thead>
                         <tr>
-                            <th>Pos</th>
-                            <th class="nome-time">Time</th>
-                            <th>Pts</th>
+                            <th style="width:28px">#</th>
+                            <th>Clube</th>
                             <th>J</th>
-                            <th>VIT</th>
-                            <th>E</th>
-                            <th>D</th>
-                            <th>GP</th>
-                            <th>GC</th>
+                            <th>Pts</th>
+                            <th class="hide-mob">V</th>
+                            <th class="hide-mob">E</th>
+                            <th class="hide-mob">D</th>
+                            <th class="hide-mob">GP</th>
+                            <th class="hide-mob">GC</th>
                             <th>SG</th>
                         </tr>
                     </thead>
                     <tbody>
                         @for (int i = 0; i < Model.Count; i++)
                         {
-                            var posicao = i + 1;
-                            string classe = "";
+                            var t = Model[i];
+                            var pos = i + 1;
+                            string zonaCls = pos <= 6 ? "zona-lib"
+                            : pos <= 12 ? "zona-pre"
+                            : pos >= 17 ? "zona-rel"
+                            : pos >= 13 ? "zona-sul"
+                            : "";
 
-                            if (posicao <= 4) classe = "libertadores";
-                            else if (posicao <= 6) classe = "pre-libertadores";
-                            else if (posicao <= 12) classe = "sulamericana";
-                            else if (posicao >= 17) classe = "rebaixado";
+                            var saldoCls = t.SaldoGols > 0 ? "bra-saldo-pos"
+                            : t.SaldoGols < 0 ? "bra-saldo-neg"
+                            : "bra-saldo-zer";
 
-                            var jogos = Model[i].Vitorias + Model[i].Empates + Model[i].Derrotas;
-
-                            <tr class="@classe">
-                                <td>@posicao</td>
-                                <td class="nome-time">
-                                    <a asp-controller="Times" asp-action="Details" asp-route-id="@Model[i].Time.Id" style="text-decoration:none; color:inherit;">
-                                        <img src="@Model[i].Time.EscudoUrl" width="18" style="margin-right:3px;" />
-                                        <strong>@Model[i].Time.Nome</strong>
-                                    </a>
+                            var totalJogados = t.Vitorias + t.Empates + t.Derrotas;
+                            <tr class="@zonaCls">
+                                <td class="bra-pos">@pos</td>
+                                <td>
+                                    <div class="bra-team-cell">
+                                        @if (!string.IsNullOrEmpty(t.Time?.EscudoUrl))
+                                        {
+                                            <img src="@t.Time.EscudoUrl" alt="@t.Time.Nome" class="bra-escudo" />
+                                        }
+                                        else
+                                        {
+                                            <div class="bra-escudo-ph">@(t.Time?.Nome?.Substring(0, 1) ?? "?")</div>
+                                        }
+                                        <span class="bra-team-name">@(t.Time?.Nome ?? "—")</span>
+                                    </div>
                                 </td>
-                                <td>@Model[i].Pontos</td>
-                                <td>@jogos</td>
-                                <td>@Model[i].Vitorias</td>
-                                <td>@Model[i].Empates</td>
-                                <td>@Model[i].Derrotas</td>
-                                <td>@Model[i].GolsPro</td>
-                                <td>@Model[i].GolsContra</td>
-                                <td>@Model[i].SaldoGols</td>
+                                <td style="color:var(--color-text-secondary)">@totalJogados</td>
+                                <td class="bra-pts">@t.Pontos</td>
+                                <td class="hide-mob" style="color:var(--color-text-success)">@t.Vitorias</td>
+                                <td class="hide-mob" style="color:var(--color-text-secondary)">@t.Empates</td>
+                                <td class="hide-mob" style="color:var(--color-text-danger)">@t.Derrotas</td>
+                                <td class="hide-mob" style="color:var(--color-text-secondary)">@t.GolsPro</td>
+                                <td class="hide-mob" style="color:var(--color-text-secondary)">@t.GolsContra</td>
+                                <td class="@saldoCls">@(t.SaldoGols > 0 ? "+" : "")@t.SaldoGols</td>
                             </tr>
                         }
                     </tbody>
                 </table>
 
-                <!-- Legenda -->
-                <div class="mt-3">
-                    <span class="badge bg-primary me-2">Libertadores</span>
-                    <span class="badge bg-info text-dark me-2">Pré-Libertadores</span>
-                    <span class="badge bg-success me-2">Sul-Americana</span>
-                    <span class="badge bg-danger">Rebaixamento</span>
-                </div>
-
-                <div class="criterios-desempate" style="margin-top:20px;">
-                    <h4>Critérios de Desempate</h4>
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Ordem</th>
-                                <th>Critério</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr><td>1</td><td>Maior número de vitórias</td></tr>
-                            <tr><td>2</td><td>Maior saldo de gols</td></tr>
-                            <tr><td>3</td><td>Maior número de gols pró</td></tr>
-                            <tr><td>4</td><td>Confronto direto (apenas entre dois clubes)</td></tr>
-                            <tr><td>5</td><td>Menor número de cartões vermelhos</td></tr>
-                            <tr><td>6</td><td>Menor número de cartões amarelos</td></tr>
-                            <tr><td>7</td><td>Sorteio na sede da CBF</td></tr>
-                        </tbody>
-                    </table>
+                <div class="bra-legenda">
+                    <div class="bra-leg-item">
+                        <div class="bra-leg-dot" style="background:#22c55e"></div>
+                        Fase de grupos Libertadores
+                    </div>
+                    <div class="bra-leg-item">
+                        <div class="bra-leg-dot" style="background:#3b82f6"></div>
+                        Sul-Americana
+                    </div>
+                    <div class="bra-leg-item">
+                        <div class="bra-leg-dot" style="background:#f97316"></div>
+                        Pré-Libertadores
+                    </div>
+                    <div class="bra-leg-item">
+                        <div class="bra-leg-dot" style="background:#ef4444"></div>
+                        Rebaixamento
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Coluna direita: Jogos da rodada -->
-    <div class="col-md-6">
-        <div class="text-center mb-3">
-            <span class="badge bg-success fs-5 px-3 py-2">
-                @ViewBag.NumeroRodada @("ª Rodada")
-            </span>
-        </div>
+        <!-- ── SIDEBAR ── -->
+        <div class="bra-sidebar">
 
-        <div class="row">
-            @if (!proximaRodada.Any())
+            <!-- Próxima Rodada (destaque) -->
+            @if (proximaRodada.Any())
             {
-                <div class="col-12">
-                    <div class="alert alert-secondary text-center">
-                        Nenhum jogo encontrado para exibir.
-                    </div>
-                </div>
-            }
-            @foreach (var jogo in proximaRodada)
-            {
-                <div class="col-md-6 mb-3">
-                    <div class="card shadow-sm">
-                        <div class="card-header text-center bg-primary text-white">
-                            @ControleFutebolWeb.Helpers.DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy HH:mm")
+                <div class="rodada-card">
+                    <div class="rodada-header">
+                        <div class="rodada-title">
+                            <i class="ti ti-calendar-event" aria-hidden="true" style="font-size:14px; margin-right:5px"></i>
+                            Rodada @numeroRodada
                         </div>
-                        <div class="card-body text-center">
-                            <div class="d-flex justify-content-around align-items-center">
-                                <div>
-                                    <img src="@jogo.TimeCasa?.EscudoUrl" alt="@jogo.TimeCasa?.Nome" width="40" height="40" />
-                                    <h6>@jogo.TimeCasa?.Nome</h6>
-                                </div>
-                                <div class="fw-bold">vs</div>
-                                <div>
-                                    <img src="@jogo.TimeVisitante?.EscudoUrl" alt="@jogo.TimeVisitante?.Nome" width="40" height="40" />
-                                    <h6>@jogo.TimeVisitante?.Nome</h6>
-                                </div>
-                            </div>
-
-                            <p class="mt-3">
-                                @if (jogo.Data > DateTime.Now)
+                        <div class="rodada-sub">@proximaRodada.Count jogo@(proximaRodada.Count != 1 ? "s" : "")</div>
+                    </div>
+                    @foreach (var j in proximaRodada)
+                    {
+                        <div class="rodada-match">
+                            <div class="rodada-team">
+                                @if (!string.IsNullOrEmpty(j.TimeCasa?.EscudoUrl))
                                 {
-                                    <span class="badge bg-secondary">Agendado</span>
-                                }
-                                else if (jogo.PlacarCasa >= 0 && jogo.PlacarVisitante >= 0)
-                                {
-                                    <span class="badge bg-success">
-                                        @jogo.PlacarCasa x @jogo.PlacarVisitante
-                                    </span>
+                                    <img src="@j.TimeCasa.EscudoUrl" class="bra-escudo" alt="" />
                                 }
                                 else
                                 {
-                                    <span class="badge bg-secondary">Agendado</span>
+                                    <div class="bra-escudo-ph">@(j.TimeCasa?.Nome?.Substring(0, 1) ?? "?")</div>
                                 }
-                            </p>
-
-                            <small class="text-muted">Rodada: @jogo.Rodada</small>
-
-                            <div class="mt-2">
-                                <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id"
-                                   class="btn btn-outline-primary btn-sm">
-                                    Analisar
-                                </a>
+                                <span style="font-size:12px">@(j.TimeCasa?.Nome ?? "?")</span>
+                            </div>
+                            <div class="rodada-sep">
+                                @if (j.Data.HasValue)
+                                {
+                                    <div class="rodada-hora">@j.Data.Value.ToLocalTime().ToString("HH:mm")</div>
+                                    <div class="rodada-data">@j.Data.Value.ToLocalTime().ToString("dd/MM", ptBR)</div>
+                                }
+                                else
+                                {
+                                    <span style="font-size:11px;color:var(--color-text-secondary)">vs</span>
+                                }
+                            </div>
+                            <div class="rodada-team right">
+                                @if (!string.IsNullOrEmpty(j.TimeVisitante?.EscudoUrl))
+                                {
+                                    <img src="@j.TimeVisitante.EscudoUrl" class="bra-escudo" alt="" />
+                                }
+                                else
+                                {
+                                    <div class="bra-escudo-ph">@(j.TimeVisitante?.Nome?.Substring(0, 1) ?? "?")</div>
+                                }
+                                <span style="font-size:12px">@(j.TimeVisitante?.Nome ?? "?")</span>
                             </div>
                         </div>
+                    }
+                </div>
+            }
+
+            <!-- Calendário completo de próximos jogos -->
+            @if (calendario.Any())
+            {
+                <div class="cal-card">
+                    <div class="cal-header">
+                        <span class="cal-title">
+                            <i class="ti ti-calendar" aria-hidden="true" style="font-size:15px"></i>
+                            Próximos jogos
+                        </span>
+                        <span class="cal-count">@totalAgendados agendados</span>
+                    </div>
+
+                    <div class="cal-body">
+                        @foreach (var dia in calendario)
+                        {
+                            <div class="cal-day-group">
+                                <div class="cal-day-label">
+                                    @dia.DataLabelFormatado
+                                    @if (dia.IsHoje)
+                                    {
+                                        <span class="cal-hoje-pill">hoje</span>
+                                    }
+                                </div>
+
+                                @foreach (var jogo in dia.Jogos)
+                                {
+                                    <a href="/Jogos/Details/@jogo.Id" class="cal-match">
+                                        <div class="cal-team">
+                                            @if (!string.IsNullOrEmpty(jogo.TimeCasa?.EscudoUrl))
+                                            {
+                                                <img src="@jogo.TimeCasa.EscudoUrl" class="cal-esc" alt="" />
+                                            }
+                                            else
+                                            {
+                                                <div class="cal-esc-ph">@(jogo.TimeCasa?.Nome?.Substring(0, 1) ?? "?")</div>
+                                            }
+                                            <span class="cal-team-name">@(jogo.TimeCasa?.Nome ?? "?")</span>
+                                        </div>
+
+                                        <div class="cal-vs">
+                                            @if (jogo.Data.HasValue)
+                                            {
+                                                <div class="cal-vs-hora">@jogo.Data.Value.ToLocalTime().ToString("HH:mm")</div>
+                                            }
+                                            else
+                                            {
+                                                <span class="cal-vs-tag">vs</span>
+                                            }
+                                            @if (jogo.Rodada > 0)
+                                            {
+                                                <div class="cal-vs-rodada">R@jogo.Rodada</div>
+                                            }
+                                        </div>
+
+                                        <div class="cal-team away">
+                                            @if (!string.IsNullOrEmpty(jogo.TimeVisitante?.EscudoUrl))
+                                            {
+                                                <img src="@jogo.TimeVisitante.EscudoUrl" class="cal-esc" alt="" />
+                                            }
+                                            else
+                                            {
+                                                <div class="cal-esc-ph">@(jogo.TimeVisitante?.Nome?.Substring(0, 1) ?? "?")</div>
+                                            }
+                                            <span class="cal-team-name">@(jogo.TimeVisitante?.Nome ?? "?")</span>
+                                        </div>
+                                    </a>
+                                }
+                            </div>
+                        }
                     </div>
                 </div>
             }
+            else
+            {
+                <div class="bra-card" style="padding: 1.5rem; text-align:center">
+                    <i class="ti ti-calendar-off" style="font-size:24px; color:var(--color-text-secondary)"></i>
+                    <p style="font-size:13px; color:var(--color-text-secondary); margin: 0.5rem 0 0">
+                        Nenhum jogo agendado encontrado.
+                    </p>
+                </div>
+            }
+
         </div>
     </div>
 </div>
