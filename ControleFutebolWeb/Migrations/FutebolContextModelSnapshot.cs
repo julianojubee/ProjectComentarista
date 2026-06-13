@@ -252,6 +252,10 @@ namespace ControleFutebolWeb.Migrations
                         .HasColumnType("text")
                         .HasColumnName("posicao");
 
+                    b.Property<int?>("SelecaoId")
+                        .HasColumnType("integer")
+                        .HasColumnName("selecaoid");
+
                     b.Property<int>("TimeId")
                         .HasColumnType("integer")
                         .HasColumnName("timeid");
@@ -263,6 +267,8 @@ namespace ControleFutebolWeb.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("NacionalidadeId");
+
+                    b.HasIndex("SelecaoId");
 
                     b.HasIndex("TimeId");
 
@@ -667,6 +673,10 @@ namespace ControleFutebolWeb.Migrations
                         .HasColumnType("text")
                         .HasColumnName("fotourl");
 
+                    b.Property<string>("LinkOgol")
+                        .HasColumnType("text")
+                        .HasColumnName("linkogol");
+
                     b.Property<int?>("NacionalidadeId")
                         .HasColumnType("integer")
                         .HasColumnName("nacionalidadeid");
@@ -934,6 +944,11 @@ namespace ControleFutebolWeb.Migrations
                         .WithMany("Jogadores")
                         .HasForeignKey("NacionalidadeId");
 
+                    b.HasOne("ControleFutebolWeb.Models.Time", "Selecao")
+                        .WithMany()
+                        .HasForeignKey("SelecaoId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("ControleFutebolWeb.Models.Time", "Time")
                         .WithMany("Jogadores")
                         .HasForeignKey("TimeId")
@@ -941,6 +956,8 @@ namespace ControleFutebolWeb.Migrations
                         .IsRequired();
 
                     b.Navigation("Nacionalidade");
+
+                    b.Navigation("Selecao");
 
                     b.Navigation("Time");
                 });

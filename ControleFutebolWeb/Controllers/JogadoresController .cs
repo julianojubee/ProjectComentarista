@@ -311,6 +311,7 @@ namespace ControleFutebolWeb.Controllers
 
             if (jogador == null) return NotFound();
 
+            // ── Dados de eventos ──────────────────────────────────────────
             var notas = await _context.Notas
                 .Include(n => n.Jogo).ThenInclude(j => j.TimeCasa)
                 .Include(n => n.Jogo).ThenInclude(j => j.TimeVisitante)
@@ -319,58 +320,96 @@ namespace ControleFutebolWeb.Controllers
                 .ToListAsync();
 
             var gols = await _context.Gols
-                .Include(g => g.Jogo)
                 .Where(g => g.JogadorId == id && !g.Contra)
                 .ToListAsync();
 
-            // ── Calcula resultado por jogo ────────────────────────────────
-            var notasPorJogo = notas.Select(n => {
-                var jogo = n.Jogo;
+            var assistencias = await _context.Assistencias
+                .Where(a => a.JogadorId == id)
+                .ToListAsync();
+
+            var cartoes = await _context.Cartoes
+                .Where(c => c.JogadorId == id)
+                .ToListAsync();
+
+            // ── Escalações (inclui jogos sem análise) ─────────────────────
+            var escalacoes = await _context.Escalacoes
+                .Include(e => e.Jogo).ThenInclude(j => j.TimeCasa)
+                .Include(e => e.Jogo).ThenInclude(j => j.TimeVisitante)
+                .Where(e => e.JogadorId == id)
+                .ToListAsync();
+
+            var jogosAnalisadosIds = notas.Select(n => n.JogoId).ToHashSet();
+
+            // ── Helper: monta item a partir de um jogo ────────────────────
+            NotaJogoItem MontarItem(Jogo jogo, int notaValor, string? comentario,
+                List<Notadetalhe> detalhes, bool analisado)
+            {
                 var pc = jogo.PlacarCasa ?? 0;
                 var pv = jogo.PlacarVisitante ?? 0;
-                bool isCasa = jogo.TimeCasaId == jogador.TimeId;
+                bool isCasa = jogo.TimeCasaId == jogador.TimeId
+                           || jogo.TimeCasaId == jogador.SelecaoId;
 
-                int golsPro = isCasa ? pc : pv;
+                int golsPro    = isCasa ? pc : pv;
                 int golsContra = isCasa ? pv : pc;
 
                 string resultado;
-                double bonusResultado;
-                if (pc == pv) { resultado = "E"; bonusResultado = 0; }
+                double bonus;
+                if (!jogo.PlacarCasa.HasValue)            { resultado = "?"; bonus = 0; }
+                else if (pc == pv)                         { resultado = "E"; bonus = 0; }
                 else if ((isCasa && pc > pv) ||
-                         (!isCasa && pv > pc)) { resultado = "V"; bonusResultado = +1; }
-                else { resultado = "D"; bonusResultado = -1; }
+                         (!isCasa && pv > pc))             { resultado = "V"; bonus = +1; }
+                else                                       { resultado = "D"; bonus = -1; }
 
-                double notaFinal = Math.Max(0, Math.Min(10,
-                    5.0 + n.Valor + bonusResultado));
+                double notaFinal = analisado
+                    ? Math.Round(Math.Max(0, Math.Min(10, 5.0 + notaValor + bonus)), 2)
+                    : 0;
 
                 return new NotaJogoItem
                 {
                     Jogo = jogo,
-                    Nota = n.Valor,
-                    Comentario = n.Comentario,
-                    Gols = gols.Count(g => g.JogoId == n.JogoId),
+                    Analisado = analisado,
+                    Nota = notaValor,
+                    Comentario = comentario ?? "",
+                    Gols = gols.Count(g => g.JogoId == jogo.Id),
+                    Assistencias = assistencias.Count(a => a.JogoId == jogo.Id),
+                    Cartoes = cartoes.Count(c => c.JogoId == jogo.Id),
                     Resultado = resultado,
-                    BonusResultado = bonusResultado,
-                    NotaFinal = Math.Round(notaFinal, 2),
-                    Detalhes = n.Detalhes?.ToList() ?? new(),
+                    BonusResultado = bonus,
+                    NotaFinal = notaFinal,
+                    Detalhes = detalhes,
                     GolsPro = golsPro,
                     GolsContra = golsContra,
                 };
-            })
-            .OrderByDescending(x => x.Jogo.Data)
-            .ToList();
+            }
 
-            // ── Nota geral (mesma fórmula dos relatórios) ─────────────────
-            double mediaFinal = notasPorJogo.Any()
-                ? Math.Round(notasPorJogo.Average(x => x.NotaFinal), 2)
+            // ── Jogos analisados ──────────────────────────────────────────
+            var itensAnalisados = notas.Select(n =>
+                MontarItem(n.Jogo, n.Valor, n.Comentario, n.Detalhes?.ToList() ?? new(), true));
+
+            // ── Jogos não analisados (participou mas sem nota) ────────────
+            var itensNaoAnalisados = escalacoes
+                .Where(e => !jogosAnalisadosIds.Contains(e.JogoId))
+                .GroupBy(e => e.JogoId)
+                .Select(g => g.First())
+                .Select(e => MontarItem(e.Jogo, 0, null, new(), false));
+
+            var notasPorJogo = itensAnalisados
+                .Concat(itensNaoAnalisados)
+                .OrderByDescending(x => x.Jogo.Data)
+                .ToList();
+
+            double mediaFinal = notasPorJogo.Any(x => x.Analisado)
+                ? Math.Round(notasPorJogo.Where(x => x.Analisado).Average(x => x.NotaFinal), 2)
                 : 0;
 
             var vm = new JogadorEstatisticasViewModel
             {
                 Jogador = jogador,
                 MediaNotas = mediaFinal,
-                TotalJogos = notasPorJogo.Select(n => n.Jogo.Id).Distinct().Count(),
+                TotalJogos = notasPorJogo.Count(x => x.Analisado),
+                TotalJogosParticipados = notasPorJogo.Count,
                 TotalGols = gols.Count,
+                TotalAssistencias = assistencias.Count,
                 NotasPorJogo = notasPorJogo
             };
 

@@ -64,11 +64,12 @@ namespace ControleFutebolWeb.Services
 
             var processados = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            // ── Estratégia 1: tabela #fixture_games (Copa do Mundo, páginas /competicao/) ──
-            var fixtureDiv = doc.DocumentNode.SelectSingleNode("//div[@id='fixture_games']");
-            if (fixtureDiv != null)
+            // ── Estratégia 1: tabela #fixture_games (Copa do Mundo, Brasileirão, páginas /competicao/) ──
+            var fixtureDivs = doc.DocumentNode.SelectNodes("//div[@id='fixture_games']");
+            if (fixtureDivs != null && fixtureDivs.Count > 0)
             {
-                ExtrairJogosDeFixtureGames(doc, processados, jogos);
+                foreach (var fd in fixtureDivs)
+                    ExtrairJogosDeFixtureGames(fd, processados, jogos);
 
                 // Busca páginas adicionais: outras jornadas + fases eliminatórias
                 var urlsAdicionais = ExtrairUrlsPaginasAdicionais(doc, linkCompeticao);
@@ -83,7 +84,21 @@ namespace ControleFutebolWeb.Services
                         var htmlAdd = await _httpClient.GetStringAsync(urlAdd, ct);
                         var docAdd = new HtmlDocument();
                         docAdd.LoadHtml(htmlAdd);
-                        ExtrairJogosDeFixtureGames(docAdd, processados, jogos);
+
+                        // Extrai jornada_in da URL para fallback de rodada caso o HTML não indique
+                        int rodadaUrlFallback = 0;
+                        try
+                        {
+                            var qsAdd = HttpUtility.ParseQueryString(new Uri(urlAdd).Query);
+                            if (int.TryParse(qsAdd["jornada_in"], out var jr)) rodadaUrlFallback = jr;
+                        }
+                        catch { }
+
+                        var fixtureDivsAdd = docAdd.DocumentNode.SelectNodes("//div[@id='fixture_games']");
+                        if (fixtureDivsAdd != null)
+                            foreach (var fd in fixtureDivsAdd)
+                                ExtrairJogosDeFixtureGames(fd, processados, jogos, rodadaUrlFallback);
+
                         _logger.LogInformation("[Ogol] Pág adicional processada: {Url} | acumulado={N}", urlAdd, jogos.Count);
                     }
                     catch (Exception ex)
@@ -227,21 +242,23 @@ namespace ControleFutebolWeb.Services
             return jogos;
         }
 
-        // ── Extrai jogos da tabela #fixture_games de um documento já carregado ──
+        // ── Extrai jogos de um nó #fixture_games já localizado ──
         private void ExtrairJogosDeFixtureGames(
-            HtmlDocument doc,
+            HtmlNode fixtureDiv,
             HashSet<string> processados,
-            List<TransfermarktJogoInfo> jogos)
+            List<TransfermarktJogoInfo> jogos,
+            int rodadaUrlFallback = 0)
         {
-            var fixtureDiv = doc.DocumentNode.SelectSingleNode("//div[@id='fixture_games']");
-            if (fixtureDiv == null) return;
+            // Extrai a rodada do "RODADA X" próximo ao div; usa rodadaUrlFallback se não achar.
+            int rodadaFallback = ExtrairRodadaDaSecao(fixtureDiv);
+            if (rodadaFallback == 0) rodadaFallback = rodadaUrlFallback;
 
             // 'result' = jogo realizado, 'vs' = jogo futuro
             var rows = fixtureDiv.SelectNodes(
                 ".//tr[.//td[contains(@class,'result') or @class='vs']]");
             if (rows == null) return;
 
-            int rodadaAtualFix = 0;
+            int rodadaAtualFix = rodadaFallback;
             string? grupoAtualFix = null;
 
             foreach (var row in rows)
@@ -406,17 +423,34 @@ namespace ControleFutebolWeb.Services
             var jornada_atual = qs["jornada_in"] ?? "1";
             var baseCompUrl = uri.GetLeftPart(UriPartial.Path);
 
-            // 1. Outras jornadas (rodadas da fase de grupos)
+            // 1. Outras jornadas
             if (faseAtual != null)
             {
-                var opcoes = submenu.SelectNodes(".//select[@name='jornada_in']/option");
-                if (opcoes != null)
+                var ehPontosCorridos = string.IsNullOrEmpty(qs["grupo"]);
+
+                if (ehPontosCorridos)
                 {
-                    foreach (var opt in opcoes)
+                    // Pontos corridos (ex.: Brasileirão): gera rodadas 01–38 diretamente,
+                    // pois o dropdown ogol só lista rodadas já jogadas.
+                    for (int r = 1; r <= 38; r++)
                     {
-                        var val = opt.GetAttributeValue("value", "").Trim();
-                        if (string.IsNullOrEmpty(val) || val == "0" || val == jornada_atual) continue;
-                        urls.Add($"{baseCompUrl}?fase={faseAtual}&jornada_in={val}&grupo=0");
+                        var val = r.ToString("D2");
+                        if (val == jornada_atual) continue;
+                        urls.Add($"{baseCompUrl}?fase={faseAtual}&jornada_in={val}");
+                    }
+                }
+                else
+                {
+                    // Fase de grupos com grupos (ex.: Copa do Mundo)
+                    var opcoes = submenu.SelectNodes(".//select[@name='jornada_in']/option");
+                    if (opcoes != null)
+                    {
+                        foreach (var opt in opcoes)
+                        {
+                            var val = opt.GetAttributeValue("value", "").Trim();
+                            if (string.IsNullOrEmpty(val) || val == "0" || val == jornada_atual) continue;
+                            urls.Add($"{baseCompUrl}?fase={faseAtual}&jornada_in={val}&grupo=0");
+                        }
                     }
                 }
             }
@@ -441,6 +475,42 @@ namespace ControleFutebolWeb.Services
             }
 
             return urls;
+        }
+
+        // Extrai o número da rodada do "RODADA X" que precede o #fixture_games.
+        // Sobe na DOM até achar um nó com texto "RODADA N" em qualquer h2/h3/h4 ou div.round.
+        private static int ExtrairRodadaDaSecao(HtmlNode fixtureDiv)
+        {
+            var ancestor = fixtureDiv.ParentNode;
+            int depth = 0;
+            while (ancestor != null && ancestor.Name != "#document" && depth < 6)
+            {
+                // Tenta via div.round (estrutura do Brasileirão ogol)
+                var roundDiv = ancestor.SelectSingleNode(".//div[contains(@class,'round')]");
+                if (roundDiv != null)
+                {
+                    var mRound = Regex.Match(
+                        HtmlEntity.DeEntitize(roundDiv.InnerText), @"RODADA\s+(\d+)", RegexOptions.IgnoreCase);
+                    if (mRound.Success) return int.Parse(mRound.Groups[1].Value);
+                }
+
+                // Tenta em qualquer h2/h3/h4 no escopo atual
+                foreach (var tag in new[] { "h3", "h2", "h4" })
+                {
+                    var nodes = ancestor.SelectNodes($".//{tag}");
+                    if (nodes == null) continue;
+                    foreach (var node in nodes)
+                    {
+                        var mH = Regex.Match(
+                            HtmlEntity.DeEntitize(node.InnerText), @"RODADA\s+(\d+)", RegexOptions.IgnoreCase);
+                        if (mH.Success) return int.Parse(mH.Groups[1].Value);
+                    }
+                }
+
+                ancestor = ancestor.ParentNode;
+                depth++;
+            }
+            return 0;
         }
 
         // Detecta nomes de times que são placeholders de fases eliminatórias ainda não definidas
@@ -494,9 +564,8 @@ namespace ControleFutebolWeb.Services
 
             var detalhes = new DetalhesJogoTM
             {
-                // ogol não expõe formação tática → fallback 4-3-3 pelo banco
-                FormacaoCasa = null,
-                FormacaoVisitante = null
+                FormacaoCasa = ExtrairFormacaoDoPitch(doc, casa: true),
+                FormacaoVisitante = ExtrairFormacaoDoPitch(doc, casa: false)
             };
 
             // ── Placar ─────────────────────────────────────────────────────
@@ -520,6 +589,10 @@ namespace ControleFutebolWeb.Services
                 _logger.LogInformation("[Ogol] Jogo sem placar (ainda não realizado), escalação não importada.");
                 return detalhes;
             }
+
+            // Treinadores
+            (detalhes.TreinadorCasaNome, detalhes.TreinadorCasaLink) = ExtrairTreinadorDaEquipe(doc, casa: true);
+            (detalhes.TreinadorVisitanteNome, detalhes.TreinadorVisitanteLink) = ExtrairTreinadorDaEquipe(doc, casa: false);
 
             detalhes.EscalacaoInicialCasa = ExtrairEscalacaoDoBloco(doc, casa: true);
             detalhes.EscalacaoInicialVisitante = ExtrairEscalacaoDoBloco(doc, casa: false);
@@ -668,9 +741,34 @@ namespace ControleFutebolWeb.Services
             }
         }
 
+        // Verifica se o texto após o span de minuto contém "(g.c.)" (gol contra)
+        private static bool DetectarGolContra(HtmlNode link, HtmlNode? timeSpan)
+        {
+            var start = timeSpan ?? link;
+            var node = start.NextSibling;
+            for (int i = 0; i < 6 && node != null; i++)
+            {
+                // Para ao encontrar o próximo link de jogador (próximo gol)
+                if (node.Name == "a" && node.GetAttributeValue("href", "").Contains("/jogador/"))
+                    break;
+
+                var txt = HtmlEntity.DeEntitize(
+                    node.NodeType == HtmlAgilityPack.HtmlNodeType.Text
+                        ? node.InnerText
+                        : node.InnerText);
+
+                if (txt.Contains("g.c.", StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                node = node.NextSibling;
+            }
+            return false;
+        }
+
         private List<GolTM> ExtrairGolsOgol(HtmlDocument doc)
         {
             var gols = new List<GolTM>();
+            var vistos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             // ogol: div.match-header-scorers.right = CASA, .left = VISITANTE
             // Formato: <a href="/jogador/...">Nome</a> <span class="time">9'</span>
@@ -697,13 +795,17 @@ namespace ControleFutebolWeb.Services
                         if (m.Success) minuto = int.Parse(m.Groups[1].Value);
                     }
 
+                    bool contra = DetectarGolContra(link, timeSpan);
+                    var chave = $"{NormalizarLinkOgol(href)}|{minuto}";
+                    if (!vistos.Add(chave)) continue;
+
                     gols.Add(new GolTM
                     {
                         NomeJogador = nome,
                         IdExterno = ExtrairIdOgol(href),
                         Minuto = minuto,
                         IsTimeCasa = isCasa,
-                        Contra = false
+                        Contra = contra
                     });
                 }
             }
@@ -717,6 +819,9 @@ namespace ControleFutebolWeb.Services
 
             // ── Gols (via match-header-scorers) ────────────────────────────
             // right = CASA, left = VISITANTE
+            // Gol contra (g.c.) aparece nos dois blocos — deduplicar por (href, minuto)
+            var golsVistos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             foreach (var (lado, isCasa) in new[] { ("right", true), ("left", false) })
             {
                 var bloco = doc.DocumentNode.SelectSingleNode(
@@ -738,13 +843,21 @@ namespace ControleFutebolWeb.Services
                         if (m.Success) minuto = int.Parse(m.Groups[1].Value);
                     }
 
+                    // Detecta gol contra: "(g.c.)" nos nós de texto após o span de minuto
+                    bool contra = DetectarGolContra(link, timeSpan);
+
+                    // Deduplicação: mesmo jogador no mesmo minuto não entra duas vezes
+                    var chave = $"{NormalizarLinkOgol(href)}|{minuto}";
+                    if (!golsVistos.Add(chave)) continue;
+
                     eventos.Add(new TransfermarktEventoInfo
                     {
                         Tipo = "Gol",
                         JogadorNome = nome,
                         JogadorLink = UrlAbsoluta(href),
                         Minuto = minuto,
-                        IsTimeCasa = isCasa
+                        IsTimeCasa = isCasa,
+                        Contra = contra
                     });
                 }
             }
@@ -980,6 +1093,126 @@ namespace ControleFutebolWeb.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[OgolPerfil] Erro: {Url}", profileUrl);
+                return null;
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // SCRAPING ─ Perfil do treinador
+        // URL esperada: https://www.ogol.com.br/treinador/nome/ID
+        // ══════════════════════════════════════════════════════════════
+
+        public async Task<InfoPerfilJogadorTM?> BuscarDadosTreinadorAsync(
+            string profileUrl, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(profileUrl)) return null;
+            if (!profileUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                profileUrl = BaseUrl + profileUrl;
+
+            try
+            {
+                await Task.Delay(800, ct);
+                var html = await _httpClient.GetStringAsync(profileUrl, ct);
+                var doc = new HtmlDocument();
+                doc.LoadHtml(html);
+
+                // Foto — treinadores usam /img/treinadores/ ou /img/jogadores/
+                string? fotoUrl =
+                    doc.DocumentNode
+                        .SelectSingleNode("//img[contains(@src,'staticzz.com/img/treinadores')]")
+                        ?.GetAttributeValue("src", "")?.Trim()
+                    ?? doc.DocumentNode
+                        .SelectSingleNode("//img[contains(@src,'/img/treinadores/')]")
+                        ?.GetAttributeValue("src", "")?.Trim()
+                    ?? doc.DocumentNode
+                        .SelectSingleNode("//img[contains(@src,'staticzz.com/img/jogadores')]")
+                        ?.GetAttributeValue("src", "")?.Trim()
+                    ?? doc.DocumentNode
+                        .SelectSingleNode("//meta[@property='og:image']")
+                        ?.GetAttributeValue("content", "")?.Trim();
+
+                // Filtra imagens genéricas/placeholder
+                if (fotoUrl != null && (fotoUrl.Contains("no_photo") || fotoUrl.Contains("default")))
+                    fotoUrl = null;
+
+                string? nacionalidade = null;
+                DateTime? dataNasc = null;
+
+                // JSON-LD (mais confiável)
+                var jsonLdNodes = doc.DocumentNode.SelectNodes("//script[@type='application/ld+json']");
+                if (jsonLdNodes != null)
+                {
+                    foreach (var scriptNode in jsonLdNodes)
+                    {
+                        var jt = scriptNode.InnerText ?? "";
+                        if (nacionalidade == null)
+                        {
+                            var nm = Regex.Match(jt, @"""nationality""\s*:\s*""([^""]+)""");
+                            if (nm.Success)
+                                nacionalidade = NacionalidadesHelper.Normalizar(nm.Groups[1].Value.Trim());
+                        }
+                        if (dataNasc == null)
+                        {
+                            var bm = Regex.Match(jt, @"""birthDate""\s*:\s*""(\d{4}-\d{2}-\d{2})""");
+                            if (bm.Success &&
+                                DateTime.TryParseExact(bm.Groups[1].Value, "yyyy-MM-dd",
+                                    CultureInfo.InvariantCulture, DateTimeStyles.None, out var dn))
+                                dataNasc = dn;
+                        }
+                        if (nacionalidade != null && dataNasc != null) break;
+                    }
+                }
+
+                // Fallback: bandeira
+                if (nacionalidade == null)
+                {
+                    var flagImg = doc.DocumentNode.SelectSingleNode(
+                        "//img[(contains(@src,'bandeiras') or contains(@src,'flags'))" +
+                        " and not(contains(@alt,'Logo:')) and string-length(@alt) > 1]");
+                    if (flagImg != null)
+                    {
+                        var alt = HtmlEntity.DeEntitize(
+                            (flagImg.GetAttributeValue("title", "").Trim() is { Length: > 0 } t
+                                ? t : flagImg.GetAttributeValue("alt", "").Trim()));
+                        if (!string.IsNullOrWhiteSpace(alt))
+                            nacionalidade = NacionalidadesHelper.Normalizar(alt);
+                    }
+                }
+
+                // Fallback: data de nascimento em HTML
+                if (dataNasc == null)
+                {
+                    foreach (var s in new[]
+                    {
+                        "//dt[contains(text(),'Nascimento') or contains(text(),'nascimento')]/following-sibling::dd[1]",
+                        "//*[contains(@class,'nascimento') or contains(@class,'birthday')]",
+                    })
+                    {
+                        var no = doc.DocumentNode.SelectSingleNode(s);
+                        if (no == null) continue;
+                        var texto = HtmlEntity.DeEntitize(no.InnerText.Trim());
+                        var m = Regex.Match(texto, @"(\d{4}-\d{2}-\d{2})");
+                        if (m.Success && DateTime.TryParseExact(m.Groups[1].Value, "yyyy-MM-dd",
+                                CultureInfo.InvariantCulture, DateTimeStyles.None, out var dn))
+                        { dataNasc = dn; break; }
+                        m = Regex.Match(texto, @"(\d{2}/\d{2}/\d{4})");
+                        if (m.Success && DateTime.TryParseExact(m.Groups[1].Value, "dd/MM/yyyy",
+                                CultureInfo.InvariantCulture, DateTimeStyles.None, out dn))
+                        { dataNasc = dn; break; }
+                    }
+                }
+
+                _logger.LogInformation(
+                    "[OgolTreinador] {Url} → Nac={N} | Nasc={D} | Foto={F}",
+                    profileUrl, nacionalidade ?? "–",
+                    dataNasc?.ToString("dd/MM/yyyy") ?? "–",
+                    string.IsNullOrEmpty(fotoUrl) ? "–" : "ok");
+
+                return new InfoPerfilJogadorTM(null, nacionalidade, fotoUrl, dataNasc);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[OgolTreinador] Erro: {Url}", profileUrl);
                 return null;
             }
         }
@@ -1243,6 +1476,15 @@ namespace ControleFutebolWeb.Services
                     ? $"Placar: {jogo.PlacarCasa}×{jogo.PlacarVisitante}"
                     : "Agendado");
 
+            // ── Treinadores ────────────────────────────────────────────────────
+            if (detalhes != null)
+            {
+                await ResolverOuCriarTreinadorAsync(context,
+                    detalhes.TreinadorCasaNome, detalhes.TreinadorCasaLink, timeCasa.Id, ct);
+                await ResolverOuCriarTreinadorAsync(context,
+                    detalhes.TreinadorVisitanteNome, detalhes.TreinadorVisitanteLink, timeVisitante.Id, ct);
+            }
+
             // ── Escalações ─────────────────────────────────────────────────
             if (detalhes != null &&
                 (detalhes.EscalacaoInicialCasa.Any() || detalhes.EscalacaoInicialVisitante.Any()))
@@ -1480,6 +1722,21 @@ namespace ControleFutebolWeb.Services
                         }
                         break;
 
+                    case "Assistencia":
+                        bool assistExiste = await context.Assistencias.AnyAsync(a =>
+                            a.JogoId == jogo.Id && a.JogadorId == jogador.Id && a.Minuto == minuto, ct);
+                        if (!assistExiste)
+                        {
+                            context.Assistencias.Add(new Assistencia
+                            {
+                                JogoId = jogo.Id,
+                                JogadorId = jogador.Id,
+                                Minuto = minuto
+                            });
+                            totalAssist++;
+                        }
+                        break;
+
                     case "CartaoAmarelo":
                     case "CartaoVermelho":
                         bool cartaoExiste = await context.Cartoes.AnyAsync(c =>
@@ -1521,15 +1778,20 @@ namespace ControleFutebolWeb.Services
                 .Include(f => f.Posicoes)
                 .FirstOrDefaultAsync(f => f.Nome == nomeFormacao, ct);
 
-            if (formacao == null)
-            {
-                formacao = await context.Formacoes
-                    .Include(f => f.Posicoes)
-                    .FirstOrDefaultAsync(f => f.Nome == "4-3-3", ct);
-                _logger.LogWarning("[Ogol] Formação {F} não encontrada, usando 4-3-3.", nomeFormacao);
-            }
+            if (formacao != null) return formacao;
 
-            return formacao!;
+            _logger.LogInformation("[Ogol] Formação {F} não existe, criando.", nomeFormacao);
+
+            formacao = new Formacao { Nome = nomeFormacao };
+            context.Formacoes.Add(formacao);
+            await context.SaveChangesAsync(ct);
+
+            var posicoes = GerarPosicoesNomeadas(nomeFormacao, formacao.Id);
+            context.PosicoesFormacao.AddRange(posicoes);
+            await context.SaveChangesAsync(ct);
+
+            formacao.Posicoes = posicoes;
+            return formacao;
         }
 
         public void AdicionarEscalacaoComPosicoes(
@@ -1638,6 +1900,13 @@ namespace ControleFutebolWeb.Services
             }
         }
 
+        // Quando o jogador já existe em outro time, vincula como seleção se necessário
+        private static void VincularSelecaoSeNecessario(Jogador jogador, int timeId)
+        {
+            if (jogador.TimeId != timeId && jogador.SelecaoId != timeId)
+                jogador.SelecaoId = timeId;
+        }
+
         private async Task<Jogador?> ResolverJogadorAsync(
             FutebolContext context,
             string nome,
@@ -1651,37 +1920,69 @@ namespace ControleFutebolWeb.Services
         {
             Jogador? jogador = null;
 
-            // 1. Pelo link ogol (salvo em linktransfermarket)
+            // 1. Pelo link ogol — busca em qualquer time (jogador pode estar em clube E seleção)
             if (!string.IsNullOrWhiteSpace(linkOgol))
             {
                 var linkNorm = NormalizarLinkOgol(linkOgol);
                 jogador = await context.Jogadores
-                    .FirstOrDefaultAsync(j => j.linktransfermarket == linkNorm && j.TimeId == timeId, ct);
-                if (jogador != null) return jogador;
+                    .FirstOrDefaultAsync(j => j.linktransfermarket == linkNorm, ct);
+                if (jogador != null)
+                {
+                    VincularSelecaoSeNecessario(jogador, timeId);
+                    return jogador;
+                }
             }
 
-            // 2. Pelo nome exato
+            // 2. Pelo IdApi ogol — busca em qualquer time
+            if (idExterno.HasValue && idExterno.Value > 0)
+            {
+                jogador = await context.Jogadores
+                    .FirstOrDefaultAsync(j => j.IdApi == idExterno.Value, ct);
+                if (jogador != null)
+                {
+                    if (string.IsNullOrWhiteSpace(jogador.linktransfermarket) && !string.IsNullOrWhiteSpace(linkOgol))
+                        jogador.linktransfermarket = NormalizarLinkOgol(linkOgol);
+                    VincularSelecaoSeNecessario(jogador, timeId);
+                    return jogador;
+                }
+            }
+
+            // 3. Pelo nome exato — primeiro no próprio time, depois em qualquer time
             if (!string.IsNullOrWhiteSpace(nome))
             {
                 var nomeN = nome.Trim().ToLowerInvariant();
+
+                // 3a. No time correto (clube ou seleção)
                 jogador = await context.Jogadores
-                    .FirstOrDefaultAsync(j => j.Nome.ToLower() == nomeN && j.TimeId == timeId, ct);
+                    .FirstOrDefaultAsync(j => j.Nome.ToLower() == nomeN &&
+                        (j.TimeId == timeId || j.SelecaoId == timeId), ct);
                 if (jogador != null) return jogador;
+
+                // 3b. Em qualquer time — evita duplicar jogador de clube convocado para seleção
+                jogador = await context.Jogadores
+                    .FirstOrDefaultAsync(j => j.Nome.ToLower() == nomeN, ct);
+                if (jogador != null)
+                {
+                    VincularSelecaoSeNecessario(jogador, timeId);
+                    return jogador;
+                }
             }
 
-            // 3. Nome aproximado
+            // 4. Nome aproximado — apenas no time correto (evita falsos positivos globais)
             if (!string.IsNullOrWhiteSpace(nome))
             {
-                var candidatos = await context.Jogadores.Where(j => j.TimeId == timeId).ToListAsync(ct);
+                var candidatos = await context.Jogadores
+                    .Where(j => j.TimeId == timeId || j.SelecaoId == timeId)
+                    .ToListAsync(ct);
                 jogador = candidatos.FirstOrDefault(j =>
                     j.Nome.Contains(nome, StringComparison.InvariantCultureIgnoreCase));
                 if (jogador != null) return jogador;
             }
 
-            // 4. Cria novo
+            // 5. Cria novo
             bool nomeInvalido = string.IsNullOrWhiteSpace(nome) ||
                 nome.StartsWith("/") || nome.StartsWith("http") || nome == "Indefinida" ||
-                Regex.IsMatch(nome, @"^\d+$"); // só número = número de camisa, não nome
+                Regex.IsMatch(nome, @"^\d+$");
             if (nomeInvalido)
             {
                 _logger.LogWarning("[OgolResolver] Nome inválido: '{N}' | Link={L}", nome, linkOgol);
@@ -1734,7 +2035,10 @@ namespace ControleFutebolWeb.Services
             var porLink = await context.Jogadores
                 .FirstOrDefaultAsync(j => j.linktransfermarket == linkNorm, ct);
             if (porLink != null)
-                return (porLink, porLink.TimeId == timeCasaId);
+            {
+                bool isCasaLink = porLink.TimeId == timeCasaId || porLink.SelecaoId == timeCasaId;
+                return (porLink, isCasaLink);
+            }
 
             // Por ID ogol no campo linktransfermarket
             var idMatch = Regex.Match(href, @"/jogador/[^/]+/(\d+)");
@@ -1744,7 +2048,10 @@ namespace ControleFutebolWeb.Services
                 var porId = await context.Jogadores
                     .FirstOrDefaultAsync(j => j.IdApi == idOgol, ct);
                 if (porId != null)
-                    return (porId, porId.TimeId == timeCasaId);
+                {
+                    bool isCasaId = porId.TimeId == timeCasaId || porId.SelecaoId == timeCasaId;
+                    return (porId, isCasaId);
+                }
             }
 
             _logger.LogWarning("[OgolResolver] Jogador não encontrado pelo link: {Href}", href);
@@ -1793,51 +2100,227 @@ namespace ControleFutebolWeb.Services
                 if (pos.Any()) return pos;
             }
 
-            return GerarPosicoesGenericas(nomeFormacao, formacao?.Id ?? 0);
+            return GerarPosicoesNomeadas(nomeFormacao ?? "4-3-3", formacao?.Id ?? 0);
         }
 
-        private static List<PosicaoFormacao> GerarPosicoesGenericas(string? nomeFormacao, int formacaoId)
+        // ══════════════════════════════════════════════════════════════
+        // TREINADOR ─ Extração do ogol e persistência
+        // ══════════════════════════════════════════════════════════════
+
+        // ogol: link /treinador/ aparece no game_report abaixo dos jogadores
+        private (string? Nome, string? Link) ExtrairTreinadorDaEquipe(HtmlDocument doc, bool casa)
+        {
+            int colIdx = casa ? 1 : 2;
+            var node = doc.DocumentNode.SelectSingleNode(
+                $"//div[@id='game_report']//div[contains(@class,'zz-tpl-col')][{colIdx}]" +
+                $"//a[contains(@href,'/treinador/')]");
+
+            if (node == null) return (null, null);
+
+            var nome = HtmlEntity.DeEntitize(node.InnerText.Trim());
+            var href = node.GetAttributeValue("href", "");
+            return (string.IsNullOrWhiteSpace(nome) ? null : nome, UrlAbsoluta(href));
+        }
+
+        private async Task<Treinador?> ResolverOuCriarTreinadorAsync(
+            FutebolContext context, string? nome, string? linkOgol, int timeId, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(nome)) return null;
+
+            var linkNorm = NormalizarLinkOgol(linkOgol ?? "");
+
+            // 1. Pelo link ogol
+            if (!string.IsNullOrWhiteSpace(linkNorm))
+            {
+                var porLink = await context.Treinadores
+                    .FirstOrDefaultAsync(t => t.LinkOgol == linkNorm, ct);
+                if (porLink != null)
+                {
+                    if (porLink.TimeId != timeId) porLink.TimeId = timeId;
+                    return porLink;
+                }
+            }
+
+            // 2. Pelo nome + time
+            var nomeN = nome.Trim().ToLowerInvariant();
+            var porNome = await context.Treinadores
+                .FirstOrDefaultAsync(t => t.Nome.ToLower() == nomeN && t.TimeId == timeId, ct);
+            if (porNome != null)
+            {
+                if (!string.IsNullOrWhiteSpace(linkNorm) && string.IsNullOrWhiteSpace(porNome.LinkOgol))
+                    porNome.LinkOgol = linkNorm;
+                return porNome;
+            }
+
+            // 3. Cria novo
+            var novo = new Treinador
+            {
+                Nome = nome.Trim(),
+                TimeId = timeId,
+                LinkOgol = linkNorm,
+                DataNascimento = new DateTime(1900, 1, 1),
+                DtInc = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
+            };
+            context.Treinadores.Add(novo);
+            await context.SaveChangesAsync(ct);
+
+            _logger.LogInformation("[Ogol] Treinador criado: {Nome} (TimeId={T})", nome, timeId);
+            return novo;
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // FORMAÇÃO ─ Extração do pitch ogol e criação de posições
+        // ══════════════════════════════════════════════════════════════
+
+        // Extrai a formação de uma equipe contando colunas de jogadores no pitch.
+        // ogol: div.pitch_eleven_horizontal com tabela de colunas por linha tática.
+        // Primeiro índice = casa, segundo = visitante.
+        private string? ExtrairFormacaoDoPitch(HtmlDocument doc, bool casa)
+        {
+            int idx = casa ? 0 : 1;
+
+            // Tenta pitch separado por time (dois divs pitch_eleven_horizontal)
+            var pitchDivs = doc.DocumentNode.SelectNodes(
+                "//div[contains(@class,'pitch_eleven_horizontal')]");
+            if (pitchDivs != null && pitchDivs.Count > idx)
+                return ContarFormacaoDeDiv(pitchDivs[idx]);
+
+            // Fallback: div único com dois sub-campos (campo_onze indexados)
+            var campos = doc.DocumentNode.SelectNodes(
+                "//div[contains(@class,'campo_onze') and not(contains(@class,'bloco'))]");
+            if (campos != null && campos.Count > idx)
+                return ContarFormacaoDeDiv(campos[idx]);
+
+            return null;
+        }
+
+        private string? ContarFormacaoDeDiv(HtmlNode div)
+        {
+            // Cada td da primeira linha da tabela = uma linha tática do campo
+            var colunas = div.SelectNodes(".//tr[1]/td");
+            if (colunas == null || colunas.Count == 0) return null;
+
+            var linhas = new List<int>();
+            bool gkIgnorado = false;
+
+            foreach (var col in colunas)
+            {
+                // Conta apenas divs com data-player-id preenchido (jogadores reais)
+                var players = col.SelectNodes(
+                    ".//*[@data-player-id and string-length(@data-player-id) > 0]");
+                int count = players?.Count ?? 0;
+                if (count == 0) continue;
+
+                if (!gkIgnorado)
+                {
+                    gkIgnorado = true; // primeira coluna não vazia = goleiro
+                    continue;
+                }
+
+                linhas.Add(count);
+            }
+
+            if (!linhas.Any() || linhas.Sum() + 1 != 11) return null;
+
+            return string.Join("-", linhas);
+        }
+
+        // Gera posições nomeadas para uma formação (ex: 4-2-3-1 → Lateral Esq, Zagueiro...).
+        private static List<PosicaoFormacao> GerarPosicoesNomeadas(string nomeFormacao, int formacaoId)
         {
             var linhas = new List<int>();
-            if (!string.IsNullOrWhiteSpace(nomeFormacao))
-                foreach (var parte in nomeFormacao.Trim().Split('-'))
-                    if (int.TryParse(parte.Trim(), out int n)) linhas.Add(n);
+            foreach (var parte in nomeFormacao.Trim().Split('-'))
+                if (int.TryParse(parte.Trim(), out int n)) linhas.Add(n);
 
             if (!linhas.Any() || linhas.Sum() + 1 != 11)
                 linhas = new List<int> { 4, 3, 3 };
 
             var posicoes = new List<PosicaoFormacao>();
             int ordem = 1;
+            int totalLinhas = linhas.Count;
 
+            // Goleiro
             posicoes.Add(new PosicaoFormacao
             {
                 FormacaoId = formacaoId,
                 NomePosicao = "Goleiro",
                 PosicaoX = 50,
-                PosicaoY = 85,
-                Ordem = ordem++
+                PosicaoY = 92,
+                Ordem = ordem++,
+                PosicaoId = 0
             });
 
-            int totalLinhas = linhas.Count;
             for (int l = 0; l < totalLinhas; l++)
             {
-                double y = totalLinhas > 1 ? 72.0 - l * 57.0 / (totalLinhas - 1) : 45.0;
                 int n = linhas[l];
+                double y = totalLinhas > 1
+                    ? Math.Round(80.0 - l * (80.0 - 14.0) / (totalLinhas - 1), 1)
+                    : 45.0;
+
                 for (int c = 0; c < n; c++)
                 {
-                    double x = (c + 1.0) / (n + 1) * 100.0;
+                    double x = Math.Round((c + 1.0) / (n + 1) * 100.0, 1);
                     posicoes.Add(new PosicaoFormacao
                     {
                         FormacaoId = formacaoId,
-                        NomePosicao = $"P{ordem}",
-                        PosicaoX = Math.Round(x, 1),
-                        PosicaoY = Math.Round(y, 1),
-                        Ordem = ordem++
+                        NomePosicao = ObterNomePosicao(l, c, n, totalLinhas),
+                        PosicaoX = x,
+                        PosicaoY = y,
+                        Ordem = ordem++,
+                        PosicaoId = 0
                     });
                 }
             }
 
             return posicoes;
+        }
+
+        private static string ObterNomePosicao(int linhaIdx, int colIdx, int totalNaLinha, int totalLinhas)
+        {
+            bool isDefesa = linhaIdx == 0;
+            bool isAtaque = linhaIdx == totalLinhas - 1;
+
+            if (isDefesa)
+            {
+                return totalNaLinha switch
+                {
+                    1 => "Zagueiro Central",
+                    2 => colIdx == 0 ? "Zagueiro Esquerdo" : "Zagueiro Direito",
+                    3 => colIdx switch { 0 => "Zagueiro Esquerdo", 1 => "Zagueiro Central", _ => "Zagueiro Direito" },
+                    4 => colIdx switch { 0 => "Lateral Esquerdo", 1 => "Zagueiro", 2 => "Zagueiro", _ => "Lateral Direito" },
+                    5 => colIdx switch { 0 => "Ala Esquerdo", 1 => "Zagueiro", 2 => "Zagueiro Central", 3 => "Zagueiro", _ => "Ala Direito" },
+                    _ => $"Defensor {colIdx + 1}"
+                };
+            }
+
+            if (isAtaque)
+            {
+                return totalNaLinha switch
+                {
+                    1 => "Centroavante",
+                    2 => colIdx == 0 ? "Centroavante Esquerdo" : "Centroavante Direito",
+                    3 => colIdx switch { 0 => "Ponta Esquerda", 1 => "Centroavante", _ => "Ponta Direita" },
+                    _ => $"Atacante {colIdx + 1}"
+                };
+            }
+
+            // Linhas intermediárias — linha 1 tende a ser mais defensiva (volante), demais mais ofensivas
+            bool isMaisDefensiva = linhaIdx <= totalLinhas / 2;
+            return totalNaLinha switch
+            {
+                1 => isMaisDefensiva ? "Volante" : "Meia Ofensivo",
+                2 => colIdx == 0
+                    ? (isMaisDefensiva ? "Volante Esquerdo" : "Meia Esquerdo")
+                    : (isMaisDefensiva ? "Volante Direito" : "Meia Direito"),
+                3 => colIdx switch
+                {
+                    0 => "Meia Esquerdo",
+                    1 => isMaisDefensiva ? "Volante" : "Meia Central",
+                    _ => "Meia Direito"
+                },
+                4 => colIdx switch { 0 => "Ala Esquerdo", 1 => "Meia Esquerdo", 2 => "Meia Direito", _ => "Ala Direito" },
+                _ => $"Meia {colIdx + 1}"
+            };
         }
 
         // ══════════════════════════════════════════════════════════════
@@ -1921,6 +2404,116 @@ namespace ControleFutebolWeb.Services
                 JogoDescricao = jogoDescricao,
                 Detalhes = detalhes
             });
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // SINCRONIZAÇÃO DE UMA COMPETIÇÃO (chamável via controller)
+        // ══════════════════════════════════════════════════════════════
+
+        public record SincronizacaoResultado(
+            int JogosProcessados,
+            int TimesCreados,
+            int Erros,
+            List<string> Avisos);
+
+        public async Task<SincronizacaoResultado> SincronizarCompeticaoAsync(
+            FutebolContext context,
+            Competicao competicao,
+            CancellationToken ct = default)
+        {
+            int jogosProcessados = 0, timesCreados = 0, erros = 0;
+            var avisos = new List<string>();
+            var cicloId = Guid.NewGuid();
+
+            if (string.IsNullOrWhiteSpace(competicao.linktransfermarket))
+                return new SincronizacaoResultado(0, 0, 0, new() { "Competição sem link ogol configurado." });
+
+            _logger.LogInformation("[SincComp] Iniciando: {Nome}", competicao.Nome);
+
+            var jogosWeb = await BuscarJogosCompeticaoPorLink(competicao.linktransfermarket, ct);
+            _logger.LogInformation("[SincComp] {N} jogos encontrados.", jogosWeb.Count);
+
+            foreach (var jogoWeb in jogosWeb)
+            {
+                if (ct.IsCancellationRequested) break;
+                try
+                {
+                    var timeCasa = await ResolverOuCriarTimeInterno(
+                        context, jogoWeb.NomeTimeCasa, jogoWeb.LinkTimeCasa, jogoWeb.EscudoTimeCasa, ct);
+                    if (timeCasa.criado) timesCreados++;
+
+                    var timeVisitante = await ResolverOuCriarTimeInterno(
+                        context, jogoWeb.NomeTimeVisitante, jogoWeb.LinkTimeVisitante, jogoWeb.EscudoTimeVisitante, ct);
+                    if (timeVisitante.criado) timesCreados++;
+
+                    await IncluirOuAtualizarJogo(
+                        context, competicao, jogoWeb, timeCasa.time, timeVisitante.time, cicloId, ct);
+
+                    await context.SaveChangesAsync(ct);
+                    jogosProcessados++;
+
+                    await Task.Delay(500, ct);
+                }
+                catch (Exception ex)
+                {
+                    erros++;
+                    avisos.Add($"{jogoWeb.NomeTimeCasa} x {jogoWeb.NomeTimeVisitante}: {ex.Message}");
+                    _logger.LogWarning(ex, "[SincComp] Erro ao processar jogo.");
+                }
+            }
+
+            _logger.LogInformation("[SincComp] Concluído: {J} jogos, {T} times criados, {E} erros.",
+                jogosProcessados, timesCreados, erros);
+
+            return new SincronizacaoResultado(jogosProcessados, timesCreados, erros, avisos);
+        }
+
+        private async Task<(Time time, bool criado)> ResolverOuCriarTimeInterno(
+            FutebolContext context, string nome, string? linkOgol, string? escudoUrl,
+            CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(nome)) nome = $"Time_{Guid.NewGuid()}";
+
+            var urlNorm = !string.IsNullOrWhiteSpace(linkOgol) ? NormalizarLink(linkOgol) : null;
+
+            if (!string.IsNullOrWhiteSpace(urlNorm))
+            {
+                var porUrl = await context.Times
+                    .FirstOrDefaultAsync(t => t.linktransfermarket == urlNorm, ct);
+                if (porUrl != null)
+                {
+                    if (string.IsNullOrWhiteSpace(porUrl.EscudoUrl) && !string.IsNullOrWhiteSpace(escudoUrl))
+                        porUrl.EscudoUrl = escudoUrl;
+                    return (porUrl, false);
+                }
+            }
+
+            var porNome = await context.Times.FirstOrDefaultAsync(t => t.Nome == nome, ct);
+            if (porNome != null)
+            {
+                if (string.IsNullOrWhiteSpace(porNome.linktransfermarket) && !string.IsNullOrWhiteSpace(urlNorm))
+                    porNome.linktransfermarket = urlNorm;
+                if (string.IsNullOrWhiteSpace(porNome.EscudoUrl) && !string.IsNullOrWhiteSpace(escudoUrl))
+                    porNome.EscudoUrl = escudoUrl;
+                return (porNome, false);
+            }
+
+            var formacaoPadraoId = (await context.Formacoes.FirstOrDefaultAsync(ct))?.Id ?? 1;
+            var novoTime = new Time
+            {
+                Nome = nome,
+                Cidade = "Importado",
+                IdApi = 0,
+                EscudoUrl = escudoUrl ?? "",
+                CorPrincipal = "#000000",
+                CorSecundaria = "#FFFFFF",
+                linktransfermarket = urlNorm,
+                FormacaoPadraoId = formacaoPadraoId
+            };
+
+            await context.Times.AddAsync(novoTime, ct);
+            await context.SaveChangesAsync(ct);
+            return (novoTime, true);
         }
     }
 }

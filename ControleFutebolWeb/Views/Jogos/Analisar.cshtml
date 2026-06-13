@@ -943,13 +943,23 @@
 
         <!-- ===== TIME DA CASA ===== -->
         <div class="col-md-6">
-            @* <h4>
-                <img src="@Model.TimeCasa.EscudoUrl" width="24" />
-                @Model.TimeCasa.Nome
-            </h4> *@
             <div class="row">
                 <!-- Lista de jogadores -->
                 <div class="col-5 scroll-panel">
+                    @{
+                        var treinadorCasa = ViewBag.TreinadorCasa as ControleFutebolWeb.Models.Treinador;
+                    }
+                    @if (treinadorCasa != null)
+                    {
+                        <div class="d-flex align-items-center gap-2 px-1 py-1 mb-1"
+                             style="background:#f0f4ff;border-radius:7px;border:1px solid #dce4f5;">
+                            <span style="font-size:16px;">🧑‍💼</span>
+                            <div>
+                                <div style="font-size:9px;color:#6b7280;text-transform:uppercase;line-height:1;">Treinador</div>
+                                <div style="font-size:12px;font-weight:600;color:#1e3a5f;">@treinadorCasa.Nome</div>
+                            </div>
+                        </div>
+                    }
                     <table class="table table-sm table-striped">
                         <thead><tr><th></th><th>Nome</th><th>Pos</th></tr></thead>
                         <tbody id="listaCasa">
@@ -1152,6 +1162,20 @@
 
                 <!-- Lista de jogadores visitante -->
                 <div class="col-5 scroll-panel">
+                    @{
+                        var treinadorVis = ViewBag.TreinadorVisitante as ControleFutebolWeb.Models.Treinador;
+                    }
+                    @if (treinadorVis != null)
+                    {
+                        <div class="d-flex align-items-center gap-2 px-1 py-1 mb-1"
+                             style="background:#f0f4ff;border-radius:7px;border:1px solid #dce4f5;">
+                            <span style="font-size:16px;">🧑‍💼</span>
+                            <div>
+                                <div style="font-size:9px;color:#6b7280;text-transform:uppercase;line-height:1;">Treinador</div>
+                                <div style="font-size:12px;font-weight:600;color:#1e3a5f;">@treinadorVis.Nome</div>
+                            </div>
+                        </div>
+                    }
                     <table class="table table-sm table-striped">
                         <thead><tr><th></th><th>Nome</th><th>Pos</th></tr></thead>
                         <tbody id="listaVisitante">

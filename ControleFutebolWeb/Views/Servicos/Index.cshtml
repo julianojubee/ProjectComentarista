@@ -1,0 +1,225 @@
+@model IReadOnlyList<ControleFutebolWeb.Services.InfoServico>
+@using ControleFutebolWeb.Services
+
+@{
+    ViewData["Title"] = "Serviços em Segundo Plano";
+}
+
+<style>
+    .srv-card {
+        background: #1e293b;
+        border-radius: 12px;
+        padding: 1.4rem 1.6rem;
+        margin-bottom: 1.2rem;
+        border: 1px solid rgba(255,255,255,.07);
+    }
+    .srv-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: .9rem;
+    }
+    .srv-nome {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #e2e8f0;
+        flex: 1;
+    }
+    .srv-desc {
+        font-size: .82rem;
+        color: #94a3b8;
+        margin-bottom: 1rem;
+    }
+    .badge-estado {
+        padding: 3px 12px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .4px;
+        text-transform: uppercase;
+    }
+    .badge-rodando  { background: rgba(34,197,94,.15);  color: #4ade80; border: 1px solid rgba(34,197,94,.3); }
+    .badge-aguardando { background: rgba(251,191,36,.12); color: #fbbf24; border: 1px solid rgba(251,191,36,.3); }
+    .badge-parado   { background: rgba(148,163,184,.1); color: #94a3b8; border: 1px solid rgba(148,163,184,.2); }
+    .srv-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 10px;
+        margin-bottom: 1rem;
+    }
+    .srv-stat {
+        background: rgba(255,255,255,.04);
+        border-radius: 8px;
+        padding: .6rem .9rem;
+    }
+    .srv-stat-label {
+        font-size: 10px;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: .4px;
+        margin-bottom: 2px;
+    }
+    .srv-stat-val {
+        font-size: .9rem;
+        font-weight: 600;
+        color: #cbd5e1;
+    }
+    .srv-atividade {
+        font-size: .82rem;
+        color: #64748b;
+        border-top: 1px solid rgba(255,255,255,.05);
+        padding-top: .7rem;
+        margin-top: .3rem;
+    }
+    .srv-atividade span { color: #94a3b8; }
+    .btn-srv {
+        border: none;
+        border-radius: 7px;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 5px 14px;
+        cursor: pointer;
+        transition: opacity .15s;
+    }
+    .btn-srv:hover { opacity: .8; }
+    .btn-parar     { background: rgba(239,68,68,.15);  color: #f87171; border: 1px solid rgba(239,68,68,.25); }
+    .btn-reiniciar { background: rgba(59,130,246,.15); color: #60a5fa; border: 1px solid rgba(59,130,246,.25); }
+</style>
+
+<div style="max-width:860px; margin: 0 auto; padding: 1.5rem 1rem;">
+
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.4rem;">
+        <h2 style="margin:0; color:#e2e8f0; font-size:1.4rem; font-weight:700;">
+            ⚙️ Serviços em Segundo Plano
+        </h2>
+        <span style="font-size:.8rem; color:#475569;">
+            Atualiza automaticamente a cada 5s
+        </span>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div style="background:rgba(34,197,94,.12); color:#4ade80; border:1px solid rgba(34,197,94,.25);
+                    border-radius:8px; padding:.7rem 1rem; margin-bottom:1rem; font-size:.88rem;">
+            ✅ @TempData["Sucesso"]
+        </div>
+    }
+
+    <div id="srv-lista">
+        @foreach (var s in Model)
+        {
+            var badgeClass = s.Estado switch
+            {
+                EstadoServico.Rodando   => "badge-rodando",
+                EstadoServico.Aguardando => "badge-aguardando",
+                _                       => "badge-parado"
+            };
+            var estadoLabel = s.Estado switch
+            {
+                EstadoServico.Rodando    => "● Rodando",
+                EstadoServico.Aguardando => "◑ Aguardando",
+                _                        => "○ Parado"
+            };
+
+            <div class="srv-card" data-nome="@s.Nome">
+                <div class="srv-header">
+                    <span class="srv-nome">@s.Nome</span>
+                    <span class="badge-estado @badgeClass estado-badge">@estadoLabel</span>
+                </div>
+                <div class="srv-desc">@s.Descricao</div>
+
+                <div class="srv-grid">
+                    <div class="srv-stat">
+                        <div class="srv-stat-label">Iniciado em</div>
+                        <div class="srv-stat-val stat-iniciado">@(s.IniciadoEm?.ToString("dd/MM HH:mm") ?? "—")</div>
+                    </div>
+                    <div class="srv-stat">
+                        <div class="srv-stat-label">Último ciclo</div>
+                        <div class="srv-stat-val stat-ultimo">@(s.UltimoCicloEm?.ToString("dd/MM HH:mm:ss") ?? "—")</div>
+                    </div>
+                    <div class="srv-stat">
+                        <div class="srv-stat-label">Próximo ciclo</div>
+                        <div class="srv-stat-val stat-proximo">@(s.ProximoCicloEm?.ToString("dd/MM HH:mm") ?? "—")</div>
+                    </div>
+                    <div class="srv-stat">
+                        <div class="srv-stat-label">Ciclos completos</div>
+                        <div class="srv-stat-val stat-ciclos">@s.CiclosCompletos</div>
+                    </div>
+                    <div class="srv-stat">
+                        <div class="srv-stat-label">Jogadores atualizados</div>
+                        <div class="srv-stat-val stat-jogadores">@s.JogadoresAtualizados</div>
+                    </div>
+                    <div class="srv-stat">
+                        <div class="srv-stat-label">Falhas</div>
+                        <div class="srv-stat-val stat-falhas" style="color:@(s.Falhas > 0 ? "#f87171" : "inherit")">
+                            @s.Falhas
+                        </div>
+                    </div>
+                </div>
+
+                <div class="srv-atividade">
+                    Atividade: <span class="stat-atividade">@(string.IsNullOrEmpty(s.UltimaAtividade) ? "—" : s.UltimaAtividade)</span>
+                </div>
+
+                @{ var chave = ControleFutebolWeb.Services.AtualizarJogadoresSemDataService.Chave; }
+                <div style="display:flex; gap:8px; margin-top:1rem;">
+                    <form method="post" asp-action="Parar">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="chave" value="@chave" />
+                        <button type="submit" class="btn-srv btn-parar"
+                                @(s.Estado == EstadoServico.Parado ? "disabled" : "")>
+                            ⏹ Parar
+                        </button>
+                    </form>
+                    <form method="post" asp-action="Reiniciar">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="chave" value="@chave" />
+                        <button type="submit" class="btn-srv btn-reiniciar">
+                            🔄 Reiniciar agora
+                        </button>
+                    </form>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<script>
+    // Polling leve: atualiza apenas os campos dinâmicos sem recarregar a página
+    const estadoClasses = {
+        'Rodando':    'badge-rodando',
+        'Aguardando': 'badge-aguardando',
+        'Parado':     'badge-parado'
+    };
+    const estadoLabel = {
+        'Rodando':    '● Rodando',
+        'Aguardando': '◑ Aguardando',
+        'Parado':     '○ Parado'
+    };
+
+    async function atualizarStatus() {
+        try {
+            const resp = await fetch('/Servicos/Status');
+            const lista = await resp.json();
+            for (const s of lista) {
+                const card = document.querySelector(`.srv-card[data-nome="${s.nome}"]`);
+                if (!card) continue;
+                const badge = card.querySelector('.estado-badge');
+                badge.className = 'badge-estado estado-badge ' + (estadoClasses[s.estado] ?? 'badge-parado');
+                badge.textContent = estadoLabel[s.estado] ?? s.estado;
+                card.querySelector('.stat-iniciado').textContent  = s.iniciadoEm   ?? '—';
+                card.querySelector('.stat-ultimo').textContent    = s.ultimoCicloEm ?? '—';
+                card.querySelector('.stat-proximo').textContent   = s.proximoCicloEm ?? '—';
+                card.querySelector('.stat-ciclos').textContent    = s.ciclosCompletos;
+                card.querySelector('.stat-jogadores').textContent = s.jogadoresAtualizados;
+                card.querySelector('.stat-falhas').textContent    = s.falhas;
+                card.querySelector('.stat-atividade').textContent = s.ultimaAtividade || '—';
+                // Habilita/desabilita botão Parar
+                const btnParar = card.querySelector('.btn-parar');
+                btnParar.disabled = (s.estado === 'Parado');
+            }
+        } catch (_) {}
+    }
+
+    setInterval(atualizarStatus, 5000);
+</script>

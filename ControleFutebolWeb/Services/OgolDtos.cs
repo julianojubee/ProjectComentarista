@@ -29,6 +29,10 @@ namespace ControleFutebolWeb.Services
         public int? PlacarVisitante { get; set; }
         public string? FormacaoCasa { get; set; }
         public string? FormacaoVisitante { get; set; }
+        public string? TreinadorCasaNome { get; set; }
+        public string? TreinadorCasaLink { get; set; }
+        public string? TreinadorVisitanteNome { get; set; }
+        public string? TreinadorVisitanteLink { get; set; }
 
         public List<JogadorEscalacaoTM> EscalacaoInicialCasa { get; set; } = new();
         public List<JogadorEscalacaoTM> EscalacaoInicialVisitante { get; set; } = new();
@@ -53,7 +57,7 @@ namespace ControleFutebolWeb.Services
         public float LeftPct { get; set; } = 0;
     }
 
-    internal record InfoPerfilJogadorTM(string? Posicao, string? Nacionalidade, string? FotoUrl, DateTime? DataNascimento);
+    public record InfoPerfilJogadorTM(string? Posicao, string? Nacionalidade, string? FotoUrl, DateTime? DataNascimento);
 
     public class GolTM
     {

@@ -687,8 +687,10 @@ namespace ControleFutebolWeb.Controllers
             }
             else
             {
-                ViewBag.JogadoresCasa = _context.Jogadores.Where(j => j.TimeId == jogo.TimeCasaId).ToList();
-                ViewBag.JogadoresVisitante = _context.Jogadores.Where(j => j.TimeId == jogo.TimeVisitanteId).ToList();
+                ViewBag.JogadoresCasa = _context.Jogadores
+                    .Where(j => j.TimeId == jogo.TimeCasaId || j.SelecaoId == jogo.TimeCasaId).ToList();
+                ViewBag.JogadoresVisitante = _context.Jogadores
+                    .Where(j => j.TimeId == jogo.TimeVisitanteId || j.SelecaoId == jogo.TimeVisitanteId).ToList();
             }
 
             ViewBag.FormacaoCasaSelecionada = idFormacaoCasa;
@@ -696,6 +698,18 @@ namespace ControleFutebolWeb.Controllers
             ViewBag.FaseEscalacaoAtual = faseAtual;
             ViewBag.EscalacaoFinalDisponivel = await _context.Escalacoes.AnyAsync(e => e.JogoId == id && e.FaseEscalacao == "FINAL");
             ViewBag.MostrarBancoReservas = faseAtual == "INICIAL";
+
+            ViewBag.TreinadorCasa = await _context.Treinadores
+                .Include(t => t.Nacionalidade)
+                .Where(t => t.TimeId == jogo.TimeCasaId)
+                .OrderByDescending(t => t.DtInc)
+                .FirstOrDefaultAsync();
+
+            ViewBag.TreinadorVisitante = await _context.Treinadores
+                .Include(t => t.Nacionalidade)
+                .Where(t => t.TimeId == jogo.TimeVisitanteId)
+                .OrderByDescending(t => t.DtInc)
+                .FirstOrDefaultAsync();
 
             return View(jogo);
         }
@@ -856,6 +870,11 @@ namespace ControleFutebolWeb.Controllers
                 .OrderBy(g => g.Minuto)
                 .ToListAsync();
 
+            var assistencias = await _context.Assistencias
+                .Include(a => a.Jogador)
+                .Where(a => a.JogoId == jogoId)
+                .ToListAsync();
+
             var cartoes = await _context.Cartoes
                 .Include(c => c.Jogador)
                 .Where(c => c.JogoId == jogoId)
@@ -872,9 +891,18 @@ namespace ControleFutebolWeb.Controllers
                     id = g.Id,
                     minuto = g.Minuto,
                     nomeJogador = g.Jogador?.Nome,
-                    nomeAssistencia = (string?)null,   // adicionar campo Assistencia ao model se quiser
+                    nomeAssistencia = assistencias
+                        .Where(a => a.Minuto == g.Minuto && !g.Contra &&
+                                    a.Jogador != null &&
+                                    (a.Jogador.TimeId == g.Jogador!.TimeId ||
+                                     a.Jogador.SelecaoId == g.Jogador!.TimeId ||
+                                     a.Jogador.TimeId == g.Jogador!.SelecaoId ||
+                                     (a.Jogador.SelecaoId != null && a.Jogador.SelecaoId == g.Jogador!.SelecaoId)))
+                        .Select(a => a.Jogador!.Nome)
+                        .FirstOrDefault(),
                     contra = g.Contra,
-                    timeCasaId = g.Jogador?.TimeId == jogo.TimeCasaId ? (int?)jogo.TimeCasaId : null
+                    timeCasaId = (g.Jogador?.TimeId == jogo.TimeCasaId || g.Jogador?.SelecaoId == jogo.TimeCasaId)
+                        ? (int?)jogo.TimeCasaId : null
                 }),
 
                 cartoes = cartoes.Select(c => new
@@ -921,6 +949,16 @@ namespace ControleFutebolWeb.Controllers
                 Contra = req.Contra
             };
             _context.Gols.Add(gol);
+
+            if (req.AssistenciaJogadorId.HasValue && req.AssistenciaJogadorId > 0 && !req.Contra)
+            {
+                _context.Assistencias.Add(new Assistencia
+                {
+                    JogoId = req.JogoId,
+                    JogadorId = req.AssistenciaJogadorId.Value,
+                    Minuto = req.Minuto
+                });
+            }
 
             // Recalcula placar contando os gols no banco + o novo
             if (!req.Contra)
@@ -982,6 +1020,18 @@ namespace ControleFutebolWeb.Controllers
             }
 
             _context.Gols.Remove(gol);
+
+            // Remove assistência vinculada ao mesmo minuto (se existir)
+            if (!gol.Contra && gol.Jogador != null)
+            {
+                var assist = await _context.Assistencias
+                    .Include(a => a.Jogador)
+                    .FirstOrDefaultAsync(a => a.JogoId == gol.JogoId && a.Minuto == gol.Minuto
+                                           && a.Jogador != null && a.Jogador.TimeId == gol.Jogador.TimeId);
+                if (assist != null)
+                    _context.Assistencias.Remove(assist);
+            }
+
             await _context.SaveChangesAsync();
 
             return Ok(new

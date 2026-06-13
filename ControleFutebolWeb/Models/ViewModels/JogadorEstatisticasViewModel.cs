@@ -1,24 +1,28 @@
-﻿namespace ControleFutebolWeb.Models.ViewModels
+namespace ControleFutebolWeb.Models.ViewModels
 {
     public class JogadorEstatisticasViewModel
     {
         public Jogador Jogador { get; set; }
         public double MediaNotas { get; set; }
-        public int TotalJogos { get; set; }
+        public int TotalJogos { get; set; }          // jogos analisados
+        public int TotalJogosParticipados { get; set; } // total com escalação
         public int TotalGols { get; set; }
-        public int TotalAssistencias { get; set; } // se tiver o campo em Gol
+        public int TotalAssistencias { get; set; }
         public List<NotaJogoItem> NotasPorJogo { get; set; }
     }
 
     public class NotaJogoItem
     {
         public Jogo Jogo { get; set; }
-        public int Nota { get; set; }   // pontos de ação brutos
+        public bool Analisado { get; set; }          // false = sem nota, só participou
+        public int Nota { get; set; }
         public string Comentario { get; set; }
         public int Gols { get; set; }
-        public string Resultado { get; set; }   // "V", "E", "D"
-        public double BonusResultado { get; set; }   // +1, 0, -1
-        public double NotaFinal { get; set; }   // clamp(0,10, 5+ação+resultado)
+        public int Assistencias { get; set; }
+        public int Cartoes { get; set; }
+        public string Resultado { get; set; }        // "V", "E", "D", "?" (sem placar)
+        public double BonusResultado { get; set; }
+        public double NotaFinal { get; set; }
         public List<Notadetalhe> Detalhes { get; set; } = new();
         public int GolsPro { get; set; }
         public int GolsContra { get; set; }

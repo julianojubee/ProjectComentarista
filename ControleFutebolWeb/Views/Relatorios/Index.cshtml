@@ -271,6 +271,25 @@
         </div>
     </div>
 
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
+            @TempData["Sucesso"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Manutenção: limpeza de nacionalidades (executar uma vez) -->
+    <div style="text-align:right;margin-bottom:8px;">
+        <form method="post" asp-controller="Admin" asp-action="LimparNacionalidades" style="display:inline;">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-outline-warning btn-sm"
+                    onclick="return confirm('Isso vai manter apenas os 48 países da Copa do Mundo 2026, mesclar duplicatas e corrigir os jogadores. Continuar?')">
+                🧹 Limpar nacionalidades (Copa do Mundo 2026)
+            </button>
+        </form>
+    </div>
+
     <!-- Filtro de competição -->
     <form method="get" asp-action="Index" asp-controller="Relatorios" class="rpt-filter">
         <label for="compFilter">Filtrar por competição:</label>

@@ -43,8 +43,13 @@ namespace ControleFutebolWeb.Models
 
         public int TimeId { get; set; }
         [ValidateNever]   // <- evita erro de ModelState
-
         public Time Time { get; set; } = null!;
+
+        // Seleção nacional (opcional) — permite que um jogador de clube
+        // também seja utilizado em jogos de seleção sem criar cadastro duplicado.
+        public int? SelecaoId { get; set; }
+        [ValidateNever]
+        public Time? Selecao { get; set; }
 
         public DateTime DtInc { get; set; }
         public DateTime? DtAlt { get; set; }

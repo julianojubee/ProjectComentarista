@@ -195,6 +195,13 @@ namespace ControleFutebolWeb.Data
                 .HasColumnType("timestamp without time zone")
                 .IsRequired(false);
 
+            modelBuilder.Entity<Jogador>()
+                .HasOne(j => j.Selecao)
+                .WithMany()
+                .HasForeignKey(j => j.SelecaoId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+
             modelBuilder.Entity<Treinador>()
                 .Property(t => t.DataNascimento)
                 .HasConversion(

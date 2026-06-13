@@ -33,6 +33,7 @@ namespace ControleFutebolWeb.Models
         public DateTime DtInc { get; set; }
         public DateTime? DtAlt { get; set; }
         public string? FotoUrl { get; set; }
+        public string? LinkOgol { get; set; }
     }
 
 }

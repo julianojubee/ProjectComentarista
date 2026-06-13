@@ -34,8 +34,12 @@ internal class Program
             });
 
         builder.Services.AddHttpClient<ApiFootballDataService>();
+        builder.Services.AddHttpClient<TransfermarktTreinadorService>();
+        builder.Services.AddSingleton<ServicoMonitor>();
+        builder.Services.AddSingleton<AtualizarJogadoresSemDataService>();
+        builder.Services.AddHostedService(sp =>
+            sp.GetRequiredService<AtualizarJogadoresSemDataService>());
         //builder.Services.AddHostedService<AtualizacaoJogosService>();
-        builder.Services.AddHostedService<AtualizarJogadoresSemDataService>();
         //builder.Services.AddHostedService<AtualizarCopaSulAmericanaService>();
         builder.Services.AddHttpClient();
 

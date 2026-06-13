@@ -223,9 +223,9 @@
                 <form asp-action="BuscarFoto" asp-route-id="@treinador.Id" method="post" style="display:inline;">
                     @Html.AntiForgeryToken()
                     <button type="submit" class="btn btn-outline-secondary btn-sm cf-small-btn"
-                            title="Buscar foto "
-                            onclick="return confirm('Buscar foto de @treinador.Nome ?')">
-                        📷
+                            title="Buscar foto, idade e nacionalidade no Transfermarkt"
+                            onclick="return confirm('Buscar dados de @treinador.Nome no Transfermarkt?')">
+                        🔄
                     </button>
                 </form>
             </div>

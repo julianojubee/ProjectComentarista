@@ -10,6 +10,6 @@
         public List<Jogo> JogosFuturos { get; set; } // próximos jogos agendados
         public ICollection<TimeEscalacaoPadrao> TimeEscalacaoPadrao { get; set; }
         public IEnumerable<Formacao> Formacoes { get; set; } // lista de formações disponíveis
-
+        public Treinador? Treinador { get; set; }
     }
 }

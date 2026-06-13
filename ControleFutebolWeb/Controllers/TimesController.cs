@@ -121,6 +121,12 @@ namespace ControleFutebolWeb.Controllers
 
             var formacoes = await _context.Formacoes.ToListAsync();
 
+            var treinador = await _context.Treinadores
+                .Include(t => t.Nacionalidade)
+                .Where(t => t.TimeId == id)
+                .OrderByDescending(t => t.DtInc)
+                .FirstOrDefaultAsync();
+
             var viewModel = new TimeDetalhesViewModel
             {
                 Time = time,
@@ -129,7 +135,8 @@ namespace ControleFutebolWeb.Controllers
                 JogosPassados = jogosPassados,
                 JogosFuturos = jogosFuturos,
                 TimeEscalacaoPadrao = escalacao,
-                Formacoes = formacoes
+                Formacoes = formacoes,
+                Treinador = treinador
             };
 
             return View(viewModel);

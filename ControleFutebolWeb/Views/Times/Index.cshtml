@@ -192,7 +192,7 @@
         <tr>
             <th>Nome</th>
             <th>Escudo</th>
-            <th>Uniforme</th>
+      
             <th>Ações</th>
         </tr>
     </thead>
@@ -205,6 +205,14 @@
                     <img src="@time.EscudoUrl" alt="@time.Nome" style="height:40px;" />
                 </td>
                
+                <td>
+                    <a asp-action="Details"
+                       asp-controller="Times"
+                       asp-route-id="@time.Id"
+                       class="btn btn-sm btn-info">
+                        Detalhes
+                    </a>
+                </td>
             </tr>
         }
     </tbody>
