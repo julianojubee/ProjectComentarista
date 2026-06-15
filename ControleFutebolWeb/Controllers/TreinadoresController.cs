@@ -11,16 +11,13 @@ namespace ControleFutebolWeb.Controllers
     {
         private readonly FutebolContext _context;
         private readonly TransfermarktTreinadorService _tmTreinadorService;
-        private readonly OgolService _ogolService;
 
         public TreinadoresController(
             FutebolContext context,
-            TransfermarktTreinadorService tmTreinadorService,
-            OgolService ogolService)
+            TransfermarktTreinadorService tmTreinadorService)
         {
             _context = context;
             _tmTreinadorService = tmTreinadorService;
-            _ogolService = ogolService;
         }
 
         // GET: Treinadores
@@ -183,61 +180,8 @@ namespace ControleFutebolWeb.Controllers
 
             if (treinador == null) return NotFound();
 
-            if (string.IsNullOrWhiteSpace(treinador.LinkOgol))
-            {
-                TempData["Erro"] = $"❌ {treinador.Nome} não possui link do ogol. Importe-o via análise de jogo primeiro.";
-                return RedirectToAction(nameof(Index));
-            }
-
-            var info = await _ogolService.BuscarDadosTreinadorAsync(treinador.LinkOgol);
-
-            if (info == null)
-            {
-                TempData["Erro"] = $"❌ Não foi possível acessar o perfil de {treinador.Nome} no ogol.";
-                return RedirectToAction(nameof(Index));
-            }
-
-            var atualizados = new List<string>();
-
-            // Foto
-            if (!string.IsNullOrWhiteSpace(info.FotoUrl))
-            {
-                treinador.FotoUrl = info.FotoUrl;
-                atualizados.Add("foto");
-            }
-
-            // Data de nascimento
-            if (info.DataNascimento.HasValue && info.DataNascimento.Value.Year > 1900)
-            {
-                treinador.DataNascimento = DateTime.SpecifyKind(info.DataNascimento.Value, DateTimeKind.Utc);
-                atualizados.Add("idade");
-            }
-
-            // Nacionalidade
-            if (!string.IsNullOrWhiteSpace(info.Nacionalidade))
-            {
-                var nac = await _context.Nacionalidades
-                    .FirstOrDefaultAsync(n => EF.Functions.ILike(n.Nome, info.Nacionalidade));
-
-                if (nac == null)
-                {
-                    nac = new Nacionalidade { Nome = info.Nacionalidade };
-                    _context.Nacionalidades.Add(nac);
-                    await _context.SaveChangesAsync();
-                }
-
-                treinador.NacionalidadeId = nac.Id;
-                atualizados.Add("nacionalidade");
-            }
-
-            treinador.DtAlt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-
-            if (atualizados.Any())
-                TempData["Sucesso"] = $"✅ {treinador.Nome}: {string.Join(", ", atualizados)} atualizados!";
-            else
-                TempData["Erro"] = $"❌ Nenhum dado novo encontrado para {treinador.Nome} no ogol.";
-
+            TempData["Erro"] = $"❌ Busca automática de foto de treinador não está disponível. " +
+                               "Informe a foto manualmente pelo formulário de edição.";
             return RedirectToAction(nameof(Index));
         }
 

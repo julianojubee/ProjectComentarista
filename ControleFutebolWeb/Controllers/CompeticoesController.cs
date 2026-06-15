@@ -12,19 +12,63 @@ namespace ControleFutebolWeb.Controllers
     {
         private readonly FutebolContext _context;
         private readonly ILogger<CompeticoesController> _logger;
-        private readonly OgolService _ogol;
         private readonly IServiceScopeFactory _scopeFactory;
 
         public CompeticoesController(
             FutebolContext context,
             ILogger<CompeticoesController> logger,
-            OgolService ogol,
             IServiceScopeFactory scopeFactory)
         {
             _context = context;
             _logger = logger;
-            _ogol = ogol;
             _scopeFactory = scopeFactory;
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> BuscarJogos(int id)
+        {
+            var competicao = await _context.Competicoes.FindAsync(id);
+            if (competicao == null) return NotFound();
+
+            if (string.IsNullOrWhiteSpace(competicao.linktransfermarket))
+            {
+                TempData["Erro"] = "Configure o link da competição antes de buscar jogos.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            _ = Task.Run(async () =>
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var ctx    = scope.ServiceProvider.GetRequiredService<FutebolContext>();
+                var logger = scope.ServiceProvider.GetRequiredService<ILogger<CompeticoesController>>();
+
+                try
+                {
+                    if (ApiFootballService.IsApiFootballLink(competicao.linktransfermarket))
+                    {
+                        var api = scope.ServiceProvider.GetRequiredService<ApiFootballService>();
+                        var (jogos, times, erros, avisos) =
+                            await api.SincronizarCompeticaoAsync(ctx, competicao);
+                        logger.LogInformation(
+                            "[BuscarJogos] {Nome}: {J} jogos, {T} times criados, {E} erros.",
+                            competicao.Nome, jogos, times, erros);
+                    }
+                    else
+                    {
+                        logger.LogWarning(
+                            "[BuscarJogos] {Nome}: link não é formato apifoot: — configure o link no formato apifoot:LEAGUE_ID:SEASON.",
+                            competicao.Nome);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "[BuscarJogos] Erro ao sincronizar {Nome}.", competicao.Nome);
+                }
+            });
+
+            TempData["Sucesso"] = $"Busca de jogos de '{competicao.Nome}' iniciada em segundo plano.";
+            return RedirectToAction(nameof(Index));
         }
 
         public IActionResult Index()
@@ -171,44 +215,6 @@ namespace ControleFutebolWeb.Controllers
             }
 
             return grupos;
-        }
-
-        // ── Importar dados via ogol (fire-and-forget) ─────────────────────
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ImportarDados(int id)
-        {
-            var competicao = await _context.Competicoes.FindAsync(id);
-            if (competicao == null) return NotFound();
-
-            if (string.IsNullOrWhiteSpace(competicao.linktransfermarket))
-            {
-                TempData["Erro"] = "Competição sem link ogol configurado. Informe o link antes de importar.";
-                return RedirectToAction(nameof(Detalhes), new { id });
-            }
-
-            // Executa em background para não bloquear a requisição
-            _ = Task.Run(async () =>
-            {
-                using var scope = _scopeFactory.CreateScope();
-                var ctx = scope.ServiceProvider.GetRequiredService<FutebolContext>();
-                var ogol = scope.ServiceProvider.GetRequiredService<OgolService>();
-
-                try
-                {
-                    var result = await ogol.SincronizarCompeticaoAsync(ctx, competicao);
-                    _logger.LogInformation(
-                        "[ImportarDados] {Nome}: {J} jogos, {T} times criados, {E} erros.",
-                        competicao.Nome, result.JogosProcessados, result.TimesCreados, result.Erros);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "[ImportarDados] Erro ao sincronizar {Nome}.", competicao.Nome);
-                }
-            });
-
-            TempData["Sucesso"] = $"Importação de '{competicao.Nome}' iniciada em segundo plano. Aguarde alguns minutos e atualize a página.";
-            return RedirectToAction(nameof(Detalhes), new { id });
         }
 
         [HttpPost]

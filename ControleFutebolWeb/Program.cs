@@ -3,11 +3,12 @@ using ControleFutebolWeb.Converters; // ← importa o converter
 using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 internal class Program
 {
-    private static void Main(string[] args)
+    private static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
 
@@ -20,20 +21,37 @@ internal class Program
 
 
         // 🔹 Aqui você adiciona o converter globalmente
-        builder.Services.AddControllersWithViews()
+        builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+        {
+            options.Password.RequireDigit = false;
+            options.Password.RequireLowercase = false;
+            options.Password.RequireUppercase = false;
+            options.Password.RequireNonAlphanumeric = false;
+            options.Password.RequiredLength = 6;
+        })
+        .AddEntityFrameworkStores<FutebolContext>()
+        .AddDefaultTokenProviders();
+
+        builder.Services.ConfigureApplicationCookie(options =>
+        {
+            options.LoginPath = "/Account/Login";
+            options.AccessDeniedPath = "/Account/Login";
+            options.ExpireTimeSpan = TimeSpan.FromDays(7);
+            options.SlidingExpiration = true;
+        });
+
+        builder.Services.AddControllersWithViews(options =>
+        {
+            // Exige autenticação em todos os controllers por padrão
+            options.Filters.Add(new Microsoft.AspNetCore.Mvc.Authorization.AuthorizeFilter());
+        })
             .AddJsonOptions(options =>
             {
                 options.JsonSerializerOptions.Converters.Add(new NullableLongConverter());
             });
 
-        builder.Services.AddHttpClient<OgolService>()
-            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
-            {
-                AllowAutoRedirect = true,
-                MaxAutomaticRedirections = 5,
-            });
-
         builder.Services.AddHttpClient<ApiFootballDataService>();
+        builder.Services.AddHttpClient<ApiFootballService>();
         builder.Services.AddHttpClient<TransfermarktTreinadorService>();
         builder.Services.AddSingleton<ServicoMonitor>();
         builder.Services.AddSingleton<AtualizarJogadoresSemDataService>();
@@ -57,12 +75,30 @@ internal class Program
             var services = scope.ServiceProvider;
             var context = services.GetRequiredService<FutebolContext>();
 
+            context.Database.Migrate();
             SeedData.Initialize(services);
             DbInitializer.Initialize(context);
+
+            // Seed do admin inicial
+            var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+            if (!userManager.Users.Any())
+            {
+                var admin = new ApplicationUser
+                {
+                    UserName = "admin",
+                    Email = "admin@comentarista.com",
+                    Nome = "Administrador",
+                    IsAdmin = true,
+                    EmailConfirmed = true
+                };
+                await userManager.CreateAsync(admin, "Admin@123");
+            }
         }
 
         app.UseStaticFiles();
         app.UseRouting();
+        app.UseAuthentication();
+        app.UseAuthorization();
 
         app.MapControllerRoute(
             name: "default",

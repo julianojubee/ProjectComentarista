@@ -3,7 +3,6 @@ using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Services;
 using Microsoft.EntityFrameworkCore;
-using System.Text.RegularExpressions;
 
 namespace ControleFutebolWeb.Services
 {
@@ -18,8 +17,8 @@ namespace ControleFutebolWeb.Services
         private static readonly TimeSpan IntervaloEntreCiclos = TimeSpan.FromHours(6);
         private static readonly TimeSpan IntervaloEntreJogadores = TimeSpan.FromSeconds(3);
 
-        // CTS interno que permite pausar/reiniciar sem matar o host
         private CancellationTokenSource _ctsPausa = new();
+        private CancellationToken _stoppingToken;
 
         public AtualizarJogadoresSemDataService(
             IServiceProvider serviceProvider,
@@ -31,7 +30,7 @@ namespace ControleFutebolWeb.Services
             _monitor = monitor;
             _monitor.Registrar(Chave,
                 "Atualizar Jogadores",
-                "Busca foto, data de nascimento e nacionalidade dos jogadores pendentes no ogol; sincroniza jogos e eventos das competições.");
+                "Busca foto, data de nascimento e nacionalidade dos jogadores via api-football; sincroniza jogos das competições com link apifoot:.");
         }
 
         public void Parar()
@@ -59,9 +58,6 @@ namespace ControleFutebolWeb.Services
                 _ctsPausa.Token, _stoppingToken);
             _ = Task.Run(() => LoopPrincipal(linked.Token));
         }
-
-        // Guardamos o stoppingToken do host para linked sources
-        private CancellationToken _stoppingToken;
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -130,20 +126,20 @@ namespace ControleFutebolWeb.Services
             {
                 s.Estado = EstadoServico.Rodando;
                 s.UltimoCicloEm = DateTime.Now;
-                s.UltimaAtividade = "Sincronizando competições e jogos...";
+                s.UltimaAtividade = "Sincronizando competições via api-football...";
             });
 
             using var scope = _serviceProvider.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<FutebolContext>();
-            var ogol = scope.ServiceProvider.GetRequiredService<OgolService>();
+            var api = scope.ServiceProvider.GetRequiredService<ApiFootballService>();
 
-            await SincronizarCompeticoesTimesJogos(context, ogol, ct);
-            await SincronizarEventosJogos(context, ogol, ct);
+            await SincronizarCompeticoesApiFootball(context, api, ct);
 
+            // Atualiza jogadores com IdApi definido e ainda não atualizados
             var jogadores = await context.Jogadores
                 .Include(j => j.Time)
                 .Include(j => j.Nacionalidade)
-                .Where(j => !string.IsNullOrEmpty(j.linktransfermarket) && !j.Atualizado)
+                .Where(j => j.IdApi != null && j.IdApi > 0 && !j.Atualizado)
                 .OrderBy(j => j.Id)
                 .ToListAsync(ct);
 
@@ -175,7 +171,7 @@ namespace ControleFutebolWeb.Services
                 {
                     _logger.LogInformation("[AtualizarJogadores] Verificando: {Nome}", jogador.Nome);
 
-                    var info = await ogol.BuscarJogadorPorLink(jogador.linktransfermarket);
+                    var info = await api.BuscarInfoJogadorAsync(jogador.IdApi!.Value, ct);
 
                     if (info == null)
                     {
@@ -204,15 +200,14 @@ namespace ControleFutebolWeb.Services
                             }
                         }
 
-                        var fotoUrl = await ogol.BuscarFotoJogador(jogador);
-                        if (!string.IsNullOrEmpty(fotoUrl) && fotoUrl != jogador.FotoUrl)
+                        if (!string.IsNullOrEmpty(info.FotoUrl) && info.FotoUrl != jogador.FotoUrl)
                         {
-                            jogador.FotoUrl = fotoUrl;
+                            jogador.FotoUrl = info.FotoUrl;
                             alterado = true;
                         }
 
                         jogador.Atualizado = true;
-                        jogador.DtAlt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+                        jogador.DtAlt = DateTime.UtcNow;
 
                         await context.SaveChangesAsync(ct);
                         if (alterado) atualizados++;
@@ -243,301 +238,61 @@ namespace ControleFutebolWeb.Services
             });
         }
 
-        private async Task SincronizarCompeticoesTimesJogos(
+        private async Task SincronizarCompeticoesApiFootball(
             FutebolContext context,
-            OgolService ogol,
+            ApiFootballService api,
             CancellationToken ct)
         {
-            await context.TransfermarktSincronizacaoLogs.ExecuteDeleteAsync(ct);
-            _logger.LogInformation("[OgolSync] Logs anteriores removidos.");
-
-            var cicloId = Guid.NewGuid();
-            RegistrarLog(context, cicloId, "Ciclo", "Iniciado", detalhes: "Sincronização Ogol iniciada.");
-
             var competicoes = await context.Competicoes
-                .Where(c => !string.IsNullOrWhiteSpace(c.linktransfermarket))
+                .Where(c => !string.IsNullOrWhiteSpace(c.linktransfermarket) &&
+                            c.linktransfermarket.StartsWith("apifoot:"))
                 .OrderBy(c => c.Id)
                 .ToListAsync(ct);
+
+            if (!competicoes.Any())
+            {
+                _logger.LogInformation("[AtualizarJogadores] Nenhuma competição com link apifoot: encontrada.");
+                return;
+            }
 
             foreach (var competicao in competicoes)
             {
                 if (ct.IsCancellationRequested) break;
 
-                _logger.LogInformation("[OgolSync] Competição: {Nome}", competicao.Nome);
-                RegistrarLog(context, cicloId, "Competicao", "Verificando", competicaoNome: competicao.Nome);
-
-                var link = competicao.linktransfermarket!;
-                var jogosWeb = await ogol.BuscarJogosCompeticaoPorLink(link, ct);
-
-                _logger.LogInformation("[OgolSync] {Total} jogos encontrados para {Nome}.",
-                    jogosWeb.Count, competicao.Nome);
-
-                foreach (var jogoWeb in jogosWeb)
-                {
-                    var timeCasa = await ResolverOuCriarTime(context, ogol,
-                        jogoWeb.NomeTimeCasa, jogoWeb.LinkTimeCasa, jogoWeb.EscudoTimeCasa, cicloId, ct);
-                    var timeVisitante = await ResolverOuCriarTime(context, ogol,
-                        jogoWeb.NomeTimeVisitante, jogoWeb.LinkTimeVisitante, jogoWeb.EscudoTimeVisitante, cicloId, ct);
-
-                    await ogol.IncluirOuAtualizarJogo(
-                        context, competicao, jogoWeb, timeCasa, timeVisitante, cicloId, ct);
-                    await context.SaveChangesAsync(ct);
-
-                    // Para jogos futuros (sem placar), importa elenco via página do time
-                    if (!jogoWeb.PlacarCasa.HasValue)
-                    {
-                        await ImportarElencoSeNecessario(context, ogol,
-                            timeCasa, jogoWeb.LinkTimeCasaComEdicao, cicloId, ct);
-                        await ImportarElencoSeNecessario(context, ogol,
-                            timeVisitante, jogoWeb.LinkTimeVisitanteComEdicao, cicloId, ct);
-                    }
-
-                    await Task.Delay(TimeSpan.FromSeconds(1), ct);
-                }
-            }
-
-            RegistrarLog(context, cicloId, "Ciclo", "Concluido", detalhes: "Sincronização Ogol concluída.");
-            await context.SaveChangesAsync(ct);
-        }
-
-        private async Task<Time> ResolverOuCriarTime(
-            FutebolContext context,
-            OgolService ogol,
-            string nome,
-            string? linkOgol,
-            string? escudoUrl,
-            Guid cicloId,
-            CancellationToken ct)
-        {
-            if (string.IsNullOrWhiteSpace(nome))
-                nome = $"Time_{Guid.NewGuid()}";
-
-            var urlNorm = !string.IsNullOrWhiteSpace(linkOgol)
-                ? ogol.NormalizarLink(linkOgol)
-                : null;
-
-            if (!string.IsNullOrWhiteSpace(urlNorm))
-            {
-                var porUrl = await context.Times
-                    .FirstOrDefaultAsync(t => t.linktransfermarket == urlNorm, ct);
-                if (porUrl != null)
-                {
-                    if (string.IsNullOrWhiteSpace(porUrl.EscudoUrl) &&
-                        !string.IsNullOrWhiteSpace(escudoUrl))
-                        porUrl.EscudoUrl = escudoUrl;
-                    return porUrl;
-                }
-            }
-
-            var porNome = await context.Times.FirstOrDefaultAsync(t => t.Nome == nome, ct);
-            if (porNome != null)
-            {
-                if (string.IsNullOrWhiteSpace(porNome.linktransfermarket) &&
-                    !string.IsNullOrWhiteSpace(urlNorm))
-                    porNome.linktransfermarket = urlNorm;
-                if (string.IsNullOrWhiteSpace(porNome.EscudoUrl) &&
-                    !string.IsNullOrWhiteSpace(escudoUrl))
-                    porNome.EscudoUrl = escudoUrl;
-                return porNome;
-            }
-
-            var novoTime = new Time
-            {
-                Nome = nome,
-                Cidade = "Importado",
-                IdApi = 0,
-                EscudoUrl = escudoUrl ?? "",
-                CorPrincipal = "#000000",
-                CorSecundaria = "#FFFFFF",
-                linktransfermarket = urlNorm,
-                FormacaoPadraoId = await ObterFormacaoPadraoId(context, ct)
-            };
-
-            await context.Times.AddAsync(novoTime, ct);
-            await context.SaveChangesAsync(ct);
-
-            RegistrarLog(context, cicloId, "Time", "Criado",
-                timeNome: novoTime.Nome, detalhes: "Criado via Ogol");
-
-            return novoTime;
-        }
-
-        private async Task ImportarElencoSeNecessario(
-            FutebolContext context,
-            OgolService ogol,
-            Time time,
-            string? linkComEdicao,
-            Guid cicloId,
-            CancellationToken ct)
-        {
-            if (string.IsNullOrWhiteSpace(linkComEdicao)) return;
-
-            // Só importa se o time ainda não tem jogadores
-            var temJogadores = await context.Jogadores
-                .AnyAsync(j => j.TimeId == time.Id, ct);
-            if (temJogadores) return;
-
-            _logger.LogInformation("[OgolElenco] Importando elenco de {Time} via {Link}",
-                time.Nome, linkComEdicao);
-
-            var elenco = await ogol.BuscarElencoTimePorLink(linkComEdicao, ct);
-            if (elenco.Count == 0) return;
-
-            var formacaoId = await ObterFormacaoPadraoId(context, ct);
-
-            foreach (var j in elenco)
-            {
-                if (string.IsNullOrWhiteSpace(j.Nome)) continue;
-
-                // Dedup por link ogol
-                var linkNorm = !string.IsNullOrWhiteSpace(j.JogadorLink)
-                    ? ogol.NormalizarLink(j.JogadorLink) : null;
-
-                Jogador? jogador = null;
-
-                // 1. Pela link ogol (mais confiável)
-                if (!string.IsNullOrWhiteSpace(linkNorm))
-                    jogador = await context.Jogadores
-                        .FirstOrDefaultAsync(x => x.linktransfermarket == linkNorm, ct);
-
-                // 2. Por IdApi ogol
-                if (jogador == null && j.IdExterno.HasValue && j.IdExterno.Value > 0)
-                    jogador = await context.Jogadores
-                        .FirstOrDefaultAsync(x => x.IdApi == j.IdExterno.Value, ct);
-
-                // 3. Pelo nome no próprio time (clube ou seleção)
-                if (jogador == null)
-                    jogador = await context.Jogadores
-                        .FirstOrDefaultAsync(x => x.Nome == j.Nome &&
-                            (x.TimeId == time.Id || x.SelecaoId == time.Id), ct);
-
-                // 4. Pelo nome em qualquer time — evita duplicar jogador que já existe em clube
-                if (jogador == null)
-                    jogador = await context.Jogadores
-                        .FirstOrDefaultAsync(x => x.Nome == j.Nome, ct);
-
-                if (jogador != null)
-                {
-                    // Atualiza campos vazios
-                    if (string.IsNullOrWhiteSpace(jogador.linktransfermarket) && !string.IsNullOrWhiteSpace(linkNorm))
-                        jogador.linktransfermarket = linkNorm;
-                    if (string.IsNullOrWhiteSpace(jogador.FotoUrl) && !string.IsNullOrWhiteSpace(j.FotoUrl))
-                        jogador.FotoUrl = j.FotoUrl;
-
-                    // Vincula à seleção sem criar duplicata
-                    if (jogador.TimeId != time.Id && jogador.SelecaoId != time.Id)
-                        jogador.SelecaoId = time.Id;
-
-                    continue;
-                }
-
-                var novoJogador = new Jogador
-                {
-                    Nome = j.Nome,
-                    TimeId = time.Id,
-                    Posicao = j.Posicao,
-                    NumeroCamisa = j.Numero,
-                    linktransfermarket = linkNorm,
-                    FotoUrl = j.FotoUrl,
-                    IdApi = j.IdExterno.HasValue ? (int)j.IdExterno.Value : 0,
-                    DataNascimento = null,
-                    DtInc = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
-                    Atualizado = false
-                };
-
-                context.Jogadores.Add(novoJogador);
-            }
-
-            await context.SaveChangesAsync(ct);
-
-            RegistrarLog(context, cicloId, "Time", "ElencoImportado",
-                timeNome: time.Nome,
-                detalhes: $"{elenco.Count} jogadores importados do elenco");
-        }
-
-        private async Task SincronizarEventosJogos(
-            FutebolContext context,
-            OgolService ogol,
-            CancellationToken ct)
-        {
-            var jogos = await context.Jogos
-                .Where(j => j.Status == "Finalizado" && !string.IsNullOrEmpty(j.LinkDetalhes))
-                .OrderByDescending(j => j.Data)
-                .Take(200)
-                .ToListAsync(ct);
-
-            foreach (var jogo in jogos)
-            {
-                if (ct.IsCancellationRequested) break;
+                _logger.LogInformation("[AtualizarJogadores] Sincronizando: {Nome}", competicao.Nome);
+                _monitor.Atualizar(Chave, s =>
+                    s.UltimaAtividade = $"Sincronizando: {competicao.Nome}...");
 
                 try
                 {
-                    var (gols, assistencias, cartoes) = await ogol.ImportarEventosPorLinkAsync(
-                        context, jogo, jogo.LinkDetalhes!, ct);
-
+                    var (jogos, times, erros, _) = await api.SincronizarCompeticaoAsync(context, competicao, ct);
                     _logger.LogInformation(
-                        "[Eventos] Jogo {Id}: {G} gols, {A} assists, {C} cartões",
-                        jogo.Id, gols, assistencias, cartoes);
+                        "[AtualizarJogadores] {Nome}: {J} jogos, {T} times, {E} erros.",
+                        competicao.Nome, jogos, times, erros);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "[Eventos] Erro ao sincronizar jogo {Id}", jogo.Id);
+                    _logger.LogError(ex, "[AtualizarJogadores] Erro ao sincronizar {Nome}.", competicao.Nome);
                 }
 
-                await Task.Delay(1500, ct);
+                // Pausa entre competições para não esgotar as requisições da API
+                await Task.Delay(TimeSpan.FromSeconds(5), ct);
             }
         }
 
-        private static void RegistrarLog(
-            FutebolContext context,
-            Guid cicloId,
-            string tipo,
-            string acao,
-            string? competicaoNome = null,
-            string? timeNome = null,
-            string? jogoDescricao = null,
-            string? detalhes = null)
-        {
-            context.TransfermarktSincronizacaoLogs.Add(new TransfermarktSincronizacaoLog
-            {
-                CicloId = cicloId,
-                Data = DateTime.UtcNow,
-                Tipo = tipo,
-                Acao = acao,
-                CompeticaoNome = competicaoNome,
-                TimeNome = timeNome,
-                JogoDescricao = jogoDescricao,
-                Detalhes = detalhes
-            });
-        }
-
-        private static async Task<int> ObterFormacaoPadraoId(FutebolContext context, CancellationToken ct)
-        {
-            var formacao = await context.Formacoes.OrderBy(f => f.Id).FirstOrDefaultAsync(ct);
-            return formacao?.Id ?? 1;
-        }
-
-        // Resolve ou cria uma nacionalidade usando o mapeamento canônico da Copa do Mundo.
-        // Evita criar duplicatas com nomes diferentes para o mesmo país.
         private static async Task<Nacionalidade?> ResolverOuCriarNacionalidade(
             FutebolContext context, string nomeRaw, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(nomeRaw)) return null;
 
-            // Tenta mapear para o nome canônico (e.g. "Belgium" → "Bélgica")
-            var nomeCanonical = Controllers.AdminController.ResolverNomeCanonical(nomeRaw)
-                                ?? nomeRaw.Trim();
+            var nomeCanonical = AdminController.ResolverNomeCanonical(nomeRaw) ?? nomeRaw.Trim();
 
-            // Busca case-insensitive pelo nome canônico primeiro
             var nac = await context.Nacionalidades
                 .FirstOrDefaultAsync(n => n.Nome.ToLower() == nomeCanonical.ToLower(), ct);
 
             if (nac == null)
-            {
-                // Tenta também o nome original (caso já exista sem estar no mapeamento)
                 nac = await context.Nacionalidades
                     .FirstOrDefaultAsync(n => n.Nome.ToLower() == nomeRaw.Trim().ToLower(), ct);
-            }
 
             if (nac == null)
             {

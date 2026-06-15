@@ -92,42 +92,6 @@ namespace ControleFutebolWeb.Controllers
             return Content(sb.ToString(), "text/html");
         }
 
-        // Teste rápido para validar extração dos jogos
-        public async Task<IActionResult> TesteBrasileirao()
-        {
-            var tmService = HttpContext.RequestServices.GetRequiredService<OgolService>();
-
-            var jogos = await tmService.BuscarJogosCompeticaoPorLink(
-                "https://www.ogol.com.br/edicao/campeonato-brasileiro-serie-a/2025");
-
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine("<h2>Primeiros 5 jogos extraídos</h2>");
-            sb.AppendLine("<table border='1' cellpadding='6' style='font-size:12px'>");
-            sb.AppendLine("<tr><th>#</th><th>Casa</th><th>Placar</th><th>Visitante</th><th>Data</th><th>Rodada</th></tr>");
-
-            int i = 0;
-            foreach (var j in jogos.Take(5))
-            {
-                var placar = j.PlacarCasa.HasValue
-                    ? $"{j.PlacarCasa} × {j.PlacarVisitante}"
-                    : "—";
-
-                var dataStr = j.Data.HasValue
-                    ? j.Data.Value.ToString("dd/MM/yyyy HH:mm")
-                    : "—";
-
-                sb.AppendLine($"<tr><td>{++i}</td><td>{j.NomeTimeCasa}</td>" +
-                              $"<td style='text-align:center'>{placar}</td>" +
-                              $"<td>{j.NomeTimeVisitante}</td>" +
-                              $"<td>{dataStr}</td>" +
-                              $"<td>{j.Rodada}</td></tr>");
-            }
-
-            sb.AppendLine("</table>");
-            sb.AppendLine($"<p>Total extraído: {jogos.Count} jogos</p>");
-
-            return Content(sb.ToString(), "text/html");
-        }
 
 
         [HttpGet]

@@ -16,10 +16,9 @@ namespace ControleFutebolWeb.Controllers
     {
         private readonly FutebolContext _context;
         private readonly ILogger<JogadoresController> _logger;
-        //private readonly SofascoreService _sofascoreService;
-        private readonly OgolService _transfermarktService;
+        private readonly ApiFootballService _transfermarktService;
 
-        public JogadoresController(FutebolContext context,ILogger<JogadoresController> logger, OgolService transfermarktService)
+        public JogadoresController(FutebolContext context,ILogger<JogadoresController> logger, ApiFootballService transfermarktService)
         {
             _context = context;
             _logger = logger;
@@ -190,31 +189,25 @@ namespace ControleFutebolWeb.Controllers
 
                     if (jogadorExistente == null) return NotFound();
 
-                    // 🔹 Validação contra Transfermarkt
-                    if (!string.IsNullOrEmpty(jogador.linktransfermarket))
+                    // Validação contra api-football (somente se IdApi estiver preenchido)
+                    var jogadorExistenteParaValidacao = await _context.Jogadores.FindAsync(id);
+                    if (jogadorExistenteParaValidacao?.IdApi > 0)
                     {
-                        var dadosTransfer = await _transfermarktService.BuscarJogadorPorLink(jogador.linktransfermarket);
+                        var dadosApi = await _transfermarktService.BuscarInfoJogadorAsync(
+                            jogadorExistenteParaValidacao.IdApi.Value);
 
-
-                        if (dadosTransfer != null)
+                        if (dadosApi != null)
                         {
                             var divergencias = new List<string>();
 
-                            // Data de nascimento
-                            if (dadosTransfer.DataNascimento.HasValue &&
-                                dadosTransfer.DataNascimento.Value.Date != jogador.DataNascimento?.Date)
-                            {
-                                divergencias.Add($"Data de nascimento divergente. Transfermarkt: {dadosTransfer.DataNascimento.Value:dd/MM/yyyy}");
-                            }
+                            if (dadosApi.DataNascimento.HasValue &&
+                                dadosApi.DataNascimento.Value.Date != jogador.DataNascimento?.Date)
+                                divergencias.Add($"Data de nascimento divergente. API: {dadosApi.DataNascimento.Value:dd/MM/yyyy}");
 
-                            // Nacionalidade
-                            if (!string.IsNullOrEmpty(dadosTransfer.Nacionalidade) &&
-                                jogador.Nacionalidade?.Nome != dadosTransfer.Nacionalidade)
-                            {
-                                divergencias.Add($"Nacionalidade divergente. Transfermarkt: {dadosTransfer.Nacionalidade}");
-                            }
+                            if (!string.IsNullOrEmpty(dadosApi.Nacionalidade) &&
+                                jogador.Nacionalidade?.Nome != dadosApi.Nacionalidade)
+                                divergencias.Add($"Nacionalidade divergente. API: {dadosApi.Nacionalidade}");
 
-                            // Se houver divergências, mostra Toast e não salva
                             if (divergencias.Any())
                             {
                                 TempData["Mensagem"] = string.Join(" | ", divergencias);
@@ -426,7 +419,12 @@ namespace ControleFutebolWeb.Controllers
 
             if (jogador == null) return NotFound();
 
-            var fotoUrl = await _transfermarktService.BuscarFotoJogador(jogador);
+            string? fotoUrl = null;
+            if (jogador.IdApi > 0)
+            {
+                var info = await _transfermarktService.BuscarInfoJogadorAsync(jogador.IdApi!.Value);
+                fotoUrl = info?.FotoUrl;
+            }
 
             if (!string.IsNullOrEmpty(fotoUrl))
             {
@@ -440,7 +438,7 @@ namespace ControleFutebolWeb.Controllers
             }
             else
             {
-                TempData["Mensagem"] = "Não foi possível encontrar a foto.";
+                TempData["Mensagem"] = "Não foi possível encontrar a foto (jogador sem IdApi ou sem foto na API).";
             }
 
             return RedirectToAction(nameof(Index));
@@ -483,7 +481,12 @@ namespace ControleFutebolWeb.Controllers
             {
                 try
                 {
-                    var fotoUrl = await _transfermarktService.BuscarFotoJogador(jogador);
+                    string? fotoUrl = null;
+                    if (jogador.IdApi > 0)
+                    {
+                        var info = await _transfermarktService.BuscarInfoJogadorAsync(jogador.IdApi!.Value);
+                        fotoUrl = info?.FotoUrl;
+                    }
 
                     if (!string.IsNullOrWhiteSpace(fotoUrl))
                     {
@@ -496,8 +499,7 @@ namespace ControleFutebolWeb.Controllers
                         falhas++;
                     }
 
-                    // FMInside permite cadência menor que o Transfermarkt
-                    await Task.Delay(800);
+                    await Task.Delay(500);
                 }
                 catch (Exception ex)
                 {

@@ -13,13 +13,15 @@ namespace ControleFutebolWeb.Controllers
     {
         private readonly FutebolContext _context;
         private readonly ILogger<JogosController> _logger;
-        private readonly OgolService _transfermarkt;
+        private readonly ApiFootballService _transfermarkt;
+        private readonly IServiceScopeFactory _scopeFactory;
 
-        public JogosController(FutebolContext context, ILogger<JogosController> logger, OgolService transfermarkt)
+        public JogosController(FutebolContext context, ILogger<JogosController> logger, ApiFootballService transfermarkt, IServiceScopeFactory scopeFactory)
         {
             _context = context;
             _logger = logger;
             _transfermarkt = transfermarkt;
+            _scopeFactory = scopeFactory;
         }
 
         // GET: Jogos
@@ -881,6 +883,13 @@ namespace ControleFutebolWeb.Controllers
                 .OrderBy(c => c.Minuto)
                 .ToListAsync();
 
+            var substituicoes = await _context.Substituicoes
+                .Include(s => s.JogadorEntrou)
+                .Include(s => s.JogadorSaiu)
+                .Where(s => s.JogoId == jogoId)
+                .OrderBy(s => s.Minuto)
+                .ToListAsync();
+
             var resultado = new
             {
                 placarCasa = jogo.PlacarCasa,
@@ -901,8 +910,11 @@ namespace ControleFutebolWeb.Controllers
                         .Select(a => a.Jogador!.Nome)
                         .FirstOrDefault(),
                     contra = g.Contra,
-                    timeCasaId = (g.Jogador?.TimeId == jogo.TimeCasaId || g.Jogador?.SelecaoId == jogo.TimeCasaId)
-                        ? (int?)jogo.TimeCasaId : null
+                    timeCasaId = g.Contra
+                        ? ((g.Jogador?.TimeId == jogo.TimeCasaId || g.Jogador?.SelecaoId == jogo.TimeCasaId)
+                            ? null : (int?)jogo.TimeCasaId)
+                        : ((g.Jogador?.TimeId == jogo.TimeCasaId || g.Jogador?.SelecaoId == jogo.TimeCasaId)
+                            ? (int?)jogo.TimeCasaId : null)
                 }),
 
                 cartoes = cartoes.Select(c => new
@@ -911,7 +923,17 @@ namespace ControleFutebolWeb.Controllers
                     minuto = c.Minuto,
                     tipo = c.Tipo,
                     nomeJogador = c.Jogador?.Nome,
-                    timeCasaId = c.Jogador?.TimeId == jogo.TimeCasaId ? (int?)jogo.TimeCasaId : null
+                    timeCasaId = c.Jogador?.TimeId == jogo.TimeCasaId || c.Jogador?.SelecaoId == jogo.TimeCasaId
+                        ? (int?)jogo.TimeCasaId : null
+                }),
+
+                substituicoes = substituicoes.Select(s => new
+                {
+                    id = s.Id,
+                    minuto = s.Minuto,
+                    nomeEntrou = s.JogadorEntrou?.Nome,
+                    nomeSaiu = s.JogadorSaiu?.Nome,
+                    timeCasaId = s.IsTimeCasa ? (int?)jogo.TimeCasaId : null
                 })
             };
 
@@ -1137,24 +1159,26 @@ namespace ControleFutebolWeb.Controllers
         // Re-busca a escalação do Transfermarkt, apaga os dados anteriores e reimporta
         // com o algoritmo de normalização dinâmica (corrige posições erradas de imports antigos).
         [HttpPost]
-        public async Task<IActionResult> ReimportarEscalacao(int id)
+        public IActionResult ReimportarEscalacao(int id)
         {
-            try
+            // Executa em background para não travar o request (operação pode levar 1-2 min)
+            _ = Task.Run(async () =>
             {
-                var (ok, mensagem) = await _transfermarkt
-                    .ForcarReimportarEscalacaoAsync(_context, id, HttpContext.RequestAborted);
+                using var scope = _scopeFactory.CreateScope();
+                var ctx = scope.ServiceProvider.GetRequiredService<FutebolContext>();
+                var svc = scope.ServiceProvider.GetRequiredService<ApiFootballService>();
+                try
+                {
+                    var (ok, msg) = await svc.ForcarReimportarEscalacaoAsync(ctx, id);
+                    _logger.LogInformation("[ReimportarEscalacao] Jogo {Id}: {Ok} — {Msg}", id, ok, msg);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[ReimportarEscalacao] Erro no jogo {Id}", id);
+                }
+            });
 
-                if (ok)
-                    TempData["Mensagem"] = "✅ " + mensagem;
-                else
-                    TempData["MensagemErro"] = "❌ " + mensagem;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[ReimportarEscalacao] Erro no jogo {Id}", id);
-                TempData["MensagemErro"] = "Erro ao re-importar escalação: " + ex.Message;
-            }
-
+            TempData["Mensagem"] = "⏳ Re-importação iniciada em background. Aguarde ~1 minuto e recarregue a página.";
             return RedirectToAction("Analisar", new { id });
         }
 
