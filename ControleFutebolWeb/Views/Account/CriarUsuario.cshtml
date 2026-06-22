@@ -1,0 +1,46 @@
+@model ControleFutebolWeb.Models.ViewModels.CriarUsuarioViewModel
+@{
+    ViewData["Title"] = "Novo Usuário";
+}
+
+<h2 class="mb-4">Novo Usuário</h2>
+
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert alert-danger">
+        @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+        {
+            <div>@error.ErrorMessage</div>
+        }
+    </div>
+}
+
+<div class="card border-0 shadow-sm p-4" style="max-width:480px">
+    <form asp-action="CriarUsuario" method="post">
+        @Html.AntiForgeryToken()
+        <div class="mb-3">
+            <label asp-for="Nome" class="form-label">Nome completo</label>
+            <input asp-for="Nome" class="form-control" />
+        </div>
+        <div class="mb-3">
+            <label asp-for="UserName" class="form-label">Login (usuário)</label>
+            <input asp-for="UserName" class="form-control" />
+        </div>
+        <div class="mb-3">
+            <label asp-for="Email" class="form-label">E-mail (opcional)</label>
+            <input asp-for="Email" class="form-control" type="email" />
+        </div>
+        <div class="mb-3">
+            <label asp-for="Password" class="form-label">Senha</label>
+            <input asp-for="Password" class="form-control" type="password" />
+        </div>
+        <div class="form-check mb-4">
+            <input asp-for="IsAdmin" class="form-check-input" type="checkbox" />
+            <label asp-for="IsAdmin" class="form-check-label">Administrador</label>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success">Criar</button>
+            <a asp-action="Usuarios" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>

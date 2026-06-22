@@ -1,0 +1,66 @@
+@model ControleFutebolWeb.Models.ViewModels.CompeticaoDetalhesViewModel
+@using ControleFutebolWeb.Helpers
+
+<div>
+    @if (Model.ProximosJogos.Any())
+    {
+        <div class="bloco" style="margin-bottom:1.2rem;">
+            <div class="bloco-titulo">Próximos Jogos</div>
+            @foreach (var jogo in Model.ProximosJogos)
+            {
+                <div class="jogo-card">
+                    <div class="jogo-times">
+                        @if (jogo.TimeCasa?.EscudoUrl != null)
+                        {
+                            <img src="@Url.Action("Imagem","MediaProxy",new{url=jogo.TimeCasa.EscudoUrl})" class="jogo-escudo" />
+                        }
+                        <span style="flex:1;font-size:.85rem;font-weight:600;">@jogo.TimeCasa?.Nome</span>
+                        <span class="jogo-vs">vs</span>
+                        <span style="flex:1;font-size:.85rem;font-weight:600;text-align:right;">@jogo.TimeVisitante?.Nome</span>
+                        @if (jogo.TimeVisitante?.EscudoUrl != null)
+                        {
+                            <img src="@Url.Action("Imagem","MediaProxy",new{url=jogo.TimeVisitante.EscudoUrl})" class="jogo-escudo" />
+                        }
+                    </div>
+                    <div class="jogo-data">
+                        📅 @DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy HH:mm")
+                        @if (jogo.Rodada > 0) { <text> · Rd @jogo.Rodada</text> }
+                        @if (!string.IsNullOrEmpty(jogo.Grupo)) { <text> · @jogo.Grupo</text> }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    @if (Model.JogosRealizados.Any())
+    {
+        <div class="bloco">
+            <div class="bloco-titulo">Últimos Resultados</div>
+            @foreach (var jogo in Model.JogosRealizados.Take(10))
+            {
+                var pc = jogo.PlacarCasa ?? 0; var pv = jogo.PlacarVisitante ?? 0;
+                string placarClass = pc == pv ? "e" : "v";
+                string placar = $"{pc} x {pv}";
+                <div class="jogo-card">
+                    <div class="jogo-times">
+                        @if (jogo.TimeCasa?.EscudoUrl != null)
+                        {
+                            <img src="@Url.Action("Imagem","MediaProxy",new{url=jogo.TimeCasa.EscudoUrl})" class="jogo-escudo" />
+                        }
+                        <span style="flex:1;font-size:.82rem;font-weight:600;">@jogo.TimeCasa?.Nome</span>
+                        <span class="placar-badge @placarClass">@placar</span>
+                        <span style="flex:1;font-size:.82rem;font-weight:600;text-align:right;">@jogo.TimeVisitante?.Nome</span>
+                        @if (jogo.TimeVisitante?.EscudoUrl != null)
+                        {
+                            <img src="@Url.Action("Imagem","MediaProxy",new{url=jogo.TimeVisitante.EscudoUrl})" class="jogo-escudo" />
+                        }
+                    </div>
+                    <div class="jogo-data">
+                        @DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy")
+                        @if (jogo.Rodada > 0) { <text> · Rd @jogo.Rodada</text> }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

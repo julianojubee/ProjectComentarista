@@ -1,8 +1,11 @@
 ﻿using System.Text;
+using ControleFutebolWeb.Authorization;
 using ControleFutebolWeb.Converters; // ← importa o converter
 using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,7 +20,8 @@ internal class Program
 
         // Conexão com PostgreSQL
         builder.Services.AddDbContext<FutebolContext>(options =>
-            options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+            options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
+                   .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
 
         // 🔹 Aqui você adiciona o converter globalmente
@@ -27,10 +31,20 @@ internal class Program
             options.Password.RequireLowercase = false;
             options.Password.RequireUppercase = false;
             options.Password.RequireNonAlphanumeric = false;
-            options.Password.RequiredLength = 6;
+            options.Password.RequiredLength = 8;
+            options.Lockout.MaxFailedAccessAttempts = 5;
+            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(10);
+            options.Lockout.AllowedForNewUsers = true;
         })
         .AddEntityFrameworkStores<FutebolContext>()
         .AddDefaultTokenProviders();
+
+        builder.Services.AddAuthorization(options =>
+        {
+            options.AddPolicy("Admin", policy =>
+                policy.AddRequirements(new AdminRequirement()));
+        });
+        builder.Services.AddScoped<IAuthorizationHandler, AdminHandler>();
 
         builder.Services.ConfigureApplicationCookie(options =>
         {
@@ -53,6 +67,11 @@ internal class Program
         builder.Services.AddHttpClient<ApiFootballDataService>();
         builder.Services.AddHttpClient<ApiFootballService>();
         builder.Services.AddHttpClient<TransfermarktTreinadorService>();
+        builder.Services.AddHttpClient("MediaProxy", c =>
+        {
+            c.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");
+            c.Timeout = TimeSpan.FromSeconds(10);
+        });
         builder.Services.AddSingleton<ServicoMonitor>();
         builder.Services.AddSingleton<AtualizarJogadoresSemDataService>();
         builder.Services.AddHostedService(sp =>
@@ -94,6 +113,13 @@ internal class Program
                 await userManager.CreateAsync(admin, "Admin@123");
             }
         }
+
+        // Respeita os headers X-Forwarded-* do nginx (proxy reverso) para que o
+        // Kestrel saiba que o acesso externo é HTTPS e gere links/redirects corretos.
+        app.UseForwardedHeaders(new ForwardedHeadersOptions
+        {
+            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+        });
 
         app.UseStaticFiles();
         app.UseRouting();

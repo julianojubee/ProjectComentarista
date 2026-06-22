@@ -64,40 +64,15 @@
 }
 
 <h2 class="text-white">@Model.Time.Nome</h2>
-<img src="@Model.Time.EscudoUrl" alt="@Model.Time.Nome" width="100" />
+<img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Time.EscudoUrl })" alt="@Model.Time.Nome" width="100" />
 
 <div class="mt-2 mb-3 d-flex gap-2 align-items-center flex-wrap">
-    <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#linkTimeTransfermarktModal">
-        Url Transfermarkt
-    </button>
-
-    @if (!string.IsNullOrWhiteSpace(Model.Time.linktransfermarket))
-    {
-        <a href="@Model.Time.linktransfermarket" target="_blank" rel="noopener noreferrer" class="btn btn-outline-light btn-sm">
-            Abrir link
-        </a>
-    }
-</div>
-
-<div class="modal fade" id="linkTimeTransfermarktModal" tabindex="-1" aria-labelledby="linkTimeTransfermarktModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form asp-action="SalvarLinkTransfermarkt" asp-controller="Times" asp-route-id="@Model.Time.Id" method="post">
-                @Html.AntiForgeryToken()
-                <div class="modal-header">
-                    <h5 class="modal-title" id="linkTimeTransfermarktModalLabel">Informar URL Transfermarkt</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-                </div>
-                <div class="modal-body">
-                    <input type="text" name="linktransfermarket" class="form-control" placeholder="Cole o link do time aqui" value="@Model.Time.linktransfermarket" />
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Salvar</button>
-                </div>
-            </form>
-        </div>
-    </div>
+    <a asp-controller="Relatorios" asp-action="Index" asp-route-timeId="@Model.Time.Id" class="btn btn-warning btn-sm">
+        📊 Relatórios
+    </a>
+    <a asp-controller="AnotacoesTime" asp-action="Index" asp-route-timeId="@Model.Time.Id" class="btn btn-outline-light btn-sm">
+        📋 Anotações
+    </a>
 </div>
 
 @if (Model.Treinador != null)
@@ -106,7 +81,7 @@
          style="background:rgba(255,255,255,0.1);border-radius:10px;backdrop-filter:blur(4px);">
         @if (!string.IsNullOrWhiteSpace(Model.Treinador.FotoUrl))
         {
-            <img src="@Model.Treinador.FotoUrl" alt="@Model.Treinador.Nome"
+            <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Treinador.FotoUrl })" alt="@Model.Treinador.Nome"
                  style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.4);" />
         }
         else
@@ -137,7 +112,7 @@
                     <th>Camisa</th>
                     <th>Nome</th>
                     <th>Posição</th>
-                    <th>Nacionalidade</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody id="listaJogadores">
@@ -155,9 +130,15 @@
                         <td>@jogador.Nome</td>
                         <td>@jogador.Posicao</td>
                         <td>
-                            <span title="@jogador.Nacionalidade?.Nome">
-                                @FlagHelper.GetFlagEmoji(jogador.Nacionalidade?.Nome)
-                            </span>
+                            <a href="/Jogadores/Estatisticas/@jogador.Id"
+                               style="display:inline-flex;align-items:center;gap:4px;
+                                      background:rgba(22,163,74,.15);color:#4ade80;
+                                      border:1px solid rgba(34,197,94,.3);border-radius:6px;
+                                      font-size:11px;font-weight:600;padding:2px 8px;
+                                      text-decoration:none;white-space:nowrap;"
+                               title="Ver estatísticas de @jogador.Nome">
+                                📊 Stats
+                            </a>
                         </td>
                     </tr>
                 }
@@ -312,12 +293,12 @@
                                 <div class="card-body text-center">
                                     <div class="d-flex justify-content-around align-items-center">
                                         <div>
-                                            <img src="@jogo.TimeCasa?.EscudoUrl" alt="@jogo.TimeCasa?.Nome" width="40" height="40" />
+                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa?.EscudoUrl })" alt="@jogo.TimeCasa?.Nome" width="40" height="40" />
                                             <h6>@jogo.TimeCasa?.Nome</h6>
                                         </div>
                                         <div class="fw-bold">vs</div>
                                         <div>
-                                            <img src="@jogo.TimeVisitante?.EscudoUrl" alt="@jogo.TimeVisitante?.Nome" width="40" height="40" />
+                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante?.EscudoUrl })" alt="@jogo.TimeVisitante?.Nome" width="40" height="40" />
                                             <h6>@jogo.TimeVisitante?.Nome</h6>
                                         </div>
                                     </div>
@@ -480,4 +461,220 @@
 
     // Inicializa ao carregar
     initUsados();
+</script>
+
+<!-- ══ ESTATÍSTICAS DA TEMPORADA (API) ══════════════════════════════════════ -->
+<div id="painel-estatisticas-api" style="margin-top:2rem;">
+    <div style="background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:1.5rem;">
+        <h5 style="color:#f1f5f9;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;margin-bottom:1rem;">
+            📊 Estatísticas da Temporada
+        </h5>
+
+        <div style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap;margin-bottom:1.25rem;">
+            @if (Model.CompeticoesApi.Any())
+            {
+                <!-- data-season em cada option para preencher automaticamente o campo temporada -->
+                <div>
+                    <label style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:.3rem;">Competição</label>
+                    <select id="sel-league" onchange="syncSeason(this)"
+                            style="background:#1e293b;color:#f1f5f9;border:1px solid #334155;border-radius:8px;padding:.45rem .75rem;font-size:13px;min-width:200px;">
+                        @foreach (var c in Model.CompeticoesApi)
+                        {
+                            <option value="@c.LeagueId" data-season="@c.Season">@c.Nome (@c.Season)</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:.3rem;">Temporada</label>
+                    <input id="sel-season" type="number" value="@Model.CompeticoesApi.First().Season"
+                           style="background:#1e293b;color:#f1f5f9;border:1px solid #334155;border-radius:8px;padding:.45rem .75rem;font-size:13px;width:100px;" />
+                </div>
+            }
+            else
+            {
+                <div>
+                    <label style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:.3rem;">ID Liga (API)</label>
+                    <input id="sel-league" type="number" value="71" style="background:#1e293b;color:#f1f5f9;border:1px solid #334155;border-radius:8px;padding:.45rem .75rem;font-size:13px;width:110px;" />
+                </div>
+                <div>
+                    <label style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:.3rem;">Temporada</label>
+                    <input id="sel-season" type="number" value="@DateTime.Now.Year" style="background:#1e293b;color:#f1f5f9;border:1px solid #334155;border-radius:8px;padding:.45rem .75rem;font-size:13px;width:100px;" />
+                </div>
+            }
+            <button onclick="buscarEstatisticasApi()" style="background:#3b82f6;color:#fff;border:none;border-radius:8px;padding:.5rem 1.25rem;font-size:13px;font-weight:700;cursor:pointer;align-self:flex-end;">
+                🔍 Buscar
+            </button>
+        </div>
+
+        <div id="estat-loading" style="display:none;color:#94a3b8;text-align:center;padding:1rem;">Buscando estatísticas...</div>
+        <div id="estat-erro"    style="display:none;color:#ef4444;padding:.5rem 0;"></div>
+        <div id="estat-result"  style="display:none;"></div>
+    </div>
+</div>
+
+<script>
+function syncSeason(sel) {
+    const season = sel.options[sel.selectedIndex].dataset.season;
+    if (season) document.getElementById('sel-season').value = season;
+}
+
+async function buscarEstatisticasApi() {
+    const leagueId = document.getElementById('sel-league').value;
+    const season   = document.getElementById('sel-season').value;
+    const timeId   = @Model.Time.Id;
+
+    document.getElementById('estat-loading').style.display = 'block';
+    document.getElementById('estat-erro').style.display    = 'none';
+    document.getElementById('estat-result').style.display  = 'none';
+
+    try {
+        const res  = await fetch(`/Times/EstatisticasApi?timeId=${timeId}&leagueId=${leagueId}&season=${season}`);
+        const data = await res.json();
+
+        document.getElementById('estat-loading').style.display = 'none';
+
+        if (data.erro) {
+            document.getElementById('estat-erro').textContent    = data.erro;
+            document.getElementById('estat-erro').style.display  = 'block';
+            return;
+        }
+
+        renderEstatisticas(data);
+        document.getElementById('estat-result').style.display = 'block';
+    } catch(e) {
+        document.getElementById('estat-loading').style.display = 'none';
+        document.getElementById('estat-erro').textContent    = 'Erro ao buscar estatísticas.';
+        document.getElementById('estat-erro').style.display  = 'block';
+    }
+}
+
+function renderEstatisticas(d) {
+    const f = d.fixtures;
+    const g = d.goals;
+    const b = d.biggest;
+
+    // Form string colorida
+    const formHtml = (d.form || '').split('').map(c => {
+        const cor = c === 'W' ? '#22c55e' : c === 'D' ? '#6b7280' : '#ef4444';
+        const letra = c === 'W' ? 'V' : c === 'D' ? 'E' : 'D';
+        return `<span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:4px;background:${cor};color:#fff;font-size:11px;font-weight:700;margin:1px;">${letra}</span>`;
+    }).join('');
+
+    // Formações mais usadas
+    const lineupsHtml = (d.lineups || []).slice(0, 5).map((l, i) => {
+        const pct = f.played.total > 0 ? Math.round(l.played / f.played.total * 100) : 0;
+        const cor = i === 0 ? '#3b82f6' : '#475569';
+        return `<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;">
+            <span style="font-size:13px;font-weight:700;color:#f1f5f9;min-width:70px;">${l.formation}</span>
+            <div style="flex:1;background:#334155;border-radius:4px;height:8px;">
+                <div style="width:${pct}%;background:${cor};height:100%;border-radius:4px;"></div>
+            </div>
+            <span style="font-size:12px;color:#94a3b8;min-width:40px;text-align:right;">${l.played}x</span>
+        </div>`;
+    }).join('');
+
+    // Gols por minuto (pró)
+    const minuteKeys = ['0-15','16-30','31-45','46-60','61-75','76-90','91-105'];
+    const goalsForMinute  = g.for.minute  || {};
+    const goalsAgMinute   = g.against.minute || {};
+    const maxFor = Math.max(1, ...minuteKeys.map(k => goalsForMinute[k]?.total || 0));
+    const maxAg  = Math.max(1, ...minuteKeys.map(k => goalsAgMinute[k]?.total  || 0));
+
+    const minuteHtml = minuteKeys.map(k => {
+        const vf = goalsForMinute[k]?.total  || 0;
+        const va = goalsAgMinute[k]?.total   || 0;
+        return `<div style="text-align:center;">
+            <div style="font-size:10px;color:#64748b;margin-bottom:2px;">${k}'</div>
+            <div style="height:60px;display:flex;align-items:flex-end;justify-content:center;gap:2px;">
+                <div title="Marcados: ${vf}" style="width:14px;background:#22c55e;height:${Math.round(vf/maxFor*60)}px;border-radius:2px 2px 0 0;"></div>
+                <div title="Sofridos: ${va}" style="width:14px;background:#ef4444;height:${Math.round(va/maxAg*60)}px;border-radius:2px 2px 0 0;"></div>
+            </div>
+            <div style="font-size:9px;color:#94a3b8;">${vf}/${va}</div>
+        </div>`;
+    }).join('');
+
+    // Cartões amarelos por minuto
+    const cardKeys = ['0-15','16-30','31-45','46-60','61-75','76-90','91-105'];
+    const yellowM = d.cards?.yellow || {};
+    const maxY = Math.max(1, ...cardKeys.map(k => yellowM[k]?.total || 0));
+    const yellowHtml = cardKeys.map(k => {
+        const v = yellowM[k]?.total || 0;
+        return `<div style="text-align:center;">
+            <div style="font-size:10px;color:#64748b;margin-bottom:2px;">${k}'</div>
+            <div style="height:50px;display:flex;align-items:flex-end;justify-content:center;">
+                <div title="${v} cartões" style="width:16px;background:#fbbf24;height:${Math.round(v/maxY*50)}px;border-radius:2px 2px 0 0;"></div>
+            </div>
+            <div style="font-size:9px;color:#94a3b8;">${v}</div>
+        </div>`;
+    }).join('');
+
+    const html = `
+    <!-- Forma recente -->
+    <div style="margin-bottom:1.5rem;">
+        <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem;">Forma recente</div>
+        <div>${formHtml}</div>
+    </div>
+
+    <!-- Cards: resultados -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.75rem;margin-bottom:1.5rem;">
+        ${statBox('Jogos',    f.played.total, '#94a3b8', `🏠 ${f.played.home} / ✈️ ${f.played.away}`)}
+        ${statBox('Vitórias', f.wins.total,   '#22c55e', `🏠 ${f.wins.home} / ✈️ ${f.wins.away}`)}
+        ${statBox('Empates',  f.draws.total,  '#6b7280', `🏠 ${f.draws.home} / ✈️ ${f.draws.away}`)}
+        ${statBox('Derrotas', f.loses.total,  '#ef4444', `🏠 ${f.loses.home} / ✈️ ${f.loses.away}`)}
+        ${statBox('Gols pró', g.for.total.total,     '#3b82f6', `Média: ${g.for.average.total}/jogo`)}
+        ${statBox('Gols contr.', g.against.total.total, '#f97316', `Média: ${g.against.average.total}/jogo`)}
+        ${statBox('Clean sheets', d.cleanSheet?.total ?? 0, '#a3e635', '')}
+        ${statBox('Sem marcar',   d.failedToScore?.total ?? 0, '#94a3b8', '')}
+    </div>
+
+    <!-- Pênaltis e maiores resultados -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.75rem;margin-bottom:1.5rem;">
+        <div style="background:#1e293b;border-radius:10px;padding:.9rem 1rem;">
+            <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem;">⚽ Pênaltis</div>
+            <div style="font-size:13px;color:#f1f5f9;">Cobrados: <b>${d.penalty?.total ?? 0}</b> | Convertidos: <b>${d.penalty?.scored?.total ?? 0}</b> (${d.penalty?.scored?.percentage ?? '0%'})</div>
+        </div>
+        <div style="background:#1e293b;border-radius:10px;padding:.9rem 1rem;">
+            <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem;">🏆 Maiores vitórias</div>
+            <div style="font-size:13px;color:#f1f5f9;">🏠 ${b.wins?.home || '—'} | ✈️ ${b.wins?.away || '—'}</div>
+        </div>
+        <div style="background:#1e293b;border-radius:10px;padding:.9rem 1rem;">
+            <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem;">😞 Maiores derrotas</div>
+            <div style="font-size:13px;color:#f1f5f9;">🏠 ${b.loses?.home || '—'} | ✈️ ${b.loses?.away || '—'}</div>
+        </div>
+        <div style="background:#1e293b;border-radius:10px;padding:.9rem 1rem;">
+            <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem;">🔥 Sequências</div>
+            <div style="font-size:13px;color:#f1f5f9;">✅ ${b.streak?.wins}V | ⬜ ${b.streak?.draws}E | ❌ ${b.streak?.loses}D</div>
+        </div>
+    </div>
+
+    <!-- Gols por minuto -->
+    <div style="background:#1e293b;border-radius:10px;padding:.9rem 1rem;margin-bottom:1rem;">
+        <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:.75rem;">
+            ⚽ Gols por intervalo &nbsp;<span style="color:#22c55e;">■ Marcados</span> &nbsp;<span style="color:#ef4444;">■ Sofridos</span>
+        </div>
+        <div style="display:flex;gap:.5rem;align-items:flex-end;">${minuteHtml}</div>
+    </div>
+
+    <!-- Cartões por minuto -->
+    <div style="background:#1e293b;border-radius:10px;padding:.9rem 1rem;margin-bottom:1rem;">
+        <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:.75rem;">🟨 Cartões amarelos por intervalo</div>
+        <div style="display:flex;gap:.5rem;align-items:flex-end;">${yellowHtml}</div>
+    </div>
+
+    <!-- Formações -->
+    <div style="background:#1e293b;border-radius:10px;padding:.9rem 1rem;">
+        <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:.75rem;">🧩 Formações utilizadas</div>
+        ${lineupsHtml}
+    </div>`;
+
+    document.getElementById('estat-result').innerHTML = html;
+}
+
+function statBox(label, valor, cor, sub) {
+    return `<div style="background:#1e293b;border-radius:10px;padding:.75rem .9rem;">
+        <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">${label}</div>
+        <div style="font-size:26px;font-weight:800;color:${cor};font-family:'Barlow Condensed',sans-serif;">${valor ?? '—'}</div>
+        ${sub ? `<div style="font-size:11px;color:#64748b;">${sub}</div>` : ''}
+    </div>`;
+}
 </script>

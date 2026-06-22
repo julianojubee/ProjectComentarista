@@ -2,6 +2,7 @@
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
 using ControleFutebolWeb.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -13,15 +14,18 @@ namespace ControleFutebolWeb.Controllers
         private readonly FutebolContext _context;
         private readonly ILogger<CompeticoesController> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly UserManager<ApplicationUser> _userManager;
 
         public CompeticoesController(
             FutebolContext context,
             ILogger<CompeticoesController> logger,
-            IServiceScopeFactory scopeFactory)
+            IServiceScopeFactory scopeFactory,
+            UserManager<ApplicationUser> userManager)
         {
             _context = context;
             _logger = logger;
             _scopeFactory = scopeFactory;
+            _userManager = userManager;
         }
 
         [HttpPost]
@@ -71,26 +75,75 @@ namespace ControleFutebolWeb.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
-            var competicoes = _context.Competicoes.ToList();
+            var uid = _userManager.GetUserId(User)!;
+            var topTierIds = await _context.CompeticoesTopTierUsuario
+                .Where(t => t.UsuarioId == uid)
+                .Select(t => t.CompeticaoId)
+                .ToHashSetAsync();
+
+            var competicoes = await _context.Competicoes
+                .OrderBy(c => c.Nome)
+                .ToListAsync();
+
+            // Injetar TopTier calculado por usuário via ViewBag
+            ViewBag.TopTierIds = topTierIds;
             return View(competicoes);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ToggleTopTier(int id)
+        {
+            var uid = _userManager.GetUserId(User)!;
+            var registro = await _context.CompeticoesTopTierUsuario
+                .FirstOrDefaultAsync(t => t.CompeticaoId == id && t.UsuarioId == uid);
+
+            if (registro == null)
+                _context.CompeticoesTopTierUsuario.Add(new CompeticaoTopTierUsuario { CompeticaoId = id, UsuarioId = uid });
+            else
+                _context.CompeticoesTopTierUsuario.Remove(registro);
+
+            await _context.SaveChangesAsync();
+            return RedirectToAction(nameof(Index));
         }
 
         public IActionResult Detalhes(int id)
         {
             var competicao = _context.Competicoes
-                .Include(c => c.Jogos)
+                .Include(c => c.Jogos).ThenInclude(j => j.TimeCasa)
+                .Include(c => c.Jogos).ThenInclude(j => j.TimeVisitante)
                 .FirstOrDefault(c => c.Id == id);
 
             if (competicao == null) return NotFound();
+
+            var jogosRealizados = competicao.Jogos
+                .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue)
+                .OrderByDescending(j => j.Data)
+                .ToList();
+
+            var proximosJogos = competicao.Jogos
+                .Where(j => !j.PlacarCasa.HasValue)
+                .OrderBy(j => j.Data)
+                .Take(20)
+                .ToList();
 
             var vm = new CompeticaoDetalhesViewModel
             {
                 Competicao = competicao,
                 Tipo = competicao.Tipo,
-                Classificacao = CalcularTabela(competicao.Jogos),
-                Grupos = competicao.Tipo == "GRUPOS" ? MontarGrupos(competicao.Jogos) : null
+                ProximosJogos = proximosJogos,
+                JogosRealizados = jogosRealizados,
+                Classificacao = competicao.Tipo != "MATA_MATA"
+                    ? CalcularTabela(jogosRealizados)
+                    : new(),
+                Grupos = competicao.Tipo == "GRUPOS"
+                    ? MontarGrupos(jogosRealizados)
+                    : new(),
+                FasesMataMata = competicao.Tipo == "MATA_MATA"
+                    ? MontarMataMata(competicao.Jogos.ToList())
+                    : new(),
             };
 
             return View(vm);
@@ -105,7 +158,7 @@ namespace ControleFutebolWeb.Controllers
         // POST: Competicoes/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Nome,Regiao,Tipo,linktransfermarket")] Competicao competicao)
+        public async Task<IActionResult> Create([Bind("Nome,Regiao,Tipo,EhSelecaoNacional,linktransfermarket")] Competicao competicao)
         {
             _logger.LogInformation("POST Create chamado: Nome={Nome}, Regiao={Regiao}, Tipo={Tipo}",
                 competicao.Nome, competicao.Regiao, competicao.Tipo);
@@ -123,6 +176,30 @@ namespace ControleFutebolWeb.Controllers
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Competição salva com sucesso no banco: Id={Id}", competicao.Id);
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        // GET: Competicoes/Edit/5
+        public async Task<IActionResult> Edit(int id)
+        {
+            var competicao = await _context.Competicoes.FindAsync(id);
+            if (competicao == null) return NotFound();
+            return View(competicao);
+        }
+
+        // POST: Competicoes/Edit/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(int id,
+            [Bind("Id,Nome,Regiao,Tipo,EhSelecaoNacional,linktransfermarket")] Competicao competicao)
+        {
+            if (id != competicao.Id) return NotFound();
+
+            if (!ModelState.IsValid) return View(competicao);
+
+            _context.Update(competicao);
+            await _context.SaveChangesAsync();
 
             return RedirectToAction(nameof(Index));
         }
@@ -217,6 +294,64 @@ namespace ControleFutebolWeb.Controllers
             return grupos;
         }
 
+        private List<FaseMataMataViewModel> MontarMataMata(List<Jogo> jogos)
+        {
+            // Ordena fases conhecidas; fases desconhecidas vão para o final
+            var ordemFases = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["32avos"]    = 1, ["Rodada 1"] = 1,
+                ["16avos"]    = 2, ["Rodada 2"] = 2,
+                ["Oitavas"]   = 3, ["Rodada 3"] = 3,
+                ["Quartas"]   = 4, ["Rodada 4"] = 4,
+                ["Semifinal"] = 5, ["Semi"]     = 5,
+                ["Final"]     = 6,
+            };
+
+            var faseNomes = jogos
+                .Select(j => j.Grupo ?? "Fase Única")
+                .Distinct()
+                .OrderBy(n => ordemFases.TryGetValue(n, out var o) ? o : 99)
+                .ToList();
+
+            var resultado = new List<FaseMataMataViewModel>();
+
+            foreach (var fase in faseNomes)
+            {
+                var jogosFase = jogos.Where(j => (j.Grupo ?? "Fase Única") == fase).ToList();
+
+                // Agrupa pares de times (ida e volta) pelo par de IDs ordenado
+                var pares = jogosFase
+                    .GroupBy(j => string.Join("-",
+                        new[] { j.TimeCasaId, j.TimeVisitanteId }.OrderBy(x => x)))
+                    .ToList();
+
+                var confrontos = new List<ConfrontoViewModel>();
+                foreach (var par in pares)
+                {
+                    var lista = par.OrderBy(j => j.Data).ToList();
+                    var ida   = lista.FirstOrDefault();
+                    var volta = lista.Count > 1 ? lista[1] : null;
+
+                    confrontos.Add(new ConfrontoViewModel
+                    {
+                        JogoIda   = ida,
+                        JogoVolta = volta,
+                        TimeA     = ida?.TimeCasa,
+                        TimeB     = ida?.TimeVisitante,
+                    });
+                }
+
+                resultado.Add(new FaseMataMataViewModel
+                {
+                    Nome      = fase,
+                    Ordem     = ordemFases.TryGetValue(fase, out var ord) ? ord : 99,
+                    Confrontos = confrontos,
+                });
+            }
+
+            return resultado;
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SalvarLinkCompeticao(int id, string linkCompeticao)
@@ -233,6 +368,20 @@ namespace ControleFutebolWeb.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SalvarLogo(int id, string? logoUrl)
+        {
+            var competicao = await _context.Competicoes.FindAsync(id);
+            if (competicao == null) return NotFound();
 
+            competicao.LogoUrl = string.IsNullOrWhiteSpace(logoUrl) ? null : logoUrl.Trim();
+
+            _context.Update(competicao);
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = "Escudo da competição atualizado.";
+            return RedirectToAction(nameof(Index));
+        }
     }
 }

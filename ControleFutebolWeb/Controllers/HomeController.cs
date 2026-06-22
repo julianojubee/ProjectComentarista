@@ -15,10 +15,42 @@ namespace ControleFutebolWeb.Controllers
             _context = context;
         }
 
+        [HttpGet]
+        public async Task<IActionResult> Buscar(string q)
+        {
+            if (string.IsNullOrWhiteSpace(q) || q.Length < 2)
+                return Json(new object[0]);
+
+            q = q.Trim();
+
+            var times = await _context.Times
+                .Where(t => t.Nome != null && EF.Functions.ILike(t.Nome, $"%{q}%"))
+                .Select(t => new { tipo = "Time", nome = t.Nome, id = t.Id, extra = t.Cidade })
+                .Take(5).ToListAsync();
+
+            var jogadores = await _context.Jogadores
+                .Where(j => j.Nome != null && EF.Functions.ILike(j.Nome, $"%{q}%"))
+                .Select(j => new { tipo = "Jogador", nome = j.Nome, id = j.Id, extra = (string?)null })
+                .Take(5).ToListAsync();
+
+            var competicoes = await _context.Competicoes
+                .Where(c => EF.Functions.ILike(c.Nome, $"%{q}%"))
+                .Select(c => new { tipo = "CompetiÃ§Ã£o", nome = c.Nome, id = c.Id, extra = c.Regiao })
+                .Take(5).ToListAsync();
+
+            var resultados = times.Cast<object>()
+                .Concat(jogadores.Cast<object>())
+                .Concat(competicoes.Cast<object>())
+                .ToList();
+
+            return Json(resultados);
+        }
+
         public async Task<IActionResult> Index()
         {
-            // Últimos 6 jogos finalizados (com placar)
+            // ï¿½ltimos 6 jogos finalizados (com placar)
             var jogosRecentes = await _context.Jogos
+                .AsNoTracking()
                 .Include(j => j.TimeCasa)
                 .Include(j => j.TimeVisitante)
                 .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue)
@@ -26,34 +58,28 @@ namespace ControleFutebolWeb.Controllers
                 .Take(6)
                 .ToListAsync();
 
-            // Classificação: calcula pontos a partir dos jogos finalizados
-            var todosJogos = await _context.Jogos
-                .Include(j => j.TimeCasa)
-                .Include(j => j.TimeVisitante)
+            // ClassificaÃ§Ã£o calculada diretamente via SQL (sem carregar todos os jogos na memÃ³ria)
+            var jogosFinalizados = await _context.Jogos
+                .AsNoTracking()
                 .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue)
+                .Select(j => new { j.TimeCasaId, j.TimeVisitanteId, j.PlacarCasa, j.PlacarVisitante })
                 .ToListAsync();
 
-            var times = await _context.Times.ToListAsync();
+            var times = await _context.Times.AsNoTracking().ToListAsync();
 
             var classificacao = times.Select(time =>
             {
-                var comoMandante = todosJogos.Where(j => j.TimeCasaId == time.Id).ToList();
-                var comoVisitante = todosJogos.Where(j => j.TimeVisitanteId == time.Id).ToList();
+                var comoMandante  = jogosFinalizados.Where(j => j.TimeCasaId == time.Id).ToList();
+                var comoVisitante = jogosFinalizados.Where(j => j.TimeVisitanteId == time.Id).ToList();
 
                 int vitorias = comoMandante.Count(j => j.PlacarCasa > j.PlacarVisitante)
                              + comoVisitante.Count(j => j.PlacarVisitante > j.PlacarCasa);
-
-                int empates = comoMandante.Count(j => j.PlacarCasa == j.PlacarVisitante)
-                            + comoVisitante.Count(j => j.PlacarCasa == j.PlacarVisitante);
-
+                int empates  = comoMandante.Count(j => j.PlacarCasa == j.PlacarVisitante)
+                             + comoVisitante.Count(j => j.PlacarCasa == j.PlacarVisitante);
                 int derrotas = comoMandante.Count(j => j.PlacarCasa < j.PlacarVisitante)
                              + comoVisitante.Count(j => j.PlacarVisitante < j.PlacarCasa);
-
-                int golsPro = comoMandante.Sum(j => j.PlacarCasa ?? 0)
-                            + comoVisitante.Sum(j => j.PlacarVisitante ?? 0);
-
-                int golsContra = comoMandante.Sum(j => j.PlacarVisitante ?? 0)
-                               + comoVisitante.Sum(j => j.PlacarCasa ?? 0);
+                int golsPro    = comoMandante.Sum(j => j.PlacarCasa ?? 0) + comoVisitante.Sum(j => j.PlacarVisitante ?? 0);
+                int golsContra = comoMandante.Sum(j => j.PlacarVisitante ?? 0) + comoVisitante.Sum(j => j.PlacarCasa ?? 0);
 
                 return new ClassificacaoResumo
                 {
@@ -74,7 +100,6 @@ namespace ControleFutebolWeb.Controllers
             .Take(8)
             .ToList();
 
-            // Numera posições
             for (int i = 0; i < classificacao.Count; i++)
                 classificacao[i].Posicao = i + 1;
 

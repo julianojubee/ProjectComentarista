@@ -7,15 +7,17 @@ namespace ControleFutebolWeb.Models
         public int Id { get; set; }
         public string Nome { get; set; } = string.Empty;
 
-        public DateTime DataNascimento { get; set; }
+        public DateTime? DataNascimento { get; set; }
 
         public int Idade
         {
             get
             {
+                if (!DataNascimento.HasValue) return 0;
+
                 var hoje = DateTime.Today;
-                var idade = hoje.Year - DataNascimento.Year;
-                if (DataNascimento.Date > hoje.AddYears(-idade)) idade--;
+                var idade = hoje.Year - DataNascimento.Value.Year;
+                if (DataNascimento.Value.Date > hoje.AddYears(-idade)) idade--;
                 return idade;
             }
         }

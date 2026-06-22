@@ -59,8 +59,82 @@
     .cf-hero p {
         color: rgba(255,255,255,0.5);
         font-size: 0.95rem;
-        margin-bottom: 1.8rem;
+        margin-bottom: 1.4rem;
     }
+
+    /* ── Search ──────────────────────────────────── */
+    .cf-search-wrap {
+        position: relative;
+        max-width: 480px;
+        margin: 0 auto 1.4rem;
+    }
+    .cf-search-input {
+        width: 100%;
+        padding: 11px 44px 11px 16px;
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(255,255,255,0.10);
+        color: #fff;
+        font-size: 14px;
+        outline: none;
+        transition: border-color .15s, background .15s;
+    }
+    .cf-search-input::placeholder { color: rgba(255,255,255,0.45); }
+    .cf-search-input:focus {
+        border-color: rgba(55,138,221,0.7);
+        background: rgba(255,255,255,0.14);
+    }
+    .cf-search-icon {
+        position: absolute;
+        right: 13px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: rgba(255,255,255,0.45);
+        font-size: 16px;
+        pointer-events: none;
+    }
+    .cf-search-dropdown {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0; right: 0;
+        background: var(--color-background-primary, #fff);
+        border: 0.5px solid var(--color-border-tertiary, #e5e7eb);
+        border-radius: 10px;
+        box-shadow: 0 8px 24px rgba(0,0,0,.12);
+        z-index: 999;
+        overflow: hidden;
+        display: none;
+    }
+    .cf-search-dropdown.open { display: block; }
+    .cf-search-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 14px;
+        text-decoration: none;
+        color: var(--color-text-primary, #111827);
+        font-size: 13px;
+        border-bottom: 0.5px solid var(--color-border-tertiary, #f3f4f6);
+        transition: background .1s;
+    }
+    .cf-search-item:last-child { border-bottom: none; }
+    .cf-search-item:hover { background: var(--color-background-secondary, #f9fafb); text-decoration: none; color: inherit; }
+    .cf-search-badge {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 20px;
+        letter-spacing: .04em;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    .cf-badge-time      { background: #dbeafe; color: #1d4ed8; }
+    .cf-badge-jogador   { background: #dcfce7; color: #15803d; }
+    .cf-badge-competicao{ background: #fef9c3; color: #854d0e; }
+    .cf-badge-jogo      { background: #f3e8ff; color: #6b21a8; }
+    .cf-search-nome     { flex: 1; font-weight: 500; }
+    .cf-search-extra    { font-size: 11px; color: var(--color-text-secondary, #6b7280); }
+    .cf-search-empty    { padding: 14px; text-align: center; color: var(--color-text-secondary, #6b7280); font-size: 13px; }
 
     .cf-hero-actions {
         display: flex;
@@ -204,9 +278,13 @@
     }
 
     @@media (max-width: 640px) {
-        .cf-two-col {
-            grid-template-columns: 1fr;
-        }
+        .cf-two-col { grid-template-columns: 1fr; }
+        .cf-hero { padding: 1.8rem 1rem; }
+        .cf-hero h1 { font-size: 1.5rem; }
+        .cf-hero-actions { flex-direction: column; align-items: center; }
+        .cf-btn-primary, .cf-btn-ghost { width: 100%; max-width: 260px; text-align: center; }
+        .cf-modules { grid-template-columns: repeat(2, 1fr); }
+        .cf-stats { grid-template-columns: repeat(2, 1fr); }
     }
 
     .cf-panel {
@@ -434,6 +512,14 @@
             <div class="cf-hero-badge">Futebol 2026</div>
             <h1>Controle de Futebol</h1>
             <p>Gerencie times, escalações, jogos e competições com análise tática completa.</p>
+
+            <div class="cf-search-wrap">
+                <input id="cfSearchInput" type="text" class="cf-search-input"
+                       placeholder="Buscar time, jogador, competição…" autocomplete="off" />
+                <span class="cf-search-icon ti ti-search"></span>
+                <div id="cfSearchDropdown" class="cf-search-dropdown"></div>
+            </div>
+
             <div class="cf-hero-actions">
                 <a href="@Url.Action("Index", "Jogos")" class="cf-btn-primary">Ver jogos &rarr;</a>
                 <a href="@Url.Action("Index", "Times")" class="cf-btn-ghost">Gerenciar times</a>
@@ -530,7 +616,7 @@
                         <div class="cf-team-badge">
                             @if (!string.IsNullOrEmpty(jogo.TimeCasa?.EscudoUrl))
                             {
-                                <img src="@jogo.TimeCasa.EscudoUrl" alt="@jogo.TimeCasa.Nome" />
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa.EscudoUrl })" alt="@jogo.TimeCasa.Nome" />
                             }
                             else
                             {
@@ -545,7 +631,7 @@
                         <div class="cf-team-badge">
                             @if (!string.IsNullOrEmpty(jogo.TimeVisitante?.EscudoUrl))
                             {
-                                <img src="@jogo.TimeVisitante.EscudoUrl" alt="@jogo.TimeVisitante.Nome" />
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante.EscudoUrl })" alt="@jogo.TimeVisitante.Nome" />
                             }
                             else
                             {
@@ -554,7 +640,7 @@
                                 </span>
                             }
                         </div>
-                        <span class="cf-rodada">R@jogo.Rodada</span>
+                        <span class="cf-rodada">R@(jogo.Rodada)</span>
                     </div>
                 }
             }
@@ -584,7 +670,7 @@
                         <div class="cf-team-badge">
                             @if (!string.IsNullOrEmpty(c.Time?.EscudoUrl))
                             {
-                                <img src="@c.Time.EscudoUrl" alt="@c.Time.Nome" />
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.Time.EscudoUrl })" alt="@c.Time.Nome" />
                             }
                             else
                             {
@@ -632,3 +718,80 @@
     </div>
 
 </div>
+
+@section Scripts {
+<script>
+(function () {
+    const input = document.getElementById('cfSearchInput');
+    const dropdown = document.getElementById('cfSearchDropdown');
+    if (!input || !dropdown) return;
+
+    const urls = {
+        Time:       id => '/Times/Details/' + id,
+        Jogador:    id => '/Jogadores/Estatisticas/' + id,
+        Competição: id => '/Competicoes/Detalhes/' + id,
+    };
+
+    const badgeClass = {
+        Time:       'cf-badge-time',
+        Jogador:    'cf-badge-jogador',
+        Competição: 'cf-badge-competicao',
+    };
+
+    let timer;
+
+    input.addEventListener('input', function () {
+        clearTimeout(timer);
+        const q = this.value.trim();
+        if (q.length < 2) { close(); return; }
+        timer = setTimeout(() => fetchResults(q), 220);
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!input.contains(e.target) && !dropdown.contains(e.target)) close();
+    });
+
+    input.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') close();
+    });
+
+    function close() {
+        dropdown.classList.remove('open');
+        dropdown.innerHTML = '';
+    }
+
+    async function fetchResults(q) {
+        try {
+            const res = await fetch('/Home/Buscar?q=' + encodeURIComponent(q));
+            const data = await res.json();
+            render(data, q);
+        } catch { close(); }
+    }
+
+    function esc(str) {
+        return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function render(items, q) {
+        if (!items.length) {
+            dropdown.innerHTML = '<div class="cf-search-empty">Nenhum resultado encontrado.</div>';
+            dropdown.classList.add('open');
+            return;
+        }
+
+        const re = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+
+        dropdown.innerHTML = items.map(item => {
+            const url   = esc((urls[item.tipo] || (() => '#'))(item.id));
+            const nome  = esc(item.nome || '').replace(re, '<mark style="background:#fef08a;border-radius:2px;padding:0 1px">$1</mark>');
+            const badge = `<span class="cf-search-badge ${esc(badgeClass[item.tipo] || '')}">${esc(item.tipo)}</span>`;
+            const extra = item.extra ? `<span class="cf-search-extra">${esc(item.extra)}</span>` : '';
+            return `<a href="${url}" class="cf-search-item">${badge}<span class="cf-search-nome">${nome}</span>${extra}</a>`;
+        }).join('');
+
+        dropdown.classList.add('open');
+    }
+})();
+</script>
+}
+

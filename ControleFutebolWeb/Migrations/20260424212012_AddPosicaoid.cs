@@ -10,12 +10,9 @@ namespace ControleFutebolWeb.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<int>(
-                name: "posicaoid",
-                table: "timesescalacoespadrao",
-                type: "integer",
-                nullable: false,
-                defaultValue: 0);
+            migrationBuilder.Sql(@"
+                ALTER TABLE timesescalacoespadrao ADD COLUMN IF NOT EXISTS posicaoid integer NOT NULL DEFAULT 0;
+            ");
         }
 
         /// <inheritdoc />

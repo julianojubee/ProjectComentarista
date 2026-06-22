@@ -1,0 +1,369 @@
+@using ControleFutebolWeb.Models
+@using ControleFutebolWeb.Models.ViewModels
+
+@{
+    ViewData["Title"] = "Sul-Americana";
+    var grupos = ViewBag.Grupos as List<GrupoViewModel> ?? new List<GrupoViewModel>();
+    var proximosJogos = ViewBag.ProximosJogos as List<Jogo> ?? new List<Jogo>();
+    var rodadaAtual = (int)(ViewBag.RodadaAtual ?? 0);
+
+    string LetraGrupo(string? nome)
+    {
+        if (string.IsNullOrWhiteSpace(nome)) return nome ?? "";
+        var s = nome.Trim();
+        if (s.StartsWith("Group ", StringComparison.OrdinalIgnoreCase))
+            return s.Substring(6).Trim();
+        return s;
+    }
+}
+
+<style>
+    .sul-hero {
+        position: relative;
+        border-radius: 14px;
+        padding: 1.5rem 1.6rem;
+        margin-bottom: 1.4rem;
+        overflow: hidden;
+        background: linear-gradient(135deg, #1c0a00 0%, #7c2d12 50%, #1c0a00 100%);
+    }
+    .sul-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        opacity: 0.10;
+        background-image: radial-gradient(circle at 50% 50%, transparent 28%, #fff 28.5%, #fff 29.2%, transparent 29.8%), linear-gradient(90deg, transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%), linear-gradient(transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%);
+    }
+    .sul-hero::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse at 60% 50%, rgba(251,146,60,0.08) 0%, transparent 70%);
+        pointer-events: none;
+    }
+    .sul-hero-content { position: relative; z-index: 1; }
+    .sul-badge {
+        display: inline-block;
+        background: rgba(251,146,60,0.15);
+        color: #fed7aa;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        padding: 4px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(251,146,60,0.3);
+        margin-bottom: 0.55rem;
+    }
+    .sul-title-wrap { display: flex; align-items: center; gap: 12px; margin-bottom: 0.2rem; }
+    .sul-logo { width: 42px; height: 42px; object-fit: contain; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5)); }
+    .sul-title { color: #fff; font-size: 1.5rem; font-weight: 700; margin: 0; letter-spacing: -0.3px; }
+    .sul-sub { color: rgba(255,255,255,0.7); font-size: 0.88rem; margin: 0; }
+
+    .sul-layout {
+        display: grid;
+        grid-template-columns: 1fr 340px;
+        gap: 16px;
+        align-items: start;
+    }
+    @@media (max-width: 900px) { .sul-layout { grid-template-columns: 1fr; } }
+
+    .sul-grupos {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+        gap: 14px;
+    }
+
+    .sul-grupo-card { background: #fff; border: 0.5px solid #e5e7eb; border-radius: 12px; overflow: hidden; }
+
+    .sul-grupo-header {
+        background: linear-gradient(90deg, #7c2d12, #c2410c);
+        color: #fff;
+        padding: 8px 14px;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .sul-grupo-header img { width: 18px; height: 18px; object-fit: contain; }
+
+    .sul-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .sul-table thead tr { background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
+    .sul-table th {
+        padding: 6px 8px;
+        color: #6b7280;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 10px;
+        letter-spacing: 0.5px;
+        text-align: center;
+    }
+    .sul-table th:first-child, .sul-table td:first-child { text-align: left; padding-left: 10px; }
+    .sul-table td {
+        padding: 7px 8px;
+        border-bottom: 0.5px solid #f3f4f6;
+        text-align: center;
+        vertical-align: middle;
+        color: #111827;
+    }
+    .sul-table tbody tr:last-child td { border-bottom: none; }
+    .sul-table tbody tr:hover { background: #fff7f0; }
+
+    .sul-pos {
+        width: 18px; height: 18px; border-radius: 4px;
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: 10px; font-weight: 700; color: #fff;
+    }
+    .sul-pos-1, .sul-pos-2 { background: #c2410c; }
+    .sul-pos-3 { background: #f59e0b; }
+    .sul-pos-default { background: #d1d5db; color: #6b7280; }
+
+    .sul-team-cell { display: flex; align-items: center; gap: 7px; min-width: 120px; }
+    .sul-team-cell img {
+        width: 20px; height: 20px; object-fit: contain;
+        border-radius: 50%; border: 0.5px solid #e5e7eb;
+        background: #f9f9f9; flex-shrink: 0;
+    }
+    .sul-team-cell span {
+        font-size: 12px; font-weight: 500; color: #111827;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px;
+    }
+
+    .sul-pts { font-weight: 700; color: #c2410c; }
+
+    .sul-legenda {
+        display: flex; gap: 12px; flex-wrap: wrap;
+        margin-top: 6px; margin-bottom: 16px;
+        font-size: 11px; color: #6b7280;
+    }
+    .sul-leg-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 4px; }
+
+    .sul-sidebar { position: sticky; top: 16px; }
+    .sul-sidebar-title {
+        font-size: 13px; font-weight: 700; color: #111827;
+        margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+    }
+    .sul-rodada-badge {
+        background: linear-gradient(90deg, #7c2d12, #c2410c);
+        color: #fff; font-size: 11px; font-weight: 700;
+        padding: 3px 10px; border-radius: 999px;
+    }
+
+    .sul-jogo-card {
+        background: #fff; border: 0.5px solid #e5e7eb;
+        border-radius: 10px; margin-bottom: 10px; overflow: hidden;
+        transition: box-shadow 0.15s;
+    }
+    .sul-jogo-card:hover { box-shadow: 0 2px 10px rgba(194,65,12,0.1); }
+
+    .sul-jogo-header {
+        background: linear-gradient(90deg, #7c2d12, #c2410c);
+        color: #fed7aa; font-size: 10px; font-weight: 600;
+        padding: 5px 10px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .sul-jogo-body { padding: 10px 12px; }
+    .sul-jogo-teams { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+    .sul-jogo-team { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 0; }
+    .sul-jogo-team img { width: 32px; height: 32px; object-fit: contain; border-radius: 50%; border: 0.5px solid #e5e7eb; background: #f9f9f9; }
+    .sul-jogo-team span { font-size: 11px; font-weight: 500; color: #374151; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px; }
+    .sul-vs { font-size: 11px; font-weight: 700; color: #9ca3af; flex-shrink: 0; }
+    .sul-score {
+        display: inline-flex; align-items: center; justify-content: center;
+        background: #c2410c; color: #fff; font-weight: 700; font-size: 13px;
+        padding: 2px 10px; border-radius: 6px; min-width: 52px;
+    }
+    .sul-badge-agendado { font-size: 10px; background: #f3f4f6; color: #6b7280; padding: 2px 8px; border-radius: 6px; font-weight: 500; }
+    .sul-jogo-footer {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-top: 8px; padding-top: 6px; border-top: 0.5px solid #f3f4f6;
+        font-size: 10px; color: #9ca3af;
+    }
+    .sul-analisar-btn {
+        font-size: 10px; padding: 3px 10px; border-radius: 6px;
+        border: 1px solid #c2410c; color: #c2410c; background: transparent;
+        text-decoration: none; font-weight: 600; transition: background 0.15s, color 0.15s;
+    }
+    .sul-analisar-btn:hover { background: #c2410c; color: #fff; text-decoration: none; }
+    .sul-grupo-tag { background: rgba(255,255,255,0.15); color: #fed7aa; font-size: 9px; padding: 1px 6px; border-radius: 999px; font-weight: 600; }
+
+    .sul-empty { text-align: center; padding: 3rem 1rem; color: #9ca3af; font-size: 13px; background: #fff; border: 0.5px solid #e5e7eb; border-radius: 12px; }
+</style>
+
+<!-- Banner -->
+<div class="sul-hero">
+    <div class="sul-hero-content">
+        <span class="sul-badge">Competição Continental</span>
+        <div class="sul-title-wrap">
+            <img src="~/images/background/sudamericana.png" alt="Sul-Americana" class="sul-logo" />
+            <h2 class="sul-title">CONMEBOL Sul-Americana</h2>
+        </div>
+        <p class="sul-sub">Classificação por grupos e calendário de jogos</p>
+    </div>
+</div>
+
+@if (!grupos.Any())
+{
+    <div class="sul-empty">
+        <div style="font-size:2rem;margin-bottom:8px;">🏆</div>
+        Nenhum jogo com grupo definido encontrado para a Sul-Americana.<br>
+        <small>Importe os jogos com o campo <strong>Grupo</strong> preenchido para ver a classificação.</small>
+    </div>
+}
+else
+{
+    <div class="sul-layout">
+
+        <!-- Coluna esquerda: grupos -->
+        <div>
+            <div class="sul-legenda">
+                <span><span class="sul-leg-dot" style="background:#c2410c;"></span>Classificado para Oitavas</span>
+                <span><span class="sul-leg-dot" style="background:#f59e0b;"></span>Repescagem</span>
+                <span><span class="sul-leg-dot" style="background:#d1d5db;"></span>Eliminado</span>
+            </div>
+
+            <div class="sul-grupos">
+                @foreach (var grupo in grupos)
+                {
+                    <div class="sul-grupo-card">
+                        <div class="sul-grupo-header">
+                            <img src="~/images/background/sudamericana.png" alt="Sul-Americana" />
+                            Grupo @LetraGrupo(grupo.Nome)
+                        </div>
+
+                        @if (!grupo.Times.Any())
+                        {
+                            <div style="padding:14px;font-size:12px;color:#9ca3af;text-align:center;">
+                                Nenhum jogo realizado ainda neste grupo.
+                            </div>
+                        }
+                        else
+                        {
+                            <div style="overflow-x:auto;">
+                                <table class="sul-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:20px;">#</th>
+                                            <th>Time</th>
+                                            <th title="Jogos">J</th>
+                                            <th title="Vitórias">V</th>
+                                            <th title="Empates">E</th>
+                                            <th title="Derrotas">D</th>
+                                            <th title="Saldo de Gols">SG</th>
+                                            <th title="Pontos">Pts</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var time in grupo.Times)
+                                        {
+                                            string posClass = time.Posicao switch
+                                            {
+                                                1 => "sul-pos-1",
+                                                2 => "sul-pos-2",
+                                                3 => "sul-pos-3",
+                                                _ => "sul-pos-default"
+                                            };
+                                            <tr>
+                                                <td><span class="sul-pos @posClass">@time.Posicao</span></td>
+                                                <td>
+                                                    <div class="sul-team-cell">
+                                                        @if (!string.IsNullOrEmpty(time.Time?.EscudoUrl))
+                                                        {
+                                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = time.Time.EscudoUrl })" alt="@time.Time.Nome" />
+                                                        }
+                                                        <span>@time.Time?.Nome</span>
+                                                    </div>
+                                                </td>
+                                                <td>@time.Jogos</td>
+                                                <td>@time.Vitorias</td>
+                                                <td>@time.Empates</td>
+                                                <td>@time.Derrotas</td>
+                                                <td>@time.SaldoGols</td>
+                                                <td class="sul-pts">@time.Pontos</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Coluna direita: jogos -->
+        <div class="sul-sidebar">
+            <div class="sul-sidebar-title">
+                Jogos
+                @if (rodadaAtual > 0)
+                {
+                    <span class="sul-rodada-badge">Rodada @rodadaAtual</span>
+                }
+            </div>
+
+            @if (!proximosJogos.Any())
+            {
+                <div class="sul-empty" style="padding:1.5rem;">Nenhum jogo encontrado.</div>
+            }
+            else
+            {
+                @foreach (var jogo in proximosJogos)
+                {
+                    bool realizado = jogo.PlacarCasa.HasValue && jogo.PlacarVisitante.HasValue;
+                    <div class="sul-jogo-card">
+                        <div class="sul-jogo-header">
+                            <span>@ControleFutebolWeb.Helpers.DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy HH:mm")</span>
+                            @if (!string.IsNullOrEmpty(jogo.Grupo))
+                            {
+                                <span class="sul-grupo-tag">Grupo @LetraGrupo(jogo.Grupo)</span>
+                            }
+                        </div>
+                        <div class="sul-jogo-body">
+                            <div class="sul-jogo-teams">
+                                <div class="sul-jogo-team">
+                                    @if (!string.IsNullOrEmpty(jogo.TimeCasa?.EscudoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa.EscudoUrl })" alt="@jogo.TimeCasa.Nome" />
+                                    }
+                                    <span>@jogo.TimeCasa?.Nome</span>
+                                </div>
+                                <div class="sul-vs">
+                                    @if (realizado)
+                                    {
+                                        <span class="sul-score">@jogo.PlacarCasa x @jogo.PlacarVisitante</span>
+                                    }
+                                    else
+                                    {
+                                        <span>vs</span>
+                                    }
+                                </div>
+                                <div class="sul-jogo-team">
+                                    @if (!string.IsNullOrEmpty(jogo.TimeVisitante?.EscudoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante.EscudoUrl })" alt="@jogo.TimeVisitante.Nome" />
+                                    }
+                                    <span>@jogo.TimeVisitante?.Nome</span>
+                                </div>
+                            </div>
+                            <div class="sul-jogo-footer">
+                                @if (realizado)
+                                {
+                                    <span style="color:#22c55e;font-weight:600;">✔ Realizado</span>
+                                }
+                                else
+                                {
+                                    <span class="sul-badge-agendado">Agendado</span>
+                                }
+                                <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id"
+                                   class="sul-analisar-btn">
+                                    Analisar →
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+    </div>
+}

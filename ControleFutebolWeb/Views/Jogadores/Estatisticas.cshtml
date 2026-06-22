@@ -1,5 +1,6 @@
 ﻿@model ControleFutebolWeb.Models.ViewModels.JogadorEstatisticasViewModel
 @using ControleFutebolWeb.Helpers
+@using ControleFutebolWeb.Models
 @{
     ViewData["Title"] = $"Estatísticas — {Model.Jogador.Nome}";
 
@@ -259,6 +260,165 @@
         font-size: .95rem;
     }
 
+    /* ── Colapsável histórico por jogo ── */
+    .historico-collapsed .jogo-item:nth-child(n+4) {
+        display: none;
+    }
+
+    .btn-expand {
+        display: block;
+        width: 100%;
+        background: var(--cinza2);
+        border: 1px dashed var(--cinza3);
+        border-radius: 10px;
+        color: var(--muted);
+        font-size: .85rem;
+        padding: .65rem 1rem;
+        cursor: pointer;
+        text-align: center;
+        margin-top: .4rem;
+        transition: background .2s, color .2s;
+    }
+
+    .btn-expand:hover {
+        background: var(--cinza3);
+        color: var(--texto);
+    }
+
+    /* ── Histórico por Temporada ── */
+    .temporada-grid {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .temporada-card {
+        background: var(--cinza2);
+        border: 1px solid var(--cinza3);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .temporada-header {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        padding: .85rem 1.1rem;
+        border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+
+    .temporada-liga-logo {
+        width: 28px;
+        height: 28px;
+        object-fit: contain;
+    }
+
+    .temporada-liga-nome {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 1.1rem;
+        font-weight: 700;
+        flex: 1;
+    }
+
+    .temporada-liga-pais {
+        font-size: .75rem;
+        color: var(--muted);
+    }
+
+    .temporada-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+        gap: 0;
+    }
+
+    .stat-box {
+        padding: .7rem .8rem;
+        text-align: center;
+        border-right: 1px solid rgba(255,255,255,.05);
+        border-bottom: 1px solid rgba(255,255,255,.05);
+    }
+
+    .stat-box:last-child {
+        border-right: none;
+    }
+
+    .stat-val {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 1.5rem;
+        font-weight: 800;
+        line-height: 1;
+        color: var(--texto);
+    }
+
+    .stat-val.highlight-green { color: #4ade80; }
+    .stat-val.highlight-blue  { color: #60a5fa; }
+    .stat-val.highlight-orange { color: #fb923c; }
+    .stat-val.highlight-yellow { color: #facc15; }
+    .stat-val.highlight-red   { color: #f87171; }
+
+    .stat-lbl {
+        font-size: .65rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        margin-top: .2rem;
+    }
+
+    .rating-badge {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: .9rem;
+        font-weight: 800;
+        padding: .2rem .6rem;
+        border-radius: 6px;
+        background: rgba(250,204,21,.15);
+        color: #facc15;
+        border: 1px solid rgba(250,204,21,.3);
+    }
+
+    .temporada-footer {
+        display: flex;
+        gap: .5rem;
+        flex-wrap: wrap;
+        padding: .55rem 1.1rem;
+        background: rgba(0,0,0,.15);
+        font-size: .72rem;
+        color: var(--muted);
+    }
+
+    .temporada-chip {
+        background: rgba(255,255,255,.06);
+        border-radius: 999px;
+        padding: .15rem .6rem;
+        display: flex;
+        align-items: center;
+        gap: .3rem;
+    }
+
+    .season-selector {
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .season-btn {
+        background: var(--cinza2);
+        border: 1px solid var(--cinza3);
+        color: var(--muted);
+        font-size: .82rem;
+        font-weight: 600;
+        padding: .3rem .85rem;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: all .2s;
+    }
+
+    .season-btn.active, .season-btn:hover {
+        background: var(--verde);
+        border-color: var(--verde);
+        color: #fff;
+    }
+
     /* ── Voltar ── */
     .btn-voltar {
         display: inline-flex;
@@ -297,16 +457,42 @@
 
         <a href="javascript:history.back()" class="btn-voltar">← Voltar</a>
 
+        <!-- Filtro de competição -->
+        @{
+            var competicoes = ViewBag.Competicoes as List<Competicao> ?? new();
+            var competicaoAtual = ViewBag.CompeticaoId as int?;
+        }
+        @if (competicoes.Count > 1)
+        {
+            <form method="get" style="margin-bottom:1.2rem; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <input type="hidden" name="id" value="@Model.Jogador.Id" />
+                <label style="font-size:12px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.5px;">Competição</label>
+                <select name="competicaoId" onchange="this.form.submit()"
+                        style="background:var(--cinza2); color:var(--texto); border:1px solid var(--cinza3); border-radius:8px; padding:6px 12px; font-size:13px; cursor:pointer;">
+                    <option value="">Todas</option>
+                    @foreach (var c in competicoes)
+                    {
+                        <option value="@c.Id" selected="@(competicaoAtual == c.Id)">@c.Nome</option>
+                    }
+                </select>
+                @if (competicaoAtual.HasValue)
+                {
+                    <a href="/Jogadores/Estatisticas/@Model.Jogador.Id"
+                       style="font-size:12px; color:var(--muted); text-decoration:none;">✕ limpar</a>
+                }
+            </form>
+        }
+
         <!-- Header -->
         <div class="jogador-header">
             @if (Model.Jogador.Time?.EscudoUrl != null)
             {
-                <img src="@Model.Jogador.Time.EscudoUrl" class="jogador-escudo" />
+                <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogador.Time.EscudoUrl })" class="jogador-escudo" />
             }
 
             @if (!string.IsNullOrWhiteSpace(Model.Jogador.FotoUrl))
             {
-                <img src="@Model.Jogador.FotoUrl" class="jogador-foto" />
+                <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogador.FotoUrl })" class="jogador-foto" />
             }
             else
             {
@@ -378,8 +564,39 @@
             </div>
         }
 
+        <!-- ── Histórico por Temporada ─────────────────────────────────────── -->
+        @if (Model.Jogador.IdApi.HasValue)
+        {
+            <div class="jogos-titulo" style="cursor:pointer;" onclick="toggleTemporada()" id="temporadaTitulo">
+                Histórico por Temporada
+                <span id="temporadaToggleIcon" style="font-size:.85rem; color:var(--muted); font-weight:400; margin-left:.4rem;">▼ mostrar</span>
+            </div>
+
+            <div id="temporadaWrapper" style="display:none;">
+                <div class="season-selector" id="seasonSelector">
+                    @{
+                        var anoAtual = DateTime.Now.Year;
+                    }
+                    @for (int ano = anoAtual; ano >= anoAtual - 3; ano--)
+                    {
+                        <button class="season-btn @(ano == anoAtual ? "active" : "")"
+                                onclick="carregarTemporada(@Model.Jogador.Id, @ano, this)">
+                            @ano
+                        </button>
+                    }
+                </div>
+
+                <div id="temporadaContainer"></div>
+            </div>
+        }
+
         <!-- Lista por jogo -->
-        <div class="jogos-titulo">Histórico por Jogo</div>
+        <div class="jogos-titulo" style="margin-top:2rem; cursor:pointer;" onclick="toggleHistorico()" id="historicoTitulo">
+            Histórico por Jogo
+            <span id="historicoToggleIcon" style="font-size:.85rem; color:var(--muted); font-weight:400; margin-left:.4rem;">▼ mostrar</span>
+        </div>
+
+        <div id="historicoWrapper" style="display:none;">
 
         @if (!Model.NotasPorJogo.Any())
         {
@@ -389,6 +606,7 @@
         }
         else
         {
+            <div id="historicoLista" class="historico-collapsed">
             @foreach (var item in Model.NotasPorJogo)
             {
                 bool isCasaJogador = item.Jogo.TimeCasaId == Model.Jogador.TimeId
@@ -420,8 +638,6 @@
                     "D" => "Derrota",
                     _   => "?"
                 };
-                var bonusStr = item.BonusResultado >= 0
-                    ? $"+{item.BonusResultado:0.#}" : $"{item.BonusResultado:0.#}";
 
                 string notaColor = item.Analisado ? item.NotaFinal switch
                 {
@@ -463,7 +679,7 @@
                             <div style="display:flex; align-items:center; gap:7px; flex-wrap:wrap;">
                                 @if (!string.IsNullOrEmpty(adversarioEscudo))
                                 {
-                                    <img src="@adversarioEscudo"
+                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = adversarioEscudo })"
                                          style="width:18px;height:18px;object-fit:contain;
                                                 border-radius:50%;border:.5px solid rgba(255,255,255,.15);" />
                                 }
@@ -497,6 +713,15 @@
                                                  padding:1px 8px;border-radius:999px;
                                                  border:1px solid rgba(148,163,184,.25);">
                                         sem análise
+                                    </span>
+                                }
+                                else if (!item.OrigemManual)
+                                {
+                                    <span style="background:rgba(56,189,248,.12);color:#38bdf8;
+                                                 font-size:10px;font-weight:600;
+                                                 padding:1px 8px;border-radius:999px;
+                                                 border:1px solid rgba(56,189,248,.3);">
+                                        nota automática
                                     </span>
                                 }
                             </div>
@@ -541,17 +766,11 @@
                                 </div>
                                 <div style="display:flex; gap:16px; flex-wrap:wrap;">
                                     <span style="color:rgba(255,255,255,.5);">
-                                        Base <strong style="color:#e2e8f0;">5.0</strong>
+                                        Base <strong style="color:#e2e8f0;">@item.NotaBaseFixa.ToString("0.0")</strong>
                                     </span>
                                     <span style="color:rgba(255,255,255,.5);">
                                         Ações <strong style="color:@(item.Nota >= 0 ? "#4ade80" : "#f87171");">
-                                            @(item.Nota >= 0 ? "+" : "")@item.Nota
-                                        </strong>
-                                    </span>
-                                    <span style="color:rgba(255,255,255,.5);">
-                                        Resultado
-                                        <strong style="color:@(item.BonusResultado > 0 ? "#4ade80" : item.BonusResultado < 0 ? "#f87171" : "#94a3b8");">
-                                            @bonusStr (@resLabel)
+                                            @(item.Nota >= 0 ? "+" : "")@item.Nota.ToString("0.##")
                                         </strong>
                                     </span>
                                     <span style="color:rgba(255,255,255,.5);">
@@ -589,7 +808,138 @@
 
                 </div>
             }
+            </div>
+
+            @if (Model.NotasPorJogo.Count > 3)
+            {
+                <button class="btn-expand" id="btnExpandHistorico" onclick="expandirHistorico()">
+                    Ver todos os @Model.NotasPorJogo.Count jogos ▼
+                </button>
+            }
         }
+
+        </div><!-- /#historicoWrapper -->
 
     </div>
 </div>
+
+<script>
+    // ── Histórico por jogo colapsável ─────────────────────────────────────────
+    function toggleHistorico() {
+        const wrapper = document.getElementById('historicoWrapper');
+        const icon = document.getElementById('historicoToggleIcon');
+        const isVisible = wrapper.style.display !== 'none';
+        wrapper.style.display = isVisible ? 'none' : 'block';
+        icon.textContent = isVisible ? '▼ mostrar' : '▲ ocultar';
+    }
+
+    function expandirHistorico() {
+        const lista = document.getElementById('historicoLista');
+        const btn = document.getElementById('btnExpandHistorico');
+        if (lista) lista.classList.remove('historico-collapsed');
+        if (btn) btn.style.display = 'none';
+    }
+
+    // ── Histórico por Temporada ───────────────────────────────────────────────
+    const jogadorId = @Model.Jogador.Id;
+    const temIdApi = @(Model.Jogador.IdApi.HasValue ? "true" : "false");
+    let temporadaCarregada = false;
+
+    function toggleTemporada() {
+        const wrapper = document.getElementById('temporadaWrapper');
+        const icon = document.getElementById('temporadaToggleIcon');
+        const isVisible = wrapper.style.display !== 'none';
+        wrapper.style.display = isVisible ? 'none' : 'block';
+        icon.textContent = isVisible ? '▼ mostrar' : '▲ ocultar';
+        if (!isVisible && !temporadaCarregada) {
+            temporadaCarregada = true;
+            carregarTemporada(jogadorId, @DateTime.Now.Year, document.querySelector('.season-btn.active'));
+        }
+    }
+
+    function carregarTemporada(jogId, season, btnEl) {
+        document.querySelectorAll('.season-btn').forEach(b => b.classList.remove('active'));
+        if (btnEl) btnEl.classList.add('active');
+
+        const container = document.getElementById('temporadaContainer');
+        if (!container) return;
+        container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:2rem;font-size:.9rem;">Carregando...</div>';
+
+        fetch(`/Jogadores/EstatisticasTemporada?id=${jogId}&season=${season}`)
+            .then(r => r.json())
+            .then(data => {
+                if (!data || data.error || data.length === 0) {
+                    container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:2rem;font-size:.9rem;">Nenhuma estatística disponível para essa temporada.</div>';
+                    return;
+                }
+                renderTemporada(data, container);
+            })
+            .catch(() => {
+                container.innerHTML = '<div style="text-align:center;color:#f87171;padding:2rem;font-size:.9rem;">Erro ao carregar estatísticas.</div>';
+            });
+    }
+
+    function statBox(val, label, cls) {
+        cls = cls || '';
+        const display = (val === null || val === undefined || val === 0 || val === '0') ? '<span style="opacity:.3">–</span>' : val;
+        return `<div class="stat-box"><div class="stat-val ${cls}">${display}</div><div class="stat-lbl">${label}</div></div>`;
+    }
+
+    function renderTemporada(data, container) {
+        const proxyBase = '/MediaProxy/Imagem?url=';
+
+        const html = data.map(function(s) {
+            const logoLeague = s.league.logo ? `<img src="${proxyBase}${encodeURIComponent(s.league.logo)}" class="temporada-liga-logo" />` : '';
+            const flag = s.league.flag ? `<img src="${proxyBase}${encodeURIComponent(s.league.flag)}" style="width:16px;height:12px;object-fit:cover;border-radius:2px;" />` : '';
+            const logoTeam = s.team.logo ? `<img src="${proxyBase}${encodeURIComponent(s.team.logo)}" style="width:20px;height:20px;object-fit:contain;" />` : '';
+            const rating = s.games.rating ? `<span class="rating-badge">${parseFloat(s.games.rating).toFixed(1)}</span>` : '';
+
+            const duelPct = (s.duels.total > 0) ? Math.round(s.duels.won / s.duels.total * 100) + '%' : null;
+            const dribPct = (s.dribbles.attempts > 0) ? Math.round(s.dribbles.success / s.dribbles.attempts * 100) + '%' : null;
+
+            const chips = [];
+            if (s.games.minutes > 0)   chips.push(`⏱️ ${s.games.minutes} min`);
+            if (s.games.lineups > 0)   chips.push(`🏃 ${s.games.lineups} titulares`);
+            if (s.substitutes.in > 0)  chips.push(`↗️ ${s.substitutes.in} entradas`);
+            if (s.substitutes.out > 0) chips.push(`↘️ ${s.substitutes.out} saídas`);
+            if (s.fouls.committed > 0) chips.push(`⚠️ ${s.fouls.committed} faltas`);
+            if (s.cards.yellow > 0)    chips.push(`🟨 ${s.cards.yellow}`);
+            if (s.cards.red > 0)       chips.push(`🟥 ${s.cards.red}`);
+
+            const footerHtml = chips.length
+                ? `<div class="temporada-footer">${chips.map(c => `<span class="temporada-chip">${c}</span>`).join('')}</div>`
+                : '';
+
+            return `
+            <div class="temporada-card">
+                <div class="temporada-header">
+                    ${logoLeague}
+                    <div style="flex:1;min-width:0;">
+                        <div class="temporada-liga-nome">${s.league.name}</div>
+                        <div class="temporada-liga-pais" style="display:flex;align-items:center;gap:5px;">${flag} ${s.league.country || ''} &nbsp;·&nbsp; ${logoTeam} ${s.team.name}</div>
+                    </div>
+                    ${rating}
+                </div>
+                <div class="temporada-stats">
+                    ${statBox(s.games.appearences || null, 'Jogos', 'highlight-blue')}
+                    ${statBox(s.goals.total || null, 'Gols', 'highlight-green')}
+                    ${statBox(s.goals.assists || null, 'Assist.', 'highlight-orange')}
+                    ${statBox(s.shots.total || null, 'Finalizações', '')}
+                    ${statBox(s.shots.on || null, 'No Alvo', '')}
+                    ${statBox(s.passes.total || null, 'Passes', '')}
+                    ${statBox(s.passes.key || null, 'P. Chave', 'highlight-yellow')}
+                    ${statBox(s.passes.accuracy ? s.passes.accuracy + '%' : null, 'Precisão', '')}
+                    ${statBox(s.tackles.total || null, 'Desarmes', '')}
+                    ${statBox(s.tackles.interceptions || null, 'Intercept.', '')}
+                    ${statBox(duelPct, 'Duelos Ganhos', '')}
+                    ${statBox(dribPct, 'Dribles %', '')}
+                </div>
+                ${footerHtml}
+            </div>`;
+        }).join('');
+
+        container.innerHTML = `<div class="temporada-grid">${html}</div>`;
+    }
+
+    // carrega temporada só quando o usuário expandir a seção
+</script>

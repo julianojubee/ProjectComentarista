@@ -1,0 +1,366 @@
+@model List<ControleFutebolWeb.Models.Jogo>
+@using ControleFutebolWeb.Helpers
+@{
+    ViewData["Title"] = "Jogos de Hoje";
+    var jogosAnalisadosIds = (HashSet<int>)(ViewBag.JogosAnalisadosIds ?? new HashSet<int>());
+    var porCompeticao = Model
+        .GroupBy(j => j.Competicao)
+        .OrderBy(g => g.Key?.Nome ?? "")
+        .ToList();
+
+    var diaAtual    = (DateTime)(ViewBag.DiaAtual ?? DateTime.Today);
+    var diaAnterior = (DateTime)(ViewBag.DiaAnterior ?? DateTime.Today.AddDays(-1));
+    var diaSeguinte = (DateTime)(ViewBag.DiaSeguinte ?? DateTime.Today.AddDays(1));
+    bool ehHoje = (bool)(ViewBag.EhHoje ?? true);
+    var ptBR = new System.Globalization.CultureInfo("pt-BR");
+}
+
+<style>
+    .hoje-hero {
+        position: relative;
+        background: linear-gradient(135deg, #0a1628 0%, #1a2f4e 55%, #0f2040 100%);
+        border-radius: 14px;
+        padding: 2rem 2rem;
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+    .hoje-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        opacity: 0.06;
+        background-image: repeating-linear-gradient(0deg, transparent, transparent 30px, rgba(255,255,255,.5) 30px, rgba(255,255,255,.5) 31px),
+                          repeating-linear-gradient(90deg, transparent, transparent 30px, rgba(255,255,255,.5) 30px, rgba(255,255,255,.5) 31px);
+    }
+    .hoje-hero-inner { position: relative; z-index: 1; }
+    .hoje-badge {
+        display: inline-block;
+        background: rgba(55, 138, 221, 0.2);
+        color: #85b7eb;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 3px 12px;
+        border-radius: 20px;
+        border: 1px solid rgba(55, 138, 221, 0.35);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 0.7rem;
+    }
+    .hoje-hero h1 { color: #fff; font-size: 1.7rem; font-weight: 700; margin: 0 0 0.3rem; }
+    .hoje-hero p { color: rgba(255,255,255,.6); margin: 0; font-size: 0.9rem; }
+
+    .hoje-nav { display: flex; gap: 8px; margin-top: 1rem; flex-wrap: wrap; }
+    .hoje-nav-btn {
+        display: inline-flex; align-items: center; gap: 4px;
+        background: rgba(255,255,255,0.10); color: #fff;
+        border: 1px solid rgba(255,255,255,0.20);
+        border-radius: 8px; padding: 7px 14px;
+        font-size: 13px; font-weight: 600; text-decoration: none;
+        transition: background .15s;
+    }
+    .hoje-nav-btn:hover { background: rgba(255,255,255,0.20); color: #fff; text-decoration: none; }
+    .hoje-nav-hoje { background: rgba(55,138,221,0.45); border-color: rgba(133,183,235,0.6); }
+
+    .hoje-comp-section { margin-bottom: 1.5rem; }
+    .hoje-comp-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 0.75rem;
+    }
+    .hoje-comp-logo {
+        width: 26px; height: 26px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+    .hoje-comp-nome {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--color-text-primary);
+        text-transform: uppercase;
+        letter-spacing: .05em;
+    }
+    .hoje-comp-divider {
+        flex: 1;
+        height: 1px;
+        background: var(--color-border-tertiary);
+    }
+    .hoje-comp-count {
+        font-size: 11px;
+        color: var(--color-text-secondary);
+        background: var(--color-background-secondary);
+        border: 0.5px solid var(--color-border-tertiary);
+        border-radius: 20px;
+        padding: 2px 9px;
+    }
+
+    .hoje-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 12px;
+    }
+
+    .hoje-card {
+        background: var(--color-background-primary);
+        border: 0.5px solid var(--color-border-tertiary);
+        border-radius: 12px;
+        overflow: hidden;
+        transition: box-shadow .15s, transform .15s;
+    }
+    .hoje-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); transform: translateY(-1px); }
+    .hoje-card.analisado { border-color: #86efac; }
+
+    .hoje-card-header {
+        background: var(--color-background-secondary);
+        border-bottom: 0.5px solid var(--color-border-tertiary);
+        padding: 8px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 11px;
+        color: var(--color-text-secondary);
+    }
+    .hoje-card-hora { font-weight: 700; color: var(--color-text-primary); }
+
+    .hoje-card-body {
+        padding: 14px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .hoje-time {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        text-align: center;
+    }
+    .hoje-time img, .hoje-escudo-ph {
+        width: 40px; height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+    .hoje-escudo-ph {
+        background: var(--color-background-tertiary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--color-text-secondary);
+    }
+    .hoje-time-nome {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--color-text-primary);
+        line-height: 1.2;
+    }
+
+    .hoje-vs {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+        min-width: 54px;
+    }
+    .hoje-vs-texto { font-size: 13px; color: var(--color-text-secondary); font-weight: 600; }
+    .hoje-placar {
+        font-size: 22px;
+        font-weight: 800;
+        color: var(--color-text-primary);
+        letter-spacing: 2px;
+    }
+
+    .hoje-card-footer {
+        border-top: 0.5px solid var(--color-border-tertiary);
+        padding: 8px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .hoje-status-analisado {
+        font-size: 11px;
+        font-weight: 600;
+        color: #16a34a;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .hoje-status-agendado {
+        font-size: 11px;
+        color: var(--color-text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .hoje-btn-analisar {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 13px;
+        border-radius: 7px;
+        font-size: 12px;
+        font-weight: 600;
+        background: #1e3a5f;
+        color: #fff;
+        text-decoration: none;
+        transition: background .15s;
+    }
+    .hoje-btn-analisar:hover { background: #2d5f9e; color: #fff; }
+
+    .hoje-empty {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--color-text-secondary);
+    }
+    .hoje-empty i { font-size: 40px; margin-bottom: 0.75rem; display: block; }
+    .hoje-empty p { margin: 0; font-size: 14px; }
+</style>
+
+<div>
+    <div class="hoje-hero">
+        <div class="hoje-hero-inner">
+            <div class="hoje-badge">📅 Agenda</div>
+            <h1>@(ehHoje ? "Jogos de Hoje" : "Jogos do Dia")</h1>
+            <p>@diaAtual.ToString("dddd, dd 'de' MMMM 'de' yyyy", ptBR) — @Model.Count jogo(s) encontrado(s)</p>
+
+            <div class="hoje-nav">
+                <a class="hoje-nav-btn" href="@Url.Action("Hoje", new { data = diaAnterior.ToString("yyyy-MM-dd") })">
+                    ← @diaAnterior.ToString("dd/MM", ptBR)
+                </a>
+                @if (!ehHoje)
+                {
+                    <a class="hoje-nav-btn hoje-nav-hoje" href="@Url.Action("Hoje")">Hoje</a>
+                }
+                <a class="hoje-nav-btn" href="@Url.Action("Hoje", new { data = diaSeguinte.ToString("yyyy-MM-dd") })">
+                    @diaSeguinte.ToString("dd/MM", ptBR) →
+                </a>
+            </div>
+        </div>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="hoje-empty">
+            <i class="ti ti-calendar-off"></i>
+            <p>Nenhum jogo encontrado para @diaAtual.ToString("dd/MM/yyyy", ptBR).</p>
+        </div>
+    }
+    else
+    {
+        @foreach (var grupo in porCompeticao)
+        {
+            var comp = grupo.Key;
+            <div class="hoje-comp-section">
+                <div class="hoje-comp-header">
+                    @if (comp != null)
+                    {
+                        var logoComp = CompeticaoHelper.GetLogoCompeticao(comp.Id);
+                        <img src="@logoComp" alt="@comp.Nome" class="hoje-comp-logo" />
+                        <span class="hoje-comp-nome">@comp.Nome</span>
+                    }
+                    else
+                    {
+                        <span class="hoje-comp-nome">Sem competição</span>
+                    }
+                    <div class="hoje-comp-divider"></div>
+                    <span class="hoje-comp-count">@grupo.Count() jogo(s)</span>
+                </div>
+
+                <div class="hoje-grid">
+                    @foreach (var jogo in grupo.OrderBy(j => j.Data))
+                    {
+                        bool realizado = jogo.PlacarCasa.HasValue && jogo.PlacarVisitante.HasValue;
+                        bool analisado = jogosAnalisadosIds.Contains(jogo.Id);
+
+                        <div class="hoje-card @(analisado ? "analisado" : "")">
+                            <div class="hoje-card-header">
+                                <span class="hoje-card-hora">
+                                    @(jogo.Data.HasValue
+                                        ? DateHelper.FormatarData(jogo.Data, "HH:mm")
+                                        : "--:--")
+                                </span>
+                                @if (jogo.Rodada > 0)
+                                {
+                                    <span>Rodada @jogo.Rodada</span>
+                                }
+                                else if (!string.IsNullOrWhiteSpace(jogo.Grupo))
+                                {
+                                    <span>@jogo.Grupo</span>
+                                }
+                            </div>
+
+                            <div class="hoje-card-body">
+                                <div class="hoje-time">
+                                    @if (!string.IsNullOrEmpty(jogo.TimeCasa?.EscudoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa.EscudoUrl })" alt="@jogo.TimeCasa.Nome" />
+                                    }
+                                    else
+                                    {
+                                        <div class="hoje-escudo-ph">@(jogo.TimeCasa?.Nome?.Substring(0, 1) ?? "?")</div>
+                                    }
+                                    <span class="hoje-time-nome">@(jogo.TimeCasa?.Nome ?? "?")</span>
+                                </div>
+
+                                <div class="hoje-vs">
+                                    @if (realizado)
+                                    {
+                                        <span class="hoje-placar">@jogo.PlacarCasa–@jogo.PlacarVisitante</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="hoje-vs-texto">vs</span>
+                                    }
+                                </div>
+
+                                <div class="hoje-time">
+                                    @if (!string.IsNullOrEmpty(jogo.TimeVisitante?.EscudoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante.EscudoUrl })" alt="@jogo.TimeVisitante.Nome" />
+                                    }
+                                    else
+                                    {
+                                        <div class="hoje-escudo-ph">@(jogo.TimeVisitante?.Nome?.Substring(0, 1) ?? "?")</div>
+                                    }
+                                    <span class="hoje-time-nome">@(jogo.TimeVisitante?.Nome ?? "?")</span>
+                                </div>
+                            </div>
+
+                            <div class="hoje-card-footer">
+                                @if (analisado)
+                                {
+                                    <span class="hoje-status-analisado">
+                                        <i class="ti ti-circle-check-filled" style="font-size:13px"></i>
+                                        Analisado
+                                    </span>
+                                }
+                                else if (realizado)
+                                {
+                                    <span class="hoje-status-agendado">
+                                        <i class="ti ti-circle-check" style="font-size:13px"></i>
+                                        Realizado
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="hoje-status-agendado">
+                                        <i class="ti ti-clock" style="font-size:13px"></i>
+                                        Agendado
+                                    </span>
+                                }
+
+                                <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id"
+                                   class="hoje-btn-analisar">
+                                    Analisar →
+                                </a>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>

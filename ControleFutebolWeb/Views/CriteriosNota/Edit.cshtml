@@ -1,0 +1,155 @@
+@model ControleFutebolWeb.Models.CriterioNota
+@{
+    ViewData["Title"] = "Editar Critério";
+}
+
+<style>
+    .cn-form-card {
+        max-width: 540px;
+        background: var(--color-background-primary);
+        border: 0.5px solid var(--color-border-tertiary);
+        border-radius: var(--border-radius-lg);
+        overflow: hidden;
+        margin: 0 auto;
+    }
+    .cn-form-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 0.5px solid var(--color-border-tertiary);
+        background: var(--color-background-secondary);
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--color-text-primary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .cn-form-body { padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
+    .cn-form-group { display: flex; flex-direction: column; gap: 5px; }
+    .cn-form-label { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+    .cn-form-hint { font-size: 11px; color: var(--color-text-secondary); }
+    .cn-form-input {
+        padding: 0.5rem 0.75rem;
+        border: 0.5px solid var(--color-border-tertiary);
+        border-radius: 8px;
+        background: var(--color-background-primary);
+        color: var(--color-text-primary);
+        font-size: 13px;
+        width: 100%;
+    }
+    .cn-form-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
+    .cn-form-footer {
+        padding: 0.875rem 1.25rem;
+        border-top: 0.5px solid var(--color-border-tertiary);
+        display: flex;
+        gap: 0.75rem;
+        justify-content: flex-end;
+    }
+    .cn-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        border: none;
+        text-decoration: none;
+    }
+    .cn-btn-primary { background: #1e3a5f; color: #fff; }
+    .cn-btn-primary:hover { background: #2d5f9e; color: #fff; }
+    .cn-btn-secondary {
+        background: var(--color-background-secondary);
+        color: var(--color-text-primary);
+        border: 0.5px solid var(--color-border-tertiary);
+    }
+    .cn-btn-secondary:hover { background: var(--color-background-tertiary); color: var(--color-text-primary); }
+    .cn-error { font-size: 11px; color: #dc2626; margin-top: 2px; }
+    .cn-preview {
+        padding: 0.75rem 1rem;
+        background: var(--color-background-secondary);
+        border-radius: 8px;
+        font-size: 13px;
+        color: var(--color-text-secondary);
+    }
+</style>
+
+<div style="padding: 0.5rem 0 2rem">
+    <div style="margin-bottom:1rem; display:flex; align-items:center; gap:8px;">
+        <a href="@Url.Action("Index")" style="font-size:13px;color:var(--color-text-secondary);text-decoration:none;">
+            <i class="ti ti-arrow-left"></i> Critérios de Nota
+        </a>
+        <span style="color:var(--color-text-tertiary)">›</span>
+        <span style="font-size:13px;color:var(--color-text-primary)">Editar: @Model.Label</span>
+    </div>
+
+    <div class="cn-form-card">
+        <div class="cn-form-header">
+            <i class="ti ti-edit" style="font-size:15px"></i>
+            Editar Critério
+        </div>
+
+        <form method="post" asp-action="Edit">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" asp-for="AcaoId" />
+            <div class="cn-form-body">
+
+                <div class="cn-form-group">
+                    <label class="cn-form-label" asp-for="Label">Label (nome exibido)</label>
+                    <input class="cn-form-input" asp-for="Label" />
+                    <span class="cn-error" asp-validation-for="Label"></span>
+                </div>
+
+                <div class="cn-form-group">
+                    <label class="cn-form-label" asp-for="AcaoId">ID de Ação</label>
+                    <input class="cn-form-input" asp-for="AcaoId"
+                           oninput="this.value = this.value.toLowerCase().replace(/\s+/g,'_')" />
+                    <span class="cn-form-hint">Identificador único em snake_case. Deve corresponder ao campo retornado em /Notas/BuscarEstatisticas para ser pré-preenchido automaticamente.</span>
+                    <span class="cn-error" asp-validation-for="AcaoId"></span>
+                </div>
+
+                <div class="cn-form-group">
+                    <label class="cn-form-label" asp-for="Peso">Peso</label>
+                    <input class="cn-form-input" asp-for="Peso" type="number" step="0.1"
+                           oninput="atualizarPreview()" />
+                    <span class="cn-form-hint">Valor multiplicado pela quantidade registrada. Positivo soma; negativo subtrai.</span>
+                    <div class="cn-preview" id="preview"></div>
+                    <span class="cn-error" asp-validation-for="Peso"></span>
+                </div>
+
+                <div class="cn-form-group">
+                    <label class="cn-form-label" asp-for="Ordem">Ordem de exibição</label>
+                    <input class="cn-form-input" asp-for="Ordem" type="number" min="0" />
+                </div>
+
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <input type="checkbox" asp-for="Ativo" id="ativoCheck" style="width:16px;height:16px;" />
+                    <label for="ativoCheck" class="cn-form-label" style="margin:0;cursor:pointer;">Ativo (aparece na avaliação)</label>
+                </div>
+
+            </div>
+
+            <div class="cn-form-footer">
+                <a href="@Url.Action("Index")" class="cn-btn cn-btn-secondary">Cancelar</a>
+                <button type="submit" class="cn-btn cn-btn-primary">
+                    <i class="ti ti-device-floppy" style="font-size:13px"></i>
+                    Salvar Alterações
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function atualizarPreview() {
+        const peso = parseFloat(document.querySelector('[name=Peso]').value);
+        const div = document.getElementById('preview');
+        if (isNaN(peso)) { div.textContent = ''; return; }
+        const ex3 = Math.round(3 * peso * 100) / 100;
+        const sinal = peso >= 0 ? '+' : '';
+        div.textContent = `Exemplo: 3 ocorrências × ${sinal}${peso} = ${ex3 >= 0 ? '+' : ''}${ex3} ponto(s)`;
+        div.style.color = peso > 0 ? 'var(--color-text-success)' : peso < 0 ? 'var(--color-text-danger)' : 'var(--color-text-secondary)';
+    }
+    atualizarPreview();
+</script>

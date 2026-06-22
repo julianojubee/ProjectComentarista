@@ -127,35 +127,33 @@ namespace ControleFutebolWeb.Controllers
         {
             var confrontos = new List<ConfrontoMataMata>();
             var usados = new HashSet<int>();
+            var faseName = _fases.TryGetValue(rodada, out var fn) ? fn : $"Rodada {rodada}";
 
-            // Separa jogos realizados (tem placar) dos agendados (sem placar)
-            var realizados = jogos.Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue).ToList();
-            var agendados = jogos.Where(j => !j.PlacarCasa.HasValue || !j.PlacarVisitante.HasValue).ToList();
+            // Ordena por data para que a ida venha antes da volta
+            var ordenados = jogos.OrderBy(j => j.Data).ToList();
 
-            foreach (var ida in realizados)
+            foreach (var jogo in ordenados)
             {
-                if (usados.Contains(ida.Id)) continue;
+                if (usados.Contains(jogo.Id)) continue;
 
-                // Procura a volta: mesmo par de times invertido, ainda sem placar
-                var volta = agendados.FirstOrDefault(j =>
-                    j.TimeCasaId == ida.TimeVisitanteId &&
-                    j.TimeVisitanteId == ida.TimeCasaId &&
-                    !usados.Contains(j.Id));
-
-                // Só inclui se encontrou o jogo de volta agendado
-                if (volta == null) continue;
+                // Procura o jogo inverso (volta): times trocados, ainda não usado
+                var volta = ordenados.FirstOrDefault(j =>
+                    !usados.Contains(j.Id) &&
+                    j.Id != jogo.Id &&
+                    j.TimeCasaId == jogo.TimeVisitanteId &&
+                    j.TimeVisitanteId == jogo.TimeCasaId);
 
                 confrontos.Add(new ConfrontoMataMata
                 {
-                    TimeA = ida.TimeCasa!,
-                    TimeB = ida.TimeVisitante!,
-                    JogoIda = ida,
+                    TimeA    = jogo.TimeCasa!,
+                    TimeB    = jogo.TimeVisitante!,
+                    JogoIda  = jogo,
                     JogoVolta = volta,
-                    FaseName = _fases.TryGetValue(rodada, out var fn) ? fn : $"Rodada {rodada}",
+                    FaseName = faseName,
                 });
 
-                usados.Add(ida.Id);
-                usados.Add(volta.Id);
+                usados.Add(jogo.Id);
+                if (volta != null) usados.Add(volta.Id);
             }
 
             return confrontos;

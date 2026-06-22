@@ -117,11 +117,34 @@
             <p>Acompanhe os campeonatos e acesse classificação, grupos e tabelas.</p>
         </div>
     </div>
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show mt-2" role="alert">
+            @TempData["Sucesso"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show mt-2" role="alert">
+            @TempData["Erro"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
     <a class="btn btn-success" href="@Url.Action("Create", "Competicoes")">+ Nova Competição</a>
+
+    @{ var topTierIds = (HashSet<int>)(ViewBag.TopTierIds ?? new HashSet<int>()); var topTier = Model.Where(c => topTierIds.Contains(c.Id)).OrderBy(c => c.Nome).ToList(); var demais = Model.Where(c => !topTierIds.Contains(c.Id)).OrderBy(c => c.Nome).ToList(); }
+
+    @if (topTier.Any())
+    {
+        <div style="display:flex;align-items:center;gap:.6rem;margin:1.2rem 0 .6rem;">
+            <span style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#6b7280;">⭐ Principais</span>
+            <div style="flex:1;height:1px;background:#e5e7eb;"></div>
+        </div>
+    }
     <div class="cf-comp-grid">
-        @foreach (var comp in Model)
+        @foreach (var comp in topTier)
         {
-            // Normaliza o nome para comparação
             var nome = comp.Nome?.ToLowerInvariant() ?? "";
 
             // Mapeamento de rotas especiais
@@ -142,7 +165,7 @@
             <div class="cf-comp-card">
                 <a class="cf-comp-card-main" href="@url">
                     <div style="display:flex; align-items:center; gap:8px;">
-                        <img src="@CompeticaoHelper.GetLogoCompeticao(comp.Id)"
+                        <img src="@CompeticaoHelper.GetLogoCompeticao(comp.Id, comp.LogoUrl)"
                              alt="@comp.Nome"
                              style="width:28px; height:28px; border-radius:50%; object-fit:cover;" />
                         <h2 class="cf-comp-title">@comp.Nome</h2>
@@ -152,30 +175,46 @@
                 </a>
 
                 <div class="d-flex gap-2 align-items-center flex-wrap mt-2">
-                    <!-- 🔹 Botão para abrir modal -->
+                    <a asp-action="Edit" asp-route-id="@comp.Id" class="btn btn-sm btn-outline-secondary">
+                        Editar
+                    </a>
+
                     <button type="button" class="btn btn-sm btn-outline-primary"
                             data-bs-toggle="modal" data-bs-target="#linkModal-@comp.Id">
                         Informar link
                     </button>
 
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                            data-bs-toggle="modal" data-bs-target="#logoModal-@comp.Id">
+                        🖼 Escudo
+                    </button>
+
                     @if (!string.IsNullOrWhiteSpace(comp.linktransfermarket))
                     {
-                        <a href="@comp.linktransfermarket" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary">
-                            Abrir link
-                        </a>
+                        <form asp-action="BuscarJogos" asp-route-id="@comp.Id" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-success"
+                                    onclick="this.disabled=true; this.innerText='Buscando...'; this.form.submit();">
+                                Buscar Jogos
+                            </button>
+                        </form>
                     }
+                    <form asp-action="ToggleTopTier" asp-route-id="@comp.Id" method="post" class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-sm btn-warning" title="Remover dos principais">⭐ Principal</button>
+                    </form>
                 </div>
             </div>
 
-            <!-- 🔹 Modal Bootstrap -->
-            <div class="modal fade" id="linkModal-@comp.Id" tabindex="-1" aria-labelledby="linkModalLabel-@comp.Id" aria-hidden="true">
+            <!-- Modal link -->
+            <div class="modal fade" id="linkModal-@comp.Id" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <form asp-action="SalvarLinkCompeticao" asp-route-id="@comp.Id" method="post">
                             @Html.AntiForgeryToken()
                             <div class="modal-header">
-                                <h5 class="modal-title" id="linkModalLabel-@comp.Id">Informar URL da Competição</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                                <h5 class="modal-title">Informar URL da Competição</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body">
                                 <input type="text" name="linkCompeticao" class="form-control"
@@ -191,9 +230,168 @@
                 </div>
             </div>
 
-           
-
-
+            <!-- Modal escudo -->
+            <div class="modal fade" id="logoModal-@comp.Id" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form asp-action="SalvarLogo" asp-route-id="@comp.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            <div class="modal-header">
+                                <h5 class="modal-title">Escudo de @comp.Nome</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                @if (!string.IsNullOrWhiteSpace(comp.LogoUrl))
+                                {
+                                    <div class="text-center mb-3">
+                                        <img src="@comp.LogoUrl" alt="@comp.Nome"
+                                             style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:1px solid #e5e7eb;" />
+                                    </div>
+                                }
+                                <label class="form-label fw-semibold">URL do escudo</label>
+                                <input type="url" name="logoUrl" class="form-control"
+                                       placeholder="https://..."
+                                       value="@comp.LogoUrl" />
+                                <div class="form-text">Cole a URL da imagem. Deixe vazio para usar o escudo padrão.</div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="btn btn-primary">Salvar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
         }
     </div>
+
+    @if (demais.Any())
+    {
+        <div style="display:flex;align-items:center;gap:.6rem;margin:1.5rem 0 .6rem;">
+            <span style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#6b7280;">Todas as competições</span>
+            <div style="flex:1;height:1px;background:#e5e7eb;"></div>
+        </div>
+        <div class="cf-comp-grid">
+            @foreach (var comp in demais)
+            {
+                var nome = comp.Nome?.ToLowerInvariant() ?? "";
+
+                string url;
+                if (nome.Contains("brasileiro") || nome.Contains("brasileirão"))
+                    url = Url.Action("Brasileirao", "Tabela");
+                else if (nome.Contains("copa do brasil"))
+                    url = Url.Action("Index", "CopaBrasil");
+                else if (nome.Contains("copa do mundo"))
+                    url = Url.Action("Index", "CopaDoMundo");
+                else if (nome.Contains("copa libertadores"))
+                    url = Url.Action("Index", "Libertadores");
+                else if (nome.Contains("champions"))
+                    url = Url.Action("Index", "Competicoes");
+                else
+                    url = Url.Action("Detalhes", "Competicoes", new { id = comp.Id });
+
+                <div class="cf-comp-card">
+                    <a class="cf-comp-card-main" href="@url">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <img src="@CompeticaoHelper.GetLogoCompeticao(comp.Id, comp.LogoUrl)"
+                                 alt="@comp.Nome"
+                                 style="width:28px; height:28px; border-radius:50%; object-fit:cover;" />
+                            <h2 class="cf-comp-title">@comp.Nome</h2>
+                        </div>
+                        <div class="cf-comp-meta">Região: @comp.Regiao | Tipo: @comp.Tipo</div>
+                        <span class="cf-comp-link">Abrir competição &rarr;</span>
+                    </a>
+
+                    <div class="d-flex gap-2 align-items-center flex-wrap mt-2">
+                        <a asp-action="Edit" asp-route-id="@comp.Id" class="btn btn-sm btn-outline-secondary">Editar</a>
+
+                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                data-bs-toggle="modal" data-bs-target="#linkModal-@comp.Id">
+                            Informar link
+                        </button>
+
+                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                data-bs-toggle="modal" data-bs-target="#logoModal-@comp.Id">
+                            🖼 Escudo
+                        </button>
+
+                        @if (!string.IsNullOrWhiteSpace(comp.linktransfermarket))
+                        {
+                            <form asp-action="BuscarJogos" asp-route-id="@comp.Id" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-success"
+                                        onclick="this.disabled=true; this.innerText='Buscando...'; this.form.submit();">
+                                    Buscar Jogos
+                                </button>
+                            </form>
+                        }
+
+                        <form asp-action="ToggleTopTier" asp-route-id="@comp.Id" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-outline-warning" title="Marcar como principal">
+                                ☆ Principal
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Modal link -->
+                <div class="modal fade" id="linkModal-@comp.Id" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form asp-action="SalvarLinkCompeticao" asp-route-id="@comp.Id" method="post">
+                                @Html.AntiForgeryToken()
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Informar URL da Competição</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <input type="text" name="linkCompeticao" class="form-control"
+                                           placeholder="Cole o link aqui"
+                                           value="@comp.linktransfermarket" />
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                    <button type="submit" class="btn btn-primary">Salvar</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal escudo -->
+                <div class="modal fade" id="logoModal-@comp.Id" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form asp-action="SalvarLogo" asp-route-id="@comp.Id" method="post">
+                                @Html.AntiForgeryToken()
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Escudo de @comp.Nome</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    @if (!string.IsNullOrWhiteSpace(comp.LogoUrl))
+                                    {
+                                        <div class="text-center mb-3">
+                                            <img src="@comp.LogoUrl" alt="@comp.Nome"
+                                                 style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:1px solid #e5e7eb;" />
+                                        </div>
+                                    }
+                                    <label class="form-label fw-semibold">URL do escudo</label>
+                                    <input type="url" name="logoUrl" class="form-control"
+                                           placeholder="https://..."
+                                           value="@comp.LogoUrl" />
+                                    <div class="form-text">Cole a URL da imagem. Deixe vazio para usar o escudo padrão.</div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                    <button type="submit" class="btn btn-primary">Salvar</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
 </div>

@@ -15,7 +15,7 @@ namespace ControleFutebolWeb.Models.ViewModels
     {
         public Jogo Jogo { get; set; }
         public bool Analisado { get; set; }          // false = sem nota, só participou
-        public int Nota { get; set; }
+        public double Nota { get; set; }
         public string Comentario { get; set; }
         public int Gols { get; set; }
         public int Assistencias { get; set; }
@@ -26,5 +26,7 @@ namespace ControleFutebolWeb.Models.ViewModels
         public List<Notadetalhe> Detalhes { get; set; } = new();
         public int GolsPro { get; set; }
         public int GolsContra { get; set; }
+        public double NotaBaseFixa { get; set; }     // 4.0 (base) — nota mínima 4.0
+        public bool OrigemManual { get; set; }       // true = nota dada por um analista
     }
 }

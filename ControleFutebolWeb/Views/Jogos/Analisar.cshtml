@@ -1,6 +1,7 @@
 ﻿@model ControleFutebolWeb.Models.Jogo
 @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
 @using ControleFutebolWeb.Helpers
+@using System.Text.Json
 @{
     var faseAtual = (ViewBag.FaseEscalacaoAtual as string) ?? "INICIAL";
     var faseEhInicial = faseAtual == "INICIAL";
@@ -9,6 +10,57 @@
     var jogadoresEntraramVisitante = (ViewBag.JogadoresEntraramVisitante as List<int>) ?? new List<int>();
     var jogadoresSairamCasa = (ViewBag.JogadoresSairamCasa as List<int>) ?? new List<int>();
     var jogadoresSairamVisitante = (ViewBag.JogadoresSairamVisitante as List<int>) ?? new List<int>();
+
+    // Estatísticas da partida (posse, finalizações, etc.) — ver Jogo.EstatisticasJson
+    Dictionary<string, string> statsCasa = new();
+    Dictionary<string, string> statsVis = new();
+    if (!string.IsNullOrWhiteSpace(Model.EstatisticasJson))
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(Model.EstatisticasJson);
+            foreach (var item in doc.RootElement.EnumerateArray())
+            {
+                var timeId = item.GetProperty("TimeId").GetInt32();
+                var stats = new Dictionary<string, string>();
+                if (item.TryGetProperty("Stats", out var statsEl))
+                {
+                    foreach (var prop in statsEl.EnumerateObject())
+                        stats[prop.Name] = prop.Value.ValueKind == JsonValueKind.Null
+                            ? "0" : (prop.Value.GetString() ?? "0");
+                }
+
+                if (timeId == Model.TimeCasa?.IdApi) statsCasa = stats;
+                else if (timeId == Model.TimeVisitante?.IdApi) statsVis = stats;
+            }
+        }
+        catch { /* JSON inválido/antigo — ignora */ }
+    }
+
+    string PegarStat(Dictionary<string, string> stats, string chave) =>
+        stats.TryGetValue(chave, out var v) ? v : "0";
+
+    double PegarStatNumero(Dictionary<string, string> stats, string chave)
+    {
+        var raw = PegarStat(stats, chave).Replace("%", "").Trim();
+        return double.TryParse(raw, System.Globalization.CultureInfo.InvariantCulture, out var n) ? n : 0;
+    }
+
+    var metricasEstatisticas = new List<(string label, string chave)>
+    {
+        ("Finalizações totais", "Total Shots"),
+        ("Finalizações no gol", "Shots on Goal"),
+        ("Finalizações para fora", "Shots off Goal"),
+        ("Finalizações bloqueadas", "Blocked Shots"),
+        ("Escanteios", "Corner Kicks"),
+        ("Impedimentos", "Offsides"),
+        ("Faltas", "Fouls"),
+        ("Cartões amarelos", "Yellow Cards"),
+        ("Cartões vermelhos", "Red Cards"),
+        ("Defesas do goleiro", "Goalkeeper Saves"),
+        ("Passes certos", "Passes accurate"),
+        ("Precisão de passe", "Passes %"),
+    };
 }
 
 <style>
@@ -361,12 +413,55 @@
         font-weight: 300;
     }
 
+    /* ── Estádio / árbitro ────────────────────────────────── */
+    .mb-meta {
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+        flex-wrap: wrap;
+        padding: 0 1rem 0.8rem;
+        margin-top: -4px;
+    }
+    .mb-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: rgba(255,255,255,0.75);
+        font-size: 0.82rem;
+    }
+    .mb-meta-icon { font-size: 1rem; }
+
     /* ── Toolbar de eventos ───────────────────────────────── */
+    .mb-toolbar-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-top: .9rem;
+        padding: 6px 13px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,.18);
+        background: rgba(255,255,255,.07);
+        color: rgba(255,255,255,.85);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        width: fit-content;
+        margin-left: auto;
+        margin-right: auto;
+        transition: background .15s, color .15s;
+    }
+
+        .mb-toolbar-toggle:hover {
+            background: rgba(255,255,255,.16);
+            color: #fff;
+        }
+
     .mb-toolbar {
         display: flex;
         gap: 8px;
         justify-content: center;
-        margin-top: .9rem;
+        margin-top: .6rem;
         flex-wrap: wrap;
     }
 
@@ -517,6 +612,14 @@
         opacity: 1;
     }
 
+    .mb-event-sub {
+        opacity: 0.82;
+        border-left: 3px solid #22c55e;
+    }
+    .mb-event-sub .mb-event-text small {
+        color: #ef4444;
+    }
+
     /* ── Modal de evento ─────────────────────────────────── */
     #modal-evento {
         display: none;
@@ -652,7 +755,7 @@
         <div class="mb-team home">
             @if (!string.IsNullOrEmpty(Model.TimeCasa?.EscudoUrl))
             {
-                <img src="@Model.TimeCasa.EscudoUrl" alt="@Model.TimeCasa.Nome" />
+                <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.TimeCasa.EscudoUrl })" alt="@Model.TimeCasa.Nome" />
             }
             <span class="mb-team-name">@Model.TimeCasa?.Nome</span>
         </div>
@@ -676,14 +779,66 @@
         <div class="mb-team away">
             @if (!string.IsNullOrEmpty(Model.TimeVisitante?.EscudoUrl))
             {
-                <img src="@Model.TimeVisitante.EscudoUrl" alt="@Model.TimeVisitante.Nome" />
+                <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.TimeVisitante.EscudoUrl })" alt="@Model.TimeVisitante.Nome" />
             }
             <span class="mb-team-name">@Model.TimeVisitante?.Nome</span>
         </div>
     </div>
 
-    <!-- Toolbar -->
-    <div class="mb-toolbar">
+    @if (!string.IsNullOrWhiteSpace(Model.Estadio) || !string.IsNullOrWhiteSpace(Model.Arbitro))
+    {
+        <div class="mb-meta">
+            @if (!string.IsNullOrWhiteSpace(Model.Estadio))
+            {
+                <span class="mb-meta-item">
+                    <span class="mb-meta-icon">🏟️</span>
+                    <span>@Model.Estadio</span>
+                </span>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.Arbitro))
+            {
+                <span class="mb-meta-item">
+                    <span class="mb-meta-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle">
+                            <!-- cabeça -->
+                            <circle cx="12" cy="5.5" r="3" fill="rgba(255,255,255,0.85)"/>
+                            <!-- corpo listrado preto e branco (árbitro) -->
+                            <path d="M7 10 Q7 8.5 12 8.5 Q17 8.5 17 10 L17 18 Q17 19 16 19 L8 19 Q7 19 7 18 Z" fill="rgba(255,255,255,0.85)"/>
+                            <rect x="7" y="11.5" width="10" height="2" fill="rgba(0,0,0,0.45)"/>
+                            <rect x="7" y="15" width="10" height="2" fill="rgba(0,0,0,0.45)"/>
+                            <!-- pernas -->
+                            <path d="M9 19 L8.5 23 L10.5 23 L12 20.5 L13.5 23 L15.5 23 L15 19 Z" fill="rgba(255,255,255,0.85)"/>
+                        </svg>
+                    </span>
+                    <span>@Model.Arbitro</span>
+                </span>
+            }
+        </div>
+    }
+
+    <!-- Timeline de gols (sempre visível) -->
+    <div class="mb-timeline" id="mbTimelineGols"></div>
+
+    <!-- Barra de ações: três botões lado a lado -->
+    <div style="display:flex; gap:8px; justify-content:center; margin-top:.9rem; flex-wrap:wrap;">
+        <div class="mb-toolbar-toggle" id="mbToolbarToggle" onclick="toggleToolbarEventos()" style="margin:0;">
+            <span>➕ Adicionar evento</span>
+            <span id="mbToolbarToggleIcon" style="transition:transform .15s;">▾</span>
+        </div>
+        <div class="mb-toolbar-toggle" id="mbOutrosToggle" onclick="toggleOutrosEventos()" style="margin:0;">
+            <span>📋 Outros eventos</span>
+            <span id="mbOutrosToggleIcon" style="transition:transform .15s;">▾</span>
+        </div>
+        <div class="mb-toolbar-toggle" id="mbEstatisticasToggle" onclick="toggleEstatisticasPanel()" style="margin:0;">
+            <span>📊 Estatísticas</span>
+            <span id="mbEstatisticasToggleIcon" style="transition:transform .15s;">▾</span>
+        </div>
+        <div class="mb-toolbar-toggle" id="mbH2HToggle" onclick="abrirH2H(@Model.Id)" style="margin:0; cursor:pointer;">
+            <span>⚔️ Últimos confrontos</span>
+        </div>
+    </div>
+
+    <div class="mb-toolbar" id="mbToolbar" style="display:none;">
         <button type="button" class="mb-btn gol"
                 onclick="abrirModalEvento('gol', 'casa')">
             ⚽ Gol Mandante
@@ -710,8 +865,41 @@
         </button>
     </div>
 
-    <!-- Timeline de eventos -->
-    <div class="mb-timeline" id="mbTimeline"></div>
+    <div class="mb-timeline" id="mbTimelineOutros" style="display:none;"></div>
+
+    <script>
+        function toggleToolbarEventos() {
+            var toolbar = document.getElementById('mbToolbar');
+            var icon = document.getElementById('mbToolbarToggleIcon');
+            var aberto = toolbar.style.display !== 'none';
+            toolbar.style.display = aberto ? 'none' : '';
+            icon.style.transform = aberto ? 'rotate(0deg)' : 'rotate(180deg)';
+        }
+
+        function toggleOutrosEventos() {
+            var tl = document.getElementById('mbTimelineOutros');
+            var icon = document.getElementById('mbOutrosToggleIcon');
+            var aberto = tl.style.display !== 'none';
+            tl.style.display = aberto ? 'none' : '';
+            icon.style.transform = aberto ? 'rotate(0deg)' : 'rotate(180deg)';
+        }
+
+        function toggleEstatisticasPanel() {
+            var painel = document.getElementById('painelEstatisticas');
+            var icon = document.getElementById('mbEstatisticasToggleIcon');
+            var escalacao = document.getElementById('painelEscalacao');
+            if (!painel) return;
+            var aberto = painel.style.display !== 'none';
+            painel.style.display = aberto ? 'none' : '';
+            if (!aberto) escalacao.style.display = 'none';
+            else escalacao.style.display = '';
+            icon.style.transform = aberto ? 'rotate(0deg)' : 'rotate(180deg)';
+            // Sincroniza com o tab btn legado
+            if (document.getElementById('tabBtnEstatisticas')) {
+                document.getElementById('tabBtnEstatisticas').classList.toggle('active', !aberto);
+            }
+        }
+    </script>
 </div>
 
 <!-- ── Status de Análise ───────────────────────────────────────────── -->
@@ -910,6 +1098,7 @@
     <ul class="nav nav-tabs">
         <li class="nav-item">
             <a class="nav-link @(faseEhInicial ? "active" : "")"
+               id="tabBtnEscalacaoInicial"
                asp-action="Analisar"
                asp-route-id="@Model.Id"
                asp-route-formacaoCasaId="@ViewBag.FormacaoCasaSelecionada"
@@ -920,6 +1109,7 @@
         </li>
         <li class="nav-item">
             <a class="nav-link @(!faseEhInicial ? "active" : "")"
+               id="tabBtnEscalacaoFinal"
                asp-action="Analisar"
                asp-route-id="@Model.Id"
                asp-route-formacaoCasaId="@ViewBag.FormacaoCasaSelecionada"
@@ -930,6 +1120,8 @@
         </li>
     </ul>
 </div>
+
+<div id="painelEscalacao">
 
 <!-- ── FORM PRINCIPAL (id fixo para o JS encontrar com segurança) ── -->
 <form id="formSalvarEscalacao" method="post" asp-action="SalvarEscalacao" asp-controller="Jogos">
@@ -953,7 +1145,16 @@
                     {
                         <div class="d-flex align-items-center gap-2 px-1 py-1 mb-1"
                              style="background:#f0f4ff;border-radius:7px;border:1px solid #dce4f5;">
-                            <span style="font-size:16px;">🧑‍💼</span>
+                            @if (!string.IsNullOrWhiteSpace(treinadorCasa.FotoUrl))
+                            {
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = treinadorCasa.FotoUrl })"
+                                     alt="@treinadorCasa.Nome"
+                                     style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0;" />
+                            }
+                            else
+                            {
+                                <span style="font-size:16px;">🧑‍💼</span>
+                            }
                             <div>
                                 <div style="font-size:9px;color:#6b7280;text-transform:uppercase;line-height:1;">Treinador</div>
                                 <div style="font-size:12px;font-weight:600;color:#1e3a5f;">@treinadorCasa.Nome</div>
@@ -1169,7 +1370,16 @@
                     {
                         <div class="d-flex align-items-center gap-2 px-1 py-1 mb-1"
                              style="background:#f0f4ff;border-radius:7px;border:1px solid #dce4f5;">
-                            <span style="font-size:16px;">🧑‍💼</span>
+                            @if (!string.IsNullOrWhiteSpace(treinadorVis.FotoUrl))
+                            {
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = treinadorVis.FotoUrl })"
+                                     alt="@treinadorVis.Nome"
+                                     style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0;" />
+                            }
+                            else
+                            {
+                                <span style="font-size:16px;">🧑‍💼</span>
+                            }
                             <div>
                                 <div style="font-size:9px;color:#6b7280;text-transform:uppercase;line-height:1;">Treinador</div>
                                 <div style="font-size:12px;font-weight:600;color:#1e3a5f;">@treinadorVis.Nome</div>
@@ -1232,6 +1442,87 @@
     </div>
 </form>
 
+</div>
+<!-- fim #painelEscalacao -->
+
+<div id="painelEstatisticas" style="display:none;">
+    <div class="cf-card" style="padding:1.25rem;">
+        @{
+            var totalChutes = PegarStatNumero(statsCasa, "Total Shots") + PegarStatNumero(statsVis, "Total Shots");
+            var possCasa = PegarStatNumero(statsCasa, "Ball Possession");
+            var possVis = PegarStatNumero(statsVis, "Ball Possession");
+            if (possCasa == 0 && possVis == 0) { possCasa = 50; possVis = 50; }
+        }
+
+        @if (statsCasa.Count == 0 && statsVis.Count == 0)
+        {
+            <div style="padding:1.5rem;text-align:center;color:#9ca3af;font-size:13px;">
+                Estatísticas ainda não disponíveis para esta partida.
+            </div>
+        }
+        else
+        {
+            <div style="display:flex;align-items:center;justify-content:center;gap:1.5rem;margin-bottom:1.5rem;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.TimeCasa?.EscudoUrl })"
+                         alt="@Model.TimeCasa?.Nome" style="width:28px;height:28px;object-fit:contain;" />
+                    <span style="font-weight:700;color:#1e3a5f;">@Model.TimeCasa?.Nome</span>
+                </div>
+                <div style="font-size:12px;color:#6b7280;text-transform:uppercase;font-weight:600;">Posse de bola</div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="font-weight:700;color:#1e3a5f;">@Model.TimeVisitante?.Nome</span>
+                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.TimeVisitante?.EscudoUrl })"
+                         alt="@Model.TimeVisitante?.Nome" style="width:28px;height:28px;object-fit:contain;" />
+                </div>
+            </div>
+
+            <div style="display:flex;align-items:center;height:10px;border-radius:6px;overflow:hidden;margin-bottom:0.25rem;background:#e5e7eb;">
+                <div style="height:100%;background:#1e3a5f;width:@(possCasa)%;"></div>
+                <div style="height:100%;background:#9ca3af;width:@(possVis)%;"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:#1e3a5f;margin-bottom:1.5rem;">
+                <span>@(possCasa)%</span>
+                <span style="color:#6b7280;">@(possVis)%</span>
+            </div>
+
+            @foreach (var (label, chave) in metricasEstatisticas)
+            {
+                var valCasaStr = PegarStat(statsCasa, chave);
+                var valVisStr = PegarStat(statsVis, chave);
+                var valCasaNum = PegarStatNumero(statsCasa, chave);
+                var valVisNum = PegarStatNumero(statsVis, chave);
+                var total = valCasaNum + valVisNum;
+                var pctCasa = total > 0 ? (valCasaNum / total * 100) : 50;
+                var pctVis = 100 - pctCasa;
+
+                <div style="margin-bottom:1rem;">
+                    <div style="display:flex;justify-content:space-between;font-size:13px;color:#374151;margin-bottom:4px;">
+                        <span style="font-weight:700;">@valCasaStr</span>
+                        <span style="color:#6b7280;">@label</span>
+                        <span style="font-weight:700;">@valVisStr</span>
+                    </div>
+                    <div style="display:flex;align-items:center;height:8px;border-radius:5px;overflow:hidden;background:#e5e7eb;">
+                        <div style="height:100%;background:#1e3a5f;width:@(pctCasa)%;"></div>
+                        <div style="height:100%;background:#9ca3af;width:@(pctVis)%;"></div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+<script>
+    function mostrarPainel(painel) {
+        var estatisticas = painel === 'estatisticas';
+        document.getElementById('painelEscalacao').style.display = estatisticas ? 'none' : '';
+        document.getElementById('painelEstatisticas').style.display = estatisticas ? '' : 'none';
+        if (estatisticas) {
+            document.getElementById('tabBtnEscalacaoInicial').classList.remove('active');
+            document.getElementById('tabBtnEscalacaoFinal').classList.remove('active');
+        }
+    }
+</script>
+
 <input type="hidden" id="jogoId" value="@Model.Id" />
 <!-- Modal de Avaliação -->
 <div id="modal-avaliacao" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
@@ -1244,6 +1535,17 @@
             <button type="button" onclick="fecharAvaliacao()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#999;">&times;</button>
         </div>
         <div id="av-acoes"></div>
+
+        <!-- Bônus automáticos -->
+        <div id="av-bonus-bloco" style="display:none; margin-top:0.75rem; padding:0.6rem 0.75rem; background:#f8faff; border-radius:8px; border:1px solid #e0eaff;">
+            <div style="font-size:11px; font-weight:600; color:#2563eb; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">⚡ Bônus automáticos</div>
+            <div id="av-bonus-linhas" style="display:flex; flex-direction:column; gap:4px;"></div>
+            <div style="margin-top:6px; padding-top:6px; border-top:1px solid #dbeafe; display:flex; justify-content:space-between; font-size:13px; font-weight:600;">
+                <span>Subtotal bônus</span>
+                <span id="av-bonus-subtotal" style="color:#2563eb;">+0</span>
+            </div>
+        </div>
+
         <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
             <span style="color:#666; font-size:13px;">Pontuação total</span>
             <div style="display:flex; align-items:center; gap:10px;">
@@ -1277,8 +1579,8 @@
     const faseEscalacaoAtual = '@faseAtual';
     const observacoesSalvasRaw = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Observacoes ?? ""));
     const escudosObservacao = {
-        CASA: '@(string.IsNullOrEmpty(Model.TimeCasa.EscudoUrl) ? "" : Url.Content(Model.TimeCasa.EscudoUrl))',
-        VISITANTE: '@(string.IsNullOrEmpty(Model.TimeVisitante.EscudoUrl) ? "" : Url.Content(Model.TimeVisitante.EscudoUrl))'
+        CASA: '@(string.IsNullOrEmpty(Model.TimeCasa.EscudoUrl) ? "" : Url.Action("Imagem", "MediaProxy", new { url = Model.TimeCasa.EscudoUrl }))',
+        VISITANTE: '@(string.IsNullOrEmpty(Model.TimeVisitante.EscudoUrl) ? "" : Url.Action("Imagem", "MediaProxy", new { url = Model.TimeVisitante.EscudoUrl }))'
     };
 
     function autoResizeObs(textarea) {
@@ -1564,40 +1866,43 @@
 </script>
 
 <script>
-    const acoesPorPosicao = {
-        'GL': [
-            { id: 'defesa_dificil', label: 'Defesa difícil',    peso: +2 },
-            { id: 'gol_sofrido',    label: 'Gol sofrido',        peso: -1 },
-            { id: 'saida_bola',     label: 'Boa saída de bola',  peso: +1 },
-            { id: 'falha_grave',    label: 'Falha grave',         peso: -2 },
-        ],
-        'AT': [
-            { id: 'chute_gol',     label: 'Chute no alvo',       peso: +1 },
-            { id: 'chute_fora',    label: 'Chute pra fora',       peso: -1 },
-            { id: 'drible_certo',  label: 'Drible bem-sucedido',  peso: +1 },
-            { id: 'passe_certo',   label: 'Passe certo',          peso: +1 },
-            { id: 'passe_errado',  label: 'Passe errado',         peso: -1 },
-            { id: 'falta_sofrida', label: 'Falta sofrida',        peso: +1 },
-        ],
-        'default': [
-            { id: 'passe_certo',    label: 'Passe certo',         peso: +1 },
-            { id: 'passe_errado',   label: 'Passe errado',         peso: -1 },
-            { id: 'interceptacao',  label: 'Interceptação',        peso: +1 },
-            { id: 'falta_cometida', label: 'Falta cometida',       peso: -1 },
-            { id: 'drible_certo',   label: 'Drible certo',         peso: +1 },
-            { id: 'perda_bola',     label: 'Perda de bola',        peso: -1 },
-        ]
-    };
+    // Critérios carregados do banco via /Notas/BuscarCriterios (Cadastros > Notas)
+    let criterios = [];
+    let criteriosCarregados = false;
+
+    async function carregarCriterios() {
+        if (criteriosCarregados) return;
+        try {
+            const resp = await fetch('/Notas/BuscarCriterios');
+            if (resp.ok) {
+                criterios = await resp.json();
+                criteriosCarregados = true;
+            }
+        } catch { }
+        // fallback mínimo se a chamada falhar
+        if (criterios.length === 0) {
+            criterios = [
+                { id: 'gol',            label: 'Gol',           peso: 2 },
+                { id: 'assistencia',    label: 'Assistência',   peso: 1 },
+                { id: 'gol_sofrido',    label: 'Gol sofrido',   peso: -1 },
+                { id: 'cartao_amarelo', label: 'Cartão amarelo',peso: -0.5 },
+                { id: 'cartao_vermelho',label: 'Cartão vermelho',peso: -1 },
+            ];
+            criteriosCarregados = true;
+        }
+    }
 
     const avaliacoes = {};
     let jogadorAtual = null;
-    let chaveAtual   = 'default';
+    let estatisticasAtuais = null;
 
-    function abrirAvaliacao(jogadorId, nome, posicao, event) {
+    async function abrirAvaliacao(jogadorId, nome, posicao, event) {
         event.stopPropagation();
 
         jogadorAtual = jogadorId;
-        chaveAtual   = posicao in acoesPorPosicao ? posicao : 'default';
+        estatisticasAtuais = null;
+
+        await carregarCriterios();
 
         if (!avaliacoes[jogadorId]) avaliacoes[jogadorId] = { obs: '' };
 
@@ -1605,11 +1910,36 @@
         document.getElementById('av-pos').textContent  = posicao + ' · Avaliação da partida';
         document.getElementById('av-obs').value        = avaliacoes[jogadorId].obs || '';
 
-        const acoes     = acoesPorPosicao[chaveAtual];
+        // Busca estatísticas importadas para pré-preencher (só na primeira vez que abre)
+        const jaTinhaValores = criterios.some(c => (avaliacoes[jogadorId][c.id] || 0) > 0);
+        if (!jaTinhaValores) {
+            try {
+                const jogoId = parseInt(document.getElementById('jogoId').value);
+                const resp = await fetch(`/Notas/BuscarEstatisticas?jogoId=${jogoId}&jogadorId=${jogadorId}`);
+                if (resp.ok) {
+                    const dados = await resp.json();
+                    if (dados.encontrado) {
+                        estatisticasAtuais = dados;
+                        criterios.forEach(c => { avaliacoes[jogadorId][c.id] = dados[c.id] || 0; });
+                    }
+                }
+            } catch { }
+        }
+
         const container = document.getElementById('av-acoes');
         container.innerHTML = '';
 
-        acoes.forEach(a => {
+        if (estatisticasAtuais && (estatisticasAtuais.minutos || estatisticasAtuais.rating)) {
+            const info = document.createElement('div');
+            info.style.cssText = 'font-size:12px;color:#6b7280;padding:4px 0 10px;';
+            info.textContent = [
+                estatisticasAtuais.minutos != null ? `${estatisticasAtuais.minutos} min` : null,
+                estatisticasAtuais.rating != null ? `nota api: ${estatisticasAtuais.rating}` : null
+            ].filter(Boolean).join(' · ');
+            container.appendChild(info);
+        }
+
+        criterios.forEach(a => {
             if (!avaliacoes[jogadorId][a.id]) avaliacoes[jogadorId][a.id] = 0;
 
             const row = document.createElement('div');
@@ -1639,11 +1969,11 @@
     }
 
     function recalcularTotal() {
-        const acoes = acoesPorPosicao[chaveAtual];
-        let total   = 0;
-        acoes.forEach(a => {
+        let total = 0;
+        criterios.forEach(a => {
             total += (avaliacoes[jogadorAtual][a.id] || 0) * a.peso;
         });
+        total = Math.round(total * 100) / 100;
 
         const el   = document.getElementById('av-total');
         const chip = document.getElementById('av-nota');
@@ -1662,9 +1992,8 @@
         avaliacoes[jogadorAtual].obs = document.getElementById('av-obs').value;
 
         const jogoId = parseInt(document.getElementById('jogoId').value);
-        const acoes  = acoesPorPosicao[chaveAtual];
 
-        const detalhes = acoes
+        const detalhes = criterios
             .filter(a => (avaliacoes[jogadorAtual][a.id] || 0) > 0)
             .map(a => ({
                 acaoId:     a.id,
@@ -1673,8 +2002,8 @@
                 peso:       a.peso
             }));
 
-        const total = acoes.reduce((sum, a) =>
-            sum + (avaliacoes[jogadorAtual][a.id] || 0) * a.peso, 0);
+        const total = Math.round(criterios.reduce((sum, a) =>
+            sum + (avaliacoes[jogadorAtual][a.id] || 0) * a.peso, 0) * 100) / 100;
 
         const body = {
             jogadorId:  jogadorAtual,
@@ -1704,6 +2033,7 @@
     function fecharAvaliacao() {
         document.getElementById('modal-avaliacao').style.display = 'none';
         jogadorAtual = null;
+        estatisticasAtuais = null;
     }
 
     // Carrega avaliações já salvas ao abrir a página
@@ -1771,6 +2101,17 @@
                     time: c.timeCasaId ? 'casa' : 'vis',
                     minuto: c.minuto, acrescimo: 0,
                     nomeJogador: c.nomeJogador
+                });
+            });
+
+            // Renderiza substituições
+            (data.substituicoes || []).forEach(s => {
+                adicionarEventoNaTimeline({
+                    id: 'sub_' + s.id, tipo: 'substituicao',
+                    time: s.timeCasaId ? 'casa' : 'vis',
+                    minuto: s.minuto, acrescimo: 0,
+                    nomeJogador: s.nomeEntrou,
+                    nomeSaiu: s.nomeSaiu || null
                 });
             });
         } catch (e) {
@@ -1904,27 +2245,34 @@
 
     // ══ Timeline de eventos ═══════════════════════════════════════════════
     function adicionarEventoNaTimeline(ev) {
-        const tl   = document.getElementById('mbTimeline');
-        const icones = { gol: '⚽', amarelo: '🟨', vermelho: '🟥' };
+        const tl = ev.tipo === 'gol'
+            ? document.getElementById('mbTimelineGols')
+            : document.getElementById('mbTimelineOutros');
+        const icones = { gol: '⚽', amarelo: '🟨', vermelho: '🟥', substituicao: '🔄' };
         const icon   = ev.isContra ? '🔴⚽' : icones[ev.tipo] || '📌';
         const minStr = ev.acrescimo > 0 ? `${ev.minuto}+${ev.acrescimo}'` : `${ev.minuto}'`;
         const assistStr = ev.nomeAssistencia
             ? `<small>Assist.: ${ev.nomeAssistencia}</small>` : '';
+        const subStr = ev.tipo === 'substituicao' && ev.nomeSaiu
+            ? `<small>↓ ${ev.nomeSaiu}</small>` : '';
+
+        const isSub = ev.tipo === 'substituicao';
+        const delBtn = isSub ? '' : `<button class="mb-event-del"
+                    onclick="removerEvento(this, '${ev.tipo}', ${ev.id || 0})"
+                    title="Remover">×</button>`;
 
         const div = document.createElement('div');
-        div.className = `mb-event ${ev.time}`;
+        div.className = `mb-event ${ev.time}${isSub ? ' mb-event-sub' : ''}`;
         div.dataset.eventoId   = ev.id   || '';
         div.dataset.eventoTipo = ev.tipo || '';
         div.innerHTML = `
             <span class="mb-event-min">${minStr}</span>
             <span class="mb-event-icon">${icon}</span>
             <div class="mb-event-text">
-                <strong>${ev.nomeJogador || '?'}</strong>
-                ${assistStr}
+                <strong>${isSub ? '↑ ' : ''}${ev.nomeJogador || '?'}</strong>
+                ${assistStr}${subStr}
             </div>
-            <button class="mb-event-del"
-                    onclick="removerEvento(this, '${ev.tipo}', ${ev.id || 0})"
-                    title="Remover">×</button>`;
+            ${delBtn}`;
 
         // Insere ordenado por minuto
         const todos = Array.from(tl.children);
@@ -2040,4 +2388,110 @@
         alert('Erro de conexão.');
     }
     }
+</script>
+
+<!-- ── Modal Últimos Confrontos (H2H) ─────────────────────────────────── -->
+<div id="modal-h2h" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:10000; align-items:center; justify-content:center;">
+    <div style="background:#1e293b; border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:1.4rem; width:480px; max-width:96vw; max-height:88vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,.5);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <h5 style="margin:0; color:#e2e8f0; font-size:15px; font-weight:700;">⚔️ Últimos confrontos</h5>
+            <button onclick="fecharH2H()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1;">&times;</button>
+        </div>
+        <div id="h2h-corpo">
+            <div style="text-align:center; color:#94a3b8; padding:2rem 0;">Carregando...</div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .h2h-card {
+        background: rgba(255,255,255,.05);
+        border: 1px solid rgba(255,255,255,.08);
+        border-radius: 10px;
+        padding: .75rem 1rem;
+        margin-bottom: .6rem;
+        color: #e2e8f0;
+        font-size: 13px;
+    }
+    .h2h-card-header {
+        color: #94a3b8;
+        font-size: 11px;
+        margin-bottom: .45rem;
+    }
+    .h2h-placar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .6rem;
+    }
+    .h2h-time {
+        display: flex;
+        align-items: center;
+        gap: .4rem;
+        flex: 1;
+    }
+    .h2h-time.direita { justify-content: flex-end; flex-direction: row-reverse; }
+    .h2h-time img { width: 22px; height: 22px; object-fit: contain; }
+    .h2h-time-nome { font-size: 12px; font-weight: 600; }
+    .h2h-gols {
+        font-size: 20px;
+        font-weight: 800;
+        min-width: 48px;
+        text-align: center;
+        background: rgba(0,0,0,.3);
+        border-radius: 6px;
+        padding: 2px 8px;
+        letter-spacing: 2px;
+    }
+    .h2h-venceu { color: #4ade80; }
+    .h2h-perdeu { color: #f87171; }
+    .h2h-empate { color: #94a3b8; }
+</style>
+
+<script>
+    async function abrirH2H(jogoId) {
+        var modal = document.getElementById('modal-h2h');
+        var corpo = document.getElementById('h2h-corpo');
+        modal.style.display = 'flex';
+        corpo.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:2rem 0;">Carregando...</div>';
+
+        try {
+            var resp = await fetch('/Jogos/UltimosConfrontos/' + jogoId);
+            if (!resp.ok) {
+                var msg = await resp.text();
+                corpo.innerHTML = '<div style="color:#f87171;text-align:center;padding:1rem;">' + msg + '</div>';
+                return;
+            }
+            var dados = await resp.json();
+            if (!dados.length) {
+                corpo.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:1rem;">Nenhum confronto encontrado.</div>';
+                return;
+            }
+
+            corpo.innerHTML = dados.map(function(c) {
+                var corCasa = c.vencedor === 'home' ? 'h2h-venceu' : c.vencedor === 'draw' ? 'h2h-empate' : 'h2h-perdeu';
+                var corVis  = c.vencedor === 'away' ? 'h2h-venceu' : c.vencedor === 'draw' ? 'h2h-empate' : 'h2h-perdeu';
+                var logoMandante = c.logoMandante ? '<img src="' + c.logoMandante + '" alt="">' : '';
+                var logoVisitante = c.logoVisitante ? '<img src="' + c.logoVisitante + '" alt="">' : '';
+                return '<div class="h2h-card">' +
+                    '<div class="h2h-card-header">' + c.data + ' &bull; ' + c.competicao + ' ' + c.temporada + '</div>' +
+                    '<div class="h2h-placar">' +
+                        '<div class="h2h-time">' + logoMandante + '<span class="h2h-time-nome ' + corCasa + '">' + c.mandante + '</span></div>' +
+                        '<div class="h2h-gols">' + (c.placarMandante ?? '-') + '<span style="opacity:.4;font-size:14px;"> x </span>' + (c.placarVisitante ?? '-') + '</div>' +
+                        '<div class="h2h-time direita">' + logoVisitante + '<span class="h2h-time-nome ' + corVis + '">' + c.visitante + '</span></div>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+        } catch(e) {
+            corpo.innerHTML = '<div style="color:#f87171;text-align:center;padding:1rem;">Erro ao carregar confrontos.</div>';
+        }
+    }
+
+    function fecharH2H() {
+        document.getElementById('modal-h2h').style.display = 'none';
+    }
+
+    document.getElementById('modal-h2h').addEventListener('click', function(e) {
+        if (e.target === this) fecharH2H();
+    });
 </script>

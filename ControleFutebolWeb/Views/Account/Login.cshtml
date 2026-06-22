@@ -1,0 +1,87 @@
+@model ControleFutebolWeb.Models.ViewModels.LoginViewModel
+@{
+    Layout = null;
+    ViewData["Title"] = "Login";
+}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Login — Comentarista</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <style>
+        body {
+            background: linear-gradient(135deg, #0a1628 0%, #1a2f4e 55%, #0f2040 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 2.5rem 2rem;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        }
+        .login-logo {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        .login-logo .ball { font-size: 2.5rem; }
+        .login-logo h1 { font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0.4rem 0 0.2rem; }
+        .login-logo p  { font-size: 0.85rem; color: #6b7280; margin: 0; }
+        .btn-login {
+            background: linear-gradient(135deg, #1a2f4e, #2563eb);
+            color: #fff;
+            border: none;
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 1rem;
+            margin-top: 0.5rem;
+        }
+        .btn-login:hover { opacity: 0.92; color: #fff; }
+        .form-control:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="login-logo">
+            <div class="ball">⚽</div>
+            <h1>Comentarista</h1>
+            <p>Análise de futebol</p>
+        </div>
+
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="alert alert-danger py-2">
+                @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                {
+                    <div>@error.ErrorMessage</div>
+                }
+            </div>
+        }
+
+        <form method="post" asp-action="Login" asp-route-returnUrl="@ViewBag.ReturnUrl">
+            @Html.AntiForgeryToken()
+            <div class="mb-3">
+                <label asp-for="UserName" class="form-label fw-semibold">Usuário</label>
+                <input asp-for="UserName" class="form-control" placeholder="seu.usuario" autocomplete="username" autofocus />
+            </div>
+            <div class="mb-3">
+                <label asp-for="Password" class="form-label fw-semibold">Senha</label>
+                <input asp-for="Password" class="form-control" type="password" placeholder="••••••" autocomplete="current-password" />
+            </div>
+            <div class="form-check mb-3">
+                <input asp-for="RememberMe" class="form-check-input" type="checkbox" id="rememberMe" />
+                <label class="form-check-label text-muted" for="rememberMe">Manter conectado</label>
+            </div>
+            <button type="submit" class="btn-login">Entrar</button>
+        </form>
+    </div>
+</body>
+</html>

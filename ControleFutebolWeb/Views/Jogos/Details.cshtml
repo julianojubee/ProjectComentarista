@@ -2,7 +2,7 @@
 
 
 <h2>@Model.Time.Nome</h2>
-<img src="@Model.Time.EscudoUrl" alt="@Model.Time.Nome" width="100" />
+<img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Time.EscudoUrl })" alt="@Model.Time.Nome" width="100" />
 
 <h3>Elenco Atual</h3>
 <table class="table table-striped">

@@ -1,197 +1,408 @@
-﻿@model ControleFutebolWeb.Models.ViewModels.CompeticaoDetalhesViewModel
+@model ControleFutebolWeb.Models.ViewModels.CompeticaoDetalhesViewModel
+@using ControleFutebolWeb.Helpers
 
-@if (TempData["Sucesso"] != null)
-{
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        @TempData["Sucesso"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-}
-@if (TempData["Erro"] != null)
-{
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        @TempData["Erro"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
+@{
+    ViewData["Title"] = Model.Competicao.Nome;
+    var semJogos = !Model.Competicao.Jogos.Any();
+    var temApiLink = Model.Competicao.linktransfermarket?.StartsWith("apifoot:") == true;
 }
 
-<div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
-    <h4 class="mb-0">@Model.Competicao.Nome</h4>
-    <form asp-action="ImportarDados" asp-route-id="@Model.Competicao.Id" method="post" style="display:inline;">
-        @Html.AntiForgeryToken()
-        <button type="submit" class="btn btn-primary btn-sm"
-                onclick="return confirm('Iniciar importação de dados de @Model.Competicao.Nome via ogol?')"
-                @(string.IsNullOrWhiteSpace(Model.Competicao.linktransfermarket) ? "disabled title='Configure o link ogol primeiro'" : "")>
-            🔄 Importar dados do ogol
-        </button>
-    </form>
-    @if (!string.IsNullOrWhiteSpace(Model.Competicao.linktransfermarket))
-    {
-        <a href="@Model.Competicao.linktransfermarket" target="_blank" class="btn btn-outline-secondary btn-sm">
-            🔗 Ver no ogol
-        </a>
+<style>
+    :root {
+        --c1: #0f172a; --c2: #1e293b; --c3: #334155;
+        --txt: #f1f5f9; --muted: #94a3b8; --accent: #facc15;
+        --verde: #16a34a; --verde2: #22c55e;
     }
-</div>
+    .det-page { background: var(--c1); min-height: 100vh; color: var(--txt);
+                font-family: 'Segoe UI', sans-serif; padding: 1.5rem 1rem 4rem; }
+    .det-hero { background: var(--c2); border: 1px solid var(--c3); border-radius: 14px;
+                padding: 1.4rem 1.6rem; margin-bottom: 1.5rem;
+                display: flex; align-items: center; gap: 1.2rem; flex-wrap: wrap; }
+    .det-hero-nome { font-size: 1.8rem; font-weight: 800; margin: 0; }
+    .det-hero-meta { font-size: .8rem; color: var(--muted); display: flex; gap: .8rem; flex-wrap: wrap; margin-top: .3rem; }
+    .det-badge { font-size: .7rem; font-weight: 700; padding: .2rem .7rem; border-radius: 999px;
+                 text-transform: uppercase; letter-spacing: .06em; }
+    .badge-liga   { background: rgba(59,130,246,.2); color: #60a5fa; border: 1px solid rgba(59,130,246,.3); }
+    .badge-grupos { background: rgba(168,85,247,.2); color: #c084fc; border: 1px solid rgba(168,85,247,.3); }
+    .badge-mata   { background: rgba(239,68,68,.2);  color: #f87171; border: 1px solid rgba(239,68,68,.3); }
 
-<div class="row">
-    <!-- Coluna esquerda: Classificação por grupos -->
-    <div class="col-md-6">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <h4>Classificação - Fase de Grupos</h4>
+    /* ── Botões de ação ── */
+    .det-actions { display: flex; gap: .6rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .btn-act { display: inline-flex; align-items: center; gap: .4rem; padding: .45rem 1rem;
+               border-radius: 8px; font-size: .82rem; font-weight: 600; cursor: pointer;
+               border: 1px solid; text-decoration: none; transition: opacity .2s; }
+    .btn-act:hover { opacity: .8; }
+    .btn-primary-act { background: var(--verde); border-color: var(--verde); color: #fff; }
+    .btn-secondary-act { background: var(--c2); border-color: var(--c3); color: var(--txt); }
 
-                @foreach (var grupo in Model.Grupos ?? new())
-                {
-                    <h5 class="mt-3">Grupo @grupo.Nome</h5>
-                    <table class="table table-sm table-bordered align-middle tabela-classificacao">
-                        <thead>
-                            <tr>
-                                <th>Pos</th>
-                                <th class="nome-time">Time</th>
-                                <th>Pts</th>
-                                <th>J</th>
-                                <th>VIT</th>
-                                <th>E</th>
-                                <th>D</th>
-                                <th>GP</th>
-                                <th>GC</th>
-                                <th>SG</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @for (int i = 0; i < grupo.Times.Count; i++)
-                            {
-                                var posicao = i + 1;
-                                var timeGrupo = grupo.Times[i];
-                                var jogos = timeGrupo.Vitorias + timeGrupo.Empates + timeGrupo.Derrotas;
+    /* ── Layout 2 colunas ── */
+    .det-grid { display: grid; grid-template-columns: 1fr 340px; gap: 1.2rem; align-items: start; }
+    @@media (max-width: 860px) { .det-grid { grid-template-columns: 1fr; } }
 
-                                // Zonas de classificação na fase de grupos da Libertadores:
-                                // 1º e 2º lugar: classificados direto para oitavas
-                                // 3º lugar: vai para a Pré-Oitavas (repescagem)
-                                // 4º lugar: eliminado
-                                string classe = "";
-                                if (posicao <= 2) classe = "libertadores";
-                                else if (posicao == 3) classe = "sulamericana";
-                                else classe = "rebaixado";
+    /* ── Bloco genérico ── */
+    .bloco { background: var(--c2); border: 1px solid var(--c3); border-radius: 12px; overflow: hidden; margin-bottom: 1.2rem; }
+    .bloco-titulo { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em;
+                    color: var(--muted); padding: .7rem 1.1rem; border-bottom: 1px solid var(--c3); }
 
-                                <tr class="@classe">
-                                    <td>@posicao</td>
-                                    <td class="nome-time">
-                                        <a asp-controller="Times" asp-action="Details" asp-route-id="@timeGrupo.Time.Id" style="text-decoration:none; color:inherit;">
-                                            <img src="@timeGrupo.Time.EscudoUrl" width="18" style="margin-right:3px;" />
-                                            <strong>@timeGrupo.Time.Nome</strong>
-                                        </a>
-                                    </td>
-                                    <td>@timeGrupo.Pontos</td>
-                                    <td>@jogos</td>
-                                    <td>@timeGrupo.Vitorias</td>
-                                    <td>@timeGrupo.Empates</td>
-                                    <td>@timeGrupo.Derrotas</td>
-                                    <td>@timeGrupo.GolsPro</td>
-                                    <td>@timeGrupo.GolsContra</td>
-                                    <td>@timeGrupo.SaldoGols</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                }
+    /* ── Tabela de classificação ── */
+    .cl-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+    .cl-table th { font-size: .65rem; text-transform: uppercase; letter-spacing: .07em;
+                   color: var(--muted); padding: .5rem .6rem; text-align: center; font-weight: 600; }
+    .cl-table th.left { text-align: left; }
+    .cl-table td { padding: .5rem .6rem; text-align: center; border-top: 1px solid rgba(255,255,255,.04); }
+    .cl-table td.left { text-align: left; }
+    .cl-table tr:hover td { background: rgba(255,255,255,.03); }
+    .cl-pos { font-weight: 700; color: var(--muted); width: 26px; }
+    .cl-time-logo { width: 18px; height: 18px; object-fit: contain; margin-right: 5px; vertical-align: middle; }
+    .cl-time-nome { font-weight: 600; font-size: .85rem; }
+    .cl-pts { font-weight: 800; font-size: 1rem; color: var(--txt); }
+    .zona-g1   { border-left: 3px solid #3b82f6; }
+    .zona-g2   { border-left: 3px solid #22c55e; }
+    .zona-g3   { border-left: 3px solid #f59e0b; }
+    .zona-reb  { border-left: 3px solid #ef4444; }
 
-                <!-- Legenda -->
-                <div class="mt-3">
-                    <span class="badge bg-primary me-2">Oitavas de Final</span>
-                    <span class="badge bg-success me-2">Pré-Oitavas</span>
-                    <span class="badge bg-danger">Eliminado</span>
-                </div>
+    /* ── Próximos jogos ── */
+    .jogo-card { padding: .75rem 1rem; border-bottom: 1px solid rgba(255,255,255,.05); }
+    .jogo-card:last-child { border-bottom: none; }
+    .jogo-times { display: flex; align-items: center; gap: .5rem; font-size: .85rem; }
+    .jogo-escudo { width: 20px; height: 20px; object-fit: contain; }
+    .jogo-vs    { color: var(--muted); font-size: .7rem; font-weight: 700; flex: 0 0 auto; }
+    .jogo-data  { font-size: .68rem; color: var(--muted); margin-top: .2rem; }
+    .placar-badge { font-weight: 800; font-size: .85rem; background: var(--c3);
+                    padding: .15rem .5rem; border-radius: 6px; white-space: nowrap; }
+    .placar-badge.v { background: rgba(22,163,74,.3); color: #4ade80; }
+    .placar-badge.e { background: rgba(100,116,139,.3); color: #94a3b8; }
+    .placar-badge.d { background: rgba(220,38,38,.3); color: #f87171; }
 
-                <!-- Critérios de Desempate -->
-                <div class="criterios-desempate" style="margin-top:20px;">
-                    <h4>Critérios de Desempate</h4>
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Ordem</th>
-                                <th>Critério</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr><td>1</td><td>Maior número de vitórias</td></tr>
-                            <tr><td>2</td><td>Maior saldo de gols</td></tr>
-                            <tr><td>3</td><td>Maior número de gols pró</td></tr>
-                            <tr><td>4</td><td>Confronto direto (apenas entre dois clubes)</td></tr>
-                            <tr><td>5</td><td>Menor número de cartões vermelhos</td></tr>
-                            <tr><td>6</td><td>Menor número de cartões amarelos</td></tr>
-                            <tr><td>7</td><td>Sorteio na sede da CONMEBOL</td></tr>
-                        </tbody>
-                    </table>
-                </div>
+    /* ── Grupos ── */
+    .grupos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
 
+    /* ── Mata-mata ── */
+    .mm-fases { display: flex; flex-direction: column; gap: 1.5rem; }
+    .mm-fase-nome { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em;
+                    color: var(--muted); margin-bottom: .6rem; padding-bottom: .4rem;
+                    border-bottom: 1px solid var(--c3); }
+    .mm-confrontos { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: .8rem; }
+    .mm-confronto { background: var(--c2); border: 1px solid var(--c3); border-radius: 10px; overflow: hidden; }
+    .mm-time-row { display: flex; align-items: center; gap: .6rem; padding: .6rem 1rem; }
+    .mm-time-row:first-child { border-bottom: 1px solid rgba(255,255,255,.05); }
+    .mm-time-nome { flex: 1; font-size: .88rem; font-weight: 600; }
+    .mm-gols { font-family: 'Courier New', monospace; font-size: .85rem; color: var(--muted);
+               display: flex; gap: .3rem; align-items: center; }
+    .mm-gols .g { width: 22px; text-align: center; font-weight: 700; }
+    .mm-gols .lbl { font-size: .6rem; text-transform: uppercase; color: #475569; }
+    .mm-total { font-size: 1rem; font-weight: 800; min-width: 22px; text-align: right; }
+    .mm-total.win { color: var(--verde2); }
+    .mm-footer { background: rgba(0,0,0,.2); padding: .35rem .8rem;
+                 font-size: .65rem; color: var(--muted); display: flex; gap: .6rem; }
+    .mm-badge { background: var(--c3); border-radius: 4px; padding: .1rem .4rem; }
+
+    /* ── Sem dados ── */
+    .sem-dados { text-align: center; padding: 3rem 1rem; color: var(--muted); }
+    .sem-dados .icon { font-size: 2.5rem; margin-bottom: .8rem; }
+    .sem-dados p { font-size: .9rem; margin: 0; }
+</style>
+
+<div class="det-page">
+<div class="container" style="max-width:1080px;">
+
+    <a href="/Competicoes" class="btn-act btn-secondary-act" style="display:inline-flex;margin-bottom:1rem;">← Voltar</a>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div style="background:rgba(22,163,74,.15);border:1px solid rgba(34,197,94,.3);color:#4ade80;
+                    border-radius:8px;padding:.7rem 1rem;margin-bottom:1rem;font-size:.85rem;">
+            ✅ @TempData["Sucesso"]
+        </div>
+    }
+
+    <!-- Hero -->
+    <div class="det-hero">
+        <div style="flex:1;">
+            <h1 class="det-hero-nome">@Model.Competicao.Nome</h1>
+            <div class="det-hero-meta">
+                <span>🌎 @Model.Competicao.Regiao</span>
+                <span>
+                    @{
+                        var (badgeClass, badgeLabel) = Model.Tipo switch {
+                            "PONTOS_CORRIDOS" => ("badge-liga", "Pontos Corridos"),
+                            "GRUPOS"          => ("badge-grupos", "Fase de Grupos"),
+                            "MATA_MATA"       => ("badge-mata", "Mata-Mata"),
+                            _                 => ("badge-liga", Model.Tipo)
+                        };
+                    }
+                    <span class="det-badge @badgeClass">@badgeLabel</span>
+                </span>
+                <span>⚽ @Model.Competicao.Jogos.Count jogos</span>
             </div>
         </div>
     </div>
 
-    <!-- Coluna direita: Próximos jogos -->
-    <div class="col-md-6">
-        <h4>
-            <div class="text-center mb-3">
-                <span class="badge bg-success fs-5 px-3 py-2">
-                    Próximos Jogos
-                </span>
-            </div>
-        </h4>
+    <!-- Ações -->
+    <div class="det-actions">
+        @if (temApiLink)
+        {
+            <form asp-action="BuscarJogos" asp-route-id="@Model.Competicao.Id" method="post" style="display:inline;">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn-act btn-primary-act">
+                    🔄 @(semJogos ? "Importar Jogos" : "Atualizar Jogos")
+                </button>
+            </form>
+        }
+        <a href="/Competicoes/Edit/@Model.Competicao.Id" class="btn-act btn-secondary-act">✏️ Editar</a>
+    </div>
 
-        <div class="row">
-            @foreach (var jogo in Model.Competicao.Jogos)
-            {
-                <div class="col-md-6 mb-3">
-                    <div class="card shadow-sm">
-                        <div class="card-header text-center bg-primary text-white">
-                            @ControleFutebolWeb.Helpers.DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy HH:mm")
-                        </div>
-
-                        <div class="card-body text-center">
-                            <div class="d-flex justify-content-around align-items-center">
-                                <div>
-                                    <img src="@jogo.TimeCasa?.EscudoUrl" alt="@jogo.TimeCasa?.Nome" width="40" height="40" />
-                                    <h6>@jogo.TimeCasa?.Nome</h6>
-                                </div>
-                                <div class="fw-bold">vs</div>
-                                <div>
-                                    <img src="@jogo.TimeVisitante?.EscudoUrl" alt="@jogo.TimeVisitante?.Nome" width="40" height="40" />
-                                    <h6>@jogo.TimeVisitante?.Nome</h6>
-                                </div>
-                            </div>
-
-                            <p class="mt-3">
-                                @if (jogo.Data > DateTime.Now)
+    @if (semJogos)
+    {
+        <div class="sem-dados bloco" style="padding:3rem;">
+            <div class="icon">📭</div>
+            <p>Nenhum jogo importado ainda.<br />
+            @if (temApiLink) { <text>Clique em <strong>Importar Jogos</strong> para buscar os dados da API.</text> }
+            else { <text>Configure o link da API para importar os jogos.</text> }
+            </p>
+        </div>
+    }
+    else
+    {
+        <!-- ══════════════════ PONTOS CORRIDOS ══════════════════ -->
+        @if (Model.Tipo == "PONTOS_CORRIDOS")
+        {
+            <div class="det-grid">
+                <!-- Tabela de classificação -->
+                <div>
+                    <div class="bloco">
+                        <div class="bloco-titulo">Classificação</div>
+                        <table class="cl-table">
+                            <thead>
+                                <tr>
+                                    <th class="left" style="width:26px;">#</th>
+                                    <th class="left">Time</th>
+                                    <th>Pts</th>
+                                    <th>J</th>
+                                    <th>V</th>
+                                    <th>E</th>
+                                    <th>D</th>
+                                    <th>GP</th>
+                                    <th>GC</th>
+                                    <th>SG</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{ var total = Model.Classificacao.Count; }
+                                @foreach (var c in Model.Classificacao)
                                 {
-                                    <span class="badge bg-secondary">Agendado</span>
+                                    string zona = c.Posicao switch {
+                                        1 => "zona-g1",
+                                        <= 4 => "zona-g2",
+                                        _ when c.Posicao > total - 4 => "zona-reb",
+                                        _ => ""
+                                    };
+                                    <tr class="@zona">
+                                        <td class="cl-pos left">@c.Posicao</td>
+                                        <td class="left">
+                                            @if (c.Time?.EscudoUrl != null)
+                                            {
+                                                <img src="@Url.Action("Imagem","MediaProxy",new{url=c.Time.EscudoUrl})" class="cl-time-logo" />
+                                            }
+                                            <span class="cl-time-nome">@c.Time?.Nome</span>
+                                        </td>
+                                        <td class="cl-pts">@c.Pontos</td>
+                                        <td>@c.Jogos</td>
+                                        <td>@c.Vitorias</td>
+                                        <td>@c.Empates</td>
+                                        <td>@c.Derrotas</td>
+                                        <td>@c.GolsPro</td>
+                                        <td>@c.GolsContra</td>
+                                        <td style="color:@(c.SaldoGols >= 0 ? "#4ade80" : "#f87171");">
+                                            @(c.SaldoGols >= 0 ? "+" : "")@c.SaldoGols
+                                        </td>
+                                    </tr>
                                 }
-                                else if (jogo.PlacarCasa >= 0 && jogo.PlacarVisitante >= 0)
-                                {
-                                    <span class="badge bg-success">
-                                        @jogo.PlacarCasa x @jogo.PlacarVisitante
-                                    </span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-secondary">Agendado</span>
-                                }
-                            </p>
-
-                            <small class="text-muted">Grupo: @jogo.Grupo</small>
-
-                            <!-- Botão Analisar -->
-                            <div class="mt-2">
-                                <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id"
-                                   class="btn btn-outline-primary btn-sm">
-                                    Analisar
-                                </a>
-                            </div>
-
-                        </div>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-            }
-        </div>
-    </div>
+
+                <!-- Próximos jogos -->
+                @await Html.PartialAsync("_ProximosJogos", Model)
+            </div>
+        }
+
+        <!-- ══════════════════ GRUPOS ══════════════════ -->
+        @if (Model.Tipo == "GRUPOS")
+        {
+            <div class="det-grid">
+                <div>
+                    @if (!Model.Grupos.Any())
+                    {
+                        <div class="sem-dados bloco"><div class="icon">📊</div><p>Sem dados de grupos ainda.</p></div>
+                    }
+                    else
+                    {
+                        <div class="grupos-grid">
+                            @foreach (var grupo in Model.Grupos)
+                            {
+                                <div class="bloco">
+                                    <div class="bloco-titulo">Grupo @grupo.Nome</div>
+                                    <table class="cl-table">
+                                        <thead>
+                                            <tr>
+                                                <th class="left" style="width:20px;">#</th>
+                                                <th class="left">Time</th>
+                                                <th>Pts</th>
+                                                <th>J</th>
+                                                <th>V</th>
+                                                <th>E</th>
+                                                <th>D</th>
+                                                <th>SG</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @{ var tot = grupo.Times.Count; }
+                                            @foreach (var c in grupo.Times)
+                                            {
+                                                string zona = c.Posicao switch {
+                                                    1 => "zona-g1",
+                                                    2 => "zona-g2",
+                                                    3 => "zona-g3",
+                                                    _ => "zona-reb"
+                                                };
+                                                <tr class="@zona">
+                                                    <td class="cl-pos left">@c.Posicao</td>
+                                                    <td class="left">
+                                                        @if (c.Time?.EscudoUrl != null)
+                                                        {
+                                                            <img src="@Url.Action("Imagem","MediaProxy",new{url=c.Time.EscudoUrl})" class="cl-time-logo" />
+                                                        }
+                                                        <span class="cl-time-nome" style="font-size:.8rem;">@c.Time?.Nome</span>
+                                                    </td>
+                                                    <td class="cl-pts">@c.Pontos</td>
+                                                    <td>@c.Jogos</td>
+                                                    <td>@c.Vitorias</td>
+                                                    <td>@c.Empates</td>
+                                                    <td>@c.Derrotas</td>
+                                                    <td style="color:@(c.SaldoGols>=0?"#4ade80":"#f87171");">
+                                                        @(c.SaldoGols>=0?"+":"")@c.SaldoGols
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                @await Html.PartialAsync("_ProximosJogos", Model)
+            </div>
+        }
+
+        <!-- ══════════════════ MATA-MATA ══════════════════ -->
+        @if (Model.Tipo == "MATA_MATA")
+        {
+            <div class="det-grid">
+                <div class="mm-fases">
+                    @if (!Model.FasesMataMata.Any())
+                    {
+                        <div class="sem-dados bloco"><div class="icon">🏆</div><p>Chaveamento ainda não disponível.</p></div>
+                    }
+                    else
+                    {
+                        @foreach (var fase in Model.FasesMataMata.OrderBy(f => f.Ordem))
+                        {
+                            <div>
+                                <div class="mm-fase-nome">@fase.Nome</div>
+                                <div class="mm-confrontos">
+                                    @foreach (var cf in fase.Confrontos)
+                                    {
+                                        bool aVence = cf.Completo && cf.TotalA > cf.TotalB;
+                                        bool bVence = cf.Completo && cf.TotalB > cf.TotalA;
+
+                                        <div class="mm-confronto">
+                                            <!-- Time A -->
+                                            <div class="mm-time-row">
+                                                @if (cf.TimeA?.EscudoUrl != null)
+                                                {
+                                                    <img src="@Url.Action("Imagem","MediaProxy",new{url=cf.TimeA.EscudoUrl})" style="width:20px;height:20px;object-fit:contain;" />
+                                                }
+                                                <span class="mm-time-nome" style="@(aVence?"color:var(--verde2);":"")">@cf.TimeA?.Nome</span>
+                                                <div class="mm-gols">
+                                                    @if (cf.JogoIda != null)
+                                                    {
+                                                        <span>
+                                                            <span class="lbl">IDA</span>
+                                                            <span class="g">@cf.GolsAIda</span>
+                                                        </span>
+                                                    }
+                                                    @if (!cf.SoIda && cf.JogoVolta != null)
+                                                    {
+                                                        <span>
+                                                            <span class="lbl">VLT</span>
+                                                            <span class="g">@cf.GolsAVolta</span>
+                                                        </span>
+                                                    }
+                                                </div>
+                                                @if (!cf.SoIda)
+                                                {
+                                                    <span class="mm-total @(aVence?"win":"")">@cf.TotalA</span>
+                                                }
+                                            </div>
+                                            <!-- Time B -->
+                                            <div class="mm-time-row">
+                                                @if (cf.TimeB?.EscudoUrl != null)
+                                                {
+                                                    <img src="@Url.Action("Imagem","MediaProxy",new{url=cf.TimeB.EscudoUrl})" style="width:20px;height:20px;object-fit:contain;" />
+                                                }
+                                                <span class="mm-time-nome" style="@(bVence?"color:var(--verde2);":"")">@cf.TimeB?.Nome</span>
+                                                <div class="mm-gols">
+                                                    @if (cf.JogoIda != null)
+                                                    {
+                                                        <span>
+                                                            <span class="lbl">IDA</span>
+                                                            <span class="g">@cf.GolsBIda</span>
+                                                        </span>
+                                                    }
+                                                    @if (!cf.SoIda && cf.JogoVolta != null)
+                                                    {
+                                                        <span>
+                                                            <span class="lbl">VLT</span>
+                                                            <span class="g">@cf.GolsBVolta</span>
+                                                        </span>
+                                                    }
+                                                </div>
+                                                @if (!cf.SoIda)
+                                                {
+                                                    <span class="mm-total @(bVence?"win":"")">@cf.TotalB</span>
+                                                }
+                                            </div>
+                                            <!-- Footer -->
+                                            <div class="mm-footer">
+                                                @if (cf.JogoIda != null)
+                                                {
+                                                    <span class="mm-badge">Ida: @DateHelper.FormatarData(cf.JogoIda.Data,"dd/MM")</span>
+                                                }
+                                                @if (cf.JogoVolta != null)
+                                                {
+                                                    <span class="mm-badge">Volta: @DateHelper.FormatarData(cf.JogoVolta.Data,"dd/MM")</span>
+                                                }
+                                                @if (!cf.Completo && !cf.SoIda)
+                                                {
+                                                    <span class="mm-badge" style="color:#facc15;">Em andamento</span>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+
+                @await Html.PartialAsync("_ProximosJogos", Model)
+            </div>
+        }
+    }
+
+</div>
 </div>

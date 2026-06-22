@@ -1,10 +1,11 @@
 ﻿using ControleFutebolWeb.Models;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace ControleFutebolWeb.Data
 {
-    public class FutebolContext : DbContext
+    public class FutebolContext : IdentityDbContext<ApplicationUser>
     {
         public FutebolContext(DbContextOptions<FutebolContext> options) : base(options) { }
 
@@ -25,6 +26,12 @@ namespace ControleFutebolWeb.Data
         public DbSet<TreinadorHistorico> TreinadoresHistorico { get; set; }
         public DbSet<Assistencia> Assistencias { get; set; }
         public DbSet<TransfermarktSincronizacaoLog> TransfermarktSincronizacaoLogs { get; set; }
+        public DbSet<Substituicao> Substituicoes { get; set; }
+        public DbSet<EstatisticaJogador> EstatisticasJogador { get; set; }
+        public DbSet<CriterioNota> CriteriosNota { get; set; }
+        public DbSet<AnotacaoTime> AnotacoesTime { get; set; }
+        public DbSet<JogoAnalisadoUsuario> JogosAnalisadosUsuario { get; set; }
+        public DbSet<CompeticaoTopTierUsuario> CompeticoesTopTierUsuario { get; set; }
 
         public override int SaveChanges()
         {
@@ -171,6 +178,34 @@ namespace ControleFutebolWeb.Data
 
 
 
+            // Substituicoes
+            modelBuilder.Entity<Substituicao>(entity =>
+            {
+                entity.ToTable("substituicoes");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.JogoId).HasColumnName("jogoid");
+                entity.Property(e => e.JogadorEntrouId).HasColumnName("jogadorentroud");
+                entity.Property(e => e.JogadorSaiuId).HasColumnName("jogadorsaiuid");
+                entity.Property(e => e.Minuto).HasColumnName("minuto");
+                entity.Property(e => e.IsTimeCasa).HasColumnName("istimecasa");
+
+                entity.HasOne(e => e.Jogo)
+                    .WithMany()
+                    .HasForeignKey(e => e.JogoId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.JogadorEntrou)
+                    .WithMany()
+                    .HasForeignKey(e => e.JogadorEntrouId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.JogadorSaiu)
+                    .WithMany()
+                    .HasForeignKey(e => e.JogadorSaiuId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
             // 🔹 Exemplo específico para Jogo.Data
             modelBuilder.Entity<Jogo>()
                 .Property(j => j.Data)
@@ -205,9 +240,17 @@ namespace ControleFutebolWeb.Data
             modelBuilder.Entity<Treinador>()
                 .Property(t => t.DataNascimento)
                 .HasConversion(
-                    v => DateTime.SpecifyKind(v.ToUniversalTime(), DateTimeKind.Utc),
-                    v => DateTime.SpecifyKind(v, DateTimeKind.Utc)
-                );
+                    v => v.HasValue ? DateTime.SpecifyKind(v.Value.ToUniversalTime(), DateTimeKind.Utc) : (DateTime?)null,
+                    v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null
+                )
+                .IsRequired(false);
+
+            modelBuilder.Entity<Nota>()
+                .HasOne(n => n.Usuario)
+                .WithMany()
+                .HasForeignKey(n => n.UsuarioId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
 
             // 🔹 Converte nomes de tabelas e colunas para minúsculas
             foreach (var entity in modelBuilder.Model.GetEntityTypes())

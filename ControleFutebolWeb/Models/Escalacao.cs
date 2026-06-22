@@ -1,6 +1,6 @@
-﻿using ControleFutebolWeb.Models;
-namespace ControleFutebolWeb.Models 
-{ 
+using ControleFutebolWeb.Models;
+namespace ControleFutebolWeb.Models
+{
     public class Escalacao
         {
             public int Id { get; set; }
@@ -11,7 +11,7 @@ namespace ControleFutebolWeb.Models
             public Jogador Jogador { get; set; }
 
             public bool Titular { get; set; }
-            public string Posicao { get; set; }
+            public string? Posicao { get; set; }
 
             public bool IsTimeCasa { get; set; } // true = casa, false = visitante
 
@@ -22,5 +22,7 @@ namespace ControleFutebolWeb.Models
             // INICIAL | FINAL
             public string FaseEscalacao { get; set; } = "INICIAL";
 
+            public string? UsuarioId { get; set; }
+            public ApplicationUser? Usuario { get; set; }
         }
 }

@@ -1,0 +1,247 @@
+@model List<ControleFutebolWeb.Models.AnotacaoTime>
+@using ControleFutebolWeb.Helpers
+@{
+    var time = (ControleFutebolWeb.Models.Time)ViewBag.Time;
+    var q    = (string?)ViewBag.Q;
+    ViewData["Title"] = $"Anotações — {time.Nome}";
+}
+
+<style>
+    @@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap');
+
+    .an-root * { box-sizing: border-box; }
+
+    .an-hero {
+        position: relative;
+        background: linear-gradient(135deg, #0a1628 0%, #111e35 55%, #0a1628 100%);
+        border-radius: 16px;
+        padding: 1.8rem 2rem 1.5rem;
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+    .an-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        opacity: .05;
+        background-image:
+            radial-gradient(circle at 50% 50%, transparent 28%, #fff 28.5%, #fff 29.2%, transparent 29.8%),
+            linear-gradient(90deg, transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%),
+            linear-gradient(transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%);
+    }
+    .an-hero-content { position: relative; z-index: 1; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+
+    .an-title { font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 900; color: #f1f5f9; letter-spacing: .5px; }
+    .an-sub   { font-size: 13px; color: #94a3b8; margin-top: .15rem; }
+
+    .an-search-bar {
+        display: flex; gap: .6rem; align-items: center;
+        background: #0f172a; border: 1px solid #1e293b; border-radius: 12px;
+        padding: .85rem 1.1rem; margin-bottom: 1.25rem;
+    }
+    .an-search-bar input {
+        flex: 1; background: #1e293b; border: 1px solid #334155; border-radius: 8px;
+        color: #f1f5f9; font-size: 14px; padding: .5rem .85rem; outline: none;
+    }
+    .an-search-bar input:focus { border-color: #3b82f6; }
+    .an-search-bar button {
+        background: #3b82f6; color: #fff; border: none; border-radius: 8px;
+        padding: .5rem 1.1rem; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;
+    }
+    .an-search-bar button:hover { background: #2563eb; }
+    .an-search-bar .an-clear {
+        background: #334155; color: #94a3b8; font-size: 12px; padding: .5rem .75rem;
+    }
+    .an-search-bar .an-clear:hover { background: #475569; color: #f1f5f9; }
+
+    .an-new-btn {
+        background: #22c55e; color: #fff; border: none; border-radius: 8px;
+        padding: .55rem 1.2rem; font-size: 13px; font-weight: 700; cursor: pointer;
+        text-decoration: none; display: inline-flex; align-items: center; gap: .4rem;
+    }
+    .an-new-btn:hover { background: #16a34a; color: #fff; }
+
+    .an-back-btn {
+        background: #334155; color: #94a3b8; border: none; border-radius: 8px;
+        padding: .55rem 1rem; font-size: 13px; font-weight: 600; cursor: pointer;
+        text-decoration: none; display: inline-flex; align-items: center; gap: .4rem;
+    }
+    .an-back-btn:hover { background: #475569; color: #f1f5f9; }
+
+    .an-count { font-size: 12px; color: #64748b; margin-left: auto; }
+
+    .an-card {
+        background: #0f172a; border: 1px solid #1e293b; border-radius: 14px;
+        padding: 1.1rem 1.3rem; margin-bottom: .85rem;
+        transition: border-color .15s;
+    }
+    .an-card:hover { border-color: #334155; }
+
+    .an-card-header { display: flex; align-items: flex-start; gap: .75rem; margin-bottom: .5rem; }
+    .an-card-title  { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 700; color: #f1f5f9; flex: 1; }
+    .an-card-cat    {
+        font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+        padding: 2px 10px; border-radius: 999px; white-space: nowrap;
+        background: rgba(59,130,246,.15); color: #60a5fa; border: 1px solid rgba(59,130,246,.3);
+    }
+    .an-cat-sondagem  { background: rgba(168,85,247,.15); color: #c084fc; border-color: rgba(168,85,247,.3); }
+    .an-cat-demissao  { background: rgba(239,68,68,.15);  color: #f87171; border-color: rgba(239,68,68,.3); }
+    .an-cat-curiosidade { background: rgba(245,158,11,.15); color: #fbbf24; border-color: rgba(245,158,11,.3); }
+    .an-cat-informacao  { background: rgba(34,197,94,.15);  color: #4ade80; border-color: rgba(34,197,94,.3); }
+
+    .an-card-body { font-size: 14px; color: #cbd5e1; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+
+    .an-card-footer { display: flex; align-items: center; gap: .75rem; margin-top: .75rem; padding-top: .6rem; border-top: 1px solid #1e293b; }
+    .an-card-date   { font-size: 11px; color: #475569; }
+    .an-card-actions { margin-left: auto; display: flex; gap: .5rem; }
+    .an-card-actions a, .an-card-actions button {
+        font-size: 11px; padding: 3px 10px; border-radius: 6px; border: none; cursor: pointer;
+        font-weight: 600; text-decoration: none;
+    }
+    .an-edit-btn   { background: #1e293b; color: #94a3b8; }
+    .an-edit-btn:hover { background: #334155; color: #f1f5f9; }
+    .an-del-btn    { background: rgba(239,68,68,.12); color: #f87171; }
+    .an-del-btn:hover { background: rgba(239,68,68,.25); }
+
+    .an-highlight { background: #fbbf2433; border-radius: 3px; padding: 0 2px; }
+
+    .an-empty { text-align: center; color: #475569; padding: 3rem 0; font-size: 15px; }
+
+    .an-shortcut { font-size: 11px; color: #475569; display: flex; align-items: center; gap: .3rem; }
+    kbd { background: #1e293b; border: 1px solid #334155; border-radius: 4px; padding: 1px 6px; font-size: 10px; color: #94a3b8; }
+</style>
+
+<div class="an-root">
+
+    <!-- Hero -->
+    <div class="an-hero">
+        <div class="an-hero-content">
+            @if (!string.IsNullOrEmpty(time.EscudoUrl))
+            {
+                <img src="@Url.Action("Imagem", "MediaProxy", new { url = time.EscudoUrl })" style="width:48px;height:48px;object-fit:contain;" />
+            }
+            <div>
+                <div class="an-title">📋 Anotações · @time.Nome</div>
+                <div class="an-sub">Sondagens, demissões, informações e curiosidades sobre o clube</div>
+            </div>
+            <div style="margin-left:auto;display:flex;gap:.6rem;flex-wrap:wrap;">
+                <a asp-controller="Times" asp-action="Details" asp-route-id="@time.Id" class="an-back-btn">← Voltar</a>
+                <a asp-action="Nova" asp-route-timeId="@time.Id" class="an-new-btn">+ Nova anotação</a>
+            </div>
+        </div>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div style="background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:#4ade80;border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem;font-size:13px;">
+            @TempData["Sucesso"]
+        </div>
+    }
+
+    <!-- Barra de pesquisa -->
+    <form method="get" id="form-search" class="an-search-bar">
+        <input type="hidden" name="timeId" value="@time.Id" />
+        <span style="font-size:16px;">🔍</span>
+        <input id="inp-search" type="text" name="q" value="@q"
+               placeholder="Pesquisar por palavra-chave… (Ctrl+F)"
+               autofocus="@(string.IsNullOrEmpty(q) ? null : "autofocus")" />
+        <button type="submit">Buscar</button>
+        @if (!string.IsNullOrWhiteSpace(q))
+        {
+            <a href="@Url.Action("Index", new { timeId = time.Id })" class="an-new-btn an-clear">✕ Limpar</a>
+        }
+        <span class="an-count">@Model.Count resultado(s)</span>
+    </form>
+    <div class="an-shortcut" style="margin-bottom:1rem;">
+        <kbd>Ctrl</kbd>+<kbd>F</kbd> foca na busca
+    </div>
+
+    <!-- Lista de anotações -->
+    @if (!Model.Any())
+    {
+        <div class="an-empty">
+            @if (!string.IsNullOrWhiteSpace(q))
+            {
+                <div>Nenhuma anotação encontrada para "<strong>@q</strong>".</div>
+            }
+            else
+            {
+                <div>Nenhuma anotação cadastrada ainda.</div>
+                <div style="margin-top:.5rem;font-size:13px;">Clique em <strong>+ Nova anotação</strong> para começar.</div>
+            }
+        </div>
+    }
+    else
+    {
+        @foreach (var a in Model)
+        {
+            var catClass = a.Categoria?.ToLower() switch
+            {
+                "sondagem"   => "an-cat-sondagem",
+                "demissão"   => "an-cat-demissao",
+                "curiosidade"=> "an-cat-curiosidade",
+                "informação" => "an-cat-informacao",
+                _            => ""
+            };
+
+            // Destaca a palavra pesquisada no título e conteúdo
+            string Highlight(string texto)
+            {
+                if (string.IsNullOrWhiteSpace(q)) return System.Web.HttpUtility.HtmlEncode(texto);
+                var idx = texto.IndexOf(q, StringComparison.OrdinalIgnoreCase);
+                if (idx < 0) return System.Web.HttpUtility.HtmlEncode(texto);
+                var sb = new System.Text.StringBuilder();
+                int pos = 0;
+                while (idx >= 0)
+                {
+                    sb.Append(System.Web.HttpUtility.HtmlEncode(texto[pos..idx]));
+                    sb.Append($"<mark class='an-highlight'>{System.Web.HttpUtility.HtmlEncode(texto.Substring(idx, q.Length))}</mark>");
+                    pos = idx + q.Length;
+                    idx = texto.IndexOf(q, pos, StringComparison.OrdinalIgnoreCase);
+                }
+                sb.Append(System.Web.HttpUtility.HtmlEncode(texto[pos..]));
+                return sb.ToString();
+            }
+
+            <div class="an-card">
+                <div class="an-card-header">
+                    <div class="an-card-title">@Html.Raw(Highlight(a.Titulo))</div>
+                    @if (!string.IsNullOrEmpty(a.Categoria))
+                    {
+                        <span class="an-card-cat @catClass">@a.Categoria</span>
+                    }
+                </div>
+                <div class="an-card-body">@Html.Raw(Highlight(a.Conteudo))</div>
+                <div class="an-card-footer">
+                    <span class="an-card-date">
+                        📅 @DateHelper.FormatarData(a.DtInc, "dd/MM/yyyy HH:mm")
+                        @if (a.DtAlt.HasValue)
+                        {
+                            <span style="margin-left:.5rem;color:#334155;">· editado @DateHelper.FormatarData(a.DtAlt, "dd/MM/yyyy HH:mm")</span>
+                        }
+                    </span>
+                    <div class="an-card-actions">
+                        <a asp-action="Editar" asp-route-id="@a.Id" class="an-edit-btn">✏️ Editar</a>
+                        <form asp-action="Excluir" asp-route-id="@a.Id" method="post" style="display:inline;"
+                              onsubmit="return confirm('Excluir esta anotação?')">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="an-del-btn">🗑️ Excluir</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+<script>
+    // Ctrl+F foca na busca em vez de abrir o browser
+    document.addEventListener('keydown', e => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+            e.preventDefault();
+            const inp = document.getElementById('inp-search');
+            inp.focus();
+            inp.select();
+        }
+    });
+</script>

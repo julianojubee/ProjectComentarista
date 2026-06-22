@@ -12,6 +12,11 @@ public class Time
     public string? EscudoUrl { get; set; }
     public string? BackgroundUrl { get; set; }
     public int IdApi { get; set; }
+
+    // Indica se este "Time" representa uma seleção nacional (ex.: Brasil, Argentina)
+    // e não um clube. Usado para vincular corretamente Jogador.TimeId (clube) e
+    // Jogador.SelecaoId (seleção) ao importar jogos de competições diferentes.
+    public bool EhSelecao { get; set; } = false;
     public string? CorPrincipal { get; set; }
     public string? CorSecundaria { get; set; }
     public string? CamisaUrl { get; set; }

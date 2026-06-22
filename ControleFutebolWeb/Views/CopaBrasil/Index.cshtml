@@ -481,7 +481,7 @@ else
                     <div class="copa-agg-time">
                         @if (!string.IsNullOrEmpty(c.TimeA.EscudoUrl))
                         {
-                            <img src="@c.TimeA.EscudoUrl" alt="@c.TimeA.Nome" />
+                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.TimeA.EscudoUrl })" alt="@c.TimeA.Nome" />
                         }
                         <span class="copa-agg-name" title="@c.TimeA.Nome">@c.TimeA.Nome</span>
                     </div>
@@ -508,7 +508,7 @@ else
                     <div class="copa-agg-time right">
                         @if (!string.IsNullOrEmpty(c.TimeB.EscudoUrl))
                         {
-                            <img src="@c.TimeB.EscudoUrl" alt="@c.TimeB.Nome" />
+                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.TimeB.EscudoUrl })" alt="@c.TimeB.Nome" />
                         }
                         <span class="copa-agg-name" title="@c.TimeB.Nome">@c.TimeB.Nome</span>
                     </div>

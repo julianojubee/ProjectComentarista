@@ -12,7 +12,7 @@
         <div class="jogador-header">
             @if (!string.IsNullOrWhiteSpace(Model.FotoUrl))
             {
-                <img src="@Model.FotoUrl" class="jogador-foto" />
+                <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.FotoUrl })" class="jogador-foto" />
             }
             else
             {

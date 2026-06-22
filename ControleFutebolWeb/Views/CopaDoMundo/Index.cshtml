@@ -6,6 +6,7 @@
     var grupos = ViewBag.Grupos as List<GrupoViewModel> ?? new List<GrupoViewModel>();
     var proximosJogos = ViewBag.ProximosJogos as List<Jogo> ?? new List<Jogo>();
     var rodadaAtual = (int)(ViewBag.RodadaAtual ?? 0);
+    var terceirosColocados = ViewBag.TerceirosColocados as List<Classificacao> ?? new List<Classificacao>();
 
     // Extrai só a letra do grupo para exibição ("Grupo A" → "A", "A" → "A")
     string LetraGrupo(string? g)
@@ -108,7 +109,7 @@
     /* ── Grupos ──────────────────────────────────────────────── */
     .lib-grupos {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
         gap: 14px;
     }
 
@@ -412,6 +413,9 @@
         font-weight: 600;
     }
 
+    .lib-team-cell a:hover { color: #7c3aed !important; text-decoration: underline !important; }
+    .lib-jogo-team a:hover { color: #7c3aed !important; text-decoration: underline !important; }
+
     /* ── Sem dados ───────────────────────────────────────────── */
     .lib-empty {
         text-align: center;
@@ -473,7 +477,8 @@ else
         <div>
             <!-- Legenda -->
             <div class="lib-legenda">
-                <span><span class="lib-leg-dot" style="background:#7c3aed;"></span>Classificado para Oitavas</span>
+                <span><span class="lib-leg-dot" style="background:#7c3aed;"></span>Classificado (1º/2º lugar)</span>
+                <span><span class="lib-leg-dot" style="background:#f59e0b;"></span>Disputa vaga (3º lugar)</span>
                 <span><span class="lib-leg-dot" style="background:#d1d5db;"></span>Eliminado</span>
             </div>
 
@@ -494,6 +499,7 @@ else
                         }
                         else
                         {
+                            <div style="overflow-x:auto;">
                             <table class="lib-table">
                                 <thead>
                                     <tr>
@@ -503,8 +509,6 @@ else
                                         <th title="Vitórias">V</th>
                                         <th title="Empates">E</th>
                                         <th title="Derrotas">D</th>
-                                        <th title="Gols Pró">GP</th>
-                                        <th title="Gols Contra">GC</th>
                                         <th title="Saldo de Gols">SG</th>
                                         <th title="Pontos">Pts</th>
                                     </tr>
@@ -528,27 +532,105 @@ else
                                                 <div class="lib-team-cell">
                                                     @if (!string.IsNullOrEmpty(time.Time?.EscudoUrl))
                                                     {
-                                                        <img src="@time.Time.EscudoUrl" alt="@time.Time.Nome" />
+                                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = time.Time.EscudoUrl })" alt="@time.Time.Nome" />
                                                     }
-                                                    <span>@time.Time?.Nome</span>
+                                                    <a href="/Times/Details/@time.Time?.Id" style="color:inherit;text-decoration:none;font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px;">@time.Time?.Nome</a>
                                                 </div>
                                             </td>
                                             <td>@time.Jogos</td>
                                             <td>@time.Vitorias</td>
                                             <td>@time.Empates</td>
                                             <td>@time.Derrotas</td>
-                                            <td>@time.GolsPro</td>
-                                            <td>@time.GolsContra</td>
                                             <td>@time.SaldoGols</td>
                                             <td class="lib-pts">@time.Pontos</td>
                                         </tr>
                                     }
                                 </tbody>
                             </table>
+                            </div>
                         }
                     </div>
                 }
             </div>
+
+            @if (terceirosColocados.Any())
+            {
+                <!-- Tabela de 3ºs colocados -->
+                <div style="margin-top:20px;">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#6b7280;">🏅 Classificação dos 3ºs Colocados</div>
+                        <div style="flex:1;height:1px;background:#e5e7eb;"></div>
+                        <span style="font-size:10px;color:#6b7280;background:#f3f4f6;border:0.5px solid #e5e7eb;border-radius:20px;padding:2px 9px;">Os 8 melhores avançam</span>
+                    </div>
+                    <div style="background:#fff;border:0.5px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+                        <div style="background:linear-gradient(90deg,#92400e,#d97706);color:#fff;padding:8px 14px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:8px;">
+                            <img src="~/images/background/copadomundo.png" alt="Copa" style="width:16px;height:16px;object-fit:contain;" />
+                            Melhores Terceiros Colocados — Disputa de Vagas
+                        </div>
+                        <div style="overflow-x:auto;">
+                        <table class="lib-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:20px;">#</th>
+                                    <th>Seleção</th>
+                                    <th title="Grupo">Gr</th>
+                                    <th title="Jogos">J</th>
+                                    <th title="Vitórias">V</th>
+                                    <th title="Empates">E</th>
+                                    <th title="Derrotas">D</th>
+                                    <th title="Gols Pró">GP</th>
+                                    <th title="Gols Contra">GC</th>
+                                    <th title="Saldo de Gols">SG</th>
+                                    <th title="Fair Play (menor = melhor)">FP</th>
+                                    <th title="Pontos">Pts</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var time in terceirosColocados)
+                                {
+                                    bool classificado = time.Posicao <= 8;
+                                    string rowStyle = classificado ? "background:rgba(245,158,11,0.06);" : "";
+                                    <tr style="@rowStyle">
+                                        <td>
+                                            @if (classificado)
+                                            {
+                                                <span class="lib-pos lib-pos-3">@time.Posicao</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="lib-pos lib-pos-default">@time.Posicao</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <div class="lib-team-cell">
+                                                @if (!string.IsNullOrEmpty(time.Time?.EscudoUrl))
+                                                {
+                                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = time.Time.EscudoUrl })" alt="@time.Time.Nome" />
+                                                }
+                                                <a href="/Times/Details/@time.Time?.Id" style="color:inherit;text-decoration:none;font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px;">@time.Time?.Nome</a>
+                                            </div>
+                                        </td>
+                                        <td style="font-weight:700;color:#d97706;">@time.Grupo</td>
+                                        <td>@time.Jogos</td>
+                                        <td>@time.Vitorias</td>
+                                        <td>@time.Empates</td>
+                                        <td>@time.Derrotas</td>
+                                        <td>@time.GolsPro</td>
+                                        <td>@time.GolsContra</td>
+                                        <td>@time.SaldoGols</td>
+                                        <td style="color:#6b7280;font-size:11px;">@time.FairPlay</td>
+                                        <td class="lib-pts">@time.Pontos</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                        </div>
+                        <div style="padding:8px 14px;font-size:10px;color:#9ca3af;border-top:0.5px solid #f3f4f6;">
+                            Critérios: Pontos → Saldo de Gols → Gols Pró → Fair Play (amarelo=1pt · vermelho direto=3pt · 2º amarelo+vermelho=4pt)
+                        </div>
+                    </div>
+                </div>
+            }
         </div>
 
         <!-- Coluna direita: próximos jogos -->
@@ -586,9 +668,9 @@ else
                                 <div class="lib-jogo-team">
                                     @if (!string.IsNullOrEmpty(jogo.TimeCasa?.EscudoUrl))
                                     {
-                                        <img src="@jogo.TimeCasa.EscudoUrl" alt="@jogo.TimeCasa.Nome" />
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa.EscudoUrl })" alt="@jogo.TimeCasa.Nome" />
                                     }
-                                    <span>@jogo.TimeCasa?.Nome</span>
+                                    <a href="/Times/Details/@jogo.TimeCasa?.Id" style="font-size:11px;font-weight:500;color:#374151;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;text-decoration:none;">@jogo.TimeCasa?.Nome</a>
                                 </div>
 
                                 <div class="lib-vs">
@@ -605,9 +687,9 @@ else
                                 <div class="lib-jogo-team">
                                     @if (!string.IsNullOrEmpty(jogo.TimeVisitante?.EscudoUrl))
                                     {
-                                        <img src="@jogo.TimeVisitante.EscudoUrl" alt="@jogo.TimeVisitante.Nome" />
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante.EscudoUrl })" alt="@jogo.TimeVisitante.Nome" />
                                     }
-                                    <span>@jogo.TimeVisitante?.Nome</span>
+                                    <a href="/Times/Details/@jogo.TimeVisitante?.Id" style="font-size:11px;font-weight:500;color:#374151;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;text-decoration:none;">@jogo.TimeVisitante?.Nome</a>
                                 </div>
                             </div>
 

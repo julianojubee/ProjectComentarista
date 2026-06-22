@@ -1,0 +1,97 @@
+@model IEnumerable<ControleFutebolWeb.Models.ApplicationUser>
+@{
+    ViewData["Title"] = "Usuários";
+}
+
+<style>
+    .users-hero {
+        background: linear-gradient(135deg, #0a1628 0%, #1a2f4e 55%, #0f2040 100%);
+        border-radius: 14px;
+        padding: 2rem;
+        text-align: center;
+        color: #fff;
+        margin-bottom: 1.5rem;
+    }
+    .users-hero h1 { font-size: 1.7rem; font-weight: 600; margin: 0; }
+    .users-hero p { color: rgba(255,255,255,0.65); margin: 0.3rem 0 0; font-size: 0.9rem; }
+</style>
+
+@if (TempData["Sucesso"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">@TempData["Sucesso"]<button class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["Erro"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">@TempData["Erro"]<button class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+<div class="users-hero">
+    <h1>👥 Usuários</h1>
+    <p>Gerencie os usuários do sistema</p>
+</div>
+
+<div class="d-flex justify-content-end mb-3">
+    <a asp-action="CriarUsuario" class="btn btn-success">+ Novo Usuário</a>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <table class="table table-hover mb-0">
+        <thead class="table-light">
+            <tr>
+                <th>Nome</th>
+                <th>Usuário</th>
+                <th>E-mail</th>
+                <th>Admin</th>
+                <th style="text-align:right">Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var u in Model)
+            {
+                <tr>
+                    <td>@u.Nome</td>
+                    <td><code>@u.UserName</code></td>
+                    <td>@u.Email</td>
+                    <td>@(u.IsAdmin ? "✅" : "—")</td>
+                    <td style="text-align:right">
+                        <!-- Redefinir senha -->
+                        <button class="btn btn-sm btn-outline-warning"
+                                data-bs-toggle="modal"
+                                data-bs-target="#modalSenha-@u.Id">
+                            Senha
+                        </button>
+                        <!-- Excluir -->
+                        <form asp-action="ExcluirUsuario" method="post" style="display:inline"
+                              onsubmit="return confirm('Excluir @u.Nome?')">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@u.Id" />
+                            <button class="btn btn-sm btn-outline-danger">Excluir</button>
+                        </form>
+                    </td>
+                </tr>
+
+                <!-- Modal redefinir senha -->
+                <div class="modal fade" id="modalSenha-@u.Id" tabindex="-1">
+                    <div class="modal-dialog">
+                        <form asp-action="RedefinirSenha" method="post" class="modal-content">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@u.Id" />
+                            <div class="modal-header">
+                                <h5 class="modal-title">Redefinir senha — @u.Nome</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <label class="form-label">Nova senha</label>
+                                <input type="password" name="novaSenha" class="form-control" required minlength="6" />
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="btn btn-warning">Redefinir</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            }
+        </tbody>
+    </table>
+</div>

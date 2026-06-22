@@ -10,51 +10,36 @@ namespace ControleFutebolWeb.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_timesescalacoespadrao_jogadores_jogadorid",
-                table: "timesescalacoespadrao");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_timesescalacoespadrao_times_timeid",
-                table: "timesescalacoespadrao");
-
-            migrationBuilder.DropPrimaryKey(
-                name: "PK_timesescalacoespadrao",
-                table: "timesescalacoespadrao");
-
-            migrationBuilder.RenameTable(
-                name: "timesescalacoespadrao",
-                newName: "timeescalacaopadrao");
-
-            migrationBuilder.RenameIndex(
-                name: "IX_timesescalacoespadrao_timeid",
-                table: "timeescalacaopadrao",
-                newName: "IX_timeescalacaopadrao_timeid");
-
-            migrationBuilder.RenameIndex(
-                name: "IX_timesescalacoespadrao_jogadorid",
-                table: "timeescalacaopadrao",
-                newName: "IX_timeescalacaopadrao_jogadorid");
-
-            migrationBuilder.AddPrimaryKey(
-                name: "PK_timeescalacaopadrao",
-                table: "timeescalacaopadrao",
-                column: "id");
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_timeescalacaopadrao_jogadores_jogadorid",
-                table: "timeescalacaopadrao",
-                column: "jogadorid",
-                principalTable: "jogadores",
-                principalColumn: "id");
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_timeescalacaopadrao_times_timeid",
-                table: "timeescalacaopadrao",
-                column: "timeid",
-                principalTable: "times",
-                principalColumn: "id",
-                onDelete: ReferentialAction.Cascade);
+            migrationBuilder.Sql(@"
+                DO $$
+                BEGIN
+                    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'timesescalacoespadrao') THEN
+                        ALTER TABLE timesescalacoespadrao DROP CONSTRAINT IF EXISTS ""FK_timesescalacoespadrao_jogadores_jogadorid"";
+                        ALTER TABLE timesescalacoespadrao DROP CONSTRAINT IF EXISTS ""FK_timesescalacoespadrao_times_timeid"";
+                        ALTER TABLE timesescalacoespadrao DROP CONSTRAINT IF EXISTS ""PK_timesescalacoespadrao"";
+                        ALTER TABLE timesescalacoespadrao RENAME TO timeescalacaopadrao;
+                    END IF;
+                    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'timeescalacaopadrao') THEN
+                        IF EXISTS (SELECT FROM pg_indexes WHERE tablename = 'timeescalacaopadrao' AND indexname = 'IX_timesescalacoespadrao_timeid') THEN
+                            ALTER INDEX ""IX_timesescalacoespadrao_timeid"" RENAME TO ""IX_timeescalacaopadrao_timeid"";
+                        END IF;
+                        IF EXISTS (SELECT FROM pg_indexes WHERE tablename = 'timeescalacaopadrao' AND indexname = 'IX_timesescalacoespadrao_jogadorid') THEN
+                            ALTER INDEX ""IX_timesescalacoespadrao_jogadorid"" RENAME TO ""IX_timeescalacaopadrao_jogadorid"";
+                        END IF;
+                        IF NOT EXISTS (SELECT FROM pg_constraint WHERE conname = 'PK_timeescalacaopadrao') THEN
+                            ALTER TABLE timeescalacaopadrao ADD CONSTRAINT ""PK_timeescalacaopadrao"" PRIMARY KEY (id);
+                        END IF;
+                        IF NOT EXISTS (SELECT FROM pg_constraint WHERE conname = 'FK_timeescalacaopadrao_jogadores_jogadorid') THEN
+                            ALTER TABLE timeescalacaopadrao ADD CONSTRAINT ""FK_timeescalacaopadrao_jogadores_jogadorid""
+                                FOREIGN KEY (jogadorid) REFERENCES jogadores (id);
+                        END IF;
+                        IF NOT EXISTS (SELECT FROM pg_constraint WHERE conname = 'FK_timeescalacaopadrao_times_timeid') THEN
+                            ALTER TABLE timeescalacaopadrao ADD CONSTRAINT ""FK_timeescalacaopadrao_times_timeid""
+                                FOREIGN KEY (timeid) REFERENCES times (id) ON DELETE CASCADE;
+                        END IF;
+                    END IF;
+                END $$;
+            ");
         }
 
         /// <inheritdoc />

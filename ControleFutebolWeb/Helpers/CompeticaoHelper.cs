@@ -4,9 +4,12 @@ namespace ControleFutebolWeb.Helpers
 {
     public static class CompeticaoHelper
     {
-        // Retorna o logo da competição
-        public static string GetLogoCompeticao(int competicaoId)
+        // Retorna o logo da competição (usa URL do banco se disponível)
+        public static string GetLogoCompeticao(int competicaoId, string? logoUrlBanco = null)
         {
+            if (!string.IsNullOrWhiteSpace(logoUrlBanco))
+                return logoUrlBanco;
+
             return competicaoId switch
             {
                 1 => "/images/background/campeonatobrasileiro.png",

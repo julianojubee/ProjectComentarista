@@ -3,17 +3,44 @@
 @section Scripts {
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            const buttons = document.querySelectorAll(".btn-importar");
-
-            buttons.forEach(btn => {
+            // Botões importar
+            document.querySelectorAll(".btn-importar").forEach(btn => {
                 btn.addEventListener("click", function () {
-                    btn.innerHTML = `
-                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                        Importando...
-                    `;
+                    btn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Importando...`;
                     btn.classList.add("disabled");
                 });
             });
+
+            // Filtro cascata: competição → times
+            const selComp = document.getElementById('sel-comp');
+            const selTime = document.getElementById('sel-time');
+            const timeIdAtual = '@Context.Request.Query["timeId"]';
+
+            selComp.addEventListener('change', async function () {
+                const compId = this.value;
+                selTime.innerHTML = '<option value="">Todos</option>';
+
+                if (!compId) return;
+
+                try {
+                    const res = await fetch(`/Jogos/TimesPorCompeticao?competicaoId=${compId}`);
+                    const times = await res.json();
+                    times.forEach(t => {
+                        const opt = document.createElement('option');
+                        opt.value = t.id;
+                        opt.textContent = t.nome;
+                        if (String(t.id) === timeIdAtual) opt.selected = true;
+                        selTime.appendChild(opt);
+                    });
+                } catch (e) {
+                    console.error('Erro ao buscar times:', e);
+                }
+            });
+
+            // Se já tem competição selecionada na carga da página, dispara o filtro
+            if (selComp.value) {
+                selComp.dispatchEvent(new Event('change'));
+            }
         });
     </script>
 }
@@ -155,12 +182,12 @@
 <form asp-action="Index" method="get" class="row g-3 mb-3">
     <div class="col-md-4">
         <label for="competicaoId" class="form-label">Competição</label>
-        @Html.DropDownList("competicaoId", (SelectList)ViewBag.Competicoes, "Todas", new { @class = "form-select" })
+        @Html.DropDownList("competicaoId", (SelectList)ViewBag.Competicoes, "Todas", new { @class = "form-select", id = "sel-comp" })
     </div>
 
     <div class="col-md-4">
         <label for="timeId" class="form-label">Time</label>
-        @Html.DropDownList("timeId", (SelectList)ViewBag.Times, "Todos", new { @class = "form-select" })
+        @Html.DropDownList("timeId", (SelectList)ViewBag.Times, "Todos", new { @class = "form-select", id = "sel-time" })
     </div>
 
     <div class="col-md-4 d-flex align-items-end">
@@ -202,7 +229,7 @@
             <tr>
                 <td>@time.Nome</td>
                 <td>
-                    <img src="@time.EscudoUrl" alt="@time.Nome" style="height:40px;" />
+                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = time.EscudoUrl })" alt="@time.Nome" style="height:40px;" />
                 </td>
                
                 <td>

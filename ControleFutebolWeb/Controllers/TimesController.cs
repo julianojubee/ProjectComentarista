@@ -127,6 +127,29 @@ namespace ControleFutebolWeb.Controllers
                 .OrderByDescending(t => t.DtInc)
                 .FirstOrDefaultAsync();
 
+            // Competições com link apifoot: (usadas no painel de estatísticas da API)
+            var competicaoIdsDoTime = jogos.Select(j => j.CompeticaoId).Distinct().ToList();
+            var todasCompeticoesDoTime = await _context.Competicoes
+                .Where(c => competicaoIdsDoTime.Contains(c.Id) &&
+                            c.linktransfermarket != null &&
+                            c.linktransfermarket.StartsWith("apifoot:"))
+                .OrderBy(c => c.Nome)
+                .ToListAsync();
+
+            var competicoesApi = todasCompeticoesDoTime
+                .Select(c =>
+                {
+                    var parts = c.linktransfermarket!.Split(':');
+                    if (parts.Length >= 3 &&
+                        int.TryParse(parts[1], out var lid) &&
+                        int.TryParse(parts[2], out var sea))
+                        return new CompeticaoApiItem { Nome = c.Nome, LeagueId = lid, Season = sea };
+                    return null;
+                })
+                .Where(x => x != null)
+                .Cast<CompeticaoApiItem>()
+                .ToList();
+
             var viewModel = new TimeDetalhesViewModel
             {
                 Time = time,
@@ -136,7 +159,8 @@ namespace ControleFutebolWeb.Controllers
                 JogosFuturos = jogosFuturos,
                 TimeEscalacaoPadrao = escalacao,
                 Formacoes = formacoes,
-                Treinador = treinador
+                Treinador = treinador,
+                CompeticoesApi = competicoesApi
             };
 
             return View(viewModel);
@@ -386,6 +410,34 @@ namespace ControleFutebolWeb.Controllers
 
             _context.SaveChanges();
             return RedirectToAction("Details", new { id = time.Id });
+        }
+
+        // GET: Times/EstatisticasApi?timeId=1&leagueId=71&season=2026
+        [HttpGet]
+        public async Task<IActionResult> EstatisticasApi(int timeId, int leagueId, int season)
+        {
+            var time = await _context.Times.FindAsync(timeId);
+            if (time == null || time.IdApi == 0)
+                return Json(new { erro = "Time não encontrado ou sem IdApi configurado." });
+
+            var service = HttpContext.RequestServices.GetRequiredService<ControleFutebolWeb.Services.ApiFootballService>();
+            var stats = await service.BuscarEstatisticasTimeAsync(time.IdApi, leagueId, season);
+            if (stats == null)
+                return Json(new { erro = "Nenhuma estatística encontrada para este time/liga/temporada." });
+
+            // Retorna com chaves explícitas para evitar ambiguidade camelCase vs snake_case no JS
+            return Json(new
+            {
+                form     = stats.Form,
+                fixtures = stats.Fixtures,
+                goals    = stats.Goals,
+                biggest  = stats.Biggest,
+                cleanSheet    = new { home = stats.CleanSheet.Home,    away = stats.CleanSheet.Away,    total = stats.CleanSheet.Total },
+                failedToScore = new { home = stats.FailedToScore.Home, away = stats.FailedToScore.Away, total = stats.FailedToScore.Total },
+                penalty  = stats.Penalty,
+                lineups  = stats.Lineups,
+                cards    = stats.Cards,
+            });
         }
     }
 }

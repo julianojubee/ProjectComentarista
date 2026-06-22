@@ -31,7 +31,7 @@
     {
         <div class="form-group mt-2">
             <label>Escudo Atual</label><br />
-            <img src="@Model.EscudoUrl" alt="Escudo @Model.Nome" style="height:80px;" />
+            <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.EscudoUrl })" alt="Escudo @Model.Nome" style="height:80px;" />
         </div>
     }
 

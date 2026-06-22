@@ -25,20 +25,18 @@ namespace ControleFutebolWeb.Controllers
                 .OrderBy(j => j.Data)
                 .ToList();
 
+            // Apenas jogos da fase de grupos (exclui Qualification, Playoff, etc.)
+            var jogosGrupo = jogos
+                .Where(j => EhFaseDeGrupos(j.Grupo))
+                .ToList();
+
             // Jogos já realizados: tem placar
-            var jogosRealizados = jogos
+            var jogosRealizados = jogosGrupo
                 .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue)
                 .ToList();
 
-            // Monta grupos baseado nos jogos realizados (para classificação)
-            var nomesGrupos = jogosRealizados
-                .Select(j => j.Grupo!)
-                .Distinct()
-                .OrderBy(g => g)
-                .ToList();
-
-            // Inclui também grupos de jogos agendados (sem placar) para exibir todos
-            var todosGrupos = jogos
+            // Todos os grupos (realizados + agendados), apenas fase de grupos
+            var todosGrupos = jogosGrupo
                 .Select(j => j.Grupo!)
                 .Distinct()
                 .OrderBy(g => g)
@@ -61,8 +59,8 @@ namespace ControleFutebolWeb.Controllers
                 });
             }
 
-            // Próximos jogos: sem placar, ordenados por data
-            var proximosJogos = jogos
+            // Próximos jogos da fase de grupos: sem placar, ordenados por data
+            var proximosJogos = jogosGrupo
                 .Where(j => !j.PlacarCasa.HasValue || !j.PlacarVisitante.HasValue)
                 .OrderBy(j => j.Data)
                 .Take(20)
@@ -71,7 +69,7 @@ namespace ControleFutebolWeb.Controllers
             // Se não houver futuros, pega os mais recentes realizados
             if (!proximosJogos.Any())
             {
-                proximosJogos = jogos
+                proximosJogos = jogosGrupo
                     .OrderByDescending(j => j.Data)
                     .Take(10)
                     .ToList();
@@ -87,6 +85,13 @@ namespace ControleFutebolWeb.Controllers
             ViewBag.RodadaAtual = rodadaAtual;
 
             return View();
+        }
+
+        private static bool EhFaseDeGrupos(string? grupo)
+        {
+            if (string.IsNullOrWhiteSpace(grupo)) return false;
+            return grupo.StartsWith("Group ", StringComparison.OrdinalIgnoreCase) &&
+                   !grupo.Contains("Stage", StringComparison.OrdinalIgnoreCase);
         }
 
         private List<Classificacao> CalcularClassificacaoGrupo(List<Jogo> jogos)

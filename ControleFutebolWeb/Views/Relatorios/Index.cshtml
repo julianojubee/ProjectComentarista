@@ -5,6 +5,17 @@
     ViewData["Title"] = "Relatórios";
 }
 
+@functions {
+    // Retorna nome e escudo do time a exibir: seleção quando a competição filtrada é de seleções, senão o clube
+    (string Nome, string? Escudo) TimeExibicao(ControleFutebolWeb.Models.Jogador? j)
+    {
+        if (j == null) return ("", null);
+        if (Model.ExibirSelecao && j.Selecao != null)
+            return (j.Selecao.Nome, j.Selecao.EscudoUrl);
+        return (j.Time?.Nome ?? "", j.Time?.EscudoUrl);
+    }
+}
+
 <style>
     @@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap');
 
@@ -256,7 +267,16 @@
 
     @@media (max-width: 600px) {
         .rpt-grid { grid-template-columns: 1fr; }
+        .rpt-hero { padding: 1.6rem 1rem 1.4rem; }
         .rpt-hero h1 { font-size: 1.7rem; }
+        .rpt-filter { flex-direction: column; align-items: stretch; }
+        .rpt-filter select,
+        .rpt-filter button { width: 100%; }
+        .rpt-totals { grid-template-columns: repeat(2, 1fr); }
+        .rpt-tabs { gap: 4px; }
+        .rpt-tab { padding: 6px 10px; font-size: 11px; }
+        .nota-circle { width: 36px; height: 36px; }
+        .nota-num { font-size: 13px; }
     }
 </style>
 
@@ -279,8 +299,24 @@
         </div>
     }
 
-    <!-- Manutenção: limpeza de nacionalidades (executar uma vez) -->
-    <div style="text-align:right;margin-bottom:8px;">
+    <!-- Manutenção -->
+    <div style="text-align:right;margin-bottom:8px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+        <form method="post" asp-controller="Relatorios" asp-action="RecalcularNotas" style="display:inline;">
+            @Html.AntiForgeryToken()
+            @foreach (var cid in Model.CompeticaoIdsFiltro)
+            {
+                <input type="hidden" name="competicaoIds" value="@cid" />
+            }
+            @foreach (var tid in Model.TimeIdsFiltro)
+            {
+                <input type="hidden" name="timeIds" value="@tid" />
+            }
+            <input type="hidden" name="incluirNaoAnalisados" value="@Model.IncluirNaoAnalisados.ToString().ToLower()" />
+            <button type="submit" class="btn btn-outline-primary btn-sm"
+                    onclick="return confirm('Recalcular todas as notas manuais com os pesos atuais dos critérios? As notas automáticas já usam os pesos atuais.')">
+                🔄 Recalcular notas
+            </button>
+        </form>
         <form method="post" asp-controller="Admin" asp-action="LimparNacionalidades" style="display:inline;">
             @Html.AntiForgeryToken()
             <button type="submit" class="btn btn-outline-warning btn-sm"
@@ -290,16 +326,82 @@
         </form>
     </div>
 
-    <!-- Filtro de competição -->
+    <!-- Filtros -->
+    <style>
+        .ms-wrap { position: relative; min-width: 240px; }
+        .ms-box {
+            display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
+            min-height: 38px; padding: 4px 30px 4px 8px; cursor: pointer;
+            border: 1px solid #d1d5db; border-radius: 8px; background: #fff; font-size: 13px;
+        }
+        .ms-box::after {
+            content: "▾"; position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+            color: #6b7280; pointer-events: none;
+        }
+        .ms-placeholder { color: #9ca3af; }
+        .ms-chip {
+            display: inline-flex; align-items: center; gap: 4px;
+            background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe;
+            border-radius: 6px; padding: 2px 6px; font-size: 12px; font-weight: 600;
+        }
+        .ms-chip-x { cursor: pointer; font-weight: 700; line-height: 1; opacity: .7; }
+        .ms-chip-x:hover { opacity: 1; }
+        .ms-panel {
+            position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50;
+            background: #fff; border: 1px solid #d1d5db; border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.12); max-height: 280px; overflow-y: auto;
+            display: none; padding: 4px;
+        }
+        .ms-panel.open { display: block; }
+        .ms-opt {
+            display: flex; align-items: center; gap: 8px; padding: 7px 10px;
+            border-radius: 6px; cursor: pointer; font-size: 13px; color: #111827;
+        }
+        .ms-opt:hover { background: #f3f4f6; }
+        .ms-opt input { cursor: pointer; }
+        .ms-search {
+            width: 100%; box-sizing: border-box; padding: 7px 10px; margin-bottom: 4px;
+            border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; outline: none;
+            position: sticky; top: 0; background: #fff;
+        }
+        .ms-search:focus { border-color: #6366f1; }
+    </style>
+
     <form method="get" asp-action="Index" asp-controller="Relatorios" class="rpt-filter">
-        <label for="compFilter">Filtrar por competição:</label>
-        <select id="compFilter" name="competicaoId">
-            <option value="">Todas as competições</option>
-            @foreach (var c in Model.Competicoes)
-            {
-                <option value="@c.Id" @(Model.CompeticaoIdFiltro == c.Id ? "selected" : "")>@c.Nome</option>
-            }
-        </select>
+        <label>Competições:</label>
+        <div class="ms-wrap" id="compMulti">
+            <div class="ms-box" id="compBox" tabindex="0"></div>
+            <div class="ms-panel" id="compPanel">
+                @foreach (var c in Model.Competicoes)
+                {
+                    <label class="ms-opt">
+                        <input type="checkbox" name="competicaoIds" value="@c.Id"
+                               data-nome="@c.Nome"
+                               @(Model.CompeticaoIdsFiltro.Contains(c.Id) ? "checked" : "") />
+                        <span>@c.Nome</span>
+                    </label>
+                }
+            </div>
+        </div>
+
+        <label>Times:</label>
+        <div class="ms-wrap" id="timeMulti">
+            <div class="ms-box" id="timeBox" tabindex="0"></div>
+            <div class="ms-panel" id="timePanel">
+                <input type="text" class="ms-search" id="timeSearch" placeholder="Buscar time…" autocomplete="off" />
+                <div id="timeOptions">
+                    @foreach (var t in Model.Times)
+                    {
+                        <label class="ms-opt">
+                            <input type="checkbox" name="timeIds" value="@t.Id"
+                                   data-nome="@t.Nome"
+                                   @(Model.TimeIdsFiltro.Contains(t.Id) ? "checked" : "") />
+                            <span>@t.Nome</span>
+                        </label>
+                    }
+                </div>
+            </div>
+        </div>
 
         <label class="rpt-check-wrap" title="Inclui jogos com placar mas ainda não analisados">
             <input type="checkbox" name="incluirNaoAnalisados" value="true"
@@ -308,12 +410,131 @@
         </label>
 
         <button type="submit">Filtrar</button>
-        @if (Model.CompeticaoIdFiltro.HasValue || Model.IncluirNaoAnalisados)
+        @if (Model.CompeticaoIdsFiltro.Any() || Model.TimeIdsFiltro.Any() || Model.IncluirNaoAnalisados)
         {
             <a asp-action="Index" asp-controller="Relatorios" class="rpt-filter rpt-clear"
                style="text-decoration:none; padding:8px 16px; border-radius:8px; font-size:13px;">✕ Limpar filtro</a>
         }
     </form>
+
+    <script>
+    (function () {
+        // Tag selector genérico: renderiza chips a partir dos checkboxes de um painel
+        function initMulti(wrapId, boxId, panelId, placeholder, onChange) {
+            var wrap  = document.getElementById(wrapId);
+            var box   = document.getElementById(boxId);
+            var panel = document.getElementById(panelId);
+            if (!wrap) return null;
+
+            function render() {
+                var checks = panel.querySelectorAll('input[type=checkbox]');
+                var marcados = Array.prototype.filter.call(checks, function (c) { return c.checked; });
+                box.innerHTML = '';
+                if (marcados.length === 0) {
+                    var ph = document.createElement('span');
+                    ph.className = 'ms-placeholder';
+                    ph.textContent = placeholder;
+                    box.appendChild(ph);
+                    return;
+                }
+                marcados.forEach(function (c) {
+                    var chip = document.createElement('span');
+                    chip.className = 'ms-chip';
+                    var txt = document.createElement('span');
+                    txt.textContent = c.dataset.nome;
+                    var x = document.createElement('span');
+                    x.className = 'ms-chip-x';
+                    x.textContent = '×';
+                    x.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        c.checked = false;
+                        render();
+                    });
+                    chip.appendChild(txt);
+                    chip.appendChild(x);
+                    box.appendChild(chip);
+                });
+            }
+
+            function bindChecks() {
+                panel.querySelectorAll('input[type=checkbox]').forEach(function (c) {
+                    c.addEventListener('change', function () { render(); if (onChange) onChange(); });
+                });
+            }
+
+            box.addEventListener('click', function () { panel.classList.toggle('open'); });
+            box.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); panel.classList.toggle('open'); }
+            });
+            document.addEventListener('click', function (e) {
+                if (!wrap.contains(e.target)) panel.classList.remove('open');
+            });
+
+            bindChecks();
+            render();
+            return { render: render, bindChecks: bindChecks, panel: panel };
+        }
+
+        var timeCtl = initMulti('timeMulti', 'timeBox', 'timePanel', 'Todos os times');
+
+        // Ao mudar as competições, recarrega os times disponíveis (união das competições selecionadas)
+        function recarregarTimes() {
+            var compChecks = document.querySelectorAll('#compPanel input[type=checkbox]:checked');
+            var ids = Array.prototype.map.call(compChecks, function (c) { return c.value; });
+            if (!timeCtl) return;
+
+            // preserva seleção atual de times
+            var selecionados = Array.prototype.map.call(
+                timeCtl.panel.querySelectorAll('input[type=checkbox]:checked'),
+                function (c) { return c.value; });
+
+            var qs = ids.length ? ids.map(function (id) { return 'competicaoIds=' + id; }).join('&') : '';
+            fetch('/Jogos/TimesPorCompeticoes?' + qs)
+                .then(function (r) { return r.json(); })
+                .then(function (times) {
+                    var opts = document.getElementById('timeOptions');
+                    opts.innerHTML = '';
+                    times.forEach(function (t) {
+                        var lbl = document.createElement('label');
+                        lbl.className = 'ms-opt';
+                        var inp = document.createElement('input');
+                        inp.type = 'checkbox';
+                        inp.name = 'timeIds';
+                        inp.value = t.id;
+                        inp.dataset.nome = t.nome;
+                        if (selecionados.indexOf(String(t.id)) !== -1) inp.checked = true;
+                        var sp = document.createElement('span');
+                        sp.textContent = t.nome;
+                        lbl.appendChild(inp);
+                        lbl.appendChild(sp);
+                        opts.appendChild(lbl);
+                    });
+                    timeCtl.bindChecks();
+                    timeCtl.render();
+                    filtrarBuscaTimes();
+                });
+        }
+
+        // Busca/filtro de times pelo nome dentro do painel
+        function filtrarBuscaTimes() {
+            var input = document.getElementById('timeSearch');
+            if (!input) return;
+            var termo = input.value.trim().toLowerCase();
+            document.querySelectorAll('#timeOptions .ms-opt').forEach(function (lbl) {
+                var nome = (lbl.querySelector('span')?.textContent || '').toLowerCase();
+                lbl.style.display = (termo === '' || nome.indexOf(termo) !== -1) ? '' : 'none';
+            });
+        }
+        var timeSearchEl = document.getElementById('timeSearch');
+        if (timeSearchEl) {
+            timeSearchEl.addEventListener('input', filtrarBuscaTimes);
+            // impede que clicar/digitar na busca feche o painel
+            timeSearchEl.addEventListener('click', function (e) { e.stopPropagation(); });
+        }
+
+        initMulti('compMulti', 'compBox', 'compPanel', 'Todas as competições', recarregarTimes);
+    })();
+    </script>
 
     <!-- Totalizadores -->
     <div class="rpt-totals">
@@ -354,6 +575,8 @@
         <div class="rpt-tab" onclick="showSection('cartoes')">🟨 Disciplina</div>
         <div class="rpt-tab" onclick="showSection('times')">🏟️ Times</div>
         <div class="rpt-tab" onclick="showSection('rodadas')">📈 Rodadas</div>
+        <div class="rpt-tab" onclick="showSection('estat-jogadores')">📊 Estatísticas Jogadores</div>
+        <div class="rpt-tab" onclick="showSection('estat-competicoes')">🏆 Estatísticas Competições</div>
     </div>
 
     <!-- ══ SEÇÃO: NOTAS ══════════════════════════════════════════════════════ -->
@@ -365,15 +588,12 @@
             <div class="rpt-metric-text">
                 <h4>Como a Nota Final é calculada</h4>
                 <p>
-                    Cada jogador começa com <strong>5 pontos</strong> de base.<br />
+                    Cada jogador começa com <strong>2 pontos</strong> de base.<br />
                     A isso se soma a <strong>média das ações</strong> avaliadas no jogo
-                    (passes, dribles, gols, etc.) e um <strong>bônus de resultado</strong>:
-                    <span class="rpt-chip" style="background:#dcfce7;color:#15803d;">Vitória → +1 pt</span>
-                    &nbsp;
-                    <span class="rpt-chip" style="background:#fef9c3;color:#854d0e;">Empate → 0 pt</span>
-                    &nbsp;
-                    <span class="rpt-chip" style="background:#fee2e2;color:#b91c1c;">Derrota → −1 pt</span>
-                    &nbsp;por partida. Nota final clampada entre 0 e 10.
+                    (passes, dribles, gols, etc.), com os pesos definidos em
+                    <strong>Cadastros &gt; Critérios de Nota</strong>.
+                    Goleiros e defensores ganham ainda <strong>+2 pts</strong> quando o time não sofre gol.
+                    Nota final limitada entre 0 e 10.
                 </p>
             </div>
         </div>
@@ -385,7 +605,7 @@
                     <div class="rpt-card-icon" style="background:#fef3c7;">⭐</div>
                     <div>
                         <h3 class="rpt-card-title">Ranking de Desempenho</h3>
-                        <p class="rpt-card-sub">Top 20 jogadores por nota final (base 5 + ações + resultado)</p>
+                        <p class="rpt-card-sub">Top 20 jogadores por média das notas finais (base 4 + ações, mínima 4)</p>
                     </div>
                 </div>
 
@@ -435,7 +655,7 @@
                                             <div style="display:flex;align-items:center;gap:8px;">
                                                 @if (!string.IsNullOrEmpty(item.Jogador.FotoUrl))
                                                 {
-                                                    <img src="@item.Jogador.FotoUrl" style="width:30px;height:30px;border-radius:50%;object-fit:cover;border:.5px solid #e5e7eb;" />
+                                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = item.Jogador.FotoUrl })" style="width:30px;height:30px;border-radius:50%;object-fit:cover;border:.5px solid #e5e7eb;" />
                                                 }
                                                 else
                                                 {
@@ -446,9 +666,16 @@
                                                        style="font-weight:600;color:#111827;text-decoration:none;">@item.Jogador.Nome</a>
                                                     <div style="display:flex;gap:4px;margin-top:2px;">
                                                         <span class="pos-badge @posCls">@(string.IsNullOrEmpty(pos) ? "—" : pos)</span>
-                                                        @if (item.Jogador.Time != null)
+                                                        @{ var teRank = TimeExibicao(item.Jogador); }
+                                                        @if (!string.IsNullOrEmpty(teRank.Nome))
                                                         {
-                                                            <span style="font-size:10px;color:#9ca3af;">@item.Jogador.Time.Nome</span>
+                                                            <span style="font-size:10px;color:#9ca3af;display:inline-flex;align-items:center;gap:3px;">
+                                                                @if (!string.IsNullOrEmpty(teRank.Escudo))
+                                                                {
+                                                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = teRank.Escudo })" style="width:12px;height:12px;border-radius:50%;object-fit:cover;" />
+                                                                }
+                                                                @teRank.Nome
+                                                            </span>
                                                         }
                                                     </div>
                                                 </div>
@@ -462,20 +689,8 @@
                                         </td>
                                         <td style="padding:9px 12px;min-width:160px;">
                                             <div style="font-size:10px;color:#6b7280;display:flex;flex-direction:column;gap:2px;">
-                                                <div style="display:flex;justify-content:space-between;">
-                                                    <span>Base</span>
-                                                    <strong>5.0</strong>
-                                                </div>
-                                                <div style="display:flex;justify-content:space-between;">
-                                                    <span>Ações</span>
-                                                    <strong style="color:@(item.NotaBase>=0?"#16a34a":"#dc2626")">@(item.NotaBase >= 0 ? "+" : "")@item.NotaBase.ToString("0.00")</strong>
-                                                </div>
-                                                <div style="display:flex;justify-content:space-between;">
-                                                    <span>Resultado</span>
-                                                    <strong style="color:@(item.BonusResultado>=0?"#16a34a":"#dc2626")">@(item.BonusResultado >= 0 ? "+" : "")@item.BonusResultado.ToString("0.00")</strong>
-                                                </div>
-                                                <div style="border-top:.5px solid #e5e7eb;margin-top:2px;padding-top:2px;display:flex;justify-content:space-between;font-weight:700;color:#111827;">
-                                                    <span>Total</span>
+                                                <div style="display:flex;justify-content:space-between;font-weight:700;color:#111827;">
+                                                    <span>Nota</span>
                                                     <span>@item.NotaFinal.ToString("0.00")</span>
                                                 </div>
                                             </div>
@@ -491,6 +706,66 @@
                     </div>
                 }
             </div>
+
+            <!-- Rankings por posição -->
+            @{
+                var rankingsPosicao = new[]
+                {
+                    (icone: "🧤", titulo: "Melhores Goleiros",   cor: "#dbeafe", lista: Model.RankingGoleiros),
+                    (icone: "🛡️", titulo: "Melhores Defensores", cor: "#dcfce7", lista: Model.RankingDefensores),
+                    (icone: "⚙️",  titulo: "Melhores Meias",      cor: "#fef9c3", lista: Model.RankingMeias),
+                    (icone: "⚡",  titulo: "Melhores Atacantes",  cor: "#fee2e2", lista: Model.RankingAtacantes),
+                };
+            }
+            @foreach (var rp in rankingsPosicao)
+            {
+                if (!rp.lista.Any()) { continue; }
+                <div class="rpt-card">
+                    <div class="rpt-card-header">
+                        <div class="rpt-card-icon" style="background:@rp.cor;">@rp.icone</div>
+                        <div>
+                            <h3 class="rpt-card-title">@rp.titulo</h3>
+                            <p class="rpt-card-sub">Top 10 por nota média</p>
+                        </div>
+                    </div>
+                    @for (int i = 0; i < rp.lista.Count; i++)
+                    {
+                        var item = rp.lista[i];
+                        <div class="rpt-row">
+                            <div style="width:20px;font-size:11px;font-weight:700;color:@(i==0?"#f59e0b":i==1?"#9ca3af":i==2?"#b45309":"#d1d5db");">@(i+1)</div>
+                            @if (!string.IsNullOrEmpty(item.Jogador.FotoUrl))
+                            {
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = item.Jogador.FotoUrl })" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:.5px solid #e5e7eb;flex-shrink:0;" />
+                            }
+                            else
+                            {
+                                <div style="width:26px;height:26px;border-radius:50%;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:10px;color:#9ca3af;flex-shrink:0;">👤</div>
+                            }
+                            <div style="flex:1;min-width:0;">
+                                <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@item.Jogador.Id"
+                                   style="font-size:12px;font-weight:600;color:#111827;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;">
+                                    @item.Jogador.Nome
+                                </a>
+                                @{ var teItem = TimeExibicao(item.Jogador); }
+                                @if (!string.IsNullOrEmpty(teItem.Nome))
+                                {
+                                    <div style="font-size:10px;color:#9ca3af;">
+                                        @if (!string.IsNullOrEmpty(teItem.Escudo))
+                                        {
+                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = teItem.Escudo })" style="width:12px;height:12px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:3px;" />
+                                        }
+                                        @teItem.Nome · @item.Partidas j
+                                    </div>
+                                }
+                            </div>
+                            <div class="nota-circle" style="color:@item.NotaColor;width:38px;height:38px;flex-shrink:0;">
+                                <span class="nota-num" style="font-size:13px;">@item.NotaFinal.ToString("0.0")</span>
+                                <span class="nota-lbl">@item.NotaLabel</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
 
             <!-- Médias por posição -->
             @if (Model.MediasPorPosicao.Any())
@@ -550,13 +825,21 @@
                         <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
                         @if (!string.IsNullOrEmpty(a.Jogador.FotoUrl))
                         {
-                            <div class="rpt-avatar"><img src="@a.Jogador.FotoUrl" /></div>
+                            <div class="rpt-avatar"><img src="@Url.Action("Imagem", "MediaProxy", new { url = a.Jogador.FotoUrl })" /></div>
                         }
                         else { <div class="rpt-avatar">@(a.Jogador.Nome.Length >= 2 ? a.Jogador.Nome.Substring(0,2).ToUpper() : "?")</div> }
                         <div class="rpt-name">
                             <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@a.Jogador.Id"
                                style="color:inherit;text-decoration:none;font-weight:500;">@a.Jogador.Nome</a>
-                            <small>@a.Jogador.Posicao · @a.Jogador.Time?.Nome</small>
+                            <small>
+                                @a.Jogador.Posicao ·
+                                @{ var teA = TimeExibicao(a.Jogador); }
+                                @if (!string.IsNullOrEmpty(teA.Escudo))
+                                {
+                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = teA.Escudo })" style="width:12px;height:12px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:3px;" />
+                                }
+                                @teA.Nome
+                            </small>
                         </div>
                         <div class="rpt-bar-wrap" style="max-width:80px;">
                             <div class="rpt-bar-bg">
@@ -564,6 +847,56 @@
                             </div>
                         </div>
                         <span class="rpt-badge-value" style="background:#dcfce7;color:#15803d;">@a.Valor ⚽</span>
+                    </div>
+                }
+            </div>
+
+            <!-- Assistências -->
+            <div class="rpt-card">
+                <div class="rpt-card-header">
+                    <div class="rpt-card-icon" style="background:#eff6ff;">🎯</div>
+                    <div>
+                        <h3 class="rpt-card-title">Assistências</h3>
+                        <p class="rpt-card-sub">Jogadores com mais passes para gol</p>
+                    </div>
+                </div>
+                @if (!Model.Assistencias.Any())
+                {
+                    <div style="padding:1.5rem;text-align:center;color:#9ca3af;font-size:13px;">Nenhuma assistência registrada.</div>
+                }
+                @{
+                    var maxAssist = Model.Assistencias.Any() ? Model.Assistencias.Max(a => a.Valor) : 1;
+                }
+                @for (int i = 0; i < Model.Assistencias.Count; i++)
+                {
+                    var a = Model.Assistencias[i];
+                    var w = Math.Round((double)a.Valor / maxAssist * 100, 1);
+                    <div class="rpt-row">
+                        <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
+                        @if (!string.IsNullOrEmpty(a.Jogador.FotoUrl))
+                        {
+                            <div class="rpt-avatar"><img src="@Url.Action("Imagem", "MediaProxy", new { url = a.Jogador.FotoUrl })" /></div>
+                        }
+                        else { <div class="rpt-avatar">@(a.Jogador.Nome.Length >= 2 ? a.Jogador.Nome.Substring(0,2).ToUpper() : "?")</div> }
+                        <div class="rpt-name">
+                            <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@a.Jogador.Id"
+                               style="color:inherit;text-decoration:none;font-weight:500;">@a.Jogador.Nome</a>
+                            <small>
+                                @a.Jogador.Posicao ·
+                                @{ var teA = TimeExibicao(a.Jogador); }
+                                @if (!string.IsNullOrEmpty(teA.Escudo))
+                                {
+                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = teA.Escudo })" style="width:12px;height:12px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:3px;" />
+                                }
+                                @teA.Nome
+                            </small>
+                        </div>
+                        <div class="rpt-bar-wrap" style="max-width:80px;">
+                            <div class="rpt-bar-bg">
+                                <div class="rpt-bar-fill" style="width:@w%;background:#3b82f6;"></div>
+                            </div>
+                        </div>
+                        <span class="rpt-badge-value" style="background:#dbeafe;color:#1d4ed8;">@a.Valor 🎯</span>
                     </div>
                 }
             </div>
@@ -584,9 +917,22 @@
                         var a = Model.GolsContraRanking[i];
                         <div class="rpt-row">
                             <span class="rpt-rank">@(i+1)</span>
+                            @if (!string.IsNullOrEmpty(a.Jogador.FotoUrl))
+                            {
+                                <div class="rpt-avatar"><img src="@Url.Action("Imagem", "MediaProxy", new { url = a.Jogador.FotoUrl })" /></div>
+                            }
+                            else { <div class="rpt-avatar">@(a.Jogador.Nome.Length >= 2 ? a.Jogador.Nome.Substring(0,2).ToUpper() : "?")</div> }
                             <div class="rpt-name">
                                 @a.Jogador.Nome
-                                <small>@a.Jogador.Posicao · @a.Jogador.Time?.Nome</small>
+                                <small>
+                                @a.Jogador.Posicao ·
+                                @{ var teA = TimeExibicao(a.Jogador); }
+                                @if (!string.IsNullOrEmpty(teA.Escudo))
+                                {
+                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = teA.Escudo })" style="width:12px;height:12px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:3px;" />
+                                }
+                                @teA.Nome
+                            </small>
                             </div>
                             <span class="rpt-badge-value" style="background:#fee2e2;color:#b91c1c;">@a.Valor</span>
                         </div>
@@ -623,13 +969,21 @@
                         <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
                         @if (!string.IsNullOrEmpty(a.Jogador.FotoUrl))
                         {
-                            <div class="rpt-avatar"><img src="@a.Jogador.FotoUrl" /></div>
+                            <div class="rpt-avatar"><img src="@Url.Action("Imagem", "MediaProxy", new { url = a.Jogador.FotoUrl })" /></div>
                         }
                         else { <div class="rpt-avatar">@(a.Jogador.Nome.Length >= 2 ? a.Jogador.Nome.Substring(0,2).ToUpper() : "?")</div> }
                         <div class="rpt-name">
                             <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@a.Jogador.Id"
                                style="color:inherit;text-decoration:none;font-weight:500;">@a.Jogador.Nome</a>
-                            <small>@a.Jogador.Posicao · @a.Jogador.Time?.Nome</small>
+                            <small>
+                                @a.Jogador.Posicao ·
+                                @{ var teA = TimeExibicao(a.Jogador); }
+                                @if (!string.IsNullOrEmpty(teA.Escudo))
+                                {
+                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = teA.Escudo })" style="width:12px;height:12px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:3px;" />
+                                }
+                                @teA.Nome
+                            </small>
                         </div>
                         <div class="rpt-bar-wrap" style="max-width:100px;">
                             <div class="rpt-bar-bg">
@@ -660,9 +1014,22 @@
                     var c = Model.MaisCartoesAmarelos[i];
                     <div class="rpt-row">
                         <span class="rpt-rank">@(i+1)</span>
+                        @if (!string.IsNullOrEmpty(c.Jogador.FotoUrl))
+                        {
+                            <div class="rpt-avatar"><img src="@Url.Action("Imagem", "MediaProxy", new { url = c.Jogador.FotoUrl })" /></div>
+                        }
+                        else { <div class="rpt-avatar">@(c.Jogador.Nome.Length >= 2 ? c.Jogador.Nome.Substring(0,2).ToUpper() : "?")</div> }
                         <div class="rpt-name">
                             @c.Jogador.Nome
-                            <small>@c.Jogador.Posicao · @c.Jogador.Time?.Nome</small>
+                            <small>
+                                @c.Jogador.Posicao ·
+                                @{ var teC = TimeExibicao(c.Jogador); }
+                                @if (!string.IsNullOrEmpty(teC.Escudo))
+                                {
+                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = teC.Escudo })" style="width:12px;height:12px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:3px;" />
+                                }
+                                @teC.Nome
+                            </small>
                         </div>
                         <span class="rpt-badge-value" style="background:#fef9c3;color:#a16207;">🟨 @c.Valor</span>
                     </div>
@@ -686,9 +1053,22 @@
                     var c = Model.MaisCartoesVermelhos[i];
                     <div class="rpt-row">
                         <span class="rpt-rank">@(i+1)</span>
+                        @if (!string.IsNullOrEmpty(c.Jogador.FotoUrl))
+                        {
+                            <div class="rpt-avatar"><img src="@Url.Action("Imagem", "MediaProxy", new { url = c.Jogador.FotoUrl })" /></div>
+                        }
+                        else { <div class="rpt-avatar">@(c.Jogador.Nome.Length >= 2 ? c.Jogador.Nome.Substring(0,2).ToUpper() : "?")</div> }
                         <div class="rpt-name">
                             @c.Jogador.Nome
-                            <small>@c.Jogador.Posicao · @c.Jogador.Time?.Nome</small>
+                            <small>
+                                @c.Jogador.Posicao ·
+                                @{ var teC = TimeExibicao(c.Jogador); }
+                                @if (!string.IsNullOrEmpty(teC.Escudo))
+                                {
+                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = teC.Escudo })" style="width:12px;height:12px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:3px;" />
+                                }
+                                @teC.Nome
+                            </small>
                         </div>
                         <span class="rpt-badge-value" style="background:#fee2e2;color:#b91c1c;">🟥 @c.Valor</span>
                     </div>
@@ -724,7 +1104,7 @@
                         <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
                         @if (!string.IsNullOrEmpty(t.Time.EscudoUrl))
                         {
-                            <img src="@t.Time.EscudoUrl" class="rpt-team-badge" />
+                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.Time.EscudoUrl })" class="rpt-team-badge" />
                         }
                         <div class="rpt-name">
                             @t.Time.Nome
@@ -758,7 +1138,7 @@
                         <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
                         @if (!string.IsNullOrEmpty(t.Time.EscudoUrl))
                         {
-                            <img src="@t.Time.EscudoUrl" class="rpt-team-badge" />
+                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.Time.EscudoUrl })" class="rpt-team-badge" />
                         }
                         <div class="rpt-name">
                             @t.Time.Nome
@@ -792,7 +1172,7 @@
                         <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
                         @if (!string.IsNullOrEmpty(t.Time.EscudoUrl))
                         {
-                            <img src="@t.Time.EscudoUrl" class="rpt-team-badge" />
+                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.Time.EscudoUrl })" class="rpt-team-badge" />
                         }
                         <div class="rpt-name">
                             @t.Time.Nome
@@ -824,7 +1204,7 @@
                         <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
                         @if (!string.IsNullOrEmpty(t.Time.EscudoUrl))
                         {
-                            <img src="@t.Time.EscudoUrl" class="rpt-team-badge" />
+                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.Time.EscudoUrl })" class="rpt-team-badge" />
                         }
                         <div class="rpt-name">
                             @t.Time.Nome
@@ -851,7 +1231,7 @@
                         <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
                         @if (!string.IsNullOrEmpty(t.Time.EscudoUrl))
                         {
-                            <img src="@t.Time.EscudoUrl" class="rpt-team-badge" />
+                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.Time.EscudoUrl })" class="rpt-team-badge" />
                         }
                         <div class="rpt-name">
                             @t.Time.Nome
@@ -866,6 +1246,121 @@
                     </div>
                 }
             </div>
+
+            <!-- Vitórias em Casa -->
+            <div class="rpt-card">
+                <div class="rpt-card-header" style="border-left:4px solid #16a34a;">
+                    <div class="rpt-card-icon" style="background:#dcfce7;color:#16a34a;">🏠</div>
+                    <div>
+                        <h3 class="rpt-card-title">Mais Vitórias em Casa</h3>
+                        <p class="rpt-card-sub">Times imbatíveis no seu estádio</p>
+                    </div>
+                </div>
+                @{ var maxVC = Model.TimesVitoriasCasa.Any() ? Model.TimesVitoriasCasa.Max(t => t.VitoriasCasa) : 1; }
+                @for (int i = 0; i < Model.TimesVitoriasCasa.Count; i++)
+                {
+                    var t = Model.TimesVitoriasCasa[i];
+                    var w = Math.Round((double)t.VitoriasCasa / maxVC * 100, 1);
+                    <div class="rpt-row">
+                        <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
+                        @if (!string.IsNullOrEmpty(t.Time.EscudoUrl))
+                        {
+                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.Time.EscudoUrl })" class="rpt-team-badge" />
+                        }
+                        <div class="rpt-name">
+                            @t.Time.Nome
+                            <small>@t.VitoriasCasa vitória(s) em casa</small>
+                        </div>
+                        <div class="rpt-bar-wrap">
+                            <div class="rpt-bar-bg">
+                                <div class="rpt-bar-fill" style="width:@w%;background:linear-gradient(90deg,#16a34a,#4ade80);"></div>
+                            </div>
+                        </div>
+                        <span class="rpt-badge-value" style="background:#dcfce7;color:#15803d;">@t.VitoriasCasa</span>
+                    </div>
+                }
+            </div>
+
+            <!-- Vitórias Fora de Casa -->
+            <div class="rpt-card">
+                <div class="rpt-card-header" style="border-left:4px solid #7c3aed;">
+                    <div class="rpt-card-icon" style="background:#ede9fe;color:#7c3aed;">✈️</div>
+                    <div>
+                        <h3 class="rpt-card-title">Mais Vitórias Fora</h3>
+                        <p class="rpt-card-sub">Times que vencem longe de casa</p>
+                    </div>
+                </div>
+                @{ var maxVF = Model.TimesVitoriasVisitante.Any() ? Model.TimesVitoriasVisitante.Max(t => t.VitoriasVisitante) : 1; }
+                @for (int i = 0; i < Model.TimesVitoriasVisitante.Count; i++)
+                {
+                    var t = Model.TimesVitoriasVisitante[i];
+                    var w = Math.Round((double)t.VitoriasVisitante / maxVF * 100, 1);
+                    <div class="rpt-row">
+                        <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
+                        @if (!string.IsNullOrEmpty(t.Time.EscudoUrl))
+                        {
+                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.Time.EscudoUrl })" class="rpt-team-badge" />
+                        }
+                        <div class="rpt-name">
+                            @t.Time.Nome
+                            <small>@t.VitoriasVisitante vitória(s) fora</small>
+                        </div>
+                        <div class="rpt-bar-wrap">
+                            <div class="rpt-bar-bg">
+                                <div class="rpt-bar-fill" style="width:@w%;background:linear-gradient(90deg,#7c3aed,#a78bfa);"></div>
+                            </div>
+                        </div>
+                        <span class="rpt-badge-value" style="background:#ede9fe;color:#6d28d9;">@t.VitoriasVisitante</span>
+                    </div>
+                }
+            </div>
+
+            @{
+                var statsCards = new[]
+                {
+                    (icone:"🎯", titulo:"Mais Finalizações/Jogo",    sub:"Média de chutes totais por partida",       cor:"#fef3c7", barCor:"#f59e0b", bgVal:"#fffbeb", fgVal:"#d97706", sufixo:"fin/j",   lista:Model.TimesFinalizacoes),
+                    (icone:"⚡", titulo:"Mais Chutes no Gol/Jogo",   sub:"Média de finalizações certas por partida", cor:"#dcfce7", barCor:"#22c55e", bgVal:"#dcfce7", fgVal:"#15803d", sufixo:"no gol",  lista:Model.TimesFinalizacoesNoGol),
+                    (icone:"🏳️", titulo:"Mais Escanteios/Jogo",      sub:"Média de escanteios por partida",          cor:"#eff6ff", barCor:"#3b82f6", bgVal:"#eff6ff", fgVal:"#1d4ed8", sufixo:"esc/j",   lista:Model.TimesEscanteios),
+                    (icone:"🎮", titulo:"Mais Passes Certos/Jogo",   sub:"Média de passes precisos por partida",     cor:"#fdf4ff", barCor:"#a855f7", bgVal:"#fdf4ff", fgVal:"#7e22ce", sufixo:"passes",  lista:Model.TimesPassesCertos),
+                    (icone:"⚽", titulo:"Maior Posse de Bola",        sub:"Média de posse de bola por partida",       cor:"#fff1f2", barCor:"#f43f5e", bgVal:"#fff1f2", fgVal:"#be123c", sufixo:"%",       lista:Model.TimesPosseBola),
+                };
+            }
+            @foreach (var sc in statsCards)
+            {
+                if (!sc.lista.Any()) { continue; }
+                var maxVal = sc.lista.Max(x => x.Valor);
+                <div class="rpt-card">
+                    <div class="rpt-card-header">
+                        <div class="rpt-card-icon" style="background:@sc.cor;">@sc.icone</div>
+                        <div>
+                            <h3 class="rpt-card-title">@sc.titulo</h3>
+                            <p class="rpt-card-sub">@sc.sub</p>
+                        </div>
+                    </div>
+                    @for (int i = 0; i < sc.lista.Count; i++)
+                    {
+                        var s = sc.lista[i];
+                        var w = maxVal > 0 ? Math.Round(s.Valor / maxVal * 100, 1) : 0;
+                        <div class="rpt-row">
+                            <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
+                            @if (!string.IsNullOrEmpty(s.Time.EscudoUrl))
+                            {
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = s.Time.EscudoUrl })" class="rpt-team-badge" />
+                            }
+                            <div class="rpt-name">
+                                @s.Time.Nome
+                                <small>@s.Jogos jogo(s) analisado(s)</small>
+                            </div>
+                            <div class="rpt-bar-wrap" style="max-width:70px;">
+                                <div class="rpt-bar-bg">
+                                    <div class="rpt-bar-fill" style="width:@w%;background:@sc.barCor;"></div>
+                                </div>
+                            </div>
+                            <span class="rpt-badge-value" style="background:@sc.bgVal;color:@sc.fgVal;">@s.Valor @sc.sufixo</span>
+                        </div>
+                    }
+                </div>
+            }
 
         </div>
     </div>
@@ -931,6 +1426,199 @@
                     </table>
                 </div>
             </div>
+        }
+    </div>
+
+    <div id="sec-estat-jogadores" class="rpt-section">
+        @{
+            var rankingsEstat = new (string Titulo, string Sub, string Icone, string Cor, string Unidade, IEnumerable<ControleFutebolWeb.Models.ViewModels.RankingEstatJogador> Lista)[]
+            {
+                ("Média de Finalizações no Alvo", "Chutes que exigiram o goleiro por partida", "🎯", "#3b82f6", "/jogo", Model.RankFinalizacoesNoGol),
+                ("Média de Passes-Chave",          "Passes que geraram chances claras por partida", "🎯", "#8b5cf6", "/jogo", Model.RankPassesChave),
+                ("Média de Desarmes",              "Disputas defensivas vencidas por partida",      "⚔️", "#f59e0b", "/jogo", Model.RankDesarmes),
+                ("Média de Bloqueios",             "Chutes/passes bloqueados por partida",          "🛡️", "#0ea5e9", "/jogo", Model.RankBloqueios),
+                ("Média de Interceptações",        "Bolas interceptadas por partida",               "✋", "#10b981", "/jogo", Model.RankInterceptacoes),
+                ("Média de Dribles Certos",        "Dribles bem-sucedidos por partida",             "💨", "#f97316", "/jogo", Model.RankDrilesCertos),
+                ("Média de Impedimentos",          "Posições irregulares registradas por partida",  "🚩", "#ef4444", "/jogo", Model.RankImpedimentos),
+                ("Pênaltis Defendidos",            "Total de pênaltis defendidos",                  "🧤", "#6366f1", "total", Model.RankPenaltisDefendidos),
+            };
+        }
+
+        @if (!rankingsEstat.Any(r => r.Lista.Any()))
+        {
+            <div class="rpt-card">
+                <div style="padding:2rem;text-align:center;color:#9ca3af;font-size:13px;">
+                    Nenhuma estatística individual disponível para os filtros selecionados.<br>
+                    <small>As estatísticas são importadas via API ao analisar cada jogo.</small>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="rpt-grid">
+                @foreach (var (titulo, sub, icone, cor, unidade, lista) in rankingsEstat)
+                {
+                    <div class="rpt-card">
+                        <div class="rpt-card-header">
+                            <div class="rpt-card-icon" style="background:@(cor)22; font-size:18px;">@icone</div>
+                            <div>
+                                <h3 class="rpt-card-title">@titulo</h3>
+                                <p class="rpt-card-sub">@sub</p>
+                            </div>
+                        </div>
+                        @if (!lista.Any())
+                        {
+                            <div style="padding:1rem 0;text-align:center;color:#9ca3af;font-size:12px;">Sem dados</div>
+                        }
+                        else
+                        {
+                            var maxVal = lista.Max(r => unidade == "total" ? r.Total : r.Media);
+                            <ol style="list-style:none;padding:0;margin:0;">
+                                @foreach (var item in lista)
+                                {
+                                    var val = unidade == "total" ? item.Total : item.Media;
+                                    var bar = maxVal > 0 ? val / maxVal * 100 : 0;
+                                    <li style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:.5px solid #f5f5f5;">
+                                        @{
+                                            // Usa a seleção quando a competição filtrada é de seleções OU quando filtrado pela própria seleção
+                                            bool usarSelecao = item.Jogador.Selecao != null
+                                                && (Model.ExibirSelecao || (item.Jogador.SelecaoId.HasValue && Model.TimeIdsFiltro.Contains(item.Jogador.SelecaoId.Value)));
+                                            var logoUrl = usarSelecao ? item.Jogador.Selecao?.EscudoUrl : item.Jogador.Time?.EscudoUrl;
+                                            var nomeAbrev = usarSelecao ? item.Jogador.Selecao?.Nome : item.Jogador.Time?.Nome;
+                                        }
+                                        <div style="width:26px;height:26px;border-radius:50%;overflow:hidden;border:1px solid #e5e7eb;background:#f3f4f6;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:#6b7280;">
+                                            @if (!string.IsNullOrWhiteSpace(logoUrl))
+                                            {
+                                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = logoUrl })" style="width:100%;height:100%;object-fit:contain;" />
+                                            }
+                                            else
+                                            {
+                                                @(nomeAbrev?.Length >= 3 ? nomeAbrev[..3].ToUpper() : nomeAbrev)
+                                            }
+                                        </div>
+                                        <div style="flex:1;min-width:0;">
+                                            <div style="font-size:12px;font-weight:600;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                                                <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@item.Jogador.Id" style="color:inherit;text-decoration:none;">@item.Jogador.Nome</a>
+                                            </div>
+                                            <div style="height:4px;background:#f3f4f6;border-radius:2px;margin-top:3px;">
+                                                <div style="height:100%;width:@(bar.ToString("F1", System.Globalization.CultureInfo.InvariantCulture))%;background:@cor;border-radius:2px;"></div>
+                                            </div>
+                                        </div>
+                                        <div style="text-align:right;flex-shrink:0;">
+                                            <div style="font-size:14px;font-weight:700;color:@cor;">@(unidade == "total" ? val.ToString("F0") : val.ToString("F2"))</div>
+                                            <div style="font-size:10px;color:#9ca3af;">@(unidade == "total" ? $"{item.Partidas} jogo(s)" : $"{item.Partidas} jogo(s)")</div>
+                                        </div>
+                                    </li>
+                                }
+                            </ol>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+</div>
+
+    <!-- ══ SEÇÃO: ESTATÍSTICAS COMPETIÇÕES ══════════════════════════════════ -->
+    <div id="sec-estat-competicoes" class="rpt-section">
+        @if (!Model.EstatisticasCompeticoes.Any())
+        {
+            <p style="text-align:center;color:#6b7280;padding:2rem;">Nenhuma competição com jogos analisados.</p>
+        }
+        else
+        {
+            foreach (var ec in Model.EstatisticasCompeticoes)
+            {
+                <div style="background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:1.5rem;margin-bottom:1.5rem;">
+                    <!-- Cabeçalho da competição -->
+                    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem;border-bottom:1px solid #1e293b;padding-bottom:1rem;">
+                        <div>
+                            <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:#f1f5f9;letter-spacing:.5px;">@ec.Competicao.Nome</div>
+                            <div style="font-size:12px;color:#94a3b8;">@ec.TotalJogos jogo(s) · @ec.JogosAnalisados analisado(s)</div>
+                        </div>
+                    </div>
+
+                    <!-- Grid de estatísticas -->
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1rem;margin-bottom:1.25rem;">
+                        @{
+                            void StatBox(string label, string valor, string cor, string icone)
+                            {
+                                <div style="background:#1e293b;border-radius:10px;padding:.9rem 1rem;">
+                                    <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:.3rem;">@icone @label</div>
+                                    <div style="font-size:22px;font-weight:800;font-family:'Barlow Condensed',sans-serif;color:@cor;">@valor</div>
+                                </div>
+                            }
+                        }
+                        @{ StatBox("Gols", ec.TotalGols.ToString(), "#22c55e", "⚽"); }
+                        @{ StatBox("Gols contra", ec.TotalGolsContra.ToString(), "#ef4444", "🙈"); }
+                        @{ StatBox("Média gols/jogo", ec.MediaGolsPorJogo.ToString("F2"), "#f59e0b", "📊"); }
+                        @{ StatBox("Cartões amarelos", ec.TotalCartaoAmarelo.ToString(), "#fbbf24", "🟨"); }
+                        @{ StatBox("Cartões vermelhos", ec.TotalCartaoVermelho.ToString(), "#ef4444", "🟥"); }
+                        @{ StatBox("Média cartões/jogo", ec.MediaCartoesPorJogo.ToString("F2"), "#94a3b8", "📋"); }
+                    </div>
+
+                    <!-- Resultados: vitórias mandante / empate / visitante -->
+                    <div style="margin-bottom:1.25rem;">
+                        <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:.6rem;">Resultados</div>
+                        <div style="display:flex;gap:0;border-radius:8px;overflow:hidden;height:36px;">
+                            @if (ec.TotalJogos > 0)
+                            {
+                                <div style="flex:@ec.PctVitoriasMandante;background:#22c55e;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;min-width:30px;" title="Mandante @ec.PctVitoriasMandante%">
+                                    @ec.PctVitoriasMandante%
+                                </div>
+                                <div style="flex:@ec.PctEmpates;background:#6b7280;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;min-width:30px;" title="Empates @ec.PctEmpates%">
+                                    @ec.PctEmpates%
+                                </div>
+                                <div style="flex:@ec.PctVitoriasVisitante;background:#3b82f6;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;min-width:30px;" title="Visitante @ec.PctVitoriasVisitante%">
+                                    @ec.PctVitoriasVisitante%
+                                </div>
+                            }
+                        </div>
+                        <div style="display:flex;gap:1.5rem;margin-top:.5rem;">
+                            <span style="font-size:11px;color:#22c55e;">🟢 Mandante: @ec.VitoriasMandante</span>
+                            <span style="font-size:11px;color:#9ca3af;">⬜ Empates: @ec.Empates</span>
+                            <span style="font-size:11px;color:#3b82f6;">🔵 Visitante: @ec.VitoriasVisitante</span>
+                        </div>
+                    </div>
+
+                    <!-- Destaques: artilheiro, assistente, time, jogo -->
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.75rem;">
+                        @if (!string.IsNullOrEmpty(ec.ArtilheiroNome))
+                        {
+                            <div style="background:#1e293b;border-radius:10px;padding:.8rem 1rem;">
+                                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">⚽ Artilheiro</div>
+                                <div style="font-size:14px;font-weight:700;color:#f1f5f9;margin-top:.25rem;">@ec.ArtilheiroNome</div>
+                                <div style="font-size:12px;color:#22c55e;">@ec.ArtilheiroGols gol(s)</div>
+                            </div>
+                        }
+                        @if (!string.IsNullOrEmpty(ec.AssistenteNome))
+                        {
+                            <div style="background:#1e293b;border-radius:10px;padding:.8rem 1rem;">
+                                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">🎯 Mais assistências</div>
+                                <div style="font-size:14px;font-weight:700;color:#f1f5f9;margin-top:.25rem;">@ec.AssistenteNome</div>
+                                <div style="font-size:12px;color:#3b82f6;">@ec.AssistenciasTotal assist.</div>
+                            </div>
+                        }
+                        @if (!string.IsNullOrEmpty(ec.TimeMaisVitorias))
+                        {
+                            <div style="background:#1e293b;border-radius:10px;padding:.8rem 1rem;">
+                                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">🏆 Mais vitórias</div>
+                                <div style="font-size:14px;font-weight:700;color:#f1f5f9;margin-top:.25rem;">@ec.TimeMaisVitorias</div>
+                                <div style="font-size:12px;color:#f59e0b;">@ec.TimeMaisVitoriasQtd vitória(s)</div>
+                            </div>
+                        }
+                        @if (!string.IsNullOrEmpty(ec.JogoMaisGols))
+                        {
+                            <div style="background:#1e293b;border-radius:10px;padding:.8rem 1rem;">
+                                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">🔥 Jogo com mais gols</div>
+                                <div style="font-size:13px;font-weight:700;color:#f1f5f9;margin-top:.25rem;">@ec.JogoMaisGols</div>
+                                <div style="font-size:12px;color:#ef4444;">@ec.JogoMaisGolsTotal gol(s)</div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
         }
     </div>
 

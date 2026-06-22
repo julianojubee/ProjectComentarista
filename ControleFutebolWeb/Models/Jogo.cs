@@ -50,6 +50,9 @@ namespace ControleFutebolWeb.Models
         [ValidateNever]
         public int CompeticaoId { get; set; }
 
+        [ValidateNever]
+        public Competicao? Competicao { get; set; }
+
         public string? Grupo { get; set; }
         public string? Observacoes { get; set; }
 
@@ -64,6 +67,12 @@ namespace ControleFutebolWeb.Models
         public string? FotoUrl { get; set; }
 
         public string? LinkDetalhes { get; set; }
+        public string? Estadio { get; set; }
+        public string? Arbitro { get; set; }
+
+        // Estatísticas da partida (posse, finalizações, etc.) vindas da api-football,
+        // guardadas em JSON: [{ "TimeId": 22, "Stats": { "Ball Possession": "48%", ... } }, ...]
+        public string? EstatisticasJson { get; set; }
     }
 }
 

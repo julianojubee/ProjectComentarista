@@ -2,6 +2,7 @@
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -15,13 +16,54 @@ namespace ControleFutebolWeb.Controllers
         private readonly ILogger<JogosController> _logger;
         private readonly ApiFootballService _transfermarkt;
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public JogosController(FutebolContext context, ILogger<JogosController> logger, ApiFootballService transfermarkt, IServiceScopeFactory scopeFactory)
+        public JogosController(FutebolContext context, ILogger<JogosController> logger, ApiFootballService transfermarkt, IServiceScopeFactory scopeFactory, UserManager<ApplicationUser> userManager)
         {
             _context = context;
             _logger = logger;
             _transfermarkt = transfermarkt;
             _scopeFactory = scopeFactory;
+            _userManager = userManager;
+        }
+
+        // GET: Jogos/Hoje
+        public async Task<IActionResult> Hoje(DateTime? data = null)
+        {
+            var uid = _userManager.GetUserId(User);
+
+            // Jogos ficam em UTC no banco. Converte o dia escolhido (no fuso do Brasil, UTC-3) para UTC
+            // para não perder jogos das primeiras horas da manhã (ex: 00:00 BRT = 03:00 UTC)
+            var fusoHorarioBrasil = TimeZoneInfo.FindSystemTimeZoneById("America/Sao_Paulo");
+            var agoraBrasil = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, fusoHorarioBrasil);
+
+            // Dia exibido: o informado (?data=yyyy-MM-dd) ou hoje no Brasil
+            var diaBrasil = (data?.Date) ?? agoraBrasil.Date;
+            var fimDiaBrasil = diaBrasil.AddDays(1);
+            var inicioUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(diaBrasil, DateTimeKind.Unspecified), fusoHorarioBrasil);
+            var fimUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(fimDiaBrasil, DateTimeKind.Unspecified), fusoHorarioBrasil);
+
+            var jogos = await _context.Jogos
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .Include(j => j.Competicao)
+                .Where(j => j.Data >= inicioUtc && j.Data < fimUtc)
+                .OrderBy(j => j.Data)
+                .ToListAsync();
+
+            var jogosAnalisadosIds = uid != null
+                ? await _context.JogosAnalisadosUsuario
+                    .Where(j => j.UsuarioId == uid)
+                    .Select(j => j.JogoId)
+                    .ToHashSetAsync()
+                : new HashSet<int>();
+
+            ViewBag.JogosAnalisadosIds = jogosAnalisadosIds;
+            ViewBag.DiaAtual = diaBrasil;
+            ViewBag.DiaAnterior = diaBrasil.AddDays(-1);
+            ViewBag.DiaSeguinte = diaBrasil.AddDays(1);
+            ViewBag.EhHoje = diaBrasil == agoraBrasil.Date;
+            return View(jogos);
         }
 
         // GET: Jogos
@@ -77,7 +119,15 @@ namespace ControleFutebolWeb.Controllers
                 jogosQuery = jogosQuery.Where(j => j.Data <= endDate.Value);
 
             ViewBag.TimeList = new SelectList(_context.Times.OrderBy(t => t.Nome).ToList(), "Id", "Nome", teamId);
-            ViewBag.CompeticaoList = new SelectList(_context.Competicoes.OrderBy(c => c.Nome).ToList(), "Id", "Nome", competicaoId);
+            var uidJogos = _userManager.GetUserId(User)!;
+            var topTierIdsJogos = _context.CompeticoesTopTierUsuario
+                .Where(t => t.UsuarioId == uidJogos).Select(t => t.CompeticaoId).ToHashSet();
+            var competicoesOrdenadas = _context.Competicoes
+                .OrderBy(c => c.Nome).ToList()
+                .OrderByDescending(c => topTierIdsJogos.Contains(c.Id))
+                .ThenBy(c => c.Nome)
+                .ToList();
+            ViewBag.CompeticaoList = new SelectList(competicoesOrdenadas, "Id", "Nome", competicaoId);
             ViewBag.StatusList = new SelectList(
                 new[] {
                     new { Value = "all", Text = "Todos" },
@@ -105,6 +155,59 @@ namespace ControleFutebolWeb.Controllers
                 .ToDictionaryAsync(c => c.Id, c => c.Nome);
 
             return View(await jogosQuery.ToListAsync());
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> TimesPorCompeticao(int competicaoId)
+        {
+            var jogos = await _context.Jogos
+                .Where(j => j.CompeticaoId == competicaoId)
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var times = jogos
+                .SelectMany(j => new[] {
+                    new { id = j.TimeCasaId, nome = j.TimeCasa?.Nome },
+                    new { id = j.TimeVisitanteId, nome = j.TimeVisitante?.Nome }
+                })
+                .Where(t => t.nome != null)
+                .GroupBy(t => t.id)
+                .Select(g => new { id = g.Key, nome = g.First().nome })
+                .OrderBy(t => t.nome)
+                .ToList();
+
+            return Json(times);
+        }
+
+        // Times que participam de uma ou mais competições (união). Usado no filtro multi de Relatórios.
+        public async Task<IActionResult> TimesPorCompeticoes([FromQuery] int[] competicaoIds)
+        {
+            var ids = (competicaoIds ?? Array.Empty<int>()).Where(i => i > 0).Distinct().ToList();
+
+            var jogosQuery = _context.Jogos.AsNoTracking()
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .AsQueryable();
+
+            if (ids.Any())
+                jogosQuery = jogosQuery.Where(j => ids.Contains(j.CompeticaoId));
+
+            var jogos = await jogosQuery.ToListAsync();
+
+            var times = jogos
+                .SelectMany(j => new[] {
+                    new { id = j.TimeCasaId, nome = j.TimeCasa?.Nome },
+                    new { id = j.TimeVisitanteId, nome = j.TimeVisitante?.Nome }
+                })
+                .Where(t => t.nome != null)
+                .GroupBy(t => t.id)
+                .Select(g => new { id = g.Key, nome = g.First().nome })
+                .OrderBy(t => t.nome)
+                .ToList();
+
+            return Json(times);
         }
 
         // GET: Jogos/Details/5
@@ -328,6 +431,7 @@ namespace ControleFutebolWeb.Controllers
         public async Task<IActionResult> Analisar(int id, int? formacaoCasaId, int? formacaoVisitanteId, string? faseEscalacao)
         {
             var faseAtual = string.Equals(faseEscalacao, "FINAL", StringComparison.OrdinalIgnoreCase) ? "FINAL" : "INICIAL";
+            var usuarioId = _userManager.GetUserId(User)!;
 
             var jogo = await _context.Jogos
                 .Include(j => j.TimeCasa)
@@ -337,12 +441,12 @@ namespace ControleFutebolWeb.Controllers
             if (jogo == null) return NotFound();
 
             var escalacoesFinaisExistem = await _context.Escalacoes
-                .AnyAsync(e => e.JogoId == id && e.FaseEscalacao == "FINAL");
+                .AnyAsync(e => e.JogoId == id && e.FaseEscalacao == "FINAL" && e.UsuarioId == usuarioId);
 
             if (faseAtual == "FINAL" && !escalacoesFinaisExistem)
             {
                 var escalacoesIniciais = await _context.Escalacoes
-                    .Where(e => e.JogoId == id && (e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null))
+                    .Where(e => e.JogoId == id && (e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null) && e.UsuarioId == usuarioId)
                     .ToListAsync();
 
                 if (escalacoesIniciais.Any())
@@ -356,19 +460,79 @@ namespace ControleFutebolWeb.Controllers
                         IsTimeCasa = e.IsTimeCasa,
                         PosicaoX = e.PosicaoX,
                         PosicaoY = e.PosicaoY,
-                        FaseEscalacao = "FINAL"
+                        FaseEscalacao = "FINAL",
+                        UsuarioId = usuarioId
                     }).ToList();
+
+                    // Aplica as substituições já importadas: o jogador que entrou assume o
+                    // lugar (posição em campo) de quem saiu, e quem saiu vai para o banco.
+                    var substituicoes = await _context.Substituicoes
+                        .Where(s => s.JogoId == id)
+                        .OrderBy(s => s.Minuto)
+                        .ToListAsync();
+
+                    foreach (var sub in substituicoes)
+                    {
+                        if (sub.JogadorSaiuId == null) continue;
+
+                        var slotSaiu = clonesFinais.FirstOrDefault(c =>
+                            c.JogadorId == sub.JogadorSaiuId && c.IsTimeCasa == sub.IsTimeCasa && c.Titular);
+                        var slotEntrou = clonesFinais.FirstOrDefault(c =>
+                            c.JogadorId == sub.JogadorEntrouId && c.IsTimeCasa == sub.IsTimeCasa);
+
+                        if (slotSaiu == null || slotEntrou == null) continue;
+
+                        var jogadorIdTemp = slotSaiu.JogadorId;
+                        slotSaiu.JogadorId = slotEntrou.JogadorId;
+                        slotEntrou.JogadorId = jogadorIdTemp;
+                    }
 
                     _context.Escalacoes.AddRange(clonesFinais);
                     await _context.SaveChangesAsync();
                 }
             }
 
-            // Escalações já salvas por fase
+            // Escalações do usuário para esta fase
             var escalacoes = await _context.Escalacoes
                 .Include(e => e.Jogador)
-                .Where(e => e.JogoId == id && (e.FaseEscalacao == faseAtual || (faseAtual == "INICIAL" && e.FaseEscalacao == null)))
+                .Where(e => e.JogoId == id
+                         && (e.FaseEscalacao == faseAtual || (faseAtual == "INICIAL" && e.FaseEscalacao == null))
+                         && e.UsuarioId == usuarioId)
                 .ToListAsync();
+
+            // Se não tiver escalações do usuário, copia das compartilhadas (importadas da API, UsuarioId == null)
+            if (!escalacoes.Any())
+            {
+                var compartilhadas = await _context.Escalacoes
+                    .Where(e => e.JogoId == id
+                             && (e.FaseEscalacao == faseAtual || (faseAtual == "INICIAL" && e.FaseEscalacao == null))
+                             && e.UsuarioId == null)
+                    .ToListAsync();
+
+                if (compartilhadas.Any())
+                {
+                    var copias = compartilhadas.Select(e => new Escalacao
+                    {
+                        JogoId = e.JogoId,
+                        JogadorId = e.JogadorId,
+                        Titular = e.Titular,
+                        Posicao = e.Posicao,
+                        IsTimeCasa = e.IsTimeCasa,
+                        PosicaoX = e.PosicaoX,
+                        PosicaoY = e.PosicaoY,
+                        FaseEscalacao = e.FaseEscalacao ?? "INICIAL",
+                        UsuarioId = usuarioId
+                    }).ToList();
+                    _context.Escalacoes.AddRange(copias);
+                    await _context.SaveChangesAsync();
+                    escalacoes = await _context.Escalacoes
+                        .Include(e => e.Jogador)
+                        .Where(e => e.JogoId == id
+                                 && (e.FaseEscalacao == faseAtual || (faseAtual == "INICIAL" && e.FaseEscalacao == null))
+                                 && e.UsuarioId == usuarioId)
+                        .ToListAsync();
+                }
+            }
 
             var escalacoesCasa = escalacoes.Where(e => e.IsTimeCasa).ToList();
             var escalacoesVisitante = escalacoes.Where(e => !e.IsTimeCasa).ToList();
@@ -423,7 +587,8 @@ namespace ControleFutebolWeb.Controllers
                                 PosicaoY = e.PosicaoY,
                                 IsTimeCasa = true,
                                 Titular = e.Titular,
-                                FaseEscalacao = faseAtual
+                                FaseEscalacao = faseAtual,
+                                UsuarioId = usuarioId
                             }).ToList();
 
                             if (idFormacaoCasa == 0)
@@ -451,8 +616,9 @@ namespace ControleFutebolWeb.Controllers
                             PosicaoX = p.PosicaoX,
                             PosicaoY = p.PosicaoY,
                             IsTimeCasa = true,
-                            Titular = true,  // escalação padrão = sempre titular
-                            FaseEscalacao = faseAtual
+                            Titular = true,
+                            FaseEscalacao = faseAtual,
+                            UsuarioId = usuarioId
                         }).ToList();
 
                         if (idFormacaoCasa == 0)
@@ -475,7 +641,8 @@ namespace ControleFutebolWeb.Controllers
                         PosicaoY = pos.PosicaoY,
                         IsTimeCasa = true,
                         Titular = true,
-                        FaseEscalacao = faseAtual
+                        FaseEscalacao = faseAtual,
+                        UsuarioId = usuarioId
                     }).ToList();
                 }
 
@@ -532,7 +699,8 @@ namespace ControleFutebolWeb.Controllers
                                 PosicaoY = e.PosicaoY,
                                 IsTimeCasa = false,
                                 Titular = e.Titular,
-                                FaseEscalacao = faseAtual
+                                FaseEscalacao = faseAtual,
+                                UsuarioId = usuarioId
                             }).ToList();
 
                             if (idFormacaoVisitante == 0)
@@ -560,8 +728,9 @@ namespace ControleFutebolWeb.Controllers
                             PosicaoX = p.PosicaoX,
                             PosicaoY = p.PosicaoY,
                             IsTimeCasa = false,
-                            Titular = true,  // escalação padrão = sempre titular
-                            FaseEscalacao = faseAtual
+                            Titular = true,
+                            FaseEscalacao = faseAtual,
+                            UsuarioId = usuarioId
                         }).ToList();
 
                         if (idFormacaoVisitante == 0)
@@ -584,7 +753,8 @@ namespace ControleFutebolWeb.Controllers
                         PosicaoY = pos.PosicaoY,
                         IsTimeCasa = false,
                         Titular = true,
-                        FaseEscalacao = faseAtual
+                        FaseEscalacao = faseAtual,
+                        UsuarioId = usuarioId
                     }).ToList();
                 }
 
@@ -594,10 +764,12 @@ namespace ControleFutebolWeb.Controllers
 
             await _context.SaveChangesAsync();
 
-            // Recarrega escalações finais
+            // Recarrega escalações finais do usuário
             escalacoes = await _context.Escalacoes
                 .Include(e => e.Jogador)
-                .Where(e => e.JogoId == id && (e.FaseEscalacao == faseAtual || (faseAtual == "INICIAL" && e.FaseEscalacao == null)))
+                .Where(e => e.JogoId == id
+                         && (e.FaseEscalacao == faseAtual || (faseAtual == "INICIAL" && e.FaseEscalacao == null))
+                         && e.UsuarioId == usuarioId)
                 .ToListAsync();
 
             var ordemPosicoes = new Dictionary<string, int>
@@ -608,12 +780,12 @@ namespace ControleFutebolWeb.Controllers
 
             ViewBag.EscalacoesCasa = escalacoes
                 .Where(e => e.IsTimeCasa && e.Titular)
-                .OrderBy(e => ordemPosicoes.ContainsKey(e.Posicao) ? ordemPosicoes[e.Posicao] : 99)
+                .OrderBy(e => e.Posicao != null && ordemPosicoes.ContainsKey(e.Posicao) ? ordemPosicoes[e.Posicao] : 99)
                 .ToList();
 
             ViewBag.EscalacoesVisitante = escalacoes
                 .Where(e => !e.IsTimeCasa && e.Titular)
-                .OrderBy(e => ordemPosicoes.ContainsKey(e.Posicao) ? ordemPosicoes[e.Posicao] : 99)
+                .OrderBy(e => e.Posicao != null && ordemPosicoes.ContainsKey(e.Posicao) ? ordemPosicoes[e.Posicao] : 99)
                 .ToList();
 
             ViewBag.ReservasCasa = escalacoes.Where(e => e.IsTimeCasa && !e.Titular).ToList();
@@ -647,10 +819,21 @@ namespace ControleFutebolWeb.Controllers
                     .Select(e => e.JogadorId!.Value)
                     .ToHashSet();
 
-                var entrouCasa = titularesFinaisCasa.Except(titularesIniciaisCasa).ToHashSet();
-                var entrouVisitante = titularesFinaisVisitante.Except(titularesIniciaisVisitante).ToHashSet();
-                var saiuCasa = titularesIniciaisCasa.Except(titularesFinaisCasa).ToHashSet();
-                var saiuVisitante = titularesIniciaisVisitante.Except(titularesFinaisVisitante).ToHashSet();
+                // Usa Substituicoes como fonte primária e complementa com diff INICIAL/FINAL
+                var subsJogo = await _context.Substituicoes
+                    .Where(s => s.JogoId == id)
+                    .ToListAsync();
+
+                var entrouCasaSubs     = subsJogo.Where(s => s.IsTimeCasa  && s.JogadorEntrouId != 0).Select(s => s.JogadorEntrouId).ToHashSet();
+                var entrouVisitanteSubs= subsJogo.Where(s => !s.IsTimeCasa && s.JogadorEntrouId != 0).Select(s => s.JogadorEntrouId).ToHashSet();
+                var saiuCasaSubs       = subsJogo.Where(s => s.IsTimeCasa  && s.JogadorSaiuId.HasValue).Select(s => s.JogadorSaiuId!.Value).ToHashSet();
+                var saiuVisitanteSubs  = subsJogo.Where(s => !s.IsTimeCasa && s.JogadorSaiuId.HasValue).Select(s => s.JogadorSaiuId!.Value).ToHashSet();
+
+                // Complementa com diff escalações (cobre casos sem registro de sub)
+                var entrouCasa     = entrouCasaSubs.Union(titularesFinaisCasa.Except(titularesIniciaisCasa)).ToHashSet();
+                var entrouVisitante= entrouVisitanteSubs.Union(titularesFinaisVisitante.Except(titularesIniciaisVisitante)).ToHashSet();
+                var saiuCasa       = saiuCasaSubs.Union(titularesIniciaisCasa.Except(titularesFinaisCasa)).ToHashSet();
+                var saiuVisitante  = saiuVisitanteSubs.Union(titularesIniciaisVisitante.Except(titularesFinaisVisitante)).ToHashSet();
 
                 ViewBag.JogadoresEntraramCasa = entrouCasa.ToList();
                 ViewBag.JogadoresEntraramVisitante = entrouVisitante.ToList();
@@ -689,16 +872,37 @@ namespace ControleFutebolWeb.Controllers
             }
             else
             {
-                ViewBag.JogadoresCasa = _context.Jogadores
-                    .Where(j => j.TimeId == jogo.TimeCasaId || j.SelecaoId == jogo.TimeCasaId).ToList();
-                ViewBag.JogadoresVisitante = _context.Jogadores
-                    .Where(j => j.TimeId == jogo.TimeVisitanteId || j.SelecaoId == jogo.TimeVisitanteId).ToList();
+                var jogadoresCasa = await _context.Jogadores
+                    .Where(j => j.TimeId == jogo.TimeCasaId || j.SelecaoId == jogo.TimeCasaId).ToListAsync();
+                var jogadoresVisitante = await _context.Jogadores
+                    .Where(j => j.TimeId == jogo.TimeVisitanteId || j.SelecaoId == jogo.TimeVisitanteId).ToListAsync();
+
+                // Jogo ainda não aconteceu (sem lineup importada) — nenhum jogador foi
+                // descoberto ainda para este time. Busca o elenco completo na api-football
+                // para que apareçam disponíveis na lista lateral.
+                if (jogadoresCasa.Count == 0)
+                {
+                    var criados = await _transfermarkt.ImportarElencoAsync(_context, jogo.TimeCasa);
+                    if (criados > 0)
+                        jogadoresCasa = await _context.Jogadores
+                            .Where(j => j.TimeId == jogo.TimeCasaId || j.SelecaoId == jogo.TimeCasaId).ToListAsync();
+                }
+                if (jogadoresVisitante.Count == 0)
+                {
+                    var criados = await _transfermarkt.ImportarElencoAsync(_context, jogo.TimeVisitante);
+                    if (criados > 0)
+                        jogadoresVisitante = await _context.Jogadores
+                            .Where(j => j.TimeId == jogo.TimeVisitanteId || j.SelecaoId == jogo.TimeVisitanteId).ToListAsync();
+                }
+
+                ViewBag.JogadoresCasa = jogadoresCasa;
+                ViewBag.JogadoresVisitante = jogadoresVisitante;
             }
 
             ViewBag.FormacaoCasaSelecionada = idFormacaoCasa;
             ViewBag.FormacaoVisitanteSelecionada = idFormacaoVisitante;
             ViewBag.FaseEscalacaoAtual = faseAtual;
-            ViewBag.EscalacaoFinalDisponivel = await _context.Escalacoes.AnyAsync(e => e.JogoId == id && e.FaseEscalacao == "FINAL");
+            ViewBag.EscalacaoFinalDisponivel = await _context.Escalacoes.AnyAsync(e => e.JogoId == id && e.FaseEscalacao == "FINAL" && e.UsuarioId == usuarioId);
             ViewBag.MostrarBancoReservas = faseAtual == "INICIAL";
 
             ViewBag.TreinadorCasa = await _context.Treinadores
@@ -729,9 +933,12 @@ namespace ControleFutebolWeb.Controllers
             List<EscalacaoInput> reservasVisitante)
         {
             var faseAtual = string.Equals(faseEscalacao, "FINAL", StringComparison.OrdinalIgnoreCase) ? "FINAL" : "INICIAL";
+            var usuarioId = _userManager.GetUserId(User)!;
 
             var escalacoes = await _context.Escalacoes
-                .Where(e => e.JogoId == id && (e.FaseEscalacao == faseAtual || (faseAtual == "INICIAL" && e.FaseEscalacao == null)))
+                .Where(e => e.JogoId == id
+                         && (e.FaseEscalacao == faseAtual || (faseAtual == "INICIAL" && e.FaseEscalacao == null))
+                         && e.UsuarioId == usuarioId)
                 .ToListAsync();
 
             void AtualizarSlots(List<EscalacaoInput> inputs, bool isTimeCasa)
@@ -768,7 +975,8 @@ namespace ControleFutebolWeb.Controllers
                         PosicaoY = 0,
                         IsTimeCasa = isTimeCasa,
                         Titular = false,
-                        FaseEscalacao = faseAtual
+                        FaseEscalacao = faseAtual,
+                        UsuarioId = usuarioId
                     });
             }
 
@@ -782,17 +990,24 @@ namespace ControleFutebolWeb.Controllers
                 if (formacaoCasaId > 0) jogo.FormacaoCasaId = formacaoCasaId;
                 if (formacaoVisitanteId > 0) jogo.FormacaoVisitanteId = formacaoVisitanteId;
                 if (faseAtual == "FINAL")
+                {
                     jogo.Observacoes = string.IsNullOrWhiteSpace(observacoesComTags) ? null : observacoesComTags.Trim();
-                    jogo.Analisado = 1;  // ← adicionar esta linha
+                    // Registrar análise por usuário
+                    var jaAnalisado = await _context.JogosAnalisadosUsuario
+                        .AnyAsync(j => j.JogoId == id && j.UsuarioId == usuarioId);
+                    if (!jaAnalisado)
+                        _context.JogosAnalisadosUsuario.Add(new JogoAnalisadoUsuario { JogoId = id, UsuarioId = usuarioId });
+                }
             }
 
             if (faseAtual == "INICIAL")
             {
-                var finalExiste = await _context.Escalacoes.AnyAsync(e => e.JogoId == id && e.FaseEscalacao == "FINAL");
+                var finalExiste = await _context.Escalacoes
+                    .AnyAsync(e => e.JogoId == id && e.FaseEscalacao == "FINAL" && e.UsuarioId == usuarioId);
                 if (!finalExiste)
                 {
                     var baseInicial = await _context.Escalacoes
-                        .Where(e => e.JogoId == id && (e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null))
+                        .Where(e => e.JogoId == id && (e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null) && e.UsuarioId == usuarioId)
                         .ToListAsync();
 
                     var cloneFinal = baseInicial.Select(e => new Escalacao
@@ -804,7 +1019,8 @@ namespace ControleFutebolWeb.Controllers
                         IsTimeCasa = e.IsTimeCasa,
                         PosicaoX = e.PosicaoX,
                         PosicaoY = e.PosicaoY,
-                        FaseEscalacao = "FINAL"
+                        FaseEscalacao = "FINAL",
+                        UsuarioId = usuarioId
                     });
 
                     _context.Escalacoes.AddRange(cloneFinal);
@@ -1149,10 +1365,17 @@ namespace ControleFutebolWeb.Controllers
             var jogo = await _context.Jogos.FindAsync(req.JogoId);
             if (jogo == null) return NotFound(new { erro = "Jogo não encontrado." });
 
-            jogo.Analisado = req.Analisado;
-            await _context.SaveChangesAsync();
+            var usuarioId = _userManager.GetUserId(User)!;
+            var registro = await _context.JogosAnalisadosUsuario
+                .FirstOrDefaultAsync(j => j.JogoId == req.JogoId && j.UsuarioId == usuarioId);
 
-            return Ok(new { analisado = jogo.Analisado });
+            if (req.Analisado == 1 && registro == null)
+                _context.JogosAnalisadosUsuario.Add(new JogoAnalisadoUsuario { JogoId = req.JogoId, UsuarioId = usuarioId });
+            else if (req.Analisado == 0 && registro != null)
+                _context.JogosAnalisadosUsuario.Remove(registro);
+
+            await _context.SaveChangesAsync();
+            return Ok(new { analisado = req.Analisado });
         }
 
         // POST: Jogos/ReimportarEscalacao/12964
@@ -1232,6 +1455,52 @@ namespace ControleFutebolWeb.Controllers
             return RedirectToAction("Analisar", new { id });
         }
 
+        // GET: Jogos/UltimosConfrontos/5 — retorna JSON com últimos H2H
+        [HttpGet]
+        public async Task<IActionResult> UltimosConfrontos(int id)
+        {
+            var jogo = await _context.Jogos
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .FirstOrDefaultAsync(j => j.Id == id);
+
+            if (jogo == null) return NotFound();
+
+            if (jogo.TimeCasa?.IdApi == 0 || jogo.TimeVisitante?.IdApi == 0)
+                return BadRequest("Um dos times não tem ID da API configurado.");
+
+            try
+            {
+                var confrontos = await _transfermarkt.BuscarH2HAsync(
+                    jogo.TimeCasa!.IdApi, jogo.TimeVisitante!.IdApi, 5,
+                    HttpContext.RequestAborted);
+
+                var resultado = confrontos.Select(f => new
+                {
+                    data = f.Fixture.Date?.ToString("dd/MM/yyyy") ?? "-",
+                    competicao = f.League.Name,
+                    temporada = f.League.Season,
+                    mandante = f.Teams.Home.Name,
+                    visitante = f.Teams.Away.Name,
+                    placarMandante = f.Goals.Home,
+                    placarVisitante = f.Goals.Away,
+                    logoMandante = f.Teams.Home.Logo,
+                    logoVisitante = f.Teams.Away.Logo,
+                    status = f.Fixture.Status.Short,
+                    vencedor = f.Teams.Home.Winner == true ? "home"
+                             : f.Teams.Away.Winner == true ? "away"
+                             : "draw"
+                }).ToList();
+
+                return Json(resultado);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[H2H] Erro ao buscar confrontos para jogo {Id}", id);
+                return StatusCode(500, "Erro ao buscar confrontos na API.");
+            }
+        }
+
         // POST: Jogos/BuscarGrupoEmLote
         // Atualiza o grupo de todos os jogos de uma competição que ainda não têm grupo.
         // Chamado a partir da listagem de jogos.
@@ -1240,7 +1509,7 @@ namespace ControleFutebolWeb.Controllers
         {
             var jogos = await _context.Jogos
                 .Where(j => j.CompeticaoId == competicaoId
-                         && string.IsNullOrEmpty(j.Grupo)
+                         && (string.IsNullOrEmpty(j.Grupo) || j.Grupo == "Group Stage")
                          && !string.IsNullOrEmpty(j.LinkDetalhes))
                 .ToListAsync();
 

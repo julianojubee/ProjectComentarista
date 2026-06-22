@@ -175,7 +175,7 @@
                 <div class="player-photo">
                     @if (!string.IsNullOrEmpty(treinador.FotoUrl))
                     {
-                        <img src="@treinador.FotoUrl" alt="@treinador.Nome" class="player-img"
+                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = treinador.FotoUrl })" alt="@treinador.Nome" class="player-img"
                              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
                         <span style="display:none; color:#6b7280;">👤</span>
                     }
@@ -199,7 +199,7 @@
                         <span style="display:inline-flex; align-items:center; gap:8px;">
                             @if (!string.IsNullOrEmpty(treinador.Time.EscudoUrl))
                             {
-                                <img src="@treinador.Time.EscudoUrl" alt="@treinador.Time.Nome"
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = treinador.Time.EscudoUrl })" alt="@treinador.Time.Nome"
                                      style="width:20px;height:20px;object-fit:contain;border-radius:50%;border:0.5px solid #e5e7eb;background:#fff;" />
                             }
                             <span>@treinador.Time.Nome</span>

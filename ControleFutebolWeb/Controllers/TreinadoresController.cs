@@ -11,13 +11,16 @@ namespace ControleFutebolWeb.Controllers
     {
         private readonly FutebolContext _context;
         private readonly TransfermarktTreinadorService _tmTreinadorService;
+        private readonly ApiFootballService _apiFootball;
 
         public TreinadoresController(
             FutebolContext context,
-            TransfermarktTreinadorService tmTreinadorService)
+            TransfermarktTreinadorService tmTreinadorService,
+            ApiFootballService apiFootball)
         {
             _context = context;
             _tmTreinadorService = tmTreinadorService;
+            _apiFootball = apiFootball;
         }
 
         // GET: Treinadores
@@ -168,7 +171,7 @@ namespace ControleFutebolWeb.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // ── Buscar dados (foto + idade + nacionalidade) via ogol ────────────
+        // ── Buscar dados (foto + idade + nacionalidade) via api-football ────────
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -176,12 +179,74 @@ namespace ControleFutebolWeb.Controllers
         {
             var treinador = await _context.Treinadores
                 .Include(t => t.Time)
+                .Include(t => t.Nacionalidade)
                 .FirstOrDefaultAsync(t => t.Id == id);
 
             if (treinador == null) return NotFound();
 
-            TempData["Erro"] = $"❌ Busca automática de foto de treinador não está disponível. " +
-                               "Informe a foto manualmente pelo formulário de edição.";
+            try
+            {
+                var resultados = await _apiFootball.BuscarTreinadorApiAsync(treinador.Nome);
+
+                if (!resultados.Any())
+                {
+                    TempData["Erro"] = $"❌ Nenhum treinador encontrado na API para '{treinador.Nome}'.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                // Prefere o resultado cujo time atual bate com o time cadastrado, senão pega o primeiro com mais dados
+                var melhor = resultados
+                    .OrderByDescending(r => r.Team?.Id == treinador.Time?.IdApi ? 10 : 0)
+                    .ThenByDescending(r => r.Age.HasValue ? 1 : 0)
+                    .First();
+
+                bool alterou = false;
+
+                if (!string.IsNullOrEmpty(melhor.Photo))
+                {
+                    treinador.FotoUrl = melhor.Photo;
+                    alterou = true;
+                }
+
+                if (melhor.Age.HasValue && treinador.DataNascimento == null)
+                {
+                    // Usa a data de nascimento exata se disponível
+                    if (!string.IsNullOrEmpty(melhor.Birth?.Date) &&
+                        DateTime.TryParse(melhor.Birth.Date, out var dtNasc))
+                    {
+                        treinador.DataNascimento = dtNasc;
+                        alterou = true;
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(melhor.Nationality) && treinador.NacionalidadeId == null)
+                {
+                    var nac = await _context.Nacionalidades
+                        .FirstOrDefaultAsync(n => n.Nome.ToLower() == melhor.Nationality.ToLower());
+                    if (nac != null)
+                    {
+                        treinador.NacionalidadeId = nac.Id;
+                        alterou = true;
+                    }
+                }
+
+                if (alterou)
+                {
+                    await _context.SaveChangesAsync();
+                    TempData["Sucesso"] = $"✅ Dados de {treinador.Nome} atualizados via api-football" +
+                        (melhor.Age.HasValue ? $" | Idade: {melhor.Age}" : "") +
+                        (!string.IsNullOrEmpty(melhor.Nationality) ? $" | Nac.: {melhor.Nationality}" : "");
+                }
+                else
+                {
+                    TempData["Info"] = $"ℹ️ Nenhum dado novo encontrado para '{treinador.Nome}' (campos já preenchidos ou API sem informação).";
+                }
+            }
+            catch (Exception ex)
+            {
+                TempData["Erro"] = $"❌ Erro ao buscar dados: {ex.Message}";
+            }
+
             return RedirectToAction(nameof(Index));
         }
 

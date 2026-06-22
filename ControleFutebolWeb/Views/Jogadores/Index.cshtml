@@ -100,7 +100,7 @@
 
     /* reduce player photo size */
     .player-photo {
-        width: 36;
+        width: 36px;
         height: 36px;
         border-radius: 50%;
         background: #f3f4f6;
@@ -118,7 +118,7 @@
             object-fit: cover;
         }
 
-    .player-name { font-weight:700; color:#111827; font-size:1rem; font-family:inherit; word-break:break-word; }
+    .player-name { font-weight:400; color:#111827; font-size:1rem; font-family:inherit; white-space:normal; overflow-wrap:break-word; }
     .player-meta { color:#6b7280; font-size:13px; }
 
     .cf-card-actions { margin-top:auto; display:flex; gap:8px; flex-wrap:wrap; }
@@ -127,6 +127,15 @@
 
     @@media (max-width: 640px) {
         .cf-hero { padding: 1.8rem 1rem; }
+        .cf-hero h1 { font-size: 1.5rem; }
+        .players-filter { flex-direction: column; align-items: stretch; }
+        .players-filter > div { width: 100%; }
+        .players-filter select { width: 100%; }
+        .cf-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+    }
+
+    @@media (max-width: 420px) {
+        .cf-grid { grid-template-columns: 1fr; }
     }
 </style>
 
@@ -179,7 +188,7 @@
                     @* if you have a foto url in model, show it; otherwise placeholder *@
                     @if (!string.IsNullOrEmpty(jogador.FotoUrl))
                     {
-                        <img src="@jogador.FotoUrl" alt="@jogador.Nome" />
+                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogador.FotoUrl })" alt="@jogador.Nome" />
                     }
                     else
                     {
@@ -208,7 +217,7 @@
                         <span style="display:inline-flex; align-items:center; gap:8px;">
                             @if (!string.IsNullOrEmpty(jogador.Time.EscudoUrl))
                             {
-                                <img src="@jogador.Time.EscudoUrl" alt="@jogador.Time.Nome" style="width:20px;height:20px;object-fit:contain;border-radius:50%;border:0.5px solid #e5e7eb;background:#fff;" />
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogador.Time.EscudoUrl })" alt="@jogador.Time.Nome" style="width:20px;height:20px;object-fit:contain;border-radius:50%;border:0.5px solid #e5e7eb;background:#fff;" />
                             }
                             <span>@jogador.Time.Nome</span>
                         </span>
@@ -295,7 +304,7 @@
                         {
                             @if (!string.IsNullOrEmpty(jogador.Time.EscudoUrl))
                             {
-                                <img src="@jogador.Time.EscudoUrl" style="height:20px;width:20px;object-fit:contain;border-radius:50%;border:0.5px solid #e5e7eb;margin-right:6px;" />
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogador.Time.EscudoUrl })" style="height:20px;width:20px;object-fit:contain;border-radius:50%;border:0.5px solid #e5e7eb;margin-right:6px;" />
                             }
                             @jogador.Time.Nome
                         }

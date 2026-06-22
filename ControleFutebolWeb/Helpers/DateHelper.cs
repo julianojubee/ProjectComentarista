@@ -4,15 +4,32 @@ namespace ControleFutebolWeb.Helpers
 {
     public static class DateHelper
     {
+        private static readonly TimeZoneInfo _brt =
+            TimeZoneInfo.FindSystemTimeZoneById(
+                OperatingSystem.IsWindows() ? "E. South America Standard Time" : "America/Sao_Paulo");
+
         /// <summary>
-        /// Formata uma data opcional (DateTime?) no padrão desejado.
+        /// Converte a data de UTC para horário de Brasília (BRT/BRST) e formata.
         /// Se for nula, retorna "—".
         /// </summary>
         public static string FormatarData(DateTime? data, string formato = "dd/MM/yyyy")
         {
-            return data.HasValue
-                ? data.Value.ToLocalTime().ToString(formato)
-                : "—";
+            if (!data.HasValue) return "—";
+
+            var utc = data.Value.Kind == DateTimeKind.Utc
+                ? data.Value
+                : DateTime.SpecifyKind(data.Value, DateTimeKind.Utc);
+
+            return TimeZoneInfo.ConvertTimeFromUtc(utc, _brt).ToString(formato);
+        }
+
+        public static DateTime? ParaBrasilia(DateTime? data)
+        {
+            if (!data.HasValue) return null;
+            var utc = data.Value.Kind == DateTimeKind.Utc
+                ? data.Value
+                : DateTime.SpecifyKind(data.Value, DateTimeKind.Utc);
+            return TimeZoneInfo.ConvertTimeFromUtc(utc, _brt);
         }
     }
 }

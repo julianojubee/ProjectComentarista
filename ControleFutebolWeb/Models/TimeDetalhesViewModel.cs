@@ -11,5 +11,14 @@
         public ICollection<TimeEscalacaoPadrao> TimeEscalacaoPadrao { get; set; }
         public IEnumerable<Formacao> Formacoes { get; set; } // lista de formações disponíveis
         public Treinador? Treinador { get; set; }
+        // Competições com link apifoot: configurado (para o painel de estatísticas da temporada)
+        public List<CompeticaoApiItem> CompeticoesApi { get; set; } = new();
+    }
+
+    public class CompeticaoApiItem
+    {
+        public string Nome     { get; set; } = "";
+        public int    LeagueId { get; set; }
+        public int    Season   { get; set; }
     }
 }

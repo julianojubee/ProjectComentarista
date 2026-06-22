@@ -10,14 +10,10 @@ namespace ControleFutebolWeb.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterColumn<long>(
-                name: "idapi",
-                table: "jogadores",
-                type: "bigint",
-                nullable: true,
-                oldClrType: typeof(string),
-                oldType: "text",
-                oldNullable: true);
+            // text -> bigint requer USING explícito no PostgreSQL
+            migrationBuilder.Sql(@"
+                ALTER TABLE jogadores ALTER COLUMN idapi TYPE bigint USING idapi::bigint;
+            ");
         }
 
         /// <inheritdoc />

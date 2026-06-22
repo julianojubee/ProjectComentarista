@@ -1,7 +1,9 @@
 ﻿using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
 using ControleFutebolWeb.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -17,12 +19,14 @@ namespace ControleFutebolWeb.Controllers
         private readonly FutebolContext _context;
         private readonly ILogger<JogadoresController> _logger;
         private readonly ApiFootballService _transfermarktService;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public JogadoresController(FutebolContext context,ILogger<JogadoresController> logger, ApiFootballService transfermarktService)
+        public JogadoresController(FutebolContext context, ILogger<JogadoresController> logger, ApiFootballService transfermarktService, UserManager<ApplicationUser> userManager)
         {
             _context = context;
             _logger = logger;
             _transfermarktService = transfermarktService;
+            _userManager = userManager;
         }
 
         public IActionResult Index(string posicao, string nacionalidade, int? timeId, string sortOrder)
@@ -295,8 +299,10 @@ namespace ControleFutebolWeb.Controllers
                 _logger.LogWarning("ModelState inválido em Jogadores/{Action}. Erros: {@Errors}", contextAction, errors);
         }
 
-        public async Task<IActionResult> Estatisticas(int id)
+        public async Task<IActionResult> Estatisticas(int id, int? competicaoId)
         {
+            var uid = _userManager.GetUserId(User);
+
             var jogador = await _context.Jogadores
                 .Include(j => j.Time)
                 .Include(j => j.Nacionalidade)
@@ -304,38 +310,90 @@ namespace ControleFutebolWeb.Controllers
 
             if (jogador == null) return NotFound();
 
+            // IDs de competições em que o jogador participou (para o dropdown)
+            var competicaoIds = await _context.Notas
+                .Where(n => n.JogadorId == id)
+                .Select(n => n.Jogo.CompeticaoId)
+                .Union(_context.EstatisticasJogador
+                    .Where(e => e.JogadorId == id)
+                    .Select(e => e.Jogo.CompeticaoId))
+                .Union(_context.Escalacoes
+                    .Where(e => e.JogadorId == id)
+                    .Select(e => e.Jogo.CompeticaoId))
+                .Distinct()
+                .ToListAsync();
+
+            var competicoesDoJogador = await _context.Competicoes
+                .Where(c => competicaoIds.Contains(c.Id))
+                .OrderBy(c => c.Nome)
+                .ToListAsync();
+
+            ViewBag.Competicoes = competicoesDoJogador;
+            ViewBag.CompeticaoId = competicaoId;
+
             // ── Dados de eventos ──────────────────────────────────────────
-            var notas = await _context.Notas
+            var notasQuery = _context.Notas
                 .Include(n => n.Jogo).ThenInclude(j => j.TimeCasa)
                 .Include(n => n.Jogo).ThenInclude(j => j.TimeVisitante)
                 .Include(n => n.Detalhes)
-                .Where(n => n.JogadorId == id)
-                .ToListAsync();
+                .Where(n => n.JogadorId == id && n.UsuarioId == uid);
 
-            var gols = await _context.Gols
-                .Where(g => g.JogadorId == id && !g.Contra)
-                .ToListAsync();
+            if (competicaoId.HasValue)
+                notasQuery = notasQuery.Where(n => n.Jogo.CompeticaoId == competicaoId);
 
-            var assistencias = await _context.Assistencias
-                .Where(a => a.JogadorId == id)
-                .ToListAsync();
+            var notas = await notasQuery.ToListAsync();
 
-            var cartoes = await _context.Cartoes
-                .Where(c => c.JogadorId == id)
-                .ToListAsync();
-
-            // ── Escalações (inclui jogos sem análise) ─────────────────────
-            var escalacoes = await _context.Escalacoes
+            // Estatísticas importadas (api-football) — usadas quando não há nota manual,
+            // para mostrar de onde vem a nota calculada automaticamente em /Relatorios.
+            var estatisticasQuery = _context.EstatisticasJogador
                 .Include(e => e.Jogo).ThenInclude(j => j.TimeCasa)
                 .Include(e => e.Jogo).ThenInclude(j => j.TimeVisitante)
-                .Where(e => e.JogadorId == id)
-                .ToListAsync();
+                .Where(e => e.JogadorId == id);
 
-            var jogosAnalisadosIds = notas.Select(n => n.JogoId).ToHashSet();
+            if (competicaoId.HasValue)
+                estatisticasQuery = estatisticasQuery.Where(e => e.Jogo.CompeticaoId == competicaoId);
+
+            var estatisticas = await estatisticasQuery.ToListAsync();
+
+            var golsQuery = _context.Gols.Where(g => g.JogadorId == id && !g.Contra);
+            if (competicaoId.HasValue)
+                golsQuery = golsQuery.Where(g => g.Jogo.CompeticaoId == competicaoId);
+            var gols = await golsQuery.ToListAsync();
+
+            var assistenciasQuery = _context.Assistencias.Where(a => a.JogadorId == id);
+            if (competicaoId.HasValue)
+                assistenciasQuery = assistenciasQuery.Where(a => a.Jogo.CompeticaoId == competicaoId);
+            var assistencias = await assistenciasQuery.ToListAsync();
+
+            var cartoesQuery = _context.Cartoes.Where(c => c.JogadorId == id);
+            if (competicaoId.HasValue)
+                cartoesQuery = cartoesQuery.Where(c => c.Jogo.CompeticaoId == competicaoId);
+            var cartoes = await cartoesQuery.ToListAsync();
+
+            // ── Escalações (inclui jogos sem análise) ─────────────────────
+            // Usa escalações do próprio usuário (se existir) ou as compartilhadas (UsuarioId == null)
+            var escalacoesQuery = _context.Escalacoes
+                .Include(e => e.Jogo).ThenInclude(j => j.TimeCasa)
+                .Include(e => e.Jogo).ThenInclude(j => j.TimeVisitante)
+                .Where(e => e.JogadorId == id && (e.UsuarioId == uid || e.UsuarioId == null));
+
+            if (competicaoId.HasValue)
+                escalacoesQuery = escalacoesQuery.Where(e => e.Jogo.CompeticaoId == competicaoId);
+
+            var escalacoes = await escalacoesQuery.ToListAsync();
+
+            var jogosComNotaManualIds = notas.Select(n => n.JogoId).ToHashSet();
+            var jogosComEstatisticaIds = estatisticas.Select(e => e.JogoId).ToHashSet();
+
+            var criteriosCompartilhados = await _context.CriteriosNota
+                .Where(c => c.UsuarioId == null).ToListAsync();
+            var criteriosUsuario = await _context.CriteriosNota
+                .Where(c => c.UsuarioId == uid).ToListAsync();
+            var criteriosBanco = CriteriosNotaHelper.MergeCriterios(criteriosCompartilhados, criteriosUsuario);
 
             // ── Helper: monta item a partir de um jogo ────────────────────
-            NotaJogoItem MontarItem(Jogo jogo, int notaValor, string? comentario,
-                List<Notadetalhe> detalhes, bool analisado)
+            NotaJogoItem MontarItem(Jogo jogo, double notaValor, string? comentario,
+                List<Notadetalhe> detalhes, bool analisado, bool origemManual = false)
             {
                 var pc = jogo.PlacarCasa ?? 0;
                 var pv = jogo.PlacarVisitante ?? 0;
@@ -346,15 +404,13 @@ namespace ControleFutebolWeb.Controllers
                 int golsContra = isCasa ? pv : pc;
 
                 string resultado;
-                double bonus;
-                if (!jogo.PlacarCasa.HasValue)            { resultado = "?"; bonus = 0; }
-                else if (pc == pv)                         { resultado = "E"; bonus = 0; }
-                else if ((isCasa && pc > pv) ||
-                         (!isCasa && pv > pc))             { resultado = "V"; bonus = +1; }
-                else                                       { resultado = "D"; bonus = -1; }
+                if (!jogo.PlacarCasa.HasValue)                     resultado = "?";
+                else if (pc == pv)                                  resultado = "E";
+                else if ((isCasa && pc > pv) || (!isCasa && pv > pc)) resultado = "V";
+                else                                                resultado = "D";
 
                 double notaFinal = analisado
-                    ? Math.Round(Math.Max(0, Math.Min(10, 5.0 + notaValor + bonus)), 2)
+                    ? Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima, Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + notaValor)), 2)
                     : 0;
 
                 return new NotaJogoItem
@@ -367,26 +423,39 @@ namespace ControleFutebolWeb.Controllers
                     Assistencias = assistencias.Count(a => a.JogoId == jogo.Id),
                     Cartoes = cartoes.Count(c => c.JogoId == jogo.Id),
                     Resultado = resultado,
-                    BonusResultado = bonus,
+                    BonusResultado = 0,
                     NotaFinal = notaFinal,
                     Detalhes = detalhes,
                     GolsPro = golsPro,
                     GolsContra = golsContra,
+                    NotaBaseFixa = analisado ? CriteriosNotaHelper.NotaBaseFixa : 0,
+                    OrigemManual = origemManual,
                 };
             }
 
-            // ── Jogos analisados ──────────────────────────────────────────
-            var itensAnalisados = notas.Select(n =>
-                MontarItem(n.Jogo, n.Valor, n.Comentario, n.Detalhes?.ToList() ?? new(), true));
+            // ── Jogos com nota manual (avaliação dada por um analista) ────
+            var itensManual = notas.Select(n =>
+                MontarItem(n.Jogo, n.Valor, n.Comentario, n.Detalhes?.ToList() ?? new(), true, origemManual: true));
 
-            // ── Jogos não analisados (participou mas sem nota) ────────────
+            // ── Jogos sem nota manual, mas com estatísticas importadas ────
+            var itensEstatisticas = estatisticas
+                .Where(e => !jogosComNotaManualIds.Contains(e.JogoId))
+                .Select(e => MontarItem(
+                    e.Jogo,
+                    Math.Round(CriteriosNotaHelper.CalcularPontuacao(e, criteriosBanco), 2),
+                    null,
+                    CriteriosNotaHelper.ConstruirDetalhes(e, criteriosBanco),
+                    true));
+
+            // ── Jogos sem nota manual nem estatística importada ───────────
             var itensNaoAnalisados = escalacoes
-                .Where(e => !jogosAnalisadosIds.Contains(e.JogoId))
+                .Where(e => !jogosComNotaManualIds.Contains(e.JogoId) && !jogosComEstatisticaIds.Contains(e.JogoId))
                 .GroupBy(e => e.JogoId)
                 .Select(g => g.First())
                 .Select(e => MontarItem(e.Jogo, 0, null, new(), false));
 
-            var notasPorJogo = itensAnalisados
+            var notasPorJogo = itensManual
+                .Concat(itensEstatisticas)
                 .Concat(itensNaoAnalisados)
                 .OrderByDescending(x => x.Jogo.Data)
                 .ToList();
@@ -407,6 +476,54 @@ namespace ControleFutebolWeb.Controllers
             };
 
             return View(vm);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> EstatisticasTemporada(int id, int season)
+        {
+            var jogador = await _context.Jogadores.FindAsync(id);
+            if (jogador?.IdApi == null)
+                return Json(new { error = "Jogador sem IdApi" });
+
+            try
+            {
+                var stats = await _transfermarktService.BuscarEstatisticasTemporadaAsync(jogador.IdApi.Value, season);
+                var result = stats.Select(s => new
+                {
+                    league = new
+                    {
+                        id = s.League.Id,
+                        name = s.League.Name,
+                        country = s.League.Country,
+                        logo = s.League.Logo,
+                        flag = s.League.Flag,
+                        season = s.League.Season
+                    },
+                    team = new { id = s.Team.Id, name = s.Team.Name, logo = s.Team.Logo },
+                    games = new
+                    {
+                        appearences = s.Games.Appearences ?? 0,
+                        lineups = s.Games.Lineups ?? 0,
+                        minutes = s.Games.Minutes ?? 0,
+                        position = s.Games.Position,
+                        rating = s.Games.Rating
+                    },
+                    goals = new { total = s.Goals.Total ?? 0, assists = s.Goals.Assists ?? 0 },
+                    passes = new { total = s.Passes.Total ?? 0, key = s.Passes.Key ?? 0, accuracy = s.Passes.Accuracy },
+                    shots = new { total = s.Shots.Total ?? 0, on = s.Shots.On ?? 0 },
+                    tackles = new { total = s.Tackles.Total ?? 0, blocks = s.Tackles.Blocks ?? 0, interceptions = s.Tackles.Interceptions ?? 0 },
+                    dribbles = new { attempts = s.Dribbles.Attempts ?? 0, success = s.Dribbles.Success ?? 0 },
+                    cards = new { yellow = s.Cards.Yellow ?? 0, yellowred = s.Cards.Yellowred ?? 0, red = s.Cards.Red ?? 0 },
+                    substitutes = new { @in = s.Substitutes.In ?? 0, @out = s.Substitutes.Out ?? 0, bench = s.Substitutes.Bench ?? 0 },
+                    duels = new { total = s.Duels.Total ?? 0, won = s.Duels.Won ?? 0 },
+                    fouls = new { drawn = s.Fouls.Drawn ?? 0, committed = s.Fouls.Committed ?? 0 }
+                });
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                return Json(new { error = ex.Message });
+            }
         }
 
         [HttpPost]

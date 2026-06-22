@@ -474,8 +474,6 @@ else
                                         <th title="Vitórias">V</th>
                                         <th title="Empates">E</th>
                                         <th title="Derrotas">D</th>
-                                        <th title="Gols Pró">GP</th>
-                                        <th title="Gols Contra">GC</th>
                                         <th title="Saldo de Gols">SG</th>
                                         <th title="Pontos">Pts</th>
                                     </tr>
@@ -499,7 +497,7 @@ else
                                                 <div class="lib-team-cell">
                                                     @if (!string.IsNullOrEmpty(time.Time?.EscudoUrl))
                                                     {
-                                                        <img src="@time.Time.EscudoUrl" alt="@time.Time.Nome" />
+                                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = time.Time.EscudoUrl })" alt="@time.Time.Nome" />
                                                     }
                                                     <span>@time.Time?.Nome</span>
                                                 </div>
@@ -508,8 +506,6 @@ else
                                             <td>@time.Vitorias</td>
                                             <td>@time.Empates</td>
                                             <td>@time.Derrotas</td>
-                                            <td>@time.GolsPro</td>
-                                            <td>@time.GolsContra</td>
                                             <td>@time.SaldoGols</td>
                                             <td class="lib-pts">@time.Pontos</td>
                                         </tr>
@@ -557,7 +553,7 @@ else
                                 <div class="lib-jogo-team">
                                     @if (!string.IsNullOrEmpty(jogo.TimeCasa?.EscudoUrl))
                                     {
-                                        <img src="@jogo.TimeCasa.EscudoUrl" alt="@jogo.TimeCasa.Nome" />
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa.EscudoUrl })" alt="@jogo.TimeCasa.Nome" />
                                     }
                                     <span>@jogo.TimeCasa?.Nome</span>
                                 </div>
@@ -576,7 +572,7 @@ else
                                 <div class="lib-jogo-team">
                                     @if (!string.IsNullOrEmpty(jogo.TimeVisitante?.EscudoUrl))
                                     {
-                                        <img src="@jogo.TimeVisitante.EscudoUrl" alt="@jogo.TimeVisitante.Nome" />
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante.EscudoUrl })" alt="@jogo.TimeVisitante.Nome" />
                                     }
                                     <span>@jogo.TimeVisitante?.Nome</span>
                                 </div>

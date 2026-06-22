@@ -1,9 +1,11 @@
 using ControleFutebolWeb.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace ControleFutebolWeb.Controllers
 {
+    [Authorize(Policy = "Admin")]
     public class TransfermarktLogsController : Controller
     {
         private readonly FutebolContext _context;

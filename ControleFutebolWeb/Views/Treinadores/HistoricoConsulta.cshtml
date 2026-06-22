@@ -113,7 +113,7 @@
         <div class="jogador-header">
             @if (!string.IsNullOrWhiteSpace(ViewBag.Treinador.FotoUrl))
             {
-                <img src="@ViewBag.Treinador.FotoUrl" class="jogador-foto" />
+                <img src="@Url.Action("Imagem", "MediaProxy", new { url = ViewBag.Treinador.FotoUrl })" class="jogador-foto" />
             }
             else
             {
@@ -128,7 +128,7 @@
                         <span style="display:inline-flex; align-items:center; gap:6px;">
                             @if (!string.IsNullOrEmpty(ViewBag.Treinador.Time.EscudoUrl))
                             {
-                                <img src="@ViewBag.Treinador.Time.EscudoUrl"
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = (string)ViewBag.Treinador.Time.EscudoUrl })"
                                      alt="@ViewBag.Treinador.Time.Nome"
                                      style="width:20px;height:20px;object-fit:contain;border-radius:50%;border:0.5px solid #e5e7eb;background:#fff;" />
                             }
@@ -165,7 +165,7 @@
                     <div style="display:flex; align-items:center; gap:10px;">
                         @if (!string.IsNullOrEmpty(h.Time?.EscudoUrl))
                         {
-                            <img src="@h.Time.EscudoUrl"
+                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = h.Time.EscudoUrl })"
                                  alt="@h.Time.Nome"
                                  style="width:24px;height:24px;object-fit:contain;
                                             border-radius:50%;border:1px solid #e5e7eb;

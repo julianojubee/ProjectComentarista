@@ -32,6 +32,12 @@
         <input asp-for="linktransfermarket" class="form-control" />
         <span asp-validation-for="linktransfermarket" class="text-danger"></span>
     </div>
+    <div class="form-check">
+        <input asp-for="EhSelecaoNacional" class="form-check-input" />
+        <label asp-for="EhSelecaoNacional" class="form-check-label">
+            É uma competição de seleções nacionais (Copa do Mundo, Eliminatórias, Copa América...)
+        </label>
+    </div>
     <button type="submit" class="btn btn-primary">Salvar</button>
 </form>
 

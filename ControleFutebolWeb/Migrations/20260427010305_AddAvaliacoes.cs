@@ -11,68 +11,57 @@ namespace ControleFutebolWeb.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_times_formacoes_formacaopadraoid",
-                table: "times");
+            // formacaoid nunca foi adicionada nas migrações anteriores num BD limpo — adiciona aqui
+            migrationBuilder.Sql(@"
+                ALTER TABLE timeescalacaopadrao ADD COLUMN IF NOT EXISTS formacaoid integer NOT NULL DEFAULT 0;
+            ");
 
-            migrationBuilder.AlterColumn<int>(
-                name: "formacaopadraoid",
-                table: "times",
-                type: "integer",
-                nullable: false,
-                defaultValue: 0,
-                oldClrType: typeof(int),
-                oldType: "integer",
-                oldNullable: true);
+            migrationBuilder.Sql(@"
+                DO $$
+                BEGIN
+                    IF EXISTS (SELECT FROM pg_constraint WHERE conname = 'FK_times_formacoes_formacaopadraoid') THEN
+                        ALTER TABLE times DROP CONSTRAINT ""FK_times_formacoes_formacaopadraoid"";
+                    END IF;
+                END $$;
+            ");
 
-            migrationBuilder.CreateTable(
-                name: "notadetalhes",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.SerialColumn),
-                    notaid = table.Column<int>(type: "integer", nullable: false),
-                    acaoid = table.Column<string>(type: "text", nullable: false),
-                    acaolabel = table.Column<string>(type: "text", nullable: false),
-                    quantidade = table.Column<int>(type: "integer", nullable: false),
-                    peso = table.Column<int>(type: "integer", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_notadetalhes", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_notadetalhes_notas_notaid",
-                        column: x => x.notaid,
-                        principalTable: "notas",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+            migrationBuilder.Sql(@"
+                ALTER TABLE times ALTER COLUMN formacaopadraoid SET NOT NULL;
+                ALTER TABLE times ALTER COLUMN formacaopadraoid SET DEFAULT 0;
+            ");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_timeescalacaopadrao_formacaoid",
-                table: "timeescalacaopadrao",
-                column: "formacaoid");
+            migrationBuilder.Sql(@"
+                CREATE TABLE IF NOT EXISTS notadetalhes (
+                    id serial NOT NULL,
+                    notaid integer NOT NULL,
+                    acaoid text NOT NULL,
+                    acaolabel text NOT NULL,
+                    quantidade integer NOT NULL,
+                    peso integer NOT NULL,
+                    CONSTRAINT ""PK_notadetalhes"" PRIMARY KEY (id),
+                    CONSTRAINT ""FK_notadetalhes_notas_notaid"" FOREIGN KEY (notaid) REFERENCES notas (id) ON DELETE CASCADE
+                );
+            ");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_notadetalhes_notaid",
-                table: "notadetalhes",
-                column: "notaid");
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_timeescalacaopadrao_formacoes_formacaoid",
-                table: "timeescalacaopadrao",
-                column: "formacaoid",
-                principalTable: "formacoes",
-                principalColumn: "id",
-                onDelete: ReferentialAction.Cascade);
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_times_formacoes_formacaopadraoid",
-                table: "times",
-                column: "formacaopadraoid",
-                principalTable: "formacoes",
-                principalColumn: "id",
-                onDelete: ReferentialAction.Cascade);
+            migrationBuilder.Sql(@"
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (SELECT FROM pg_indexes WHERE tablename = 'timeescalacaopadrao' AND indexname = 'IX_timeescalacaopadrao_formacaoid') THEN
+                        CREATE INDEX ""IX_timeescalacaopadrao_formacaoid"" ON timeescalacaopadrao (formacaoid);
+                    END IF;
+                    IF NOT EXISTS (SELECT FROM pg_indexes WHERE tablename = 'notadetalhes' AND indexname = 'IX_notadetalhes_notaid') THEN
+                        CREATE INDEX ""IX_notadetalhes_notaid"" ON notadetalhes (notaid);
+                    END IF;
+                    IF NOT EXISTS (SELECT FROM pg_constraint WHERE conname = 'FK_timeescalacaopadrao_formacoes_formacaoid') THEN
+                        ALTER TABLE timeescalacaopadrao ADD CONSTRAINT ""FK_timeescalacaopadrao_formacoes_formacaoid""
+                            FOREIGN KEY (formacaoid) REFERENCES formacoes (id) ON DELETE CASCADE;
+                    END IF;
+                    IF NOT EXISTS (SELECT FROM pg_constraint WHERE conname = 'FK_times_formacoes_formacaopadraoid') THEN
+                        ALTER TABLE times ADD CONSTRAINT ""FK_times_formacoes_formacaopadraoid""
+                            FOREIGN KEY (formacaopadraoid) REFERENCES formacoes (id) ON DELETE CASCADE;
+                    END IF;
+                END $$;
+            ");
         }
 
         /// <inheritdoc />

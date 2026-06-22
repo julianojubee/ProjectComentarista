@@ -1,0 +1,75 @@
+@model ControleFutebolWeb.Models.AnotacaoTime
+@{
+    var time = (ControleFutebolWeb.Models.Time)ViewBag.Time;
+    var isEdicao = Model.Id > 0;
+    var action = isEdicao ? "Editar" : "Nova";
+}
+
+<style>
+    @@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Barlow:wght@400;500;600&display=swap');
+    .af-root * { box-sizing: border-box; }
+    .af-card {
+        background: #0f172a; border: 1px solid #1e293b; border-radius: 16px;
+        padding: 1.8rem 2rem; max-width: 720px; margin: 0 auto;
+    }
+    .af-title { font-family: 'Barlow Condensed', sans-serif; font-size: 24px; font-weight: 800; color: #f1f5f9; margin-bottom: 1.5rem; }
+    .af-field { margin-bottom: 1.25rem; }
+    .af-label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: .4rem; }
+    .af-input, .af-textarea, .af-select {
+        width: 100%; background: #1e293b; border: 1px solid #334155;
+        border-radius: 8px; color: #f1f5f9; font-size: 14px;
+        padding: .55rem .85rem; outline: none; font-family: 'Barlow', sans-serif;
+    }
+    .af-input:focus, .af-textarea:focus, .af-select:focus { border-color: #3b82f6; }
+    .af-textarea { resize: vertical; min-height: 200px; line-height: 1.6; }
+    .af-select option { background: #1e293b; }
+    .af-actions { display: flex; gap: .75rem; margin-top: 1.5rem; }
+    .af-save { background: #3b82f6; color: #fff; border: none; border-radius: 8px; padding: .6rem 1.4rem; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .af-save:hover { background: #2563eb; }
+    .af-cancel { background: #334155; color: #94a3b8; border: none; border-radius: 8px; padding: .6rem 1.1rem; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; }
+    .af-cancel:hover { background: #475569; color: #f1f5f9; }
+    .af-hint { font-size: 11px; color: #475569; margin-top: .3rem; }
+</style>
+
+<div class="af-root">
+    <div class="af-card">
+        <div class="af-title">
+            @(isEdicao ? "✏️ Editar anotação" : "📝 Nova anotação") — @time.Nome
+        </div>
+
+        <form asp-action="@action" asp-route-id="@(isEdicao ? Model.Id : null)" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" asp-for="TimeId" />
+
+            <div class="af-field">
+                <label class="af-label">Título *</label>
+                <input asp-for="Titulo" class="af-input" placeholder="Ex: Sondagem por Gabigol, Demissão do técnico…" autofocus />
+                <span asp-validation-for="Titulo" class="text-danger" style="font-size:12px;"></span>
+            </div>
+
+            <div class="af-field">
+                <label class="af-label">Categoria</label>
+                <select asp-for="Categoria" class="af-select">
+                    <option value="">— Sem categoria —</option>
+                    <option value="Sondagem">Sondagem</option>
+                    <option value="Demissão">Demissão</option>
+                    <option value="Informação">Informação</option>
+                    <option value="Curiosidade">Curiosidade</option>
+                </select>
+            </div>
+
+            <div class="af-field">
+                <label class="af-label">Conteúdo *</label>
+                <textarea asp-for="Conteudo" class="af-textarea" placeholder="Escreva livremente…"></textarea>
+                <div class="af-hint">Suporta texto livre com quebras de linha.</div>
+                <span asp-validation-for="Conteudo" class="text-danger" style="font-size:12px;"></span>
+            </div>
+
+            <div class="af-actions">
+                <button type="submit" class="af-save">💾 Salvar</button>
+                <a asp-action="Index" asp-route-timeId="@Model.TimeId" class="af-cancel">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>

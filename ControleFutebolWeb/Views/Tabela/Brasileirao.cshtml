@@ -1,5 +1,6 @@
 ﻿@model List<ControleFutebolWeb.Models.ViewModels.ClassificacaoViewModel>
 @using System.Globalization
+@using ControleFutebolWeb.Helpers
 @{
     ViewData["Title"] = "Tabela do Brasileirão";
     var proximaRodada = ViewBag.ProximaRodada as List<ControleFutebolWeb.Models.Jogo> ?? new();
@@ -448,75 +449,77 @@
         font-style: italic;
     }
 
-    /* Próxima rodada highlight */
-    .rodada-card {
-        background: var(--color-background-primary);
-        border: 0.5px solid var(--color-border-tertiary);
-        border-radius: var(--border-radius-lg);
+    /* Próxima rodada — título da sidebar */
+    .rodada-sidebar-title {
+        font-size: 14px; font-weight: 700; color: var(--color-text-primary);
+        margin-bottom: .75rem; display: flex; align-items: center; gap: .5rem;
+    }
+    .rodada-sidebar-badge {
+        font-size: 11px; font-weight: 700; background: #16a34a; color: #fff;
+        padding: 2px 10px; border-radius: 999px;
+    }
+    .rodada-sidebar-sub { font-size: 11px; color: var(--color-text-secondary); margin-left: auto; }
+
+    /* Card individual de jogo da próxima rodada */
+    .bra-jogo-card {
+        background: #fff;
+        border: 0.5px solid #e5e7eb;
+        border-radius: 10px;
         overflow: hidden;
+        margin-bottom: .6rem;
+        transition: box-shadow .15s;
+    }
+    .bra-jogo-card:hover { box-shadow: 0 2px 10px rgba(22,163,74,.15); }
+
+    .bra-jogo-header {
+        background: linear-gradient(90deg, #14532d, #16a34a);
+        color: #bbf7d0;
+        font-size: 10px; font-weight: 600; letter-spacing: .4px;
+        padding: 5px 10px;
+        display: flex; justify-content: space-between; align-items: center;
     }
 
-    .rodada-header {
-        padding: 0.875rem 1rem 0.75rem;
-        border-bottom: 0.5px solid var(--color-border-tertiary);
-        background: var(--color-background-secondary);
+    .bra-jogo-body { padding: 10px 12px; }
+
+    .bra-jogo-teams {
+        display: flex; justify-content: space-between; align-items: center; gap: 6px;
     }
 
-    .rodada-title {
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--color-text-primary);
+    .bra-jogo-team {
+        display: flex; flex-direction: column; align-items: center; gap: 4px;
+        flex: 1; min-width: 0;
+    }
+    .bra-jogo-team img { width: 32px; height: 32px; object-fit: contain; border-radius: 4px; }
+    .bra-jogo-team span {
+        font-size: 11px; font-weight: 500; color: #374151;
+        text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px;
     }
 
-    .rodada-sub {
-        font-size: 11px;
-        color: var(--color-text-secondary);
-        margin-top: 2px;
+    .bra-jogo-vs {
+        font-size: 11px; font-weight: 700; color: #9ca3af; flex-shrink: 0;
+        display: flex; flex-direction: column; align-items: center; gap: 2px;
+    }
+    .bra-jogo-score {
+        background: #111827; color: #f9fafb;
+        font-size: 14px; font-weight: 800;
+        padding: 4px 10px; border-radius: 6px; min-width: 52px; text-align: center;
     }
 
-    .rodada-match {
-        padding: 0.6rem 1rem;
-        border-bottom: 0.5px solid var(--color-border-tertiary);
-        display: flex;
-        align-items: center;
-        gap: 0;
+    .bra-jogo-footer {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-top: 8px; padding-top: 6px; border-top: 0.5px solid #f3f4f6;
     }
-
-        .rodada-match:last-child {
-            border-bottom: none;
-        }
-
-    .rodada-team {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 12px;
-        font-weight: 500;
-        color: var(--color-text-primary);
+    .bra-badge-agendado {
+        font-size: 10px; background: #f3f4f6; color: #6b7280;
+        padding: 2px 8px; border-radius: 999px;
     }
-
-        .rodada-team.right {
-            flex-direction: row-reverse;
-            text-align: right;
-        }
-
-    .rodada-sep {
-        width: 48px;
-        text-align: center;
-        flex-shrink: 0;
+    .bra-analisar-btn {
+        font-size: 10px; padding: 3px 10px; border-radius: 6px;
+        background: transparent; color: #16a34a;
+        border: 1px solid #16a34a; text-decoration: none; font-weight: 600;
+        transition: background .15s, color .15s;
     }
-
-    .rodada-hora {
-        font-size: 11px;
-        font-weight: 500;
-        color: var(--color-text-secondary);
-    }
-
-    .rodada-data {
-        font-size: 10px;
-        color: var(--color-text-secondary);
-    }
+    .bra-analisar-btn:hover { background: #16a34a; color: #fff; text-decoration: none; }
 
     @@media (max-width: 900px) {
         .bra-page {
@@ -529,13 +532,11 @@
     }
 
     @@media (max-width: 600px) {
-        .bra-form-dot {
-            display: none;
-        }
-
-        .bra-table .hide-mob {
-            display: none;
-        }
+        .bra-form-dot { display: none; }
+        .bra-table .hide-mob { display: none; }
+        .bra-team-name { max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cf-comp-hero { padding: 1rem 1.1rem; }
+        .cf-comp-title { font-size: 1.1rem; }
     }
 </style>
 
@@ -608,7 +609,7 @@
                                     <div class="bra-team-cell">
                                         @if (!string.IsNullOrEmpty(t.Time?.EscudoUrl))
                                         {
-                                            <img src="@t.Time.EscudoUrl" alt="@t.Time.Nome" class="bra-escudo" />
+                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.Time.EscudoUrl })" alt="@t.Time.Nome" class="bra-escudo" />
                                         }
                                         else
                                         {
@@ -654,129 +655,77 @@
         <!-- ── SIDEBAR ── -->
         <div class="bra-sidebar">
 
-            <!-- Próxima Rodada (destaque) -->
+            <!-- Próxima Rodada -->
             @if (proximaRodada.Any())
             {
-                <div class="rodada-card">
-                    <div class="rodada-header">
-                        <div class="rodada-title">
-                            <i class="ti ti-calendar-event" aria-hidden="true" style="font-size:14px; margin-right:5px"></i>
-                            Rodada @numeroRodada
-                        </div>
-                        <div class="rodada-sub">@proximaRodada.Count jogo@(proximaRodada.Count != 1 ? "s" : "")</div>
-                    </div>
-                    @foreach (var j in proximaRodada)
-                    {
-                        <div class="rodada-match">
-                            <div class="rodada-team">
-                                @if (!string.IsNullOrEmpty(j.TimeCasa?.EscudoUrl))
-                                {
-                                    <img src="@j.TimeCasa.EscudoUrl" class="bra-escudo" alt="" />
-                                }
-                                else
-                                {
-                                    <div class="bra-escudo-ph">@(j.TimeCasa?.Nome?.Substring(0, 1) ?? "?")</div>
-                                }
-                                <span style="font-size:12px">@(j.TimeCasa?.Nome ?? "?")</span>
-                            </div>
-                            <div class="rodada-sep">
-                                @if (j.Data.HasValue)
-                                {
-                                    <div class="rodada-hora">@j.Data.Value.ToLocalTime().ToString("HH:mm")</div>
-                                    <div class="rodada-data">@j.Data.Value.ToLocalTime().ToString("dd/MM", ptBR)</div>
-                                }
-                                else
-                                {
-                                    <span style="font-size:11px;color:var(--color-text-secondary)">vs</span>
-                                }
-                            </div>
-                            <div class="rodada-team right">
-                                @if (!string.IsNullOrEmpty(j.TimeVisitante?.EscudoUrl))
-                                {
-                                    <img src="@j.TimeVisitante.EscudoUrl" class="bra-escudo" alt="" />
-                                }
-                                else
-                                {
-                                    <div class="bra-escudo-ph">@(j.TimeVisitante?.Nome?.Substring(0, 1) ?? "?")</div>
-                                }
-                                <span style="font-size:12px">@(j.TimeVisitante?.Nome ?? "?")</span>
-                            </div>
-                        </div>
-                    }
+                <div class="rodada-sidebar-title">
+                    <i class="ti ti-calendar-event" style="font-size:15px"></i>
+                    Rodada @numeroRodada
+                    <span class="rodada-sidebar-badge">@proximaRodada.Count jogos</span>
                 </div>
-            }
 
-            <!-- Calendário completo de próximos jogos -->
-            @if (calendario.Any())
-            {
-                <div class="cal-card">
-                    <div class="cal-header">
-                        <span class="cal-title">
-                            <i class="ti ti-calendar" aria-hidden="true" style="font-size:15px"></i>
-                            Próximos jogos
-                        </span>
-                        <span class="cal-count">@totalAgendados agendados</span>
-                    </div>
-
-                    <div class="cal-body">
-                        @foreach (var dia in calendario)
-                        {
-                            <div class="cal-day-group">
-                                <div class="cal-day-label">
-                                    @dia.DataLabelFormatado
-                                    @if (dia.IsHoje)
+                @foreach (var j in proximaRodada)
+                {
+                    bool realizado = j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue;
+                    <div class="bra-jogo-card">
+                        <div class="bra-jogo-header">
+                            <span>@DateHelper.FormatarData(j.Data, "dd/MM/yyyy HH:mm")</span>
+                            <span>R@(j.Rodada)</span>
+                        </div>
+                        <div class="bra-jogo-body">
+                            <div class="bra-jogo-teams">
+                                <div class="bra-jogo-team">
+                                    @if (!string.IsNullOrEmpty(j.TimeCasa?.EscudoUrl))
                                     {
-                                        <span class="cal-hoje-pill">hoje</span>
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.TimeCasa.EscudoUrl })" alt="@j.TimeCasa!.Nome" />
+                                    }
+                                    else
+                                    {
+                                        <div class="bra-escudo-ph">@(j.TimeCasa?.Nome?.Substring(0, 1) ?? "?")</div>
+                                    }
+                                    <span>@(j.TimeCasa?.Nome ?? "?")</span>
+                                </div>
+
+                                <div class="bra-jogo-vs">
+                                    @if (realizado)
+                                    {
+                                        <span class="bra-jogo-score">@j.PlacarCasa x @j.PlacarVisitante</span>
+                                    }
+                                    else
+                                    {
+                                        <span>vs</span>
                                     }
                                 </div>
 
-                                @foreach (var jogo in dia.Jogos)
-                                {
-                                    <a href="/Jogos/Details/@jogo.Id" class="cal-match">
-                                        <div class="cal-team">
-                                            @if (!string.IsNullOrEmpty(jogo.TimeCasa?.EscudoUrl))
-                                            {
-                                                <img src="@jogo.TimeCasa.EscudoUrl" class="cal-esc" alt="" />
-                                            }
-                                            else
-                                            {
-                                                <div class="cal-esc-ph">@(jogo.TimeCasa?.Nome?.Substring(0, 1) ?? "?")</div>
-                                            }
-                                            <span class="cal-team-name">@(jogo.TimeCasa?.Nome ?? "?")</span>
-                                        </div>
-
-                                        <div class="cal-vs">
-                                            @if (jogo.Data.HasValue)
-                                            {
-                                                <div class="cal-vs-hora">@jogo.Data.Value.ToLocalTime().ToString("HH:mm")</div>
-                                            }
-                                            else
-                                            {
-                                                <span class="cal-vs-tag">vs</span>
-                                            }
-                                            @if (jogo.Rodada > 0)
-                                            {
-                                                <div class="cal-vs-rodada">R@jogo.Rodada</div>
-                                            }
-                                        </div>
-
-                                        <div class="cal-team away">
-                                            @if (!string.IsNullOrEmpty(jogo.TimeVisitante?.EscudoUrl))
-                                            {
-                                                <img src="@jogo.TimeVisitante.EscudoUrl" class="cal-esc" alt="" />
-                                            }
-                                            else
-                                            {
-                                                <div class="cal-esc-ph">@(jogo.TimeVisitante?.Nome?.Substring(0, 1) ?? "?")</div>
-                                            }
-                                            <span class="cal-team-name">@(jogo.TimeVisitante?.Nome ?? "?")</span>
-                                        </div>
-                                    </a>
-                                }
+                                <div class="bra-jogo-team">
+                                    @if (!string.IsNullOrEmpty(j.TimeVisitante?.EscudoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.TimeVisitante.EscudoUrl })" alt="@j.TimeVisitante!.Nome" />
+                                    }
+                                    else
+                                    {
+                                        <div class="bra-escudo-ph">@(j.TimeVisitante?.Nome?.Substring(0, 1) ?? "?")</div>
+                                    }
+                                    <span>@(j.TimeVisitante?.Nome ?? "?")</span>
+                                </div>
                             </div>
-                        }
+
+                            <div class="bra-jogo-footer">
+                                @if (realizado)
+                                {
+                                    <span style="color:#16a34a;font-weight:600;font-size:10px;">✔ Realizado</span>
+                                }
+                                else
+                                {
+                                    <span class="bra-badge-agendado">Agendado</span>
+                                }
+                                <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@j.Id" class="bra-analisar-btn">
+                                    Analisar →
+                                </a>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                }
             }
             else
             {

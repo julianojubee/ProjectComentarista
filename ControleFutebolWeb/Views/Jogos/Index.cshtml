@@ -190,6 +190,7 @@
         color: #374151;
     }
 
+
     .cf-table-wrap {
         overflow-x: auto;
     }
@@ -278,6 +279,14 @@
         padding: 4px 8px;
         font-size: 11px;
     }
+
+    @@media (max-width: 600px) {
+        .cf-jogos-hero { padding: 1.6rem 1rem; }
+        .cf-jogos-hero h1 { font-size: 1.4rem; }
+        .cf-stats { grid-template-columns: repeat(3, 1fr); }
+        .cf-filters { grid-template-columns: 1fr; }
+        .cf-filter-actions { flex-direction: row; }
+    }
 </style>
 
 @if (TempData["Sucesso"] != null)
@@ -345,6 +354,48 @@
                 <a asp-action="Index" class="cf-filter-btn cf-filter-clear">Limpar</a>
             </div>
         </form>
+
+        <script>
+        (function () {
+            var selComp = document.getElementById('competicaoId');
+            var selTime = document.getElementById('teamId');
+            var selectedTeamId = '@(Context.Request.Query["teamId"])';
+
+            function carregarTimes(compId) {
+                if (!compId) {
+                    // Restaura todos os times
+                    fetch('/Jogos/TimesPorCompeticao?competicaoId=0')
+                        .then(function() {})
+                        .catch(function() {});
+                    // Habilita sem filtro: recarrega a página sem competição já faz isso
+                    selTime.disabled = false;
+                    return;
+                }
+                fetch('/Jogos/TimesPorCompeticao?competicaoId=' + compId)
+                    .then(function(r) { return r.json(); })
+                    .then(function(times) {
+                        var anterior = selTime.value;
+                        selTime.innerHTML = '<option value="">Todos os times</option>';
+                        times.forEach(function(t) {
+                            var opt = document.createElement('option');
+                            opt.value = t.id;
+                            opt.textContent = t.nome;
+                            if (String(t.id) === String(anterior) || String(t.id) === selectedTeamId) opt.selected = true;
+                            selTime.appendChild(opt);
+                        });
+                    });
+            }
+
+            selComp.addEventListener('change', function() {
+                carregarTimes(this.value);
+            });
+
+            // Na carga inicial, se já há competição selecionada, filtra os times
+            if (selComp.value) {
+                carregarTimes(selComp.value);
+            }
+        })();
+        </script>
         @* Na Index de jogos, adicione este bloco após os filtros de busca: *@
         @{
             // competicaoId vem do ViewBag ou do parâmetro da rota
@@ -394,7 +445,7 @@
                                     <div class="cf-team-badge">
                                         @if (!string.IsNullOrWhiteSpace(jogo.TimeCasa?.EscudoUrl))
                                         {
-                                            <img src="@jogo.TimeCasa.EscudoUrl" alt="@jogo.TimeCasa.Nome" />
+                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa.EscudoUrl })" alt="@jogo.TimeCasa.Nome" />
                                         }
                                         else
                                         {
@@ -419,7 +470,7 @@
                                     <div class="cf-team-badge">
                                         @if (!string.IsNullOrWhiteSpace(jogo.TimeVisitante?.EscudoUrl))
                                         {
-                                            <img src="@jogo.TimeVisitante.EscudoUrl" alt="@jogo.TimeVisitante.Nome" />
+                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante.EscudoUrl })" alt="@jogo.TimeVisitante.Nome" />
                                         }
                                         else
                                         {
