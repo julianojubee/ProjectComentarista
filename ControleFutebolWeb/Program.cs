@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Security.Cryptography;
+using System.Text;
 using ControleFutebolWeb.Authorization;
 using ControleFutebolWeb.Converters; // ← importa o converter
 using ControleFutebolWeb.Data;
@@ -15,6 +16,9 @@ internal class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
+        // Não divulga "Kestrel" no header Server (reduz fingerprinting).
+        builder.WebHost.ConfigureKestrel(o => o.AddServerHeader = false);
+
         // Register code pages provider so encodings like "windows-1252" are supported
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
@@ -27,14 +31,17 @@ internal class Program
         // 🔹 Aqui você adiciona o converter globalmente
         builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
         {
-            options.Password.RequireDigit = false;
-            options.Password.RequireLowercase = false;
-            options.Password.RequireUppercase = false;
-            options.Password.RequireNonAlphanumeric = false;
+            options.Password.RequireDigit = true;
+            options.Password.RequireLowercase = true;
+            options.Password.RequireUppercase = true;
+            options.Password.RequireNonAlphanumeric = true;
             options.Password.RequiredLength = 8;
+            options.Password.RequiredUniqueChars = 4;
             options.Lockout.MaxFailedAccessAttempts = 5;
             options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(10);
             options.Lockout.AllowedForNewUsers = true;
+            // Evita enumeração de usuários e exige confirmação coerente.
+            options.User.RequireUniqueEmail = true;
         })
         .AddEntityFrameworkStores<FutebolContext>()
         .AddDefaultTokenProviders();
@@ -52,6 +59,12 @@ internal class Program
             options.AccessDeniedPath = "/Account/Login";
             options.ExpireTimeSpan = TimeSpan.FromDays(7);
             options.SlidingExpiration = true;
+
+            // Endurecimento do cookie de sessão.
+            options.Cookie.HttpOnly = true;                       // inacessível ao JS (mitiga XSS roubando sessão)
+            options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // só trafega via HTTPS
+            options.Cookie.SameSite = SameSiteMode.Lax;           // mitiga CSRF em navegação cross-site
+            options.Cookie.Name = "__Host-Comentarista.Auth";    // prefixo __Host- amarra o cookie a host+HTTPS+path=/
         });
 
         builder.Services.AddControllersWithViews(options =>
@@ -71,6 +84,11 @@ internal class Program
         {
             c.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");
             c.Timeout = TimeSpan.FromSeconds(10);
+        });
+        builder.Services.AddMemoryCache(o =>
+        {
+            // ~128 MB de imagens em cache (Size = bytes da imagem)
+            o.SizeLimit = 128L * 1024 * 1024;
         });
         builder.Services.AddSingleton<ServicoMonitor>();
         builder.Services.AddSingleton<AtualizarJogadoresSemDataService>();
@@ -110,7 +128,24 @@ internal class Program
                     IsAdmin = true,
                     EmailConfirmed = true
                 };
-                await userManager.CreateAsync(admin, "Admin@123");
+
+                // Senha inicial vem de configuração/ambiente (SeedAdmin:Password ou
+                // SEEDADMIN__PASSWORD). Sem ela, gera uma senha forte aleatória e a
+                // registra no log uma única vez — nunca usa default fixo no código.
+                var logger = services.GetRequiredService<ILogger<Program>>();
+                var seedPassword = app.Configuration["SeedAdmin:Password"];
+                if (string.IsNullOrWhiteSpace(seedPassword))
+                {
+                    seedPassword = GerarSenhaForte();
+                    logger.LogWarning(
+                        "Usuário admin criado com senha gerada automaticamente: {SenhaTemporaria} — " +
+                        "TROQUE imediatamente após o primeiro login.", seedPassword);
+                }
+
+                var resultadoAdmin = await userManager.CreateAsync(admin, seedPassword);
+                if (!resultadoAdmin.Succeeded)
+                    logger.LogError("Falha ao criar admin inicial: {Erros}",
+                        string.Join("; ", resultadoAdmin.Errors.Select(e => e.Description)));
             }
         }
 
@@ -121,6 +156,53 @@ internal class Program
             ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
         });
 
+        // Tratamento de erros e HSTS. Em produção, não vaza stack trace ao usuário
+        // e instrui o navegador a só acessar via HTTPS.
+        if (app.Environment.IsDevelopment())
+        {
+            app.UseDeveloperExceptionPage();
+        }
+        else
+        {
+            app.UseExceptionHandler("/Home/Error");
+            app.UseHsts(); // Strict-Transport-Security
+        }
+
+        // Headers de segurança aplicados a todas as respostas (inclui arquivos estáticos).
+        app.Use(async (context, next) =>
+        {
+            var headers = context.Response.Headers;
+
+            // Impede o navegador de "adivinhar" o content-type (mitiga MIME sniffing).
+            headers["X-Content-Type-Options"] = "nosniff";
+            // Bloqueia o site dentro de <iframe> (anti clickjacking) — legado.
+            headers["X-Frame-Options"] = "DENY";
+            // Limita o vazamento da URL de origem em requisições cross-site.
+            headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+            // Desliga APIs sensíveis do navegador que o app não usa.
+            headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=(), usb=()";
+            // Não expõe a versão do framework.
+            headers.Remove("X-Powered-By");
+
+            // Content-Security-Policy: trava origens de recursos. Mantém 'unsafe-inline'
+            // porque o layout usa <script>/<style>/onclick inline; o ideal futuro é migrar
+            // para nonces e remover o 'unsafe-inline' de script-src.
+            headers["Content-Security-Policy"] =
+                "default-src 'self'; " +
+                "img-src 'self' data:; " +
+                "script-src 'self' 'unsafe-inline'; " +
+                "style-src 'self' 'unsafe-inline'; " +
+                "font-src 'self' data:; " +
+                "connect-src 'self'; " +
+                "frame-ancestors 'none'; " +
+                "base-uri 'self'; " +
+                "form-action 'self'; " +
+                "object-src 'none'";
+
+            await next();
+        });
+
+        app.UseHttpsRedirection();
         app.UseStaticFiles();
         app.UseRouting();
         app.UseAuthentication();
@@ -131,5 +213,35 @@ internal class Program
             pattern: "{controller=Home}/{action=Index}/{id?}");
 
         app.Run();
+    }
+
+    // Gera uma senha aleatória forte que satisfaz a política de senhas configurada.
+    private static string GerarSenhaForte()
+    {
+        const string maiusculas = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+        const string minusculas = "abcdefghijkmnopqrstuvwxyz";
+        const string digitos = "23456789";
+        const string especiais = "!@#$%*-_?";
+        const string todos = maiusculas + minusculas + digitos + especiais;
+
+        var chars = new List<char>
+        {
+            maiusculas[RandomNumberGenerator.GetInt32(maiusculas.Length)],
+            minusculas[RandomNumberGenerator.GetInt32(minusculas.Length)],
+            digitos[RandomNumberGenerator.GetInt32(digitos.Length)],
+            especiais[RandomNumberGenerator.GetInt32(especiais.Length)],
+        };
+
+        while (chars.Count < 20)
+            chars.Add(todos[RandomNumberGenerator.GetInt32(todos.Length)]);
+
+        // Embaralha (Fisher–Yates) para não deixar os obrigatórios sempre no início.
+        for (int i = chars.Count - 1; i > 0; i--)
+        {
+            int j = RandomNumberGenerator.GetInt32(i + 1);
+            (chars[i], chars[j]) = (chars[j], chars[i]);
+        }
+
+        return new string(chars.ToArray());
     }
 }

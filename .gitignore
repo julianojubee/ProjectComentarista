@@ -1,0 +1,26 @@
+# ---- Build / artefatos .NET ----
+[Bb]in/
+[Oo]bj/
+publish/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# ---- Visual Studio ----
+.vs/
+*.vsidx
+
+# ---- Logs / temporários ----
+*.log
+*.tmp
+
+# ---- Segredos / configuração local ----
+# Nunca versione segredos. Use User Secrets (dotnet user-secrets) ou variáveis
+# de ambiente. Mantém-se appsettings.json no repo APENAS sem segredos.
+appsettings.Development.json
+appsettings.*.local.json
+appsettings.Production.json
+secrets.json
+*.pfx
+*.key
