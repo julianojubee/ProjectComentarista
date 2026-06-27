@@ -67,40 +67,49 @@ namespace ControleFutebolWeb.Controllers
                 .Select(j => new { j.TimeCasaId, j.TimeVisitanteId, j.PlacarCasa, j.PlacarVisitante })
                 .ToListAsync();
 
-            var times = await _context.Times.AsNoTracking().ToListAsync();
-
-            var classificacao = times.Select(time =>
+            // Agrega numa única passada O(jogos) — antes era O(times × jogos), pois
+            // refiltrava a lista inteira de jogos para cada time.
+            var agregado = new Dictionary<int, (int V, int E, int D, int GP, int GC)>();
+            foreach (var j in jogosFinalizados)
             {
-                var comoMandante  = jogosFinalizados.Where(j => j.TimeCasaId == time.Id).ToList();
-                var comoVisitante = jogosFinalizados.Where(j => j.TimeVisitanteId == time.Id).ToList();
+                int pc = j.PlacarCasa ?? 0, pv = j.PlacarVisitante ?? 0;
+                var casa = agregado.GetValueOrDefault(j.TimeCasaId);
+                var vis  = agregado.GetValueOrDefault(j.TimeVisitanteId);
 
-                int vitorias = comoMandante.Count(j => j.PlacarCasa > j.PlacarVisitante)
-                             + comoVisitante.Count(j => j.PlacarVisitante > j.PlacarCasa);
-                int empates  = comoMandante.Count(j => j.PlacarCasa == j.PlacarVisitante)
-                             + comoVisitante.Count(j => j.PlacarCasa == j.PlacarVisitante);
-                int derrotas = comoMandante.Count(j => j.PlacarCasa < j.PlacarVisitante)
-                             + comoVisitante.Count(j => j.PlacarVisitante < j.PlacarCasa);
-                int golsPro    = comoMandante.Sum(j => j.PlacarCasa ?? 0) + comoVisitante.Sum(j => j.PlacarVisitante ?? 0);
-                int golsContra = comoMandante.Sum(j => j.PlacarVisitante ?? 0) + comoVisitante.Sum(j => j.PlacarCasa ?? 0);
+                casa.GP += pc; casa.GC += pv;
+                vis.GP  += pv; vis.GC  += pc;
+                if (pc > pv)      { casa.V++; vis.D++; }
+                else if (pc < pv) { casa.D++; vis.V++; }
+                else              { casa.E++; vis.E++; }
 
-                return new ClassificacaoResumo
+                agregado[j.TimeCasaId] = casa;
+                agregado[j.TimeVisitanteId] = vis;
+            }
+
+            // Carrega apenas os times que disputaram jogos (não a tabela inteira).
+            var idsComJogos = agregado.Keys.ToList();
+            var timesById = await _context.Times.AsNoTracking()
+                .Where(t => idsComJogos.Contains(t.Id))
+                .ToDictionaryAsync(t => t.Id);
+
+            var classificacao = agregado
+                .Where(kv => timesById.ContainsKey(kv.Key))
+                .Select(kv => new ClassificacaoResumo
                 {
-                    Time = time,
-                    Vitorias = vitorias,
-                    Empates = empates,
-                    Derrotas = derrotas,
-                    GolsPro = golsPro,
-                    GolsContra = golsContra,
-                    Pontos = vitorias * 3 + empates,
-                    Jogos = vitorias + empates + derrotas
-                };
-            })
-            .Where(c => c.Jogos > 0)
-            .OrderByDescending(c => c.Pontos)
-            .ThenByDescending(c => c.SaldoGols)
-            .ThenByDescending(c => c.GolsPro)
-            .Take(8)
-            .ToList();
+                    Time = timesById[kv.Key],
+                    Vitorias = kv.Value.V,
+                    Empates = kv.Value.E,
+                    Derrotas = kv.Value.D,
+                    GolsPro = kv.Value.GP,
+                    GolsContra = kv.Value.GC,
+                    Pontos = kv.Value.V * 3 + kv.Value.E,
+                    Jogos = kv.Value.V + kv.Value.E + kv.Value.D
+                })
+                .OrderByDescending(c => c.Pontos)
+                .ThenByDescending(c => c.SaldoGols)
+                .ThenByDescending(c => c.GolsPro)
+                .Take(8)
+                .ToList();
 
             for (int i = 0; i < classificacao.Count; i++)
                 classificacao[i].Posicao = i + 1;

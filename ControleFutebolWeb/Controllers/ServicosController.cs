@@ -1,8 +1,10 @@
 using ControleFutebolWeb.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ControleFutebolWeb.Controllers
 {
+    [Authorize(Policy = "Admin")]
     public class ServicosController : Controller
     {
         private readonly ServicoMonitor _monitor;

@@ -5,6 +5,7 @@ using ControleFutebolWeb.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace ControleFutebolWeb.Controllers
@@ -15,17 +16,20 @@ namespace ControleFutebolWeb.Controllers
         private readonly ILogger<CompeticoesController> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IMemoryCache _cache;
 
         public CompeticoesController(
             FutebolContext context,
             ILogger<CompeticoesController> logger,
             IServiceScopeFactory scopeFactory,
-            UserManager<ApplicationUser> userManager)
+            UserManager<ApplicationUser> userManager,
+            IMemoryCache cache)
         {
             _context = context;
             _logger = logger;
             _scopeFactory = scopeFactory;
             _userManager = userManager;
+            _cache = cache;
         }
 
         [HttpPost]
@@ -106,6 +110,7 @@ namespace ControleFutebolWeb.Controllers
                 _context.CompeticoesTopTierUsuario.Remove(registro);
 
             await _context.SaveChangesAsync();
+            _cache.Remove($"layout-menu:{uid}"); // menu do layout muda → invalida o cache
             return RedirectToAction(nameof(Index));
         }
 

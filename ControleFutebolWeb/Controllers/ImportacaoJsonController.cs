@@ -1,6 +1,7 @@
 ﻿using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.AllSports;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -8,6 +9,7 @@ using System.Text.Json.Nodes;
 
 namespace ControleFutebolWeb.Controllers
 {
+    [Authorize(Policy = "Admin")]
     public class ImportacaoJsonController : Controller
     {
         private readonly FutebolContext _context;

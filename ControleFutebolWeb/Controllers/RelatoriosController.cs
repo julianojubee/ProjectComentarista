@@ -89,6 +89,7 @@ namespace ControleFutebolWeb.Controllers
 
             // Jogadores base (filtros de cadastro)
             var jogadoresQuery = _context.Jogadores
+                .AsNoTracking()
                 .Include(j => j.Time)
                 .Include(j => j.Nacionalidade)
                 .AsQueryable();
@@ -104,31 +105,37 @@ namespace ControleFutebolWeb.Controllers
 
             // Carregar dados de performance
             var gols = await _context.Gols
+                .AsNoTracking()
                 .Where(g => jogoIds.Contains(g.JogoId) && !g.Contra
                          && jogadorIds.Contains(g.JogadorId))
                 .ToListAsync();
 
             var assistencias = await _context.Assistencias
+                .AsNoTracking()
                 .Where(a => jogoIds.Contains(a.JogoId)
                          && jogadorIds.Contains(a.JogadorId))
                 .ToListAsync();
 
             var cartoes = await _context.Cartoes
+                .AsNoTracking()
                 .Where(c => jogoIds.Contains(c.JogoId)
                          && jogadorIds.Contains(c.JogadorId))
                 .ToListAsync();
 
             var escalacoes = await _context.Escalacoes
+                .AsNoTracking()
                 .Where(e => jogoIds.Contains(e.JogoId) && e.JogadorId.HasValue
                          && jogadorIds.Contains(e.JogadorId!.Value)
                          && (e.UsuarioId == usuarioId || e.UsuarioId == null))
                 .ToListAsync();
 
             var estatisticas = await _context.EstatisticasJogador
+                .AsNoTracking()
                 .Where(e => jogoIds.Contains(e.JogoId) && jogadorIds.Contains(e.JogadorId))
                 .ToListAsync();
 
             var notas = await _context.Notas
+                .AsNoTracking()
                 .Include(n => n.Detalhes)
                 .Where(n => jogoIds.Contains(n.JogoId) && jogadorIds.Contains(n.JogadorId)
                          && n.UsuarioId == usuarioId)

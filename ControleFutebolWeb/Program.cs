@@ -67,10 +67,16 @@ internal class Program
             options.Cookie.Name = "__Host-Comentarista.Auth";    // prefixo __Host- amarra o cookie a host+HTTPS+path=/
         });
 
+        // Antiforgery: além do token em formulário, aceita o token via header
+        // (usado pelas chamadas fetch/AJAX) — ver wrapper em site.js.
+        builder.Services.AddAntiforgery(o => o.HeaderName = "RequestVerificationToken");
+
         builder.Services.AddControllersWithViews(options =>
         {
             // Exige autenticação em todos os controllers por padrão
             options.Filters.Add(new Microsoft.AspNetCore.Mvc.Authorization.AuthorizeFilter());
+            // Valida antiforgery em TODOS os POST/PUT/DELETE/PATCH por padrão (anti-CSRF).
+            options.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute());
         })
             .AddJsonOptions(options =>
             {
@@ -189,10 +195,12 @@ internal class Program
             // para nonces e remover o 'unsafe-inline' de script-src.
             headers["Content-Security-Policy"] =
                 "default-src 'self'; " +
-                "img-src 'self' data:; " +
+                // Permite imagens externas via HTTPS (escudos/logos colados por URL) e data:.
+                "img-src 'self' data: https:; " +
                 "script-src 'self' 'unsafe-inline'; " +
-                "style-src 'self' 'unsafe-inline'; " +
-                "font-src 'self' data:; " +
+                // 'unsafe-inline' + Google Fonts (usado via @import em algumas telas).
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+                "font-src 'self' data: https://fonts.gstatic.com; " +
                 "connect-src 'self'; " +
                 "frame-ancestors 'none'; " +
                 "base-uri 'self'; " +

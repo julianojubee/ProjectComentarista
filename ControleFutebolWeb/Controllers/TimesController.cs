@@ -1,4 +1,5 @@
 ﻿using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -15,11 +16,13 @@ namespace ControleFutebolWeb.Controllers
     {
         private readonly FutebolContext _context;
         private readonly ILogger<TimesController> _logger;
+        private readonly IWebHostEnvironment _env;
 
-        public TimesController(FutebolContext context, ILogger<TimesController> logger)
+        public TimesController(FutebolContext context, ILogger<TimesController> logger, IWebHostEnvironment env)
         {
             _context = context;
             _logger = logger;
+            _env = env;
         }
 
         // GET: Times
@@ -172,36 +175,9 @@ namespace ControleFutebolWeb.Controllers
             return View(viewModel);
         }
 
-        // GET: Times/Create
-        public IActionResult Create()
-        {
-            return View();
-        }
-
-        // POST: Times/Create
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(Time time, IFormFile escudoFile)
-        {
-            if (ModelState.IsValid)
-            {
-                if (escudoFile != null && escudoFile.Length > 0)
-                {
-                    var fileName = Path.GetFileName(escudoFile.FileName);
-                    var filePath = Path.Combine("wwwroot/images/escudos", fileName);
-                    using (var stream = new FileStream(filePath, FileMode.Create))
-                        await escudoFile.CopyToAsync(stream);
-                    time.EscudoUrl = "/images/escudos/" + fileName;
-                }
-
-                _context.Add(time);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
-            }
-
-            _logger.LogWarning("ModelState inválido ao criar Time.");
-            return View(time);
-        }
+        // Cadastro manual de time foi removido: os times passam a vir exclusivamente
+        // da importação das competições (times/jogadores). A edição (incl. uploads de
+        // escudo/camisa/background) permanece para customizar times já importados.
 
         // GET: Times/Edit/5
         public async Task<IActionResult> Edit(int? id)
@@ -225,11 +201,13 @@ namespace ControleFutebolWeb.Controllers
                 {
                     if (escudoFile != null && escudoFile.Length > 0)
                     {
-                        var fileName = Path.GetFileName(escudoFile.FileName);
-                        var filePath = Path.Combine("wwwroot/images/escudos", fileName);
-                        using (var stream = new FileStream(filePath, FileMode.Create))
-                            await escudoFile.CopyToAsync(stream);
-                        time.EscudoUrl = "/images/escudos/" + fileName;
+                        var r = await UploadHelper.SalvarImagemAsync(escudoFile, _env.WebRootPath, "images/escudos", time.Nome);
+                        if (!r.Sucesso)
+                        {
+                            ModelState.AddModelError("", $"Escudo: {r.Erro}");
+                            return View(time);
+                        }
+                        time.EscudoUrl = r.UrlRelativa;
                     }
 
                     _context.Update(time);
@@ -292,17 +270,18 @@ namespace ControleFutebolWeb.Controllers
 
             if (arquivo != null && arquivo.Length > 0)
             {
-                var sufixo = tipo == "visitante" ? "camisa_visitante" : "camisa";
-                var fileName = $"{time.Nome}_{sufixo}.png";
-                var path = Path.Combine("wwwroot/Images/kits", fileName);
-
-                using (var stream = new FileStream(path, FileMode.Create))
-                    await arquivo.CopyToAsync(stream);
+                var sufixo = tipo == "visitante" ? "camisa-visitante" : "camisa";
+                var r = await UploadHelper.SalvarImagemAsync(arquivo, _env.WebRootPath, "Images/kits", $"{time.Nome}-{sufixo}");
+                if (!r.Sucesso)
+                {
+                    TempData["Mensagem"] = $"Erro na camisa: {r.Erro}";
+                    return RedirectToAction(nameof(Index));
+                }
 
                 if (tipo == "visitante")
-                    time.CamisaVisitanteUrl = $"/Images/kits/{fileName}";
+                    time.CamisaVisitanteUrl = r.UrlRelativa;
                 else
-                    time.CamisaUrl = $"/Images/kits/{fileName}";
+                    time.CamisaUrl = r.UrlRelativa;
 
                 _context.Update(time);
                 await _context.SaveChangesAsync();
@@ -313,20 +292,22 @@ namespace ControleFutebolWeb.Controllers
         }
 
         [HttpPost]
-        public IActionResult UploadBackground(int id, IFormFile backgroundFile)
+        public async Task<IActionResult> UploadBackground(int id, IFormFile backgroundFile)
         {
             var time = _context.Times.Find(id);
             if (time == null) return NotFound();
 
             if (backgroundFile != null && backgroundFile.Length > 0)
             {
-                var fileName = $"{Guid.NewGuid()}_{backgroundFile.FileName}";
-                var path = Path.Combine("wwwroot/images/backgrounds", fileName);
-                using (var stream = new FileStream(path, FileMode.Create))
-                    backgroundFile.CopyTo(stream);
+                var r = await UploadHelper.SalvarImagemAsync(backgroundFile, _env.WebRootPath, "images/backgrounds", time.Nome);
+                if (!r.Sucesso)
+                {
+                    TempData["Mensagem"] = $"Erro no background: {r.Erro}";
+                    return RedirectToAction("Details", new { id });
+                }
 
-                time.BackgroundUrl = $"/images/backgrounds/{fileName}";
-                _context.SaveChanges();
+                time.BackgroundUrl = r.UrlRelativa;
+                await _context.SaveChangesAsync();
             }
 
             return RedirectToAction("Details", new { id });

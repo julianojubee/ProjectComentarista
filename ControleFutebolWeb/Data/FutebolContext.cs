@@ -255,6 +255,13 @@ namespace ControleFutebolWeb.Data
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            // 🔹 Índices para acelerar filtros/joins frequentes em relatórios e listagens.
+            // (As FKs JogoId/JogadorId/CompeticaoId já são indexadas automaticamente pelo EF.)
+            modelBuilder.Entity<Jogo>().HasIndex(j => j.Temporada);
+            modelBuilder.Entity<Jogador>().HasIndex(j => j.Posicao);
+            modelBuilder.Entity<Nota>().HasIndex(n => new { n.UsuarioId, n.JogoId, n.JogadorId });
+            modelBuilder.Entity<Escalacao>().HasIndex(e => new { e.JogoId, e.UsuarioId });
+
             // 🔹 Converte nomes de tabelas e colunas para minúsculas
             foreach (var entity in modelBuilder.Model.GetEntityTypes())
             {

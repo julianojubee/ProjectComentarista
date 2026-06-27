@@ -1,22 +1,40 @@
 ﻿@inject Microsoft.AspNetCore.Identity.UserManager<ControleFutebolWeb.Models.ApplicationUser> _layoutUserManager
 @inject ControleFutebolWeb.Data.FutebolContext _layoutContext
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery _antiforgery
+@inject Microsoft.Extensions.Caching.Memory.IMemoryCache _cache
 @using Microsoft.EntityFrameworkCore
+@using Microsoft.Extensions.Caching.Memory
 @{
-    var _layoutCurrentUser = await _layoutUserManager.GetUserAsync(User);
-    var _layoutIsAdmin = _layoutCurrentUser?.IsAdmin == true;
-
-    // Competições marcadas como "principal" pelo usuário (menu Competições)
+    // Flag admin + menu de competições "principais" do usuário: cacheados por
+    // usuário (60s) para evitar ~3 queries ao banco em TODA renderização de página.
+    // O userId vem do cookie (claims), sem hit no banco.
+    var _userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    var _layoutIsAdmin = false;
     var _layoutCompeticoesMenu = new List<ControleFutebolWeb.Models.Competicao>();
-    if (_layoutCurrentUser != null)
+
+    if (_userId != null)
     {
-        var _topIds = await _layoutContext.CompeticoesTopTierUsuario
-            .Where(t => t.UsuarioId == _layoutCurrentUser.Id)
-            .Select(t => t.CompeticaoId)
-            .ToListAsync();
-        _layoutCompeticoesMenu = await _layoutContext.Competicoes
-            .Where(c => _topIds.Contains(c.Id))
-            .OrderBy(c => c.Nome)
-            .ToListAsync();
+        var _dados = await _cache.GetOrCreateAsync($"layout-menu:{_userId}", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
+            entry.Size = 1; // obrigatório: o MemoryCache tem SizeLimit configurado.
+
+            var _user = await _layoutUserManager.FindByIdAsync(_userId);
+            var _topIds = await _layoutContext.CompeticoesTopTierUsuario
+                .Where(t => t.UsuarioId == _userId)
+                .Select(t => t.CompeticaoId)
+                .ToListAsync();
+            var _comps = await _layoutContext.Competicoes
+                .AsNoTracking()
+                .Where(c => _topIds.Contains(c.Id))
+                .OrderBy(c => c.Nome)
+                .ToListAsync();
+
+            return (IsAdmin: _user?.IsAdmin == true, Menu: _comps);
+        });
+
+        _layoutIsAdmin = _dados.IsAdmin;
+        _layoutCompeticoesMenu = _dados.Menu;
     }
 
     // Mapeia uma competição para a rota correta (mesma lógica da tela de Competições)
@@ -43,6 +61,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="@_antiforgery.GetAndStoreTokens(Context).RequestToken" />
     <title>@ViewData["Title"] - Comentarista Esportivo</title>
     <script>(function(){var t=localStorage.getItem('site-theme');if(t)document.documentElement.setAttribute('data-theme',t);})();</script>
     <script type="importmap"></script>
