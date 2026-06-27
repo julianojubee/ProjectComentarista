@@ -1,5 +1,6 @@
 ﻿// ControleFutebolWeb/Controllers/SulAmericanaController.cs
 using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
 using Microsoft.AspNetCore.Mvc;
@@ -19,21 +20,29 @@ namespace ControleFutebolWeb.Controllers
             _context = context;
         }
         // GET: /SulAmericana
-        public IActionResult Index()
+        public IActionResult Index(int? temporada = null)
         {
-            var grupos = MontarGrupos();
-            var proximosJogos = BuscarProximosJogos();
+            var (temporadasDisponiveis, temporadaSel) =
+                TemporadaHelper.Resolver(_context, COMPETICAO_ID, temporada);
+            var vm = new SulAmericanaIndexViewModel
+            {
+                Temporada = temporadaSel,
+                TemporadasDisponiveis = temporadasDisponiveis
+            };
+
+            var grupos = MontarGrupos(temporadaSel);
+            var proximosJogos = BuscarProximosJogos(temporadaSel);
             var rodadaAtual = proximosJogos.Any()
                 ? proximosJogos.Min(j => j.Rodada)
                 : (_context.Jogos.Any(j => j.CompeticaoId == COMPETICAO_ID)
                     ? _context.Jogos.Where(j => j.CompeticaoId == COMPETICAO_ID).Max(j => j.Rodada)
                     : 0);
 
-            ViewBag.Grupos = grupos;
-            ViewBag.ProximosJogos = proximosJogos;
-            ViewBag.RodadaAtual = rodadaAtual;
+            vm.Grupos = grupos;
+            vm.ProximosJogos = proximosJogos;
+            vm.RodadaAtual = rodadaAtual;
 
-            return View();
+            return View(vm);
         }
 
         // ── GET: retorna o status de um jogo específico (AJAX) ───────────────
@@ -92,14 +101,15 @@ namespace ControleFutebolWeb.Controllers
         // HELPERS PRIVADOS
         // ─────────────────────────────────────────────────────────────────────
 
-        private List<GrupoViewModel> MontarGrupos()
+        private List<GrupoViewModel> MontarGrupos(int? temporada = null)
         {
             var jogosRealizados = _context.Jogos
                 .Include(j => j.TimeCasa)
                 .Include(j => j.TimeVisitante)
                 .Where(j => j.CompeticaoId == COMPETICAO_ID &&
                             j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue &&
-                            !string.IsNullOrEmpty(j.Grupo))
+                            !string.IsNullOrEmpty(j.Grupo) &&
+                            (temporada == null || j.Temporada == temporada))
                 .OrderBy(j => j.Data)
                 .ToList();
 
@@ -114,20 +124,21 @@ namespace ControleFutebolWeb.Controllers
                     return new GrupoViewModel
                     {
                         Nome = nomeGrupo,
-                        Times = CalcularClassificacaoGrupo(jogosGrupo)
+                        Times = ClassificacaoCalculator.Calcular(jogosGrupo)
                     };
                 })
                 .ToList();
         }
 
-        private List<Jogo> BuscarProximosJogos()
+        private List<Jogo> BuscarProximosJogos(int? temporada = null)
         {
             // Jogos sem placar (agendados) ou com placar mas recentes
             var sem = _context.Jogos
                 .Include(j => j.TimeCasa)
                 .Include(j => j.TimeVisitante)
                 .Where(j => j.CompeticaoId == COMPETICAO_ID &&
-                            (!j.PlacarCasa.HasValue || !j.PlacarVisitante.HasValue))
+                            (!j.PlacarCasa.HasValue || !j.PlacarVisitante.HasValue) &&
+                            (temporada == null || j.Temporada == temporada))
                 .OrderBy(j => j.Data)
                 .Take(20)
                 .ToList();
@@ -137,53 +148,12 @@ namespace ControleFutebolWeb.Controllers
             return _context.Jogos
                 .Include(j => j.TimeCasa)
                 .Include(j => j.TimeVisitante)
-                .Where(j => j.CompeticaoId == COMPETICAO_ID)
+                .Where(j => j.CompeticaoId == COMPETICAO_ID &&
+                            (temporada == null || j.Temporada == temporada))
                 .OrderByDescending(j => j.Data)
                 .Take(10)
                 .ToList();
         }
 
-        private static List<Classificacao> CalcularClassificacaoGrupo(List<Jogo> jogos)
-        {
-            var tab = new Dictionary<int, Classificacao>();
-
-            foreach (var j in jogos)
-            {
-                if (j.TimeCasa == null || j.TimeVisitante == null) continue;
-                if (!j.PlacarCasa.HasValue || !j.PlacarVisitante.HasValue) continue;
-
-                if (!tab.ContainsKey(j.TimeCasaId))
-                    tab[j.TimeCasaId] = new Classificacao
-                    { TimeId = j.TimeCasaId, Time = j.TimeCasa };
-                if (!tab.ContainsKey(j.TimeVisitanteId))
-                    tab[j.TimeVisitanteId] = new Classificacao
-                    { TimeId = j.TimeVisitanteId, Time = j.TimeVisitante };
-
-                var c = tab[j.TimeCasaId];
-                var v = tab[j.TimeVisitanteId];
-
-                c.Jogos++; v.Jogos++;
-                c.GolsPro += j.PlacarCasa.Value;
-                c.GolsContra += j.PlacarVisitante.Value;
-                v.GolsPro += j.PlacarVisitante.Value;
-                v.GolsContra += j.PlacarCasa.Value;
-
-                if (j.PlacarCasa > j.PlacarVisitante)
-                { c.Vitorias++; c.Pontos += 3; v.Derrotas++; }
-                else if (j.PlacarCasa < j.PlacarVisitante)
-                { v.Vitorias++; v.Pontos += 3; c.Derrotas++; }
-                else
-                { c.Empates++; v.Empates++; c.Pontos++; v.Pontos++; }
-            }
-
-            var lista = tab.Values
-                .OrderByDescending(t => t.Pontos)
-                .ThenByDescending(t => t.GolsPro - t.GolsContra)
-                .ThenByDescending(t => t.GolsPro)
-                .ToList();
-
-            for (int i = 0; i < lista.Count; i++) lista[i].Posicao = i + 1;
-            return lista;
-        }
     }
 }

@@ -8,6 +8,10 @@ namespace ControleFutebolWeb.Models
         public int Id { get; set; }
         public int Rodada {  get; set; }
         public DateTime? Data { get; set; }
+
+        // Temporada da competição (ano da season da api-football, ex.: 2025, 2026).
+        // Permite separar as tabelas/relatórios por temporada na mesma competição.
+        public int Temporada { get; set; }
         public int PartidaApiId { get; set; } // ID da partida na API
 
         public int EventKey { get; set; }
@@ -21,6 +25,13 @@ namespace ControleFutebolWeb.Models
         [ValidateNever]
 
         public int? PlacarVisitante { get; set; }
+        [ValidateNever]
+
+        // Placar da disputa de pênaltis (mata-mata). Nulo quando não houve disputa.
+        public int? PenaltisCasa { get; set; }
+        [ValidateNever]
+
+        public int? PenaltisVisitante { get; set; }
         [ValidateNever]
 
         public int TimeVisitanteId { get; set; }
@@ -73,6 +84,12 @@ namespace ControleFutebolWeb.Models
         // Estatísticas da partida (posse, finalizações, etc.) vindas da api-football,
         // guardadas em JSON: [{ "TimeId": 22, "Stats": { "Ball Possession": "48%", ... } }, ...]
         public string? EstatisticasJson { get; set; }
+
+        // Cores do uniforme dos times nesta partida (hex sem #), vindas de fixtures/lineups.
+        public string? CorCamisaCasa { get; set; }
+        public string? CorNumeroCasa { get; set; }
+        public string? CorCamisaVisitante { get; set; }
+        public string? CorNumeroVisitante { get; set; }
     }
 }
 

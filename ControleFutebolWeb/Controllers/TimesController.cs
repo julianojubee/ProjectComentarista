@@ -24,15 +24,18 @@ namespace ControleFutebolWeb.Controllers
 
         // GET: Times
         // GET: Times
-        public async Task<IActionResult> Index(int? competicaoId, int? timeId)
+        public async Task<IActionResult> Index(List<int>? competicaoIds, List<int>? timeIds)
         {
+            competicaoIds ??= new List<int>();
+            timeIds ??= new List<int>();
+
             var query = _context.Times.AsQueryable();
 
-            if (competicaoId.HasValue)
+            if (competicaoIds.Any())
             {
-                // pega todos os times que jogaram na competição
+                // pega todos os times que jogaram nas competições selecionadas (união)
                 var jogosCompeticao = _context.Jogos
-                    .Where(j => j.CompeticaoId == competicaoId.Value);
+                    .Where(j => competicaoIds.Contains(j.CompeticaoId));
 
                 var timesCompeticao = await jogosCompeticao
                     .Select(j => j.TimeCasaId)
@@ -43,16 +46,18 @@ namespace ControleFutebolWeb.Controllers
                 query = query.Where(t => timesCompeticao.Contains(t.Id));
             }
 
-            if (timeId.HasValue)
+            if (timeIds.Any())
             {
-                query = query.Where(t => t.Id == timeId.Value);
+                query = query.Where(t => timeIds.Contains(t.Id));
             }
 
-            var times = await query.ToListAsync();
+            var times = await query.OrderBy(t => t.Nome).ToListAsync();
 
-            // Preenche os dropdowns
-            ViewBag.Competicoes = new SelectList(_context.Competicoes, "Id", "Nome", competicaoId);
-            ViewBag.Times = new SelectList(_context.Times, "Id", "Nome", timeId);
+            // Listas completas para os tag selectors
+            ViewBag.Competicoes = await _context.Competicoes.OrderBy(c => c.Nome).ToListAsync();
+            ViewBag.Times = await _context.Times.OrderBy(t => t.Nome).ToListAsync();
+            ViewBag.CompeticaoIdsFiltro = competicaoIds;
+            ViewBag.TimeIdsFiltro = timeIds;
 
             return View(times);
         }
@@ -98,7 +103,8 @@ namespace ControleFutebolWeb.Controllers
 
             var elenco = await _context.Jogadores
                 .Include(j => j.Nacionalidade)
-                .Where(j => j.TimeId == id)
+                .Include(j => j.Time)
+                .Where(j => j.TimeId == id || j.SelecaoId == id)
                 .ToListAsync();
 
             var jogos = await _context.Jogos
@@ -131,15 +137,15 @@ namespace ControleFutebolWeb.Controllers
             var competicaoIdsDoTime = jogos.Select(j => j.CompeticaoId).Distinct().ToList();
             var todasCompeticoesDoTime = await _context.Competicoes
                 .Where(c => competicaoIdsDoTime.Contains(c.Id) &&
-                            c.linktransfermarket != null &&
-                            c.linktransfermarket.StartsWith("apifoot:"))
+                            c.LinkTransfermarket != null &&
+                            c.LinkTransfermarket.StartsWith("apifoot:"))
                 .OrderBy(c => c.Nome)
                 .ToListAsync();
 
             var competicoesApi = todasCompeticoesDoTime
                 .Select(c =>
                 {
-                    var parts = c.linktransfermarket!.Split(':');
+                    var parts = c.LinkTransfermarket!.Split(':');
                     if (parts.Length >= 3 &&
                         int.TryParse(parts[1], out var lid) &&
                         int.TryParse(parts[2], out var sea))
@@ -269,7 +275,7 @@ namespace ControleFutebolWeb.Controllers
             var time = await _context.Times.FindAsync(id);
             if (time == null) return NotFound();
 
-            time.linktransfermarket = linktransfermarket;
+            time.LinkTransfermarket = linktransfermarket;
 
             _context.Update(time);
             await _context.SaveChangesAsync();

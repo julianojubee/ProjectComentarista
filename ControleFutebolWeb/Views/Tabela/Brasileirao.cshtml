@@ -1,6 +1,7 @@
 ﻿@model List<ControleFutebolWeb.Models.ViewModels.ClassificacaoViewModel>
 @using System.Globalization
 @using ControleFutebolWeb.Helpers
+@removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
 @{
     ViewData["Title"] = "Tabela do Brasileirão";
     var proximaRodada = ViewBag.ProximaRodada as List<ControleFutebolWeb.Models.Jogo> ?? new();
@@ -213,6 +214,12 @@
     .bra-team-name {
         font-weight: 500;
         color: var(--color-text-primary);
+        text-decoration: none;
+    }
+
+    a.bra-team-name:hover {
+        color: #16a34a;
+        text-decoration: underline;
     }
 
     .bra-pts {
@@ -553,6 +560,23 @@
                 <h2 class="cf-comp-title">Campeonato Brasileiro</h2>
             </div>
             <p class="cf-comp-sub">Classificação geral e jogos da rodada atual.</p>
+            @{
+                var temporadasBr = ViewBag.TemporadasDisponiveis as List<int> ?? new List<int>();
+                var temporadaBrSel = ViewBag.Temporada as int?;
+            }
+            @if (temporadasBr.Count > 1)
+            {
+                <form method="get" style="margin-top:8px;">
+                    <label style="color:#fff;font-size:12px;font-weight:600;margin-right:6px;">Temporada:</label>
+                    <select name="temporada" onchange="this.form.submit()"
+                            style="padding:5px 10px;border-radius:7px;border:none;font-size:13px;font-weight:600;">
+                        @foreach (var temp in temporadasBr)
+                        {
+                            <option value="@temp" @(temporadaBrSel == temp ? "selected" : "")>@temp</option>
+                        }
+                    </select>
+                </form>
+            }
         </div>
     </div>
 
@@ -615,7 +639,14 @@
                                         {
                                             <div class="bra-escudo-ph">@(t.Time?.Nome?.Substring(0, 1) ?? "?")</div>
                                         }
-                                        <span class="bra-team-name">@(t.Time?.Nome ?? "—")</span>
+                                        @if (t.Time?.Id > 0)
+                                        {
+                                            <a asp-controller="Times" asp-action="Details" asp-route-id="@t.Time.Id" class="bra-team-name">@t.Time.Nome</a>
+                                        }
+                                        else
+                                        {
+                                            <span class="bra-team-name">@(t.Time?.Nome ?? "—")</span>
+                                        }
                                     </div>
                                 </td>
                                 <td style="color:var(--color-text-secondary)">@totalJogados</td>

@@ -29,8 +29,9 @@ namespace ControleFutebolWeb.Controllers
             _userManager = userManager;
         }
 
-        public IActionResult Index(string posicao, string nacionalidade, int? timeId, string sortOrder)
+        public IActionResult Index(string posicao, string nacionalidade, int? timeId, string sortOrder, string? nome, int? idadeMin, int? idadeMax, bool semIdade = false, int page = 1)
         {
+            const int pageSize = 50;
             // Configura parâmetros de ordenação
             ViewBag.NomeSortParam = sortOrder == "Nome" ? "Nome_desc" : "Nome";
             ViewBag.PosicaoSortParam = sortOrder == "Posicao" ? "Posicao_desc" : "Posicao";
@@ -47,6 +48,9 @@ namespace ControleFutebolWeb.Controllers
                 .AsQueryable();
 
             // Aplica filtros
+            if (!string.IsNullOrEmpty(nome))
+                jogadores = jogadores.Where(j => j.Nome.ToLower().Contains(nome.ToLower()));
+
             if (!string.IsNullOrEmpty(posicao))
                 jogadores = jogadores.Where(j => j.Posicao == posicao);
 
@@ -55,6 +59,29 @@ namespace ControleFutebolWeb.Controllers
 
             if (timeId.HasValue)
                 jogadores = jogadores.Where(j => j.TimeId == timeId.Value);
+
+            // Filtro "somente sem idade": jogadores sem data de nascimento cadastrada.
+            if (semIdade)
+            {
+                jogadores = jogadores.Where(j => j.DataNascimento == null);
+            }
+            else
+            {
+                // Filtro por faixa de idade (convertido para faixa de data de nascimento).
+                // idade >= min  ⇔ nascimento <= hoje - min anos
+                // idade <= max  ⇔ nascimento >  hoje - (max+1) anos
+                var hoje = DateTime.Today;
+                if (idadeMin.HasValue)
+                {
+                    var limiteSuperior = hoje.AddYears(-idadeMin.Value);
+                    jogadores = jogadores.Where(j => j.DataNascimento != null && j.DataNascimento <= limiteSuperior);
+                }
+                if (idadeMax.HasValue)
+                {
+                    var limiteInferior = hoje.AddYears(-(idadeMax.Value + 1));
+                    jogadores = jogadores.Where(j => j.DataNascimento != null && j.DataNascimento > limiteInferior);
+                }
+            }
 
             // Aplica ordenação
             jogadores = sortOrder switch
@@ -71,6 +98,11 @@ namespace ControleFutebolWeb.Controllers
                 "Time_desc" => jogadores.OrderByDescending(j => j.Time.Nome),
                 _ => jogadores.OrderBy(j => j.Nome)
             };
+
+            ViewBag.Nome = nome;
+            ViewBag.IdadeMin = idadeMin;
+            ViewBag.IdadeMax = idadeMax;
+            ViewBag.SemIdade = semIdade;
 
             // Preenche combos com SelectList
             var posicoes = new List<string> {
@@ -92,7 +124,31 @@ namespace ControleFutebolWeb.Controllers
                 .ToList();
             ViewBag.Times = new SelectList(times, "Id", "Nome", timeId);
 
-            return View(jogadores.ToList());
+            // Paginação (50 por página)
+            var listaOrdenada = jogadores.ToList();
+            var totalJogadores = listaOrdenada.Count;
+            var totalPaginas = (int)Math.Ceiling(totalJogadores / (double)pageSize);
+            if (totalPaginas < 1) totalPaginas = 1;
+            if (page < 1) page = 1;
+            if (page > totalPaginas) page = totalPaginas;
+
+            var jogadoresPagina = listaOrdenada
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            ViewBag.PaginaAtual = page;
+            ViewBag.TotalPaginas = totalPaginas;
+            ViewBag.TotalJogadores = totalJogadores;
+            ViewBag.PageSize = pageSize;
+
+            // Filtros atuais, para preservar nos links de paginação
+            ViewBag.FiltroPosicao = posicao;
+            ViewBag.FiltroNacionalidade = nacionalidade;
+            ViewBag.FiltroTimeId = timeId;
+            ViewBag.FiltroSortOrder = sortOrder;
+
+            return View(jogadoresPagina);
         }
         // GET: Jogadores/Details/5
         public async Task<IActionResult> Details(int? id)
@@ -208,9 +264,12 @@ namespace ControleFutebolWeb.Controllers
                                 dadosApi.DataNascimento.Value.Date != jogador.DataNascimento?.Date)
                                 divergencias.Add($"Data de nascimento divergente. API: {dadosApi.DataNascimento.Value:dd/MM/yyyy}");
 
-                            if (!string.IsNullOrEmpty(dadosApi.Nacionalidade) &&
-                                jogador.Nacionalidade?.Nome != dadosApi.Nacionalidade)
-                                divergencias.Add($"Nacionalidade divergente. API: {dadosApi.Nacionalidade}");
+                            if (!string.IsNullOrEmpty(dadosApi.Nacionalidade) && jogador.NacionalidadeId.HasValue)
+                            {
+                                var nacSelecionada = await _context.Nacionalidades.FindAsync(jogador.NacionalidadeId.Value);
+                                if (nacSelecionada?.Nome != dadosApi.Nacionalidade)
+                                    divergencias.Add($"Nacionalidade divergente. API: {dadosApi.Nacionalidade}");
+                            }
 
                             if (divergencias.Any())
                             {
@@ -232,6 +291,7 @@ namespace ControleFutebolWeb.Controllers
                         : null;
                     jogadorExistente.TimeId = jogador.TimeId;
                     jogadorExistente.NacionalidadeId = jogador.NacionalidadeId;
+                    jogadorExistente.Observacoes = jogador.Observacoes;
                     jogadorExistente.DtAlt = DateTime.UtcNow;
 
                     await _context.SaveChangesAsync();
@@ -393,7 +453,7 @@ namespace ControleFutebolWeb.Controllers
 
             // ── Helper: monta item a partir de um jogo ────────────────────
             NotaJogoItem MontarItem(Jogo jogo, double notaValor, string? comentario,
-                List<Notadetalhe> detalhes, bool analisado, bool origemManual = false)
+                List<Notadetalhe> detalhes, bool analisado, bool origemManual = false, double? notaManual = null)
             {
                 var pc = jogo.PlacarCasa ?? 0;
                 var pv = jogo.PlacarVisitante ?? 0;
@@ -409,9 +469,14 @@ namespace ControleFutebolWeb.Controllers
                 else if ((isCasa && pc > pv) || (!isCasa && pv > pc)) resultado = "V";
                 else                                                resultado = "D";
 
-                double notaFinal = analisado
-                    ? Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima, Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + notaValor)), 2)
-                    : 0;
+                double notaFinal;
+                if (!analisado)
+                    notaFinal = 0;
+                else if (notaManual.HasValue)
+                    // Override: nota final absoluta (0–10), sem somar base.
+                    notaFinal = Math.Round(Math.Max(0, Math.Min(10, notaManual.Value)), 2);
+                else
+                    notaFinal = Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima, Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + notaValor)), 2);
 
                 return new NotaJogoItem
                 {
@@ -428,14 +493,15 @@ namespace ControleFutebolWeb.Controllers
                     Detalhes = detalhes,
                     GolsPro = golsPro,
                     GolsContra = golsContra,
-                    NotaBaseFixa = analisado ? CriteriosNotaHelper.NotaBaseFixa : 0,
+                    NotaBaseFixa = analisado && !notaManual.HasValue ? CriteriosNotaHelper.NotaBaseFixa : 0,
                     OrigemManual = origemManual,
+                    NotaManual = notaManual,
                 };
             }
 
             // ── Jogos com nota manual (avaliação dada por um analista) ────
             var itensManual = notas.Select(n =>
-                MontarItem(n.Jogo, n.Valor, n.Comentario, n.Detalhes?.ToList() ?? new(), true, origemManual: true));
+                MontarItem(n.Jogo, n.Valor, n.Comentario, n.Detalhes?.ToList() ?? new(), true, origemManual: true, notaManual: n.NotaManual));
 
             // ── Jogos sem nota manual, mas com estatísticas importadas ────
             var itensEstatisticas = estatisticas
@@ -563,12 +629,177 @@ namespace ControleFutebolWeb.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AtualizarInfo(int id)
+        {
+            var jogador = await _context.Jogadores.FindAsync(id);
+            if (jogador == null) return NotFound();
+
+            if (!(jogador.IdApi > 0))
+            {
+                TempData["Erro"] = $"{jogador.Nome} não possui IdApi cadastrado — não é possível atualizar pela API.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            try
+            {
+                var info = await _transfermarktService.BuscarPerfilJogadorAsync(jogador.IdApi!.Value);
+                if (info == null)
+                {
+                    TempData["Erro"] = $"Não foi possível obter os dados de {jogador.Nome} na API.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                var alteracoes = new List<string>();
+
+                if (info.DataNascimento.HasValue && info.DataNascimento.Value.Year > 1900)
+                {
+                    var novaData = DateTime.SpecifyKind(info.DataNascimento.Value, DateTimeKind.Unspecified);
+                    if (jogador.DataNascimento?.Date != novaData.Date)
+                    {
+                        jogador.DataNascimento = novaData;
+                        alteracoes.Add($"idade ({jogador.Idade} anos)");
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(info.Nacionalidade))
+                {
+                    var nac = await ApiFootballService.ResolverOuCriarNacionalidadePublicAsync(_context, info.Nacionalidade);
+                    if (nac != null && jogador.NacionalidadeId != nac.Id)
+                    {
+                        jogador.NacionalidadeId = nac.Id;
+                        alteracoes.Add($"nacionalidade ({nac.Nome})");
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(info.FotoUrl) && jogador.FotoUrl != info.FotoUrl)
+                {
+                    jogador.FotoUrl = info.FotoUrl;
+                    alteracoes.Add("foto");
+                }
+
+                if (!string.IsNullOrWhiteSpace(info.PrimeiroNome) && jogador.PrimeiroNome != info.PrimeiroNome)
+                {
+                    jogador.PrimeiroNome = info.PrimeiroNome;
+                    alteracoes.Add("primeiro nome");
+                }
+
+                if (!string.IsNullOrWhiteSpace(info.UltimoNome) && jogador.UltimoNome != info.UltimoNome)
+                {
+                    jogador.UltimoNome = info.UltimoNome;
+                    alteracoes.Add("último nome");
+                }
+
+                jogador.Atualizado = true;
+                jogador.DtAlt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+
+                string listaAlteracoes = alteracoes.Count > 1
+                    ? string.Join(", ", alteracoes.Take(alteracoes.Count - 1)) + " e " + alteracoes.Last()
+                    : alteracoes.FirstOrDefault() ?? "";
+
+                TempData["Sucesso"] = alteracoes.Any()
+                    ? $"{jogador.Nome}: atualizado → {listaAlteracoes}."
+                    : $"{jogador.Nome}: informações já estavam atualizadas.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao atualizar informações do jogador {Nome} (IdApi={Id})", jogador.Nome, jogador.IdApi);
+                TempData["Erro"] = $"Erro ao atualizar {jogador.Nome}: {ex.Message}";
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AtualizarInfoTodosSemIdade()
+        {
+            var jogadores = await _context.Jogadores
+                .Where(j => j.DataNascimento == null && j.IdApi != null && j.IdApi > 0)
+                .ToListAsync();
+
+            int atualizados = 0, semData = 0, falhas = 0;
+
+            foreach (var jogador in jogadores)
+            {
+                try
+                {
+                    var info = await _transfermarktService.BuscarPerfilJogadorAsync(jogador.IdApi!.Value);
+                    if (info == null) { falhas++; continue; }
+
+                    bool mudou = false;
+
+                    if (info.DataNascimento.HasValue && info.DataNascimento.Value.Year > 1900)
+                    {
+                        jogador.DataNascimento = DateTime.SpecifyKind(info.DataNascimento.Value, DateTimeKind.Unspecified);
+                        mudou = true;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(info.Nacionalidade))
+                    {
+                        var nac = await ApiFootballService.ResolverOuCriarNacionalidadePublicAsync(_context, info.Nacionalidade);
+                        if (nac != null && jogador.NacionalidadeId != nac.Id)
+                        {
+                            jogador.NacionalidadeId = nac.Id;
+                            mudou = true;
+                        }
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(info.FotoUrl) && jogador.FotoUrl != info.FotoUrl)
+                    {
+                        jogador.FotoUrl = info.FotoUrl;
+                        mudou = true;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(info.PrimeiroNome) && jogador.PrimeiroNome != info.PrimeiroNome)
+                    {
+                        jogador.PrimeiroNome = info.PrimeiroNome;
+                        mudou = true;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(info.UltimoNome) && jogador.UltimoNome != info.UltimoNome)
+                    {
+                        jogador.UltimoNome = info.UltimoNome;
+                        mudou = true;
+                    }
+
+                    if (jogador.DataNascimento.HasValue)
+                    {
+                        atualizados++;
+                        jogador.Atualizado = true;
+                        jogador.DtAlt = DateTime.UtcNow;
+                    }
+                    else
+                    {
+                        // perfil veio sem data e sem idade aproveitável
+                        semData++;
+                    }
+
+                    if (mudou) await _context.SaveChangesAsync();
+                    await Task.Delay(300);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erro ao atualizar informações (lote) de {Nome} (IdApi={Id})", jogador.Nome, jogador.IdApi);
+                    falhas++;
+                }
+            }
+
+            TempData["Sucesso"] =
+                $"Atualizados com idade: {atualizados} ✅  |  Ainda sem data na API: {semData} ⚠️  |  Falhas: {falhas} ❌  " +
+                $"(total sem idade verificado: {jogadores.Count})";
+
+            return RedirectToAction(nameof(Index), new { semIdade = true });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> SalvarLinkTransfermarkt(int id, string linktransfermarket)
         {
             var jogador = await _context.Jogadores.FindAsync(id);
             if (jogador == null) return NotFound();
 
-            jogador.linktransfermarket = linktransfermarket;
+            jogador.LinkTransfermarket = linktransfermarket;
             jogador.DtAlt = DateTime.UtcNow;
 
             _context.Update(jogador);

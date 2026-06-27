@@ -1,4 +1,5 @@
 using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
 using Microsoft.AspNetCore.Mvc;
@@ -15,19 +16,27 @@ namespace ControleFutebolWeb.Controllers
             _context = context;
         }
 
-        public IActionResult Index()
+        public IActionResult Index(int? temporada = null)
         {
             var gruposPermitidos = new[] { "A","B","C","D","E","F","G","H","I","J","K","L" };
 
             var competicao = _context.Competicoes.FirstOrDefault(c => c.Id == 7);
             if (competicao == null)
             {
-                ViewBag.Grupos = new List<GrupoViewModel>();
-                ViewBag.ProximosJogos = new List<Jogo>();
-                ViewBag.RodadaAtual = 0;
-                ViewBag.TerceirosColocados = new List<Classificacao>();
-                return View();
+                return View(new CopaDoMundoIndexViewModel
+                {
+                    Chaveamento = new ChaveamentoCopaViewModel()
+                });
             }
+
+            // Temporadas disponíveis; padrão = a mais recente
+            var (temporadasDisponiveis, temporadaSel) =
+                TemporadaHelper.Resolver(_context, competicao.Id, temporada);
+            var vm = new CopaDoMundoIndexViewModel
+            {
+                Temporada = temporadaSel,
+                TemporadasDisponiveis = temporadasDisponiveis
+            };
 
             static string Normalize(string raw)
             {
@@ -41,7 +50,8 @@ namespace ControleFutebolWeb.Controllers
             var jogos = _context.Jogos
                 .Include(j => j.TimeCasa)
                 .Include(j => j.TimeVisitante)
-                .Where(j => j.CompeticaoId == competicao.Id && !string.IsNullOrEmpty(j.Grupo))
+                .Where(j => j.CompeticaoId == competicao.Id && !string.IsNullOrEmpty(j.Grupo)
+                         && (temporadaSel == null || j.Temporada == temporadaSel))
                 .OrderBy(j => j.Data)
                 .ToList();
 
@@ -89,12 +99,32 @@ namespace ControleFutebolWeb.Controllers
                 ? proximosJogos.Min(j => j.Rodada)
                 : (jogos.Any() ? jogos.Max(j => j.Rodada) : 0);
 
-            ViewBag.Grupos = grupos;
-            ViewBag.ProximosJogos = proximosJogos;
-            ViewBag.RodadaAtual = rodadaAtual;
-            ViewBag.TerceirosColocados = terceiros;
+            // ── Chaveamento (mata-mata) ────────────────────────────────────────
+            // Grupo "completo" = todos os 6 jogos do round-robin de 4 seleções realizados.
+            var gruposCompletos = jogosRealizados
+                .GroupBy(j => Normalize(j.Grupo))
+                .ToDictionary(g => g.Key, g => g.Count() >= 6);
 
-            return View();
+            // Jogos de mata-mata já importados (grupo = "Round of 16", "Quarter-finals", etc.).
+            var jogosMataMata = _context.Jogos
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .Where(j => j.CompeticaoId == competicao.Id && !string.IsNullOrEmpty(j.Grupo)
+                         && (temporadaSel == null || j.Temporada == temporadaSel))
+                .ToList()
+                .Where(j => ChaveamentoCopaBuilder.NormalizarFase(j.Grupo) != null)
+                .ToList();
+
+            var chaveamento = ChaveamentoCopaBuilder.Construir(
+                grupos, terceiros, gruposCompletos, jogosMataMata);
+
+            vm.Grupos = grupos;
+            vm.ProximosJogos = proximosJogos;
+            vm.RodadaAtual = rodadaAtual;
+            vm.TerceirosColocados = terceiros;
+            vm.Chaveamento = chaveamento;
+
+            return View(vm);
         }
 
         // Calcula o índice disciplinar (Fair Play) por TimeId.

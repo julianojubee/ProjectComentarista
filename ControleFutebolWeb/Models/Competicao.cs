@@ -28,7 +28,8 @@ namespace ControleFutebolWeb.Models
         public int? IdApi { get; set; }
 
         public ICollection<Jogo> Jogos { get; set; } = new List<Jogo>();
-        public string? linktransfermarket { get; set; }
+        [System.ComponentModel.DataAnnotations.Schema.Column("linktransfermarket")]
+        public string? LinkTransfermarket { get; set; }
 
         // Competição principal — aparece primeiro nos filtros e na tela de competições
         public bool TopTier { get; set; } = false;

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ControleFutebolWeb.Helpers;
 using System.Text.RegularExpressions;
 using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Models;
@@ -16,7 +17,8 @@ namespace ControleFutebolWeb.Services
         private readonly ILogger<ApiFootballService> _logger;
         private readonly JsonSerializerOptions _json = new() { PropertyNameCaseInsensitive = true };
 
-        // Tradução de nomes de seleções/times para português
+        // Legado — entradas extras não cobertas pelo CountryHelper centralizado.
+        // Ao adicionar novos países, edite Helpers/CountryHelper.cs em vez daqui.
         private static readonly Dictionary<string, string> _traducaoTimes =
             new(StringComparer.OrdinalIgnoreCase)
         {
@@ -155,7 +157,7 @@ namespace ControleFutebolWeb.Services
             int jogosProcessados = 0, timesCreados = 0, erros = 0;
             var avisos = new List<string>();
 
-            if (!IsApiFootballLink(competicao.linktransfermarket))
+            if (!IsApiFootballLink(competicao.LinkTransfermarket))
             {
                 avisos.Add("Link não é do formato apifoot:LEAGUE_ID:SEASON.");
                 return (0, 0, 0, avisos);
@@ -171,9 +173,9 @@ namespace ControleFutebolWeb.Services
             var cicloId = Guid.NewGuid();
             Log(context, cicloId, "Ciclo", "Iniciado",
                 competicaoNome: competicao.Nome,
-                detalhes: $"Fonte: api-football.com | Link: {competicao.linktransfermarket}");
+                detalhes: $"Fonte: api-football.com | Link: {competicao.LinkTransfermarket}");
 
-            var (leagueId, season) = ParseLink(competicao.linktransfermarket!);
+            var (leagueId, season) = ParseLink(competicao.LinkTransfermarket!);
             _logger.LogInformation("[ApiFoot] Sincronizando {Nome} — league={L} season={S}",
                 competicao.Nome, leagueId, season);
 
@@ -238,7 +240,7 @@ namespace ControleFutebolWeb.Services
                             ?? (gruposPorTime.TryGetValue(detalhado.Teams.Away.Id, out var gVis) ? gVis : null));
 
                     await IncluirOuAtualizarJogo(context, competicao,
-                        detalhado, timeCasa, timeVis, grupo, cicloId, ct);
+                        detalhado, timeCasa, timeVis, grupo, season, cicloId, ct);
 
                     await context.SaveChangesAsync(ct);
                     jogosProcessados++;
@@ -297,9 +299,50 @@ namespace ControleFutebolWeb.Services
             {
                 DataNascimento = dataNasc,
                 Nacionalidade  = entry.Player.Nationality,
-                FotoUrl        = entry.Player.Photo
+                FotoUrl        = entry.Player.Photo,
+                PrimeiroNome   = entry.Player.Firstname,
+                UltimoNome     = entry.Player.Lastname
             };
         }
+
+        // ── Perfil do jogador (players/profiles) — nacionalidade e nascimento ──
+        // Não depende de temporada, ideal para atualizar dados cadastrais.
+        public async Task<AfPlayerInfoResult?> BuscarPerfilJogadorAsync(
+            long idApi, CancellationToken ct = default)
+        {
+            var json = await _http.GetStringAsync($"players/profiles?player={idApi}", ct);
+            var resp = JsonSerializer.Deserialize<ApiFootballResponse<AfPlayerProfileEntry>>(json, _json);
+            var player = resp?.Response.FirstOrDefault()?.Player;
+            if (player == null) return null;
+
+            DateTime? dataNasc = null;
+            if (!string.IsNullOrEmpty(player.Birth?.Date) &&
+                DateTime.TryParse(player.Birth.Date,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out var d))
+            {
+                dataNasc = d;
+            }
+            else if (player.Age is int idade && idade > 0 && idade < 120)
+            {
+                // Sem data de nascimento na API: estima 01/01 do ano que resulta na idade informada.
+                dataNasc = new DateTime(DateTime.Today.Year - idade, 1, 1);
+            }
+
+            return new AfPlayerInfoResult
+            {
+                DataNascimento = dataNasc,
+                Nacionalidade  = player.Nationality,
+                FotoUrl        = player.Photo,
+                PrimeiroNome   = player.Firstname,
+                UltimoNome     = player.Lastname
+            };
+        }
+
+        // Resolve (ou cria) a Nacionalidade a partir do nome retornado pela API.
+        public static Task<Nacionalidade?> ResolverOuCriarNacionalidadePublicAsync(
+            FutebolContext context, string nomeRaw, CancellationToken ct = default) =>
+            ResolverOuCriarNacionalidade(context, nomeRaw, ct);
 
         public async Task<List<AfPlayerSeasonStats>> BuscarEstatisticasTemporadaAsync(
             long idApi, int season, CancellationToken ct = default)
@@ -342,6 +385,8 @@ namespace ControleFutebolWeb.Services
                     context.Jogadores.Add(new Jogador
                     {
                         Nome         = p.Name,
+                        PrimeiroNome = p.Firstname,
+                        UltimoNome   = p.Lastname,
                         Posicao      = MapearPosicao(p.Position),
                         NumeroCamisa = p.Number,
                         FotoUrl      = p.Photo,
@@ -531,10 +576,12 @@ namespace ControleFutebolWeb.Services
         // ── Chamadas HTTP ─────────────────────────────────────────────────────
 
         public async Task<List<AfCoachFull>> BuscarTreinadorApiAsync(
-            string nome, CancellationToken ct = default)
+            string nome, long? teamId = null, CancellationToken ct = default)
         {
-            var encoded = Uri.EscapeDataString(nome);
-            var url  = $"coachs?search={encoded}";
+            var url = $"coachs?search={Uri.EscapeDataString(nome)}";
+            if (teamId is long t && t > 0)
+                url += $"&team={t}";
+
             var json = await _http.GetStringAsync(url, ct);
             var resp = JsonSerializer.Deserialize<ApiFootballResponse<AfCoachFull>>(json, _json);
             return resp?.Response ?? new();
@@ -631,6 +678,7 @@ namespace ControleFutebolWeb.Services
             Time timeCasa,
             Time timeVis,
             string? grupo,
+            int season,
             Guid cicloId,
             CancellationToken ct)
         {
@@ -652,10 +700,11 @@ namespace ControleFutebolWeb.Services
 
             if (existente != null)
             {
-                if (existente.Analisado == 1) return;
-
+                // Atualiza os dados da partida mesmo que o jogo já tenha sido analisado.
+                // As posições em campo (escalação) e as observações nunca são tocadas aqui.
                 if (data.HasValue) existente.Data = data;
                 if (rodada > 0) existente.Rodada = rodada;
+                existente.Temporada = season;
                 existente.LinkDetalhes = fixtureIdStr;
                 var grupoDesatualizado = string.IsNullOrWhiteSpace(existente.Grupo) ||
                     existente.Grupo.Equals("Group Stage", StringComparison.OrdinalIgnoreCase);
@@ -675,15 +724,27 @@ namespace ControleFutebolWeb.Services
                     existente.Atualizado = 1;
                 }
 
-                // Reimporta lineup/eventos se jogo finalizado mas sem escalação
-                if (finalizado && fx.Lineups.Any())
+                if (finalizado)
                 {
+                    // Disputa de pênaltis (mata-mata): só vem preenchida quando houve.
+                    existente.PenaltisCasa = fx.Score.Penalty.Home;
+                    existente.PenaltisVisitante = fx.Score.Penalty.Away;
+
                     var temEscalacao = await context.Escalacoes
                         .AnyAsync(e => e.JogoId == existente.Id && e.JogadorId != null, ct);
 
-                    if (!temEscalacao)
+                    if (!temEscalacao && fx.Lineups.Any())
+                    {
+                        // Primeira importação: traz escalação, eventos e estatísticas.
                         await ImportarLineupEEventos(context, existente,
                             fx, timeCasa, timeVis, cicloId, ct);
+                    }
+                    else if (fx.Players.Any())
+                    {
+                        // Jogo já escalado/analisado: atualiza só as estatísticas reais dos
+                        // jogadores, preservando as posições em campo e as observações.
+                        await SalvarEstatisticasJogadoresAsync(context, existente, fx, ct);
+                    }
                 }
 
                 return;
@@ -703,8 +764,11 @@ namespace ControleFutebolWeb.Services
                 TimeVisitante     = timeVis,
                 Data              = data,
                 Rodada            = rodada,
+                Temporada         = season,
                 PlacarCasa        = finalizado ? fx.Goals.Home : null,
                 PlacarVisitante   = finalizado ? fx.Goals.Away : null,
+                PenaltisCasa      = finalizado ? fx.Score.Penalty.Home : null,
+                PenaltisVisitante = finalizado ? fx.Score.Penalty.Away : null,
                 Grupo             = grupo,
                 Status            = finalizado ? "Finalizado" : "Agendado",
                 Atualizado        = finalizado ? 1 : 0,
@@ -758,6 +822,25 @@ namespace ControleFutebolWeb.Services
 
             // Mapa: IdApi → Jogador local (para vincular eventos)
             var jogadorMap = new Dictionary<int, Jogador>();
+
+            // Salva as cores dos uniformes vindas da lineup
+            foreach (var lineup in fx.Lineups)
+            {
+                var cor = lineup.Team.Colors?.Player;
+                if (cor != null && !string.IsNullOrWhiteSpace(cor.Primary))
+                {
+                    if (lineup.Team.Id == fx.Teams.Home.Id)
+                    {
+                        jogo.CorCamisaCasa   = cor.Primary;
+                        jogo.CorNumeroCasa   = cor.Number;
+                    }
+                    else
+                    {
+                        jogo.CorCamisaVisitante   = cor.Primary;
+                        jogo.CorNumeroVisitante   = cor.Number;
+                    }
+                }
+            }
 
             // Lineups
             foreach (var lineup in fx.Lineups)
@@ -1116,6 +1199,11 @@ namespace ControleFutebolWeb.Services
                             var nac = await ResolverOuCriarNacionalidade(context, info.Nacionalidade, ct);
                             if (nac != null) jogador.NacionalidadeId = nac.Id;
                         }
+
+                        if (!string.IsNullOrWhiteSpace(info.PrimeiroNome))
+                            jogador.PrimeiroNome = info.PrimeiroNome;
+                        if (!string.IsNullOrWhiteSpace(info.UltimoNome))
+                            jogador.UltimoNome = info.UltimoNome;
                     }
                     jogador.Atualizado = true;
                     jogador.DtAlt = DateTime.UtcNow;
@@ -1207,7 +1295,7 @@ namespace ControleFutebolWeb.Services
                 string.Join(" ", partes[..metade]) == string.Join(" ", partes[metade..]))
                 nome = string.Join(" ", partes[..metade]);
 
-            return _traducaoTimes.TryGetValue(nome, out var traduzido) ? traduzido : nome;
+            return CountryHelper.Traduzir(nome);
         }
 
         private async Task<(Time time, bool criado)> ResolverOuCriarTime(

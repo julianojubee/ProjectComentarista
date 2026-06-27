@@ -112,12 +112,14 @@
                     <th>Camisa</th>
                     <th>Nome</th>
                     <th>Posição</th>
+                    <th>Clube</th>
                     <th></th>
                 </tr>
             </thead>
             <tbody id="listaJogadores">
                 @foreach (var jogador in Model.Elenco)
                 {
+                    bool ehConvocado = jogador.TimeId != Model.Time.Id;
                     <tr class="jogador-row"
                         id="jogador-@jogador.Id"
                         draggable="true"
@@ -129,6 +131,19 @@
                         </td>
                         <td>@jogador.Nome</td>
                         <td>@jogador.Posicao</td>
+                        <td>
+                            @if (ehConvocado && jogador.Time != null)
+                            {
+                                <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:rgba(255,255,255,0.75);">
+                                    @if (!string.IsNullOrEmpty(jogador.Time.EscudoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogador.Time.EscudoUrl })"
+                                             style="width:16px;height:16px;object-fit:contain;" alt="" />
+                                    }
+                                    @jogador.Time.Nome
+                                </span>
+                            }
+                        </td>
                         <td>
                             <a href="/Jogadores/Estatisticas/@jogador.Id"
                                style="display:inline-flex;align-items:center;gap:4px;

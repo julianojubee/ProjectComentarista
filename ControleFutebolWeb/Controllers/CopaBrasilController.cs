@@ -1,4 +1,5 @@
 using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -67,13 +68,18 @@ namespace ControleFutebolWeb.Controllers
             _context = context;
         }
 
-        public IActionResult Index(int? rodada)
+        public IActionResult Index(int? rodada, int? temporada = null)
         {
+            var (temporadasDisponiveis, temporadaSel) =
+                TemporadaHelper.Resolver(_context, 3, temporada);
+            ViewBag.Temporada = temporadaSel;
+            ViewBag.TemporadasDisponiveis = temporadasDisponiveis;
+
             // Todos os jogos da Copa do Brasil (CompeticaoId = 3)
             var todos = _context.Jogos
                 .Include(j => j.TimeCasa)
                 .Include(j => j.TimeVisitante)
-                .Where(j => j.CompeticaoId == 3)
+                .Where(j => j.CompeticaoId == 3 && (temporadaSel == null || j.Temporada == temporadaSel))
                 .OrderBy(j => j.Rodada)
                 .ThenBy(j => j.Data)
                 .ToList();

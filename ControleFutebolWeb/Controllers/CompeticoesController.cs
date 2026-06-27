@@ -35,7 +35,7 @@ namespace ControleFutebolWeb.Controllers
             var competicao = await _context.Competicoes.FindAsync(id);
             if (competicao == null) return NotFound();
 
-            if (string.IsNullOrWhiteSpace(competicao.linktransfermarket))
+            if (string.IsNullOrWhiteSpace(competicao.LinkTransfermarket))
             {
                 TempData["Erro"] = "Configure o link da competição antes de buscar jogos.";
                 return RedirectToAction(nameof(Index));
@@ -49,7 +49,7 @@ namespace ControleFutebolWeb.Controllers
 
                 try
                 {
-                    if (ApiFootballService.IsApiFootballLink(competicao.linktransfermarket))
+                    if (ApiFootballService.IsApiFootballLink(competicao.LinkTransfermarket))
                     {
                         var api = scope.ServiceProvider.GetRequiredService<ApiFootballService>();
                         var (jogos, times, erros, avisos) =
@@ -109,7 +109,7 @@ namespace ControleFutebolWeb.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        public IActionResult Detalhes(int id)
+        public IActionResult Detalhes(int id, int? temporada = null)
         {
             var competicao = _context.Competicoes
                 .Include(c => c.Jogos).ThenInclude(j => j.TimeCasa)
@@ -118,12 +118,25 @@ namespace ControleFutebolWeb.Controllers
 
             if (competicao == null) return NotFound();
 
-            var jogosRealizados = competicao.Jogos
+            // Temporadas disponíveis; padrão = a mais recente
+            var temporadasDisponiveis = competicao.Jogos
+                .Select(j => j.Temporada).Distinct()
+                .OrderByDescending(t => t).ToList();
+            int? temporadaSel = temporada
+                ?? (temporadasDisponiveis.Any() ? temporadasDisponiveis.First() : (int?)null);
+            ViewBag.Temporada = temporadaSel;
+            ViewBag.TemporadasDisponiveis = temporadasDisponiveis;
+
+            var jogosDaTemporada = competicao.Jogos
+                .Where(j => temporadaSel == null || j.Temporada == temporadaSel)
+                .ToList();
+
+            var jogosRealizados = jogosDaTemporada
                 .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue)
                 .OrderByDescending(j => j.Data)
                 .ToList();
 
-            var proximosJogos = competicao.Jogos
+            var proximosJogos = jogosDaTemporada
                 .Where(j => !j.PlacarCasa.HasValue)
                 .OrderBy(j => j.Data)
                 .Take(20)
@@ -142,7 +155,7 @@ namespace ControleFutebolWeb.Controllers
                     ? MontarGrupos(jogosRealizados)
                     : new(),
                 FasesMataMata = competicao.Tipo == "MATA_MATA"
-                    ? MontarMataMata(competicao.Jogos.ToList())
+                    ? MontarMataMata(jogosDaTemporada)
                     : new(),
             };
 
@@ -359,7 +372,7 @@ namespace ControleFutebolWeb.Controllers
             var competicao = await _context.Competicoes.FindAsync(id);
             if (competicao == null) return NotFound();
 
-            competicao.linktransfermarket = linkCompeticao;
+            competicao.LinkTransfermarket = linkCompeticao;
 
             _context.Update(competicao);
             await _context.SaveChangesAsync();

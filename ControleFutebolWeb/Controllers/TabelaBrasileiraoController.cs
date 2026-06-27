@@ -36,13 +36,25 @@ namespace ControleFutebolWeb.Controllers
             return saldo;
         }
 
-        public IActionResult Brasileirao()
+        public IActionResult Brasileirao(int? temporada = null)
         {
+            // Temporadas disponíveis para o Brasileirão; padrão = a mais recente
+            var temporadasDisponiveis = _context.Jogos
+                .Where(j => j.CompeticaoId == 1)
+                .Select(j => j.Temporada).Distinct()
+                .OrderByDescending(t => t).ToList();
+
+            int? temporadaSel = temporada
+                ?? (temporadasDisponiveis.Any() ? temporadasDisponiveis.First() : (int?)null);
+
             var todosJogos = _context.Jogos
                 .Include(j => j.TimeCasa)
                 .Include(j => j.TimeVisitante)
-                .Where(j => j.CompeticaoId == 1)
+                .Where(j => j.CompeticaoId == 1 && (temporadaSel == null || j.Temporada == temporadaSel))
                 .ToList();
+
+            ViewBag.Temporada = temporadaSel;
+            ViewBag.TemporadasDisponiveis = temporadasDisponiveis;
 
             // Jogos realizados (com placar)
             var jogos = todosJogos

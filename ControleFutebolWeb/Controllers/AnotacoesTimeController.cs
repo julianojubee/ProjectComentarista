@@ -1,10 +1,12 @@
 using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Models;
+using ControleFutebolWeb.Models.ViewModels;
 using ControleFutebolWeb.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 
 namespace ControleFutebolWeb.Controllers
 {
@@ -39,9 +41,66 @@ namespace ControleFutebolWeb.Controllers
 
             var anotacoes = await query.OrderByDescending(a => a.DtInc).ToListAsync();
 
+            // Observações sobre este time feitas na tela de analisar (do próprio usuário).
+            // Cada registro guarda linhas no formato "[CASA] texto" / "[VISITANTE] texto";
+            // mantemos as do lado em que o time jogou em cada partida.
+            var registros = await _context.JogosAnalisadosUsuario
+                .Where(r => r.UsuarioId == uid && r.Observacoes != null
+                         && (r.Jogo.TimeCasaId == timeId || r.Jogo.TimeVisitanteId == timeId))
+                .Include(r => r.Jogo).ThenInclude(g => g.TimeCasa)
+                .Include(r => r.Jogo).ThenInclude(g => g.TimeVisitante)
+                .Include(r => r.Jogo).ThenInclude(g => g.Competicao)
+                .ToListAsync();
+
+            var observacoesJogos = new List<ObservacaoJogoTimeViewModel>();
+            foreach (var reg in registros)
+            {
+                bool ehCasa = reg.Jogo.TimeCasaId == timeId;
+                var linhas = ExtrairObservacoesDoTime(reg.Observacoes!, ehCasa ? "CASA" : "VISITANTE", q);
+                if (linhas.Count == 0) continue;
+
+                observacoesJogos.Add(new ObservacaoJogoTimeViewModel
+                {
+                    Jogo = reg.Jogo,
+                    TimeEhCasa = ehCasa,
+                    Observacoes = linhas
+                });
+            }
+
+            observacoesJogos = observacoesJogos
+                .OrderByDescending(o => o.Jogo.Data ?? DateTime.MinValue)
+                .ToList();
+
             ViewBag.Time = time;
             ViewBag.Q    = q;
+            ViewBag.ObservacoesJogos = observacoesJogos;
             return View(anotacoes);
+        }
+
+        // Extrai as linhas de observação ("[CASA] ..." / "[VISITANTE] ...") referentes ao
+        // lado informado, removendo a tag. Filtra pelo termo de busca quando houver.
+        private static List<string> ExtrairObservacoesDoTime(string observacoes, string tag, string? q)
+        {
+            var resultado = new List<string>();
+            var linhas = observacoes.Replace("\r\n", "\n").Split('\n');
+
+            foreach (var raw in linhas)
+            {
+                var linha = raw.Trim();
+                if (linha.Length == 0) continue;
+
+                var m = Regex.Match(linha, @"^\[(CASA|VISITANTE)\]\s*(.*)$", RegexOptions.IgnoreCase);
+                if (!m.Success) continue;
+                if (!m.Groups[1].Value.Equals(tag, StringComparison.OrdinalIgnoreCase)) continue;
+
+                var texto = m.Groups[2].Value.Trim();
+                if (texto.Length == 0) continue;
+                if (!string.IsNullOrWhiteSpace(q) && texto.IndexOf(q, StringComparison.OrdinalIgnoreCase) < 0) continue;
+
+                resultado.Add(texto);
+            }
+
+            return resultado;
         }
 
         // GET: /AnotacoesTime/Nova?timeId=1

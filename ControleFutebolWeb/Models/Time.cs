@@ -21,7 +21,8 @@ public class Time
     public string? CorSecundaria { get; set; }
     public string? CamisaUrl { get; set; }
     public string? CamisaVisitanteUrl { get; set; }
-    public string? linktransfermarket { get; set; }
+    [System.ComponentModel.DataAnnotations.Schema.Column("linktransfermarket")]
+    public string? LinkTransfermarket { get; set; }
     // FK para a formação padrão
     public int FormacaoPadraoId { get; set; }
     public Formacao FormacaoPadrao { get; set; }

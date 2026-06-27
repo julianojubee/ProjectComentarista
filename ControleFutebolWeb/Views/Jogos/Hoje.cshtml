@@ -257,7 +257,11 @@
                 <div class="hoje-comp-header">
                     @if (comp != null)
                     {
-                        var logoComp = CompeticaoHelper.GetLogoCompeticao(comp.Id);
+                        var logoComp = CompeticaoHelper.GetLogoCompeticao(comp.Id, comp.LogoUrl);
+                        if (logoComp.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                        {
+                            logoComp = Url.Action("Imagem", "MediaProxy", new { url = logoComp })!;
+                        }
                         <img src="@logoComp" alt="@comp.Nome" class="hoje-comp-logo" />
                         <span class="hoje-comp-nome">@comp.Nome</span>
                     }

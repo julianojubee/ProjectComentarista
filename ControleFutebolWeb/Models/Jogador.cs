@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
+﻿using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 
 namespace ControleFutebolWeb.Models
 {
@@ -7,6 +8,14 @@ namespace ControleFutebolWeb.Models
         public int Id { get; set; }
 
         public string Nome { get; set; } = string.Empty;
+        public string? PrimeiroNome { get; set; }
+        public string? UltimoNome { get; set; }
+
+        public string NomeExibicao =>
+            (!string.IsNullOrWhiteSpace(PrimeiroNome) && !string.IsNullOrWhiteSpace(UltimoNome))
+                ? $"{PrimeiroNome} {UltimoNome}"
+                : Nome;
+
         public string Posicao { get; set; } = string.Empty;
 
         // Data de Nascimento (null = não informada)
@@ -54,7 +63,9 @@ namespace ControleFutebolWeb.Models
         public DateTime DtInc { get; set; }
         public DateTime? DtAlt { get; set; }
         public string? FotoUrl { get; set; }
-        public string? linktransfermarket { get; set; }
+        [Column("linktransfermarket")]
+        public string? LinkTransfermarket { get; set; }
+        public string? Observacoes { get; set; }
 
     }
 }

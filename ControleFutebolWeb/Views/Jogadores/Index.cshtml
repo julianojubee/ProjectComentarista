@@ -19,7 +19,6 @@
 }
 
 <style>
-    /* Home identity (hero + cards) */
     .cf-hero {
         position: relative;
         background: linear-gradient(135deg, #0a1628 0%, #1a2f4e 55%, #0f2040 100%);
@@ -31,9 +30,48 @@
         color: #fff;
     }
 
-   
+    /* Banner um pouco mais alto para acomodar os recortes */
+    .cf-hero { min-height: 230px; }
 
-    .cf-hero-content { position: relative; z-index: 1; }
+    /* Recortes de jogadores (PNG sem fundo) ancorados na base do banner */
+    .cf-hero-montage {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        display: flex;
+        align-items: flex-end;
+        justify-content: flex-end;
+        gap: 0;
+        padding: 0 1rem;
+        pointer-events: none;
+    }
+
+    .cf-hero-montage img {
+        height: 100%;
+        width: auto;
+        object-fit: contain;
+        object-position: bottom center;
+        margin-left: -22px; /* leve sobreposição entre os jogadores */
+        filter: drop-shadow(0 4px 10px rgba(0,0,0,0.35));
+        opacity: 0.95;
+    }
+
+    .cf-hero-montage img:first-child { margin-left: 0; }
+
+    /* Leve clareamento na esquerda para o texto respirar sobre o gradiente */
+    .cf-hero-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        background: linear-gradient(90deg, rgba(10,22,40,0.55) 0%, rgba(10,22,40,0.15) 45%, rgba(10,22,40,0) 70%);
+    }
+
+    .cf-hero-content { position: relative; z-index: 3; text-align: left; }
+
+    @@media (max-width: 640px) {
+        .cf-hero-montage { opacity: 0.4; justify-content: center; }
+        .cf-hero-content { text-align: center; }
+    }
 
     .cf-hero-badge {
         display: inline-block;
@@ -52,7 +90,6 @@
     .cf-hero h1 { font-size: 1.9rem; color: #fff; margin-bottom: 0.6rem; font-weight: 600; }
     .cf-hero p  { color: rgba(255,255,255,0.65); margin: 0; font-size: 0.95rem; }
 
-    /* Filters row */
     .players-filter {
         display:flex;
         gap:12px;
@@ -61,47 +98,29 @@
         margin-bottom: 12px;
     }
 
-    /* Grid of player cards */
-    .cf-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 12px;
-        margin-top: 1rem;
-    }
+    /* Lista de jogadores */
+    .player-list { display: flex; flex-direction: column; gap: 0; margin-top: 1rem; }
 
-    .cf-card {
+    .player-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 10px 14px;
         background: #fff;
         border: 0.5px solid #e5e7eb;
-        border-radius: 12px;
-        padding: 1rem;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
-        min-height: 140px;
+        border-bottom: none;
+        transition: background 0.12s;
     }
 
-    .cf-card:hover {
-        border-color: #c0d4f0;
-        box-shadow: 0 6px 18px rgba(55,138,221,0.06);
-        transform: translateY(-3px);
-    }
+    .player-row:first-child { border-radius: 10px 10px 0 0; }
+    .player-row:last-child  { border-bottom: 0.5px solid #e5e7eb; border-radius: 0 0 10px 10px; }
+    .player-row:only-child  { border-radius: 10px; border-bottom: 0.5px solid #e5e7eb; }
 
-    .player-top {
-        display:flex;
-        gap:10px;
-        align-items:flex-start;
-    }
+    .player-row:hover { background: #f0f6ff; }
 
-    .player-top > div:last-child {
-        flex:1;
-        min-width:0;
-    }
-
-    /* reduce player photo size */
     .player-photo {
-        width: 36px;
-        height: 36px;
+        width: 42px;
+        height: 42px;
         border-radius: 50%;
         background: #f3f4f6;
         border: 0.5px solid #e5e7eb;
@@ -112,18 +131,36 @@
         flex-shrink: 0;
     }
 
-        .player-photo img {
-            width: 90%;
-            height: 100%;
-            object-fit: cover;
-        }
+    .player-photo img { width: 100%; height: 100%; object-fit: cover; }
 
-    .player-name { font-weight:400; color:#111827; font-size:1rem; font-family:inherit; white-space:normal; overflow-wrap:break-word; }
-    .player-meta { color:#6b7280; font-size:13px; }
+    .player-info { flex: 1; min-width: 0; }
 
-    .cf-card-actions { margin-top:auto; display:flex; gap:8px; flex-wrap:wrap; }
+    .player-name-link {
+        font-weight: 600;
+        color: #1d4ed8;
+        font-size: 0.97rem;
+        text-decoration: none;
+    }
 
-    .cf-small-btn { font-size:13px; padding:6px 10px; }
+    .player-name-link:hover { text-decoration: underline; }
+
+    .player-meta { color: #6b7280; font-size: 13px; margin-top: 1px; }
+
+    .player-club {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+        min-width: 140px;
+    }
+
+    .player-club img { width: 22px; height: 22px; object-fit: contain; }
+
+    .player-club-name { font-size: 13px; color: #374151; }
+
+    .player-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+    .cf-small-btn { font-size: 12px; padding: 5px 9px; }
 
     @@media (max-width: 640px) {
         .cf-hero { padding: 1.8rem 1rem; }
@@ -131,15 +168,19 @@
         .players-filter { flex-direction: column; align-items: stretch; }
         .players-filter > div { width: 100%; }
         .players-filter select { width: 100%; }
-        .cf-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-    }
-
-    @@media (max-width: 420px) {
-        .cf-grid { grid-template-columns: 1fr; }
+        .player-club { min-width: 100px; }
+        .player-actions { flex-wrap: wrap; }
     }
 </style>
 
 <div class="cf-hero">
+    <div class="cf-hero-montage">
+        <img src="~/Images/banner/vinicius.png" alt="" />
+        <img src="~/Images/banner/mbappe.png" alt="" />
+        <img src="~/Images/banner/haaland.png" alt="" />
+        <img src="~/Images/banner/ronaldo.png" alt="" />
+    </div>
+    <div class="cf-hero-overlay"></div>
     <div class="cf-hero-content">
         <div class="cf-hero-badge">Cadastros</div>
         <h1>Jogadores</h1>
@@ -148,6 +189,11 @@
 </div>
 
 <form asp-action="Index" method="get" class="players-filter">
+    <div>
+        <label for="nome" class="form-label">Nome do jogador</label>
+        <input type="text" id="nome" name="nome" value="@ViewBag.Nome" class="form-control" placeholder="Buscar por nome..." />
+    </div>
+
     <div>
         <label for="posicao" class="form-label">Posição</label>
         @Html.DropDownList("posicao", (SelectList)ViewBag.Posicoes, "Todas", new { @class = "form-select" })
@@ -164,117 +210,177 @@
     </div>
 
     <div>
+        <label for="idadeMin" class="form-label">Idade mín.</label>
+        <input type="number" id="idadeMin" name="idadeMin" min="0" max="60" value="@ViewBag.IdadeMin" class="form-control" placeholder="ex: 18" style="width:110px;" />
+    </div>
+
+    <div>
+        <label for="idadeMax" class="form-label">Idade máx.</label>
+        <input type="number" id="idadeMax" name="idadeMax" min="0" max="60" value="@ViewBag.IdadeMax" class="form-control" placeholder="ex: 23" style="width:110px;" />
+    </div>
+
+    <div>
+        <label class="form-label d-block">Sem idade</label>
+        <div class="form-check" style="padding-top:6px;">
+            <input type="checkbox" id="semIdade" name="semIdade" value="true" class="form-check-input" @(ViewBag.SemIdade == true ? "checked" : "") />
+            <label for="semIdade" class="form-check-label">Somente sem idade</label>
+        </div>
+    </div>
+
+    <div>
         <button type="submit" class="btn btn-primary cf-small-btn">Filtrar</button>
         <a asp-action="Create" class="btn btn-success cf-small-btn" style="margin-left:6px;">Novo Jogador</a>
     </div>
 </form>
-<div class="d-flex gap-2 mb-3 align-items-center flex-wrap">
-    <form asp-action="BuscarFotosTodos" method="post" style="display:inline;">
+
+@if (ViewBag.SemIdade == true && Model.Any())
+{
+    var totalSemIdade = ViewBag.TotalJogadores ?? Model.Count();
+    <form asp-action="AtualizarInfoTodosSemIdade" method="post" style="margin-bottom:12px;">
         @Html.AntiForgeryToken()
-        @Html.DropDownList("timeId", (SelectList)ViewBag.Times, "Selecione um clube", new { @class = "form-select form-select-sm d-inline w-auto" })
-        <button type="submit" class="btn btn-outline-secondary btn-sm"
-                onclick="return confirm('Buscar fotos de todos os jogadores sem foto deste clube?')">
-            📷 Buscar fotos do clube
+        <button type="submit" class="btn btn-outline-success cf-small-btn"
+                onclick="return confirm('Atualizar pela API todos os @totalSemIdade jogadores sem idade? Isso pode levar alguns segundos.')">
+            🔄 Atualizar todos sem idade (@totalSemIdade)
         </button>
     </form>
+}
+
+@{
+    int paginaAtual = ViewBag.PaginaAtual ?? 1;
+    int totalPaginas = ViewBag.TotalPaginas ?? 1;
+    int totalJogadores = ViewBag.TotalJogadores ?? Model.Count();
+    int pageSize = ViewBag.PageSize ?? 50;
+    int primeiroDaPagina = totalJogadores == 0 ? 0 : (paginaAtual - 1) * pageSize + 1;
+    int ultimoDaPagina = Math.Min(paginaAtual * pageSize, totalJogadores);
+
+    // Filtros atuais para preservar nos links
+    var rotaFiltros = new Dictionary<string, string?>
+    {
+        ["nome"] = (string?)ViewBag.Nome,
+        ["posicao"] = (string?)ViewBag.FiltroPosicao,
+        ["nacionalidade"] = (string?)ViewBag.FiltroNacionalidade,
+        ["timeId"] = ViewBag.FiltroTimeId?.ToString(),
+        ["sortOrder"] = (string?)ViewBag.FiltroSortOrder,
+        ["idadeMin"] = ViewBag.IdadeMin?.ToString(),
+        ["idadeMax"] = ViewBag.IdadeMax?.ToString(),
+        ["semIdade"] = ViewBag.SemIdade == true ? "true" : null,
+    };
+    Func<int, Dictionary<string, string?>> rotaComPagina = (p) =>
+    {
+        var d = new Dictionary<string, string?>(rotaFiltros);
+        d["page"] = p.ToString();
+        return d;
+    };
+}
+
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:6px 0;color:#6b7280;font-size:13px;">
+    <span>Mostrando <strong>@primeiroDaPagina–@ultimoDaPagina</strong> de <strong>@totalJogadores</strong> jogadores</span>
+    <span>Página @paginaAtual de @totalPaginas</span>
 </div>
 
-<div class="cf-grid">
+<div class="player-list">
     @foreach (var jogador in Model)
     {
-        <div class="cf-card">
-            <div class="player-top">
-                <div class="player-photo">
-                    @* if you have a foto url in model, show it; otherwise placeholder *@
-                    @if (!string.IsNullOrEmpty(jogador.FotoUrl))
-                    {
-                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogador.FotoUrl })" alt="@jogador.Nome" />
-                    }
-                    else
-                    {
-                        <span style="color:#6b7280;">👤</span>
-                    }
-                </div>
-
-                <div>
-                    <div class="player-name">
-                        <a asp-action="Estatisticas" asp-route-id="@jogador.Id" style="text-decoration:none; color:inherit;">
-                            @jogador.Nome
-                        </a>
-                    </div>
-                    <div class="player-meta">
-                        @jogador.Posicao • @jogador.Idade anos
-                    </div>
-                </div>
+        <div class="player-row">
+            <!-- Foto -->
+            <div class="player-photo">
+                @if (!string.IsNullOrEmpty(jogador.FotoUrl))
+                {
+                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogador.FotoUrl })" alt="@jogador.Nome" loading="lazy" decoding="async" width="42" height="42" />
+                }
+                else
+                {
+                    <span style="color:#6b7280;font-size:18px;">👤</span>
+                }
             </div>
 
-            <div>
-                <small class="text-muted">
-                    Nacionalidade: <span title="@jogador.Nacionalidade?.Nome">@FlagHelper.GetFlagEmoji(jogador.Nacionalidade?.Nome)</span>
-                    • Time:
-                    @if (jogador.Time != null)
-                    {
-                        <span style="display:inline-flex; align-items:center; gap:8px;">
-                            @if (!string.IsNullOrEmpty(jogador.Time.EscudoUrl))
-                            {
-                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogador.Time.EscudoUrl })" alt="@jogador.Time.Nome" style="width:20px;height:20px;object-fit:contain;border-radius:50%;border:0.5px solid #e5e7eb;background:#fff;" />
-                            }
-                            <span>@jogador.Time.Nome</span>
-                        </span>
-                    }
-                    else
-                    {
-                        <span>—</span>
-                    }
-                </small>
+            <!-- Nome + meta -->
+            <div class="player-info">
+                <a class="player-name-link" href="https://analisedecraque.cloud/Jogadores/Estatisticas/@jogador.Id" target="_blank" rel="noopener">
+                    @jogador.NomeExibicao
+                </a>
+                <div class="player-meta">@jogador.Posicao • @jogador.Idade anos • <span title="@jogador.Nacionalidade?.Nome">@FlagHelper.GetFlagEmoji(jogador.Nacionalidade?.Nome)</span></div>
             </div>
 
-            <div class="cf-card-actions">
+            <!-- Clube -->
+            <div class="player-club">
+                @if (jogador.Time != null)
+                {
+                    @if (!string.IsNullOrEmpty(jogador.Time.EscudoUrl))
+                    {
+                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogador.Time.EscudoUrl })" alt="@jogador.Time.Nome" loading="lazy" decoding="async" width="22" height="22" />
+                    }
+                    <span class="player-club-name">@jogador.Time.Nome</span>
+                }
+                else
+                {
+                    <span class="player-club-name text-muted">—</span>
+                }
+            </div>
+
+            <!-- Ações -->
+            <div class="player-actions">
                 <a asp-action="Details" asp-route-id="@jogador.Id" class="btn btn-outline-primary btn-sm cf-small-btn">Detalhes</a>
                 <a asp-action="Edit" asp-route-id="@jogador.Id" class="btn btn-warning btn-sm cf-small-btn">Editar</a>
                 <a asp-action="Delete" asp-route-id="@jogador.Id" class="btn btn-danger btn-sm cf-small-btn">Excluir</a>
 
-                <!-- Botão que abre o modal -->
-                <button type="button" class="btn btn-info btn-sm cf-small-btn" data-bs-toggle="modal" data-bs-target="#linkModal-@jogador.Id">
-                    Url Transfermarkt
-                </button>
-
-                <!-- Modal Bootstrap -->
-                <div class="modal fade" id="linkModal-@jogador.Id" tabindex="-1" aria-labelledby="linkModalLabel-@jogador.Id" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <form asp-action="SalvarLinkTransfermarkt" asp-route-id="@jogador.Id" method="post">
-                                @Html.AntiForgeryToken()
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="linkModalLabel-@jogador.Id">Informar URL Transfermarkt</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <input type="text" name="linktransfermarket" class="form-control" placeholder="Cole o link aqui" value="@jogador.linktransfermarket" />
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                    <button type="submit" class="btn btn-primary">Salvar</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Botão Buscar Foto -->
-                <form asp-action="BuscarFoto" asp-route-id="@jogador.Id" method="post" style="display:inline;">
+                <form asp-action="AtualizarInfo" asp-route-id="@jogador.Id" method="post" style="display:inline;">
                     @Html.AntiForgeryToken()
-                    <button type="submit" class="btn btn-outline-secondary btn-sm cf-small-btn"
-                            title="Buscar foto"
-                            onclick="return confirm('Buscar foto de @jogador.Nome ?')">
-                        📷
+                    <button type="submit" class="btn btn-outline-success btn-sm cf-small-btn"
+                            title="Atualizar nacionalidade, idade e foto pela API"
+                            onclick="return confirm('Atualizar informações de @jogador.Nome pela API?')">
+                        🔄 Atualizar Informações
                     </button>
                 </form>
-            </div>
 
+            </div>
         </div>
     }
 </div>
+
+@if (totalPaginas > 1)
+{
+    int janela = 2; // páginas vizinhas mostradas ao redor da atual
+    int inicio = Math.Max(1, paginaAtual - janela);
+    int fim = Math.Min(totalPaginas, paginaAtual + janela);
+
+    <nav aria-label="Paginação de jogadores" style="margin-top:14px;">
+        <ul class="pagination justify-content-center flex-wrap">
+            <li class="page-item @(paginaAtual <= 1 ? "disabled" : "")">
+                <a class="page-link" asp-action="Index" asp-all-route-data="rotaComPagina(paginaAtual - 1)">«</a>
+            </li>
+
+            @if (inicio > 1)
+            {
+                <li class="page-item"><a class="page-link" asp-action="Index" asp-all-route-data="rotaComPagina(1)">1</a></li>
+                @if (inicio > 2)
+                {
+                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                }
+            }
+
+            @for (int p = inicio; p <= fim; p++)
+            {
+                <li class="page-item @(p == paginaAtual ? "active" : "")">
+                    <a class="page-link" asp-action="Index" asp-all-route-data="rotaComPagina(p)">@p</a>
+                </li>
+            }
+
+            @if (fim < totalPaginas)
+            {
+                @if (fim < totalPaginas - 1)
+                {
+                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                }
+                <li class="page-item"><a class="page-link" asp-action="Index" asp-all-route-data="rotaComPagina(totalPaginas)">@totalPaginas</a></li>
+            }
+
+            <li class="page-item @(paginaAtual >= totalPaginas ? "disabled" : "")">
+                <a class="page-link" asp-action="Index" asp-all-route-data="rotaComPagina(paginaAtual + 1)">»</a>
+            </li>
+        </ul>
+    </nav>
+}
 
 <noscript>
     <h3>Lista de Jogadores (sem JavaScript)</h3>
@@ -294,7 +400,7 @@
             {
                 <tr>
                     <td>
-                        <a href="/Jogadores/Estatisticas/@jogador.Id" class="link-normal">@jogador.Nome</a>
+                        <a href="/Jogadores/Estatisticas/@jogador.Id" class="link-normal">@jogador.NomeExibicao</a>
                     </td>
                     <td>@jogador.Posicao</td>
                     <td>@jogador.Idade</td>

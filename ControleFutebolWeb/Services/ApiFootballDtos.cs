@@ -25,6 +25,9 @@ namespace ControleFutebolWeb.Services
         [JsonPropertyName("goals")]
         public AfGoals Goals { get; set; } = new();
 
+        [JsonPropertyName("score")]
+        public AfScore Score { get; set; } = new();
+
         [JsonPropertyName("events")]
         public List<AfEvent> Events { get; set; } = new();
 
@@ -159,6 +162,23 @@ namespace ControleFutebolWeb.Services
         public int? Away { get; set; }
     }
 
+    // ── Placar detalhado (intervalo, tempo normal, prorrogação, pênaltis) ─────
+    public class AfScore
+    {
+        [JsonPropertyName("halftime")]
+        public AfGoals Halftime { get; set; } = new();
+
+        [JsonPropertyName("fulltime")]
+        public AfGoals Fulltime { get; set; } = new();
+
+        [JsonPropertyName("extratime")]
+        public AfGoals Extratime { get; set; } = new();
+
+        // Disputa de pênaltis — preenchido apenas em mata-mata decidido nas penalidades.
+        [JsonPropertyName("penalty")]
+        public AfGoals Penalty { get; set; } = new();
+    }
+
     // ── Evento (gol, cartão, substituição) ───────────────────────────────────
     public class AfEvent
     {
@@ -197,6 +217,9 @@ namespace ControleFutebolWeb.Services
 
         [JsonPropertyName("logo")]
         public string? Logo { get; set; }
+
+        [JsonPropertyName("colors")]
+        public AfLineupColors? Colors { get; set; }
     }
 
     public class AfPlayerRef
@@ -225,6 +248,27 @@ namespace ControleFutebolWeb.Services
 
         [JsonPropertyName("substitutes")]
         public List<AfLineupPlayer> Substitutes { get; set; } = new();
+    }
+
+    public class AfLineupColors
+    {
+        [JsonPropertyName("player")]
+        public AfLineupColorSet? Player { get; set; }
+
+        [JsonPropertyName("goalkeeper")]
+        public AfLineupColorSet? Goalkeeper { get; set; }
+    }
+
+    public class AfLineupColorSet
+    {
+        [JsonPropertyName("primary")]
+        public string? Primary { get; set; }
+
+        [JsonPropertyName("number")]
+        public string? Number { get; set; }
+
+        [JsonPropertyName("border")]
+        public string? Border { get; set; }
     }
 
     public class AfCoach
@@ -485,6 +529,15 @@ namespace ControleFutebolWeb.Services
         [JsonPropertyName("name")]
         public string Name { get; set; } = "";
 
+        [JsonPropertyName("firstname")]
+        public string? Firstname { get; set; }
+
+        [JsonPropertyName("lastname")]
+        public string? Lastname { get; set; }
+
+        [JsonPropertyName("age")]
+        public int? Age { get; set; }
+
         [JsonPropertyName("photo")]
         public string? Photo { get; set; }
 
@@ -507,6 +560,8 @@ namespace ControleFutebolWeb.Services
         public DateTime? DataNascimento { get; set; }
         public string? Nacionalidade { get; set; }
         public string? FotoUrl { get; set; }
+        public string? PrimeiroNome { get; set; }
+        public string? UltimoNome { get; set; }
     }
 
     // ── /standings?league=X&season=Y ─────────────────────────────────────────
@@ -729,6 +784,12 @@ namespace ControleFutebolWeb.Services
 
         [JsonPropertyName("name")]
         public string Name { get; set; } = "";
+
+        [JsonPropertyName("firstname")]
+        public string? Firstname { get; set; }
+
+        [JsonPropertyName("lastname")]
+        public string? Lastname { get; set; }
 
         [JsonPropertyName("number")]
         public int? Number { get; set; }

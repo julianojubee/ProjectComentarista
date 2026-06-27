@@ -1,14 +1,50 @@
 ﻿@inject Microsoft.AspNetCore.Identity.UserManager<ControleFutebolWeb.Models.ApplicationUser> _layoutUserManager
+@inject ControleFutebolWeb.Data.FutebolContext _layoutContext
+@using Microsoft.EntityFrameworkCore
 @{
     var _layoutCurrentUser = await _layoutUserManager.GetUserAsync(User);
     var _layoutIsAdmin = _layoutCurrentUser?.IsAdmin == true;
+
+    // Competições marcadas como "principal" pelo usuário (menu Competições)
+    var _layoutCompeticoesMenu = new List<ControleFutebolWeb.Models.Competicao>();
+    if (_layoutCurrentUser != null)
+    {
+        var _topIds = await _layoutContext.CompeticoesTopTierUsuario
+            .Where(t => t.UsuarioId == _layoutCurrentUser.Id)
+            .Select(t => t.CompeticaoId)
+            .ToListAsync();
+        _layoutCompeticoesMenu = await _layoutContext.Competicoes
+            .Where(c => _topIds.Contains(c.Id))
+            .OrderBy(c => c.Nome)
+            .ToListAsync();
+    }
+
+    // Mapeia uma competição para a rota correta (mesma lógica da tela de Competições)
+    Func<ControleFutebolWeb.Models.Competicao, string> _rotaCompeticao = (comp) =>
+    {
+        var nome = comp.Nome?.ToLowerInvariant() ?? "";
+        if (nome.Contains("brasileiro") || nome.Contains("brasileirão"))
+            return Url.Action("Brasileirao", "Tabela")!;
+        if (nome.Contains("copa do brasil"))
+            return Url.Action("Index", "CopaBrasil")!;
+        if (nome.Contains("copa do mundo"))
+            return Url.Action("Index", "CopaDoMundo")!;
+        if (nome.Contains("libertadores"))
+            return Url.Action("Index", "Libertadores")!;
+        if (nome.Contains("sul-americana") || nome.Contains("sudamericana") || nome.Contains("sul americana"))
+            return Url.Action("Index", "SulAmericana")!;
+        if (nome.Contains("champions"))
+            return Url.Action("Index", "ChampionsLeague")!;
+        return Url.Action("Detalhes", "Competicoes", new { id = comp.Id })!;
+    };
 }
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - Comentarista Esportivo</title>
+    <script>(function(){var t=localStorage.getItem('site-theme');if(t)document.documentElement.setAttribute('data-theme',t);})();</script>
     <script type="importmap"></script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
@@ -69,13 +105,20 @@
                                 Competições
                             </a>
                             <div class="dropdown-menu" aria-labelledby="competicoesDropdown">
-                                <a class="dropdown-item" asp-controller="Tabela" asp-action="Brasileirao">Campeonato Brasileiro</a>
-                                <a class="dropdown-item" asp-controller="Libertadores" asp-action="Index">Libertadores</a>
-                                <a class="dropdown-item" asp-controller="CopaBrasil" asp-action="Index">Copa do Brasil</a>
-                                <a class="dropdown-item" asp-controller="SulAmericana" asp-action="Index">Sul-Americana</a>
-                                <a class="dropdown-item" asp-controller="CopaDoMundo" asp-action="Index">Copa do Mundo</a>
-                                <div class="dropdown-divider"></div>
-                                <a class="dropdown-item" asp-controller="ChampionsLeague" asp-action="Index">⭐ Champions League</a>
+                                @if (_layoutCompeticoesMenu.Any())
+                                {
+                                    foreach (var comp in _layoutCompeticoesMenu)
+                                    {
+                                        <a class="dropdown-item" href="@_rotaCompeticao(comp)">⭐ @comp.Nome</a>
+                                    }
+                                    <div class="dropdown-divider"></div>
+                                    <a class="dropdown-item" asp-controller="Competicoes" asp-action="Index">Ver todas as competições</a>
+                                }
+                                else
+                                {
+                                    <a class="dropdown-item" asp-controller="Competicoes" asp-action="Index">Ver competições</a>
+                                    <span class="dropdown-item-text text-muted" style="font-size:12px;">Marque competições como ⭐ Principal para vê-las aqui</span>
+                                }
                             </div>
                         </li>
 
@@ -103,9 +146,17 @@
 
                     </ul>
 
+                    <div class="d-flex align-items-center ms-auto me-2">
+                        <button id="theme-toggle-btn" onclick="toggleTheme()"
+                                style="background:none;border:none;cursor:pointer;padding:4px 8px;font-size:18px;line-height:1;"
+                                title="Alternar modo escuro">
+                            <span id="theme-toggle-icon">🌙</span>
+                        </button>
+                    </div>
+
                     @if (User.Identity?.IsAuthenticated == true)
                     {
-                        <ul class="navbar-nav ms-auto align-items-center">
+                        <ul class="navbar-nav align-items-center">
                             @{
                                 var nomeUsuario = User.Identity?.Name ?? "";
                             }
@@ -166,7 +217,22 @@
             return new bootstrap.Toast(toastEl, { delay: 6000 });
         });
         toastList.forEach(toast => toast.show());
+
+        var icon = document.getElementById('theme-toggle-icon');
+        if (icon) {
+            var t = document.documentElement.getAttribute('data-theme') || 'light';
+            icon.textContent = t === 'dark' ? '☀️' : '🌙';
+        }
     });
+
+    function toggleTheme() {
+        var current = document.documentElement.getAttribute('data-theme') || 'light';
+        var next = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('site-theme', next);
+        var icon = document.getElementById('theme-toggle-icon');
+        if (icon) icon.textContent = next === 'dark' ? '☀️' : '🌙';
+    }
 </script>
 
 </html>

@@ -1,4 +1,5 @@
 ﻿@using ControleFutebolWeb.Controllers
+@removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
 @{
     ViewData["Title"] = "Copa do Brasil";
     var vm = ViewBag.Vm as CopaBrasilViewModel ?? new CopaBrasilViewModel();
@@ -399,6 +400,23 @@
             <h2 class="copa-title">Copa do <span>Brasil</span></h2>
         </div>
         <p class="copa-sub">Fase atual · Confrontos de ida e volta</p>
+        @{
+            var temporadasCb = ViewBag.TemporadasDisponiveis as List<int> ?? new List<int>();
+            var temporadaCbSel = ViewBag.Temporada as int?;
+        }
+        @if (temporadasCb.Count > 1)
+        {
+            <form method="get" style="margin-top:10px;">
+                <label style="color:#fff;font-size:12px;font-weight:600;margin-right:6px;">Temporada:</label>
+                <select name="temporada" onchange="this.form.submit()"
+                        style="padding:5px 10px;border-radius:7px;border:none;font-size:13px;font-weight:600;">
+                    @foreach (var temp in temporadasCb)
+                    {
+                        <option value="@temp" @(temporadaCbSel == temp ? "selected" : "")>@temp</option>
+                    }
+                </select>
+            </form>
+        }
     </div>
 </div>
 

@@ -32,6 +32,9 @@ namespace ControleFutebolWeb.Data
         public DbSet<AnotacaoTime> AnotacoesTime { get; set; }
         public DbSet<JogoAnalisadoUsuario> JogosAnalisadosUsuario { get; set; }
         public DbSet<CompeticaoTopTierUsuario> CompeticoesTopTierUsuario { get; set; }
+        public DbSet<CronometroPartida> CronometrosPartida { get; set; }
+        public DbSet<FaseTatica> FasesTaticas { get; set; }
+        public DbSet<CuriosidadeTime> CuriosidadesTime { get; set; }
 
         public override int SaveChanges()
         {

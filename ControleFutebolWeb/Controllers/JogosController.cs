@@ -1,6 +1,7 @@
 ﻿using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
+using ControleFutebolWeb.Models.ViewModels;
 using ControleFutebolWeb.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -118,7 +119,7 @@ namespace ControleFutebolWeb.Controllers
             if (endDate.HasValue)
                 jogosQuery = jogosQuery.Where(j => j.Data <= endDate.Value);
 
-            ViewBag.TimeList = new SelectList(_context.Times.OrderBy(t => t.Nome).ToList(), "Id", "Nome", teamId);
+            var timeList = new SelectList(_context.Times.OrderBy(t => t.Nome).ToList(), "Id", "Nome", teamId);
             var uidJogos = _userManager.GetUserId(User)!;
             var topTierIdsJogos = _context.CompeticoesTopTierUsuario
                 .Where(t => t.UsuarioId == uidJogos).Select(t => t.CompeticaoId).ToHashSet();
@@ -127,8 +128,8 @@ namespace ControleFutebolWeb.Controllers
                 .OrderByDescending(c => topTierIdsJogos.Contains(c.Id))
                 .ThenBy(c => c.Nome)
                 .ToList();
-            ViewBag.CompeticaoList = new SelectList(competicoesOrdenadas, "Id", "Nome", competicaoId);
-            ViewBag.StatusList = new SelectList(
+            var competicaoList = new SelectList(competicoesOrdenadas, "Id", "Nome", competicaoId);
+            var statusList = new SelectList(
                 new[] {
                     new { Value = "all", Text = "Todos" },
                     new { Value = "played", Text = "Realizados" },
@@ -136,7 +137,7 @@ namespace ControleFutebolWeb.Controllers
                 },
                 "Value", "Text", status ?? "all"
             );
-            ViewBag.LocationList = new SelectList(
+            var locationList = new SelectList(
                 new[] {
                     new { Value = "both", Text = "Casa ou Fora" },
                     new { Value = "home", Text = "Apenas Time da Casa" },
@@ -145,16 +146,25 @@ namespace ControleFutebolWeb.Controllers
                 "Value", "Text", location ?? "both"
             );
 
-            ViewBag.StartDate = startDate?.ToString("yyyy-MM-dd");
-            ViewBag.EndDate = endDate?.ToString("yyyy-MM-dd");
-
             jogosQuery = jogosQuery.OrderByDescending(j => j.Data);
 
-            ViewBag.CompeticoesMap = await _context.Competicoes
+            var competicoesMap = await _context.Competicoes
                 .AsNoTracking()
                 .ToDictionaryAsync(c => c.Id, c => c.Nome);
 
-            return View(await jogosQuery.ToListAsync());
+            var vm = new JogosIndexViewModel
+            {
+                Jogos = await jogosQuery.ToListAsync(),
+                TimeList = timeList,
+                CompeticaoList = competicaoList,
+                StatusList = statusList,
+                LocationList = locationList,
+                StartDate = startDate?.ToString("yyyy-MM-dd"),
+                EndDate = endDate?.ToString("yyyy-MM-dd"),
+                CompeticoesMap = competicoesMap
+            };
+
+            return View(vm);
         }
 
         [HttpGet]
@@ -440,6 +450,59 @@ namespace ControleFutebolWeb.Controllers
 
             if (jogo == null) return NotFound();
 
+            // Fases táticas (timeline de escalações intermediárias) para montar as abas.
+            var fasesTaticas = await _context.FasesTaticas
+                .Where(f => f.JogoId == id && f.UsuarioId == usuarioId)
+                .OrderBy(f => f.Ordem)
+                .ToListAsync();
+            var vm = new AnalisarViewModel { Jogo = jogo, FasesTaticas = fasesTaticas };
+
+            // ── Fase intermediária: renderização própria (somente visual/tática) ──
+            if (!string.IsNullOrWhiteSpace(faseEscalacao) &&
+                !string.Equals(faseEscalacao, "FINAL", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(faseEscalacao, "INICIAL", StringComparison.OrdinalIgnoreCase))
+            {
+                var faseInter = fasesTaticas.FirstOrDefault(f => f.Chave == faseEscalacao);
+                if (faseInter != null)
+                {
+                    var escFase = await _context.Escalacoes
+                        .Include(e => e.Jogador).ThenInclude(j => j!.Nacionalidade)
+                        .Where(e => e.JogoId == id && e.UsuarioId == usuarioId && e.FaseEscalacao == faseInter.Chave)
+                        .ToListAsync();
+
+                    var ordemPos = new Dictionary<string, int>
+                        { { "GL", 1 }, { "LD", 2 }, { "LE", 3 }, { "ZG", 4 }, { "MC", 5 }, { "AT", 6 } };
+                    int Ord(string? p) => p != null && ordemPos.ContainsKey(p) ? ordemPos[p] : 99;
+
+                    vm.EscalacoesCasa = escFase.Where(e => e.IsTimeCasa && e.Titular).OrderBy(e => Ord(e.Posicao)).ToList();
+                    vm.EscalacoesVisitante = escFase.Where(e => !e.IsTimeCasa && e.Titular).OrderBy(e => Ord(e.Posicao)).ToList();
+                    vm.ReservasCasa = new List<Escalacao>();
+                    vm.ReservasVisitante = new List<Escalacao>();
+
+                    vm.JogadoresCasa = await _context.Jogadores
+                        .Where(j => j.TimeId == jogo.TimeCasaId || j.SelecaoId == jogo.TimeCasaId).ToListAsync();
+                    vm.JogadoresVisitante = await _context.Jogadores
+                        .Where(j => j.TimeId == jogo.TimeVisitanteId || j.SelecaoId == jogo.TimeVisitanteId).ToListAsync();
+
+                    vm.FormacoesCasa = new SelectList(_context.Formacoes, "Id", "Nome", jogo.FormacaoCasaId);
+                    vm.FormacoesVisitante = new SelectList(_context.Formacoes, "Id", "Nome", jogo.FormacaoVisitanteId);
+                    vm.FormacaoCasaSelecionada = jogo.FormacaoCasaId;
+                    vm.FormacaoVisitanteSelecionada = jogo.FormacaoVisitanteId;
+
+                    vm.FaseEscalacaoAtual = faseInter.Chave;
+                    vm.MostrarBancoReservas = false;
+                    vm.EscalacaoFinalDisponivel = await _context.Escalacoes
+                        .AnyAsync(e => e.JogoId == id && e.FaseEscalacao == "FINAL" && e.UsuarioId == usuarioId);
+
+                    vm.TreinadorCasa = await _context.Treinadores.Include(t => t.Nacionalidade)
+                        .Where(t => t.TimeId == jogo.TimeCasaId).OrderByDescending(t => t.DtInc).FirstOrDefaultAsync();
+                    vm.TreinadorVisitante = await _context.Treinadores.Include(t => t.Nacionalidade)
+                        .Where(t => t.TimeId == jogo.TimeVisitanteId).OrderByDescending(t => t.DtInc).FirstOrDefaultAsync();
+
+                    return View(vm);
+                }
+            }
+
             var escalacoesFinaisExistem = await _context.Escalacoes
                 .AnyAsync(e => e.JogoId == id && e.FaseEscalacao == "FINAL" && e.UsuarioId == usuarioId);
 
@@ -494,7 +557,7 @@ namespace ControleFutebolWeb.Controllers
 
             // Escalações do usuário para esta fase
             var escalacoes = await _context.Escalacoes
-                .Include(e => e.Jogador)
+                .Include(e => e.Jogador).ThenInclude(j => j!.Nacionalidade)
                 .Where(e => e.JogoId == id
                          && (e.FaseEscalacao == faseAtual || (faseAtual == "INICIAL" && e.FaseEscalacao == null))
                          && e.UsuarioId == usuarioId)
@@ -526,7 +589,7 @@ namespace ControleFutebolWeb.Controllers
                     _context.Escalacoes.AddRange(copias);
                     await _context.SaveChangesAsync();
                     escalacoes = await _context.Escalacoes
-                        .Include(e => e.Jogador)
+                        .Include(e => e.Jogador).ThenInclude(j => j!.Nacionalidade)
                         .Where(e => e.JogoId == id
                                  && (e.FaseEscalacao == faseAtual || (faseAtual == "INICIAL" && e.FaseEscalacao == null))
                                  && e.UsuarioId == usuarioId)
@@ -766,7 +829,7 @@ namespace ControleFutebolWeb.Controllers
 
             // Recarrega escalações finais do usuário
             escalacoes = await _context.Escalacoes
-                .Include(e => e.Jogador)
+                .Include(e => e.Jogador).ThenInclude(j => j!.Nacionalidade)
                 .Where(e => e.JogoId == id
                          && (e.FaseEscalacao == faseAtual || (faseAtual == "INICIAL" && e.FaseEscalacao == null))
                          && e.UsuarioId == usuarioId)
@@ -778,27 +841,29 @@ namespace ControleFutebolWeb.Controllers
                 { "ZG", 4 }, { "MC", 5 }, { "AT", 6 }
             };
 
-            ViewBag.EscalacoesCasa = escalacoes
+            vm.EscalacoesCasa = escalacoes
                 .Where(e => e.IsTimeCasa && e.Titular)
                 .OrderBy(e => e.Posicao != null && ordemPosicoes.ContainsKey(e.Posicao) ? ordemPosicoes[e.Posicao] : 99)
                 .ToList();
 
-            ViewBag.EscalacoesVisitante = escalacoes
+            vm.EscalacoesVisitante = escalacoes
                 .Where(e => !e.IsTimeCasa && e.Titular)
                 .OrderBy(e => e.Posicao != null && ordemPosicoes.ContainsKey(e.Posicao) ? ordemPosicoes[e.Posicao] : 99)
                 .ToList();
 
-            ViewBag.ReservasCasa = escalacoes.Where(e => e.IsTimeCasa && !e.Titular).ToList();
-            ViewBag.ReservasVisitante = escalacoes.Where(e => !e.IsTimeCasa && !e.Titular).ToList();
+            vm.ReservasCasa = escalacoes.Where(e => e.IsTimeCasa && !e.Titular).ToList();
+            vm.ReservasVisitante = escalacoes.Where(e => !e.IsTimeCasa && !e.Titular).ToList();
 
-            ViewBag.FormacoesCasa = new SelectList(_context.Formacoes, "Id", "Nome", idFormacaoCasa);
-            ViewBag.FormacoesVisitante = new SelectList(_context.Formacoes, "Id", "Nome", idFormacaoVisitante);
+            vm.FormacoesCasa = new SelectList(_context.Formacoes, "Id", "Nome", idFormacaoCasa);
+            vm.FormacoesVisitante = new SelectList(_context.Formacoes, "Id", "Nome", idFormacaoVisitante);
 
             if (faseAtual == "FINAL")
             {
                 var escalacoesIniciais = await _context.Escalacoes
-                    .Include(e => e.Jogador)
-                    .Where(e => e.JogoId == id && (e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null))
+                    .Include(e => e.Jogador).ThenInclude(j => j!.Nacionalidade)
+                    .Where(e => e.JogoId == id
+                             && (e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null)
+                             && e.UsuarioId == usuarioId)
                     .ToListAsync();
 
                 var titularesIniciaisCasa = escalacoesIniciais
@@ -835,10 +900,10 @@ namespace ControleFutebolWeb.Controllers
                 var saiuCasa       = saiuCasaSubs.Union(titularesIniciaisCasa.Except(titularesFinaisCasa)).ToHashSet();
                 var saiuVisitante  = saiuVisitanteSubs.Union(titularesIniciaisVisitante.Except(titularesFinaisVisitante)).ToHashSet();
 
-                ViewBag.JogadoresEntraramCasa = entrouCasa.ToList();
-                ViewBag.JogadoresEntraramVisitante = entrouVisitante.ToList();
-                ViewBag.JogadoresSairamCasa = saiuCasa.ToList();
-                ViewBag.JogadoresSairamVisitante = saiuVisitante.ToList();
+                vm.JogadoresEntraramCasa = entrouCasa.ToList();
+                vm.JogadoresEntraramVisitante = entrouVisitante.ToList();
+                vm.JogadoresSairamCasa = saiuCasa.ToList();
+                vm.JogadoresSairamVisitante = saiuVisitante.ToList();
 
                 var reservasIniciaisCasa = escalacoesIniciais
                     .Where(e => e.IsTimeCasa && !e.Titular && e.JogadorId != null)
@@ -860,12 +925,12 @@ namespace ControleFutebolWeb.Controllers
                     .Where(j => listaFinalVisitanteIds.Contains(j.Id))
                     .ToListAsync();
 
-                ViewBag.JogadoresCasa = jogadoresCasaFinal
+                vm.JogadoresCasa = jogadoresCasaFinal
                     .OrderBy(j => ObterOrdemPosicao(j.Posicao))
                     .ThenBy(j => j.Nome)
                     .ToList();
 
-                ViewBag.JogadoresVisitante = jogadoresVisitanteFinal
+                vm.JogadoresVisitante = jogadoresVisitanteFinal
                     .OrderBy(j => ObterOrdemPosicao(j.Posicao))
                     .ThenBy(j => j.Nome)
                     .ToList();
@@ -895,29 +960,47 @@ namespace ControleFutebolWeb.Controllers
                             .Where(j => j.TimeId == jogo.TimeVisitanteId || j.SelecaoId == jogo.TimeVisitanteId).ToListAsync();
                 }
 
-                ViewBag.JogadoresCasa = jogadoresCasa;
-                ViewBag.JogadoresVisitante = jogadoresVisitante;
+                vm.JogadoresCasa = jogadoresCasa;
+                vm.JogadoresVisitante = jogadoresVisitante;
             }
 
-            ViewBag.FormacaoCasaSelecionada = idFormacaoCasa;
-            ViewBag.FormacaoVisitanteSelecionada = idFormacaoVisitante;
-            ViewBag.FaseEscalacaoAtual = faseAtual;
-            ViewBag.EscalacaoFinalDisponivel = await _context.Escalacoes.AnyAsync(e => e.JogoId == id && e.FaseEscalacao == "FINAL" && e.UsuarioId == usuarioId);
-            ViewBag.MostrarBancoReservas = faseAtual == "INICIAL";
+            vm.FormacaoCasaSelecionada = idFormacaoCasa;
+            vm.FormacaoVisitanteSelecionada = idFormacaoVisitante;
+            vm.FaseEscalacaoAtual = faseAtual;
+            vm.ObservacoesUsuario = (await _context.JogosAnalisadosUsuario
+                .FirstOrDefaultAsync(j => j.JogoId == id && j.UsuarioId == usuarioId))?.Observacoes;
+            vm.EscalacaoFinalDisponivel = await _context.Escalacoes.AnyAsync(e => e.JogoId == id && e.FaseEscalacao == "FINAL" && e.UsuarioId == usuarioId);
+            vm.MostrarBancoReservas = faseAtual == "INICIAL";
 
-            ViewBag.TreinadorCasa = await _context.Treinadores
+            vm.TreinadorCasa = await _context.Treinadores
                 .Include(t => t.Nacionalidade)
                 .Where(t => t.TimeId == jogo.TimeCasaId)
                 .OrderByDescending(t => t.DtInc)
                 .FirstOrDefaultAsync();
 
-            ViewBag.TreinadorVisitante = await _context.Treinadores
+            vm.TreinadorVisitante = await _context.Treinadores
                 .Include(t => t.Nacionalidade)
                 .Where(t => t.TimeId == jogo.TimeVisitanteId)
                 .OrderByDescending(t => t.DtInc)
                 .FirstOrDefaultAsync();
 
-            return View(jogo);
+            // Gols e assistências por jogador na mesma competição
+            var golsPorJogador = await _context.Gols
+                .Where(g => g.Jogo.CompeticaoId == jogo.CompeticaoId && !g.Contra)
+                .GroupBy(g => g.JogadorId)
+                .Select(g => new { JogadorId = g.Key, Total = g.Count() })
+                .ToDictionaryAsync(x => x.JogadorId, x => x.Total);
+
+            var assistsPorJogador = await _context.Assistencias
+                .Where(a => a.Jogo.CompeticaoId == jogo.CompeticaoId)
+                .GroupBy(a => a.JogadorId)
+                .Select(a => new { JogadorId = a.Key, Total = a.Count() })
+                .ToDictionaryAsync(x => x.JogadorId, x => x.Total);
+
+            vm.GolsPorJogador = golsPorJogador;
+            vm.AssistsPorJogador = assistsPorJogador;
+
+            return View(vm);
         }
 
         [HttpPost]
@@ -934,6 +1017,41 @@ namespace ControleFutebolWeb.Controllers
         {
             var faseAtual = string.Equals(faseEscalacao, "FINAL", StringComparison.OrdinalIgnoreCase) ? "FINAL" : "INICIAL";
             var usuarioId = _userManager.GetUserId(User)!;
+
+            // Fase intermediária (timeline): atualiza só as posições daquela fase e retorna,
+            // sem tocar em INICIAL/FINAL. Edição "in place" de uma fase já salva.
+            if (!string.IsNullOrWhiteSpace(faseEscalacao) &&
+                !string.Equals(faseEscalacao, "FINAL", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(faseEscalacao, "INICIAL", StringComparison.OrdinalIgnoreCase))
+            {
+                var faseExiste = await _context.FasesTaticas
+                    .AnyAsync(f => f.JogoId == id && f.UsuarioId == usuarioId && f.Chave == faseEscalacao);
+                if (faseExiste)
+                {
+                    var escFase = await _context.Escalacoes
+                        .Where(e => e.JogoId == id && e.UsuarioId == usuarioId && e.FaseEscalacao == faseEscalacao)
+                        .ToListAsync();
+
+                    void AtualizarFase(List<EscalacaoInput> inputs)
+                    {
+                        if (inputs == null) return;
+                        foreach (var e in inputs)
+                        {
+                            var esc = escFase.FirstOrDefault(x => x.Id == e.Id);
+                            if (esc == null) continue;
+                            esc.PosicaoX = e.PosicaoX;
+                            esc.PosicaoY = e.PosicaoY;
+                            esc.JogadorId = e.JogadorId > 0 ? e.JogadorId : null;
+                            esc.Titular = true;
+                        }
+                    }
+                    AtualizarFase(escalacaoCasa);
+                    AtualizarFase(escalacaoVisitante);
+
+                    await _context.SaveChangesAsync();
+                    return RedirectToAction("Analisar", new { id, faseEscalacao });
+                }
+            }
 
             var escalacoes = await _context.Escalacoes
                 .Where(e => e.JogoId == id
@@ -991,12 +1109,14 @@ namespace ControleFutebolWeb.Controllers
                 if (formacaoVisitanteId > 0) jogo.FormacaoVisitanteId = formacaoVisitanteId;
                 if (faseAtual == "FINAL")
                 {
-                    jogo.Observacoes = string.IsNullOrWhiteSpace(observacoesComTags) ? null : observacoesComTags.Trim();
-                    // Registrar análise por usuário
-                    var jaAnalisado = await _context.JogosAnalisadosUsuario
-                        .AnyAsync(j => j.JogoId == id && j.UsuarioId == usuarioId);
-                    if (!jaAnalisado)
-                        _context.JogosAnalisadosUsuario.Add(new JogoAnalisadoUsuario { JogoId = id, UsuarioId = usuarioId });
+                    var observacoes = string.IsNullOrWhiteSpace(observacoesComTags) ? null : observacoesComTags.Trim();
+                    // Registrar análise por usuário (observações são por usuário)
+                    var registroUsuario = await _context.JogosAnalisadosUsuario
+                        .FirstOrDefaultAsync(j => j.JogoId == id && j.UsuarioId == usuarioId);
+                    if (registroUsuario == null)
+                        _context.JogosAnalisadosUsuario.Add(new JogoAnalisadoUsuario { JogoId = id, UsuarioId = usuarioId, Observacoes = observacoes });
+                    else
+                        registroUsuario.Observacoes = observacoes;
                 }
             }
 
@@ -1048,6 +1168,26 @@ namespace ControleFutebolWeb.Controllers
         public async Task<IActionResult> LimparEscalacoes(int id, string? faseEscalacao)
         {
             var faseAtual = string.Equals(faseEscalacao, "FINAL", StringComparison.OrdinalIgnoreCase) ? "FINAL" : "INICIAL";
+
+            // Fase intermediária (timeline): "limpar" remove a fase inteira e volta para a Inicial.
+            if (!string.IsNullOrWhiteSpace(faseEscalacao) &&
+                !string.Equals(faseEscalacao, "FINAL", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(faseEscalacao, "INICIAL", StringComparison.OrdinalIgnoreCase))
+            {
+                var usuarioIdFase = _userManager.GetUserId(User)!;
+                var fase = await _context.FasesTaticas
+                    .FirstOrDefaultAsync(f => f.JogoId == id && f.UsuarioId == usuarioIdFase && f.Chave == faseEscalacao);
+                if (fase != null)
+                {
+                    var escsFase = await _context.Escalacoes
+                        .Where(e => e.JogoId == id && e.UsuarioId == usuarioIdFase && e.FaseEscalacao == faseEscalacao)
+                        .ToListAsync();
+                    _context.Escalacoes.RemoveRange(escsFase);
+                    _context.FasesTaticas.Remove(fase);
+                    await _context.SaveChangesAsync();
+                }
+                return RedirectToAction("Analisar", new { id, faseEscalacao = "INICIAL" });
+            }
 
             // Remove todas as escalações do jogo
             var escalacoes = await _context.Escalacoes
@@ -1555,6 +1695,144 @@ namespace ControleFutebolWeb.Controllers
 
             TempData["Mensagem"] = $"✅ Grupos atualizados: {atualizados} | Não encontrados: {falhas}";
             return RedirectToAction("Index", new { competicaoId });
+        }
+
+        // ════════════════════ CRONÔMETRO DA PARTIDA ════════════════════
+
+        private static int CronometroSegundos(CronometroPartida c)
+        {
+            var s = c.SegundosAcumulados;
+            if (c.Estado == "RODANDO" && c.InicioUtc.HasValue)
+                s += (int)(DateTime.UtcNow - c.InicioUtc.Value).TotalSeconds;
+            return Math.Max(0, s);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> CronometroEstado(int jogoId)
+        {
+            var usuarioId = _userManager.GetUserId(User)!;
+            var c = await _context.CronometrosPartida
+                .FirstOrDefaultAsync(x => x.JogoId == jogoId && x.UsuarioId == usuarioId);
+            if (c == null) return Ok(new { estado = "PARADO", segundos = 0 });
+            return Ok(new { estado = c.Estado, segundos = CronometroSegundos(c) });
+        }
+
+        public class CronometroAcaoRequest { public int JogoId { get; set; } public string Acao { get; set; } = ""; }
+
+        [HttpPost]
+        public async Task<IActionResult> CronometroAcao([FromBody] CronometroAcaoRequest req)
+        {
+            var usuarioId = _userManager.GetUserId(User)!;
+            var c = await _context.CronometrosPartida
+                .FirstOrDefaultAsync(x => x.JogoId == req.JogoId && x.UsuarioId == usuarioId);
+            if (c == null)
+            {
+                c = new CronometroPartida { JogoId = req.JogoId, UsuarioId = usuarioId, Estado = "PARADO" };
+                _context.CronometrosPartida.Add(c);
+            }
+
+            switch ((req.Acao ?? "").ToLowerInvariant())
+            {
+                case "iniciar":
+                    if (c.Estado != "RODANDO") { c.InicioUtc = DateTime.UtcNow; c.Estado = "RODANDO"; }
+                    break;
+                case "parar":
+                    if (c.Estado == "RODANDO" && c.InicioUtc.HasValue)
+                        c.SegundosAcumulados += (int)(DateTime.UtcNow - c.InicioUtc.Value).TotalSeconds;
+                    c.InicioUtc = null;
+                    c.Estado = "PARADO";
+                    break;
+                case "finalizar":
+                    if (c.Estado == "RODANDO" && c.InicioUtc.HasValue)
+                        c.SegundosAcumulados += (int)(DateTime.UtcNow - c.InicioUtc.Value).TotalSeconds;
+                    c.InicioUtc = null;
+                    c.Estado = "FINALIZADO";
+                    break;
+                case "zerar":
+                    c.SegundosAcumulados = 0; c.InicioUtc = null; c.Estado = "PARADO";
+                    break;
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { estado = c.Estado, segundos = CronometroSegundos(c) });
+        }
+
+        // ════════════════════ FASES TÁTICAS (timeline) ════════════════════
+
+        public class FaseTaticaSlot
+        {
+            public int? JogadorId { get; set; }
+            public string? Posicao { get; set; }
+            public double PosicaoX { get; set; }
+            public double PosicaoY { get; set; }
+            public bool IsTimeCasa { get; set; }
+        }
+
+        public class SalvarFaseTaticaRequest
+        {
+            public int JogoId { get; set; }
+            public int Minuto { get; set; }
+            public List<FaseTaticaSlot> Titulares { get; set; } = new();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> SalvarFaseTatica([FromBody] SalvarFaseTaticaRequest req)
+        {
+            if (req == null || req.JogoId <= 0) return BadRequest("Dados inválidos.");
+            var usuarioId = _userManager.GetUserId(User)!;
+
+            var ordemMax = await _context.FasesTaticas
+                .Where(f => f.JogoId == req.JogoId && f.UsuarioId == usuarioId)
+                .Select(f => (int?)f.Ordem).MaxAsync() ?? 0;
+
+            var chave = "FASE_" + Guid.NewGuid().ToString("N").Substring(0, 12);
+
+            _context.FasesTaticas.Add(new FaseTatica
+            {
+                JogoId = req.JogoId,
+                UsuarioId = usuarioId,
+                Chave = chave,
+                Ordem = ordemMax + 1,
+                MinutoInicio = Math.Max(0, req.Minuto)
+            });
+
+            foreach (var s in req.Titulares.Where(s => s.JogadorId > 0))
+            {
+                _context.Escalacoes.Add(new Escalacao
+                {
+                    JogoId = req.JogoId,
+                    JogadorId = s.JogadorId,
+                    Posicao = s.Posicao,
+                    PosicaoX = s.PosicaoX,
+                    PosicaoY = s.PosicaoY,
+                    IsTimeCasa = s.IsTimeCasa,
+                    Titular = true,
+                    FaseEscalacao = chave,
+                    UsuarioId = usuarioId
+                });
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { chave });
+        }
+
+        public class ExcluirFaseTaticaRequest { public int JogoId { get; set; } public string Chave { get; set; } = ""; }
+
+        [HttpPost]
+        public async Task<IActionResult> ExcluirFaseTatica([FromBody] ExcluirFaseTaticaRequest req)
+        {
+            var usuarioId = _userManager.GetUserId(User)!;
+            var fase = await _context.FasesTaticas
+                .FirstOrDefaultAsync(f => f.JogoId == req.JogoId && f.UsuarioId == usuarioId && f.Chave == req.Chave);
+            if (fase == null) return NotFound();
+
+            var escs = await _context.Escalacoes
+                .Where(e => e.JogoId == req.JogoId && e.UsuarioId == usuarioId && e.FaseEscalacao == req.Chave)
+                .ToListAsync();
+            _context.Escalacoes.RemoveRange(escs);
+            _context.FasesTaticas.Remove(fase);
+            await _context.SaveChangesAsync();
+            return Ok(new { sucesso = true });
         }
     }
 

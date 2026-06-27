@@ -21,10 +21,239 @@ namespace ControleFutebolWeb.Controllers
         }
 
         // GET: /Relatorios
-        public async Task<IActionResult> Index(int[]? competicaoIds, int[]? timeIds, bool incluirNaoAnalisados = false)
+        public async Task<IActionResult> Index(int[]? competicaoIds, int[]? timeIds, int? temporada, bool incluirNaoAnalisados = false)
         {
             var usuarioId = _userManager.GetUserId(User)!;
-            var vm = await MontarViewModel(competicaoIds, timeIds, incluirNaoAnalisados, usuarioId);
+            var vm = await MontarViewModel(competicaoIds, timeIds, temporada, incluirNaoAnalisados, usuarioId);
+            return View(vm);
+        }
+
+        // GET: /Relatorios/Scout
+        [HttpGet]
+        public async Task<IActionResult> Scout(
+            string[]? posicoes, int? idadeMin, int? idadeMax, int[]? timeIds,
+            int[]? competicaoIds, int? temporada,
+            int? minJogos, int? minGols, int? minAssistencias,
+            int? minPassesChave, int? minDesarmes, int? minBloqueios, int? minInterceptacoes, int? minDuelosVencidos, int? minFinalizacoesNoGol, int? minDrilesCertos,
+            double? minNota,
+            int? maxCartaoAmarelo, int? maxCartaoVermelho,
+            bool pesquisou = false)
+        {
+            var usuarioId = _userManager.GetUserId(User)!;
+
+            var posicoesList = await _context.Jogadores
+                .Where(j => j.Posicao != null && j.Posicao != "")
+                .Select(j => j.Posicao)
+                .Distinct()
+                .OrderBy(p => p)
+                .ToListAsync();
+
+            var topTierIds = await _context.CompeticoesTopTierUsuario
+                .Where(t => t.UsuarioId == usuarioId)
+                .Select(t => t.CompeticaoId)
+                .ToHashSetAsync();
+
+            var posicoesSelec   = (posicoes  ?? Array.Empty<string>()).Where(p => !string.IsNullOrEmpty(p)).Distinct().ToList();
+            var timeIdsSelec    = (timeIds   ?? Array.Empty<int>()).Where(id => id > 0).Distinct().ToList();
+            var compIdsSelec    = (competicaoIds ?? Array.Empty<int>()).Where(id => id > 0).Distinct().ToList();
+
+            var vm = new ScoutViewModel
+            {
+                Filtro = new ScoutFiltro
+                {
+                    Posicoes = posicoesSelec, IdadeMin = idadeMin, IdadeMax = idadeMax,
+                    TimeIds = timeIdsSelec, CompeticaoIds = compIdsSelec, Temporada = temporada,
+                    MinJogos = minJogos, MinGols = minGols, MinAssistencias = minAssistencias,
+                    MinPassesChave = minPassesChave, MinDesarmes = minDesarmes,
+                    MinBloqueios = minBloqueios, MinInterceptacoes = minInterceptacoes, MinDuelosVencidos = minDuelosVencidos,
+                    MinFinalizacoesNoGol = minFinalizacoesNoGol, MinDrilesCertos = minDrilesCertos,
+                    MinNota = minNota, MaxCartaoAmarelo = maxCartaoAmarelo, MaxCartaoVermelho = maxCartaoVermelho,
+                },
+                Competicoes = (await _context.Competicoes.OrderBy(c => c.Nome).ToListAsync())
+                    .OrderByDescending(c => topTierIds.Contains(c.Id))
+                    .ThenBy(c => c.Nome)
+                    .ToList(),
+                Times = await _context.Times.OrderBy(t => t.Nome).ToListAsync(),
+                Posicoes = posicoesList,
+                Temporadas = await _context.Jogos.Select(j => j.Temporada).Distinct().OrderByDescending(t => t).ToListAsync(),
+                Pesquisou = pesquisou,
+            };
+
+            if (!pesquisou) return View(vm);
+
+            // Jogos filtrados por competição/temporada
+            var jogosQuery = _context.Jogos.Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue);
+            if (compIdsSelec.Any()) jogosQuery = jogosQuery.Where(j => compIdsSelec.Contains(j.CompeticaoId));
+            if (temporada.HasValue) jogosQuery = jogosQuery.Where(j => j.Temporada == temporada.Value);
+            var jogoIds = await jogosQuery.Select(j => j.Id).ToHashSetAsync();
+
+            // Jogadores base (filtros de cadastro)
+            var jogadoresQuery = _context.Jogadores
+                .Include(j => j.Time)
+                .Include(j => j.Nacionalidade)
+                .AsQueryable();
+            if (posicoesSelec.Any())  jogadoresQuery = jogadoresQuery.Where(j => posicoesSelec.Contains(j.Posicao));
+            if (timeIdsSelec.Any())   jogadoresQuery = jogadoresQuery.Where(j => timeIdsSelec.Contains(j.TimeId));
+            var todosJogadores = await jogadoresQuery.ToListAsync();
+
+            // Filtros de idade (calculados em memória)
+            if (idadeMin.HasValue) todosJogadores = todosJogadores.Where(j => j.Idade >= idadeMin.Value).ToList();
+            if (idadeMax.HasValue) todosJogadores = todosJogadores.Where(j => j.Idade > 0 && j.Idade <= idadeMax.Value).ToList();
+
+            var jogadorIds = todosJogadores.Select(j => j.Id).ToHashSet();
+
+            // Carregar dados de performance
+            var gols = await _context.Gols
+                .Where(g => jogoIds.Contains(g.JogoId) && !g.Contra
+                         && jogadorIds.Contains(g.JogadorId))
+                .ToListAsync();
+
+            var assistencias = await _context.Assistencias
+                .Where(a => jogoIds.Contains(a.JogoId)
+                         && jogadorIds.Contains(a.JogadorId))
+                .ToListAsync();
+
+            var cartoes = await _context.Cartoes
+                .Where(c => jogoIds.Contains(c.JogoId)
+                         && jogadorIds.Contains(c.JogadorId))
+                .ToListAsync();
+
+            var escalacoes = await _context.Escalacoes
+                .Where(e => jogoIds.Contains(e.JogoId) && e.JogadorId.HasValue
+                         && jogadorIds.Contains(e.JogadorId!.Value)
+                         && (e.UsuarioId == usuarioId || e.UsuarioId == null))
+                .ToListAsync();
+
+            var estatisticas = await _context.EstatisticasJogador
+                .Where(e => jogoIds.Contains(e.JogoId) && jogadorIds.Contains(e.JogadorId))
+                .ToListAsync();
+
+            var notas = await _context.Notas
+                .Include(n => n.Detalhes)
+                .Where(n => jogoIds.Contains(n.JogoId) && jogadorIds.Contains(n.JogadorId)
+                         && n.UsuarioId == usuarioId)
+                .ToListAsync();
+
+            var criteriosBanco = CriteriosNotaHelper.MergeCriterios(
+                await _context.CriteriosNota.Where(c => c.UsuarioId == null).ToListAsync(),
+                await _context.CriteriosNota.Where(c => c.UsuarioId == usuarioId).ToListAsync());
+
+            // Dicionários de agregação
+            var golsPorJogador      = gols.GroupBy(g => g.JogadorId).ToDictionary(g => g.Key, g => g.Count());
+            var assisPorJogador     = assistencias.GroupBy(a => a.JogadorId).ToDictionary(g => g.Key, g => g.Count());
+            var amareloPorJogador   = cartoes.Where(c => c.Tipo == "Amarelo").GroupBy(c => c.JogadorId).ToDictionary(g => g.Key, g => g.Count());
+            var vermelhoPorJogador  = cartoes.Where(c => c.Tipo == "Vermelho").GroupBy(c => c.JogadorId).ToDictionary(g => g.Key, g => g.Count());
+            var jogosPorJogador     = escalacoes.GroupBy(e => e.JogadorId!.Value).ToDictionary(g => g.Key, g => g.Select(e => e.JogoId).Distinct().Count());
+            var estatsPorJogador    = estatisticas.GroupBy(e => e.JogadorId).ToDictionary(g => g.Key, g => g.ToList());
+            var notasPorJogador     = notas.GroupBy(n => n.JogadorId).ToDictionary(g => g.Key, g => g.ToList());
+
+            var resultados = new List<ScoutResultItem>();
+
+            foreach (var jogador in todosJogadores)
+            {
+                var jId = jogador.Id;
+
+                int jogosCount = jogosPorJogador.GetValueOrDefault(jId, 0);
+                if (jogosCount == 0 && estatsPorJogador.TryGetValue(jId, out var esTemp))
+                    jogosCount = esTemp.Select(e => e.JogoId).Distinct().Count();
+                if (jogosCount == 0 && notasPorJogador.TryGetValue(jId, out var nTemp))
+                    jogosCount = nTemp.Select(n => n.JogoId).Distinct().Count();
+
+                int gol      = golsPorJogador.GetValueOrDefault(jId, 0);
+                int ass      = assisPorJogador.GetValueOrDefault(jId, 0);
+                int amarelo  = amareloPorJogador.GetValueOrDefault(jId, 0);
+                int vermelho = vermelhoPorJogador.GetValueOrDefault(jId, 0);
+
+                int passesChave = 0, desarmes = 0, bloqueios = 0, interceptacoes = 0, duelosVencidos = 0, finNoGol = 0, driles = 0;
+                if (estatsPorJogador.TryGetValue(jId, out var estats))
+                {
+                    passesChave    = estats.Sum(e => e.PassesChave);
+                    desarmes       = estats.Sum(e => e.Desarmes);
+                    bloqueios      = estats.Sum(e => e.Bloqueios);
+                    interceptacoes = estats.Sum(e => e.Interceptacoes);
+                    duelosVencidos = estats.Sum(e => e.DuelosVencidos);
+                    finNoGol       = estats.Sum(e => e.FinalizacoesNoGol);
+                    driles         = estats.Sum(e => e.DriblesCertos);
+                }
+
+                // Nota média (mesma lógica do ranking misto)
+                double? notaMedia = null;
+                var jogoIdSet = new HashSet<int>();
+                if (notasPorJogador.TryGetValue(jId, out var nLst))  foreach (var n in nLst) jogoIdSet.Add(n.JogoId);
+                if (estatsPorJogador.TryGetValue(jId, out var eLst)) foreach (var e in eLst) jogoIdSet.Add(e.JogoId);
+
+                if (jogoIdSet.Count > 0)
+                {
+                    var notasDict = (notasPorJogador.GetValueOrDefault(jId) ?? new())
+                        .GroupBy(n => n.JogoId)
+                        .ToDictionary(g => g.Key, g => (
+                            valor: g.Average(n => n.Valor),
+                            manual: g.Any(n => n.NotaManual.HasValue)
+                                ? (double?)g.Where(n => n.NotaManual.HasValue).Average(n => n.NotaManual!.Value)
+                                : null));
+                    var estatsDict = (estatsPorJogador.GetValueOrDefault(jId) ?? new())
+                        .GroupBy(e => e.JogoId)
+                        .ToDictionary(g => g.Key, g => g.ToList());
+
+                    double soma = 0; int comp = 0;
+                    foreach (var jogoId in jogoIdSet)
+                    {
+                        double nj;
+                        if (notasDict.TryGetValue(jogoId, out var ni))
+                            nj = ni.manual.HasValue
+                                ? Math.Round(Math.Max(0, Math.Min(10, ni.manual.Value)), 2)
+                                : Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima, Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + ni.valor)), 2);
+                        else if (estatsDict.TryGetValue(jogoId, out var es))
+                            nj = Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima,
+                                    Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + es.Sum(e => CriteriosNotaHelper.CalcularPontuacao(e, criteriosBanco)))), 2);
+                        else continue;
+                        soma += nj; comp++;
+                    }
+                    if (comp > 0) notaMedia = Math.Round(soma / comp, 2);
+                }
+
+                // Filtros de estatística
+                if (minJogos.HasValue            && jogosCount < minJogos.Value) continue;
+                if (minGols.HasValue             && gol < minGols.Value) continue;
+                if (minAssistencias.HasValue     && ass < minAssistencias.Value) continue;
+                if (maxCartaoAmarelo.HasValue    && amarelo > maxCartaoAmarelo.Value) continue;
+                if (maxCartaoVermelho.HasValue   && vermelho > maxCartaoVermelho.Value) continue;
+                if (minPassesChave.HasValue       && passesChave    < minPassesChave.Value) continue;
+                if (minDesarmes.HasValue          && desarmes       < minDesarmes.Value) continue;
+                if (minBloqueios.HasValue         && bloqueios      < minBloqueios.Value) continue;
+                if (minInterceptacoes.HasValue    && interceptacoes < minInterceptacoes.Value) continue;
+                if (minDuelosVencidos.HasValue    && duelosVencidos < minDuelosVencidos.Value) continue;
+                if (minFinalizacoesNoGol.HasValue && finNoGol       < minFinalizacoesNoGol.Value) continue;
+                if (minDrilesCertos.HasValue      && driles         < minDrilesCertos.Value) continue;
+                if (minNota.HasValue             && (!notaMedia.HasValue || notaMedia.Value < minNota.Value)) continue;
+
+                // Jogadores sem nenhum dado nos jogos filtrados são omitidos
+                if (jogosCount == 0 && gol == 0 && ass == 0) continue;
+
+                resultados.Add(new ScoutResultItem
+                {
+                    Jogador          = jogador,
+                    Jogos            = jogosCount,
+                    Gols             = gol,
+                    Assistencias     = ass,
+                    CartaoAmarelo    = amarelo,
+                    CartaoVermelho   = vermelho,
+                    NotaMedia        = notaMedia,
+                    PassesChave       = passesChave,
+                    Desarmes          = desarmes,
+                    Bloqueios         = bloqueios,
+                    Interceptacoes    = interceptacoes,
+                    DuelosVencidos    = duelosVencidos,
+                    FinalizacoesNoGol = finNoGol,
+                    DrilesCertos      = driles,
+                });
+            }
+
+            vm.Resultados = resultados
+                .OrderByDescending(r => r.NotaMedia ?? 0)
+                .ThenByDescending(r => r.Jogos)
+                .ToList();
+
             return View(vm);
         }
 
@@ -33,7 +262,7 @@ namespace ControleFutebolWeb.Controllers
         // As notas automáticas (vindas das estatísticas) já usam os pesos atuais a cada acesso.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RecalcularNotas(int[]? competicaoIds, int[]? timeIds, bool incluirNaoAnalisados = false, string? dummy = null)
+        public async Task<IActionResult> RecalcularNotas(int[]? competicaoIds, int[]? timeIds, int? temporada, bool incluirNaoAnalisados = false, string? dummy = null)
         {
             // Pesos atuais por AcaoId
             var pesosPorAcao = await _context.CriteriosNota
@@ -71,11 +300,11 @@ namespace ControleFutebolWeb.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Sucesso"] = $"Recálculo concluído: {notasAtualizadas} nota(s) manual(is) atualizada(s) com os pesos atuais.";
-            return RedirectToAction(nameof(Index), new { competicaoIds, timeIds, incluirNaoAnalisados });
+            return RedirectToAction(nameof(Index), new { competicaoIds, timeIds, temporada, incluirNaoAnalisados });
         }
 
         // ── Monta o ViewModel completo ───────────────────────────────────────────
-        private async Task<RelatoriosViewModel> MontarViewModel(int[]? competicaoIds = null, int[]? timeIds = null, bool incluirNaoAnalisados = false, string? usuarioId = null)
+        private async Task<RelatoriosViewModel> MontarViewModel(int[]? competicaoIds = null, int[]? timeIds = null, int? temporada = null, bool incluirNaoAnalisados = false, string? usuarioId = null)
         {
             // Jogos com placar; se incluirNaoAnalisados=false, restringe aos analisados pelo usuário
             var jogosAnalisadosIds = usuarioId != null
@@ -99,6 +328,17 @@ namespace ControleFutebolWeb.Controllers
             if (timeIdsFiltro.Any())
                 jogosQuery = jogosQuery.Where(j => timeIdsFiltro.Contains(j.TimeCasaId) || timeIdsFiltro.Contains(j.TimeVisitanteId));
 
+            // Temporadas disponíveis (após filtro de competição/time). Padrão: a mais recente.
+            var temporadasDisponiveis = await jogosQuery
+                .Select(j => j.Temporada).Distinct()
+                .OrderByDescending(t => t).ToListAsync();
+
+            int? temporadaSelecionada = temporada
+                ?? (temporadasDisponiveis.Any() ? temporadasDisponiveis.First() : (int?)null);
+
+            if (temporadaSelecionada.HasValue)
+                jogosQuery = jogosQuery.Where(j => j.Temporada == temporadaSelecionada.Value);
+
             var jogos = await jogosQuery.ToListAsync();
             var jogoIds = jogos.Select(j => j.Id).ToHashSet();
 
@@ -119,7 +359,7 @@ namespace ControleFutebolWeb.Controllers
                 .Include(e => e.Jogador).ThenInclude(j => j!.Time)
                 .Include(e => e.Jogador).ThenInclude(j => j!.Selecao)
                 .Where(e => jogoIds.Contains(e.JogoId) && e.JogadorId.HasValue && e.Titular
-                         && (usuarioId == null || e.UsuarioId == usuarioId))
+                         && (e.UsuarioId == usuarioId || e.UsuarioId == null))
                 .ToListAsync();
 
             var cartoes = await _context.Cartoes
@@ -209,6 +449,8 @@ namespace ControleFutebolWeb.Controllers
             var vm = new RelatoriosViewModel
             {
                 CompeticaoIdsFiltro = compIds,
+                TemporadaFiltro = temporadaSelecionada,
+                TemporadasDisponiveis = temporadasDisponiveis,
                 TimeIdsFiltro = timeIdsFiltro,
                 ExibirSelecao = exibirSelecao,
                 IncluirNaoAnalisados = incluirNaoAnalisados,
@@ -315,6 +557,7 @@ namespace ControleFutebolWeb.Controllers
 
                 var gols = await _context.Gols
                     .Include(g => g.Jogador)
+                        .ThenInclude(j => j.Time)
                     .Where(g => jogoIds.Contains(g.JogoId))
                     .ToListAsync();
 
@@ -324,6 +567,7 @@ namespace ControleFutebolWeb.Controllers
 
                 var assistencias = await _context.Assistencias
                     .Include(a => a.Jogador)
+                        .ThenInclude(j => j.Time)
                     .Where(a => jogoIds.Contains(a.JogoId))
                     .ToListAsync();
 
@@ -361,11 +605,11 @@ namespace ControleFutebolWeb.Controllers
                     ? vitoriasPorTime.OrderByDescending(kv => kv.Value).First()
                     : new KeyValuePair<int, int>(0, 0);
 
-                var timeNome = timeMaisVitorias.Key > 0
+                var timeVencedor = timeMaisVitorias.Key > 0
                     ? jogos.SelectMany(j => new[] { j.TimeCasa, j.TimeVisitante })
-                           .Where(t => t?.Id == timeMaisVitorias.Key)
-                           .Select(t => t?.Nome).FirstOrDefault()
+                           .FirstOrDefault(t => t?.Id == timeMaisVitorias.Key)
                     : null;
+                var timeNome = timeVencedor?.Nome;
 
                 var jogoMaisGols = jogos
                     .OrderByDescending(j => (j.PlacarCasa ?? 0) + (j.PlacarVisitante ?? 0))
@@ -384,10 +628,15 @@ namespace ControleFutebolWeb.Controllers
                     VitoriasVisitante    = vitoriasVisitante,
                     Empates              = empates,
                     ArtilheiroNome       = artilheiro?.Key.Nome,
+                    ArtilheiroId         = artilheiro?.Key.Id ?? 0,
+                    ArtilheiroEscudoUrl  = artilheiro?.Key.Time?.EscudoUrl,
                     ArtilheiroGols       = artilheiro?.Count() ?? 0,
                     AssistenteNome       = melhorAssistente?.Key.Nome,
+                    AssistenteId         = melhorAssistente?.Key.Id ?? 0,
+                    AssistenteEscudoUrl  = melhorAssistente?.Key.Time?.EscudoUrl,
                     AssistenciasTotal    = melhorAssistente?.Count() ?? 0,
                     TimeMaisVitorias     = timeNome,
+                    TimeMaisVitoriasEscudoUrl = timeVencedor?.EscudoUrl,
                     TimeMaisVitoriasQtd  = timeMaisVitorias.Value,
                     JogoMaisGols         = jogoMaisGols != null
                         ? $"{jogoMaisGols.TimeCasa?.Nome} {jogoMaisGols.PlacarCasa}x{jogoMaisGols.PlacarVisitante} {jogoMaisGols.TimeVisitante?.Nome}"
@@ -541,11 +790,18 @@ namespace ControleFutebolWeb.Controllers
                 jogos.Count(j => j.CompeticaoId == compId
                               && (j.TimeCasaId == timeId || j.TimeVisitanteId == timeId));
 
-            // índices para lookup rápido
+            // índices para lookup rápido. Guarda o valor das ações (base + ações) e a nota
+            // manual (override) quando informada.
             var notasPorJogadorJogo = notas
                 .Where(n => n.Jogador != null)
                 .GroupBy(n => (n.JogadorId, n.JogoId))
-                .ToDictionary(g => g.Key, g => g.Average(n => n.Valor));
+                .ToDictionary(
+                    g => g.Key,
+                    g => (
+                        valor: g.Average(n => n.Valor),
+                        notaManual: g.Any(n => n.NotaManual.HasValue)
+                            ? (double?)g.Where(n => n.NotaManual.HasValue).Average(n => n.NotaManual!.Value)
+                            : null));
 
             var estatsPorJogadorJogo = estatisticas
                 .Where(e => e.Jogador != null)
@@ -606,20 +862,30 @@ namespace ControleFutebolWeb.Controllers
 
                 foreach (var jogoId in jogoIdList)
                 {
-                    double valorJogo;
-                    if (notasPorJogadorJogo.TryGetValue((jogador.Id, jogoId), out var notaValor))
+                    double notaFinalJogo;
+                    if (notasPorJogadorJogo.TryGetValue((jogador.Id, jogoId), out var notaInfo))
                     {
-                        valorJogo = notaValor;
+                        if (notaInfo.notaManual.HasValue)
+                        {
+                            // Override: usa a nota manual como valor final absoluto (0–10), sem base.
+                            notaFinalJogo = Math.Round(Math.Max(0, Math.Min(10, notaInfo.notaManual.Value)), 2);
+                        }
+                        else
+                        {
+                            notaFinalJogo = Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima,
+                                Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + notaInfo.valor)), 2);
+                        }
                     }
                     else if (estatsPorJogadorJogo.TryGetValue((jogador.Id, jogoId), out var estats))
                     {
-                        valorJogo = estats.Sum(e => Math.Round(CriteriosNotaHelper.CalcularPontuacao(e, criteriosBanco), 2));
+                        var valorJogo = estats.Sum(e => Math.Round(CriteriosNotaHelper.CalcularPontuacao(e, criteriosBanco), 2));
+                        notaFinalJogo = Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima,
+                            Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + valorJogo)), 2);
                     }
                     else continue;
 
                     // Nota final do jogo arredondada a 2 casas — idêntico à página de Estatísticas
-                    somaNotasFinais += Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima,
-                        Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + valorJogo)), 2);
+                    somaNotasFinais += notaFinalJogo;
                     jogosComputados++;
 
                     ResultadoJogo res = ResultadoJogo.Empate;

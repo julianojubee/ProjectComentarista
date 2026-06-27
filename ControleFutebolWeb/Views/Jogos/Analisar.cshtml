@@ -1,24 +1,35 @@
-﻿@model ControleFutebolWeb.Models.Jogo
+﻿@model ControleFutebolWeb.Models.ViewModels.AnalisarViewModel
 @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
 @using ControleFutebolWeb.Helpers
 @using System.Text.Json
 @{
-    var faseAtual = (ViewBag.FaseEscalacaoAtual as string) ?? "INICIAL";
+    var faseAtual = (Model.FaseEscalacaoAtual as string) ?? "INICIAL";
     var faseEhInicial = faseAtual == "INICIAL";
-    var mostrarBancoReservas = (ViewBag.MostrarBancoReservas as bool?) ?? false;
-    var jogadoresEntraramCasa = (ViewBag.JogadoresEntraramCasa as List<int>) ?? new List<int>();
-    var jogadoresEntraramVisitante = (ViewBag.JogadoresEntraramVisitante as List<int>) ?? new List<int>();
-    var jogadoresSairamCasa = (ViewBag.JogadoresSairamCasa as List<int>) ?? new List<int>();
-    var jogadoresSairamVisitante = (ViewBag.JogadoresSairamVisitante as List<int>) ?? new List<int>();
+    var fasesTaticas = (Model.FasesTaticas as List<ControleFutebolWeb.Models.FaseTatica>) ?? new List<ControleFutebolWeb.Models.FaseTatica>();
+    var mostrarBancoReservas = (Model.MostrarBancoReservas as bool?) ?? false;
+    var jogadoresEntraramCasa = (Model.JogadoresEntraramCasa as List<int>) ?? new List<int>();
+    var jogadoresEntraramVisitante = (Model.JogadoresEntraramVisitante as List<int>) ?? new List<int>();
+    var jogadoresSairamCasa = (Model.JogadoresSairamCasa as List<int>) ?? new List<int>();
+    var jogadoresSairamVisitante = (Model.JogadoresSairamVisitante as List<int>) ?? new List<int>();
+    var golsPorJogador = (Model.GolsPorJogador as Dictionary<int, int>) ?? new Dictionary<int, int>();
+    var assistsPorJogador = (Model.AssistsPorJogador as Dictionary<int, int>) ?? new Dictionary<int, int>();
+
+    string AbreviarPosicao(string? pos) => pos switch {
+        "Goleiro"  => "GL",
+        "Defensor" => "DF",
+        "Meia"     => "ME",
+        "Atacante" => "AT",
+        _          => pos ?? ""
+    };
 
     // Estatísticas da partida (posse, finalizações, etc.) — ver Jogo.EstatisticasJson
     Dictionary<string, string> statsCasa = new();
     Dictionary<string, string> statsVis = new();
-    if (!string.IsNullOrWhiteSpace(Model.EstatisticasJson))
+    if (!string.IsNullOrWhiteSpace(Model.Jogo.EstatisticasJson))
     {
         try
         {
-            using var doc = JsonDocument.Parse(Model.EstatisticasJson);
+            using var doc = JsonDocument.Parse(Model.Jogo.EstatisticasJson);
             foreach (var item in doc.RootElement.EnumerateArray())
             {
                 var timeId = item.GetProperty("TimeId").GetInt32();
@@ -30,8 +41,8 @@
                             ? "0" : (prop.Value.GetString() ?? "0");
                 }
 
-                if (timeId == Model.TimeCasa?.IdApi) statsCasa = stats;
-                else if (timeId == Model.TimeVisitante?.IdApi) statsVis = stats;
+                if (timeId == Model.Jogo.TimeCasa?.IdApi) statsCasa = stats;
+                else if (timeId == Model.Jogo.TimeVisitante?.IdApi) statsVis = stats;
             }
         }
         catch { /* JSON inválido/antigo — ignora */ }
@@ -63,7 +74,16 @@
     };
 }
 
+<div id="jogador-tooltip"></div>
+
 <style>
+    :root {
+        --cor-camisa-casa: #@(string.IsNullOrWhiteSpace(Model.Jogo.CorCamisaCasa) ? "dc3545" : Model.Jogo.CorCamisaCasa);
+        --cor-numero-casa: #@(string.IsNullOrWhiteSpace(Model.Jogo.CorNumeroCasa) ? "ffffff" : Model.Jogo.CorNumeroCasa);
+        --cor-camisa-vis:  #@(string.IsNullOrWhiteSpace(Model.Jogo.CorCamisaVisitante) ? "0d6efd" : Model.Jogo.CorCamisaVisitante);
+        --cor-numero-vis:  #@(string.IsNullOrWhiteSpace(Model.Jogo.CorNumeroVisitante) ? "ffffff" : Model.Jogo.CorNumeroVisitante);
+    }
+
     .posicao-drop {
         position: absolute;
         text-align: center;
@@ -79,8 +99,24 @@
         }
 
     .scroll-panel {
-        max-height: 700px;
+        height: 600px;
         overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .filtro-jogador {
+        width: 100%;
+        padding: 4px 8px;
+        margin-bottom: 4px;
+        font-size: 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        background: #f8fafc;
+        color: #1e293b;
+        box-sizing: border-box;
+        position: sticky;
+        top: 0;
+        z-index: 5;
     }
 
     .jogador-row {
@@ -165,7 +201,96 @@
         pointer-events: all;
     }
 
-    .posicao-drop *:not(.btn-avaliar) {
+    .btn-info-jogador {
+        position: absolute;
+        top: -6px;
+        left: -6px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #38bdf8;
+        border: none;
+        font-size: 10px;
+        font-weight: 700;
+        color: #0c1a2e;
+        cursor: default;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        z-index: 10;
+        pointer-events: all;
+    }
+
+    #jogador-tooltip {
+        display: none;
+        position: fixed;
+        z-index: 9999;
+        background: #1e293b;
+        border: 1px solid #38bdf8;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 12px;
+        color: #e2e8f0;
+        min-width: 170px;
+        max-width: 240px;
+        pointer-events: none;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+        line-height: 1.6;
+    }
+
+    #jogador-tooltip .tt-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+    }
+
+    #jogador-tooltip .tt-foto {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #38bdf8;
+        flex-shrink: 0;
+    }
+
+    #jogador-tooltip .tt-nome {
+        font-weight: 700;
+        font-size: 13px;
+        color: #38bdf8;
+        line-height: 1.3;
+    }
+
+    #jogador-tooltip .tt-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 10px;
+        margin-bottom: 4px;
+        font-size: 11px;
+        color: #cbd5e1;
+    }
+
+    #jogador-tooltip .tt-stats {
+        display: flex;
+        gap: 10px;
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px solid #334155;
+    }
+
+    #jogador-tooltip .tt-stat-gol  { color: #4ade80; font-weight: 600; }
+    #jogador-tooltip .tt-stat-ast  { color: #fb923c; font-weight: 600; }
+
+    #jogador-tooltip .tt-obs {
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px solid #334155;
+        color: #94a3b8;
+        white-space: pre-wrap;
+    }
+
+    .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador) {
         pointer-events: none;
     }
 
@@ -733,7 +858,7 @@
     }
 </style>
 
-@if (Model.CompeticaoId == 1)
+@if (Model.Jogo.CompeticaoId == 1)
 {
     <div class="cf-comp-hero">
         <div class="cf-comp-hero-content">
@@ -753,11 +878,11 @@
     <div class="mb-scoreline">
         <!-- Time Casa -->
         <div class="mb-team home">
-            @if (!string.IsNullOrEmpty(Model.TimeCasa?.EscudoUrl))
+            @if (!string.IsNullOrEmpty(Model.Jogo.TimeCasa?.EscudoUrl))
             {
-                <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.TimeCasa.EscudoUrl })" alt="@Model.TimeCasa.Nome" />
+                <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeCasa.EscudoUrl })" alt="@Model.Jogo.TimeCasa.Nome" />
             }
-            <span class="mb-team-name">@Model.TimeCasa?.Nome</span>
+            <span class="mb-team-name">@Model.Jogo.TimeCasa?.Nome</span>
         </div>
 
         <!-- Placar -->
@@ -765,37 +890,37 @@
             <div class="mb-score-box" id="placarCasaBox"
                  title="Clique para editar"
                  onclick="editarPlacar()">
-                @(Model.PlacarCasa?.ToString() ?? "–")
+                @(Model.Jogo.PlacarCasa?.ToString() ?? "–")
             </div>
             <span class="mb-score-sep">×</span>
             <div class="mb-score-box" id="placarVisBox"
                  title="Clique para editar"
                  onclick="editarPlacar()">
-                @(Model.PlacarVisitante?.ToString() ?? "–")
+                @(Model.Jogo.PlacarVisitante?.ToString() ?? "–")
             </div>
         </div>
 
         <!-- Time Visitante -->
         <div class="mb-team away">
-            @if (!string.IsNullOrEmpty(Model.TimeVisitante?.EscudoUrl))
+            @if (!string.IsNullOrEmpty(Model.Jogo.TimeVisitante?.EscudoUrl))
             {
-                <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.TimeVisitante.EscudoUrl })" alt="@Model.TimeVisitante.Nome" />
+                <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeVisitante.EscudoUrl })" alt="@Model.Jogo.TimeVisitante.Nome" />
             }
-            <span class="mb-team-name">@Model.TimeVisitante?.Nome</span>
+            <span class="mb-team-name">@Model.Jogo.TimeVisitante?.Nome</span>
         </div>
     </div>
 
-    @if (!string.IsNullOrWhiteSpace(Model.Estadio) || !string.IsNullOrWhiteSpace(Model.Arbitro))
+    @if (!string.IsNullOrWhiteSpace(Model.Jogo.Estadio) || !string.IsNullOrWhiteSpace(Model.Jogo.Arbitro))
     {
         <div class="mb-meta">
-            @if (!string.IsNullOrWhiteSpace(Model.Estadio))
+            @if (!string.IsNullOrWhiteSpace(Model.Jogo.Estadio))
             {
                 <span class="mb-meta-item">
                     <span class="mb-meta-icon">🏟️</span>
-                    <span>@Model.Estadio</span>
+                    <span>@Model.Jogo.Estadio</span>
                 </span>
             }
-            @if (!string.IsNullOrWhiteSpace(Model.Arbitro))
+            @if (!string.IsNullOrWhiteSpace(Model.Jogo.Arbitro))
             {
                 <span class="mb-meta-item">
                     <span class="mb-meta-icon">
@@ -810,7 +935,7 @@
                             <path d="M9 19 L8.5 23 L10.5 23 L12 20.5 L13.5 23 L15.5 23 L15 19 Z" fill="rgba(255,255,255,0.85)"/>
                         </svg>
                     </span>
-                    <span>@Model.Arbitro</span>
+                    <span>@Model.Jogo.Arbitro</span>
                 </span>
             }
         </div>
@@ -833,7 +958,7 @@
             <span>📊 Estatísticas</span>
             <span id="mbEstatisticasToggleIcon" style="transition:transform .15s;">▾</span>
         </div>
-        <div class="mb-toolbar-toggle" id="mbH2HToggle" onclick="abrirH2H(@Model.Id)" style="margin:0; cursor:pointer;">
+        <div class="mb-toolbar-toggle" id="mbH2HToggle" onclick="abrirH2H(@Model.Jogo.Id)" style="margin:0; cursor:pointer;">
             <span>⚔️ Últimos confrontos</span>
         </div>
     </div>
@@ -909,14 +1034,14 @@
     <div style="display:flex; align-items:center; gap:10px; flex:1;">
         <div id="statusIcon" style="width:36px; height:36px; border-radius:50%;
              display:flex; align-items:center; justify-content:center; font-size:18px;
-             background:@(Model.Analisado == 1 ? "#dcfce7" : "#f3f4f6");
-             border:2px solid @(Model.Analisado == 1 ? "#22c55e" : "#e5e7eb");">
-            @(Model.Analisado == 1 ? "✅" : "⏳")
+             background:@(Model.Jogo.Analisado == 1 ? "#dcfce7" : "#f3f4f6");
+             border:2px solid @(Model.Jogo.Analisado == 1 ? "#22c55e" : "#e5e7eb");">
+            @(Model.Jogo.Analisado == 1 ? "✅" : "⏳")
         </div>
         <div>
             <div id="statusLabel" style="font-size:13px; font-weight:600;
-                 color:@(Model.Analisado == 1 ? "#15803d" : "#374151");">
-                @(Model.Analisado == 1 ? "Jogo analisado" : "Aguardando análise")
+                 color:@(Model.Jogo.Analisado == 1 ? "#15803d" : "#374151");">
+                @(Model.Jogo.Analisado == 1 ? "Jogo analisado" : "Aguardando análise")
             </div>
             <div style="font-size:11px; color:#9ca3af;">
                 Marque como analisado após revisar escalação final e eventos
@@ -931,14 +1056,14 @@
         <input type="checkbox"
                id="chkAnalisado"
                style="width:16px; height:16px; cursor:pointer; accent-color:#22c55e;"
-               @(Model.Analisado == 1 ? "checked" : "")
+               @(Model.Jogo.Analisado == 1 ? "checked" : "")
                onchange="toggleAnalisado(this)" />
         <span style="font-size:13px; font-weight:500; color:#374151;">Marcar como analisado</span>
     </label>
 
-    @if (!string.IsNullOrWhiteSpace(Model.LinkDetalhes))
+    @if (!string.IsNullOrWhiteSpace(Model.Jogo.LinkDetalhes))
     {
-        <form asp-action="ReimportarEscalacao" asp-controller="Jogos" asp-route-id="@Model.Id"
+        <form asp-action="ReimportarEscalacao" asp-controller="Jogos" asp-route-id="@Model.Jogo.Id"
               method="post" style="margin:0;"
               onsubmit="return confirm('Re-importar escalação do Transfermarkt?\n\nIsso vai apagar todas as escalações, gols, cartões e assistências deste jogo e reimportar do zero.')">
             @Html.AntiForgeryToken()
@@ -958,10 +1083,10 @@
     <div class="d-flex align-items-center gap-2 mt-2">
 
         @* Badge mostrando o grupo atual (ou aviso se vazio) *@
-        @if (!string.IsNullOrWhiteSpace(Model.Grupo))
+        @if (!string.IsNullOrWhiteSpace(Model.Jogo.Grupo))
         {
             <span class="badge bg-success">
-                <i class="ti ti-tag me-1" aria-hidden="true"></i>@Model.Grupo
+                <i class="ti ti-tag me-1" aria-hidden="true"></i>@Model.Jogo.Grupo
             </span>
         }
         else
@@ -972,9 +1097,9 @@
         }
 
         @* Botão só aparece quando há link do Transfermarkt *@
-        @if (!string.IsNullOrWhiteSpace(Model.LinkDetalhes))
+        @if (!string.IsNullOrWhiteSpace(Model.Jogo.LinkDetalhes))
         {
-            <form asp-action="BuscarGrupo" asp-route-id="@Model.Id" method="post" class="d-inline">
+            <form asp-action="BuscarGrupo" asp-route-id="@Model.Jogo.Id" method="post" class="d-inline">
                 @Html.AntiForgeryToken()
                 <button type="submit"
                         class="btn btn-sm btn-outline-primary"
@@ -1046,11 +1171,11 @@
         <h5>Editar Placar</h5>
         <div class="mev-row">
             <div class="mev-field">
-                <label>@Model.TimeCasa?.Nome</label>
+                <label>@Model.Jogo.TimeCasa?.Nome</label>
                 <input type="number" id="edit-placar-casa" min="0" max="99" />
             </div>
             <div class="mev-field">
-                <label>@Model.TimeVisitante?.Nome</label>
+                <label>@Model.Jogo.TimeVisitante?.Nome</label>
                 <input type="number" id="edit-placar-vis" min="0" max="99" />
             </div>
         </div>
@@ -1066,12 +1191,12 @@
 <div class="row mb-3">
     <div class="col-md-6">
         <form method="get" asp-action="Analisar" asp-controller="Jogos">
-            <input type="hidden" name="id" value="@Model.Id" />
-            <input type="hidden" name="formacaoVisitanteId" value="@ViewBag.FormacaoVisitanteSelecionada" />
+            <input type="hidden" name="id" value="@Model.Jogo.Id" />
+            <input type="hidden" name="formacaoVisitanteId" value="@Model.FormacaoVisitanteSelecionada" />
             <input type="hidden" name="faseEscalacao" value="@faseAtual" />
-            <label class="fw-bold">Formação @Model.TimeCasa.Nome:</label>
+            <label class="fw-bold">Formação @Model.Jogo.TimeCasa.Nome:</label>
             <select name="formacaoCasaId" class="form-select" onchange="this.form.submit()">
-                @foreach (var f in (IEnumerable<SelectListItem>)ViewBag.FormacoesCasa)
+                @foreach (var f in (IEnumerable<SelectListItem>)Model.FormacoesCasa)
                 {
                     <option value="@f.Value" @(f.Selected ? "selected" : "")>@f.Text</option>
                 }
@@ -1080,12 +1205,12 @@
     </div>
     <div class="col-md-6">
         <form method="get" asp-action="Analisar" asp-controller="Jogos">
-            <input type="hidden" name="id" value="@Model.Id" />
-            <input type="hidden" name="formacaoCasaId" value="@ViewBag.FormacaoCasaSelecionada" />
+            <input type="hidden" name="id" value="@Model.Jogo.Id" />
+            <input type="hidden" name="formacaoCasaId" value="@Model.FormacaoCasaSelecionada" />
             <input type="hidden" name="faseEscalacao" value="@faseAtual" />
-            <label class="fw-bold">Formação @Model.TimeVisitante.Nome:</label>
+            <label class="fw-bold">Formação @Model.Jogo.TimeVisitante.Nome:</label>
             <select name="formacaoVisitanteId" class="form-select" onchange="this.form.submit()">
-                @foreach (var f in (IEnumerable<SelectListItem>)ViewBag.FormacoesVisitante)
+                @foreach (var f in (IEnumerable<SelectListItem>)Model.FormacoesVisitante)
                 {
                     <option value="@f.Value" @(f.Selected ? "selected" : "")>@f.Text</option>
                 }
@@ -1094,26 +1219,69 @@
     </div>
 </div>
 
+<!-- ── Cronômetro da partida ─────────────────────────────────────── -->
+<div class="d-flex align-items-center gap-2 mb-2 p-2"
+     style="background:#0f172a; border-radius:8px; color:#e2e8f0; flex-wrap:wrap;">
+    <span style="font-size:12px; color:#94a3b8;">⏱ Cronômetro</span>
+    <span id="cronoDisplay" style="font-variant-numeric:tabular-nums; font-size:20px; font-weight:700; min-width:62px;">00:00</span>
+    <span id="cronoEstado" style="font-size:11px; color:#94a3b8;">parado</span>
+    <button type="button" class="btn btn-sm btn-success" onclick="cronoAcao('iniciar')">▶ Iniciar</button>
+    <button type="button" class="btn btn-sm btn-warning" onclick="cronoAcao('parar')">⏸ Parar</button>
+    <button type="button" class="btn btn-sm btn-danger" onclick="cronoAcao('finalizar')">⏹ Finalizar</button>
+    <div class="ms-auto d-flex align-items-center gap-1">
+        <label style="font-size:11px; color:#94a3b8;">min</label>
+        <input type="number" id="faseMinuto" min="0" max="130" value="0"
+               oninput="this.dataset.editado='1'"
+               class="form-control form-control-sm" style="width:64px;" />
+        <button type="button" class="btn btn-sm btn-primary" onclick="salvarFaseTatica()" title="Salva a escalação atual como uma fase tática no minuto informado">
+            💾 Salvar fase
+        </button>
+    </div>
+</div>
+
 <div class="mb-3">
     <ul class="nav nav-tabs">
         <li class="nav-item">
-            <a class="nav-link @(faseEhInicial ? "active" : "")"
+            <a class="nav-link @(faseAtual == "INICIAL" ? "active" : "")"
                id="tabBtnEscalacaoInicial"
                asp-action="Analisar"
-               asp-route-id="@Model.Id"
-               asp-route-formacaoCasaId="@ViewBag.FormacaoCasaSelecionada"
-               asp-route-formacaoVisitanteId="@ViewBag.FormacaoVisitanteSelecionada"
+               asp-route-id="@Model.Jogo.Id"
+               asp-route-formacaoCasaId="@Model.FormacaoCasaSelecionada"
+               asp-route-formacaoVisitanteId="@Model.FormacaoVisitanteSelecionada"
                asp-route-faseEscalacao="INICIAL">
                 Escalação Inicial
             </a>
         </li>
+        @for (int fi = 0; fi < fasesTaticas.Count; fi++)
+        {
+            var f = fasesTaticas[fi];
+            var fim = fi < fasesTaticas.Count - 1 ? (int?)(fasesTaticas[fi + 1].MinutoInicio - 1) : null;
+            var faixa = fim.HasValue ? $"{f.MinutoInicio}'–{fim}'" : $"{f.MinutoInicio}'→";
+            <li class="nav-item">
+                <a class="nav-link @(faseAtual == f.Chave ? "active" : "")"
+                   asp-action="Analisar"
+                   asp-route-id="@Model.Jogo.Id"
+                   asp-route-formacaoCasaId="@Model.FormacaoCasaSelecionada"
+                   asp-route-formacaoVisitanteId="@Model.FormacaoVisitanteSelecionada"
+                   asp-route-faseEscalacao="@f.Chave"
+                   title="Fase tática (@faixa)">
+                    @faixa
+                    @if (faseAtual == f.Chave)
+                    {
+                        <span style="cursor:pointer; margin-left:6px; color:#dc3545;"
+                              onclick="event.preventDefault(); excluirFaseTatica('@f.Chave');"
+                              title="Excluir esta fase">&times;</span>
+                    }
+                </a>
+            </li>
+        }
         <li class="nav-item">
-            <a class="nav-link @(!faseEhInicial ? "active" : "")"
+            <a class="nav-link @(faseAtual == "FINAL" ? "active" : "")"
                id="tabBtnEscalacaoFinal"
                asp-action="Analisar"
-               asp-route-id="@Model.Id"
-               asp-route-formacaoCasaId="@ViewBag.FormacaoCasaSelecionada"
-               asp-route-formacaoVisitanteId="@ViewBag.FormacaoVisitanteSelecionada"
+               asp-route-id="@Model.Jogo.Id"
+               asp-route-formacaoCasaId="@Model.FormacaoCasaSelecionada"
+               asp-route-formacaoVisitanteId="@Model.FormacaoVisitanteSelecionada"
                asp-route-faseEscalacao="FINAL">
                 Escalação Final
             </a>
@@ -1125,9 +1293,9 @@
 
 <!-- ── FORM PRINCIPAL (id fixo para o JS encontrar com segurança) ── -->
 <form id="formSalvarEscalacao" method="post" asp-action="SalvarEscalacao" asp-controller="Jogos">
-    <input type="hidden" name="id" value="@Model.Id" />
-    <input type="hidden" name="formacaoCasaId" value="@ViewBag.FormacaoCasaSelecionada" />
-    <input type="hidden" name="formacaoVisitanteId" value="@ViewBag.FormacaoVisitanteSelecionada" />
+    <input type="hidden" name="id" value="@Model.Jogo.Id" />
+    <input type="hidden" name="formacaoCasaId" value="@Model.FormacaoCasaSelecionada" />
+    <input type="hidden" name="formacaoVisitanteId" value="@Model.FormacaoVisitanteSelecionada" />
     <input type="hidden" name="faseEscalacao" value="@faseAtual" />
     <input type="hidden" id="observacoesComTags" name="observacoesComTags" value="" />
 
@@ -1139,7 +1307,7 @@
                 <!-- Lista de jogadores -->
                 <div class="col-5 scroll-panel">
                     @{
-                        var treinadorCasa = ViewBag.TreinadorCasa as ControleFutebolWeb.Models.Treinador;
+                        var treinadorCasa = Model.TreinadorCasa as ControleFutebolWeb.Models.Treinador;
                     }
                     @if (treinadorCasa != null)
                     {
@@ -1161,10 +1329,11 @@
                             </div>
                         </div>
                     }
+                    <input type="text" id="filtroCasa" class="filtro-jogador" placeholder="🔍 Buscar por nome ou número..." oninput="filtrarLista('listaCasa', this.value)" />
                     <table class="table table-sm table-striped">
                         <thead><tr><th></th><th>Nome</th><th>Pos</th></tr></thead>
                         <tbody id="listaCasa">
-                            @foreach (var jogador in (List<ControleFutebolWeb.Models.Jogador>)ViewBag.JogadoresCasa)
+                            @foreach (var jogador in (List<ControleFutebolWeb.Models.Jogador>)Model.JogadoresCasa)
                             {
                                 <tr class="jogador-row"
                                     id="jogador-casa-@jogador.Id"
@@ -1182,7 +1351,7 @@
                                             <span class="sub-badge-out" title="Jogador saiu">↓</span>
                                         }
                                     </td>
-                                    <td>@jogador.Posicao</td>
+                                    <td>@AbreviarPosicao(jogador.Posicao)</td>
                                 </tr>
                             }
                         </tbody>
@@ -1197,7 +1366,7 @@
                         @{
                             var idxCasa = 0;
                         }
-                        @foreach (var esc in (List<ControleFutebolWeb.Models.Escalacao>)ViewBag.EscalacoesCasa)
+                        @foreach (var esc in (List<ControleFutebolWeb.Models.Escalacao>)Model.EscalacoesCasa)
                         {
                             <div class="posicao-drop"
                                  data-index="casa_@idxCasa"
@@ -1219,9 +1388,15 @@
                                         }
                                     </div>
                                     <button type="button"
+                                            id="btn-avaliar-@esc.Jogador.Id"
                                             class="btn-avaliar"
                                             onclick="abrirAvaliacao(@esc.Jogador.Id, '@esc.Jogador.Nome', '@esc.Posicao', event)">
                                         +
+                                    </button>
+                                    <button type="button" class="btn-info-jogador"
+                                            onmouseenter="mostrarInfoJogador(this, {nome:'@Html.Raw(esc.Jogador.NomeExibicao.Replace("'","&#39;"))',foto:'@(esc.Jogador.FotoUrl ?? "")',posicao:'@esc.Jogador.Posicao',numero:@(esc.Jogador.NumeroCamisa?.ToString() ?? "null"),idade:@(esc.Jogador.Idade > 0 ? esc.Jogador.Idade.ToString() : "null"),nac:'@(esc.Jogador.Nacionalidade?.Nome ?? "")',gols:@(golsPorJogador.TryGetValue(esc.Jogador.Id, out var _g) ? _g : 0),assists:@(assistsPorJogador.TryGetValue(esc.Jogador.Id, out var _a) ? _a : 0),obs:'@Html.Raw((esc.Jogador.Observacoes ?? "").Replace("'","&#39;").Replace("\n","\\n"))'} )"
+                                            onmouseleave="esconderInfoJogador()">
+                                        ℹ
                                     </button>
                                 }
                                 else
@@ -1248,7 +1423,7 @@
                             @{
                                 var idxResCasa = 0;
                             }
-                            @foreach (var esc in (List<ControleFutebolWeb.Models.Escalacao>)ViewBag.ReservasCasa)
+                            @foreach (var esc in (List<ControleFutebolWeb.Models.Escalacao>)Model.ReservasCasa)
                             {
                                 <div class="reserva-card" id="reserva-casa-card-@idxResCasa">
                                     <span class="rem-btn" onclick="removerReserva('casa', @idxResCasa)">×</span>
@@ -1276,8 +1451,8 @@
         <!-- ===== TIME VISITANTE ===== -->
         <div class="col-md-6">
             @* <h4>
-                <img src="@Model.TimeVisitante.EscudoUrl" width="24" />
-                @Model.TimeVisitante.Nome
+                <img src="@Model.Jogo.TimeVisitante.EscudoUrl" width="24" />
+                @Model.Jogo.TimeVisitante.Nome
             </h4> *@
             <div class="row">
                 <!-- Campinho visitante -->
@@ -1288,7 +1463,7 @@
                         @{
                             var idxVis = 0;
                         }
-                        @foreach (var esc in (List<ControleFutebolWeb.Models.Escalacao>)ViewBag.EscalacoesVisitante)
+                        @foreach (var esc in (List<ControleFutebolWeb.Models.Escalacao>)Model.EscalacoesVisitante)
                         {
                             <div class="posicao-drop"
                                  data-index="vis_@idxVis"
@@ -1310,9 +1485,15 @@
                                         }
                                     </div>
                                     <button type="button"
+                                            id="btn-avaliar-@esc.Jogador.Id"
                                             class="btn-avaliar"
                                             onclick="abrirAvaliacao(@esc.Jogador.Id, '@esc.Jogador.Nome', '@esc.Posicao', event)">
                                         +
+                                    </button>
+                                    <button type="button" class="btn-info-jogador"
+                                            onmouseenter="mostrarInfoJogador(this, {nome:'@Html.Raw(esc.Jogador.NomeExibicao.Replace("'","&#39;"))',foto:'@(esc.Jogador.FotoUrl ?? "")',posicao:'@esc.Jogador.Posicao',numero:@(esc.Jogador.NumeroCamisa?.ToString() ?? "null"),idade:@(esc.Jogador.Idade > 0 ? esc.Jogador.Idade.ToString() : "null"),nac:'@(esc.Jogador.Nacionalidade?.Nome ?? "")',gols:@(golsPorJogador.TryGetValue(esc.Jogador.Id, out var _g) ? _g : 0),assists:@(assistsPorJogador.TryGetValue(esc.Jogador.Id, out var _a) ? _a : 0),obs:'@Html.Raw((esc.Jogador.Observacoes ?? "").Replace("'","&#39;").Replace("\n","\\n"))'} )"
+                                            onmouseleave="esconderInfoJogador()">
+                                        ℹ
                                     </button>
                                 }
                                 else
@@ -1339,7 +1520,7 @@
                             @{
                                 var idxResVis = 0;
                             }
-                            @foreach (var esc in (List<ControleFutebolWeb.Models.Escalacao>)ViewBag.ReservasVisitante)
+                            @foreach (var esc in (List<ControleFutebolWeb.Models.Escalacao>)Model.ReservasVisitante)
                             {
                                 <div class="reserva-card" id="reserva-vis-card-@idxResVis">
                                     <span class="rem-btn" onclick="removerReserva('vis', @idxResVis)">×</span>
@@ -1364,7 +1545,7 @@
                 <!-- Lista de jogadores visitante -->
                 <div class="col-5 scroll-panel">
                     @{
-                        var treinadorVis = ViewBag.TreinadorVisitante as ControleFutebolWeb.Models.Treinador;
+                        var treinadorVis = Model.TreinadorVisitante as ControleFutebolWeb.Models.Treinador;
                     }
                     @if (treinadorVis != null)
                     {
@@ -1387,9 +1568,10 @@
                         </div>
                     }
                     <table class="table table-sm table-striped">
+                    <input type="text" id="filtroVis" class="filtro-jogador" placeholder="🔍 Buscar por nome ou número..." oninput="filtrarLista('listaVisitante', this.value)" />
                         <thead><tr><th></th><th>Nome</th><th>Pos</th></tr></thead>
                         <tbody id="listaVisitante">
-                            @foreach (var jogador in (List<ControleFutebolWeb.Models.Jogador>)ViewBag.JogadoresVisitante)
+                            @foreach (var jogador in (List<ControleFutebolWeb.Models.Jogador>)Model.JogadoresVisitante)
                             {
                                 <tr class="jogador-row"
                                     id="jogador-vis-@jogador.Id"
@@ -1407,7 +1589,7 @@
                                             <span class="sub-badge-out" title="Jogador saiu">↓</span>
                                         }
                                     </td>
-                                    <td>@jogador.Posicao</td>
+                                    <td>@AbreviarPosicao(jogador.Posicao)</td>
                                 </tr>
                             }
                         </tbody>
@@ -1435,7 +1617,7 @@
     </div>
 </form>
 
-<form asp-action="LimparEscalacoes" asp-route-id="@Model.Id" asp-route-faseEscalacao="@faseAtual" method="post" class="mt-2">
+<form asp-action="LimparEscalacoes" asp-route-id="@Model.Jogo.Id" asp-route-faseEscalacao="@faseAtual" method="post" class="mt-2">
     @Html.AntiForgeryToken()
     <div class="text-center">
         <button type="submit" class="btn btn-danger">🗑️ Limpar Escalação @(faseEhInicial ? "Inicial" : "Final")</button>
@@ -1464,15 +1646,15 @@
         {
             <div style="display:flex;align-items:center;justify-content:center;gap:1.5rem;margin-bottom:1.5rem;">
                 <div style="display:flex;align-items:center;gap:8px;">
-                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.TimeCasa?.EscudoUrl })"
-                         alt="@Model.TimeCasa?.Nome" style="width:28px;height:28px;object-fit:contain;" />
-                    <span style="font-weight:700;color:#1e3a5f;">@Model.TimeCasa?.Nome</span>
+                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeCasa?.EscudoUrl })"
+                         alt="@Model.Jogo.TimeCasa?.Nome" style="width:28px;height:28px;object-fit:contain;" />
+                    <span style="font-weight:700;color:#1e3a5f;">@Model.Jogo.TimeCasa?.Nome</span>
                 </div>
                 <div style="font-size:12px;color:#6b7280;text-transform:uppercase;font-weight:600;">Posse de bola</div>
                 <div style="display:flex;align-items:center;gap:8px;">
-                    <span style="font-weight:700;color:#1e3a5f;">@Model.TimeVisitante?.Nome</span>
-                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.TimeVisitante?.EscudoUrl })"
-                         alt="@Model.TimeVisitante?.Nome" style="width:28px;height:28px;object-fit:contain;" />
+                    <span style="font-weight:700;color:#1e3a5f;">@Model.Jogo.TimeVisitante?.Nome</span>
+                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeVisitante?.EscudoUrl })"
+                         alt="@Model.Jogo.TimeVisitante?.Nome" style="width:28px;height:28px;object-fit:contain;" />
                 </div>
             </div>
 
@@ -1523,41 +1705,57 @@
     }
 </script>
 
-<input type="hidden" id="jogoId" value="@Model.Id" />
+<input type="hidden" id="jogoId" value="@Model.Jogo.Id" />
 <!-- Modal de Avaliação -->
-<div id="modal-avaliacao" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
-    <div style="background:white; border-radius:12px; padding:1.25rem; width:360px; max-width:95vw; max-height:90vh; overflow-y:auto; box-shadow: 0 8px 32px rgba(0,0,0,0.2);">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1rem; padding-bottom:0.75rem; border-bottom:1px solid #eee;">
+<div id="modal-avaliacao" onclick="if (event.target === this) salvarAvaliacao();" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:12px; width:360px; max-width:95vw; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.2);">
+        <!-- Cabeçalho fixo -->
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; padding:1.25rem 1.25rem 0.75rem; border-bottom:1px solid #eee; flex-shrink:0;">
             <div>
                 <h5 id="av-nome" style="margin:0; font-size:15px; font-weight:600;"></h5>
                 <small id="av-pos" style="color:#888;"></small>
             </div>
             <button type="button" onclick="fecharAvaliacao()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#999;">&times;</button>
         </div>
-        <div id="av-acoes"></div>
 
-        <!-- Bônus automáticos -->
-        <div id="av-bonus-bloco" style="display:none; margin-top:0.75rem; padding:0.6rem 0.75rem; background:#f8faff; border-radius:8px; border:1px solid #e0eaff;">
-            <div style="font-size:11px; font-weight:600; color:#2563eb; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">⚡ Bônus automáticos</div>
-            <div id="av-bonus-linhas" style="display:flex; flex-direction:column; gap:4px;"></div>
-            <div style="margin-top:6px; padding-top:6px; border-top:1px solid #dbeafe; display:flex; justify-content:space-between; font-size:13px; font-weight:600;">
-                <span>Subtotal bônus</span>
-                <span id="av-bonus-subtotal" style="color:#2563eb;">+0</span>
+        <!-- Corpo rolável (somente as ações) -->
+        <div style="overflow-y:auto; flex:1 1 auto; padding:0.75rem 1.25rem;">
+            <div id="av-acoes"></div>
+
+            <!-- Bônus automáticos -->
+            <div id="av-bonus-bloco" style="display:none; margin-top:0.75rem; padding:0.6rem 0.75rem; background:#f8faff; border-radius:8px; border:1px solid #e0eaff;">
+                <div style="font-size:11px; font-weight:600; color:#2563eb; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">⚡ Bônus automáticos</div>
+                <div id="av-bonus-linhas" style="display:flex; flex-direction:column; gap:4px;"></div>
+                <div style="margin-top:6px; padding-top:6px; border-top:1px solid #dbeafe; display:flex; justify-content:space-between; font-size:13px; font-weight:600;">
+                    <span>Subtotal bônus</span>
+                    <span id="av-bonus-subtotal" style="color:#2563eb;">+0</span>
+                </div>
             </div>
         </div>
 
-        <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
-            <span style="color:#666; font-size:13px;">Pontuação total</span>
-            <div style="display:flex; align-items:center; gap:10px;">
-                <span id="av-total" style="font-size:22px; font-weight:600;">0</span>
-                <span id="av-nota" style="padding:3px 10px; border-radius:20px; font-size:12px; font-weight:500;">Regular</span>
+        <!-- Rodapé fixo: pontuação + observação + salvar -->
+        <div style="flex-shrink:0; padding:0.75rem 1.25rem 1.25rem; border-top:1px solid #eee; background:white;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="color:#666; font-size:13px;">Pontuação total</span>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span id="av-total" style="font-size:22px; font-weight:600;">0</span>
+                    <span id="av-nota" style="padding:3px 10px; border-radius:20px; font-size:12px; font-weight:500;">Regular</span>
+                </div>
             </div>
+            <div style="margin-top:0.75rem; display:flex; align-items:center; gap:8px;">
+                <label for="av-nota-manual" style="font-size:12px; color:#666; flex:1;">
+                    Nota manual (opcional)
+                    <span style="display:block; font-size:10px; color:#999;">Se preenchida, vale como nota final (ignora base + ações)</span>
+                </label>
+                <input type="number" id="av-nota-manual" min="0" max="10" step="0.1" placeholder="—"
+                       style="width:70px; font-size:14px; text-align:center; border:1px solid #ddd; border-radius:6px; padding:6px;">
+            </div>
+            <div style="margin-top:0.75rem;">
+                <label style="font-size:12px; color:#666;">Observação:</label>
+                <textarea id="av-obs" rows="2" style="width:100%; margin-top:4px; font-size:13px; border:1px solid #ddd; border-radius:6px; padding:6px; resize:vertical;"></textarea>
+            </div>
+            <button type="button" onclick="salvarAvaliacao()" style="width:100%; margin-top:10px; padding:8px; background:#198754; color:white; border:none; border-radius:6px; font-size:14px; cursor:pointer;">Salvar</button>
         </div>
-        <div style="margin-top:1rem;">
-            <label style="font-size:12px; color:#666;">Observação:</label>
-            <textarea id="av-obs" rows="2" style="width:100%; margin-top:4px; font-size:13px; border:1px solid #ddd; border-radius:6px; padding:6px; resize:vertical;"></textarea>
-        </div>
-        <button type="button" onclick="salvarAvaliacao()" style="width:100%; margin-top:10px; padding:8px; background:#198754; color:white; border:none; border-radius:6px; font-size:14px; cursor:pointer;">Salvar</button>
     </div>
 </div>
 
@@ -1573,14 +1771,14 @@
     const formPrincipal = document.getElementById('formSalvarEscalacao');
 
     const camisas = {
-        casa: '@Url.Content(CamisaHelper.ObterCamisa(Model, Model.TimeCasa))',
-        vis:  '@Url.Content(CamisaHelper.ObterCamisa(Model, Model.TimeVisitante))'
+        casa: '@Url.Content(CamisaHelper.ObterCamisa(Model.Jogo, Model.Jogo.TimeCasa))',
+        vis:  '@Url.Content(CamisaHelper.ObterCamisa(Model.Jogo, Model.Jogo.TimeVisitante))'
     };
     const faseEscalacaoAtual = '@faseAtual';
-    const observacoesSalvasRaw = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Observacoes ?? ""));
+    const observacoesSalvasRaw = @Html.Raw(System.Text.Json.JsonSerializer.Serialize((Model.ObservacoesUsuario as string) ?? ""));
     const escudosObservacao = {
-        CASA: '@(string.IsNullOrEmpty(Model.TimeCasa.EscudoUrl) ? "" : Url.Action("Imagem", "MediaProxy", new { url = Model.TimeCasa.EscudoUrl }))',
-        VISITANTE: '@(string.IsNullOrEmpty(Model.TimeVisitante.EscudoUrl) ? "" : Url.Action("Imagem", "MediaProxy", new { url = Model.TimeVisitante.EscudoUrl }))'
+        CASA: '@(string.IsNullOrEmpty(Model.Jogo.TimeCasa.EscudoUrl) ? "" : Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeCasa.EscudoUrl }))',
+        VISITANTE: '@(string.IsNullOrEmpty(Model.Jogo.TimeVisitante.EscudoUrl) ? "" : Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeVisitante.EscudoUrl }))'
     };
 
     function autoResizeObs(textarea) {
@@ -1607,8 +1805,8 @@
             <div class="obs-team-pick">
                 <img class="obs-team-icon" src="${escudosObservacao[timeTag] || ''}" alt="${timeTag}" />
                 <select class="form-select form-select-sm" onchange="atualizarEscudoLinhaObs(this)">
-                    <option value="CASA" ${timeTag === 'CASA' ? 'selected' : ''}>@Model.TimeCasa.Nome</option>
-                    <option value="VISITANTE" ${timeTag === 'VISITANTE' ? 'selected' : ''}>@Model.TimeVisitante.Nome</option>
+                    <option value="CASA" ${timeTag === 'CASA' ? 'selected' : ''}>@Model.Jogo.TimeCasa.Nome</option>
+                    <option value="VISITANTE" ${timeTag === 'VISITANTE' ? 'selected' : ''}>@Model.Jogo.TimeVisitante.Nome</option>
                 </select>
             </div>
             <textarea placeholder="Escreva a observação..." oninput="autoResizeObs(this)"></textarea>
@@ -1896,6 +2094,38 @@
     let jogadorAtual = null;
     let estatisticasAtuais = null;
 
+    // ── Cor do botão de avaliação conforme a nota do jogador ───────────────
+    const AV_NOTA_BASE = 4.0;   // base fixa
+    const AV_NOTA_MIN  = 4.0;   // nota mínima do cálculo automático
+
+    function calcularNotaFinalJogador(av) {
+        if (!av) return null;
+        if (av.notaManual !== null && av.notaManual !== undefined)
+            return Math.max(0, Math.min(10, av.notaManual));            // override absoluto
+        if (av.total === null || av.total === undefined) return null;   // sem nota salva
+        return Math.max(AV_NOTA_MIN, Math.min(10, AV_NOTA_BASE + av.total));
+    }
+
+    function corDaNota(notaFinal) {
+        if (notaFinal === null) return { bg: '#f5c400', fg: '#333' };   // sem nota → amarelo
+        if (notaFinal >= 7.5)   return { bg: '#22c55e', fg: '#fff' };   // ótima → verde
+        if (notaFinal >= 5.5)   return { bg: '#3b82f6', fg: '#fff' };   // boa → azul
+        return { bg: '#ef4444', fg: '#fff' };                           // ruim → vermelho
+    }
+
+    function atualizarCorAvaliacao(jogadorId) {
+        const btn = document.getElementById('btn-avaliar-' + jogadorId);
+        if (!btn) return;
+        const nf = calcularNotaFinalJogador(avaliacoes[jogadorId]);
+        const c = corDaNota(nf);
+        btn.style.background = c.bg;
+        btn.style.color = c.fg;
+    }
+
+    function atualizarTodasCoresAvaliacao() {
+        Object.keys(avaliacoes).forEach(id => atualizarCorAvaliacao(id));
+    }
+
     async function abrirAvaliacao(jogadorId, nome, posicao, event) {
         event.stopPropagation();
 
@@ -1909,6 +2139,8 @@
         document.getElementById('av-nome').textContent = nome;
         document.getElementById('av-pos').textContent  = posicao + ' · Avaliação da partida';
         document.getElementById('av-obs').value        = avaliacoes[jogadorId].obs || '';
+        const nmAtual = avaliacoes[jogadorId].notaManual;
+        document.getElementById('av-nota-manual').value = (nmAtual === null || nmAtual === undefined) ? '' : nmAtual;
 
         // Busca estatísticas importadas para pré-preencher (só na primeira vez que abre)
         const jaTinhaValores = criterios.some(c => (avaliacoes[jogadorId][c.id] || 0) > 0);
@@ -1991,6 +2223,14 @@
 
         avaliacoes[jogadorAtual].obs = document.getElementById('av-obs').value;
 
+        const notaManualRaw = document.getElementById('av-nota-manual').value.trim();
+        let notaManual = null;
+        if (notaManualRaw !== '') {
+            const parsed = parseFloat(notaManualRaw.replace(',', '.'));
+            if (!isNaN(parsed)) notaManual = Math.max(0, Math.min(10, parsed));
+        }
+        avaliacoes[jogadorAtual].notaManual = notaManual;
+
         const jogoId = parseInt(document.getElementById('jogoId').value);
 
         const detalhes = criterios
@@ -2010,6 +2250,7 @@
             jogoId:     jogoId,
             total:      total,
             observacao: avaliacoes[jogadorAtual].obs,
+            notaManual: notaManual,
             detalhes:   detalhes
         };
 
@@ -2021,6 +2262,8 @@
             });
 
             if (resp.ok) {
+                avaliacoes[jogadorAtual].total = total;
+                atualizarCorAvaliacao(jogadorAtual);
                 fecharAvaliacao();
             } else {
                 alert('Erro ao salvar avaliação.');
@@ -2046,10 +2289,13 @@
             notas.forEach(n => {
                 if (!avaliacoes[n.jogadorId]) avaliacoes[n.jogadorId] = { obs: '' };
                 avaliacoes[n.jogadorId].obs = n.observacao || '';
+                avaliacoes[n.jogadorId].notaManual = (n.notaManual === null || n.notaManual === undefined) ? null : n.notaManual;
+                avaliacoes[n.jogadorId].total = n.total;
                 n.detalhes.forEach(d => {
                     avaliacoes[n.jogadorId][d.acaoId] = d.quantidade;
                 });
             });
+            atualizarTodasCoresAvaliacao();
         } catch (e) {
             console.warn('Não foi possível carregar avaliações:', e);
         }
@@ -2058,16 +2304,16 @@
 
 <script>
     // ══ Dados vindos do servidor ══════════════════════════════════════════
-    const jogoIdPlacar  = @Model.Id;
-    const placarCasaIni = @(Model.PlacarCasa?.ToString() ?? "null");
-    const placarVisIni  = @(Model.PlacarVisitante?.ToString() ?? "null");
+    const jogoIdPlacar  = @Model.Jogo.Id;
+    const placarCasaIni = @(Model.Jogo.PlacarCasa?.ToString() ?? "null");
+    const placarVisIni  = @(Model.Jogo.PlacarVisitante?.ToString() ?? "null");
 
     const jogadoresCasaLista = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
-                ((List<ControleFutebolWeb.Models.Jogador>)ViewBag.JogadoresCasa)
+                ((List<ControleFutebolWeb.Models.Jogador>)Model.JogadoresCasa)
                         .Select(j => new { id = j.Id, nome = j.Nome })
         ));
     const jogadoresVisLista = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
-                ((List<ControleFutebolWeb.Models.Jogador>)ViewBag.JogadoresVisitante)
+                ((List<ControleFutebolWeb.Models.Jogador>)Model.JogadoresVisitante)
                         .Select(j => new { id = j.Id, nome = j.Nome })
         ));
 
@@ -2126,8 +2372,8 @@
 
         const isGol = tipo === 'gol';
         const nomeTime = time === 'casa'
-            ? '@Model.TimeCasa?.Nome'
-            : '@Model.TimeVisitante?.Nome';
+            ? '@Model.Jogo.TimeCasa?.Nome'
+            : '@Model.Jogo.TimeVisitante?.Nome';
 
         const icones = { gol: '⚽', amarelo: '🟨', vermelho: '🟥' };
         const cores  = { gol: '#4ade80', amarelo: '#fde047', vermelho: '#f87171' };
@@ -2494,4 +2740,172 @@
     document.getElementById('modal-h2h').addEventListener('click', function(e) {
         if (e.target === this) fecharH2H();
     });
+</script>
+
+<script>
+    // ══════════════ CRONÔMETRO DA PARTIDA + FASES TÁTICAS ══════════════
+    const CRONO_JOGO_ID = @Model.Jogo.Id;
+
+    let cronoEstado = 'PARADO';
+    let cronoBaseSegundos = 0;     // segundos vindos do servidor no último sync
+    let cronoSyncTs = Date.now();  // momento do último sync (ms)
+
+    function cronoSegundosAtuais() {
+        if (cronoEstado === 'RODANDO')
+            return cronoBaseSegundos + Math.floor((Date.now() - cronoSyncTs) / 1000);
+        return cronoBaseSegundos;
+    }
+
+    function cronoRender() {
+        const s = cronoSegundosAtuais();
+        const mm = String(Math.floor(s / 60)).padStart(2, '0');
+        const ss = String(s % 60).padStart(2, '0');
+        const disp = document.getElementById('cronoDisplay');
+        if (disp) disp.textContent = `${mm}:${ss}`;
+        const est = document.getElementById('cronoEstado');
+        if (est) est.textContent = cronoEstado === 'RODANDO' ? 'em andamento'
+                               : cronoEstado === 'FINALIZADO' ? 'finalizado' : 'parado';
+
+        // Sugere o minuto atual no campo de fase, enquanto o usuário não editar manualmente
+        const campo = document.getElementById('faseMinuto');
+        if (campo && !campo.dataset.editado && cronoEstado === 'RODANDO')
+            campo.value = Math.floor(s / 60);
+    }
+
+    function aplicarEstadoCrono(estado, segundos) {
+        cronoEstado = estado;
+        cronoBaseSegundos = segundos;
+        cronoSyncTs = Date.now();
+        cronoRender();
+    }
+
+    async function cronoAcao(acao) {
+        try {
+            const resp = await fetch('/Jogos/CronometroAcao', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ jogoId: CRONO_JOGO_ID, acao })
+            });
+            if (resp.ok) {
+                const d = await resp.json();
+                aplicarEstadoCrono(d.estado, d.segundos);
+            }
+        } catch { }
+    }
+
+    setInterval(cronoRender, 1000);
+
+    (async function initCrono() {
+        try {
+            const resp = await fetch(`/Jogos/CronometroEstado?jogoId=${CRONO_JOGO_ID}`);
+            if (resp.ok) {
+                const d = await resp.json();
+                aplicarEstadoCrono(d.estado, d.segundos);
+            }
+        } catch { }
+    })();
+
+    // ── Fases táticas: salvar a escalação atual como uma nova fase ──
+    function coletarTitularesFase() {
+        const titulares = [];
+        function coletar(prefixo, isCasa) {
+            document.querySelectorAll(`input[id^="${prefixo}_"][id$="__JogadorId"]`).forEach(inp => {
+                const base = inp.id.replace('__JogadorId', '');
+                const jid = parseInt(inp.value || '0', 10);
+                if (!jid) return;
+                const px = parseFloat((document.getElementById(base + '__PosicaoX') || {}).value || '0');
+                const py = parseFloat((document.getElementById(base + '__PosicaoY') || {}).value || '0');
+                titulares.push({ jogadorId: jid, posicao: null, posicaoX: px, posicaoY: py, isTimeCasa: isCasa });
+            });
+        }
+        coletar('escalacaoCasa', true);
+        coletar('escalacaoVisitante', false);
+        return titulares;
+    }
+
+    async function salvarFaseTatica() {
+        const minuto = parseInt(document.getElementById('faseMinuto').value || '0', 10) || 0;
+        const titulares = coletarTitularesFase();
+        if (titulares.length === 0) {
+            alert('Não há jogadores escalados para salvar como fase tática.');
+            return;
+        }
+        try {
+            const resp = await fetch('/Jogos/SalvarFaseTatica', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ jogoId: CRONO_JOGO_ID, minuto, titulares })
+            });
+            if (resp.ok) {
+                const d = await resp.json();
+                window.location = `/Jogos/Analisar/${CRONO_JOGO_ID}?faseEscalacao=${encodeURIComponent(d.chave)}`;
+            } else {
+                alert('Erro ao salvar a fase tática.');
+            }
+        } catch {
+            alert('Erro de conexão ao salvar a fase.');
+        }
+    }
+
+    async function excluirFaseTatica(chave) {
+        if (!confirm('Excluir esta fase tática? As posições registradas nela serão removidas.')) return;
+        try {
+            const resp = await fetch('/Jogos/ExcluirFaseTatica', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ jogoId: CRONO_JOGO_ID, chave })
+            });
+            if (resp.ok) {
+                window.location = `/Jogos/Analisar/${CRONO_JOGO_ID}?faseEscalacao=INICIAL`;
+            } else {
+                alert('Erro ao excluir a fase.');
+            }
+        } catch {
+            alert('Erro de conexão ao excluir a fase.');
+        }
+    }
+
+    // ── Tooltip de info do jogador ──────────────────────────────────────────
+    function mostrarInfoJogador(btn, dados) {
+        const tt = document.getElementById('jogador-tooltip');
+        if (!tt) return;
+        const fotoSrc = dados.foto ? `/MediaProxy/Imagem?url=${encodeURIComponent(dados.foto)}` : '/images/placeholder-jogador.png';
+        let html = `<div class="tt-header"><img class="tt-foto" src="${fotoSrc}" /><div class="tt-nome">${dados.nome}</div></div>`;
+        const meta = [
+            dados.posicao ? `<span>🎽 ${dados.posicao}</span>` : '',
+            dados.numero  ? `<span># ${dados.numero}</span>`   : '',
+            dados.idade   ? `<span>📅 ${dados.idade}a</span>`  : '',
+            dados.nac     ? `<span>🌍 ${dados.nac}</span>`     : '',
+        ].filter(Boolean).join('');
+        if (meta) html += `<div class="tt-meta">${meta}</div>`;
+        if (dados.gols > 0 || dados.assists > 0)
+            html += `<div class="tt-stats"><span class="tt-stat-gol">⚽ ${dados.gols} gols</span><span class="tt-stat-ast">🅰️ ${dados.assists} assists</span></div>`;
+        if (dados.obs)     html += `<div class="tt-obs">${dados.obs}</div>`;
+        tt.innerHTML = html;
+        tt.style.display = 'block';
+        const rect = btn.getBoundingClientRect();
+        const tw = tt.offsetWidth;
+        const th = tt.offsetHeight;
+        let left = rect.right + 8;
+        let top  = rect.top - th / 2;
+        if (left + tw > window.innerWidth - 8) left = rect.left - tw - 8;
+        if (top < 8) top = 8;
+        if (top + th > window.innerHeight - 8) top = window.innerHeight - th - 8;
+        tt.style.left = left + 'px';
+        tt.style.top  = top + 'px';
+    }
+
+    function esconderInfoJogador() {
+        const tt = document.getElementById('jogador-tooltip');
+        if (tt) tt.style.display = 'none';
+    }
+
+    function filtrarLista(listaId, termo) {
+        const t = termo.toLowerCase().trim();
+        document.querySelectorAll(`#${listaId} tr.jogador-row`).forEach(tr => {
+            const nome = tr.querySelector('td:nth-child(2)')?.textContent.toLowerCase() ?? '';
+            const numero = tr.querySelector('td:nth-child(1)')?.textContent.toLowerCase().trim() ?? '';
+            tr.style.display = (!t || nome.includes(t) || numero.includes(t)) ? '' : 'none';
+        });
+    }
 </script>

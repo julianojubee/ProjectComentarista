@@ -1,4 +1,5 @@
 using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
 using Microsoft.AspNetCore.Mvc;
@@ -15,13 +16,22 @@ namespace ControleFutebolWeb.Controllers
             _context = context;
         }
 
-        public IActionResult Index()
+        public IActionResult Index(int? temporada = null)
         {
+            var (temporadasDisponiveis, temporadaSel) =
+                TemporadaHelper.Resolver(_context, 2, temporada);
+            var vm = new LibertadoresIndexViewModel
+            {
+                Temporada = temporadaSel,
+                TemporadasDisponiveis = temporadasDisponiveis
+            };
+
             // Busca jogos da Libertadores (CompeticaoId = 2) que tenham grupo definido
             var jogos = _context.Jogos
                 .Include(j => j.TimeCasa)
                 .Include(j => j.TimeVisitante)
-                .Where(j => j.CompeticaoId == 2 && !string.IsNullOrEmpty(j.Grupo))
+                .Where(j => j.CompeticaoId == 2 && !string.IsNullOrEmpty(j.Grupo)
+                         && (temporadaSel == null || j.Temporada == temporadaSel))
                 .OrderBy(j => j.Data)
                 .ToList();
 
@@ -50,7 +60,7 @@ namespace ControleFutebolWeb.Controllers
                     .Where(j => j.Grupo == nomeGrupo)
                     .ToList();
 
-                var classificacao = CalcularClassificacaoGrupo(jogosDoGrupo);
+                var classificacao = ClassificacaoCalculator.Calcular(jogosDoGrupo);
 
                 grupos.Add(new GrupoViewModel
                 {
@@ -80,11 +90,25 @@ namespace ControleFutebolWeb.Controllers
                 ? proximosJogos.Min(j => j.Rodada)
                 : (jogos.Any() ? jogos.Max(j => j.Rodada) : 0);
 
-            ViewBag.Grupos = grupos;
-            ViewBag.ProximosJogos = proximosJogos;
-            ViewBag.RodadaAtual = rodadaAtual;
+            // ── Chaveamento (mata-mata) ─────────────────────────────────────────
+            // Jogos das fases finais já importados (Round of 16, Quarter-finals, etc.).
+            var jogosMataMata = _context.Jogos
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .Where(j => j.CompeticaoId == 2 && !string.IsNullOrEmpty(j.Grupo)
+                         && (temporadaSel == null || j.Temporada == temporadaSel))
+                .ToList()
+                .Where(j => ChaveamentoCopaBuilder.NormalizarFase(j.Grupo) != null)
+                .ToList();
 
-            return View();
+            var chaveamento = ChaveamentoMataMataBuilder.Construir(jogosMataMata);
+
+            vm.Grupos = grupos;
+            vm.ProximosJogos = proximosJogos;
+            vm.RodadaAtual = rodadaAtual;
+            vm.Chaveamento = chaveamento;
+
+            return View(vm);
         }
 
         private static bool EhFaseDeGrupos(string? grupo)
@@ -94,57 +118,5 @@ namespace ControleFutebolWeb.Controllers
                    !grupo.Contains("Stage", StringComparison.OrdinalIgnoreCase);
         }
 
-        private List<Classificacao> CalcularClassificacaoGrupo(List<Jogo> jogos)
-        {
-            var tabela = new Dictionary<int, Classificacao>();
-
-            foreach (var jogo in jogos)
-            {
-                if (jogo.TimeCasa == null || jogo.TimeVisitante == null) continue;
-                if (!jogo.PlacarCasa.HasValue || !jogo.PlacarVisitante.HasValue) continue;
-
-                if (!tabela.ContainsKey(jogo.TimeCasaId))
-                    tabela[jogo.TimeCasaId] = new Classificacao { TimeId = jogo.TimeCasaId, Time = jogo.TimeCasa };
-
-                if (!tabela.ContainsKey(jogo.TimeVisitanteId))
-                    tabela[jogo.TimeVisitanteId] = new Classificacao { TimeId = jogo.TimeVisitanteId, Time = jogo.TimeVisitante };
-
-                var casa = tabela[jogo.TimeCasaId];
-                var vis  = tabela[jogo.TimeVisitanteId];
-
-                casa.Jogos++;
-                vis.Jogos++;
-                casa.GolsPro    += jogo.PlacarCasa.Value;
-                casa.GolsContra += jogo.PlacarVisitante.Value;
-                vis.GolsPro     += jogo.PlacarVisitante.Value;
-                vis.GolsContra  += jogo.PlacarCasa.Value;
-
-                if (jogo.PlacarCasa > jogo.PlacarVisitante)
-                {
-                    casa.Vitorias++; casa.Pontos += 3; vis.Derrotas++;
-                }
-                else if (jogo.PlacarCasa < jogo.PlacarVisitante)
-                {
-                    vis.Vitorias++; vis.Pontos += 3; casa.Derrotas++;
-                }
-                else
-                {
-                    casa.Empates++; vis.Empates++;
-                    casa.Pontos++; vis.Pontos++;
-                }
-            }
-
-            var lista = tabela.Values
-                .OrderByDescending(t => t.Pontos)
-                .ThenByDescending(t => t.GolsPro - t.GolsContra)
-                .ThenByDescending(t => t.GolsPro)
-                .ThenByDescending(t => t.Vitorias)
-                .ToList();
-
-            for (int i = 0; i < lista.Count; i++)
-                lista[i].Posicao = i + 1;
-
-            return lista;
-        }
     }
 }

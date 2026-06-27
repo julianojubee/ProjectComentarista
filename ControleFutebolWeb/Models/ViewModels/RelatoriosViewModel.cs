@@ -9,6 +9,8 @@ namespace ControleFutebolWeb.Models.ViewModels
         // Filtro
         public List<int> CompeticaoIdsFiltro { get; set; } = new();
         public List<int> TimeIdsFiltro { get; set; } = new();
+        public int? TemporadaFiltro { get; set; }
+        public List<int> TemporadasDisponiveis { get; set; } = new();
         public bool IncluirNaoAnalisados { get; set; }
         // true quando a competição filtrada é de seleções → exibe a seleção no lugar do clube
         public bool ExibirSelecao { get; set; }
@@ -184,10 +186,15 @@ namespace ControleFutebolWeb.Models.ViewModels
         public double PctVitoriasVisitante => TotalJogos > 0 ? Math.Round((double)VitoriasVisitante / TotalJogos * 100, 1) : 0;
         public double PctEmpates => TotalJogos > 0 ? Math.Round((double)Empates / TotalJogos * 100, 1) : 0;
         public string? ArtilheiroNome { get; set; }
+        public int ArtilheiroId { get; set; }
+        public string? ArtilheiroEscudoUrl { get; set; }
         public int ArtilheiroGols { get; set; }
         public string? AssistenteNome { get; set; }
+        public int AssistenteId { get; set; }
+        public string? AssistenteEscudoUrl { get; set; }
         public int AssistenciasTotal { get; set; }
         public string? TimeMaisVitorias { get; set; }
+        public string? TimeMaisVitoriasEscudoUrl { get; set; }
         public int TimeMaisVitoriasQtd { get; set; }
         public string? JogoMaisGols { get; set; }
         public int JogoMaisGolsTotal { get; set; }

@@ -9,5 +9,7 @@ namespace ControleFutebolWeb.Models
 
         public string UsuarioId { get; set; } = "";
         public ApplicationUser Usuario { get; set; } = null!;
+
+        public string? Observacoes { get; set; }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -71,34 +72,9 @@ namespace ControleFutebolWeb.Controllers
         }
 
 
-        private static readonly Dictionary<string, string> _mapaNavionalidades = new(StringComparer.OrdinalIgnoreCase)
-        {
-            { "uruguay", "Uruguai" },
-            { "argentina", "Argentina" },
-            { "brazil", "Brasil" },
-            { "brasil", "Brasil" },
-            { "colombia", "Colômbia" },
-            { "chile", "Chile" },
-            { "paraguay", "Paraguai" },
-            { "peru", "Peru" },
-            { "bolivia", "Bolívia" },
-            { "venezuela", "Venezuela" },
-            { "ecuador", "Equador" },
-            { "england", "Inglaterra" },
-            { "france", "França" },
-            { "germany", "Alemanha" },
-            { "spain", "Espanha" },
-            { "portugal", "Portugal" },
-            { "italy", "Itália" },
-            // adicione outros conforme necessário
-        };
-
         private Nacionalidade ObterOuCriarNacionalidade(string nomeApi)
         {
-            // Normaliza o nome vindo da API
-            var nomeNormalizado = _mapaNavionalidades.TryGetValue(nomeApi.Trim(), out var nomeMapeado)
-                ? nomeMapeado
-                : nomeApi.Trim();
+            var nomeNormalizado = CountryHelper.Traduzir(nomeApi.Trim());
 
             // Busca ignorando maiúsculas/minúsculas
             var nacionalidade = _context.Nacionalidades

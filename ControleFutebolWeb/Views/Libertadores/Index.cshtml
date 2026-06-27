@@ -1,11 +1,14 @@
 ﻿@using ControleFutebolWeb.Models
+@model ControleFutebolWeb.Models.ViewModels.LibertadoresIndexViewModel
 @using ControleFutebolWeb.Models.ViewModels
+@removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
 
 @{
     ViewData["Title"] = "Libertadores";
-    var grupos = ViewBag.Grupos as List<GrupoViewModel> ?? new List<GrupoViewModel>();
-    var proximosJogos = ViewBag.ProximosJogos as List<Jogo> ?? new List<Jogo>();
-    var rodadaAtual = (int)(ViewBag.RodadaAtual ?? 0);
+    var grupos = Model.Grupos as List<GrupoViewModel> ?? new List<GrupoViewModel>();
+    var proximosJogos = Model.ProximosJogos as List<Jogo> ?? new List<Jogo>();
+    var rodadaAtual = Model.RodadaAtual;
+    var chaveamento = Model.Chaveamento as ChaveamentoArvoreViewModel ?? new ChaveamentoArvoreViewModel();
 }
 
 <style>
@@ -413,6 +416,126 @@
         border: 0.5px solid #e5e7eb;
         border-radius: 12px;
     }
+
+    /* ── Abas (Grupos / Mata-Mata) ───────────────────────────── */
+    .cdm-bracket-head {
+        display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+        margin-bottom: 10px;
+    }
+    .cdm-bracket-head h3 { font-size: 1.05rem; font-weight: 700; color: #111827; margin: 0; }
+    .cdm-bracket-head small { color: #6b7280; font-size: 11px; }
+
+    .cdm-tabs {
+        display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px;
+        border-bottom: 1px solid #e5e7eb; margin-bottom: 14px; scrollbar-width: thin;
+    }
+    .cdm-tab {
+        flex: 0 0 auto;
+        background: #fff; border: 1px solid #e5e7eb; border-radius: 999px;
+        padding: 7px 16px; font-size: 12px; font-weight: 600; color: #6b7280;
+        cursor: pointer; white-space: nowrap; transition: all .15s;
+    }
+    .cdm-tab:hover { border-color: #7c3aed; color: #6b21a8; }
+    .cdm-tab.active {
+        background: linear-gradient(135deg, #3b0764, #6b21a8);
+        color: #fff; border-color: transparent; box-shadow: 0 2px 8px rgba(124,58,237,.25);
+    }
+    .cdm-panel { display: none; }
+    .cdm-panel.active { display: block; animation: cdmfade .2s ease; }
+    @@keyframes cdmfade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
+
+    /* ── Chaveamento em árvore (bracket) ─────────────────────── */
+    .bkt-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11px; color: #6b7280; margin-bottom: 14px; }
+    .bkt-leg-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; vertical-align: middle; }
+    .bkt-leg-box { width: 11px; height: 11px; border-radius: 3px; display: inline-block; margin-right: 5px; vertical-align: middle; border: 1px solid #e5e7eb; background: #fff; }
+
+    .bkt-scroll { overflow-x: auto; padding-bottom: 12px; }
+    .bkt-tree {
+        --bkt-gap: 34px; --bkt-line: #d1c4e9; --bkt-w: 200px;
+        display: flex; align-items: stretch; gap: var(--bkt-gap);
+        min-width: max-content; padding: 4px 2px;
+    }
+    .bkt-side { display: flex; gap: var(--bkt-gap); align-items: stretch; }
+    .bkt-colwrap { width: var(--bkt-w); display: flex; flex-direction: column; }
+    .bkt-col-label {
+        text-align: center; font-size: 11px; font-weight: 800; letter-spacing: 1px;
+        text-transform: uppercase; color: #9ca3af; padding-bottom: 10px;
+    }
+    .bkt-col { flex: 1; display: flex; flex-direction: column; }
+    .bkt-cell { flex: 1 1 0; display: flex; align-items: center; position: relative; min-height: 92px; }
+
+    .bkt-match {
+        width: 100%; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+        overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.04); position: relative; z-index: 1;
+    }
+    .bkt-match.done { border-color: #d8b4fe; }
+    .bkt-match.vazio { opacity: .85; }
+    .bkt-match-no {
+        display: flex; justify-content: space-between; align-items: center;
+        background: linear-gradient(90deg,#3b0764,#6b21a8); color: #e9d5ff;
+        font-size: 9px; font-weight: 700; padding: 3px 8px; letter-spacing: .3px;
+    }
+    .bkt-team { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-bottom: 1px solid #f3f4f6; }
+    .bkt-team:last-of-type { border-bottom: none; }
+    .bkt-team img { width: 20px; height: 20px; object-fit: contain; border-radius: 50%; border: .5px solid #e5e7eb; background: #f9f9f9; flex-shrink: 0; }
+    .bkt-flag-ph { width: 20px; height: 20px; border-radius: 50%; background: repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 4px,#e5e7eb 4px,#e5e7eb 8px); flex-shrink: 0; }
+    .bkt-tname { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bkt-tname.placeholder { font-weight: 500; font-style: italic; color: #9ca3af; }
+    .bkt-team.win .bkt-tname { color: #6b21a8; }
+    .bkt-team.win { background: rgba(124,58,237,.06); }
+    .bkt-score { font-size: 13px; font-weight: 800; color: #111827; min-width: 18px; text-align: center; flex-shrink: 0; }
+    .bkt-foot { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 4px 8px; border-top: 1px solid #f3f4f6; background: #fafafa; }
+    .bkt-date { font-size: 9px; color: #9ca3af; }
+    .bkt-leglinks { display: flex; gap: 5px; }
+    .bkt-analisar {
+        font-size: 9px; padding: 2px 8px; border-radius: 5px; border: 1px solid #7c3aed;
+        color: #7c3aed; background: transparent; text-decoration: none; font-weight: 700;
+        transition: background .15s,color .15s; white-space: nowrap;
+    }
+    .bkt-analisar:hover { background: #7c3aed; color: #fff; text-decoration: none; }
+
+    /* Conectores — lado esquerdo (linhas saem à direita) */
+    .bkt-left .bkt-col:not(.bkt-sf) .bkt-cell::after {
+        content: ''; position: absolute; top: 50%; right: 0;
+        width: var(--bkt-gap); height: 2px; background: var(--bkt-line); transform: translate(100%,-50%);
+    }
+    .bkt-left .bkt-col:not(.bkt-sf) .bkt-cell:nth-child(odd)::before {
+        content: ''; position: absolute; top: 50%; right: calc(-1 * var(--bkt-gap));
+        width: 2px; height: 100%; background: var(--bkt-line);
+    }
+    /* Conectores — lado direito (linhas saem à esquerda) */
+    .bkt-right .bkt-col:not(.bkt-sf) .bkt-cell::after {
+        content: ''; position: absolute; top: 50%; left: 0;
+        width: var(--bkt-gap); height: 2px; background: var(--bkt-line); transform: translate(-100%,-50%);
+    }
+    .bkt-right .bkt-col:not(.bkt-sf) .bkt-cell:nth-child(odd)::before {
+        content: ''; position: absolute; top: 50%; left: calc(-1 * var(--bkt-gap));
+        width: 2px; height: 100%; background: var(--bkt-line);
+    }
+    /* Semifinais → Final */
+    .bkt-left .bkt-sf .bkt-cell::after {
+        content: ''; position: absolute; top: 50%; right: 0;
+        width: calc(var(--bkt-gap) + 8px); height: 2px; background: var(--bkt-line); transform: translate(100%,-50%);
+    }
+    .bkt-right .bkt-sf .bkt-cell::after {
+        content: ''; position: absolute; top: 50%; left: 0;
+        width: calc(var(--bkt-gap) + 8px); height: 2px; background: var(--bkt-line); transform: translate(-100%,-50%);
+    }
+
+    /* Centro: Final */
+    .bkt-center { width: var(--bkt-w); display: flex; flex-direction: column; }
+    .bkt-center .bkt-col-label { color: #b45309; }
+    .bkt-final-wrap { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; }
+    .bkt-center .bkt-cell { flex: 0 0 auto; min-height: 0; width: 100%; }
+    .bkt-trophy { font-size: 30px; line-height: 1; filter: drop-shadow(0 2px 6px rgba(0,0,0,.2)); }
+    .bkt-final-cell .bkt-match { border-color: #fbbf24; box-shadow: 0 2px 10px rgba(251,191,36,.25); }
+    .bkt-final-cell .bkt-match-no { background: linear-gradient(90deg,#b45309,#f59e0b); color: #fff; }
+    .bkt-final-cell .bkt-team.win .bkt-tname { color: #b45309; }
+    .bkt-final-cell .bkt-team.win { background: rgba(245,158,11,.08); }
+
+    @@media (max-width: 700px) {
+        .bkt-tree { --bkt-w: 172px; --bkt-gap: 26px; }
+    }
 </style>
 
 <!-- ── Banner ── -->
@@ -424,20 +547,124 @@
             <h2 class="lib-title">CONMEBOL Libertadores</h2>
         </div>
         <p class="lib-sub">Classificação por grupos e calendário de jogos</p>
+        @{
+            var temporadasLib = Model.TemporadasDisponiveis as List<int> ?? new List<int>();
+            var temporadaLibSel = Model.Temporada as int?;
+        }
+        @if (temporadasLib.Count > 1)
+        {
+            <form method="get" style="margin-top:10px;">
+                <label style="color:#fff;font-size:12px;font-weight:600;margin-right:6px;">Temporada:</label>
+                <select name="temporada" onchange="this.form.submit()"
+                        style="padding:5px 10px;border-radius:7px;border:none;font-size:13px;font-weight:600;">
+                    @foreach (var temp in temporadasLib)
+                    {
+                        <option value="@temp" @(temporadaLibSel == temp ? "selected" : "")>@temp</option>
+                    }
+                </select>
+            </form>
+        }
     </div>
 </div>
 
-@if (!grupos.Any())
+@{
+    bool temGrupos = grupos.Any();
+    bool temChave = chaveamento.TemDados;
+
+    // Renderiza um card de confronto do mata-mata (placar agregado + botão Analisar das pernas).
+    Func<ConfrontoArvore, Microsoft.AspNetCore.Html.IHtmlContent> renderMatch = @<text>
+        @{
+            var t = item;
+            bool rz = t.Realizado;
+        }
+        <div class="bkt-match @(rz ? "done" : "") @(t.Vazio ? "vazio" : "")">
+            <div class="bkt-match-no">
+                <span>@t.Rotulo</span>
+                <span>@(t.Data.HasValue ? ControleFutebolWeb.Helpers.DateHelper.FormatarData(t.Data, "dd/MM") : "")</span>
+            </div>
+            @foreach (var lado in new[]
+            {
+                (Slot: t.Lado1, Placar: t.PlacarLado1, Pen: t.PenaltisLado1, Venceu: t.Lado1Venceu),
+                (Slot: t.Lado2, Placar: t.PlacarLado2, Pen: t.PenaltisLado2, Venceu: t.Lado2Venceu)
+            })
+            {
+                <div class="bkt-team @(lado.Venceu ? "win" : "")">
+                    @if (lado.Slot.Definido)
+                    {
+                        @if (!string.IsNullOrEmpty(lado.Slot.Time?.EscudoUrl))
+                        {
+                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = lado.Slot.Time.EscudoUrl })" alt="@lado.Slot.Time.Nome" />
+                        }
+                        else
+                        {
+                            <span class="bkt-flag-ph"></span>
+                        }
+                        <span class="bkt-tname">@lado.Slot.Time?.Nome</span>
+                    }
+                    else
+                    {
+                        <span class="bkt-flag-ph"></span>
+                        <span class="bkt-tname placeholder">A definir</span>
+                    }
+                    @if (rz)
+                    {
+                        <span class="bkt-score">@lado.Placar@(lado.Pen.HasValue ? $" ({lado.Pen})" : "")</span>
+                    }
+                </div>
+            }
+            @if (t.JogoIds.Any())
+            {
+                <div class="bkt-foot">
+                    @if (t.JogoIds.Count == 1)
+                    {
+                        <span class="bkt-date">@(t.Data.HasValue ? ControleFutebolWeb.Helpers.DateHelper.FormatarData(t.Data, "dd/MM HH:mm") : "—")</span>
+                        <a href="@Url.Action("Analisar", "Jogos", new { id = t.JogoIds[0] })" class="bkt-analisar">Analisar →</a>
+                    }
+                    else
+                    {
+                        <span class="bkt-date">Ida e volta</span>
+                        <span class="bkt-leglinks">
+                            <a href="@Url.Action("Analisar", "Jogos", new { id = t.JogoIds[0] })" class="bkt-analisar">Ida</a>
+                            <a href="@Url.Action("Analisar", "Jogos", new { id = t.JogoIds[1] })" class="bkt-analisar">Volta</a>
+                        </span>
+                    }
+                </div>
+            }
+        </div>
+    </text>;
+}
+
+@if (!temGrupos && !temChave)
 {
     <div class="lib-empty">
         <div style="font-size:2rem;margin-bottom:8px;">🏆</div>
-        Nenhum jogo com grupo definido encontrado para a Copa do Mundo.<br>
+        Nenhum jogo com grupo definido encontrado para a Libertadores.<br>
         <small>Importe os jogos com o campo <strong>Grupo</strong> preenchido para ver a classificação.</small>
     </div>
 }
 else
 {
-    <div class="lib-layout">
+    <div class="cdm-bracket">
+        <div class="cdm-bracket-head">
+            <h3>🏆 Fase de Grupos &amp; Mata-Mata</h3>
+            <small>Selecione uma aba para ver a classificação dos grupos ou o caminho até a final.</small>
+        </div>
+
+        <div class="cdm-tabs" role="tablist">
+            @if (temGrupos)
+            {
+                <button type="button" class="cdm-tab active" data-cdm-tab="grupos">📊 Grupos</button>
+            }
+            @if (temChave)
+            {
+                <button type="button" class="cdm-tab @(!temGrupos ? "active" : "")" data-cdm-tab="chave">⚔️ Mata-Mata</button>
+            }
+        </div>
+
+        @if (temGrupos)
+        {
+            <div class="cdm-panel active" data-cdm-panel="grupos">
+                <div class="lib-layout">
 
         <!-- Coluna esquerda: grupos -->
         <div>
@@ -598,5 +825,92 @@ else
             }
         </div>
 
+                </div>
+            </div>
+        }
+
+        @if (temChave)
+        {
+            <div class="cdm-panel @(!temGrupos ? "active" : "")" data-cdm-panel="chave">
+                <div class="bkt-legend">
+                    <span><span class="bkt-leg-dot" style="background:#7c3aed;"></span>Classificado para a próxima fase</span>
+                    <span><span class="bkt-leg-box"></span>A definir</span>
+                </div>
+
+                <div class="bkt-scroll">
+                    <div class="bkt-tree">
+                        <!-- ── Lado esquerdo ── -->
+                        <div class="bkt-side bkt-left">
+                            <div class="bkt-colwrap">
+                                <div class="bkt-col-label">Oitavas</div>
+                                <div class="bkt-col">
+                                    @foreach (var c in chaveamento.OitavasEsq) { <div class="bkt-cell">@renderMatch(c)</div> }
+                                </div>
+                            </div>
+                            <div class="bkt-colwrap">
+                                <div class="bkt-col-label">Quartas</div>
+                                <div class="bkt-col">
+                                    @foreach (var c in chaveamento.QuartasEsq) { <div class="bkt-cell">@renderMatch(c)</div> }
+                                </div>
+                            </div>
+                            <div class="bkt-colwrap">
+                                <div class="bkt-col-label">Semi</div>
+                                <div class="bkt-col bkt-sf">
+                                    <div class="bkt-cell">@renderMatch(chaveamento.SemiEsq)</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ── Centro: Final ── -->
+                        <div class="bkt-center">
+                            <div class="bkt-col-label">Final</div>
+                            <div class="bkt-final-wrap">
+                                <div class="bkt-trophy">🏆</div>
+                                <div class="bkt-cell bkt-final-cell">@renderMatch(chaveamento.Final)</div>
+                            </div>
+                        </div>
+
+                        <!-- ── Lado direito ── -->
+                        <div class="bkt-side bkt-right">
+                            <div class="bkt-colwrap">
+                                <div class="bkt-col-label">Semi</div>
+                                <div class="bkt-col bkt-sf">
+                                    <div class="bkt-cell">@renderMatch(chaveamento.SemiDir)</div>
+                                </div>
+                            </div>
+                            <div class="bkt-colwrap">
+                                <div class="bkt-col-label">Quartas</div>
+                                <div class="bkt-col">
+                                    @foreach (var c in chaveamento.QuartasDir) { <div class="bkt-cell">@renderMatch(c)</div> }
+                                </div>
+                            </div>
+                            <div class="bkt-colwrap">
+                                <div class="bkt-col-label">Oitavas</div>
+                                <div class="bkt-col">
+                                    @foreach (var c in chaveamento.OitavasDir) { <div class="bkt-cell">@renderMatch(c)</div> }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
     </div>
+
+    <script>
+        (function () {
+            var root = document.querySelector('.cdm-bracket');
+            if (!root) return;
+            root.querySelectorAll('.cdm-tab').forEach(function (tab) {
+                tab.addEventListener('click', function () {
+                    var idx = tab.getAttribute('data-cdm-tab');
+                    root.querySelectorAll('.cdm-tab').forEach(function (t) { t.classList.remove('active'); });
+                    root.querySelectorAll('[data-cdm-panel]').forEach(function (p) { p.classList.remove('active'); });
+                    tab.classList.add('active');
+                    var panel = root.querySelector('[data-cdm-panel="' + idx + '"]');
+                    if (panel) panel.classList.add('active');
+                });
+            });
+        })();
+    </script>
 }

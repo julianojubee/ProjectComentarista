@@ -24,26 +24,63 @@ namespace ControleFutebolWeb.Controllers
         }
 
         // GET: Treinadores
-        public async Task<IActionResult> Index(string funcao, string nacionalidade, int? timeId)
+        public async Task<IActionResult> Index(List<int>? competicaoIds, List<int>? timeIds, List<string>? nacionalidades, int page = 1)
         {
-            ViewBag.Nacionalidades = new SelectList(
-                await _context.Nacionalidades.OrderBy(n => n.Nome).ToListAsync(),
-                "Nome", "Nome");
-            ViewBag.Times = new SelectList(
-                await _context.Times.OrderBy(t => t.Nome).ToListAsync(), "Id", "Nome");
+            const int pageSize = 50;
+            competicaoIds ??= new List<int>();
+            timeIds ??= new List<int>();
+            nacionalidades ??= new List<string>();
 
             var query = _context.Treinadores
                 .Include(t => t.Time)
                 .Include(t => t.Nacionalidade)
                 .AsQueryable();
 
-            if (!string.IsNullOrEmpty(nacionalidade))
-                query = query.Where(t => t.Nacionalidade.Nome == nacionalidade);
+            // Filtro por competições: treinadores cujos times jogaram nas competições selecionadas
+            if (competicaoIds.Any())
+            {
+                var jogosComp = _context.Jogos.Where(j => competicaoIds.Contains(j.CompeticaoId));
+                var timesComp = await jogosComp.Select(j => j.TimeCasaId)
+                    .Union(jogosComp.Select(j => j.TimeVisitanteId))
+                    .Distinct()
+                    .ToListAsync();
+                query = query.Where(t => timesComp.Contains(t.TimeId));
+            }
 
-            if (timeId.HasValue)
-                query = query.Where(t => t.TimeId == timeId.Value);
+            if (timeIds.Any())
+                query = query.Where(t => timeIds.Contains(t.TimeId));
 
-            return View(await query.ToListAsync());
+            if (nacionalidades.Any())
+                query = query.Where(t => t.Nacionalidade != null && nacionalidades.Contains(t.Nacionalidade.Nome));
+
+            query = query.OrderBy(t => t.Nome);
+
+            // Paginação (50 por página)
+            var totalTreinadores = await query.CountAsync();
+            var totalPaginas = (int)Math.Ceiling(totalTreinadores / (double)pageSize);
+            if (totalPaginas < 1) totalPaginas = 1;
+            if (page < 1) page = 1;
+            if (page > totalPaginas) page = totalPaginas;
+
+            var treinadoresPagina = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            // Listas completas para os tag selectors
+            ViewBag.Competicoes = await _context.Competicoes.OrderBy(c => c.Nome).ToListAsync();
+            ViewBag.Times = await _context.Times.OrderBy(t => t.Nome).ToListAsync();
+            ViewBag.NacionalidadesLista = await _context.Nacionalidades.OrderBy(n => n.Nome).ToListAsync();
+            ViewBag.CompeticaoIdsFiltro = competicaoIds;
+            ViewBag.TimeIdsFiltro = timeIds;
+            ViewBag.NacionalidadesFiltro = nacionalidades;
+
+            ViewBag.PaginaAtual = page;
+            ViewBag.TotalPaginas = totalPaginas;
+            ViewBag.TotalTreinadores = totalTreinadores;
+            ViewBag.PageSize = pageSize;
+
+            return View(treinadoresPagina);
         }
 
         // GET: Treinadores/Details/5
@@ -173,9 +210,22 @@ namespace ControleFutebolWeb.Controllers
 
         // ── Buscar dados (foto + idade + nacionalidade) via api-football ────────
 
+        // Reconstrói a URL do Index preservando os filtros multi-seleção e a página atual
+        private IActionResult RedirectIndexComFiltros(
+            List<int>? competicaoIds, List<int>? timeIds, List<string>? nacionalidades, int page)
+        {
+            var qs = new System.Text.StringBuilder();
+            qs.Append("?page=").Append(page < 1 ? 1 : page);
+            foreach (var cid in competicaoIds ?? new()) qs.Append("&competicaoIds=").Append(cid);
+            foreach (var tid in timeIds ?? new()) qs.Append("&timeIds=").Append(tid);
+            foreach (var n in nacionalidades ?? new()) qs.Append("&nacionalidades=").Append(Uri.EscapeDataString(n));
+            return Redirect(Url.Action(nameof(Index)) + qs);
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> BuscarFoto(int id)
+        public async Task<IActionResult> BuscarFoto(int id,
+            List<int>? competicaoIds, List<int>? timeIds, List<string>? nacionalidades, int page = 1)
         {
             var treinador = await _context.Treinadores
                 .Include(t => t.Time)
@@ -186,60 +236,99 @@ namespace ControleFutebolWeb.Controllers
 
             try
             {
-                var resultados = await _apiFootball.BuscarTreinadorApiAsync(treinador.Nome);
+                // A API encontra melhor pelo sobrenome: usa só o último nome na pesquisa
+                // (ex.: "Carlo Ancelotti" → "Ancelotti").
+                var termoBusca = treinador.Nome
+                    .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .LastOrDefault() ?? treinador.Nome;
+
+                // 1ª tentativa: nome + id do time (desambigua, ex.: coachs?search=Riera&team=2325).
+                var teamApiId = treinador.Time?.IdApi;
+                var resultados = await _apiFootball.BuscarTreinadorApiAsync(termoBusca, teamApiId);
+
+                // Fallback: se nada vier com o time, busca só pelo nome.
+                if (!resultados.Any() && teamApiId is long)
+                    resultados = await _apiFootball.BuscarTreinadorApiAsync(termoBusca);
 
                 if (!resultados.Any())
                 {
-                    TempData["Erro"] = $"❌ Nenhum treinador encontrado na API para '{treinador.Nome}'.";
-                    return RedirectToAction(nameof(Index));
+                    TempData["Erro"] = $"❌ Nenhum treinador encontrado na API para '{termoBusca}'.";
+                    return RedirectIndexComFiltros(competicaoIds, timeIds, nacionalidades, page);
                 }
 
-                // Prefere o resultado cujo time atual bate com o time cadastrado, senão pega o primeiro com mais dados
+                // Se o treinador já tem IdApi, trava no técnico com aquele id.
+                // Senão, prefere o resultado cujo time atual bate com o time cadastrado,
+                // depois o que tiver mais dados.
                 var melhor = resultados
-                    .OrderByDescending(r => r.Team?.Id == treinador.Time?.IdApi ? 10 : 0)
+                    .OrderByDescending(r => (treinador.IdApi != null && r.Id == treinador.IdApi) ? 100 : 0)
+                    .ThenByDescending(r => r.Team?.Id == treinador.Time?.IdApi ? 10 : 0)
                     .ThenByDescending(r => r.Age.HasValue ? 1 : 0)
                     .First();
 
-                bool alterou = false;
+                var alteracoes = new List<string>();
 
-                if (!string.IsNullOrEmpty(melhor.Photo))
+                // Grava/atualiza o IdApi para travar as próximas buscas no técnico certo
+                if (melhor.Id is int coachId && coachId > 0 && treinador.IdApi != coachId)
                 {
-                    treinador.FotoUrl = melhor.Photo;
-                    alterou = true;
+                    treinador.IdApi = coachId;
                 }
 
-                if (melhor.Age.HasValue && treinador.DataNascimento == null)
+                // Idade / data de nascimento
+                DateTime? novaData = null;
+                if (!string.IsNullOrEmpty(melhor.Birth?.Date) &&
+                    DateTime.TryParse(melhor.Birth.Date,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None, out var dtNasc))
                 {
-                    // Usa a data de nascimento exata se disponível
-                    if (!string.IsNullOrEmpty(melhor.Birth?.Date) &&
-                        DateTime.TryParse(melhor.Birth.Date, out var dtNasc))
+                    novaData = dtNasc;
+                }
+                else if (melhor.Age is int idadeApi && idadeApi > 0 && idadeApi < 120)
+                {
+                    // Sem data na API: estima 01/01 do ano que resulta na idade informada.
+                    novaData = new DateTime(DateTime.Today.Year - idadeApi, 1, 1);
+                }
+
+                if (novaData.HasValue && novaData.Value.Year > 1900)
+                {
+                    var data = DateTime.SpecifyKind(novaData.Value, DateTimeKind.Unspecified);
+                    if (treinador.DataNascimento?.Date != data.Date)
                     {
-                        treinador.DataNascimento = dtNasc;
-                        alterou = true;
+                        treinador.DataNascimento = data;
+                        alteracoes.Add($"idade ({treinador.Idade} anos)");
                     }
                 }
 
-                if (!string.IsNullOrEmpty(melhor.Nationality) && treinador.NacionalidadeId == null)
+                // Nacionalidade (resolve ou cria)
+                if (!string.IsNullOrWhiteSpace(melhor.Nationality))
                 {
-                    var nac = await _context.Nacionalidades
-                        .FirstOrDefaultAsync(n => n.Nome.ToLower() == melhor.Nationality.ToLower());
-                    if (nac != null)
+                    var nac = await ApiFootballService.ResolverOuCriarNacionalidadePublicAsync(_context, melhor.Nationality);
+                    if (nac != null && treinador.NacionalidadeId != nac.Id)
                     {
                         treinador.NacionalidadeId = nac.Id;
-                        alterou = true;
+                        alteracoes.Add($"nacionalidade ({nac.Nome})");
                     }
                 }
 
-                if (alterou)
+                // Foto
+                if (!string.IsNullOrEmpty(melhor.Photo) && treinador.FotoUrl != melhor.Photo)
                 {
-                    await _context.SaveChangesAsync();
-                    TempData["Sucesso"] = $"✅ Dados de {treinador.Nome} atualizados via api-football" +
-                        (melhor.Age.HasValue ? $" | Idade: {melhor.Age}" : "") +
-                        (!string.IsNullOrEmpty(melhor.Nationality) ? $" | Nac.: {melhor.Nationality}" : "");
+                    treinador.FotoUrl = melhor.Photo;
+                    alteracoes.Add("foto");
+                }
+
+                treinador.DtAlt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+
+                if (alteracoes.Any())
+                {
+                    string lista = alteracoes.Count > 1
+                        ? string.Join(", ", alteracoes.Take(alteracoes.Count - 1)) + " e " + alteracoes.Last()
+                        : alteracoes.First();
+                    TempData["Sucesso"] = $"{treinador.Nome}: atualizado → {lista}.";
                 }
                 else
                 {
-                    TempData["Info"] = $"ℹ️ Nenhum dado novo encontrado para '{treinador.Nome}' (campos já preenchidos ou API sem informação).";
+                    TempData["Info"] = $"{treinador.Nome}: informações já estavam atualizadas.";
                 }
             }
             catch (Exception ex)
@@ -247,7 +336,7 @@ namespace ControleFutebolWeb.Controllers
                 TempData["Erro"] = $"❌ Erro ao buscar dados: {ex.Message}";
             }
 
-            return RedirectToAction(nameof(Index));
+            return RedirectIndexComFiltros(competicaoIds, timeIds, nacionalidades, page);
         }
 
         // ── Importar histórico pelo nome (busca automática) ──────────────────

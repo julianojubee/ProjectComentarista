@@ -45,6 +45,7 @@ namespace ControleFutebolWeb.Controllers
                 JogoId = request.JogoId,
                 Valor = request.Total,
                 Comentario = request.Observacao ?? "",
+                NotaManual = request.NotaManual,
                 UsuarioId = usuarioId
             };
 
@@ -139,6 +140,7 @@ namespace ControleFutebolWeb.Controllers
                 jogadorNome = n.Jogador.Nome,
                 total = n.Valor,
                 observacao = n.Comentario,
+                notaManual = n.NotaManual,
                 detalhes = n.Detalhes.Select(d => new
                 {
                     acaoId = d.AcaoId,
@@ -159,6 +161,7 @@ namespace ControleFutebolWeb.Controllers
         public int JogoId { get; set; }
         public double Total { get; set; }
         public string? Observacao { get; set; }
+        public double? NotaManual { get; set; }
         public List<DetalheRequest> Detalhes { get; set; } = new();
     }
 

@@ -189,7 +189,7 @@
                         🖼 Escudo
                     </button>
 
-                    @if (!string.IsNullOrWhiteSpace(comp.linktransfermarket))
+                    @if (!string.IsNullOrWhiteSpace(comp.LinkTransfermarket))
                     {
                         <form asp-action="BuscarJogos" asp-route-id="@comp.Id" method="post" class="d-inline">
                             @Html.AntiForgeryToken()
@@ -219,7 +219,7 @@
                             <div class="modal-body">
                                 <input type="text" name="linkCompeticao" class="form-control"
                                        placeholder="Cole o link aqui"
-                                       value="@comp.linktransfermarket" />
+                                       value="@comp.LinkTransfermarket" />
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -315,7 +315,7 @@
                             🖼 Escudo
                         </button>
 
-                        @if (!string.IsNullOrWhiteSpace(comp.linktransfermarket))
+                        @if (!string.IsNullOrWhiteSpace(comp.LinkTransfermarket))
                         {
                             <form asp-action="BuscarJogos" asp-route-id="@comp.Id" method="post" class="d-inline">
                                 @Html.AntiForgeryToken()
@@ -348,7 +348,7 @@
                                 <div class="modal-body">
                                     <input type="text" name="linkCompeticao" class="form-control"
                                            placeholder="Cole o link aqui"
-                                           value="@comp.linktransfermarket" />
+                                           value="@comp.LinkTransfermarket" />
                                 </div>
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>

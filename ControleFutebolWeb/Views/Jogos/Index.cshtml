@@ -1,9 +1,9 @@
-﻿@model IEnumerable<ControleFutebolWeb.Models.Jogo>
+﻿@model ControleFutebolWeb.Models.ViewModels.JogosIndexViewModel
 
 @{
-    var competicoesMap = ViewBag.CompeticoesMap as Dictionary<int, string> ?? new Dictionary<int, string>();
-    var totalJogos = Model.Count();
-    var jogosFinalizados = Model.Count(j => j.PlacarCasa >= 0 && j.PlacarVisitante >= 0);
+    var competicoesMap = Model.CompeticoesMap ?? new Dictionary<int, string>();
+    var totalJogos = Model.Jogos.Count;
+    var jogosFinalizados = Model.Jogos.Count(j => j.PlacarCasa >= 0 && j.PlacarVisitante >= 0);
     var jogosAgendados = totalJogos - jogosFinalizados;
 }
 
@@ -332,21 +332,21 @@
         <form method="get" asp-action="Index" class="cf-filters">
             <div class="cf-filter-group">
                 <label for="competicaoId">Campeonato</label>
-                <select id="competicaoId" name="competicaoId" asp-items="ViewBag.CompeticaoList">
+                <select id="competicaoId" name="competicaoId" asp-items="Model.CompeticaoList">
                     <option value="">Todos os campeonatos</option>
                 </select>
             </div>
 
             <div class="cf-filter-group">
                 <label for="teamId">Time</label>
-                <select id="teamId" name="teamId" asp-items="ViewBag.TimeList">
+                <select id="teamId" name="teamId" asp-items="Model.TimeList">
                     <option value="">Todos os times</option>
                 </select>
             </div>
 
             <div class="cf-filter-group">
                 <label for="status">Status</label>
-                <select id="status" name="status" asp-items="ViewBag.StatusList"></select>
+                <select id="status" name="status" asp-items="Model.StatusList"></select>
             </div>
 
             <div class="cf-filter-actions">
@@ -398,8 +398,10 @@
         </script>
         @* Na Index de jogos, adicione este bloco após os filtros de busca: *@
         @{
-            // competicaoId vem do ViewBag ou do parâmetro da rota
-            var compId = ViewBag.CompeticaoList as int?;
+            // NOTA: historicamente este valor lia `ViewBag.CompeticaoList as int?` — um SelectList
+            // convertido para int? sempre resulta null, então o bloco abaixo nunca renderizou.
+            // Comportamento mantido na migração para ViewModel. Ver pendência no relatório.
+            int? compId = null;
         }
 
         @if (compId.HasValue)
@@ -428,7 +430,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var jogo in Model)
+                    @foreach (var jogo in Model.Jogos)
                     {
                         var nomeCompeticao = competicoesMap.TryGetValue(jogo.CompeticaoId, out var nome) ? nome : "Sem competição";
                         var linkCompeticao = jogo.CompeticaoId == 1

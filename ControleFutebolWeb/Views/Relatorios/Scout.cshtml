@@ -1,0 +1,543 @@
+@model ControleFutebolWeb.Models.ViewModels.ScoutViewModel
+@{
+    ViewData["Title"] = "Scout de Jogadores";
+    var f = Model.Filtro;
+}
+
+<style>
+    /* ── Tag selector ────────────────────────────────────────────── */
+    .ms-wrap { position: relative; }
+    .ms-box {
+        display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
+        min-height: 38px; padding: 4px 30px 4px 8px; cursor: pointer;
+        border: 1px solid #d1d5db; border-radius: 8px; background: #fafafa;
+        font-size: 13px; transition: border-color .15s;
+    }
+    .ms-box:focus { outline: none; border-color: #8b5cf6; }
+    .ms-placeholder { color: #9ca3af; }
+    .ms-chip {
+        display: inline-flex; align-items: center; gap: 4px;
+        background: #ede9fe; color: #5b21b6;
+        border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 600;
+    }
+    .ms-chip-x { cursor: pointer; font-size: 14px; line-height: 1; }
+    .ms-arrow {
+        position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+        pointer-events: none; color: #9ca3af; font-size: 10px;
+    }
+    .ms-panel {
+        position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 200;
+        background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+        box-shadow: 0 8px 24px rgba(0,0,0,.12); max-height: 260px; overflow-y: auto;
+        display: none; padding: 4px;
+    }
+    .ms-panel.open { display: block; }
+    .ms-opt {
+        display: flex; align-items: center; gap: 8px; padding: 7px 10px;
+        border-radius: 6px; cursor: pointer; font-size: 13px; color: #111827;
+    }
+    .ms-opt:hover { background: #f3f4f6; }
+    .ms-opt input { cursor: pointer; accent-color: #7c3aed; }
+    .ms-search {
+        width: 100%; box-sizing: border-box; padding: 7px 10px; margin-bottom: 4px;
+        border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; outline: none;
+        position: sticky; top: 0; background: #fff;
+    }
+</style>
+
+<style>
+    @@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;800;900&family=Barlow:wght@400;500;600&display=swap');
+
+    .sc-root * { box-sizing: border-box; }
+
+    /* Hero */
+    .sc-hero {
+        background: linear-gradient(135deg, #0a1628 0%, #111e35 55%, #0a1628 100%);
+        border-radius: 16px; padding: 2.2rem 2rem 1.8rem;
+        margin-bottom: 1.4rem; text-align: center;
+    }
+    .sc-badge {
+        display: inline-block; margin-bottom: .6rem;
+        background: rgba(139,92,246,.18); color: #c4b5fd;
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+        padding: 4px 14px; border-radius: 999px; border: 1px solid rgba(139,92,246,.35);
+    }
+    .sc-hero h1 {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 2.2rem; font-weight: 900; color: #fff; margin: 0 0 .3rem;
+    }
+    .sc-hero p { color: rgba(255,255,255,.5); margin: 0; font-size: .88rem; }
+
+    /* Painel de filtros */
+    .sc-panel {
+        background: #fff; border: .5px solid #e5e7eb;
+        border-radius: 14px; padding: 1.2rem 1.4rem; margin-bottom: 1.2rem;
+    }
+    .sc-panel-title {
+        font-size: 12px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .8px; color: #6b7280; margin-bottom: .9rem;
+        padding-bottom: .5rem; border-bottom: 1px solid #f3f4f6;
+    }
+    .sc-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 10px 14px;
+    }
+    .sc-field label {
+        display: block; font-size: 11px; font-weight: 600;
+        color: #374151; margin-bottom: 4px;
+    }
+    .sc-field input, .sc-field select {
+        width: 100%; border: 1px solid #d1d5db; border-radius: 8px;
+        padding: 7px 10px; font-size: 13px; color: #111827;
+        background: #fafafa; outline: none;
+        transition: border-color .15s;
+    }
+    .sc-field input:focus, .sc-field select:focus { border-color: #8b5cf6; background: #fff; }
+
+    .sc-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 1.1rem; }
+    .sc-btn-search {
+        padding: 9px 22px; border-radius: 9px; border: none; cursor: pointer;
+        background: #7c3aed; color: #fff;
+        font-size: 13px; font-weight: 700; letter-spacing: .2px;
+        transition: background .15s;
+    }
+    .sc-btn-search:hover { background: #6d28d9; }
+    .sc-btn-clear {
+        padding: 9px 16px; border-radius: 9px; border: 1px solid #e5e7eb;
+        background: #f9fafb; color: #374151; font-size: 13px; font-weight: 600;
+        text-decoration: none; transition: background .15s;
+    }
+    .sc-btn-clear:hover { background: #f3f4f6; }
+    .sc-back { margin-left: auto; font-size: 13px; color: #6b7280; text-decoration: none; }
+    .sc-back:hover { color: #374151; }
+
+    /* Resultado */
+    .sc-result-header {
+        display: flex; align-items: center; gap: 10px;
+        margin-bottom: .8rem;
+    }
+    .sc-result-count {
+        font-size: 13px; color: #6b7280;
+    }
+    .sc-result-count strong { color: #111827; }
+
+    .sc-table-wrap { overflow-x: auto; border-radius: 12px; border: .5px solid #e5e7eb; }
+    table.sc-table {
+        width: 100%; border-collapse: collapse;
+        font-size: 13px; background: #fff;
+    }
+    .sc-table thead tr { background: #f8fafc; }
+    .sc-table th {
+        padding: 10px 12px; text-align: left;
+        font-size: 11px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .5px; color: #6b7280;
+        border-bottom: 1px solid #e5e7eb; white-space: nowrap;
+    }
+    .sc-table td {
+        padding: 10px 12px; border-bottom: .5px solid #f3f4f6;
+        vertical-align: middle; white-space: nowrap;
+    }
+    .sc-table tbody tr:last-child td { border-bottom: none; }
+    .sc-table tbody tr:hover td { background: #fafafa; }
+
+    .sc-player-cell { display: flex; align-items: center; gap: 10px; }
+    .sc-photo {
+        width: 34px; height: 34px; border-radius: 50%;
+        background: #f3f4f6; border: .5px solid #e5e7eb;
+        display: flex; align-items: center; justify-content: center;
+        overflow: hidden; flex-shrink: 0;
+    }
+    .sc-photo img { width: 100%; height: 100%; object-fit: cover; }
+    .sc-pname { font-weight: 600; color: #111827; }
+    .sc-pmeta { font-size: 11px; color: #9ca3af; }
+
+    .sc-nota {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 44px; height: 24px; border-radius: 6px;
+        font-size: 12px; font-weight: 700; color: #fff;
+    }
+    .sc-tag-pos {
+        display: inline-block; padding: 2px 8px; border-radius: 999px;
+        font-size: 11px; font-weight: 600;
+        background: #f3f4f6; color: #374151;
+    }
+
+    .sc-empty {
+        text-align: center; padding: 3rem 1rem; color: #9ca3af; font-size: 14px;
+    }
+
+    @@media (max-width: 640px) {
+        .sc-grid { grid-template-columns: 1fr 1fr; }
+        .sc-hero h1 { font-size: 1.6rem; }
+    }
+</style>
+
+<div class="sc-root">
+
+    <div class="sc-hero">
+        <div class="sc-badge">Relatórios</div>
+        <h1>🔍 Scout de Jogadores</h1>
+        <p>Encontre jogadores por critérios combinados de desempenho e perfil.</p>
+    </div>
+
+    <form method="get" asp-action="Scout">
+        <input type="hidden" name="pesquisou" value="true" />
+
+        <!-- Dados do Jogador -->
+        <div class="sc-panel">
+            <div class="sc-panel-title">Perfil do Jogador</div>
+            <div class="sc-grid">
+
+                <!-- Posição (tag selector) -->
+                <div class="sc-field" style="grid-column: span 2;">
+                    <label>Posição</label>
+                    <div class="ms-wrap" id="posWrap">
+                        <div class="ms-box" id="posBox" tabindex="0"></div>
+                        <span class="ms-arrow">▼</span>
+                        <div class="ms-panel" id="posPanel">
+                            @foreach (var p in Model.Posicoes)
+                            {
+                                <label class="ms-opt">
+                                    <input type="checkbox" name="posicoes" value="@p"
+                                           data-nome="@p"
+                                           @(f.Posicoes.Contains(p) ? "checked" : "") />
+                                    <span>@p</span>
+                                </label>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Time (tag selector) -->
+                <div class="sc-field" style="grid-column: span 2;">
+                    <label>Time</label>
+                    <div class="ms-wrap" id="timeWrap">
+                        <div class="ms-box" id="timeBox" tabindex="0"></div>
+                        <span class="ms-arrow">▼</span>
+                        <div class="ms-panel" id="timePanel">
+                            <input type="text" class="ms-search" id="timeSearch" placeholder="Buscar time…" autocomplete="off" />
+                            @foreach (var t in Model.Times)
+                            {
+                                <label class="ms-opt">
+                                    <input type="checkbox" name="timeIds" value="@t.Id"
+                                           data-nome="@t.Nome"
+                                           @(f.TimeIds.Contains(t.Id) ? "checked" : "") />
+                                    <span>@t.Nome</span>
+                                </label>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sc-field">
+                    <label>Idade mínima</label>
+                    <input type="number" name="idadeMin" min="15" max="50" value="@f.IdadeMin" placeholder="ex: 18" />
+                </div>
+                <div class="sc-field">
+                    <label>Idade máxima</label>
+                    <input type="number" name="idadeMax" min="15" max="50" value="@f.IdadeMax" placeholder="ex: 30" />
+                </div>
+
+                <!-- Competição (tag selector) -->
+                <div class="sc-field" style="grid-column: span 2;">
+                    <label>Competição</label>
+                    <div class="ms-wrap" id="compWrap">
+                        <div class="ms-box" id="compBox" tabindex="0"></div>
+                        <span class="ms-arrow">▼</span>
+                        <div class="ms-panel" id="compPanel">
+                            <input type="text" class="ms-search" id="compSearch" placeholder="Buscar competição…" autocomplete="off" />
+                            @foreach (var c in Model.Competicoes)
+                            {
+                                <label class="ms-opt">
+                                    <input type="checkbox" name="competicaoIds" value="@c.Id"
+                                           data-nome="@c.Nome"
+                                           @(f.CompeticaoIds.Contains(c.Id) ? "checked" : "") />
+                                    <span>@c.Nome</span>
+                                </label>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sc-field">
+                    <label>Temporada</label>
+                    <select name="temporada">
+                        <option value="">Todas</option>
+                        @foreach (var t in Model.Temporadas)
+                        {
+                            <option value="@t" selected="@(f.Temporada == t ? "selected" : null)">@t</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Critérios de Desempenho -->
+        <div class="sc-panel">
+            <div class="sc-panel-title">Critérios de Desempenho</div>
+            <div class="sc-grid">
+                <div class="sc-field">
+                    <label>Mín. jogos</label>
+                    <input type="number" name="minJogos" min="0" value="@f.MinJogos" placeholder="ex: 10" />
+                </div>
+                <div class="sc-field">
+                    <label>Mín. gols</label>
+                    <input type="number" name="minGols" min="0" value="@f.MinGols" placeholder="ex: 5" />
+                </div>
+                <div class="sc-field">
+                    <label>Mín. assistências</label>
+                    <input type="number" name="minAssistencias" min="0" value="@f.MinAssistencias" placeholder="ex: 3" />
+                </div>
+                <div class="sc-field">
+                    <label>Mín. nota média</label>
+                    <input type="number" name="minNota" min="0" max="10" step="0.1" value="@f.MinNota" placeholder="ex: 6.5" />
+                </div>
+                <div class="sc-field">
+                    <label>Mín. passes-chave</label>
+                    <input type="number" name="minPassesChave" min="0" value="@f.MinPassesChave" placeholder="ex: 20" />
+                </div>
+                <div class="sc-field">
+                    <label>Mín. desarmes</label>
+                    <input type="number" name="minDesarmes" min="0" value="@f.MinDesarmes" placeholder="ex: 15" />
+                </div>
+                <div class="sc-field">
+                    <label>Mín. bloqueios</label>
+                    <input type="number" name="minBloqueios" min="0" value="@f.MinBloqueios" placeholder="ex: 10" />
+                </div>
+                <div class="sc-field">
+                    <label>Mín. interceptações</label>
+                    <input type="number" name="minInterceptacoes" min="0" value="@f.MinInterceptacoes" placeholder="ex: 10" />
+                </div>
+                <div class="sc-field">
+                    <label>Mín. duelos vencidos</label>
+                    <input type="number" name="minDuelosVencidos" min="0" value="@f.MinDuelosVencidos" placeholder="ex: 50" />
+                </div>
+                <div class="sc-field">
+                    <label>Mín. fin. no gol</label>
+                    <input type="number" name="minFinalizacoesNoGol" min="0" value="@f.MinFinalizacoesNoGol" placeholder="ex: 10" />
+                </div>
+                <div class="sc-field">
+                    <label>Mín. dribles certos</label>
+                    <input type="number" name="minDrilesCertos" min="0" value="@f.MinDrilesCertos" placeholder="ex: 8" />
+                </div>
+                <div class="sc-field">
+                    <label>Máx. cartões amarelos</label>
+                    <input type="number" name="maxCartaoAmarelo" min="0" value="@f.MaxCartaoAmarelo" placeholder="ex: 5" />
+                </div>
+                <div class="sc-field">
+                    <label>Máx. cartões vermelhos</label>
+                    <input type="number" name="maxCartaoVermelho" min="0" value="@f.MaxCartaoVermelho" placeholder="ex: 1" />
+                </div>
+            </div>
+
+            <div class="sc-actions">
+                <button type="submit" class="sc-btn-search">🔍 Buscar jogadores</button>
+                <a href="@Url.Action("Scout", "Relatorios")" class="sc-btn-clear">Limpar</a>
+                <a href="@Url.Action("Index", "Relatorios")" class="sc-back">← Voltar para Relatórios</a>
+            </div>
+        </div>
+    </form>
+
+    @if (Model.Pesquisou)
+    {
+        <div class="sc-result-header">
+            <span class="sc-result-count">
+                <strong>@Model.Resultados.Count</strong> jogador(es) encontrado(s)
+            </span>
+        </div>
+
+        @if (!Model.Resultados.Any())
+        {
+            <div class="sc-empty">
+                Nenhum jogador encontrado com os critérios informados.
+            </div>
+        }
+        else
+        {
+            <div class="sc-table-wrap">
+                <table class="sc-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Jogador</th>
+                            <th>Pos.</th>
+                            <th>Idade</th>
+                            <th>Time</th>
+                            <th title="Jogos">JG</th>
+                            <th title="Gols">G</th>
+                            <th title="Assistências">ASS</th>
+                            <th title="Passes-chave">PCH</th>
+                            <th title="Finalizações no gol">FNG</th>
+                            <th title="Desarmes">DSR</th>
+                            <th title="Bloqueios">BLQ</th>
+                            <th title="Interceptações">INT</th>
+                            <th title="Duelos vencidos">DUE</th>
+                            <th title="Dribles certos">DRI</th>
+                            <th title="Cartões amarelos">🟨</th>
+                            <th title="Cartões vermelhos">🟥</th>
+                            <th>Nota</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{ int idx = 0; }
+                        @foreach (var r in Model.Resultados)
+                        {
+                            idx++;
+                            var j = r.Jogador;
+                            var notaColor = r.NotaMedia switch
+                            {
+                                >= 8.5 => "#f59e0b",
+                                >= 7.5 => "#22c55e",
+                                >= 6.5 => "#3b82f6",
+                                >= 5.5 => "#6b7280",
+                                >= 4.5 => "#f97316",
+                                _ => "#ef4444"
+                            };
+                            <tr>
+                                <td style="color:#9ca3af;font-size:12px;">@idx</td>
+                                <td>
+                                    <div class="sc-player-cell">
+                                        <div class="sc-photo">
+                                            @if (!string.IsNullOrEmpty(j.FotoUrl))
+                                            {
+                                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.FotoUrl })" alt="@j.Nome" />
+                                            }
+                                            else
+                                            {
+                                                <span style="color:#9ca3af;font-size:14px;">👤</span>
+                                            }
+                                        </div>
+                                        <div>
+                                            <div class="sc-pname">@j.Nome</div>
+                                            <div class="sc-pmeta">@j.Nacionalidade?.Nome</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><span class="sc-tag-pos">@j.Posicao</span></td>
+                                <td>@(j.Idade > 0 ? j.Idade.ToString() : "—")</td>
+                                <td>
+                                    @if (j.Time != null)
+                                    {
+                                        <span style="display:inline-flex;align-items:center;gap:6px;">
+                                            @if (!string.IsNullOrEmpty(j.Time.EscudoUrl))
+                                            {
+                                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.Time.EscudoUrl })"
+                                                     style="width:18px;height:18px;object-fit:contain;" alt="" />
+                                            }
+                                            @j.Time.Nome
+                                        </span>
+                                    }
+                                    else { <span>—</span> }
+                                </td>
+                                <td style="font-weight:600;">@r.Jogos</td>
+                                <td>@r.Gols</td>
+                                <td>@r.Assistencias</td>
+                                <td>@r.PassesChave</td>
+                                <td>@r.FinalizacoesNoGol</td>
+                                <td>@r.Desarmes</td>
+                                <td>@r.Bloqueios</td>
+                                <td>@r.Interceptacoes</td>
+                                <td>@r.DuelosVencidos</td>
+                                <td>@r.DrilesCertos</td>
+                                <td>@(r.CartaoAmarelo > 0 ? r.CartaoAmarelo.ToString() : "—")</td>
+                                <td>@(r.CartaoVermelho > 0 ? r.CartaoVermelho.ToString() : "—")</td>
+                                <td>
+                                    @if (r.NotaMedia.HasValue)
+                                    {
+                                        <span class="sc-nota" style="background:@notaColor;">@r.NotaMedia.Value.ToString("F1")</span>
+                                    }
+                                    else { <span style="color:#d1d5db;">—</span> }
+                                </td>
+                                <td>
+                                    <a href="@Url.Action("Estatisticas", "Jogadores", new { id = j.Id })"
+                                       style="font-size:12px;color:#7c3aed;text-decoration:none;font-weight:600;white-space:nowrap;">
+                                        Ver perfil →
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+
+</div>
+
+<script>
+(function () {
+    function initMulti(wrapId, boxId, panelId, placeholder) {
+        var wrap  = document.getElementById(wrapId);
+        var box   = document.getElementById(boxId);
+        var panel = document.getElementById(panelId);
+        if (!wrap) return;
+
+        function render() {
+            var checks  = panel.querySelectorAll('input[type=checkbox]');
+            var marcados = Array.prototype.filter.call(checks, function (c) { return c.checked; });
+            box.innerHTML = '';
+            if (marcados.length === 0) {
+                var ph = document.createElement('span');
+                ph.className = 'ms-placeholder';
+                ph.textContent = placeholder;
+                box.appendChild(ph);
+                return;
+            }
+            marcados.forEach(function (c) {
+                var chip = document.createElement('span');
+                chip.className = 'ms-chip';
+                var txt = document.createElement('span');
+                txt.textContent = c.dataset.nome;
+                var x = document.createElement('span');
+                x.className = 'ms-chip-x';
+                x.textContent = '×';
+                x.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    c.checked = false;
+                    render();
+                });
+                chip.appendChild(txt);
+                chip.appendChild(x);
+                box.appendChild(chip);
+            });
+        }
+
+        panel.querySelectorAll('input[type=checkbox]').forEach(function (c) {
+            c.addEventListener('change', render);
+        });
+
+        box.addEventListener('click', function () { panel.classList.toggle('open'); });
+        box.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); panel.classList.toggle('open'); }
+        });
+        document.addEventListener('click', function (e) {
+            if (!wrap.contains(e.target)) panel.classList.remove('open');
+        });
+
+        render();
+    }
+
+    initMulti('posWrap',  'posBox',  'posPanel',  'Todas as posições');
+    initMulti('timeWrap', 'timeBox', 'timePanel', 'Todos os times');
+    initMulti('compWrap', 'compBox', 'compPanel', 'Todas as competições');
+
+    function bindSearch(inputId, panelSelector) {
+        var el = document.getElementById(inputId);
+        if (!el) return;
+        el.addEventListener('input', function () {
+            var termo = this.value.trim().toLowerCase();
+            document.querySelectorAll(panelSelector + ' .ms-opt').forEach(function (lbl) {
+                var nome = (lbl.querySelector('span')?.textContent || '').toLowerCase();
+                lbl.style.display = (termo === '' || nome.indexOf(termo) !== -1) ? '' : 'none';
+            });
+        });
+        el.addEventListener('click', function (e) { e.stopPropagation(); });
+    }
+
+    bindSearch('timeSearch', '#timePanel');
+    bindSearch('compSearch', '#compPanel');
+})();
+</script>

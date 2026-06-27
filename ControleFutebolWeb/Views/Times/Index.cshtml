@@ -10,44 +10,127 @@
                     btn.classList.add("disabled");
                 });
             });
-
-            // Filtro cascata: competição → times
-            const selComp = document.getElementById('sel-comp');
-            const selTime = document.getElementById('sel-time');
-            const timeIdAtual = '@Context.Request.Query["timeId"]';
-
-            selComp.addEventListener('change', async function () {
-                const compId = this.value;
-                selTime.innerHTML = '<option value="">Todos</option>';
-
-                if (!compId) return;
-
-                try {
-                    const res = await fetch(`/Jogos/TimesPorCompeticao?competicaoId=${compId}`);
-                    const times = await res.json();
-                    times.forEach(t => {
-                        const opt = document.createElement('option');
-                        opt.value = t.id;
-                        opt.textContent = t.nome;
-                        if (String(t.id) === timeIdAtual) opt.selected = true;
-                        selTime.appendChild(opt);
-                    });
-                } catch (e) {
-                    console.error('Erro ao buscar times:', e);
-                }
-            });
-
-            // Se já tem competição selecionada na carga da página, dispara o filtro
-            if (selComp.value) {
-                selComp.dispatchEvent(new Event('change'));
-            }
         });
+
+        (function () {
+            // Tag selector genérico: renderiza chips a partir dos checkboxes de um painel
+            function initMulti(wrapId, boxId, panelId, placeholder, onChange) {
+                var wrap  = document.getElementById(wrapId);
+                var box   = document.getElementById(boxId);
+                var panel = document.getElementById(panelId);
+                if (!wrap) return null;
+
+                function render() {
+                    var checks = panel.querySelectorAll('input[type=checkbox]');
+                    var marcados = Array.prototype.filter.call(checks, function (c) { return c.checked; });
+                    box.innerHTML = '';
+                    if (marcados.length === 0) {
+                        var ph = document.createElement('span');
+                        ph.className = 'ms-placeholder';
+                        ph.textContent = placeholder;
+                        box.appendChild(ph);
+                        return;
+                    }
+                    marcados.forEach(function (c) {
+                        var chip = document.createElement('span');
+                        chip.className = 'ms-chip';
+                        var txt = document.createElement('span');
+                        txt.textContent = c.dataset.nome;
+                        var x = document.createElement('span');
+                        x.className = 'ms-chip-x';
+                        x.textContent = '×';
+                        x.addEventListener('click', function (e) {
+                            e.stopPropagation();
+                            c.checked = false;
+                            render();
+                            if (onChange) onChange();
+                        });
+                        chip.appendChild(txt);
+                        chip.appendChild(x);
+                        box.appendChild(chip);
+                    });
+                }
+
+                function bindChecks() {
+                    panel.querySelectorAll('input[type=checkbox]').forEach(function (c) {
+                        c.addEventListener('change', function () { render(); if (onChange) onChange(); });
+                    });
+                }
+
+                box.addEventListener('click', function () { panel.classList.toggle('open'); });
+                box.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); panel.classList.toggle('open'); }
+                });
+                document.addEventListener('click', function (e) {
+                    if (!wrap.contains(e.target)) panel.classList.remove('open');
+                });
+
+                bindChecks();
+                render();
+                return { render: render, bindChecks: bindChecks, panel: panel };
+            }
+
+            // Busca/filtro genérico por nome dentro de um painel
+            function ligarBusca(inputId, optionsContainerId) {
+                var input = document.getElementById(inputId);
+                if (!input) return;
+                function filtrar() {
+                    var termo = input.value.trim().toLowerCase();
+                    document.querySelectorAll('#' + optionsContainerId + ' .ms-opt').forEach(function (lbl) {
+                        var nome = (lbl.querySelector('span')?.textContent || '').toLowerCase();
+                        lbl.style.display = (termo === '' || nome.indexOf(termo) !== -1) ? '' : 'none';
+                    });
+                }
+                input.addEventListener('input', filtrar);
+                input.addEventListener('click', function (e) { e.stopPropagation(); });
+            }
+
+            ligarBusca('compSearch', 'compOptions');
+            var timeCtl = initMulti('timeMulti', 'timeBox', 'timePanel', 'Todos os times');
+            ligarBusca('timeSearch', 'timeOptions');
+
+            // Ao mudar as competições, recarrega os times disponíveis (união das competições selecionadas)
+            function recarregarTimes() {
+                var compChecks = document.querySelectorAll('#compPanel input[type=checkbox]:checked');
+                var ids = Array.prototype.map.call(compChecks, function (c) { return c.value; });
+                if (!timeCtl) return;
+
+                var selecionados = Array.prototype.map.call(
+                    timeCtl.panel.querySelectorAll('input[type=checkbox]:checked'),
+                    function (c) { return c.value; });
+
+                var qs = ids.length ? ids.map(function (id) { return 'competicaoIds=' + id; }).join('&') : '';
+                fetch('/Jogos/TimesPorCompeticoes?' + qs)
+                    .then(function (r) { return r.json(); })
+                    .then(function (times) {
+                        var opts = document.getElementById('timeOptions');
+                        opts.innerHTML = '';
+                        times.forEach(function (t) {
+                            var lbl = document.createElement('label');
+                            lbl.className = 'ms-opt';
+                            var inp = document.createElement('input');
+                            inp.type = 'checkbox';
+                            inp.name = 'timeIds';
+                            inp.value = t.id;
+                            inp.dataset.nome = t.nome;
+                            if (selecionados.indexOf(String(t.id)) !== -1) inp.checked = true;
+                            var sp = document.createElement('span');
+                            sp.textContent = t.nome;
+                            lbl.appendChild(inp);
+                            lbl.appendChild(sp);
+                            opts.appendChild(lbl);
+                        });
+                        timeCtl.bindChecks();
+                        timeCtl.render();
+                    });
+            }
+
+            initMulti('compMulti', 'compBox', 'compPanel', 'Todas as competições', recarregarTimes);
+        })();
     </script>
 }
 
 @{
-    ViewData["Title"] = "Times";
-}@{
     ViewData["Title"] = "Times";
 }
 
@@ -62,6 +145,20 @@
         overflow: hidden;
         margin-bottom: 1.5rem;
         color: #fff;
+    }
+
+    /* Imagem de escudos ao fundo, com opacidade, por cima do gradiente azul */
+    .cf-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        background-image: url('/Images/banner/escudos-pattern.svg');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        opacity: 0.22;
+        pointer-events: none;
     }
 
     .cf-hero-content { position: relative; z-index: 1; }
@@ -167,7 +264,44 @@
         margin-bottom: 12px;
     }
 
-    
+    /* ── Tag selector (igual Relatórios) ── */
+    .ms-wrap { position: relative; min-width: 240px; flex: 1; }
+    .ms-box {
+        display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
+        min-height: 38px; padding: 4px 30px 4px 8px; cursor: pointer;
+        border: 1px solid #d1d5db; border-radius: 8px; background: #fff; font-size: 13px;
+    }
+    .ms-box::after {
+        content: "▾"; position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+        color: #6b7280; pointer-events: none;
+    }
+    .ms-placeholder { color: #9ca3af; }
+    .ms-chip {
+        display: inline-flex; align-items: center; gap: 4px;
+        background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe;
+        border-radius: 6px; padding: 2px 6px; font-size: 12px; font-weight: 600;
+    }
+    .ms-chip-x { cursor: pointer; font-weight: 700; line-height: 1; opacity: .7; }
+    .ms-chip-x:hover { opacity: 1; }
+    .ms-panel {
+        position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50;
+        background: #fff; border: 1px solid #d1d5db; border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0,0,0,.12); max-height: 280px; overflow-y: auto;
+        display: none; padding: 4px;
+    }
+    .ms-panel.open { display: block; }
+    .ms-opt {
+        display: flex; align-items: center; gap: 8px; padding: 7px 10px;
+        border-radius: 6px; cursor: pointer; font-size: 13px; color: #111827;
+    }
+    .ms-opt:hover { background: #f3f4f6; }
+    .ms-opt input { cursor: pointer; }
+    .ms-search {
+        width: 100%; box-sizing: border-box; padding: 7px 10px; margin-bottom: 4px;
+        border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; outline: none;
+        position: sticky; top: 0; background: #fff;
+    }
+    .ms-search:focus { border-color: #6366f1; }
 </style>
 
 <!-- Hero matching Home -->
@@ -179,19 +313,62 @@
     </div>
 </div>
 
-<form asp-action="Index" method="get" class="row g-3 mb-3">
-    <div class="col-md-4">
-        <label for="competicaoId" class="form-label">Competição</label>
-        @Html.DropDownList("competicaoId", (SelectList)ViewBag.Competicoes, "Todas", new { @class = "form-select", id = "sel-comp" })
+@{
+    var competicoesLista = ViewBag.Competicoes as IEnumerable<ControleFutebolWeb.Models.Competicao> ?? Enumerable.Empty<ControleFutebolWeb.Models.Competicao>();
+    var timesLista = ViewBag.Times as IEnumerable<ControleFutebolWeb.Models.Time> ?? Enumerable.Empty<ControleFutebolWeb.Models.Time>();
+    var compSel = ViewBag.CompeticaoIdsFiltro as List<int> ?? new List<int>();
+    var timeSel = ViewBag.TimeIdsFiltro as List<int> ?? new List<int>();
+}
+
+<form asp-action="Index" method="get" class="times-filter">
+    <div>
+        <label class="form-label">Competições</label>
+        <div class="ms-wrap" id="compMulti">
+            <div class="ms-box" id="compBox" tabindex="0"></div>
+            <div class="ms-panel" id="compPanel">
+                <input type="text" class="ms-search" id="compSearch" placeholder="Buscar competição…" autocomplete="off" />
+                <div id="compOptions">
+                    @foreach (var c in competicoesLista)
+                    {
+                        <label class="ms-opt">
+                            <input type="checkbox" name="competicaoIds" value="@c.Id"
+                                   data-nome="@c.Nome"
+                                   @(compSel.Contains(c.Id) ? "checked" : "") />
+                            <span>@c.Nome</span>
+                        </label>
+                    }
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="col-md-4">
-        <label for="timeId" class="form-label">Time</label>
-        @Html.DropDownList("timeId", (SelectList)ViewBag.Times, "Todos", new { @class = "form-select", id = "sel-time" })
+    <div>
+        <label class="form-label">Times</label>
+        <div class="ms-wrap" id="timeMulti">
+            <div class="ms-box" id="timeBox" tabindex="0"></div>
+            <div class="ms-panel" id="timePanel">
+                <input type="text" class="ms-search" id="timeSearch" placeholder="Buscar time…" autocomplete="off" />
+                <div id="timeOptions">
+                    @foreach (var t in timesLista)
+                    {
+                        <label class="ms-opt">
+                            <input type="checkbox" name="timeIds" value="@t.Id"
+                                   data-nome="@t.Nome"
+                                   @(timeSel.Contains(t.Id) ? "checked" : "") />
+                            <span>@t.Nome</span>
+                        </label>
+                    }
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="col-md-4 d-flex align-items-end">
+    <div class="d-flex align-items-end gap-2">
         <button type="submit" class="btn btn-primary">Filtrar</button>
+        @if (compSel.Any() || timeSel.Any())
+        {
+            <a asp-action="Index" class="btn btn-outline-secondary">✕ Limpar</a>
+        }
     </div>
 </form>
 <p>

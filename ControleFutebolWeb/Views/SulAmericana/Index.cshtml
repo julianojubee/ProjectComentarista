@@ -1,11 +1,13 @@
 @using ControleFutebolWeb.Models
+@model ControleFutebolWeb.Models.ViewModels.SulAmericanaIndexViewModel
 @using ControleFutebolWeb.Models.ViewModels
+@removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
 
 @{
     ViewData["Title"] = "Sul-Americana";
-    var grupos = ViewBag.Grupos as List<GrupoViewModel> ?? new List<GrupoViewModel>();
-    var proximosJogos = ViewBag.ProximosJogos as List<Jogo> ?? new List<Jogo>();
-    var rodadaAtual = (int)(ViewBag.RodadaAtual ?? 0);
+    var grupos = Model.Grupos as List<GrupoViewModel> ?? new List<GrupoViewModel>();
+    var proximosJogos = Model.ProximosJogos as List<Jogo> ?? new List<Jogo>();
+    var rodadaAtual = Model.RodadaAtual;
 
     string LetraGrupo(string? nome)
     {
@@ -199,6 +201,23 @@
             <h2 class="sul-title">CONMEBOL Sul-Americana</h2>
         </div>
         <p class="sul-sub">Classificação por grupos e calendário de jogos</p>
+        @{
+            var temporadasSul = Model.TemporadasDisponiveis as List<int> ?? new List<int>();
+            var temporadaSulSel = Model.Temporada as int?;
+        }
+        @if (temporadasSul.Count > 1)
+        {
+            <form method="get" style="margin-top:10px;">
+                <label style="color:#fff;font-size:12px;font-weight:600;margin-right:6px;">Temporada:</label>
+                <select name="temporada" onchange="this.form.submit()"
+                        style="padding:5px 10px;border-radius:7px;border:none;font-size:13px;font-weight:600;">
+                    @foreach (var temp in temporadasSul)
+                    {
+                        <option value="@temp" @(temporadaSulSel == temp ? "selected" : "")>@temp</option>
+                    }
+                </select>
+            </form>
+        }
     </div>
 </div>
 

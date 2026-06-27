@@ -4,6 +4,28 @@
     var time = (ControleFutebolWeb.Models.Time)ViewBag.Time;
     var q    = (string?)ViewBag.Q;
     ViewData["Title"] = $"Anotações — {time.Nome}";
+
+    var obsJogos = ViewBag.ObservacoesJogos as List<ControleFutebolWeb.Models.ViewModels.ObservacaoJogoTimeViewModel>
+        ?? new List<ControleFutebolWeb.Models.ViewModels.ObservacaoJogoTimeViewModel>();
+
+    // Realça o termo pesquisado dentro de um texto (escapando o HTML).
+    string Realcar(string texto)
+    {
+        if (string.IsNullOrWhiteSpace(q)) return System.Web.HttpUtility.HtmlEncode(texto);
+        var idx = texto.IndexOf(q, StringComparison.OrdinalIgnoreCase);
+        if (idx < 0) return System.Web.HttpUtility.HtmlEncode(texto);
+        var sb = new System.Text.StringBuilder();
+        int pos = 0;
+        while (idx >= 0)
+        {
+            sb.Append(System.Web.HttpUtility.HtmlEncode(texto[pos..idx]));
+            sb.Append($"<mark class='an-highlight'>{System.Web.HttpUtility.HtmlEncode(texto.Substring(idx, q.Length))}</mark>");
+            pos = idx + q.Length;
+            idx = texto.IndexOf(q, pos, StringComparison.OrdinalIgnoreCase);
+        }
+        sb.Append(System.Web.HttpUtility.HtmlEncode(texto[pos..]));
+        return sb.ToString();
+    }
 }
 
 <style>
@@ -109,6 +131,28 @@
 
     .an-shortcut { font-size: 11px; color: #475569; display: flex; align-items: center; gap: .3rem; }
     kbd { background: #1e293b; border: 1px solid #334155; border-radius: 4px; padding: 1px 6px; font-size: 10px; color: #94a3b8; }
+
+    /* Observações vindas dos jogos analisados (recolhível) */
+    .an-obs-details { margin-top: 1.8rem; border-top: 1px solid #e2e8f0; padding-top: 1.3rem; }
+    .an-section-title {
+        font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 800;
+        color: #1e293b; display: flex; align-items: center; gap: .55rem;
+        cursor: pointer; user-select: none; list-style: none;
+    }
+    .an-section-title:hover { color: #0f172a; }
+    .an-section-title::-webkit-details-marker { display: none; }
+    .an-section-title::before { content: "\25B8"; font-size: 13px; color: #64748b; transition: transform .15s; }
+    .an-obs-details[open] > .an-section-title::before { transform: rotate(90deg); }
+    .an-obs-body { margin-top: 1rem; }
+    .an-count2 { font-size: 11px; font-weight: 600; color: #475569; background: #f1f5f9; border: 1px solid #e2e8f0; padding: 2px 10px; border-radius: 999px; }
+    .an-game-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: .7rem; }
+    .an-game-teams { display: flex; align-items: center; gap: .55rem; font-size: 14px; color: #94a3b8; flex-wrap: wrap; }
+    .an-game-teams img { width: 22px; height: 22px; object-fit: contain; }
+    .an-game-teams .tm-atual { color: #f1f5f9; font-weight: 700; }
+    .an-game-score { background: #1e293b; border-radius: 6px; padding: 1px 9px; font-weight: 800; color: #f1f5f9; font-size: 13px; }
+    .an-game-meta { display: flex; gap: .7rem; font-size: 11px; color: #64748b; flex-wrap: wrap; align-items: center; }
+    .an-game-obs { margin: .2rem 0 0; padding-left: 1.15rem; }
+    .an-game-obs li { font-size: 14px; color: #cbd5e1; line-height: 1.6; margin-bottom: .35rem; word-break: break-word; }
 </style>
 
 <div class="an-root">
@@ -231,6 +275,61 @@
                 </div>
             </div>
         }
+    }
+
+    @if (obsJogos.Any())
+    {
+        <details class="an-obs-details" open="@(!string.IsNullOrWhiteSpace(q))">
+            <summary class="an-section-title">
+                🎯 Observações vindas dos jogos
+                <span class="an-count2">@obsJogos.Count jogo(s)</span>
+            </summary>
+            <div class="an-obs-body">
+        @foreach (var oj in obsJogos)
+        {
+            var j = oj.Jogo;
+            <div class="an-card">
+                <div class="an-game-head">
+                    <div class="an-game-teams">
+                        @if (!string.IsNullOrEmpty(j.TimeCasa?.EscudoUrl))
+                        {
+                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.TimeCasa.EscudoUrl })" alt="@j.TimeCasa.Nome" />
+                        }
+                        <span class="@(oj.TimeEhCasa ? "tm-atual" : "")">@j.TimeCasa?.Nome</span>
+                        <span class="an-game-score">@(j.PlacarCasa?.ToString() ?? "–") x @(j.PlacarVisitante?.ToString() ?? "–")</span>
+                        <span class="@(!oj.TimeEhCasa ? "tm-atual" : "")">@j.TimeVisitante?.Nome</span>
+                        @if (!string.IsNullOrEmpty(j.TimeVisitante?.EscudoUrl))
+                        {
+                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.TimeVisitante.EscudoUrl })" alt="@j.TimeVisitante.Nome" />
+                        }
+                    </div>
+                    <div class="an-game-meta">
+                        @if (j.Competicao != null)
+                        {
+                            <span>🏆 @j.Competicao.Nome</span>
+                        }
+                        @if (j.Data.HasValue)
+                        {
+                            <span>📅 @DateHelper.FormatarData(j.Data, "dd/MM/yyyy")</span>
+                        }
+                    </div>
+                </div>
+                <ul class="an-game-obs">
+                    @foreach (var linha in oj.Observacoes)
+                    {
+                        <li>@Html.Raw(Realcar(linha))</li>
+                    }
+                </ul>
+                <div class="an-card-footer">
+                    <span class="an-card-date">📝 Registrada na análise do jogo</span>
+                    <div class="an-card-actions">
+                        <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@j.Id" class="an-edit-btn">🔍 Ver análise</a>
+                    </div>
+                </div>
+            </div>
+        }
+            </div>
+        </details>
     }
 </div>
 

@@ -1,4 +1,5 @@
 using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,8 +17,7 @@ namespace ControleFutebolWeb.Controllers
             _logger = logger;
         }
 
-        // ── Mapeamento: variantes de grafia → nome canônico da Copa do Mundo 2026 ──
-        // 48 seleções da Copa do Mundo FIFA 2026
+        // Mapa movido para CountryHelper.cs — use CountryHelper.TraduzirOuNull()
         private static readonly Dictionary<string, string> _variantesParaCanonical = new(StringComparer.OrdinalIgnoreCase)
         {
             // ── CONMEBOL ─────────────────────────────────────────────────────────
@@ -152,7 +152,8 @@ namespace ControleFutebolWeb.Controllers
 
             foreach (var n in todas)
             {
-                if (_variantesParaCanonical.TryGetValue(n.Nome.Trim(), out var canonical))
+                var canonical = CountryHelper.TraduzirOuNull(n.Nome.Trim());
+                if (canonical != null)
                 {
                     if (!grupos.ContainsKey(canonical))
                         grupos[canonical] = new List<Nacionalidade>();
@@ -220,12 +221,7 @@ namespace ControleFutebolWeb.Controllers
             return RedirectToAction("Index", "Relatorios");
         }
 
-        // Método público usado pelo serviço para resolver o nome canônico
-        public static string? ResolverNomeCanonical(string? nome)
-        {
-            if (string.IsNullOrWhiteSpace(nome)) return null;
-            return _variantesParaCanonical.TryGetValue(nome.Trim(), out var canonical)
-                ? canonical : null;
-        }
+        public static string? ResolverNomeCanonical(string? nome) =>
+            CountryHelper.TraduzirOuNull(nome ?? "");
     }
 }

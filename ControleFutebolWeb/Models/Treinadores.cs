@@ -36,6 +36,10 @@ namespace ControleFutebolWeb.Models
         public DateTime? DtAlt { get; set; }
         public string? FotoUrl { get; set; }
         public string? LinkOgol { get; set; }
+
+        // ID do treinador na api-football (coachs). Preenchido na 1ª atualização
+        // para travar as buscas seguintes no técnico correto.
+        public long? IdApi { get; set; }
     }
 
 }

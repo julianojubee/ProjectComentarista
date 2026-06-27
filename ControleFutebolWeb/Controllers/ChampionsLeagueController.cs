@@ -1,4 +1,5 @@
 using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
 using Microsoft.AspNetCore.Mvc;
@@ -17,12 +18,21 @@ namespace ControleFutebolWeb.Controllers
             _context = context;
         }
 
-        public IActionResult Index()
+        public IActionResult Index(int? temporada = null)
         {
+            var (temporadasDisponiveis, temporadaSel) =
+                TemporadaHelper.Resolver(_context, COMPETICAO_ID, temporada);
+            var vm = new ChampionsLeagueIndexViewModel
+            {
+                Temporada = temporadaSel,
+                TemporadasDisponiveis = temporadasDisponiveis
+            };
+
             var todosJogos = _context.Jogos
                 .Include(j => j.TimeCasa)
                 .Include(j => j.TimeVisitante)
-                .Where(j => j.CompeticaoId == COMPETICAO_ID)
+                .Where(j => j.CompeticaoId == COMPETICAO_ID
+                         && (temporadaSel == null || j.Temporada == temporadaSel))
                 .OrderBy(j => j.Data)
                 .ToList();
 
@@ -41,7 +51,7 @@ namespace ControleFutebolWeb.Controllers
                 .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue)
                 .ToList();
 
-            var ranking = CalcularRanking(jogosLigaRealizados);
+            var ranking = ClassificacaoCalculator.Calcular(jogosLigaRealizados);
 
             // Sidebar: próximos jogos sem placar; se nenhum, usa os mais recentes
             var proximosJogos = todosJogos
@@ -69,14 +79,14 @@ namespace ControleFutebolWeb.Controllers
                 })
                 .ToList();
 
-            ViewBag.Ranking = ranking;
-            ViewBag.ProximosJogos = proximosJogos;
-            ViewBag.JogosMata = jogosMata;
-            ViewBag.FasesMata = fasesMata.Select(f => f.Nome).Distinct().ToList();
-            ViewBag.TotalJogos = todosJogos.Count;
-            ViewBag.JogosRealizados = todosJogos.Count(j => j.PlacarCasa.HasValue);
+            vm.Ranking = ranking;
+            vm.ProximosJogos = proximosJogos;
+            vm.JogosMata = jogosMata;
+            vm.FasesMata = fasesMata.Select(f => f.Nome).Distinct().ToList();
+            vm.TotalJogos = todosJogos.Count;
+            vm.JogosRealizados = todosJogos.Count(j => j.PlacarCasa.HasValue);
 
-            return View();
+            return View(vm);
         }
 
         private static bool EhFaseDeLiga(string? grupo)
@@ -102,48 +112,5 @@ namespace ControleFutebolWeb.Controllers
             _ => 0
         };
 
-        private List<Classificacao> CalcularRanking(List<Jogo> jogos)
-        {
-            var tabela = new Dictionary<int, Classificacao>();
-
-            foreach (var jogo in jogos)
-            {
-                if (jogo.TimeCasa == null || jogo.TimeVisitante == null) continue;
-                if (!jogo.PlacarCasa.HasValue || !jogo.PlacarVisitante.HasValue) continue;
-
-                if (!tabela.ContainsKey(jogo.TimeCasaId))
-                    tabela[jogo.TimeCasaId] = new Classificacao { TimeId = jogo.TimeCasaId, Time = jogo.TimeCasa };
-                if (!tabela.ContainsKey(jogo.TimeVisitanteId))
-                    tabela[jogo.TimeVisitanteId] = new Classificacao { TimeId = jogo.TimeVisitanteId, Time = jogo.TimeVisitante };
-
-                var casa = tabela[jogo.TimeCasaId];
-                var vis  = tabela[jogo.TimeVisitanteId];
-
-                casa.Jogos++; vis.Jogos++;
-                casa.GolsPro    += jogo.PlacarCasa.Value;
-                casa.GolsContra += jogo.PlacarVisitante.Value;
-                vis.GolsPro     += jogo.PlacarVisitante.Value;
-                vis.GolsContra  += jogo.PlacarCasa.Value;
-
-                if (jogo.PlacarCasa > jogo.PlacarVisitante)
-                { casa.Vitorias++; casa.Pontos += 3; vis.Derrotas++; }
-                else if (jogo.PlacarCasa < jogo.PlacarVisitante)
-                { vis.Vitorias++; vis.Pontos += 3; casa.Derrotas++; }
-                else
-                { casa.Empates++; vis.Empates++; casa.Pontos++; vis.Pontos++; }
-            }
-
-            var lista = tabela.Values
-                .OrderByDescending(t => t.Pontos)
-                .ThenByDescending(t => t.GolsPro - t.GolsContra)
-                .ThenByDescending(t => t.GolsPro)
-                .ThenByDescending(t => t.Vitorias)
-                .ToList();
-
-            for (int i = 0; i < lista.Count; i++)
-                lista[i].Posicao = i + 1;
-
-            return lista;
-        }
     }
 }

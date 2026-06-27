@@ -1,14 +1,16 @@
 @using ControleFutebolWeb.Models
+@model ControleFutebolWeb.Models.ViewModels.ChampionsLeagueIndexViewModel
 @using ControleFutebolWeb.Models.ViewModels
+@removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
 
 @{
     ViewData["Title"] = "Champions League";
-    var ranking      = ViewBag.Ranking as List<Classificacao> ?? new List<Classificacao>();
-    var proximosJogos = ViewBag.ProximosJogos as List<Jogo> ?? new List<Jogo>();
-    var jogosMata    = ViewBag.JogosMata as List<Jogo> ?? new List<Jogo>();
-    var fasesMata    = ViewBag.FasesMata as List<string> ?? new List<string>();
-    int totalJogos   = ViewBag.TotalJogos ?? 0;
-    int realizados   = ViewBag.JogosRealizados ?? 0;
+    var ranking      = Model.Ranking as List<Classificacao> ?? new List<Classificacao>();
+    var proximosJogos = Model.ProximosJogos as List<Jogo> ?? new List<Jogo>();
+    var jogosMata    = Model.JogosMata as List<Jogo> ?? new List<Jogo>();
+    var fasesMata    = Model.FasesMata as List<string> ?? new List<string>();
+    int totalJogos   = Model.TotalJogos;
+    int realizados   = Model.JogosRealizados;
 }
 
 <style>
@@ -332,7 +334,24 @@
         <div class="ucl-title-wrap">
             <h2 class="ucl-title">⭐ UEFA Champions League</h2>
         </div>
-        <p class="ucl-sub">Fase de Liga · Mata-Mata · Temporada 2025/26</p>
+        <p class="ucl-sub">Fase de Liga · Mata-Mata</p>
+        @{
+            var temporadasUcl = Model.TemporadasDisponiveis as List<int> ?? new List<int>();
+            var temporadaUclSel = Model.Temporada as int?;
+        }
+        @if (temporadasUcl.Count > 1)
+        {
+            <form method="get" style="margin-top:8px;margin-bottom:4px;">
+                <label style="color:#fff;font-size:12px;font-weight:600;margin-right:6px;">Temporada:</label>
+                <select name="temporada" onchange="this.form.submit()"
+                        style="padding:5px 10px;border-radius:7px;border:none;font-size:13px;font-weight:600;">
+                    @foreach (var temp in temporadasUcl)
+                    {
+                        <option value="@temp" @(temporadaUclSel == temp ? "selected" : "")>@temp</option>
+                    }
+                </select>
+            </form>
+        }
         @if (totalJogos > 0)
         {
             <div class="ucl-stats">

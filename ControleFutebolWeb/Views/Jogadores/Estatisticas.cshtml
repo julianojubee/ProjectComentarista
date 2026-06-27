@@ -2,7 +2,7 @@
 @using ControleFutebolWeb.Helpers
 @using ControleFutebolWeb.Models
 @{
-    ViewData["Title"] = $"Estatísticas — {Model.Jogador.Nome}";
+    ViewData["Title"] = $"Estatísticas — {Model.Jogador.NomeExibicao}";
 
     string NotaCor(int nota) => nota switch
     {
@@ -499,7 +499,7 @@
                 <img src="/images/placeholder-jogador.png" class="jogador-foto" />
             }
             <div>
-                <h1 class="jogador-nome">@Model.Jogador.Nome</h1>
+                <h1 class="jogador-nome">@Model.Jogador.NomeExibicao</h1>
                 <div class="jogador-meta">
                     <span>🎽 @Model.Jogador.Posicao</span>
                     @if (Model.Jogador.NumeroCamisa.HasValue)
@@ -764,19 +764,31 @@
                                          margin-bottom:2px;">
                                     Composição da nota
                                 </div>
-                                <div style="display:flex; gap:16px; flex-wrap:wrap;">
-                                    <span style="color:rgba(255,255,255,.5);">
-                                        Base <strong style="color:#e2e8f0;">@item.NotaBaseFixa.ToString("0.0")</strong>
-                                    </span>
-                                    <span style="color:rgba(255,255,255,.5);">
-                                        Ações <strong style="color:@(item.Nota >= 0 ? "#4ade80" : "#f87171");">
-                                            @(item.Nota >= 0 ? "+" : "")@item.Nota.ToString("0.##")
-                                        </strong>
-                                    </span>
-                                    <span style="color:rgba(255,255,255,.5);">
-                                        = <strong style="color:@notaColor;">@item.NotaFinal.ToString("0.00")</strong>
-                                    </span>
-                                </div>
+                                @if (item.NotaManual.HasValue)
+                                {
+                                    <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center;">
+                                        <span style="color:rgba(255,255,255,.5);">
+                                            Nota manual <strong style="color:@notaColor;">@item.NotaFinal.ToString("0.00")</strong>
+                                        </span>
+                                        <span style="color:rgba(255,255,255,.35); font-size:10px;">ações registradas abaixo (sem peso na nota)</span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div style="display:flex; gap:16px; flex-wrap:wrap;">
+                                        <span style="color:rgba(255,255,255,.5);">
+                                            Base <strong style="color:#e2e8f0;">@item.NotaBaseFixa.ToString("0.0")</strong>
+                                        </span>
+                                        <span style="color:rgba(255,255,255,.5);">
+                                            Ações <strong style="color:@(item.Nota >= 0 ? "#4ade80" : "#f87171");">
+                                                @(item.Nota >= 0 ? "+" : "")@item.Nota.ToString("0.##")
+                                            </strong>
+                                        </span>
+                                        <span style="color:rgba(255,255,255,.5);">
+                                            = <strong style="color:@notaColor;">@item.NotaFinal.ToString("0.00")</strong>
+                                        </span>
+                                    </div>
+                                }
                             </div>
                         </div>
 

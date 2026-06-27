@@ -299,31 +299,12 @@
         </div>
     }
 
-    <!-- Manutenção -->
+    <!-- Scout + Manutenção -->
     <div style="text-align:right;margin-bottom:8px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
-        <form method="post" asp-controller="Relatorios" asp-action="RecalcularNotas" style="display:inline;">
-            @Html.AntiForgeryToken()
-            @foreach (var cid in Model.CompeticaoIdsFiltro)
-            {
-                <input type="hidden" name="competicaoIds" value="@cid" />
-            }
-            @foreach (var tid in Model.TimeIdsFiltro)
-            {
-                <input type="hidden" name="timeIds" value="@tid" />
-            }
-            <input type="hidden" name="incluirNaoAnalisados" value="@Model.IncluirNaoAnalisados.ToString().ToLower()" />
-            <button type="submit" class="btn btn-outline-primary btn-sm"
-                    onclick="return confirm('Recalcular todas as notas manuais com os pesos atuais dos critérios? As notas automáticas já usam os pesos atuais.')">
-                🔄 Recalcular notas
-            </button>
-        </form>
-        <form method="post" asp-controller="Admin" asp-action="LimparNacionalidades" style="display:inline;">
-            @Html.AntiForgeryToken()
-            <button type="submit" class="btn btn-outline-warning btn-sm"
-                    onclick="return confirm('Isso vai manter apenas os 48 países da Copa do Mundo 2026, mesclar duplicatas e corrigir os jogadores. Continuar?')">
-                🧹 Limpar nacionalidades (Copa do Mundo 2026)
-            </button>
-        </form>
+        <a asp-action="Scout" asp-controller="Relatorios"
+           style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;border:1px solid #7c3aed;background:#f5f3ff;color:#6d28d9;font-size:13px;font-weight:600;text-decoration:none;">
+            🔍 Scout de Jogadores
+        </a>
     </div>
 
     <!-- Filtros -->
@@ -402,6 +383,17 @@
                 </div>
             </div>
         </div>
+
+        @if (Model.TemporadasDisponiveis.Any())
+        {
+            <label for="temporadaFilter">Temporada:</label>
+            <select id="temporadaFilter" name="temporada" onchange="this.form.submit()">
+                @foreach (var temp in Model.TemporadasDisponiveis)
+                {
+                    <option value="@temp" @(Model.TemporadaFiltro == temp ? "selected" : "")>@temp</option>
+                }
+            </select>
+        }
 
         <label class="rpt-check-wrap" title="Inclui jogos com placar mas ainda não analisados">
             <input type="checkbox" name="incluirNaoAnalisados" value="true"
@@ -1588,7 +1580,14 @@
                         {
                             <div style="background:#1e293b;border-radius:10px;padding:.8rem 1rem;">
                                 <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">⚽ Artilheiro</div>
-                                <div style="font-size:14px;font-weight:700;color:#f1f5f9;margin-top:.25rem;">@ec.ArtilheiroNome</div>
+                                <div style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem;">
+                                    @if (!string.IsNullOrEmpty(ec.ArtilheiroEscudoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = ec.ArtilheiroEscudoUrl })" alt="" style="width:20px;height:20px;object-fit:contain;flex-shrink:0;" />
+                                    }
+                                    <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@ec.ArtilheiroId"
+                                       style="font-size:14px;font-weight:700;color:#f1f5f9;text-decoration:none;">@ec.ArtilheiroNome</a>
+                                </div>
                                 <div style="font-size:12px;color:#22c55e;">@ec.ArtilheiroGols gol(s)</div>
                             </div>
                         }
@@ -1596,7 +1595,14 @@
                         {
                             <div style="background:#1e293b;border-radius:10px;padding:.8rem 1rem;">
                                 <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">🎯 Mais assistências</div>
-                                <div style="font-size:14px;font-weight:700;color:#f1f5f9;margin-top:.25rem;">@ec.AssistenteNome</div>
+                                <div style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem;">
+                                    @if (!string.IsNullOrEmpty(ec.AssistenteEscudoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = ec.AssistenteEscudoUrl })" alt="" style="width:20px;height:20px;object-fit:contain;flex-shrink:0;" />
+                                    }
+                                    <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@ec.AssistenteId"
+                                       style="font-size:14px;font-weight:700;color:#f1f5f9;text-decoration:none;">@ec.AssistenteNome</a>
+                                </div>
                                 <div style="font-size:12px;color:#3b82f6;">@ec.AssistenciasTotal assist.</div>
                             </div>
                         }
@@ -1604,7 +1610,13 @@
                         {
                             <div style="background:#1e293b;border-radius:10px;padding:.8rem 1rem;">
                                 <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">🏆 Mais vitórias</div>
-                                <div style="font-size:14px;font-weight:700;color:#f1f5f9;margin-top:.25rem;">@ec.TimeMaisVitorias</div>
+                                <div style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem;">
+                                    @if (!string.IsNullOrEmpty(ec.TimeMaisVitoriasEscudoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = ec.TimeMaisVitoriasEscudoUrl })" alt="" style="width:20px;height:20px;object-fit:contain;flex-shrink:0;" />
+                                    }
+                                    <span style="font-size:14px;font-weight:700;color:#f1f5f9;">@ec.TimeMaisVitorias</span>
+                                </div>
                                 <div style="font-size:12px;color:#f59e0b;">@ec.TimeMaisVitoriasQtd vitória(s)</div>
                             </div>
                         }
