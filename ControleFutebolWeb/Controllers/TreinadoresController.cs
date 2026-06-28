@@ -164,19 +164,22 @@ namespace ControleFutebolWeb.Controllers
 
             if (ModelState.IsValid)
             {
-                try
-                {
-                    treinador.DtAlt = DateTime.UtcNow;
-                    _context.Update(treinador);
-                    await _context.SaveChangesAsync();
-                    return RedirectToAction(nameof(Index));
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!_context.Treinadores.Any(e => e.Id == treinador.Id))
-                        return NotFound();
-                    throw;
-                }
+                // Atualiza só os campos editáveis na entidade existente — assim campos que
+                // não estão no formulário (IdApi, LinkOgol, DtInc, históricos) são preservados
+                // em vez de serem zerados por um Update do objeto vindo só do form.
+                var existente = await _context.Treinadores.FirstOrDefaultAsync(t => t.Id == id);
+                if (existente == null) return NotFound();
+
+                existente.Nome = treinador.Nome;
+                existente.NacionalidadeId = treinador.NacionalidadeId;
+                existente.DataNascimento = treinador.DataNascimento;
+                existente.TimeId = treinador.TimeId;
+                existente.FotoUrl = string.IsNullOrWhiteSpace(treinador.FotoUrl)
+                    ? null : treinador.FotoUrl.Trim();
+                existente.DtAlt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+                return RedirectToAction(nameof(Index));
             }
             ViewBag.Times = new SelectList(_context.Times, "Id", "Nome", treinador.TimeId);
             ViewBag.Nacionalidades = new SelectList(_context.Nacionalidades, "Id", "Nome", treinador.NacionalidadeId);

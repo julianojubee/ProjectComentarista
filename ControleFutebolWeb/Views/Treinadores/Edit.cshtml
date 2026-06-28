@@ -26,6 +26,37 @@
         @Html.DropDownList("TimeId", (SelectList)ViewBag.Times, "Selecione", new { @class = "form-select" })
     </div>
 
+    <div class="mb-3">
+        <label class="form-label">Foto (URL)</label>
+        <input asp-for="FotoUrl" id="fotoUrl" class="form-control"
+               placeholder="https://.../foto.png" />
+        <small class="text-muted">
+            Cole a URL da foto do treinador — útil quando a API não tem informações dele.
+        </small>
+        <div class="mt-2">
+            <img id="fotoPreview"
+                 src="@Model.FotoUrl"
+                 alt="Pré-visualização da foto"
+                 style="max-height:120px; border-radius:8px; border:1px solid #e5e7eb; @(string.IsNullOrWhiteSpace(Model.FotoUrl) ? "display:none;" : "")" />
+        </div>
+    </div>
+
     <button type="submit" class="btn btn-primary">Salvar Alterações</button>
     <a asp-action="Index" class="btn btn-secondary">Voltar</a>
 </form>
+
+@section Scripts {
+    <script>
+        (function () {
+            var input = document.getElementById('fotoUrl');
+            var preview = document.getElementById('fotoPreview');
+            if (!input || !preview) return;
+            input.addEventListener('input', function () {
+                var url = this.value.trim();
+                if (url) { preview.src = url; preview.style.display = ''; }
+                else { preview.removeAttribute('src'); preview.style.display = 'none'; }
+            });
+            preview.addEventListener('error', function () { preview.style.display = 'none'; });
+        })();
+    </script>
+}
