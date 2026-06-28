@@ -435,6 +435,9 @@ tr.rebaixado td:first-child {
 [data-theme="dark"] .player-name-link {
     color: #60a5fa;
 }
+[data-theme="dark"] .tr-name {
+    color: #e5e7eb;
+}
 [data-theme="dark"] .player-meta {
     color: #9ca3af;
 }
