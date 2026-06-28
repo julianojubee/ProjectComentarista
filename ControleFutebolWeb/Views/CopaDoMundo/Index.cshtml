@@ -697,7 +697,10 @@ else
             text-transform: uppercase; color: #9ca3af; padding-bottom: 10px;
         }
         .bkt-col { flex: 1; display: flex; flex-direction: column; }
-        .bkt-cell { flex: 1 1 0; display: flex; align-items: center; position: relative; min-height: 92px; }
+        /* min-height precisa conter o card inteiro (cabeçalho + 2 times + rodapé
+           com data/Analisar). Se for menor, o card transborda e o card seguinte
+           (fundo branco) cobre o rodapé — por isso só o último aparecia. */
+        .bkt-cell { flex: 1 1 0; display: flex; align-items: center; position: relative; min-height: 140px; }
 
         /* Card de confronto */
         .bkt-match {
