@@ -646,6 +646,14 @@ tr.rebaixado td:first-child {
 [data-theme="dark"] .rpt-card tbody tr {
     border-bottom-color: #2a2a2a !important;
 }
+/* Anéis de avatar/escudo e fundos de track setados inline (#e5e7eb / #f3f4f6)
+   também ficam claros demais no dark — suaviza via !important. */
+[data-theme="dark"] .rpt-card [style*="#e5e7eb"] {
+    border-color: #333 !important;
+}
+[data-theme="dark"] .rpt-card [style*="#f3f4f6"] {
+    background-color: #2a2a2a !important;
+}
 
 /* Form controls */
 [data-theme="dark"] .form-control,
