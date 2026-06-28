@@ -42,6 +42,12 @@ namespace ControleFutebolWeb.Models.ViewModels
         public Dictionary<int, int> GolsPorJogador { get; set; } = new();
         public Dictionary<int, int> AssistsPorJogador { get; set; } = new();
 
+        // Jogo analisado pelo usuário atual (existência de JogoAnalisadoUsuario).
+        public bool Analisado { get; set; }
+
         public string? ObservacoesUsuario { get; set; }
+
+        // Observações livres do jogo (público, curiosidades etc.), por usuário.
+        public string? ObservacoesLivresUsuario { get; set; }
     }
 }

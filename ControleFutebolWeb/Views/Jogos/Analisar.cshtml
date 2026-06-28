@@ -1034,14 +1034,14 @@
     <div style="display:flex; align-items:center; gap:10px; flex:1;">
         <div id="statusIcon" style="width:36px; height:36px; border-radius:50%;
              display:flex; align-items:center; justify-content:center; font-size:18px;
-             background:@(Model.Jogo.Analisado == 1 ? "#dcfce7" : "#f3f4f6");
-             border:2px solid @(Model.Jogo.Analisado == 1 ? "#22c55e" : "#e5e7eb");">
-            @(Model.Jogo.Analisado == 1 ? "✅" : "⏳")
+             background:@(Model.Analisado ? "#dcfce7" : "#f3f4f6");
+             border:2px solid @(Model.Analisado ? "#22c55e" : "#e5e7eb");">
+            @(Model.Analisado ? "✅" : "⏳")
         </div>
         <div>
             <div id="statusLabel" style="font-size:13px; font-weight:600;
-                 color:@(Model.Jogo.Analisado == 1 ? "#15803d" : "#374151");">
-                @(Model.Jogo.Analisado == 1 ? "Jogo analisado" : "Aguardando análise")
+                 color:@(Model.Analisado ? "#15803d" : "#374151");">
+                @(Model.Analisado ? "Jogo analisado" : "Aguardando análise")
             </div>
             <div style="font-size:11px; color:#9ca3af;">
                 Marque como analisado após revisar escalação final e eventos
@@ -1056,7 +1056,7 @@
         <input type="checkbox"
                id="chkAnalisado"
                style="width:16px; height:16px; cursor:pointer; accent-color:#22c55e;"
-               @(Model.Jogo.Analisado == 1 ? "checked" : "")
+               @(Model.Analisado ? "checked" : "")
                onchange="toggleAnalisado(this)" />
         <span style="font-size:13px; font-weight:500; color:#374151;">Marcar como analisado</span>
     </label>

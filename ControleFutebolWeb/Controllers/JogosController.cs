@@ -991,8 +991,15 @@ namespace ControleFutebolWeb.Controllers
             vm.FormacaoCasaSelecionada = idFormacaoCasa;
             vm.FormacaoVisitanteSelecionada = idFormacaoVisitante;
             vm.FaseEscalacaoAtual = faseAtual;
-            vm.ObservacoesUsuario = (await _context.JogosAnalisadosUsuario
-                .FirstOrDefaultAsync(j => j.JogoId == id && j.UsuarioId == usuarioId))?.Observacoes;
+            // "Analisado" é por usuário (existência da linha em JogosAnalisadosUsuario),
+            // não o campo global Jogo.Analisado — assim o estado bate com a lista /Jogos
+            // e não "desmarca" ao recarregar a tela após salvar a escalação.
+            var analiseUsuario = await _context.JogosAnalisadosUsuario
+                .FirstOrDefaultAsync(j => j.JogoId == id && j.UsuarioId == usuarioId);
+            vm.Analisado = analiseUsuario != null;
+            vm.ObservacoesUsuario = analiseUsuario?.Observacoes;
+            vm.ObservacoesLivresUsuario = (await _context.ObservacoesJogoUsuario
+                .FirstOrDefaultAsync(o => o.JogoId == id && o.UsuarioId == usuarioId))?.Texto;
             vm.EscalacaoFinalDisponivel = await _context.Escalacoes.AnyAsync(e => e.JogoId == id && e.FaseEscalacao == "FINAL" && e.UsuarioId == usuarioId);
             vm.MostrarBancoReservas = faseAtual == "INICIAL";
 
