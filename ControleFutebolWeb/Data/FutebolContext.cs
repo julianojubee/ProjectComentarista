@@ -27,14 +27,17 @@ namespace ControleFutebolWeb.Data
         public DbSet<Assistencia> Assistencias { get; set; }
         public DbSet<TransfermarktSincronizacaoLog> TransfermarktSincronizacaoLogs { get; set; }
         public DbSet<Substituicao> Substituicoes { get; set; }
+        public DbSet<PenaltiPerdido> PenaltisPerdidos { get; set; }
         public DbSet<EstatisticaJogador> EstatisticasJogador { get; set; }
         public DbSet<CriterioNota> CriteriosNota { get; set; }
         public DbSet<AnotacaoTime> AnotacoesTime { get; set; }
         public DbSet<JogoAnalisadoUsuario> JogosAnalisadosUsuario { get; set; }
+        public DbSet<ObservacaoJogoUsuario> ObservacoesJogoUsuario { get; set; }
         public DbSet<CompeticaoTopTierUsuario> CompeticoesTopTierUsuario { get; set; }
         public DbSet<CronometroPartida> CronometrosPartida { get; set; }
         public DbSet<FaseTatica> FasesTaticas { get; set; }
         public DbSet<CuriosidadeTime> CuriosidadesTime { get; set; }
+        public DbSet<SelecaoCopaUsuario> SelecoesCopaUsuario { get; set; }
 
         public override int SaveChanges()
         {

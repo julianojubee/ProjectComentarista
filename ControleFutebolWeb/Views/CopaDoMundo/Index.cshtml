@@ -784,6 +784,67 @@ else
         @@media (max-width: 700px) {
             .bkt-tree { --bkt-w: 168px; --bkt-gap: 26px; }
         }
+
+        /* ── Aba Seleção (campinho + escolha por posição) ───────────── */
+        .sel-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+        .sel-bar label { font-size:13px; font-weight:600; color:#374151; }
+        .sel-bar select { padding:7px 10px; border-radius:8px; border:1px solid #d1d5db; font-size:13px; }
+        .sel-save { padding:8px 16px; border:none; border-radius:8px; background:#16a34a; color:#fff; font-weight:600; font-size:13px; cursor:pointer; }
+        .sel-save:hover { background:#15803d; }
+        .sel-msg { background:#dcfce7; color:#15803d; padding:8px 12px; border-radius:8px; margin-bottom:12px; font-size:13px; }
+        .sel-empty { padding:2rem; text-align:center; color:#9ca3af; font-size:14px; }
+
+        .sel-pitch {
+            position:relative; width:100%; max-width:520px; margin:0 auto; aspect-ratio:2/3;
+            border-radius:14px; overflow:hidden;
+            background:
+                repeating-linear-gradient(0deg, #1c8043 0 8.33%, #197439 8.33% 16.66%);
+            border:2px solid rgba(255,255,255,.25);
+        }
+        .sel-pitch::before {
+            content:""; position:absolute; inset:8px; border:2px solid rgba(255,255,255,.35); border-radius:8px;
+        }
+        .sel-pitch::after {
+            content:""; position:absolute; left:8px; right:8px; top:50%; height:2px; background:rgba(255,255,255,.35);
+        }
+        .sel-slot { position:absolute; transform:translate(-50%,-50%); width:70px; text-align:center; cursor:pointer; z-index:2; }
+        .sel-slot-photo {
+            width:46px; height:46px; border-radius:50%; margin:0 auto;
+            background:rgba(255,255,255,.18); border:2px solid #fff;
+            display:flex; align-items:center; justify-content:center; overflow:hidden;
+        }
+        .sel-slot-photo img { width:100%; height:100%; object-fit:cover; }
+        .sel-slot-plus { color:#fff; font-size:24px; font-weight:700; line-height:1; }
+        .sel-slot-name {
+            font-size:11px; color:#fff; font-weight:700; margin-top:3px;
+            text-shadow:0 1px 3px rgba(0,0,0,.7); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+        }
+
+        .sel-picker-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; z-index:1000; align-items:center; justify-content:center; padding:12px; }
+        .sel-picker-overlay.open { display:flex; }
+        .sel-picker-box { background:#fff; border-radius:12px; width:min(420px,94vw); max-height:80vh; display:flex; flex-direction:column; overflow:hidden; }
+        .sel-picker-head { display:flex; gap:8px; padding:12px; border-bottom:1px solid #eee; }
+        .sel-picker-head input { flex:1; padding:8px 10px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; outline:none; }
+        .sel-picker-close { border:none; background:#f3f4f6; border-radius:8px; padding:0 12px; cursor:pointer; font-size:14px; }
+        .sel-picker-list { overflow-y:auto; padding:6px; }
+        .sel-pick-item { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; cursor:pointer; }
+        .sel-pick-item:hover { background:#f3f4f6; }
+        .sel-pick-remove { color:#b91c1c; font-weight:600; font-size:13px; justify-content:center; }
+        .sel-pick-photo { width:34px; height:34px; border-radius:50%; background:#f3f4f6; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; }
+        .sel-pick-photo img { width:100%; height:100%; object-fit:cover; }
+        .sel-pick-info { display:flex; flex-direction:column; min-width:0; }
+        .sel-pick-nome { font-size:13px; font-weight:600; color:#111827; }
+        .sel-pick-meta { font-size:11px; color:#6b7280; }
+
+        [data-theme="dark"] .sel-bar label { color:#cbd5e1; }
+        [data-theme="dark"] .sel-bar select { background:#2a2a2a; color:#e0e0e0; border-color:#444; }
+        [data-theme="dark"] .sel-picker-box { background:#1a1a1a; }
+        [data-theme="dark"] .sel-picker-head { border-bottom-color:#333; }
+        [data-theme="dark"] .sel-picker-head input { background:#2a2a2a; color:#e0e0e0; border-color:#444; }
+        [data-theme="dark"] .sel-picker-close { background:#333; color:#e5e7eb; }
+        [data-theme="dark"] .sel-pick-item:hover { background:#202020; }
+        [data-theme="dark"] .sel-pick-nome { color:#e5e7eb; }
+        [data-theme="dark"] .sel-pick-photo { background:#2a2a2a; }
     </style>
 
     <div class="cdm-bracket">
@@ -801,6 +862,7 @@ else
             {
                 <button type="button" class="cdm-tab @(!temGrupos ? "active" : "")" data-cdm-tab="chave">⚔️ Mata-Mata</button>
             }
+            <button type="button" class="cdm-tab" data-cdm-tab="selecao">⭐ Seleção</button>
         </div>
 
         @if (temChave)
@@ -1133,6 +1195,102 @@ else
                 </div>
             </div>
         }
+
+        @{
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+        }
+        <div class="cdm-panel" data-cdm-panel="selecao">
+            @if (TempData["SelecaoSalva"] != null)
+            {
+                <div class="sel-msg">✅ @TempData["SelecaoSalva"]</div>
+            }
+            @if (!Model.Formacoes.Any())
+            {
+                <div class="sel-empty">Cadastre formações em <strong>Formações</strong> para montar sua seleção.</div>
+            }
+            else
+            {
+                <form method="post" asp-action="SalvarSelecao" asp-controller="CopaDoMundo" id="sel-form">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="temporada" value="@Model.Temporada" />
+
+                    <div class="sel-bar">
+                        <label>Formação:</label>
+                        <select name="formacaoId" id="sel-formacao" onchange="selTrocarFormacao(this.value)">
+                            @foreach (var f in Model.Formacoes)
+                            {
+                                <option value="@f.Id" selected="@(f.Id == Model.SelecaoFormacaoId)">@f.Nome</option>
+                            }
+                        </select>
+                        <button type="submit" class="sel-save">💾 Salvar seleção</button>
+                    </div>
+
+                    <div class="sel-pitch">
+                        @for (int i = 0; i < Model.SelecaoSlots.Count; i++)
+                        {
+                            var s = Model.SelecaoSlots[i];
+                            ControleFutebolWeb.Models.Jogador? jog = null;
+                            if (s.JogadorId.HasValue) Model.JogadoresPorId.TryGetValue(s.JogadorId.Value, out jog);
+                            var fotoSlot = jog != null && !string.IsNullOrEmpty(jog.FotoUrl)
+                                ? Url.Action("Imagem", "MediaProxy", new { url = jog.FotoUrl }) : null;
+                            <div class="sel-slot @(jog != null ? "filled" : "")"
+                                 style="left:@s.X.ToString(inv)%; top:@s.Y.ToString(inv)%;"
+                                 data-idx="@i" onclick="selAbrirPicker(@i)">
+                                <div class="sel-slot-photo">
+                                    @if (fotoSlot != null)
+                                    {
+                                        <img src="@fotoSlot" alt="@jog!.Nome" />
+                                    }
+                                    else
+                                    {
+                                        <span class="sel-slot-plus">+</span>
+                                    }
+                                </div>
+                                <div class="sel-slot-name">@(jog?.Nome ?? "Escolher")</div>
+                            </div>
+                            <input type="hidden" name="slots[@i].X" value="@s.X.ToString(inv)" />
+                            <input type="hidden" name="slots[@i].Y" value="@s.Y.ToString(inv)" />
+                            <input type="hidden" name="slots[@i].JogadorId" id="sel-slot-jog-@i" value="@(s.JogadorId)" />
+                        }
+                    </div>
+                </form>
+
+                <div id="sel-picker" class="sel-picker-overlay" onclick="selFecharPicker(event)">
+                    <div class="sel-picker-box" onclick="event.stopPropagation()">
+                        <div class="sel-picker-head">
+                            <input type="text" id="sel-picker-search" placeholder="Buscar jogador..." autocomplete="off" />
+                            <button type="button" class="sel-picker-close" onclick="selFecharPicker()">✕</button>
+                        </div>
+                        <div class="sel-picker-list" id="sel-picker-list">
+                            <div class="sel-pick-item sel-pick-remove" data-id="" data-busca="">— Remover jogador —</div>
+                            @foreach (var j in Model.PoolJogadores)
+                            {
+                                var foto = !string.IsNullOrEmpty(j.FotoUrl)
+                                    ? Url.Action("Imagem", "MediaProxy", new { url = j.FotoUrl }) : "";
+                                var timeNome = j.Selecao?.Nome ?? j.Time?.Nome ?? "";
+                                <div class="sel-pick-item" data-id="@j.Id" data-nome="@j.Nome" data-foto="@foto"
+                                     data-busca="@((j.Nome + " " + timeNome).ToLower())">
+                                    <div class="sel-pick-photo">
+                                        @if (!string.IsNullOrEmpty(foto))
+                                        {
+                                            <img src="@foto" alt="" />
+                                        }
+                                        else
+                                        {
+                                            <span>👤</span>
+                                        }
+                                    </div>
+                                    <div class="sel-pick-info">
+                                        <span class="sel-pick-nome">@j.Nome</span>
+                                        <span class="sel-pick-meta">@j.Posicao @(string.IsNullOrEmpty(timeNome) ? "" : "· " + timeNome)</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
     </div>
 
     <script>
@@ -1147,6 +1305,82 @@ else
                     tab.classList.add('active');
                     var panel = root.querySelector('[data-cdm-panel="' + idx + '"]');
                     if (panel) panel.classList.add('active');
+                });
+            });
+
+            // Auto-abre uma aba via ?aba=selecao (ex.: ao voltar de salvar a seleção).
+            var aba = new URLSearchParams(location.search).get('aba');
+            if (aba) {
+                var alvo = root.querySelector('.cdm-tab[data-cdm-tab="' + aba + '"]');
+                if (alvo) alvo.click();
+            }
+        })();
+    </script>
+
+    <script>
+        // ── Aba Seleção: escolher jogador por slot (clique) ─────────────
+        var selSlotAtual = null;
+
+        function selTrocarFormacao(id) {
+            var p = new URLSearchParams(location.search);
+            p.set('selFormacaoId', id);
+            p.set('aba', 'selecao');
+            location.search = p.toString();
+        }
+
+        function selAbrirPicker(idx) {
+            selSlotAtual = idx;
+            var ov = document.getElementById('sel-picker');
+            if (!ov) return;
+            ov.classList.add('open');
+            var s = document.getElementById('sel-picker-search');
+            if (s) { s.value = ''; selFiltrarPicker(''); setTimeout(function () { s.focus(); }, 50); }
+        }
+
+        function selFecharPicker() {
+            var ov = document.getElementById('sel-picker');
+            if (ov) ov.classList.remove('open');
+        }
+
+        function selFiltrarPicker(termo) {
+            termo = (termo || '').trim().toLowerCase();
+            document.querySelectorAll('#sel-picker-list .sel-pick-item').forEach(function (it) {
+                if (it.classList.contains('sel-pick-remove')) return;
+                var b = it.getAttribute('data-busca') || '';
+                it.style.display = (termo === '' || b.indexOf(termo) !== -1) ? '' : 'none';
+            });
+        }
+
+        function selAtribuir(idx, id, nome, foto) {
+            var hidden = document.getElementById('sel-slot-jog-' + idx);
+            if (hidden) hidden.value = id;
+            var slot = document.querySelector('.sel-slot[data-idx="' + idx + '"]');
+            if (!slot) return;
+            var photo = slot.querySelector('.sel-slot-photo');
+            var name = slot.querySelector('.sel-slot-name');
+            if (id) {
+                photo.innerHTML = foto ? '<img src="' + foto + '" alt="">' : '<span class="sel-slot-plus">+</span>';
+                if (name) name.textContent = nome;
+                slot.classList.add('filled');
+            } else {
+                photo.innerHTML = '<span class="sel-slot-plus">+</span>';
+                if (name) name.textContent = 'Escolher';
+                slot.classList.remove('filled');
+            }
+        }
+
+        (function () {
+            var search = document.getElementById('sel-picker-search');
+            if (search) search.addEventListener('input', function () { selFiltrarPicker(this.value); });
+
+            document.querySelectorAll('#sel-picker-list .sel-pick-item').forEach(function (it) {
+                it.addEventListener('click', function () {
+                    if (selSlotAtual === null) return;
+                    selAtribuir(selSlotAtual,
+                        it.getAttribute('data-id') || '',
+                        it.getAttribute('data-nome') || '',
+                        it.getAttribute('data-foto') || '');
+                    selFecharPicker();
                 });
             });
         })();
