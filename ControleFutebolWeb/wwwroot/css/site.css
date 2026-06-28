@@ -497,6 +497,57 @@ tr.rebaixado td:first-child {
     color: #e5e7eb;
 }
 
+/* ── Home (.cf-*) específicos do dark mode ───────────────────────────────
+   Classes próprias da home (módulos, painéis, listas) com texto/fundo claros
+   fixos. As compartilhadas (.cf-stat-card, .cf-panel, .cf-team-badge,
+   .cf-score) já são tratadas acima. */
+[data-theme="dark"] .cf-module-card {
+    background: #1a1a1a;
+    border-color: #333;
+}
+[data-theme="dark"] .cf-module-card:hover {
+    border-color: #3b4a63;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+[data-theme="dark"] .cf-module-card h3 {
+    color: #e5e7eb;
+}
+[data-theme="dark"] .cf-module-card p {
+    color: #9ca3af;
+}
+[data-theme="dark"] .cf-panel-header {
+    color: #e5e7eb;
+    border-bottom-color: #333;
+}
+[data-theme="dark"] .cf-team-name {
+    color: #cbd5e1;
+}
+[data-theme="dark"] .cf-match,
+[data-theme="dark"] .cf-classif {
+    border-bottom-color: #2a2a2a;
+}
+[data-theme="dark"] .cf-qa {
+    background: #202020;
+    border-color: #333;
+    color: #cbd5e1;
+}
+[data-theme="dark"] .cf-qa:hover {
+    background: #25324a;
+    border-color: #3b4a63;
+    color: #93c5fd;
+}
+[data-theme="dark"] .cf-search-dropdown {
+    background: #1a1a1a;
+    border-color: #333;
+}
+[data-theme="dark"] .cf-search-item {
+    color: #e5e7eb;
+    border-bottom-color: #2a2a2a;
+}
+[data-theme="dark"] .cf-search-item:hover {
+    background: #202020;
+}
+
 /* Form controls */
 [data-theme="dark"] .form-control,
 [data-theme="dark"] .form-select {
