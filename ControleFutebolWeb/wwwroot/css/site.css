@@ -445,6 +445,58 @@ tr.rebaixado td:first-child {
     color: #cbd5e1;
 }
 
+/* ── Tela Jogos (.cf-*) no dark mode ──────────────────────────────────────
+   Usa cards/tabela custom com fundos claros (#fff/#f9fafb) e texto escuro
+   (#111827) fixos, sem theming. Casa a paleta do dark mode. */
+[data-theme="dark"] .cf-stat-card,
+[data-theme="dark"] .cf-panel {
+    background: #1a1a1a;
+    border-color: #333;
+}
+[data-theme="dark"] .cf-stat-num,
+[data-theme="dark"] .cf-panel-title {
+    color: #e5e7eb;
+}
+[data-theme="dark"] .cf-stat-label {
+    color: #9ca3af;
+}
+[data-theme="dark"] .cf-filters {
+    background: #202020;
+    border-color: #333;
+}
+[data-theme="dark"] .cf-filter-group label {
+    color: #9ca3af;
+}
+[data-theme="dark"] .cf-filter-group select {
+    background: #2a2a2a;
+    color: #e0e0e0;
+    border-color: #444;
+}
+[data-theme="dark"] .cf-filter-clear {
+    background: #333;
+    color: #e5e7eb;
+}
+[data-theme="dark"] .cf-jogos-table th {
+    color: #9ca3af;
+    border-bottom-color: #333;
+}
+[data-theme="dark"] .cf-jogos-table td {
+    color: #e5e7eb;
+    border-bottom-color: #2a2a2a;
+}
+[data-theme="dark"] .cf-jogos-table tbody tr:hover {
+    background: #202020;
+}
+[data-theme="dark"] .cf-team-badge {
+    background: #2a2a2a;
+    border-color: #333;
+}
+[data-theme="dark"] .cf-score {
+    background: #232323;
+    border-color: #333;
+    color: #e5e7eb;
+}
+
 /* Form controls */
 [data-theme="dark"] .form-control,
 [data-theme="dark"] .form-select {
