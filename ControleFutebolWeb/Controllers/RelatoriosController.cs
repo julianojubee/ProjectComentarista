@@ -509,14 +509,14 @@ namespace ControleFutebolWeb.Controllers
                 MediasPorPosicao = new List<RelatoriosViewModel>()
                     .Select(x => new MediaPosicao()).ToList(), // placeholder, preenchido abaixo
 
-                RankImpedimentos        = RankEstatJogador(estatisticasJogadores, e => e.Offsides, minPartidas: 1),
-                RankFinalizacoesNoGol   = RankEstatJogador(estatisticasJogadores, e => e.FinalizacoesNoGol, minPartidas: 1),
-                RankPassesChave         = RankEstatJogador(estatisticasJogadores, e => e.PassesChave, minPartidas: 1),
-                RankDesarmes            = RankEstatJogador(estatisticasJogadores, e => e.Desarmes, minPartidas: 1),
-                RankBloqueios           = RankEstatJogador(estatisticasJogadores, e => e.Bloqueios, minPartidas: 1),
-                RankInterceptacoes      = RankEstatJogador(estatisticasJogadores, e => e.Interceptacoes, minPartidas: 1),
-                RankDrilesCertos        = RankEstatJogador(estatisticasJogadores, e => e.DriblesCertos, minPartidas: 1),
-                RankPenaltisDefendidos  = RankEstatJogador(estatisticasJogadores, e => e.PenaltiDefendido, minPartidas: 1, ordenarPorTotal: true),
+                RankImpedimentos        = RankEstatJogador(estatisticasJogadores, e => e.Offsides, minPartidas: 10),
+                RankFinalizacoesNoGol   = RankEstatJogador(estatisticasJogadores, e => e.FinalizacoesNoGol, minPartidas: 10),
+                RankPassesChave         = RankEstatJogador(estatisticasJogadores, e => e.PassesChave, minPartidas: 10),
+                RankDesarmes            = RankEstatJogador(estatisticasJogadores, e => e.Desarmes, minPartidas: 10),
+                RankBloqueios           = RankEstatJogador(estatisticasJogadores, e => e.Bloqueios, minPartidas: 10),
+                RankInterceptacoes      = RankEstatJogador(estatisticasJogadores, e => e.Interceptacoes, minPartidas: 10),
+                RankDrilesCertos        = RankEstatJogador(estatisticasJogadores, e => e.DriblesCertos, minPartidas: 10),
+                RankPenaltisDefendidos  = RankEstatJogador(estatisticasJogadores, e => e.PenaltiDefendido, minPartidas: 10, ordenarPorTotal: true),
             };
 
             // Rankings por posição (usa ranking completo, sem limite de 20)
