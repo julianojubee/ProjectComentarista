@@ -15,6 +15,9 @@ namespace ControleFutebolWeb.Models
         public int CompeticaoId { get; set; }
         public int? Temporada { get; set; }
 
+        // Nome da seleção (ex.: "1ª fase", "Final"). Permite várias por usuário+temporada.
+        public string? Nome { get; set; }
+
         public int? FormacaoId { get; set; }
 
         // JSON: [{ "x": 50.0, "y": 90.0, "jogadorId": 123 }, ...]

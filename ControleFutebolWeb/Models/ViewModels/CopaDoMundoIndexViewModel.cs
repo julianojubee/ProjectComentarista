@@ -16,6 +16,13 @@ namespace ControleFutebolWeb.Models.ViewModels
         // ── Aba "Seleção" (o usuário monta o melhor XI por posição) ──────────
         public List<Formacao> Formacoes { get; set; } = new();
         public int? SelecaoFormacaoId { get; set; }
+
+        // Várias seleções por usuário+temporada (ex.: 1ª fase, Final).
+        public List<SelecaoCopaUsuario> Selecoes { get; set; } = new();
+        public int? SelecaoAtualId { get; set; }
+        public string? SelecaoAtualNome { get; set; }
+        public bool ModoNovaSelecao { get; set; }
+
         public List<SelecaoSlotVM> SelecaoSlots { get; set; } = new();
         public List<Jogador> PoolJogadores { get; set; } = new();
         public Dictionary<int, Jogador> JogadoresPorId { get; set; } = new();

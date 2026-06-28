@@ -789,8 +789,13 @@ else
         .sel-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
         .sel-bar label { font-size:13px; font-weight:600; color:#374151; }
         .sel-bar select { padding:7px 10px; border-radius:8px; border:1px solid #d1d5db; font-size:13px; }
+        .sel-nome { padding:7px 10px; border-radius:8px; border:1px solid #d1d5db; font-size:13px; min-width:150px; }
         .sel-save { padding:8px 16px; border:none; border-radius:8px; background:#16a34a; color:#fff; font-weight:600; font-size:13px; cursor:pointer; }
         .sel-save:hover { background:#15803d; }
+        .sel-del { padding:8px 12px; border:1px solid #fecaca; border-radius:8px; background:#fef2f2; color:#b91c1c; font-weight:600; font-size:13px; cursor:pointer; }
+        .sel-del:hover { background:#fee2e2; }
+        [data-theme="dark"] .sel-nome { background:#2a2a2a; color:#e0e0e0; border-color:#444; }
+        [data-theme="dark"] .sel-del { background:#3a1a1a; border-color:#7f1d1d; color:#fca5a5; }
         .sel-msg { background:#dcfce7; color:#15803d; padding:8px 12px; border-radius:8px; margin-bottom:12px; font-size:13px; }
         .sel-empty { padding:2rem; text-align:center; color:#9ca3af; font-size:14px; }
 
@@ -1224,11 +1229,35 @@ else
             }
             else
             {
+                <div class="sel-bar">
+                    <label>Seleção:</label>
+                    <select id="sel-lista" onchange="selTrocarSelecao(this.value)">
+                        @foreach (var sel in Model.Selecoes)
+                        {
+                            <option value="@sel.Id" selected="@(!Model.ModoNovaSelecao && sel.Id == Model.SelecaoAtualId)">@(string.IsNullOrWhiteSpace(sel.Nome) ? "Seleção" : sel.Nome)</option>
+                        }
+                        <option value="nova" selected="@Model.ModoNovaSelecao">➕ Nova seleção</option>
+                    </select>
+                    @if (Model.SelecaoAtualId != null)
+                    {
+                        <form method="post" asp-action="ExcluirSelecao" asp-controller="CopaDoMundo" style="display:inline"
+                              onsubmit="return confirm('Excluir esta seleção?')">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="selId" value="@Model.SelecaoAtualId" />
+                            <input type="hidden" name="temporada" value="@Model.Temporada" />
+                            <button type="submit" class="sel-del">🗑️ Excluir</button>
+                        </form>
+                    }
+                </div>
+
                 <form method="post" asp-action="SalvarSelecao" asp-controller="CopaDoMundo" id="sel-form">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="temporada" value="@Model.Temporada" />
+                    <input type="hidden" name="selId" value="@Model.SelecaoAtualId" />
 
                     <div class="sel-bar">
+                        <label>Nome:</label>
+                        <input type="text" name="nome" class="sel-nome" value="@Model.SelecaoAtualNome" placeholder="Ex.: 1ª fase, Final" />
                         <label>Formação:</label>
                         <select name="formacaoId" id="sel-formacao" onchange="selTrocarFormacao(this.value)">
                             @foreach (var f in Model.Formacoes)
@@ -1347,6 +1376,15 @@ else
             var p = new URLSearchParams(location.search);
             p.set('selFormacaoId', id);
             p.set('aba', 'selecao');
+            location.search = p.toString();
+        }
+
+        function selTrocarSelecao(v) {
+            var p = new URLSearchParams(location.search);
+            p.delete('selFormacaoId'); // usa a formação própria da seleção escolhida
+            p.set('aba', 'selecao');
+            if (v === 'nova') { p.delete('selId'); p.set('nova', '1'); }
+            else { p.set('selId', v); p.delete('nova'); }
             location.search = p.toString();
         }
 

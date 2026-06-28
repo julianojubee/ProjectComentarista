@@ -23,7 +23,8 @@ namespace ControleFutebolWeb.Controllers
             _userManager = userManager;
         }
 
-        public IActionResult Index(int? temporada = null, int? selFormacaoId = null)
+        public IActionResult Index(int? temporada = null, int? selFormacaoId = null,
+            int? selId = null, bool nova = false)
         {
             var gruposPermitidos = new[] { "A","B","C","D","E","F","G","H","I","J","K","L" };
 
@@ -131,14 +132,15 @@ namespace ControleFutebolWeb.Controllers
             vm.TerceirosColocados = terceiros;
             vm.Chaveamento = chaveamento;
 
-            PreencherAbaSelecao(vm, competicao.Id, temporadaSel, selFormacaoId);
+            PreencherAbaSelecao(vm, competicao.Id, temporadaSel, selFormacaoId, selId, nova);
 
             return View(vm);
         }
 
         // ── Aba "Seleção": campo + formação + melhores por posição ───────────
         private void PreencherAbaSelecao(
-            CopaDoMundoIndexViewModel vm, int competicaoId, int? temporada, int? selFormacaoId)
+            CopaDoMundoIndexViewModel vm, int competicaoId, int? temporada,
+            int? selFormacaoId, int? selId, bool nova)
         {
             var formacoes = _context.Formacoes
                 .Include(f => f.Posicoes)
@@ -148,18 +150,29 @@ namespace ControleFutebolWeb.Controllers
             if (!formacoes.Any()) return;
 
             var uid = _userManager.GetUserId(User);
-            var salva = uid == null ? null : _context.SelecoesCopaUsuario
-                .FirstOrDefault(s => s.UsuarioId == uid
-                    && s.CompeticaoId == competicaoId && s.Temporada == temporada);
+            var selecoes = uid == null ? new List<SelecaoCopaUsuario>() : _context.SelecoesCopaUsuario
+                .Where(s => s.UsuarioId == uid && s.CompeticaoId == competicaoId && s.Temporada == temporada)
+                .OrderBy(s => s.Id)
+                .ToList();
+            vm.Selecoes = selecoes;
 
-            var formacaoId = selFormacaoId ?? salva?.FormacaoId ?? formacoes.First().Id;
+            // Seleção atual: por selId, senão a primeira; "nova" abre o editor em branco.
+            SelecaoCopaUsuario? atual = null;
+            if (!nova)
+                atual = (selId.HasValue ? selecoes.FirstOrDefault(s => s.Id == selId.Value) : null)
+                        ?? selecoes.FirstOrDefault();
+            vm.ModoNovaSelecao = nova || atual == null;
+            vm.SelecaoAtualId = atual?.Id;
+            vm.SelecaoAtualNome = atual?.Nome;
+
+            var formacaoId = selFormacaoId ?? atual?.FormacaoId ?? formacoes.First().Id;
             var formacao = formacoes.FirstOrDefault(f => f.Id == formacaoId) ?? formacoes.First();
             vm.SelecaoFormacaoId = formacao.Id;
 
             // Slots salvos só se aplicam quando a formação escolhida é a mesma da salva.
             var slotsSalvos = new List<SelecaoSlotSalvo>();
-            if (salva?.SlotsJson != null && salva.FormacaoId == formacao.Id)
-                slotsSalvos = JsonSerializer.Deserialize<List<SelecaoSlotSalvo>>(salva.SlotsJson) ?? new();
+            if (atual?.SlotsJson != null && atual.FormacaoId == formacao.Id)
+                slotsSalvos = JsonSerializer.Deserialize<List<SelecaoSlotSalvo>>(atual.SlotsJson) ?? new();
 
             foreach (var p in (formacao.Posicoes ?? new List<PosicaoFormacao>())
                          .OrderByDescending(p => p.PosicaoY).ThenBy(p => p.PosicaoX))
@@ -204,7 +217,7 @@ namespace ControleFutebolWeb.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SalvarSelecao(
-            int? temporada, int formacaoId, List<SelecaoSlotInput> slots)
+            int? selId, int? temporada, string? nome, int formacaoId, List<SelecaoSlotInput> slots)
         {
             var uid = _userManager.GetUserId(User);
             if (uid == null) return Challenge();
@@ -214,29 +227,54 @@ namespace ControleFutebolWeb.Controllers
                 .Select(s => new SelecaoSlotSalvo { X = s.X, Y = s.Y, JogadorId = s.JogadorId!.Value })
                 .ToList();
             var json = JsonSerializer.Serialize(atribuidos);
+            var nomeFinal = string.IsNullOrWhiteSpace(nome) ? "Seleção" : nome.Trim();
 
-            var existente = await _context.SelecoesCopaUsuario
-                .FirstOrDefaultAsync(s => s.UsuarioId == uid
-                    && s.CompeticaoId == CopaCompeticaoId && s.Temporada == temporada);
+            var sel = selId.HasValue
+                ? await _context.SelecoesCopaUsuario
+                    .FirstOrDefaultAsync(s => s.Id == selId.Value && s.UsuarioId == uid)
+                : null;
 
-            if (existente == null)
-                _context.SelecoesCopaUsuario.Add(new SelecaoCopaUsuario
+            if (sel == null)
+            {
+                sel = new SelecaoCopaUsuario
                 {
                     UsuarioId = uid,
                     CompeticaoId = CopaCompeticaoId,
                     Temporada = temporada,
+                    Nome = nomeFinal,
                     FormacaoId = formacaoId,
                     SlotsJson = json
-                });
+                };
+                _context.SelecoesCopaUsuario.Add(sel);
+            }
             else
             {
-                existente.FormacaoId = formacaoId;
-                existente.SlotsJson = json;
+                sel.Nome = nomeFinal;
+                sel.FormacaoId = formacaoId;
+                sel.SlotsJson = json;
             }
 
             await _context.SaveChangesAsync();
             TempData["SelecaoSalva"] = "Seleção salva com sucesso!";
-            return RedirectToAction("Index", new { temporada, selFormacaoId = formacaoId, aba = "selecao" });
+            return RedirectToAction("Index", new { temporada, selId = sel.Id, aba = "selecao" });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ExcluirSelecao(int selId, int? temporada)
+        {
+            var uid = _userManager.GetUserId(User);
+            if (uid == null) return Challenge();
+
+            var sel = await _context.SelecoesCopaUsuario
+                .FirstOrDefaultAsync(s => s.Id == selId && s.UsuarioId == uid);
+            if (sel != null)
+            {
+                _context.SelecoesCopaUsuario.Remove(sel);
+                await _context.SaveChangesAsync();
+                TempData["SelecaoSalva"] = "Seleção excluída.";
+            }
+            return RedirectToAction("Index", new { temporada, aba = "selecao" });
         }
 
         // Calcula o índice disciplinar (Fair Play) por TimeId.
