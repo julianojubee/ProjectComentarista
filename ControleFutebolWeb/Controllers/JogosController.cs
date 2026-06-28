@@ -74,14 +74,16 @@ namespace ControleFutebolWeb.Controllers
             DateTime? startDate,
             DateTime? endDate,
             int? competicaoId,
-            string? status)
+            string? status,
+            int page = 1)
         {
+            // A listagem só exibe data, competição, times e placar. Gols/Escalações/
+            // Cartões não são usados aqui — incluí-los carregava milhares de linhas
+            // por jogo e deixava a página lenta. AsNoTracking pois é somente leitura.
             var jogosQuery = _context.Jogos
+                .AsNoTracking()
                 .Include(j => j.TimeCasa)
                 .Include(j => j.TimeVisitante)
-                .Include(j => j.Gols).ThenInclude(g => g.Jogador)
-                .Include(j => j.Escalacoes).ThenInclude(e => e.Jogador)
-                .Include(j => j.Cartoes).ThenInclude(c => c.Jogador)
                 .AsQueryable();
 
             if (teamId.HasValue)
@@ -148,20 +150,42 @@ namespace ControleFutebolWeb.Controllers
 
             jogosQuery = jogosQuery.OrderByDescending(j => j.Data);
 
+            const int pageSize = 50;
+            var totalJogos = await jogosQuery.CountAsync();
+            var totalFinalizados = await jogosQuery
+                .CountAsync(j => j.PlacarCasa >= 0 && j.PlacarVisitante >= 0);
+            var totalPaginas = (int)Math.Ceiling(totalJogos / (double)pageSize);
+            if (page < 1) page = 1;
+            if (totalPaginas > 0 && page > totalPaginas) page = totalPaginas;
+
+            var jogosPagina = await jogosQuery
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
             var competicoesMap = await _context.Competicoes
                 .AsNoTracking()
                 .ToDictionaryAsync(c => c.Id, c => c.Nome);
 
             var vm = new JogosIndexViewModel
             {
-                Jogos = await jogosQuery.ToListAsync(),
+                Jogos = jogosPagina,
                 TimeList = timeList,
                 CompeticaoList = competicaoList,
                 StatusList = statusList,
                 LocationList = locationList,
                 StartDate = startDate?.ToString("yyyy-MM-dd"),
                 EndDate = endDate?.ToString("yyyy-MM-dd"),
-                CompeticoesMap = competicoesMap
+                CompeticoesMap = competicoesMap,
+                PaginaAtual = page,
+                TotalPaginas = totalPaginas,
+                TotalJogos = totalJogos,
+                TotalFinalizados = totalFinalizados,
+                PageSize = pageSize,
+                TeamIdFiltro = teamId,
+                LocationFiltro = location,
+                CompeticaoIdFiltro = competicaoId,
+                StatusFiltro = status
             };
 
             return View(vm);

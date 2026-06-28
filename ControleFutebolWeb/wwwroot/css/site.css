@@ -496,6 +496,20 @@ tr.rebaixado td:first-child {
     border-color: #333;
     color: #e5e7eb;
 }
+[data-theme="dark"] .cf-pager-info,
+[data-theme="dark"] .cf-pager-cur {
+    color: #9ca3af;
+}
+[data-theme="dark"] .cf-pager-btn {
+    background: #2a2a2a;
+    border-color: #444;
+    color: #e5e7eb;
+}
+[data-theme="dark"] .cf-pager-btn:hover {
+    background: #25324a;
+    border-color: #3b4a63;
+    color: #93c5fd;
+}
 
 /* ── Home (.cf-*) específicos do dark mode ───────────────────────────────
    Classes próprias da home (módulos, painéis, listas) com texto/fundo claros

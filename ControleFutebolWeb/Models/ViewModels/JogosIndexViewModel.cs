@@ -19,5 +19,19 @@ namespace ControleFutebolWeb.Models.ViewModels
         public string? EndDate { get; set; }
 
         public Dictionary<int, string> CompeticoesMap { get; set; } = new();
+
+        // Paginação
+        public int PaginaAtual { get; set; } = 1;
+        public int TotalPaginas { get; set; } = 1;
+        public int TotalJogos { get; set; }
+        public int TotalFinalizados { get; set; }
+        public int TotalAgendados => TotalJogos - TotalFinalizados;
+        public int PageSize { get; set; } = 50;
+
+        // Filtros atuais (para preservar nos links de paginação)
+        public int? TeamIdFiltro { get; set; }
+        public string? LocationFiltro { get; set; }
+        public int? CompeticaoIdFiltro { get; set; }
+        public string? StatusFiltro { get; set; }
     }
 }
