@@ -568,13 +568,38 @@ namespace ControleFutebolWeb.Services
         public async Task<List<AfCoachFull>> BuscarTreinadorApiAsync(
             string nome, long? teamId = null, CancellationToken ct = default)
         {
-            var url = $"coachs?search={Uri.EscapeDataString(nome)}";
-            if (teamId is long t && t > 0)
-                url += $"&team={t}";
+            long? team = teamId is long t && t > 0 ? t : null;
 
-            var json = await _http.GetStringAsync(url, ct);
-            var resp = JsonSerializer.Deserialize<ApiFootballResponse<AfCoachFull>>(json, _json);
-            return resp?.Response ?? new();
+            async Task<List<AfCoachFull>> Buscar(string termo)
+            {
+                var url = $"coachs?search={Uri.EscapeDataString(termo)}";
+                if (team is long tt) url += $"&team={tt}";
+                var json = await _http.GetStringAsync(url, ct);
+                var resp = JsonSerializer.Deserialize<ApiFootballResponse<AfCoachFull>>(json, _json);
+                return resp?.Response ?? new();
+            }
+
+            var nomeTrim = (nome ?? "").Trim();
+
+            // A api-football casa o termo de busca pelos campos name/lastname (não firstname),
+            // então o nome completo ou um nome do meio às vezes não acha. Com o time informado
+            // (resultado já desambiguado pelo /team), tenta o nome inteiro e depois cada parte
+            // (>= 3 chars) até encontrar — ex.: "Francisco Zubeldia Luis" falha em "Luis" e
+            // "Francisco", mas acha em "Zubeldia".
+            var termos = new List<string>();
+            if (nomeTrim.Length >= 3) termos.Add(nomeTrim);
+            if (team is not null)
+                foreach (var parte in nomeTrim.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                    if (parte.Length >= 3 &&
+                        !termos.Contains(parte, StringComparer.OrdinalIgnoreCase))
+                        termos.Add(parte);
+
+            foreach (var termo in termos)
+            {
+                var resultado = await Buscar(termo);
+                if (resultado.Count > 0) return resultado;
+            }
+            return new();
         }
 
         public async Task<AfTeamSeasonStats?> BuscarEstatisticasTimeAsync(

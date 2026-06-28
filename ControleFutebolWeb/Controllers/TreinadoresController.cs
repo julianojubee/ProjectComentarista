@@ -236,11 +236,10 @@ namespace ControleFutebolWeb.Controllers
 
             try
             {
-                // A API encontra melhor pelo sobrenome: usa só o último nome na pesquisa
-                // (ex.: "Carlo Ancelotti" → "Ancelotti").
-                var termoBusca = treinador.Nome
-                    .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .LastOrDefault() ?? treinador.Nome;
+                // Passa o nome completo: o serviço tenta o nome inteiro e, com o id do time,
+                // cada parte do nome até a API encontrar. O sobrenome nem sempre é a última
+                // palavra (ex.: "Francisco Zubeldia Luis" só acha buscando "Zubeldia").
+                var termoBusca = treinador.Nome;
 
                 // 1ª tentativa: nome + id do time (desambigua, ex.: coachs?search=Riera&team=2325).
                 var teamApiId = treinador.Time?.IdApi;
