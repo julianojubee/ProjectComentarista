@@ -81,7 +81,7 @@
          style="background:rgba(255,255,255,0.1);border-radius:10px;backdrop-filter:blur(4px);">
         @if (!string.IsNullOrWhiteSpace(Model.Treinador.FotoUrl))
         {
-            <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Treinador.FotoUrl })" alt="@Model.Treinador.Nome"
+            <img src="@Url.FotoSrc(Model.Treinador.FotoUrl)" alt="@Model.Treinador.Nome"
                  style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.4);" />
         }
         else

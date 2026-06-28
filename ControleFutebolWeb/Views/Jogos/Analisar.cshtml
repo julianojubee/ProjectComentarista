@@ -1315,7 +1315,7 @@
                              style="background:#f0f4ff;border-radius:7px;border:1px solid #dce4f5;">
                             @if (!string.IsNullOrWhiteSpace(treinadorCasa.FotoUrl))
                             {
-                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = treinadorCasa.FotoUrl })"
+                                <img src="@Url.FotoSrc(treinadorCasa.FotoUrl)"
                                      alt="@treinadorCasa.Nome"
                                      style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0;" />
                             }
@@ -1553,7 +1553,7 @@
                              style="background:#f0f4ff;border-radius:7px;border:1px solid #dce4f5;">
                             @if (!string.IsNullOrWhiteSpace(treinadorVis.FotoUrl))
                             {
-                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = treinadorVis.FotoUrl })"
+                                <img src="@Url.FotoSrc(treinadorVis.FotoUrl)"
                                      alt="@treinadorVis.Nome"
                                      style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0;" />
                             }

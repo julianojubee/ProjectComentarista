@@ -437,7 +437,7 @@
             <div class="player-photo">
                 @if (!string.IsNullOrEmpty(treinador.FotoUrl))
                 {
-                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = treinador.FotoUrl })" alt="@treinador.Nome"
+                    <img src="@Url.FotoSrc(treinador.FotoUrl)" alt="@treinador.Nome"
                          loading="lazy" decoding="async" width="42" height="42"
                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
                     <span style="display:none; color:#6b7280; font-size:18px;">👤</span>

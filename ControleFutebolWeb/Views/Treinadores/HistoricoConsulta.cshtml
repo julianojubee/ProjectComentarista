@@ -113,7 +113,7 @@
         <div class="jogador-header">
             @if (!string.IsNullOrWhiteSpace(ViewBag.Treinador.FotoUrl))
             {
-                <img src="@Url.Action("Imagem", "MediaProxy", new { url = ViewBag.Treinador.FotoUrl })" class="jogador-foto" />
+                <img src="@Url.FotoSrc((string)ViewBag.Treinador.FotoUrl)" class="jogador-foto" />
             }
             else
             {
