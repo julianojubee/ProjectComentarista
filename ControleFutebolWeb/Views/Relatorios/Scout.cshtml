@@ -135,6 +135,10 @@
         letter-spacing: .5px; color: #6b7280;
         border-bottom: 1px solid #e5e7eb; white-space: nowrap;
     }
+    .sc-table th.sc-th-sortable { cursor: pointer; user-select: none; }
+    .sc-table th.sc-th-sortable:hover { color: #7c3aed; }
+    .sc-table th.sc-sort-asc::after  { content: " ▲"; font-size: 9px; }
+    .sc-table th.sc-sort-desc::after { content: " ▼"; font-size: 9px; }
     .sc-table td {
         padding: 10px 12px; border-bottom: .5px solid #f3f4f6;
         vertical-align: middle; white-space: nowrap;
@@ -539,5 +543,74 @@
 
     bindSearch('timeSearch', '#timePanel');
     bindSearch('compSearch', '#compPanel');
+})();
+</script>
+
+<script>
+// Ordenação client-side da tabela de resultados do scout: clicar num cabeçalho
+// ordena as linhas já filtradas por aquela coluna. Numéricas começam decrescente
+// ("mais" no topo); texto começa crescente. Clicar de novo inverte.
+(function () {
+    var table = document.querySelector('.sc-table');
+    if (!table || !table.tHead || !table.tBodies.length) return;
+
+    var tbody   = table.tBodies[0];
+    var headers = table.tHead.rows[0].cells;
+
+    // Índice da coluna → tipo. 0=#, 1=Jogador, 2=Pos, 3=Idade, 4=Time,
+    // 5..14=estatísticas, 15=amarelos, 16=vermelhos, 17=Nota, 18=link.
+    var tipos = {
+        1: 'text', 2: 'text', 3: 'num', 4: 'text',
+        5: 'num', 6: 'num', 7: 'num', 8: 'num', 9: 'num', 10: 'num',
+        11: 'num', 12: 'num', 13: 'num', 14: 'num', 15: 'num', 16: 'num', 17: 'num'
+    };
+
+    var estado = { col: -1, dir: 1 };
+
+    function valor(row, col, tipo) {
+        var cell = row.cells[col];
+        if (!cell) return tipo === 'num' ? -Infinity : '';
+        if (tipo === 'num') {
+            var n = parseFloat(cell.textContent.trim().replace(',', '.'));
+            return isNaN(n) ? -Infinity : n; // "—" vai para o fim no decrescente
+        }
+        var nome = cell.querySelector('.sc-pname');
+        return (nome ? nome.textContent : cell.textContent).trim().toLowerCase();
+    }
+
+    function ordenar(col, tipo) {
+        var dir;
+        if (estado.col === col) dir = -estado.dir;     // mesma coluna: inverte
+        else dir = (tipo === 'num') ? -1 : 1;          // 1ª vez: num desc, texto asc
+        estado = { col: col, dir: dir };
+
+        var linhas = Array.prototype.slice.call(tbody.rows);
+        linhas.sort(function (a, b) {
+            var va = valor(a, col, tipo), vb = valor(b, col, tipo);
+            if (va < vb) return -1 * dir;
+            if (va > vb) return 1 * dir;
+            return 0;
+        });
+        linhas.forEach(function (r) { tbody.appendChild(r); });
+
+        // Renumera a coluna "#"
+        Array.prototype.forEach.call(tbody.rows, function (r, i) {
+            if (r.cells[0]) r.cells[0].textContent = i + 1;
+        });
+
+        // Indicador visual no cabeçalho
+        Array.prototype.forEach.call(headers, function (h) {
+            h.classList.remove('sc-sort-asc', 'sc-sort-desc');
+        });
+        headers[col].classList.add(dir > 0 ? 'sc-sort-asc' : 'sc-sort-desc');
+    }
+
+    Object.keys(tipos).forEach(function (k) {
+        var col = parseInt(k, 10);
+        var th = headers[col];
+        if (!th) return;
+        th.classList.add('sc-th-sortable');
+        th.addEventListener('click', function () { ordenar(col, tipos[col]); });
+    });
 })();
 </script>
