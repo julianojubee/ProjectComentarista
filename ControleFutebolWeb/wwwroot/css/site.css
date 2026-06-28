@@ -562,6 +562,85 @@ tr.rebaixado td:first-child {
     background: #202020;
 }
 
+/* ── Tela Relatórios (.rpt-*) no dark mode ───────────────────────────────
+   Cards claros com texto escuro (alguns inline color:#111827 trocados por
+   inherit na view). Hero e cards de "Estatísticas Competições" já são
+   escuros por natureza, não precisam de override. */
+[data-theme="dark"] .rpt-filter {
+    background: #1a1a1a;
+    border-color: #333;
+}
+[data-theme="dark"] .rpt-filter label,
+[data-theme="dark"] .rpt-check-wrap span {
+    color: #cbd5e1;
+}
+[data-theme="dark"] .rpt-filter select {
+    background: #2a2a2a;
+    color: #e0e0e0;
+    border-color: #444;
+}
+[data-theme="dark"] .rpt-filter .rpt-clear {
+    background: #333;
+    color: #e5e7eb;
+    border-color: #444;
+}
+[data-theme="dark"] .rpt-check-wrap {
+    background: #202020;
+    border-color: #333;
+}
+[data-theme="dark"] .rpt-check-wrap:hover {
+    background: #25324a;
+    border-color: #3b4a63;
+}
+[data-theme="dark"] .rpt-tab {
+    background: #1a1a1a;
+    border-color: #333;
+    color: #cbd5e1;
+}
+[data-theme="dark"] .rpt-tab:hover {
+    border-color: #f59e0b;
+    color: #fbbf24;
+}
+[data-theme="dark"] .rpt-card {
+    background: #1a1a1a;
+    border-color: #333;
+    color: #e5e7eb;
+}
+[data-theme="dark"] .rpt-card-header {
+    border-bottom-color: #333;
+}
+[data-theme="dark"] .rpt-card-title {
+    color: #e5e7eb;
+}
+[data-theme="dark"] .rpt-row {
+    border-bottom-color: #2a2a2a;
+}
+[data-theme="dark"] .rpt-row:hover {
+    background: #202020;
+}
+[data-theme="dark"] .rpt-name {
+    color: #e5e7eb;
+}
+[data-theme="dark"] .rpt-avatar,
+[data-theme="dark"] .rpt-team-badge {
+    background: #2a2a2a;
+    border-color: #333;
+}
+[data-theme="dark"] .rpt-bar-bg {
+    background: #2a2a2a;
+}
+[data-theme="dark"] .rodada-bar-val {
+    color: #cbd5e1;
+}
+/* Tabelas dentro dos cards: cabeçalho e hover são setados inline (claros);
+   !important para sobrepor o estilo inline no dark. */
+[data-theme="dark"] .rpt-card thead tr {
+    background: #202020 !important;
+}
+[data-theme="dark"] #sec-notas tbody tr:hover {
+    background: #202020 !important;
+}
+
 /* Form controls */
 [data-theme="dark"] .form-control,
 [data-theme="dark"] .form-select {
