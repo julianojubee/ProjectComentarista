@@ -224,20 +224,16 @@ namespace ControleFutebolWeb.Services
                         ? detalhado.League.Group
                         : null;
 
-                    // Jogos de fases preliminares (Qualification, Playoff, etc.) não pertencem
-                    // à fase de grupos — usar o Round como identificador e nunca buscar standings,
-                    // pois o time pode ter se classificado e aparecer nos standings da fase de grupos.
-                    var ehFasePreliminar = !string.IsNullOrWhiteSpace(detalhado.League.Round) &&
-                        (detalhado.League.Round.Contains("Qualification", StringComparison.OrdinalIgnoreCase) ||
-                         detalhado.League.Round.Contains("Playoff", StringComparison.OrdinalIgnoreCase) ||
-                         detalhado.League.Round.Contains("Play-off", StringComparison.OrdinalIgnoreCase) ||
-                         detalhado.League.Round.Contains("Preliminary", StringComparison.OrdinalIgnoreCase));
-
-                    var grupo = ehFasePreliminar
-                        ? (grupoFixture ?? detalhado.League.Round)
-                        : (grupoFixture
-                            ?? (gruposPorTime.TryGetValue(detalhado.Teams.Home.Id, out var gCasa) ? gCasa : null)
-                            ?? (gruposPorTime.TryGetValue(detalhado.Teams.Away.Id, out var gVis) ? gVis : null));
+                    // Só a fase de grupos resolve a letra do grupo (A, B, C...) via standings.
+                    // Em qualquer outra fase (preliminares ou mata-mata: "Round of 32",
+                    // "Round of 16", "Quarter-finals"...) o próprio Round é o identificador —
+                    // senão um time que jogou a fase de grupos carregaria seu grupo antigo
+                    // (ex.: "Group E") para o mata-mata.
+                    var grupo = grupoFixture
+                        ?? (EhFaseDeGrupos(detalhado.League.Round)
+                            ? ((gruposPorTime.TryGetValue(detalhado.Teams.Home.Id, out var gCasa) ? gCasa : null)
+                                ?? (gruposPorTime.TryGetValue(detalhado.Teams.Away.Id, out var gVis) ? gVis : null))
+                            : detalhado.League.Round);
 
                     await IncluirOuAtualizarJogo(context, competicao,
                         detalhado, timeCasa, timeVis, grupo, season, cicloId, ct);
@@ -468,16 +464,10 @@ namespace ControleFutebolWeb.Services
                 !fx.League.Group.Equals("Group Stage", StringComparison.OrdinalIgnoreCase))
                 return fx.League.Group;
 
-            // Jogos de fases preliminares não pertencem à fase de grupos — usar o Round
-            // diretamente e nunca buscar standings, pois o time pode ter se classificado
-            // e aparecer nos standings da fase de grupos (ex.: Qualification Round 2).
-            var ehFasePreliminar = !string.IsNullOrWhiteSpace(fx.League.Round) &&
-                (fx.League.Round.Contains("Qualification", StringComparison.OrdinalIgnoreCase) ||
-                 fx.League.Round.Contains("Playoff", StringComparison.OrdinalIgnoreCase) ||
-                 fx.League.Round.Contains("Play-off", StringComparison.OrdinalIgnoreCase) ||
-                 fx.League.Round.Contains("Preliminary", StringComparison.OrdinalIgnoreCase));
-
-            if (ehFasePreliminar)
+            // Fora da fase de grupos (preliminares e mata-mata) o Round é o identificador;
+            // nunca buscar standings, pois o time pode ter jogado a fase de grupos e
+            // carregaria seu grupo antigo (ex.: "Group E") para o mata-mata.
+            if (!EhFaseDeGrupos(fx.League.Round))
                 return fx.League.Round;
 
             var gruposPorTime = await BuscarGruposPorTimeAsync(fx.League.Id, fx.League.Season, ct);
@@ -614,6 +604,14 @@ namespace ControleFutebolWeb.Services
             return resp?.Response ?? new();
         }
 
+        // Identifica se o Round pertence à fase de grupos. Só nesse caso a letra do grupo
+        // (A, B, C...) é resolvida via standings; em qualquer outra fase (preliminares ou
+        // mata-mata) o próprio Round é o identificador. Round vazio é tratado como fase de
+        // grupos para preservar o fallback via standings de jogos sem round preenchido.
+        private static bool EhFaseDeGrupos(string? round) =>
+            string.IsNullOrWhiteSpace(round) ||
+            round.Contains("Group", StringComparison.OrdinalIgnoreCase);
+
         // Mapa TeamId → nome do grupo (ex.: "Group A"), a partir do endpoint /standings.
         // Necessário porque fixtures só trazem o grupo depois que os jogos da fase
         // de grupos existem; standings tem o grupo de cada time desde o sorteio.
@@ -706,8 +704,14 @@ namespace ControleFutebolWeb.Services
                 if (rodada > 0) existente.Rodada = rodada;
                 existente.Temporada = season;
                 existente.LinkDetalhes = fixtureIdStr;
+                // Jogo de mata-mata que ficou com a letra de grupo antiga ("Group E") porque
+                // a resolução anterior caía no standings da fase de grupos — auto-corrige.
+                var grupoStaleDeGrupos = !EhFaseDeGrupos(fx.League.Round) &&
+                    existente.Grupo != null &&
+                    existente.Grupo.StartsWith("Group", StringComparison.OrdinalIgnoreCase);
                 var grupoDesatualizado = string.IsNullOrWhiteSpace(existente.Grupo) ||
-                    existente.Grupo.Equals("Group Stage", StringComparison.OrdinalIgnoreCase);
+                    existente.Grupo.Equals("Group Stage", StringComparison.OrdinalIgnoreCase) ||
+                    grupoStaleDeGrupos;
                 if (grupoDesatualizado && !string.IsNullOrWhiteSpace(grupo))
                     existente.Grupo = grupo;
 
