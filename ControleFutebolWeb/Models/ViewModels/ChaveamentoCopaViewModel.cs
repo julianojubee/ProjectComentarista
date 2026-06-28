@@ -16,6 +16,10 @@ namespace ControleFutebolWeb.Models.ViewModels
         // Time ainda não confirmado: grupo em andamento, terceiros não definidos
         // ou vencedor de confronto anterior ainda não decidido.
         public bool Provisorio { get; set; }
+        // Slot de grupo (1º/2º colocado): time confiável usado como âncora para
+        // casar o jogo real do mata-mata mesmo quando o adversário (melhor 3º)
+        // diverge da previsão do template.
+        public bool Ancora { get; set; }
         public bool Definido => Time != null;
     }
 

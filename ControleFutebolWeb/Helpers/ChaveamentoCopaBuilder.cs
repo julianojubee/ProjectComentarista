@@ -118,54 +118,42 @@ namespace ControleFutebolWeb.Helpers
 
                 jogosPorFase.TryGetValue(fase.Chave, out var jogosDaFase);
 
-                foreach (var spec in fase.Confrontos)
+                var confrontos = fase.Confrontos.Select(spec =>
                 {
                     var casa = ResolverSlot(spec.Numero, spec.Casa, gruposPorLetra, gruposCompletos,
                         alocacaoTerceiros, terceirosFinais, resultado);
                     var visit = ResolverSlot(spec.Numero, spec.Visitante, gruposPorLetra, gruposCompletos,
                         alocacaoTerceiros, terceirosFinais, resultado);
-
-                    var confronto = new ConfrontoCopaViewModel
+                    return new
                     {
-                        Numero = spec.Numero,
-                        Casa = casa,
-                        Visitante = visit
+                        spec,
+                        casa,
+                        visit,
+                        vm = new ConfrontoCopaViewModel { Numero = spec.Numero, Casa = casa, Visitante = visit }
                     };
+                }).ToList();
 
-                    // Sobrescreve com o jogo real, se já existir um importado com essas seleções.
-                    var jogo = EncontrarJogo(jogosDaFase, jogosUsados, casa.Time, visit.Time);
+                // Passo 1: casa o jogo real quando os DOIS times batem com a previsão.
+                foreach (var c in confrontos)
+                {
+                    var jogo = EncontrarJogoExato(jogosDaFase, jogosUsados, c.casa.Time, c.visit.Time);
                     if (jogo != null)
-                    {
-                        jogosUsados.Add(jogo.Id);
-                        confronto.JogoId = jogo.Id;
-                        confronto.Data = jogo.Data;
-                        confronto.Casa = new SlotChaveamento { Time = jogo.TimeCasa, Rotulo = casa.Rotulo };
-                        confronto.Visitante = new SlotChaveamento { Time = jogo.TimeVisitante, Rotulo = visit.Rotulo };
-                        confronto.PlacarCasa = jogo.PlacarCasa;
-                        confronto.PlacarVisitante = jogo.PlacarVisitante;
-                        confronto.PenaltisCasa = jogo.PenaltisCasa;
-                        confronto.PenaltisVisitante = jogo.PenaltisVisitante;
-
-                        if (jogo.PlacarCasa.HasValue && jogo.PlacarVisitante.HasValue)
-                        {
-                            if (jogo.PlacarCasa > jogo.PlacarVisitante)
-                                resultado[spec.Numero] = (jogo.TimeCasa, jogo.TimeVisitante);
-                            else if (jogo.PlacarCasa < jogo.PlacarVisitante)
-                                resultado[spec.Numero] = (jogo.TimeVisitante, jogo.TimeCasa);
-                            // Empate no tempo normal/prorrogação → decide nos pênaltis.
-                            else if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
-                            {
-                                if (jogo.PenaltisCasa > jogo.PenaltisVisitante)
-                                    resultado[spec.Numero] = (jogo.TimeCasa, jogo.TimeVisitante);
-                                else if (jogo.PenaltisCasa < jogo.PenaltisVisitante)
-                                    resultado[spec.Numero] = (jogo.TimeVisitante, jogo.TimeCasa);
-                            }
-                            // Sem pênaltis registrados num empate → vencedor ainda indefinido.
-                        }
-                    }
-
-                    faseVm.Confrontos.Add(confronto);
+                        AplicarJogoReal(c.vm, jogo, c.casa, c.visit, jogosUsados, resultado);
                 }
+
+                // Passo 2: confrontos ainda sem jogo — ancora no time de grupo (1º/2º, sempre
+                // confiável) e usa o adversário real, resolvendo o caso do "melhor 3º" que
+                // diverge da previsão do template.
+                foreach (var c in confrontos)
+                {
+                    if (c.vm.JogoId.HasValue) continue;
+                    var jogo = EncontrarJogoPorAncora(jogosDaFase, jogosUsados, c.casa, c.visit);
+                    if (jogo != null)
+                        AplicarJogoReal(c.vm, jogo, c.casa, c.visit, jogosUsados, resultado);
+                }
+
+                foreach (var c in confrontos)
+                    faseVm.Confrontos.Add(c.vm);
 
                 vm.Fases.Add(faseVm);
             }
@@ -203,7 +191,8 @@ namespace ControleFutebolWeb.Helpers
                         {
                             Time = g.Times[pos].Time,
                             Rotulo = rotulo,
-                            Provisorio = !completo
+                            Provisorio = !completo,
+                            Ancora = true
                         };
                     }
                     return new SlotChaveamento { Rotulo = rotulo, Provisorio = true };
@@ -293,7 +282,8 @@ namespace ControleFutebolWeb.Helpers
 
         // ── Casamento de jogo importado com um confronto ──────────────────────
 
-        private static Jogo? EncontrarJogo(
+        // Jogo real cujos DOIS times batem com a previsão do confronto.
+        private static Jogo? EncontrarJogoExato(
             List<Jogo>? jogosDaFase, HashSet<int> usados, Time? timeA, Time? timeB)
         {
             if (jogosDaFase == null || timeA == null || timeB == null) return null;
@@ -301,6 +291,79 @@ namespace ControleFutebolWeb.Helpers
                 !usados.Contains(j.Id) &&
                 ((j.TimeCasaId == timeA.Id && j.TimeVisitanteId == timeB.Id) ||
                  (j.TimeCasaId == timeB.Id && j.TimeVisitanteId == timeA.Id)));
+        }
+
+        // Jogo real que contém ao menos um time-âncora (1º/2º de grupo) do confronto.
+        // Usado quando o adversário previsto (melhor 3º) não corresponde ao real.
+        private static Jogo? EncontrarJogoPorAncora(
+            List<Jogo>? jogosDaFase, HashSet<int> usados, SlotChaveamento casa, SlotChaveamento visit)
+        {
+            if (jogosDaFase == null) return null;
+            var ancoras = new[] { casa, visit }
+                .Where(s => s.Ancora && s.Time != null)
+                .Select(s => s.Time!.Id)
+                .ToHashSet();
+            if (ancoras.Count == 0) return null;
+            return jogosDaFase.FirstOrDefault(j =>
+                !usados.Contains(j.Id) &&
+                (ancoras.Contains(j.TimeCasaId) || ancoras.Contains(j.TimeVisitanteId)));
+        }
+
+        // Sobrescreve o confronto com os dados do jogo real, mantendo os rótulos
+        // previstos alinhados aos times reais (inclusive em troca de mando/3º divergente).
+        private static void AplicarJogoReal(
+            ConfrontoCopaViewModel confronto, Jogo jogo,
+            SlotChaveamento casa, SlotChaveamento visit,
+            HashSet<int> usados,
+            Dictionary<int, (Time? vencedor, Time? perdedor)> resultado)
+        {
+            usados.Add(jogo.Id);
+            confronto.JogoId = jogo.Id;
+            confronto.Data = jogo.Data;
+
+            var previstos = new List<SlotChaveamento> { casa, visit };
+            confronto.Casa = MontarSlotReal(jogo.TimeCasa, previstos);
+            confronto.Visitante = MontarSlotReal(jogo.TimeVisitante, previstos);
+
+            confronto.PlacarCasa = jogo.PlacarCasa;
+            confronto.PlacarVisitante = jogo.PlacarVisitante;
+            confronto.PenaltisCasa = jogo.PenaltisCasa;
+            confronto.PenaltisVisitante = jogo.PenaltisVisitante;
+
+            if (jogo.PlacarCasa.HasValue && jogo.PlacarVisitante.HasValue)
+            {
+                if (jogo.PlacarCasa > jogo.PlacarVisitante)
+                    resultado[confronto.Numero] = (jogo.TimeCasa, jogo.TimeVisitante);
+                else if (jogo.PlacarCasa < jogo.PlacarVisitante)
+                    resultado[confronto.Numero] = (jogo.TimeVisitante, jogo.TimeCasa);
+                // Empate no tempo normal/prorrogação → decide nos pênaltis.
+                else if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
+                {
+                    if (jogo.PenaltisCasa > jogo.PenaltisVisitante)
+                        resultado[confronto.Numero] = (jogo.TimeCasa, jogo.TimeVisitante);
+                    else if (jogo.PenaltisCasa < jogo.PenaltisVisitante)
+                        resultado[confronto.Numero] = (jogo.TimeVisitante, jogo.TimeCasa);
+                }
+                // Sem pênaltis registrados num empate → vencedor ainda indefinido.
+            }
+        }
+
+        // Monta o slot do time real, consumindo o rótulo previsto que corresponde a ele
+        // (por time); se nenhum corresponder, usa o rótulo previsto restante.
+        private static SlotChaveamento MontarSlotReal(Time? real, List<SlotChaveamento> previstosRestantes)
+        {
+            SlotChaveamento? escolhido = null;
+            if (real != null)
+                escolhido = previstosRestantes.FirstOrDefault(s => s.Time != null && s.Time.Id == real.Id);
+            escolhido ??= previstosRestantes.FirstOrDefault();
+            if (escolhido != null) previstosRestantes.Remove(escolhido);
+
+            return new SlotChaveamento
+            {
+                Time = real,
+                Rotulo = escolhido?.Rotulo ?? "",
+                Provisorio = false
+            };
         }
 
         // ── Identificação da fase de mata-mata a partir do campo Grupo/Round ──
