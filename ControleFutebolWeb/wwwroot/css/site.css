@@ -640,6 +640,12 @@ tr.rebaixado td:first-child {
 [data-theme="dark"] #sec-notas tbody tr:hover {
     background: #202020 !important;
 }
+/* Linhas separadoras setadas inline (#f5f5f5) ficam brancas demais no dark —
+   suaviza nas listas (estat. jogadores) e linhas de tabela dos cards. */
+[data-theme="dark"] .rpt-card li,
+[data-theme="dark"] .rpt-card tbody tr {
+    border-bottom-color: #2a2a2a !important;
+}
 
 /* Form controls */
 [data-theme="dark"] .form-control,
