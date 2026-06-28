@@ -413,6 +413,35 @@ tr.rebaixado td:first-child {
     border-color: #333;
 }
 
+/* ── Lista em cards (.player-row) no dark mode ────────────────────────────
+   Telas Jogadores e Treinadores não usam a tabela .table; renderizam cards
+   .player-row com fundo branco fixo. Sem isto, no dark mode as linhas ficam
+   claras (diferente da tabela do Times). Casa a mesma paleta da .table. */
+[data-theme="dark"] .player-row {
+    background: #1a1a1a;
+    border-color: #333;
+}
+[data-theme="dark"] .player-row:last-child,
+[data-theme="dark"] .player-row:only-child {
+    border-bottom-color: #333;
+}
+[data-theme="dark"] .player-row:hover {
+    background: #2a2a2a;
+}
+[data-theme="dark"] .player-photo {
+    background: #2a2a2a;
+    border-color: #333;
+}
+[data-theme="dark"] .player-name-link {
+    color: #60a5fa;
+}
+[data-theme="dark"] .player-meta {
+    color: #9ca3af;
+}
+[data-theme="dark"] .player-club-name {
+    color: #cbd5e1;
+}
+
 /* Form controls */
 [data-theme="dark"] .form-control,
 [data-theme="dark"] .form-select {
