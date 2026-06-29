@@ -12,6 +12,8 @@ namespace ControleFutebolWeb.Models.ViewModels
         public int? TemporadaFiltro { get; set; }
         public List<int> TemporadasDisponiveis { get; set; } = new();
         public bool IncluirNaoAnalisados { get; set; }
+        // Aba "Estatísticas Jogadores": só lista jogadores com 10+ jogos quando marcado.
+        public bool Apenas10Jogos { get; set; }
         // true quando a competição filtrada é de seleções → exibe a seleção no lugar do clube
         public bool ExibirSelecao { get; set; }
         public List<Competicao> Competicoes { get; set; } = new();

@@ -21,10 +21,10 @@ namespace ControleFutebolWeb.Controllers
         }
 
         // GET: /Relatorios
-        public async Task<IActionResult> Index(int[]? competicaoIds, int[]? timeIds, int? temporada, bool incluirNaoAnalisados = false)
+        public async Task<IActionResult> Index(int[]? competicaoIds, int[]? timeIds, int? temporada, bool incluirNaoAnalisados = false, bool apenas10Jogos = false)
         {
             var usuarioId = _userManager.GetUserId(User)!;
-            var vm = await MontarViewModel(competicaoIds, timeIds, temporada, incluirNaoAnalisados, usuarioId);
+            var vm = await MontarViewModel(competicaoIds, timeIds, temporada, incluirNaoAnalisados, apenas10Jogos, usuarioId);
             return View(vm);
         }
 
@@ -269,7 +269,7 @@ namespace ControleFutebolWeb.Controllers
         // As notas automáticas (vindas das estatísticas) já usam os pesos atuais a cada acesso.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RecalcularNotas(int[]? competicaoIds, int[]? timeIds, int? temporada, bool incluirNaoAnalisados = false, string? dummy = null)
+        public async Task<IActionResult> RecalcularNotas(int[]? competicaoIds, int[]? timeIds, int? temporada, bool incluirNaoAnalisados = false, bool apenas10Jogos = false, string? dummy = null)
         {
             // Pesos atuais por AcaoId
             var pesosPorAcao = await _context.CriteriosNota
@@ -307,12 +307,15 @@ namespace ControleFutebolWeb.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Sucesso"] = $"Recálculo concluído: {notasAtualizadas} nota(s) manual(is) atualizada(s) com os pesos atuais.";
-            return RedirectToAction(nameof(Index), new { competicaoIds, timeIds, temporada, incluirNaoAnalisados });
+            return RedirectToAction(nameof(Index), new { competicaoIds, timeIds, temporada, incluirNaoAnalisados, apenas10Jogos });
         }
 
         // ── Monta o ViewModel completo ───────────────────────────────────────────
-        private async Task<RelatoriosViewModel> MontarViewModel(int[]? competicaoIds = null, int[]? timeIds = null, int? temporada = null, bool incluirNaoAnalisados = false, string? usuarioId = null)
+        private async Task<RelatoriosViewModel> MontarViewModel(int[]? competicaoIds = null, int[]? timeIds = null, int? temporada = null, bool incluirNaoAnalisados = false, bool apenas10Jogos = false, string? usuarioId = null)
         {
+            // Mínimo de jogos no ranking de estatísticas individuais: opcional (ex.: na
+            // Copa do Mundo poucos jogadores chegam a 10 jogos).
+            var minJogosEstat = apenas10Jogos ? 10 : 1;
             // Jogos com placar; se incluirNaoAnalisados=false, restringe aos analisados pelo usuário
             var jogosAnalisadosIds = usuarioId != null
                 ? await _context.JogosAnalisadosUsuario
@@ -461,6 +464,7 @@ namespace ControleFutebolWeb.Controllers
                 TimeIdsFiltro = timeIdsFiltro,
                 ExibirSelecao = exibirSelecao,
                 IncluirNaoAnalisados = incluirNaoAnalisados,
+                Apenas10Jogos = apenas10Jogos,
                 Competicoes = competicoes,
                 Times = times,
                 TotalJogos = jogos.Count,
@@ -509,14 +513,14 @@ namespace ControleFutebolWeb.Controllers
                 MediasPorPosicao = new List<RelatoriosViewModel>()
                     .Select(x => new MediaPosicao()).ToList(), // placeholder, preenchido abaixo
 
-                RankImpedimentos        = RankEstatJogador(estatisticasJogadores, e => e.Offsides, minPartidas: 10),
-                RankFinalizacoesNoGol   = RankEstatJogador(estatisticasJogadores, e => e.FinalizacoesNoGol, minPartidas: 10),
-                RankPassesChave         = RankEstatJogador(estatisticasJogadores, e => e.PassesChave, minPartidas: 10),
-                RankDesarmes            = RankEstatJogador(estatisticasJogadores, e => e.Desarmes, minPartidas: 10),
-                RankBloqueios           = RankEstatJogador(estatisticasJogadores, e => e.Bloqueios, minPartidas: 10),
-                RankInterceptacoes      = RankEstatJogador(estatisticasJogadores, e => e.Interceptacoes, minPartidas: 10),
-                RankDrilesCertos        = RankEstatJogador(estatisticasJogadores, e => e.DriblesCertos, minPartidas: 10),
-                RankPenaltisDefendidos  = RankEstatJogador(estatisticasJogadores, e => e.PenaltiDefendido, minPartidas: 10, ordenarPorTotal: true),
+                RankImpedimentos        = RankEstatJogador(estatisticasJogadores, e => e.Offsides, minPartidas: minJogosEstat),
+                RankFinalizacoesNoGol   = RankEstatJogador(estatisticasJogadores, e => e.FinalizacoesNoGol, minPartidas: minJogosEstat),
+                RankPassesChave         = RankEstatJogador(estatisticasJogadores, e => e.PassesChave, minPartidas: minJogosEstat),
+                RankDesarmes            = RankEstatJogador(estatisticasJogadores, e => e.Desarmes, minPartidas: minJogosEstat),
+                RankBloqueios           = RankEstatJogador(estatisticasJogadores, e => e.Bloqueios, minPartidas: minJogosEstat),
+                RankInterceptacoes      = RankEstatJogador(estatisticasJogadores, e => e.Interceptacoes, minPartidas: minJogosEstat),
+                RankDrilesCertos        = RankEstatJogador(estatisticasJogadores, e => e.DriblesCertos, minPartidas: minJogosEstat),
+                RankPenaltisDefendidos  = RankEstatJogador(estatisticasJogadores, e => e.PenaltiDefendido, minPartidas: minJogosEstat, ordenarPorTotal: true),
             };
 
             // Rankings por posição (usa ranking completo, sem limite de 20)

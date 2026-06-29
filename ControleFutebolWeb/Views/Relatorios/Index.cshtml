@@ -401,6 +401,12 @@
             <span>Incluir não analisados</span>
         </label>
 
+        <label class="rpt-check-wrap" title="Na aba Estatísticas Jogadores, só lista quem tem 10 jogos ou mais">
+            <input type="checkbox" name="apenas10Jogos" value="true"
+                   @(Model.Apenas10Jogos ? "checked" : "") />
+            <span>Apenas com 10+ jogos</span>
+        </label>
+
         <button type="submit">Filtrar</button>
         @if (Model.CompeticaoIdsFiltro.Any() || Model.TimeIdsFiltro.Any() || Model.IncluirNaoAnalisados)
         {
