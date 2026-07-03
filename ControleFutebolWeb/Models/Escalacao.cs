@@ -24,5 +24,8 @@ namespace ControleFutebolWeb.Models
 
             public string? UsuarioId { get; set; }
             public ApplicationUser? Usuario { get; set; }
+
+            // Setas de movimentação do jogador no campinho tático.
+            public ICollection<EscalacaoSeta> Setas { get; set; } = new List<EscalacaoSeta>();
         }
 }

@@ -105,6 +105,47 @@
         transform: translate(-50%, -50%);
     }
 
+    /* ── Setas de movimentação dos jogadores ── */
+    .setas-svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+    }
+
+        .setas-svg line {
+            stroke: #facc15;
+            stroke-width: 3;
+            stroke-linecap: round;
+            filter: drop-shadow(0 1px 1px rgba(0,0,0,.5));
+            pointer-events: none;
+        }
+
+    body.modo-seta .setas-svg line {
+        pointer-events: stroke;
+        cursor: pointer;
+    }
+
+    body.modo-seta .campo { cursor: crosshair; }
+    body.modo-seta .posicao-drop { cursor: pointer; }
+
+    /* No modo seta os botões +/ℹ não podem roubar o clique do slot */
+    body.modo-seta .btn-avaliar,
+    body.modo-seta .btn-info-jogador { pointer-events: none; opacity: .25; }
+
+    .posicao-drop.seta-origem .player-circle {
+        outline: 3px solid #facc15;
+        outline-offset: 2px;
+    }
+
+    #btnModoSeta.ativo {
+        background: #facc15;
+        border-color: #facc15;
+        color: #111;
+        font-weight: 700;
+    }
+
         /* Botões +/ℹ e a seta ↑ ficam fora do pointer-events:none: precisam
            receber clique/hover. IMPORTANTE: os três :not() elevam a
            especificidade desta regra acima dos estilos dos próprios botões —
@@ -1379,6 +1420,14 @@
 <!-- ── Fase tática da partida ─────────────────────────────────────── -->
 <div class="d-flex align-items-center gap-2 mb-2 p-2"
      style="background:#0f172a; border-radius:8px; color:#e2e8f0; flex-wrap:wrap;">
+    <button type="button" id="btnModoSeta" class="btn btn-sm btn-outline-warning"
+            onclick="toggleModoSeta()"
+            title="Ligue, clique num jogador e depois no ponto do campo para onde ele se movimentou. Clique duplo numa seta para removê-la.">
+        ➹ Setas
+    </button>
+    <span id="modoSetaHint" style="font-size:11px; color:#facc15; display:none;">
+        clique no jogador e depois no destino · duplo clique na seta remove · Esc sai
+    </span>
     <div class="ms-auto d-flex align-items-center gap-1">
         <label style="font-size:11px; color:#94a3b8;">nome</label>
         <input type="text" id="faseNome" maxlength="60" placeholder="ex: Fase de ataque"
@@ -1516,6 +1565,14 @@
                     <div id="campoCasa" class="campo"
                          ondrop="dropNoCampo(event, 'campoCasa')"
                          ondragover="allowDrop(event)">
+                        <svg class="setas-svg" data-campo-svg="campoCasa">
+                            <defs>
+                                <marker id="setaHeadCasa" markerWidth="12" markerHeight="10" refX="10" refY="5"
+                                        orient="auto" markerUnits="userSpaceOnUse">
+                                    <path d="M0,0 L12,5 L0,10 z" fill="#facc15" />
+                                </marker>
+                            </defs>
+                        </svg>
                         @{
                             var idxCasa = 0;
                         }
@@ -1525,6 +1582,8 @@
                                  data-index="casa_@idxCasa"
                                  data-posicao="@esc.Posicao"
                                  data-campo="casa"
+                                 data-escid="@esc.Id"
+                                 data-temjogador="@(esc.Jogador != null ? "1" : "0")"
                                  draggable="true"
                                  ondragstart="dragPosicao(event, 'casa_@idxCasa')"
                                  ondrop="dropEscalacao(event, 'casa_@idxCasa')"
@@ -1612,6 +1671,14 @@
                     <div id="campoVisitante" class="campo"
                          ondrop="dropNoCampo(event, 'campoVisitante')"
                          ondragover="allowDrop(event)">
+                        <svg class="setas-svg" data-campo-svg="campoVisitante">
+                            <defs>
+                                <marker id="setaHeadVis" markerWidth="12" markerHeight="10" refX="10" refY="5"
+                                        orient="auto" markerUnits="userSpaceOnUse">
+                                    <path d="M0,0 L12,5 L0,10 z" fill="#facc15" />
+                                </marker>
+                            </defs>
+                        </svg>
                         @{
                             var idxVis = 0;
                         }
@@ -1621,6 +1688,8 @@
                                  data-index="vis_@idxVis"
                                  data-posicao="@esc.Posicao"
                                  data-campo="vis"
+                                 data-escid="@esc.Id"
+                                 data-temjogador="@(esc.Jogador != null ? "1" : "0")"
                                  draggable="true"
                                  ondragstart="dragPosicao(event, 'vis_@idxVis')"
                                  ondrop="dropEscalacao(event, 'vis_@idxVis')"
@@ -2216,6 +2285,7 @@
 
     // ── Mover posição dentro do campo ─────────────────────────────────────
     function dragPosicao(ev, index) {
+        if (modoSeta) { ev.preventDefault(); return; } // no modo seta o clique seleciona, não arrasta
         draggingPosicao   = true;
         posicaoArrastando = index;
         ev.dataTransfer.setData("text/plain", index);
@@ -2251,7 +2321,147 @@
 
         draggingPosicao   = false;
         posicaoArrastando = null;
+
+        // A origem das setas acompanha o jogador
+        desenharSetas(campoId);
     }
+
+    // ── Setas de movimentação dos jogadores ────────────────────────────────
+    // Guarda { escalacaoId: [{id, x, y}, ...] } — coordenadas em % do campo.
+    const setasStore = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+        ((List<ControleFutebolWeb.Models.Escalacao>)Model.EscalacoesCasa)
+            .Concat((List<ControleFutebolWeb.Models.Escalacao>)Model.EscalacoesVisitante)
+            .Where(e => e.Setas.Any())
+            .ToDictionary(
+                e => e.Id.ToString(),
+                e => e.Setas.Select(s => new { id = s.Id, x = s.X, y = s.Y }).ToList())));
+
+    let modoSeta = false;
+    let setaOrigem = null; // { escId, slotEl, campoId }
+
+    function toggleModoSeta() {
+        modoSeta = !modoSeta;
+        document.body.classList.toggle('modo-seta', modoSeta);
+        document.getElementById('btnModoSeta')?.classList.toggle('ativo', modoSeta);
+        const hint = document.getElementById('modoSetaHint');
+        if (hint) hint.style.display = modoSeta ? '' : 'none';
+        limparOrigemSeta();
+    }
+
+    function limparOrigemSeta() {
+        if (setaOrigem?.slotEl) setaOrigem.slotEl.classList.remove('seta-origem');
+        setaOrigem = null;
+    }
+
+    function desenharSetas(campoId) {
+        const campo = document.getElementById(campoId);
+        const svg = campo?.querySelector('.setas-svg');
+        if (!campo || !svg) return;
+
+        svg.querySelectorAll('line').forEach(l => l.remove());
+        const w = campo.clientWidth, h = campo.clientHeight;
+        const marker = campoId === 'campoCasa' ? 'setaHeadCasa' : 'setaHeadVis';
+
+        campo.querySelectorAll('.posicao-drop[data-escid]').forEach(slot => {
+            const escId = slot.dataset.escid;
+            const setas = setasStore[escId];
+            if (!setas?.length) return;
+
+            const x1 = parseFloat(slot.style.left) / 100 * w;
+            const y1 = parseFloat(slot.style.top)  / 100 * h;
+
+            setas.forEach(s => {
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', x1);
+                line.setAttribute('y1', y1);
+                line.setAttribute('x2', s.x / 100 * w);
+                line.setAttribute('y2', s.y / 100 * h);
+                line.setAttribute('marker-end', `url(#${marker})`);
+                line.addEventListener('dblclick', ev => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    removerSeta(s.id, escId);
+                });
+                svg.appendChild(line);
+            });
+        });
+    }
+
+    function desenharTodasSetas() {
+        desenharSetas('campoCasa');
+        desenharSetas('campoVisitante');
+    }
+
+    async function adicionarSeta(escId, x, y) {
+        try {
+            const resp = await fetch('/Jogos/AdicionarSeta', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ escalacaoId: parseInt(escId, 10), x, y })
+            });
+            if (!resp.ok) {
+                alert(resp.status === 400
+                    ? 'Salve a escalação antes de adicionar setas a um jogador recém-posicionado.'
+                    : 'Erro ao salvar a seta.');
+                return;
+            }
+            const d = await resp.json();
+            (setasStore[escId] = setasStore[escId] || []).push({ id: d.id, x: d.x, y: d.y });
+            desenharTodasSetas();
+        } catch {
+            alert('Erro de conexão ao salvar a seta.');
+        }
+    }
+
+    async function removerSeta(setaId, escId) {
+        try {
+            const resp = await fetch('/Jogos/RemoverSeta', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: setaId })
+            });
+            if (!resp.ok) return;
+            setasStore[escId] = (setasStore[escId] || []).filter(s => s.id !== setaId);
+            desenharTodasSetas();
+        } catch { }
+    }
+
+    function onCampoClickSeta(ev, campoId) {
+        if (!modoSeta) return;
+        if (ev.target.tagName === 'line') return; // interação com a própria seta (dblclick remove)
+
+        const slot = ev.target.closest('.posicao-drop[data-escid]');
+        if (slot && slot.dataset.temjogador === '1') {
+            limparOrigemSeta();
+            setaOrigem = { escId: slot.dataset.escid, slotEl: slot, campoId };
+            slot.classList.add('seta-origem');
+            return;
+        }
+
+        if (!setaOrigem || setaOrigem.campoId !== campoId) return;
+
+        const rect = document.getElementById(campoId).getBoundingClientRect();
+        const x = Math.max(0, Math.min(100, (ev.clientX - rect.left) / rect.width  * 100));
+        const y = Math.max(0, Math.min(100, (ev.clientY - rect.top)  / rect.height * 100));
+        adicionarSeta(setaOrigem.escId, x, y);
+        // Mantém a origem selecionada: permite adicionar várias setas ao mesmo jogador
+    }
+
+    ['campoCasa', 'campoVisitante'].forEach(id => {
+        const campo = document.getElementById(id);
+        if (!campo) return;
+        campo.addEventListener('click', ev => onCampoClickSeta(ev, id));
+        new ResizeObserver(() => desenharSetas(id)).observe(campo);
+    });
+
+    document.addEventListener('keydown', ev => {
+        if (ev.key === 'Escape' && modoSeta) {
+            if (setaOrigem) limparOrigemSeta();
+            else toggleModoSeta();
+        }
+    });
+
+    desenharTodasSetas();
 
     initUsados();
     atualizarSeletorJogadorObs();
@@ -3124,7 +3334,13 @@
                 if (!jid) return;
                 const px = parseFloat((document.getElementById(base + '__PosicaoX') || {}).value || '0');
                 const py = parseFloat((document.getElementById(base + '__PosicaoY') || {}).value || '0');
-                titulares.push({ jogadorId: jid, posicao: null, posicaoX: px, posicaoY: py, isTimeCasa: isCasa });
+                // Congela as setas de movimentação atuais do slot na fase
+                const numIdx = base.split('_')[1];
+                const slot = document.querySelector(`.posicao-drop[data-index='${isCasa ? 'casa' : 'vis'}_${numIdx}']`);
+                const setas = (slot && setasStore[slot.dataset.escid])
+                    ? setasStore[slot.dataset.escid].map(s => ({ x: s.x, y: s.y }))
+                    : [];
+                titulares.push({ jogadorId: jid, posicao: null, posicaoX: px, posicaoY: py, isTimeCasa: isCasa, setas });
             });
         }
         coletar('escalacaoCasa', true);

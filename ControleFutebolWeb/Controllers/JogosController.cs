@@ -492,6 +492,7 @@ namespace ControleFutebolWeb.Controllers
                 {
                     var escFase = await _context.Escalacoes
                         .Include(e => e.Jogador).ThenInclude(j => j!.Nacionalidade)
+                        .Include(e => e.Setas)
                         .Where(e => e.JogoId == id && e.UsuarioId == usuarioId && e.FaseEscalacao == faseInter.Chave)
                         .ToListAsync();
 
@@ -869,6 +870,7 @@ namespace ControleFutebolWeb.Controllers
             // Recarrega escalações finais do usuário
             escalacoes = await _context.Escalacoes
                 .Include(e => e.Jogador).ThenInclude(j => j!.Nacionalidade)
+                .Include(e => e.Setas)
                 .Where(e => e.JogoId == id
                          && (e.FaseEscalacao == faseAtual || (faseAtual == "INICIAL" && e.FaseEscalacao == null))
                          && e.UsuarioId == usuarioId)
@@ -2118,6 +2120,13 @@ namespace ControleFutebolWeb.Controllers
             public double PosicaoX { get; set; }
             public double PosicaoY { get; set; }
             public bool IsTimeCasa { get; set; }
+            public List<SetaSlot> Setas { get; set; } = new();
+        }
+
+        public class SetaSlot
+        {
+            public double X { get; set; }
+            public double Y { get; set; }
         }
 
         public class SalvarFaseTaticaRequest
@@ -2162,7 +2171,11 @@ namespace ControleFutebolWeb.Controllers
                     IsTimeCasa = s.IsTimeCasa,
                     Titular = true,
                     FaseEscalacao = chave,
-                    UsuarioId = usuarioId
+                    UsuarioId = usuarioId,
+                    // Congela as setas de movimentação atuais junto com a fase
+                    Setas = s.Setas
+                        .Select(t => new EscalacaoSeta { X = Math.Clamp(t.X, 0, 100), Y = Math.Clamp(t.Y, 0, 100) })
+                        .ToList()
                 });
             }
 
@@ -2185,6 +2198,55 @@ namespace ControleFutebolWeb.Controllers
                 .ToListAsync();
             _context.Escalacoes.RemoveRange(escs);
             _context.FasesTaticas.Remove(fase);
+            await _context.SaveChangesAsync();
+            return Ok(new { sucesso = true });
+        }
+
+        // ── Setas de movimentação no campinho tático ────────────────────────
+
+        public class AdicionarSetaRequest
+        {
+            public int EscalacaoId { get; set; }
+            public double X { get; set; }
+            public double Y { get; set; }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AdicionarSeta([FromBody] AdicionarSetaRequest req)
+        {
+            if (req == null || req.EscalacaoId <= 0) return BadRequest("Dados inválidos.");
+            var usuarioId = _userManager.GetUserId(User)!;
+
+            var escalacao = await _context.Escalacoes
+                .FirstOrDefaultAsync(e => e.Id == req.EscalacaoId
+                                       && (e.UsuarioId == usuarioId || e.UsuarioId == null));
+            if (escalacao == null) return NotFound();
+            if (escalacao.JogadorId == null) return BadRequest("Slot sem jogador.");
+
+            var seta = new EscalacaoSeta
+            {
+                EscalacaoId = escalacao.Id,
+                X = Math.Clamp(req.X, 0, 100),
+                Y = Math.Clamp(req.Y, 0, 100)
+            };
+            _context.SetasEscalacao.Add(seta);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { seta.Id, seta.EscalacaoId, seta.X, seta.Y });
+        }
+
+        public class RemoverSetaRequest { public int Id { get; set; } }
+
+        [HttpPost]
+        public async Task<IActionResult> RemoverSeta([FromBody] RemoverSetaRequest req)
+        {
+            var usuarioId = _userManager.GetUserId(User)!;
+            var seta = await _context.SetasEscalacao
+                .FirstOrDefaultAsync(s => s.Id == req.Id
+                                       && (s.Escalacao.UsuarioId == usuarioId || s.Escalacao.UsuarioId == null));
+            if (seta == null) return NotFound();
+
+            _context.SetasEscalacao.Remove(seta);
             await _context.SaveChangesAsync();
             return Ok(new { sucesso = true });
         }

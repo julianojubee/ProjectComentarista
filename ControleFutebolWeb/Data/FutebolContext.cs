@@ -17,6 +17,7 @@ namespace ControleFutebolWeb.Data
         public DbSet<Formacao> Formacoes { get; set; }
         public DbSet<PosicaoFormacao> PosicoesFormacao { get; set; }
         public DbSet<Escalacao> Escalacoes { get; set; }
+        public DbSet<EscalacaoSeta> SetasEscalacao { get; set; }
         public DbSet<Gol> Gols { get; set; }
         public DbSet<Cartao> Cartoes { get; set; }
         public DbSet<Competicao> Competicoes { get; set; }
