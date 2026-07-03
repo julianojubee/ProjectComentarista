@@ -21,6 +21,31 @@
         >= 5 => "Abaixo",
         _ => "Ruim"
     };
+
+    // Escalacao.Posicao guarda o nome por extenso ("Goleiro", "Defensor", "Meia",
+    // "Atacante") — siglas antigas (GL/ZG/MC/AT) são aceitas por compatibilidade.
+    string SiglaPosicao(string p) => p switch
+    {
+        "Goleiro" or "GL" => "GL",
+        "Defensor" or "ZG" => "DF",
+        "Meia" or "MC" => "ME",
+        "Atacante" or "AT" => "AT",
+        "LD" or "LE" => p,
+        _ => p.Length > 3 ? p[..3].ToUpperInvariant() : p
+    };
+
+    string NomePosicao(string p) => p switch
+    {
+        "GL" => "Goleiro",
+        "ZG" => "Zagueiro",
+        "LD" => "Lateral direito",
+        "LE" => "Lateral esquerdo",
+        "MC" => "Meia",
+        "AT" => "Atacante",
+        _ => p
+    };
+
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
 }
 
 <style>
@@ -272,6 +297,214 @@
         color: var(--muted);
         padding: 3rem;
         font-size: .95rem;
+    }
+
+    /* ── Perfil tático: posições em campo + médias por jogo ── */
+    .perfil-grid {
+        display: grid;
+        grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.4fr);
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    @@media (max-width: 900px) {
+        .perfil-grid { grid-template-columns: 1fr; }
+    }
+
+    .perfil-card {
+        background: var(--cinza2);
+        border-radius: 14px;
+        padding: 1.1rem 1.2rem;
+        border: 1px solid var(--cinza3);
+    }
+
+    .perfil-titulo {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 1.15rem;
+        font-weight: 700;
+        letter-spacing: .5px;
+        text-transform: uppercase;
+        margin-bottom: .9rem;
+        color: var(--texto);
+    }
+
+    .perfil-sub {
+        font-size: .75rem;
+        color: var(--muted);
+        text-transform: none;
+        letter-spacing: 0;
+        font-family: 'Barlow', sans-serif;
+        font-weight: 400;
+    }
+
+    .perfil-posicoes {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+
+    .mini-campo {
+        position: relative;
+        flex: 0 0 160px;
+        aspect-ratio: 2 / 3;
+        background: linear-gradient(180deg, #14532d 0%, #166534 100%);
+        border: 2px solid rgba(255,255,255,.25);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+        /* linhas do campo */
+        .mini-campo::before { /* linha do meio */
+            content: '';
+            position: absolute;
+            left: 0; right: 0; top: 50%;
+            border-top: 1.5px solid rgba(255,255,255,.25);
+        }
+
+        .mini-campo::after { /* círculo central */
+            content: '';
+            position: absolute;
+            left: 50%; top: 50%;
+            width: 34%; aspect-ratio: 1;
+            transform: translate(-50%, -50%);
+            border: 1.5px solid rgba(255,255,255,.25);
+            border-radius: 50%;
+        }
+
+    .mc-area-sup, .mc-area-inf {
+        position: absolute;
+        left: 26%;
+        width: 48%;
+        height: 16%;
+        border: 1.5px solid rgba(255,255,255,.25);
+    }
+
+    .mc-area-sup { top: -2px; border-top: none; }
+    .mc-area-inf { bottom: -2px; border-bottom: none; }
+
+    .mc-dot {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 800;
+        color: #0f172a;
+        background: var(--verde2);
+        border: 2px solid rgba(255,255,255,.85);
+        box-shadow: 0 2px 6px rgba(0,0,0,.45);
+        z-index: 1;
+    }
+
+    .mc-dot-principal {
+        background: var(--accent);
+        z-index: 2;
+    }
+
+    .pos-lista {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: .45rem;
+    }
+
+    .pos-item {
+        display: flex;
+        align-items: center;
+        gap: .55rem;
+        font-size: .82rem;
+    }
+
+    .pos-sigla {
+        flex: 0 0 34px;
+        text-align: center;
+        font-weight: 800;
+        font-size: .72rem;
+        padding: 2px 0;
+        border-radius: 6px;
+        background: var(--cinza3);
+        color: var(--texto);
+    }
+
+    .pos-item-principal .pos-sigla { background: var(--accent); color: #0f172a; }
+
+    .pos-nome { color: var(--texto); flex: 1; }
+    .pos-pct  { color: var(--muted); font-size: .75rem; white-space: nowrap; }
+
+    .donut-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+        gap: .8rem;
+        margin-bottom: 1rem;
+    }
+
+    .donut { text-align: center; }
+
+    .donut-ring {
+        width: 74px;
+        height: 74px;
+        border-radius: 50%;
+        margin: 0 auto .4rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .donut-hole {
+        width: 54px;
+        height: 54px;
+        border-radius: 50%;
+        background: var(--cinza2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: .95rem;
+        color: var(--texto);
+    }
+
+    .donut-label {
+        font-size: .8rem;
+        font-weight: 600;
+        color: var(--texto);
+    }
+
+    .donut-media {
+        font-size: .72rem;
+        color: var(--muted);
+    }
+
+    .medias-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
+        gap: .55rem;
+    }
+
+    .media-chip {
+        background: rgba(255,255,255,.04);
+        border: 1px solid var(--cinza3);
+        border-radius: 10px;
+        padding: .5rem .6rem;
+        text-align: center;
+    }
+
+    .media-chip-valor {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: var(--texto);
+        line-height: 1.1;
+    }
+
+    .media-chip-label {
+        font-size: .68rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: .3px;
     }
 
     /* ── Colapsável histórico por jogo ── */
@@ -794,6 +1027,124 @@
                     </span>
                     <span>10</span>
                 </div>
+            </div>
+        }
+
+        <!-- ── Perfil tático: posições em campo + médias por jogo ──────────── -->
+        @if (Model.PosicoesJogadas.Any() || Model.Medias != null)
+        {
+            <div class="perfil-grid">
+                @if (Model.PosicoesJogadas.Any())
+                {
+                    <div class="perfil-card">
+                        <div class="perfil-titulo">
+                            Posições em campo
+                            <span class="perfil-sub">(escalações registradas)</span>
+                        </div>
+                        <div class="perfil-posicoes">
+                            <div class="mini-campo">
+                                <div class="mc-area-sup"></div>
+                                <div class="mc-area-inf"></div>
+                                @foreach (var p in Model.PosicoesJogadas)
+                                {
+                                    var principal = p == Model.PosicoesJogadas[0];
+                                    <div class="mc-dot @(principal ? "mc-dot-principal" : "")"
+                                         style="left:@p.X.ToString("0.#", inv)%; top:@p.Y.ToString("0.#", inv)%;"
+                                         title="@NomePosicao(p.Posicao) — @p.Jogos jogo(s) (@p.Pct%)">
+                                        @SiglaPosicao(p.Posicao)
+                                    </div>
+                                }
+                            </div>
+                            <div class="pos-lista">
+                                @foreach (var p in Model.PosicoesJogadas)
+                                {
+                                    var principal = p == Model.PosicoesJogadas[0];
+                                    <div class="pos-item @(principal ? "pos-item-principal" : "")">
+                                        <span class="pos-sigla">@SiglaPosicao(p.Posicao)</span>
+                                        <span class="pos-nome">@NomePosicao(p.Posicao)</span>
+                                        <span class="pos-pct">@p.Jogos j · @p.Pct%</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @if (Model.Medias != null)
+                {
+                    var m = Model.Medias;
+                    <div class="perfil-card">
+                        <div class="perfil-titulo">
+                            Médias por jogo
+                            <span class="perfil-sub">(@m.Jogos jogo@(m.Jogos == 1 ? "" : "s") com estatísticas importadas)</span>
+                        </div>
+
+                        <div class="donut-grid">
+                            <div class="donut">
+                                <div class="donut-ring"
+                                     style="background: conic-gradient(#22c55e 0 @(m.FinalizacoesPct)%, var(--cinza3) 0);">
+                                    <div class="donut-hole">@m.FinalizacoesPct%</div>
+                                </div>
+                                <div class="donut-label">Finalizações</div>
+                                <div class="donut-media">@m.Finalizacoes.ToString("0.#") por jogo · % no gol</div>
+                            </div>
+                            <div class="donut">
+                                <div class="donut-ring"
+                                     style="background: conic-gradient(#60a5fa 0 @(m.DriblesPct)%, var(--cinza3) 0);">
+                                    <div class="donut-hole">@m.DriblesPct%</div>
+                                </div>
+                                <div class="donut-label">Dribles</div>
+                                <div class="donut-media">@m.Dribles.ToString("0.#") por jogo · % certos</div>
+                            </div>
+                            <div class="donut">
+                                <div class="donut-ring"
+                                     style="background: conic-gradient(#facc15 0 @(m.DuelosPct)%, var(--cinza3) 0);">
+                                    <div class="donut-hole">@m.DuelosPct%</div>
+                                </div>
+                                <div class="donut-label">Duelos</div>
+                                <div class="donut-media">@m.Duelos.ToString("0.#") por jogo · % vencidos</div>
+                            </div>
+                        </div>
+
+                        <div class="medias-grid">
+                            <div class="media-chip">
+                                <div class="media-chip-valor">@m.Passes.ToString("0.#")</div>
+                                <div class="media-chip-label">Passes</div>
+                            </div>
+                            <div class="media-chip">
+                                <div class="media-chip-valor">@m.PassesChave.ToString("0.#")</div>
+                                <div class="media-chip-label">Passes-chave</div>
+                            </div>
+                            <div class="media-chip">
+                                <div class="media-chip-valor">@m.Desarmes.ToString("0.#")</div>
+                                <div class="media-chip-label">Desarmes</div>
+                            </div>
+                            <div class="media-chip">
+                                <div class="media-chip-valor">@m.Interceptacoes.ToString("0.#")</div>
+                                <div class="media-chip-label">Interceptações</div>
+                            </div>
+                            <div class="media-chip">
+                                <div class="media-chip-valor">@m.Bloqueios.ToString("0.#")</div>
+                                <div class="media-chip-label">Bloqueios</div>
+                            </div>
+                            @if (m.Defesas > 0)
+                            {
+                                <div class="media-chip">
+                                    <div class="media-chip-valor">@m.Defesas.ToString("0.#")</div>
+                                    <div class="media-chip-label">Defesas</div>
+                                </div>
+                            }
+                            <div class="media-chip">
+                                <div class="media-chip-valor">@m.FaltasSofridas.ToString("0.#")</div>
+                                <div class="media-chip-label">Faltas sofridas</div>
+                            </div>
+                            <div class="media-chip">
+                                <div class="media-chip-valor">@m.FaltasCometidas.ToString("0.#")</div>
+                                <div class="media-chip-label">Faltas cometidas</div>
+                            </div>
+                        </div>
+                    </div>
+                }
             </div>
         }
 

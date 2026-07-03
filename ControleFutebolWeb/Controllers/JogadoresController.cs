@@ -545,6 +545,57 @@ namespace ControleFutebolWeb.Controllers
                 if (observacoesJogadorPorJogo.TryGetValue(item.Jogo.Id, out var obsJogador))
                     item.ObservacoesJogador = obsJogador;
 
+            // ── Posições em campo (agregado das escalações tituladas) ─────
+            // Por jogo, prefere a posição da fase INICIAL (origem); se o jogador
+            // só aparece na FINAL (entrou durante o jogo), usa a FINAL.
+            var posicoesPorJogo = escalacoes
+                .Where(e => e.Titular && !string.IsNullOrWhiteSpace(e.Posicao) && e.Posicao != "RES")
+                .GroupBy(e => e.JogoId)
+                .Select(g => g
+                    .OrderBy(e => e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null ? 0 : 1)
+                    .First())
+                .ToList();
+
+            var posicoesJogadas = posicoesPorJogo
+                .GroupBy(e => e.Posicao!)
+                .Select(g => new PosicaoJogadaItem
+                {
+                    Posicao = g.Key,
+                    Jogos = g.Count(),
+                    Pct = Math.Round(100.0 * g.Count() / posicoesPorJogo.Count),
+                    X = Math.Round(g.Average(e => e.PosicaoX), 1),
+                    Y = Math.Round(g.Average(e => e.PosicaoY), 1),
+                })
+                .OrderByDescending(p => p.Jogos)
+                .ToList();
+
+            // ── Médias por jogo (estatísticas importadas) ─────────────────
+            MediasPorJogo? medias = null;
+            if (estatisticas.Count > 0)
+            {
+                static int Pct(int certos, int total) =>
+                    total > 0 ? (int)Math.Round(100.0 * certos / total) : 0;
+
+                medias = new MediasPorJogo
+                {
+                    Jogos = estatisticas.Count,
+                    Passes = Math.Round(estatisticas.Average(e => e.PassesTotal), 1),
+                    PassesChave = Math.Round(estatisticas.Average(e => e.PassesChave), 1),
+                    Finalizacoes = Math.Round(estatisticas.Average(e => e.FinalizacoesTotal), 1),
+                    FinalizacoesPct = Pct(estatisticas.Sum(e => e.FinalizacoesNoGol), estatisticas.Sum(e => e.FinalizacoesTotal)),
+                    Dribles = Math.Round(estatisticas.Average(e => e.DriblesTentados), 1),
+                    DriblesPct = Pct(estatisticas.Sum(e => e.DriblesCertos), estatisticas.Sum(e => e.DriblesTentados)),
+                    Duelos = Math.Round(estatisticas.Average(e => e.DuelosTotal), 1),
+                    DuelosPct = Pct(estatisticas.Sum(e => e.DuelosVencidos), estatisticas.Sum(e => e.DuelosTotal)),
+                    Desarmes = Math.Round(estatisticas.Average(e => e.Desarmes), 1),
+                    Interceptacoes = Math.Round(estatisticas.Average(e => e.Interceptacoes), 1),
+                    Bloqueios = Math.Round(estatisticas.Average(e => e.Bloqueios), 1),
+                    Defesas = Math.Round(estatisticas.Average(e => e.Defesas), 1),
+                    FaltasSofridas = Math.Round(estatisticas.Average(e => e.FaltasSofridas), 1),
+                    FaltasCometidas = Math.Round(estatisticas.Average(e => e.FaltasCometidas), 1),
+                };
+            }
+
             double mediaFinal = notasPorJogo.Any(x => x.Analisado)
                 ? Math.Round(notasPorJogo.Where(x => x.Analisado).Average(x => x.NotaFinal), 2)
                 : 0;
@@ -557,7 +608,9 @@ namespace ControleFutebolWeb.Controllers
                 TotalJogosParticipados = notasPorJogo.Count,
                 TotalGols = gols.Count,
                 TotalAssistencias = assistencias.Count,
-                NotasPorJogo = notasPorJogo
+                NotasPorJogo = notasPorJogo,
+                PosicoesJogadas = posicoesJogadas,
+                Medias = medias
             };
 
             return View(vm);

@@ -9,6 +9,50 @@ namespace ControleFutebolWeb.Models.ViewModels
         public int TotalGols { get; set; }
         public int TotalAssistencias { get; set; }
         public List<NotaJogoItem> NotasPorJogo { get; set; }
+
+        // Posições em que o jogador foi escalado (agregado das escalações do usuário).
+        public List<PosicaoJogadaItem> PosicoesJogadas { get; set; } = new();
+
+        // Médias por jogo a partir das estatísticas importadas (null = sem dados).
+        public MediasPorJogo? Medias { get; set; }
+    }
+
+    // Uma posição ocupada pelo jogador: rótulo, nº de jogos, % e o ponto médio
+    // no campinho (coordenadas % — mesmo sistema de Escalacao.PosicaoX/Y).
+    public class PosicaoJogadaItem
+    {
+        public string Posicao { get; set; } = "";
+        public int Jogos { get; set; }
+        public double Pct { get; set; }
+        public double X { get; set; }
+        public double Y { get; set; }
+    }
+
+    // Médias por jogo (estatísticas importadas da api-football). Os pares
+    // "tentados/certos" viram donuts de aproveitamento na tela.
+    public class MediasPorJogo
+    {
+        public int Jogos { get; set; }
+
+        public double Passes { get; set; }
+        public double PassesChave { get; set; }
+
+        public double Finalizacoes { get; set; }
+        public int FinalizacoesPct { get; set; }     // % no gol
+
+        public double Dribles { get; set; }
+        public int DriblesPct { get; set; }          // % certos
+
+        public double Duelos { get; set; }
+        public int DuelosPct { get; set; }           // % vencidos
+
+        public double Desarmes { get; set; }
+        public double Interceptacoes { get; set; }
+        public double Bloqueios { get; set; }
+        public double Defesas { get; set; }          // relevante para goleiros
+
+        public double FaltasSofridas { get; set; }
+        public double FaltasCometidas { get; set; }
     }
 
     public class NotaJogoItem
