@@ -721,6 +721,10 @@
                                     @if (realizado)
                                     {
                                         <span class="bra-jogo-score">@j.PlacarCasa x @j.PlacarVisitante</span>
+                                        @if (j.PenaltisCasa.HasValue && j.PenaltisVisitante.HasValue)
+                                        {
+                                            <span class="bra-jogo-pen">(@j.PenaltisCasa-@j.PenaltisVisitante pên.)</span>
+                                        }
                                     }
                                     else
                                     {

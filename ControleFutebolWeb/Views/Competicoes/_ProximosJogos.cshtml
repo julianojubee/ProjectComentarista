@@ -49,6 +49,10 @@
                         }
                         <span style="flex:1;font-size:.82rem;font-weight:600;">@jogo.TimeCasa?.Nome</span>
                         <span class="placar-badge @placarClass">@placar</span>
+                        @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
+                        {
+                            <span class="placar-pen">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</span>
+                        }
                         <span style="flex:1;font-size:.82rem;font-weight:600;text-align:right;">@jogo.TimeVisitante?.Nome</span>
                         @if (jogo.TimeVisitante?.EscudoUrl != null)
                         {

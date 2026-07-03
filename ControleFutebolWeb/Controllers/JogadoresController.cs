@@ -32,15 +32,18 @@ namespace ControleFutebolWeb.Controllers
         public IActionResult Index(string posicao, string nacionalidade, int? timeId, string sortOrder, string? nome, int? idadeMin, int? idadeMax, bool semIdade = false, int page = 1)
         {
             const int pageSize = 50;
-            // Configura parâmetros de ordenação
-            ViewBag.NomeSortParam = sortOrder == "Nome" ? "Nome_desc" : "Nome";
-            ViewBag.PosicaoSortParam = sortOrder == "Posicao" ? "Posicao_desc" : "Posicao";
-            ViewBag.IdadeSortParam = sortOrder == "Idade" ? "Idade_desc" : "Idade";
-            ViewBag.NacionalidadeSortParam = sortOrder == "Nacionalidade" ? "Nacionalidade_desc" : "Nacionalidade";
-            ViewBag.TimeSortParam = sortOrder == "Time" ? "Time_desc" : "Time";
+            var vm = new JogadoresIndexViewModel
+            {
+                // Configura parâmetros de ordenação
+                NomeSortParam = sortOrder == "Nome" ? "Nome_desc" : "Nome",
+                PosicaoSortParam = sortOrder == "Posicao" ? "Posicao_desc" : "Posicao",
+                IdadeSortParam = sortOrder == "Idade" ? "Idade_desc" : "Idade",
+                NacionalidadeSortParam = sortOrder == "Nacionalidade" ? "Nacionalidade_desc" : "Nacionalidade",
+                TimeSortParam = sortOrder == "Time" ? "Time_desc" : "Time",
 
-            // Guarda filtros atuais
-            ViewBag.CurrentSort = sortOrder;
+                // Guarda filtros atuais
+                CurrentSort = sortOrder
+            };
 
             var jogadores = _context.Jogadores
                 .Include(j => j.Nacionalidade)
@@ -99,10 +102,10 @@ namespace ControleFutebolWeb.Controllers
                 _ => jogadores.OrderBy(j => j.Nome)
             };
 
-            ViewBag.Nome = nome;
-            ViewBag.IdadeMin = idadeMin;
-            ViewBag.IdadeMax = idadeMax;
-            ViewBag.SemIdade = semIdade;
+            vm.Nome = nome;
+            vm.IdadeMin = idadeMin;
+            vm.IdadeMax = idadeMax;
+            vm.SemIdade = semIdade;
 
             // Preenche combos com SelectList
             var posicoes = new List<string> {
@@ -110,19 +113,19 @@ namespace ControleFutebolWeb.Controllers
             "Ponta Esquerda","Ponta Direita","Meia Ofensivo",
             "Lateral Esquerdo","Lateral Direito","Centroavante"
          };
-            ViewBag.Posicoes = new SelectList(posicoes, posicao);
+            vm.Posicoes = new SelectList(posicoes, posicao);
 
             var nacionalidades = _context.Nacionalidades
                 .Select(n => n.Nome)
                 .Distinct()
                 .OrderBy(n => n)
                 .ToList();
-            ViewBag.Nacionalidades = new SelectList(nacionalidades, nacionalidade);
+            vm.Nacionalidades = new SelectList(nacionalidades, nacionalidade);
 
             var times = _context.Times
                 .OrderBy(t => t.Nome)
                 .ToList();
-            ViewBag.Times = new SelectList(times, "Id", "Nome", timeId);
+            vm.Times = new SelectList(times, "Id", "Nome", timeId);
 
             // Paginação (50 por página)
             var listaOrdenada = jogadores.ToList();
@@ -137,18 +140,19 @@ namespace ControleFutebolWeb.Controllers
                 .Take(pageSize)
                 .ToList();
 
-            ViewBag.PaginaAtual = page;
-            ViewBag.TotalPaginas = totalPaginas;
-            ViewBag.TotalJogadores = totalJogadores;
-            ViewBag.PageSize = pageSize;
+            vm.PaginaAtual = page;
+            vm.TotalPaginas = totalPaginas;
+            vm.TotalJogadores = totalJogadores;
+            vm.PageSize = pageSize;
 
             // Filtros atuais, para preservar nos links de paginação
-            ViewBag.FiltroPosicao = posicao;
-            ViewBag.FiltroNacionalidade = nacionalidade;
-            ViewBag.FiltroTimeId = timeId;
-            ViewBag.FiltroSortOrder = sortOrder;
+            vm.FiltroPosicao = posicao;
+            vm.FiltroNacionalidade = nacionalidade;
+            vm.FiltroTimeId = timeId;
+            vm.FiltroSortOrder = sortOrder;
 
-            return View(jogadoresPagina);
+            vm.Itens = jogadoresPagina;
+            return View(vm);
         }
         // GET: Jogadores/Details/5
         public async Task<IActionResult> Details(int? id)
@@ -286,12 +290,16 @@ namespace ControleFutebolWeb.Controllers
                     // Atualiza campos
                     jogadorExistente.Nome = jogador.Nome;
                     jogadorExistente.Posicao = jogador.Posicao;
+                    // Coluna datanascimento é "timestamp without time zone": o Npgsql
+                    // rejeita DateTime com Kind=Utc. Usa Unspecified (mesmo padrão do
+                    // AtualizarInfo / AtualizarInfoTodosSemIdade).
                     jogadorExistente.DataNascimento = jogador.DataNascimento.HasValue
-                        ? DateTime.SpecifyKind(jogador.DataNascimento.Value, DateTimeKind.Utc)
+                        ? DateTime.SpecifyKind(jogador.DataNascimento.Value, DateTimeKind.Unspecified)
                         : null;
                     jogadorExistente.TimeId = jogador.TimeId;
                     jogadorExistente.NacionalidadeId = jogador.NacionalidadeId;
                     jogadorExistente.Observacoes = jogador.Observacoes;
+                    jogadorExistente.FotoUrl = jogador.FotoUrl;
                     jogadorExistente.DtAlt = DateTime.UtcNow;
 
                     await _context.SaveChangesAsync();
@@ -526,6 +534,17 @@ namespace ControleFutebolWeb.Controllers
                 .OrderByDescending(x => x.Jogo.Data)
                 .ToList();
 
+            // Observações marcadas com a tag "Jogador" (criadas em /Jogos/Analisar),
+            // exibidas junto ao jogo correspondente no histórico.
+            var observacoesJogadorPorJogo = await _context.ObservacoesJogoTag
+                .Where(o => o.Tipo == "JOGADOR" && o.JogadorId == id && o.UsuarioId == uid)
+                .GroupBy(o => o.JogoId)
+                .ToDictionaryAsync(g => g.Key, g => g.OrderBy(o => o.Ordem).Select(o => o.Texto).ToList());
+
+            foreach (var item in notasPorJogo)
+                if (observacoesJogadorPorJogo.TryGetValue(item.Jogo.Id, out var obsJogador))
+                    item.ObservacoesJogador = obsJogador;
+
             double mediaFinal = notasPorJogo.Any(x => x.Analisado)
                 ? Math.Round(notasPorJogo.Where(x => x.Analisado).Average(x => x.NotaFinal), 2)
                 : 0;
@@ -542,6 +561,234 @@ namespace ControleFutebolWeb.Controllers
             };
 
             return View(vm);
+        }
+
+        // GET: /Jogadores/JogadoresSemelhantes?id=X
+        // Retorna até 10 jogadores com perfil parecido ao jogador informado.
+        // Critérios derivados do próprio jogador (posição, idade, jogos, gols, assistências);
+        // um candidato precisa bater em pelo menos 4 deles para entrar no resultado.
+        [HttpGet]
+        public async Task<IActionResult> JogadoresSemelhantes(int id)
+        {
+            var uid = _userManager.GetUserId(User);
+
+            var alvo = await _context.Jogadores
+                .AsNoTracking()
+                .Include(j => j.Time)
+                .Include(j => j.Nacionalidade)
+                .FirstOrDefaultAsync(j => j.Id == id);
+
+            if (alvo == null) return NotFound();
+
+            // ── Agregações por jogador (toda a base registrada) ───────────
+            var golsPorJogador = await _context.Gols
+                .Where(g => !g.Contra)
+                .GroupBy(g => g.JogadorId)
+                .Select(g => new { Id = g.Key, Total = g.Count() })
+                .ToDictionaryAsync(x => x.Id, x => x.Total);
+
+            var assisPorJogador = await _context.Assistencias
+                .GroupBy(a => a.JogadorId)
+                .Select(g => new { Id = g.Key, Total = g.Count() })
+                .ToDictionaryAsync(x => x.Id, x => x.Total);
+
+            // Jogos = nº de partidas distintas em que o jogador foi escalado
+            // (escalações próprias do usuário ou compartilhadas).
+            var jogosPorJogador = (await _context.Escalacoes
+                    .Where(e => e.JogadorId.HasValue && (e.UsuarioId == uid || e.UsuarioId == null))
+                    .Select(e => new { Jid = e.JogadorId!.Value, e.JogoId })
+                    .Distinct()
+                    .ToListAsync())
+                .GroupBy(x => x.Jid)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            // Fallback de jogos via estatísticas importadas (quando não há escalação).
+            var jogosEstatPorJogador = (await _context.EstatisticasJogador
+                    .Select(e => new { e.JogadorId, e.JogoId })
+                    .Distinct()
+                    .ToListAsync())
+                .GroupBy(x => x.JogadorId)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            int Jogos(int jid) => Math.Max(
+                jogosPorJogador.GetValueOrDefault(jid, 0),
+                jogosEstatPorJogador.GetValueOrDefault(jid, 0));
+
+            // Estatísticas avançadas (api-football) somadas por jogador — base
+            // para as métricas defensivas / de criação usadas conforme a posição.
+            var estatAgg = await _context.EstatisticasJogador
+                .GroupBy(e => e.JogadorId)
+                .Select(g => new
+                {
+                    Id                = g.Key,
+                    Defesas           = g.Sum(e => e.Defesas),
+                    GolsSofridos      = g.Sum(e => e.GolsSofridos),
+                    Desarmes          = g.Sum(e => e.Desarmes),
+                    Bloqueios         = g.Sum(e => e.Bloqueios),
+                    Interceptacoes    = g.Sum(e => e.Interceptacoes),
+                    DuelosVencidos    = g.Sum(e => e.DuelosVencidos),
+                    PassesChave       = g.Sum(e => e.PassesChave),
+                    FinalizacoesNoGol = g.Sum(e => e.FinalizacoesNoGol),
+                    DriblesCertos     = g.Sum(e => e.DriblesCertos),
+                    Rating            = g.Average(e => e.Rating),
+                })
+                .ToDictionaryAsync(x => x.Id, x => x);
+
+            // Valor de uma métrica para um jogador (0 quando não há dado).
+            // Rating é multiplicado por 10 para permitir limiar inteiro.
+            int Metrica(string key, int jid)
+            {
+                switch (key)
+                {
+                    case "jogos":  return Jogos(jid);
+                    case "gols":   return golsPorJogador.GetValueOrDefault(jid, 0);
+                    case "assist": return assisPorJogador.GetValueOrDefault(jid, 0);
+                    case "rating":
+                        return estatAgg.TryGetValue(jid, out var er) && er.Rating.HasValue
+                            ? (int)Math.Round(er.Rating.Value * 10) : 0;
+                }
+                if (!estatAgg.TryGetValue(jid, out var e)) return 0;
+                return key switch
+                {
+                    "defesas"        => e.Defesas,
+                    "golsSofridos"   => e.GolsSofridos,
+                    "desarmes"       => e.Desarmes,
+                    "bloqueios"      => e.Bloqueios,
+                    "interceptacoes" => e.Interceptacoes,
+                    "duelosVencidos" => e.DuelosVencidos,
+                    "passesChave"    => e.PassesChave,
+                    "finNoGol"       => e.FinalizacoesNoGol,
+                    "driblesCertos"  => e.DriblesCertos,
+                    _ => 0,
+                };
+            }
+
+            // Grupo de posição → define quais métricas comparar.
+            // Usa a mesma convenção dos rankings de /Relatorios (posições amplas
+            // vindas da api-football: Goleiro/Defensor/Meia/Atacante), por Contains
+            // para também cobrir variações detalhadas (Zagueiro, Lateral, Ponta...).
+            static string GrupoPosicao(string? pos)
+            {
+                if (string.IsNullOrEmpty(pos)) return "ATA";
+                bool C(string s) => pos.Contains(s, StringComparison.OrdinalIgnoreCase);
+                if (C("Goleiro")) return "GOL";
+                if (C("Defensor") || C("Zagueiro") || C("Lateral") || C("Ala")) return "DEF";
+                if (C("Meia") || C("Meio") || C("Volante")) return "MEI";
+                return "ATA"; // Atacante, Ponta, Centroavante e demais
+            }
+
+            string grupo = GrupoPosicao(alvo.Posicao);
+
+            // Métricas usadas como critério (limiar = 70% do valor do alvo).
+            (string key, string label, string emoji)[] criterioMetricas = grupo switch
+            {
+                "GOL" => new[] { ("defesas", "Defesas", "🧤"), ("rating", "Rating", "⭐") },
+                "DEF" => new[] { ("desarmes", "Desarmes", "🛡️"), ("bloqueios", "Bloqueios", "🧱"), ("interceptacoes", "Interceptações", "✋"), ("duelosVencidos", "Duelos venc.", "💪") },
+                "MEI" => new[] { ("desarmes", "Desarmes", "🛡️"), ("interceptacoes", "Interceptações", "✋"), ("passesChave", "Passes-chave", "🎯"), ("assist", "Assistências", "🅰️") },
+                _     => new[] { ("gols", "Gols", "⚽"), ("assist", "Assistências", "🅰️"), ("finNoGol", "Fin. no alvo", "🎯"), ("driblesCertos", "Dribles certos", "🌀") },
+            };
+
+            // Colunas exibidas no card de cada jogador.
+            (string key, string label)[] colunasDef = grupo switch
+            {
+                "GOL" => new[] { ("jogos", "Jogos"), ("defesas", "Defesas"), ("golsSofridos", "G.Sofr.") },
+                "DEF" => new[] { ("jogos", "Jogos"), ("desarmes", "Desarm."), ("interceptacoes", "Interc."), ("bloqueios", "Bloq.") },
+                "MEI" => new[] { ("jogos", "Jogos"), ("passesChave", "P.Chave"), ("desarmes", "Desarm."), ("assist", "Assist.") },
+                _     => new[] { ("jogos", "Jogos"), ("gols", "Gols"), ("assist", "Assist."), ("finNoGol", "Fin.") },
+            };
+
+            // ── Perfil do jogador alvo / limiares ─────────────────────────
+            int alvoIdade = alvo.Idade;
+            int alvoJogos = Jogos(alvo.Id);
+
+            int idadeMax = alvoIdade > 0 ? alvoIdade + 3 : 0;
+            int idadeMin = alvoIdade > 3 ? alvoIdade - 3 : 0;
+            int minJogos = (int)Math.Round(alvoJogos * 0.7);
+
+            var limiares = criterioMetricas
+                .ToDictionary(m => m.key, m => (int)Math.Round(Metrica(m.key, alvo.Id) * 0.7));
+
+            var candidatos = await _context.Jogadores
+                .AsNoTracking()
+                .Include(j => j.Time)
+                .Include(j => j.Nacionalidade)
+                .Where(j => j.Id != alvo.Id)
+                .ToListAsync();
+
+            var resultados = new List<(Jogador j, int idade, int jogos, int batidos, double dist)>();
+
+            foreach (var c in candidatos)
+            {
+                int cIdade = c.Idade;
+                int cJogos = Jogos(c.Id);
+
+                // Ignora jogadores sem nenhum dado registrado.
+                if (cJogos == 0
+                    && !golsPorJogador.ContainsKey(c.Id)
+                    && !assisPorJogador.ContainsKey(c.Id)
+                    && !estatAgg.ContainsKey(c.Id)) continue;
+
+                bool mesmoGrupo = GrupoPosicao(c.Posicao) == grupo;
+
+                int batidos = 0;
+                if (mesmoGrupo) batidos++;
+                if (cIdade > 0 && (alvoIdade == 0 || (cIdade >= idadeMin && cIdade <= idadeMax))) batidos++;
+                if (cJogos >= minJogos) batidos++;
+                foreach (var m in criterioMetricas)
+                    if (Metrica(m.key, c.Id) >= limiares[m.key]) batidos++;
+
+                if (batidos < 4) continue;
+
+                double dist =
+                    Math.Abs(cIdade - alvoIdade) / 5.0
+                  + Math.Abs(cJogos - alvoJogos) / Math.Max(1.0, alvoJogos)
+                  + (mesmoGrupo ? 0 : 1);
+                foreach (var m in criterioMetricas)
+                {
+                    int av = Metrica(m.key, alvo.Id);
+                    dist += Math.Abs(Metrica(m.key, c.Id) - av) / Math.Max(1.0, av);
+                }
+
+                resultados.Add((c, cIdade, cJogos, batidos, dist));
+            }
+
+            var top = resultados
+                .OrderByDescending(r => r.batidos)
+                .ThenBy(r => r.dist)
+                .Take(10)
+                .Select(r => new
+                {
+                    id        = r.j.Id,
+                    nome      = r.j.NomeExibicao,
+                    clube     = r.j.Time?.Nome,
+                    escudoUrl = r.j.Time?.EscudoUrl,
+                    fotoUrl   = r.j.FotoUrl,
+                    idade     = r.idade,
+                    pais      = r.j.Nacionalidade?.Nome,
+                    posicao   = r.j.Posicao,
+                    stats     = colunasDef.Select(col => Metrica(col.key, r.j.Id)).ToArray(),
+                    batidos   = r.batidos,
+                })
+                .ToList();
+
+            // Chips dos critérios usados (apenas os com limiar relevante).
+            var chips = new List<string>();
+            if (!string.IsNullOrEmpty(alvo.Posicao)) chips.Add($"🎽 {alvo.Posicao}");
+            if (alvoIdade > 0) chips.Add($"📅 {idadeMin}–{idadeMax} anos");
+            if (minJogos > 0) chips.Add($"🏟️ ≥ {minJogos} jogos");
+            foreach (var m in criterioMetricas)
+            {
+                if (m.key == "rating") continue; // limiar de rating não é informativo
+                if (limiares[m.key] > 0) chips.Add($"{m.emoji} ≥ {limiares[m.key]} {m.label}");
+            }
+
+            return Json(new
+            {
+                grupo,
+                criterios = chips,
+                colunas = colunasDef.Select(c => c.label).ToArray(),
+                jogadores = top,
+            });
         }
 
         [HttpGet]

@@ -1,4 +1,4 @@
-﻿@model IEnumerable<ControleFutebolWeb.Models.Treinador>
+﻿@model ControleFutebolWeb.Models.ViewModels.TreinadoresIndexViewModel
 @using ControleFutebolWeb.Helpers
 
 @section Scripts {
@@ -216,13 +216,13 @@
     .ms-box {
         display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
         min-height: 38px; padding: 4px 30px 4px 8px; cursor: pointer;
-        border: 1px solid #d1d5db; border-radius: 8px; background: #fff; font-size: 13px;
+        border: 1px solid var(--border-strong); border-radius: 8px; background: var(--input-bg); font-size: 13px;
     }
     .ms-box::after {
         content: "▾"; position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-        color: #6b7280; pointer-events: none;
+        color: var(--text-muted); pointer-events: none;
     }
-    .ms-placeholder { color: #9ca3af; }
+    .ms-placeholder { color: var(--text-muted); }
     .ms-chip {
         display: inline-flex; align-items: center; gap: 4px;
         background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe;
@@ -232,21 +232,21 @@
     .ms-chip-x:hover { opacity: 1; }
     .ms-panel {
         position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50;
-        background: #fff; border: 1px solid #d1d5db; border-radius: 8px;
+        background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px;
         box-shadow: 0 8px 24px rgba(0,0,0,.12); max-height: 280px; overflow-y: auto;
         display: none; padding: 4px;
     }
     .ms-panel.open { display: block; }
     .ms-opt {
         display: flex; align-items: center; gap: 8px; padding: 7px 10px;
-        border-radius: 6px; cursor: pointer; font-size: 13px; color: #111827;
+        border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text);
     }
-    .ms-opt:hover { background: #f3f4f6; }
+    .ms-opt:hover { background: var(--surface-3); }
     .ms-opt input { cursor: pointer; }
     .ms-search {
         width: 100%; box-sizing: border-box; padding: 7px 10px; margin-bottom: 4px;
-        border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; outline: none;
-        position: sticky; top: 0; background: #fff;
+        border: 1px solid var(--border-strong); border-radius: 6px; font-size: 13px; outline: none;
+        position: sticky; top: 0; background: var(--input-bg);
     }
     .ms-search:focus { border-color: #6366f1; }
 
@@ -329,12 +329,12 @@
 </div>
 
 @{
-    var competicoesLista = ViewBag.Competicoes as IEnumerable<ControleFutebolWeb.Models.Competicao> ?? Enumerable.Empty<ControleFutebolWeb.Models.Competicao>();
-    var timesLista = ViewBag.Times as IEnumerable<ControleFutebolWeb.Models.Time> ?? Enumerable.Empty<ControleFutebolWeb.Models.Time>();
-    var nacLista = ViewBag.NacionalidadesLista as IEnumerable<Nacionalidade> ?? Enumerable.Empty<Nacionalidade>();
-    var compSel = ViewBag.CompeticaoIdsFiltro as List<int> ?? new List<int>();
-    var timeSel = ViewBag.TimeIdsFiltro as List<int> ?? new List<int>();
-    var nacSel = ViewBag.NacionalidadesFiltro as List<string> ?? new List<string>();
+    var competicoesLista = Model.Competicoes;
+    var timesLista = Model.Times;
+    var nacLista = Model.NacionalidadesLista;
+    var compSel = Model.CompeticaoIdsFiltro;
+    var timeSel = Model.TimeIdsFiltro;
+    var nacSel = Model.NacionalidadesFiltro;
 }
 
 <form asp-action="Index" method="get" class="players-filter">
@@ -409,10 +409,10 @@
 </form>
 
 @{
-    int paginaAtual = ViewBag.PaginaAtual ?? 1;
-    int totalPaginas = ViewBag.TotalPaginas ?? 1;
-    int totalTreinadores = ViewBag.TotalTreinadores ?? Model.Count();
-    int pageSize = ViewBag.PageSize ?? 50;
+    int paginaAtual = Model.PaginaAtual;
+    int totalPaginas = Model.TotalPaginas;
+    int totalTreinadores = Model.TotalTreinadores;
+    int pageSize = Model.PageSize;
     int primeiroDaPagina = totalTreinadores == 0 ? 0 : (paginaAtual - 1) * pageSize + 1;
     int ultimoDaPagina = Math.Min(paginaAtual * pageSize, totalTreinadores);
 
@@ -424,13 +424,13 @@
     Func<int, string> linkPagina = (p) => $"{Url.Action("Index")}?page={p}{filtrosQs}";
 }
 
-<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:6px 0;color:#6b7280;font-size:13px;">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:6px 0;color:var(--text-muted);font-size:13px;">
     <span>Mostrando <strong>@primeiroDaPagina–@ultimoDaPagina</strong> de <strong>@totalTreinadores</strong> treinadores</span>
     <span>Página @paginaAtual de @totalPaginas</span>
 </div>
 
 <div class="player-list">
-    @foreach (var treinador in Model)
+    @foreach (var treinador in Model.Itens)
     {
         <div class="player-row">
             <!-- Foto -->
@@ -440,11 +440,11 @@
                     <img src="@Url.FotoSrc(treinador.FotoUrl)" alt="@treinador.Nome"
                          loading="lazy" decoding="async" width="42" height="42"
                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-                    <span style="display:none; color:#6b7280; font-size:18px;">👤</span>
+                    <span style="display:none; color:var(--text-muted); font-size:18px;">👤</span>
                 }
                 else
                 {
-                    <span style="color:#6b7280; font-size:18px;">👤</span>
+                    <span style="color:var(--text-muted); font-size:18px;">👤</span>
                 }
             </div>
 

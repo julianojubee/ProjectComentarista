@@ -450,6 +450,198 @@
         background: var(--cinza2);
     }
 
+    /* ── Botão "Jogadores semelhantes" ── */
+    .btn-semelhantes {
+        margin-top: .7rem;
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        background: linear-gradient(90deg, var(--verde), var(--verde2));
+        color: #fff;
+        border: none;
+        padding: .5rem 1.1rem;
+        border-radius: 8px;
+        font-size: .85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: filter .2s, transform .1s;
+    }
+
+    .btn-semelhantes:hover { filter: brightness(1.1); }
+    .btn-semelhantes:active { transform: scale(.97); }
+
+    /* ── Modal ── */
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,.7);
+        backdrop-filter: blur(3px);
+        display: none;
+        align-items: flex-start;
+        justify-content: center;
+        z-index: 1000;
+        padding: 2rem 1rem;
+        overflow-y: auto;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal-box {
+        background: var(--cinza1);
+        border: 1px solid var(--cinza3);
+        border-radius: 16px;
+        width: 100%;
+        max-width: 720px;
+        box-shadow: 0 20px 60px rgba(0,0,0,.6);
+        overflow: hidden;
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.1rem 1.4rem;
+        border-bottom: 1px solid var(--cinza3);
+    }
+
+    .modal-titulo {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 1.4rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        margin: 0;
+    }
+
+    .modal-close {
+        background: var(--cinza2);
+        border: 1px solid var(--cinza3);
+        color: var(--texto);
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        font-size: 1.1rem;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    .modal-close:hover { background: var(--cinza3); }
+
+    .modal-criterios {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .4rem;
+        padding: .9rem 1.4rem;
+        border-bottom: 1px solid var(--cinza3);
+        background: rgba(0,0,0,.15);
+    }
+
+    .criterio-chip {
+        background: rgba(34,197,94,.12);
+        border: 1px solid rgba(34,197,94,.3);
+        color: #4ade80;
+        font-size: .72rem;
+        font-weight: 600;
+        padding: .2rem .65rem;
+        border-radius: 999px;
+    }
+
+    .modal-body {
+        padding: 1rem 1.4rem 1.4rem;
+        display: grid;
+        gap: .6rem;
+    }
+
+    .sem-card {
+        display: flex;
+        align-items: center;
+        gap: .9rem;
+        background: var(--cinza2);
+        border: 1px solid var(--cinza3);
+        border-radius: 12px;
+        padding: .7rem .9rem;
+        transition: border-color .2s, background .2s;
+    }
+
+    .sem-card:hover {
+        border-color: var(--verde2);
+        background: #263245;
+    }
+
+    .sem-foto {
+        width: 52px;
+        height: 52px;
+        border-radius: 10px;
+        object-fit: cover;
+        background: var(--cinza3);
+        border: 1px solid var(--cinza3);
+        flex-shrink: 0;
+    }
+
+    .sem-info { flex: 1; min-width: 0; }
+
+    .sem-nome {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--texto);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+    }
+
+    .sem-nome:hover { color: var(--verde2); text-decoration: underline; }
+
+    .sem-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .35rem .8rem;
+        font-size: .75rem;
+        color: var(--muted);
+        margin-top: .2rem;
+    }
+
+    .sem-meta span { display: inline-flex; align-items: center; gap: .25rem; }
+
+    .sem-stats {
+        display: flex;
+        gap: .4rem;
+        flex-shrink: 0;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        max-width: 190px;
+    }
+
+    .sem-stat {
+        text-align: center;
+        min-width: 36px;
+    }
+
+    .sem-stat-val {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 1.2rem;
+        font-weight: 800;
+        line-height: 1;
+        color: var(--texto);
+    }
+
+    .sem-stat-lbl {
+        font-size: .6rem;
+        text-transform: uppercase;
+        color: var(--muted);
+        letter-spacing: .05em;
+        margin-top: .15rem;
+    }
+
+    .sem-escudo {
+        width: 14px;
+        height: 14px;
+        object-fit: contain;
+        vertical-align: middle;
+    }
+
 </style>
 
 <div class="estat-page">
@@ -492,7 +684,8 @@
 
             @if (!string.IsNullOrWhiteSpace(Model.Jogador.FotoUrl))
             {
-                <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogador.FotoUrl })" class="jogador-foto" />
+                <img src="@Url.FotoSrc(Model.Jogador.FotoUrl)" class="jogador-foto"
+                     onerror="this.src='/images/placeholder-jogador.png'" />
             }
             else
             {
@@ -516,6 +709,9 @@
                         <span>🌍 @Model.Jogador.Nacionalidade.Nome</span>
                     }
                 </div>
+                <button type="button" class="btn-semelhantes" onclick="abrirSemelhantes()">
+                    🔍 Jogadores semelhantes
+                </button>
             </div>
         </div>
 
@@ -624,6 +820,12 @@
                     ? $"{item.GolsPro} x {item.GolsContra}"
                     : "–";
 
+                var penaltis = (item.Jogo.PenaltisCasa.HasValue && item.Jogo.PenaltisVisitante.HasValue)
+                    ? (isCasaJogador
+                        ? $"({item.Jogo.PenaltisCasa}-{item.Jogo.PenaltisVisitante} pên.)"
+                        : $"({item.Jogo.PenaltisVisitante}-{item.Jogo.PenaltisCasa} pên.)")
+                    : null;
+
                 var resBg = item.Resultado switch
                 {
                     "V" => "#16a34a",
@@ -686,7 +888,7 @@
                                 <span class="jogo-adversario">
                                     vs @adversario
                                     <span style="color:rgba(255,255,255,.4); font-size:.8rem;
-                                             margin-left:.4rem; font-weight:400;">@placar</span>
+                                             margin-left:.4rem; font-weight:400;">@placar @penaltis</span>
                                 </span>
                                 @if (item.Gols > 0)
                                 {
@@ -816,6 +1018,19 @@
                                 "@item.Comentario"
                             </div>
                         }
+
+                        @if (item.ObservacoesJogador.Any())
+                        {
+                            <div style="padding:0 1.1rem .8rem; display:flex; flex-direction:column; gap:4px;">
+                                @foreach (var obs in item.ObservacoesJogador)
+                                {
+                                    <div style="font-size:12.5px; color:#a7f3d0; background:rgba(5,150,105,.12);
+                                                border:1px solid rgba(5,150,105,.4); border-radius:8px; padding:6px 10px;">
+                                        📌 @obs
+                                    </div>
+                                }
+                            </div>
+                        }
                     }
 
                 </div>
@@ -832,6 +1047,18 @@
 
         </div><!-- /#historicoWrapper -->
 
+    </div>
+</div>
+
+<!-- ── Modal: Jogadores semelhantes ─────────────────────────────────────── -->
+<div class="modal-overlay" id="semelhantesModal" onclick="if(event.target===this)fecharSemelhantes()">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h2 class="modal-titulo">Jogadores semelhantes</h2>
+            <button type="button" class="modal-close" onclick="fecharSemelhantes()">✕</button>
+        </div>
+        <div class="modal-criterios" id="semelhantesCriterios"></div>
+        <div class="modal-body" id="semelhantesBody"></div>
     </div>
 </div>
 
@@ -954,4 +1181,99 @@
     }
 
     // carrega temporada só quando o usuário expandir a seção
+
+    // ── Jogadores semelhantes ─────────────────────────────────────────────────
+    let semelhantesCarregado = false;
+
+    function abrirSemelhantes() {
+        const modal = document.getElementById('semelhantesModal');
+        modal.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        if (!semelhantesCarregado) {
+            semelhantesCarregado = true;
+            carregarSemelhantes();
+        }
+    }
+
+    function fecharSemelhantes() {
+        document.getElementById('semelhantesModal').classList.remove('open');
+        document.body.style.overflow = '';
+    }
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') fecharSemelhantes();
+    });
+
+    function carregarSemelhantes() {
+        const body = document.getElementById('semelhantesBody');
+        const criterios = document.getElementById('semelhantesCriterios');
+        body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:2rem;font-size:.9rem;">Buscando jogadores semelhantes...</div>';
+        criterios.innerHTML = '';
+
+        fetch(`/Jogadores/JogadoresSemelhantes?id=${jogadorId}`)
+            .then(r => r.json())
+            .then(data => renderSemelhantes(data))
+            .catch(() => {
+                body.innerHTML = '<div style="text-align:center;color:#f87171;padding:2rem;font-size:.9rem;">Erro ao buscar jogadores semelhantes.</div>';
+            });
+    }
+
+    // Espelha o helper Url.FotoSrc: fotos do api-sports.io passam pelo MediaProxy;
+    // URLs manuais de outros hosts carregam direto (o proxy bloquearia por allowlist).
+    function fotoSrc(url) {
+        if (!url) return '/images/placeholder-jogador.png';
+        let host = '';
+        try { host = new URL(url).hostname; } catch (e) { host = ''; }
+        return /(^|\.)api-sports\.io$/i.test(host)
+            ? '/MediaProxy/Imagem?url=' + encodeURIComponent(url)
+            : url;
+    }
+
+    function renderSemelhantes(data) {
+        const body = document.getElementById('semelhantesBody');
+        const criteriosEl = document.getElementById('semelhantesCriterios');
+        const proxyBase = '/MediaProxy/Imagem?url=';
+
+        // Chips dos critérios usados (já vêm prontos do servidor, conforme a posição)
+        const chips = data.criterios || [];
+        criteriosEl.innerHTML = chips.map(t => `<span class="criterio-chip">${t}</span>`).join('');
+
+        const colunas = data.colunas || [];
+        const jogadores = data.jogadores || [];
+        if (jogadores.length === 0) {
+            body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:2rem;font-size:.9rem;">Nenhum jogador com perfil semelhante foi encontrado na base.</div>';
+            return;
+        }
+
+        body.innerHTML = jogadores.map(function (p) {
+            const foto = fotoSrc(p.fotoUrl);
+            const escudo = p.escudoUrl
+                ? `<img src="${proxyBase}${encodeURIComponent(p.escudoUrl)}" class="sem-escudo" />`
+                : '';
+            const clube = p.clube ? `${escudo} ${p.clube}` : '';
+            const idade = p.idade > 0 ? `📅 ${p.idade} anos` : '';
+            const pais = p.pais ? `🌍 ${p.pais}` : '';
+
+            const metaParts = [];
+            if (p.posicao) metaParts.push(`<span>🎽 ${p.posicao}</span>`);
+            if (clube) metaParts.push(`<span>${clube}</span>`);
+            if (idade) metaParts.push(`<span>${idade}</span>`);
+            if (pais) metaParts.push(`<span>${pais}</span>`);
+
+            const stats = p.stats || [];
+            const statsHtml = colunas.map((label, i) =>
+                `<div class="sem-stat"><div class="sem-stat-val">${stats[i] != null ? stats[i] : 0}</div><div class="sem-stat-lbl">${label}</div></div>`
+            ).join('');
+
+            return `
+            <div class="sem-card">
+                <img src="${foto}" class="sem-foto" onerror="this.src='/images/placeholder-jogador.png'" />
+                <div class="sem-info">
+                    <a class="sem-nome" href="/Jogadores/Estatisticas/${p.id}">${p.nome}</a>
+                    <div class="sem-meta">${metaParts.join('')}</div>
+                </div>
+                <div class="sem-stats">${statsHtml}</div>
+            </div>`;
+        }).join('');
+    }
 </script>

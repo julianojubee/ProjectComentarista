@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Comentarista Futebol</string>
+    <string name="login_username">Usuário</string>
+    <string name="login_password">Senha</string>
+    <string name="login_button">Entrar</string>
+    <string name="jogos_empty">Nenhum jogo encontrado.</string>
+    <string name="jogadores_empty">Nenhum jogador encontrado.</string>
+    <string name="times_empty">Nenhum time encontrado.</string>
+</resources>

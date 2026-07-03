@@ -1,4 +1,49 @@
-﻿/* Jogadores */
+/* ── Design tokens ────────────────────────────────────────────────────────
+   Paleta central dos dois temas. Novas telas devem usar estas variáveis em
+   vez de cores fixas — assim o dark mode funciona sem precisar de um override
+   [data-theme="dark"] por classe (motivo das dezenas de regras mais abaixo,
+   que podem ser migradas gradualmente para os tokens nas próprias views).
+   O Bootstrap 5.3 recebe data-bs-theme junto com data-theme (ver _Layout),
+   então componentes nativos sem override aqui já saem corretos no escuro. */
+:root {
+    --bg: #ffffff;              /* fundo da página */
+    --surface: #ffffff;         /* cards, painéis, tabelas */
+    --surface-2: #f9fafb;       /* cabeçalhos, listras, filtros */
+    --surface-3: #f3f4f6;       /* inputs, hovers, badges */
+    --border: #e5e7eb;
+    --border-strong: #d1d5db;
+    --border-subtle: #f0f0f0;   /* separadores finos dentro de cards/listas */
+    --input-bg: #ffffff;        /* fundo de inputs/selects */
+    --text: #111827;
+    --text-2: #374151;          /* texto secundário */
+    --text-muted: #6b7280;
+    --link: #2563eb;
+    --link-hover: #1d4ed8;
+    --accent-surface: #eff6ff;  /* hover azulado (botões/atalhos) */
+    --accent-border: #bfdbfe;
+    --gold: #d4a520;            /* dourado da marca (igual nos dois temas) */
+}
+
+[data-theme="dark"] {
+    color-scheme: dark; /* scrollbars e controles nativos escuros */
+    --bg: #121212;
+    --surface: #1a1a1a;
+    --surface-2: #232323;
+    --surface-3: #2a2a2a;
+    --border: #333;
+    --border-strong: #444;
+    --border-subtle: #2a2a2a;
+    --input-bg: #2a2a2a;
+    --text: #e5e7eb;
+    --text-2: #cbd5e1;
+    --text-muted: #9ca3af;
+    --link: #6ea8fe;
+    --link-hover: #93c5fd;
+    --accent-surface: #25324a;
+    --accent-border: #3b4a63;
+}
+
+/* Jogadores */
 .jogador {
     position: absolute;
     width: 50px;
@@ -59,7 +104,7 @@
 }
 
     .campo .jogador {
-        
+
         font-weight: normal !important;
         font-size: 11px !important;
         color: black !important;
@@ -306,30 +351,63 @@ tr.rebaixado td:first-child {
     border-collapse: collapse;
     margin-top: 15px;
     font-size: 14px;
-    color: #fff;
 }
 
-    /* Linhas da tabela */
-    .jogadores-table tr {
-        cursor: grab; /* mãozinha */
-        transition: background 0.2s ease;
+/* Variáveis da tabela (Bootstrap): força texto claro e listras sutis,
+   independentemente do tema — esta tabela fica sempre sobre fundo escuro
+   (imagem do time + overlay). Sem isto, no dark mode as linhas listradas
+   herdam texto preto sobre fundo quase preto e ficam ilegíveis. */
+.jogadores-table.table,
+[data-theme="dark"] .jogadores-table.table {
+    --bs-table-color: #f1f5f9;
+    --bs-table-bg: transparent;
+    --bs-table-striped-color: #f1f5f9;
+    --bs-table-striped-bg: rgba(255, 255, 255, 0.06);
+    --bs-table-hover-color: #ffffff;
+    --bs-table-hover-bg: rgba(255, 255, 255, 0.12);
+    --bs-table-active-color: #ffffff;
+    --bs-table-active-bg: rgba(255, 255, 255, 0.16);
+    --bs-table-border-color: rgba(255, 255, 255, 0.12);
+    color: #f1f5f9;
+}
+
+    /* Cabeçalho */
+    .jogadores-table.table thead th,
+    [data-theme="dark"] .jogadores-table.table thead th {
+        background-color: rgba(0, 0, 0, 0.55) !important;
+        color: #cbd5e1;
+        text-transform: uppercase;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.6px;
+        border: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+        padding: 10px 8px;
+        white-space: nowrap;
     }
 
-        .jogadores-table tr:active {
+    /* Linhas da tabela */
+    .jogadores-table tbody tr {
+        cursor: grab; /* mãozinha */
+        transition: background 0.15s ease;
+    }
+
+        .jogadores-table tbody tr:active {
             cursor: grabbing; /* mão fechada ao arrastar */
             opacity: 0.7; /* fica meio transparente */
         }
 
-        /* Hover para dar feedback visual */
-        .jogadores-table tr:hover {
-            background-color: rgba(255, 255, 255, 0.1);
+        /* Hover para dar feedback visual (a tabela não usa .table-hover) */
+        .jogadores-table tbody tr:hover td {
+            background-color: rgba(255, 255, 255, 0.12);
         }
 
     /* Células */
     .jogadores-table td {
-        padding: 8px;
+        padding: 9px 8px;
         text-align: center;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        vertical-align: middle;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
 
     /* Imagem da camisa */
@@ -338,79 +416,193 @@ tr.rebaixado td:first-child {
         margin: 0 auto;
     }
 
-/* ── Dark mode ────────────────────────────────────────────────────────── */
+/* ── Logotipo (navbar) ────────────────────────────────────────────────── */
+.navbar-brand.brand-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+}
+
+    .brand-mark {
+        flex-shrink: 0;
+        display: block;
+    }
+
+.brand-wordmark {
+    display: flex;
+    flex-direction: column;
+    line-height: 1;
+}
+
+.brand-name {
+    font-family: "Arial Black", "Arial Narrow", Arial, sans-serif;
+    font-weight: 900;
+    font-size: 1.15rem;
+    letter-spacing: .12em;
+    line-height: 1;
+    color: #f5f5f0;
+    padding-bottom: 3px;
+    border-bottom: 2px solid var(--gold);
+}
+
+.brand-tag {
+    font-size: .58rem;
+    font-weight: 700;
+    letter-spacing: .3em;
+    color: var(--gold);
+    margin-top: 3px;
+}
+
+/* ── Dark mode ────────────────────────────────────────────────────────────
+   Overrides de componentes Bootstrap e de classes custom das views que ainda
+   têm cores claras fixas. Todos usam os design tokens do topo do arquivo —
+   ajuste a paleta lá, não aqui. Conforme as views migrarem para os tokens,
+   estas regras podem ser removidas. */
 [data-theme="dark"] body {
-    background-color: #121212;
-    color: #e0e0e0;
+    background-color: var(--bg);
+    color: var(--text);
 }
 
 /* Navbar */
 [data-theme="dark"] .navbar {
-    background-color: #1a1a1a !important;
-    border-color: #333 !important;
+    background-color: var(--surface) !important;
+    border-color: var(--border) !important;
 }
 [data-theme="dark"] .navbar-brand,
 [data-theme="dark"] .nav-link {
-    color: #d1d5db !important;
+    color: var(--text-2) !important;
 }
 [data-theme="dark"] .navbar-toggler {
-    border-color: #444;
+    border-color: var(--border-strong);
 }
 [data-theme="dark"] .navbar-toggler-icon {
     filter: invert(1);
 }
 
+/* ── Barra de navegação com a identidade do logo (preto + dourado) ──────── */
+/* Aplica nos dois temas; vem depois das regras de navbar do dark mode para
+   vencer por ordem em empates de especificidade. */
+.navbar.brand-nav {
+    background-color: #141414 !important;
+    border-bottom: 2px solid var(--gold) !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .35);
+}
+
+    .brand-nav .nav-link {
+        color: #e7e5df !important;
+        font-weight: 600;
+        transition: color .15s ease;
+    }
+
+        .brand-nav .nav-link:hover,
+        .brand-nav .nav-link:focus,
+        .brand-nav .nav-link.active,
+        .brand-nav .nav-item.show > .nav-link {
+            color: var(--gold) !important;
+        }
+
+    .brand-nav .navbar-toggler {
+        border-color: #3a3a3a;
+    }
+
+    .brand-nav .navbar-toggler-icon {
+        filter: invert(1);
+    }
+
+    .brand-nav .dropdown-menu {
+        background-color: #1a1a1a;
+        border: 1px solid #333;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, .4);
+    }
+
+    .brand-nav .dropdown-item {
+        color: #e7e5df;
+    }
+
+        .brand-nav .dropdown-item:hover,
+        .brand-nav .dropdown-item:focus {
+            background-color: #262626;
+            color: var(--gold);
+        }
+
+    .brand-nav .dropdown-divider {
+        border-top-color: #333;
+    }
+
+    .brand-nav .dropdown-item-text {
+        color: #9a958a;
+    }
+
+    /* Emoji do menu tingidos num dourado discreto (emoji ignoram color,
+       mas respondem a filter). */
+    .brand-nav .gold-ico {
+        display: inline-block;
+        margin-right: 3px;
+        opacity: .85;
+        filter: grayscale(1) sepia(1) saturate(700%) hue-rotate(5deg) brightness(1.05);
+    }
+
 /* Dropdowns */
 [data-theme="dark"] .dropdown-menu {
-    background-color: #1e1e1e;
-    border-color: #333;
+    background-color: var(--surface);
+    border-color: var(--border);
 }
 [data-theme="dark"] .dropdown-item {
-    color: #d1d5db;
+    color: var(--text-2);
 }
 [data-theme="dark"] .dropdown-item:hover,
 [data-theme="dark"] .dropdown-item:focus {
-    background-color: #2a2a2a;
+    background-color: var(--surface-3);
     color: #fff;
 }
 [data-theme="dark"] .dropdown-divider {
-    border-color: #333;
+    border-color: var(--border);
 }
 [data-theme="dark"] .dropdown-item-text {
-    color: #9ca3af;
+    color: var(--text-muted);
 }
 
 /* Cards */
 [data-theme="dark"] .card {
-    background-color: #1e1e1e;
-    border-color: #333;
-    color: #e0e0e0;
+    background-color: var(--surface);
+    border-color: var(--border);
+    color: var(--text);
 }
 [data-theme="dark"] .card-header {
-    background-color: #252525;
-    border-color: #333;
-    color: #e0e0e0;
+    background-color: var(--surface-2);
+    border-color: var(--border);
+    color: var(--text);
 }
 [data-theme="dark"] .card-footer {
-    background-color: #252525;
-    border-color: #333;
+    background-color: var(--surface-2);
+    border-color: var(--border);
 }
 
 /* Tables */
 [data-theme="dark"] .table {
-    color: #e0e0e0;
-    --bs-table-striped-bg: #1a1a1a;
-    --bs-table-hover-bg: #252525;
-    --bs-border-color: #333;
+    /* Conjunto completo de variáveis: cor de texto E de fundo de cada estado,
+       senão as linhas listradas herdam texto preto sobre fundo escuro
+       (ilegível) e o fundo base vira branco. */
+    --bs-table-color: var(--text);
+    --bs-table-bg: var(--surface);
+    --bs-table-striped-color: var(--text);
+    --bs-table-striped-bg: var(--surface-2);
+    --bs-table-hover-color: #ffffff;
+    --bs-table-hover-bg: var(--surface-3);
+    --bs-table-active-color: #ffffff;
+    --bs-table-active-bg: var(--surface-3);
+    --bs-table-border-color: var(--border);
+    color: var(--text);
+    border-color: var(--border);
 }
 [data-theme="dark"] .table thead th {
-    background-color: #252525 !important;
-    color: #e0e0e0;
-    border-color: #444 !important;
+    background-color: var(--surface-2) !important;
+    color: var(--text);
+    border-color: var(--border-strong) !important;
 }
 [data-theme="dark"] .table td,
 [data-theme="dark"] .table th {
-    border-color: #333;
+    border-color: var(--border);
 }
 
 /* ── Lista em cards (.player-row) no dark mode ────────────────────────────
@@ -418,282 +610,75 @@ tr.rebaixado td:first-child {
    .player-row com fundo branco fixo. Sem isto, no dark mode as linhas ficam
    claras (diferente da tabela do Times). Casa a mesma paleta da .table. */
 [data-theme="dark"] .player-row {
-    background: #1a1a1a;
-    border-color: #333;
+    background: var(--surface);
+    border-color: var(--border);
 }
 [data-theme="dark"] .player-row:last-child,
 [data-theme="dark"] .player-row:only-child {
-    border-bottom-color: #333;
+    border-bottom-color: var(--border);
 }
 [data-theme="dark"] .player-row:hover {
-    background: #2a2a2a;
+    background: var(--surface-3);
 }
 [data-theme="dark"] .player-photo {
-    background: #2a2a2a;
-    border-color: #333;
+    background: var(--surface-3);
+    border-color: var(--border);
 }
 [data-theme="dark"] .player-name-link {
-    color: #60a5fa;
+    color: var(--link);
 }
 [data-theme="dark"] .tr-name {
-    color: #e5e7eb;
+    color: var(--text);
 }
 [data-theme="dark"] .player-meta {
-    color: #9ca3af;
+    color: var(--text-muted);
 }
 [data-theme="dark"] .player-club-name {
-    color: #cbd5e1;
+    color: var(--text-2);
 }
 
-/* ── Tela Jogos (.cf-*) no dark mode ──────────────────────────────────────
-   Usa cards/tabela custom com fundos claros (#fff/#f9fafb) e texto escuro
-   (#111827) fixos, sem theming. Casa a paleta do dark mode. */
-[data-theme="dark"] .cf-stat-card,
-[data-theme="dark"] .cf-panel {
-    background: #1a1a1a;
-    border-color: #333;
-}
-[data-theme="dark"] .cf-stat-num,
-[data-theme="dark"] .cf-panel-title {
-    color: #e5e7eb;
-}
-[data-theme="dark"] .cf-stat-label {
-    color: #9ca3af;
-}
-[data-theme="dark"] .cf-filters {
-    background: #202020;
-    border-color: #333;
-}
-[data-theme="dark"] .cf-filter-group label {
-    color: #9ca3af;
-}
-[data-theme="dark"] .cf-filter-group select {
-    background: #2a2a2a;
-    color: #e0e0e0;
-    border-color: #444;
-}
-[data-theme="dark"] .cf-filter-clear {
-    background: #333;
-    color: #e5e7eb;
-}
-[data-theme="dark"] .cf-jogos-table th {
-    color: #9ca3af;
-    border-bottom-color: #333;
-}
-[data-theme="dark"] .cf-jogos-table td {
-    color: #e5e7eb;
-    border-bottom-color: #2a2a2a;
-}
-[data-theme="dark"] .cf-jogos-table tbody tr:hover {
-    background: #202020;
-}
-[data-theme="dark"] .cf-team-badge {
-    background: #2a2a2a;
-    border-color: #333;
-}
-[data-theme="dark"] .cf-score {
-    background: #232323;
-    border-color: #333;
-    color: #e5e7eb;
-}
-[data-theme="dark"] .cf-pager-info,
-[data-theme="dark"] .cf-pager-cur {
-    color: #9ca3af;
-}
-[data-theme="dark"] .cf-pager-btn {
-    background: #2a2a2a;
-    border-color: #444;
-    color: #e5e7eb;
-}
-[data-theme="dark"] .cf-pager-btn:hover {
-    background: #25324a;
-    border-color: #3b4a63;
-    color: #93c5fd;
-}
-
-/* ── Home (.cf-*) específicos do dark mode ───────────────────────────────
-   Classes próprias da home (módulos, painéis, listas) com texto/fundo claros
-   fixos. As compartilhadas (.cf-stat-card, .cf-panel, .cf-team-badge,
-   .cf-score) já são tratadas acima. */
-[data-theme="dark"] .cf-module-card {
-    background: #1a1a1a;
-    border-color: #333;
-}
-[data-theme="dark"] .cf-module-card:hover {
-    border-color: #3b4a63;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
-}
-[data-theme="dark"] .cf-module-card h3 {
-    color: #e5e7eb;
-}
-[data-theme="dark"] .cf-module-card p {
-    color: #9ca3af;
-}
-[data-theme="dark"] .cf-panel-header {
-    color: #e5e7eb;
-    border-bottom-color: #333;
-}
-[data-theme="dark"] .cf-team-name {
-    color: #cbd5e1;
-}
-[data-theme="dark"] .cf-match,
-[data-theme="dark"] .cf-classif {
-    border-bottom-color: #2a2a2a;
-}
-[data-theme="dark"] .cf-qa {
-    background: #202020;
-    border-color: #333;
-    color: #cbd5e1;
-}
-[data-theme="dark"] .cf-qa:hover {
-    background: #25324a;
-    border-color: #3b4a63;
-    color: #93c5fd;
-}
-[data-theme="dark"] .cf-search-dropdown {
-    background: #1a1a1a;
-    border-color: #333;
-}
-[data-theme="dark"] .cf-search-item {
-    color: #e5e7eb;
-    border-bottom-color: #2a2a2a;
-}
-[data-theme="dark"] .cf-search-item:hover {
-    background: #202020;
-}
-
-/* ── Tela Relatórios (.rpt-*) no dark mode ───────────────────────────────
-   Cards claros com texto escuro (alguns inline color:#111827 trocados por
-   inherit na view). Hero e cards de "Estatísticas Competições" já são
-   escuros por natureza, não precisam de override. */
-[data-theme="dark"] .rpt-filter {
-    background: #1a1a1a;
-    border-color: #333;
-}
-[data-theme="dark"] .rpt-filter label,
-[data-theme="dark"] .rpt-check-wrap span {
-    color: #cbd5e1;
-}
-[data-theme="dark"] .rpt-filter select {
-    background: #2a2a2a;
-    color: #e0e0e0;
-    border-color: #444;
-}
-[data-theme="dark"] .rpt-filter .rpt-clear {
-    background: #333;
-    color: #e5e7eb;
-    border-color: #444;
-}
-[data-theme="dark"] .rpt-check-wrap {
-    background: #202020;
-    border-color: #333;
-}
-[data-theme="dark"] .rpt-check-wrap:hover {
-    background: #25324a;
-    border-color: #3b4a63;
-}
-[data-theme="dark"] .rpt-tab {
-    background: #1a1a1a;
-    border-color: #333;
-    color: #cbd5e1;
-}
-[data-theme="dark"] .rpt-tab:hover {
-    border-color: #f59e0b;
-    color: #fbbf24;
-}
-[data-theme="dark"] .rpt-card {
-    background: #1a1a1a;
-    border-color: #333;
-    color: #e5e7eb;
-}
-[data-theme="dark"] .rpt-card-header {
-    border-bottom-color: #333;
-}
-[data-theme="dark"] .rpt-card-title {
-    color: #e5e7eb;
-}
-[data-theme="dark"] .rpt-row {
-    border-bottom-color: #2a2a2a;
-}
-[data-theme="dark"] .rpt-row:hover {
-    background: #202020;
-}
-[data-theme="dark"] .rpt-name {
-    color: #e5e7eb;
-}
-[data-theme="dark"] .rpt-avatar,
-[data-theme="dark"] .rpt-team-badge {
-    background: #2a2a2a;
-    border-color: #333;
-}
-[data-theme="dark"] .rpt-bar-bg {
-    background: #2a2a2a;
-}
-[data-theme="dark"] .rodada-bar-val {
-    color: #cbd5e1;
-}
-/* Tabelas dentro dos cards: cabeçalho e hover são setados inline (claros);
-   !important para sobrepor o estilo inline no dark. */
-[data-theme="dark"] .rpt-card thead tr {
-    background: #202020 !important;
-}
-[data-theme="dark"] #sec-notas tbody tr:hover {
-    background: #202020 !important;
-}
-/* Linhas separadoras setadas inline (#f5f5f5) ficam brancas demais no dark —
-   suaviza nas listas (estat. jogadores) e linhas de tabela dos cards. */
-[data-theme="dark"] .rpt-card li,
-[data-theme="dark"] .rpt-card tbody tr {
-    border-bottom-color: #2a2a2a !important;
-}
-/* Anéis de avatar/escudo e fundos de track setados inline (#e5e7eb / #f3f4f6)
-   também ficam claros demais no dark — suaviza via !important. */
-[data-theme="dark"] .rpt-card [style*="#e5e7eb"] {
-    border-color: #333 !important;
-}
-[data-theme="dark"] .rpt-card [style*="#f3f4f6"] {
-    background-color: #2a2a2a !important;
-}
+/* Telas Jogos, Home e Times (.cf-*) e Relatórios (.rpt-*): migradas para os
+   design tokens direto nas views — não precisam mais de overrides dark aqui. */
 
 /* Form controls */
 [data-theme="dark"] .form-control,
 [data-theme="dark"] .form-select {
-    background-color: #2a2a2a;
-    color: #e0e0e0;
-    border-color: #444;
+    background-color: var(--surface-3);
+    color: var(--text);
+    border-color: var(--border-strong);
 }
 [data-theme="dark"] .form-control:focus,
 [data-theme="dark"] .form-select:focus {
-    background-color: #333;
-    color: #e0e0e0;
+    background-color: var(--surface-3);
+    color: var(--text);
     border-color: #7c3aed;
     box-shadow: 0 0 0 .2rem rgba(124,58,237,.25);
 }
 [data-theme="dark"] .form-control::placeholder {
-    color: #6b7280;
+    color: var(--text-muted);
 }
 [data-theme="dark"] .input-group-text {
-    background-color: #252525;
-    border-color: #444;
-    color: #e0e0e0;
+    background-color: var(--surface-2);
+    border-color: var(--border-strong);
+    color: var(--text);
 }
 
 /* Buttons */
 [data-theme="dark"] .btn-outline-secondary {
-    color: #adb5bd;
-    border-color: #555;
+    color: var(--text-muted);
+    border-color: var(--border-strong);
 }
 [data-theme="dark"] .btn-light {
-    background-color: #2a2a2a;
-    border-color: #444;
-    color: #e0e0e0;
+    background-color: var(--surface-3);
+    border-color: var(--border-strong);
+    color: var(--text);
 }
 [data-theme="dark"] .btn-outline-primary {
-    color: #6ea8fe;
-    border-color: #6ea8fe;
+    color: var(--link);
+    border-color: var(--link);
 }
 
-/* Alerts */
+/* Alerts (cores semânticas próprias, fora da paleta de tokens) */
 [data-theme="dark"] .alert-info {
     background-color: #0d2444;
     border-color: #1e40af;
@@ -717,34 +702,34 @@ tr.rebaixado td:first-child {
 
 /* Text utilities */
 [data-theme="dark"] .text-muted {
-    color: #9ca3af !important;
+    color: var(--text-muted) !important;
 }
 [data-theme="dark"] .text-dark {
-    color: #e0e0e0 !important;
+    color: var(--text) !important;
 }
 
 /* Background utilities */
 [data-theme="dark"] .bg-white {
-    background-color: #1e1e1e !important;
+    background-color: var(--surface) !important;
 }
 [data-theme="dark"] .bg-light {
-    background-color: #252525 !important;
+    background-color: var(--surface-2) !important;
 }
 
 /* Borders */
 [data-theme="dark"] .border {
-    border-color: #333 !important;
+    border-color: var(--border) !important;
 }
 
 /* Modals */
 [data-theme="dark"] .modal-content {
-    background-color: #1e1e1e;
-    border-color: #333;
-    color: #e0e0e0;
+    background-color: var(--surface);
+    border-color: var(--border);
+    color: var(--text);
 }
 [data-theme="dark"] .modal-header,
 [data-theme="dark"] .modal-footer {
-    border-color: #333;
+    border-color: var(--border);
 }
 [data-theme="dark"] .btn-close {
     filter: invert(1) grayscale(100%) brightness(200%);
@@ -752,20 +737,20 @@ tr.rebaixado td:first-child {
 
 /* List groups */
 [data-theme="dark"] .list-group-item {
-    background-color: #1e1e1e;
-    border-color: #333;
-    color: #e0e0e0;
+    background-color: var(--surface);
+    border-color: var(--border);
+    color: var(--text);
 }
 [data-theme="dark"] .list-group-item-action:hover {
-    background-color: #252525;
+    background-color: var(--surface-2);
     color: #fff;
 }
 
 /* Pagination */
 [data-theme="dark"] .page-link {
-    background-color: #1e1e1e;
-    border-color: #333;
-    color: #6ea8fe;
+    background-color: var(--surface);
+    border-color: var(--border);
+    color: var(--link);
 }
 [data-theme="dark"] .page-item.active .page-link {
     background-color: #7c3aed;
@@ -773,12 +758,12 @@ tr.rebaixado td:first-child {
     color: #fff;
 }
 [data-theme="dark"] .page-item.disabled .page-link {
-    background-color: #252525;
-    color: #6b7280;
-    border-color: #333;
+    background-color: var(--surface-2);
+    color: var(--text-muted);
+    border-color: var(--border);
 }
 
-/* site.css specific */
+/* site.css specific (cores semânticas casa/visitante, fora dos tokens) */
 [data-theme="dark"] .bloco-casa {
     background-color: #0a1a3a !important;
     border-color: #2563eb !important;
@@ -797,111 +782,29 @@ tr.rebaixado td:first-child {
 
 /* Toast */
 [data-theme="dark"] .toast:not(.text-bg-success):not(.text-bg-danger) {
-    background-color: #1e1e1e;
-    color: #e0e0e0;
-    border-color: #333;
+    background-color: var(--surface);
+    color: var(--text);
+    border-color: var(--border);
 }
 
-/* ── Scout page dark mode ─────────────────────────────────── */
-[data-theme="dark"] .sc-panel {
-    background: #1e1e1e !important;
-    border-color: #333 !important;
-}
-[data-theme="dark"] .sc-panel-title {
-    color: #9ca3af !important;
-    border-bottom-color: #2a2a2a !important;
-}
-[data-theme="dark"] .sc-field label {
-    color: #d1d5db !important;
-}
-[data-theme="dark"] .sc-field input,
-[data-theme="dark"] .sc-field select {
-    background: #2a2a2a !important;
-    border-color: #444 !important;
-    color: #e0e0e0 !important;
-}
-[data-theme="dark"] .sc-field input:focus,
-[data-theme="dark"] .sc-field select:focus {
-    border-color: #8b5cf6 !important;
-    background: #333 !important;
-}
-[data-theme="dark"] .ms-box {
-    background: #2a2a2a !important;
-    border-color: #444 !important;
-}
-[data-theme="dark"] .ms-placeholder {
-    color: #6b7280 !important;
-}
-[data-theme="dark"] .ms-arrow {
-    color: #6b7280 !important;
-}
-[data-theme="dark"] .ms-panel {
-    background: #1e1e1e !important;
-    border-color: #333 !important;
-    box-shadow: 0 8px 24px rgba(0,0,0,.5) !important;
-}
-[data-theme="dark"] .ms-opt {
-    color: #e0e0e0 !important;
-}
-[data-theme="dark"] .ms-opt:hover {
-    background: #2a2a2a !important;
-}
-[data-theme="dark"] .ms-search {
-    background: #252525 !important;
-    border-color: #444 !important;
-    color: #e0e0e0 !important;
-}
-[data-theme="dark"] .sc-btn-clear {
-    background: #252525 !important;
-    border-color: #444 !important;
-    color: #d1d5db !important;
-}
-[data-theme="dark"] .sc-btn-clear:hover {
-    background: #333 !important;
-}
-[data-theme="dark"] .sc-back {
-    color: #9ca3af !important;
-}
-[data-theme="dark"] .sc-table-wrap {
-    border-color: #333 !important;
-}
-[data-theme="dark"] table.sc-table {
-    background: #1e1e1e !important;
-}
-[data-theme="dark"] .sc-table thead tr {
-    background: #252525 !important;
-}
-[data-theme="dark"] .sc-table th {
-    color: #9ca3af !important;
-    border-bottom-color: #333 !important;
-}
-[data-theme="dark"] .sc-table td {
-    border-bottom-color: #2a2a2a !important;
-    color: #e0e0e0;
-}
-[data-theme="dark"] .sc-table tbody tr:hover td {
-    background: #252525 !important;
-}
-[data-theme="dark"] .sc-pname {
-    color: #e0e0e0 !important;
-}
-[data-theme="dark"] .sc-pmeta {
-    color: #9ca3af !important;
-}
-[data-theme="dark"] .sc-tag-pos {
-    background: #2a2a2a !important;
-    color: #d1d5db !important;
-}
-[data-theme="dark"] .sc-photo {
-    background: #2a2a2a !important;
-    border-color: #333 !important;
-}
-[data-theme="dark"] .sc-result-count {
-    color: #9ca3af !important;
-}
-[data-theme="dark"] .sc-result-count strong {
-    color: #e0e0e0 !important;
-}
-[data-theme="dark"] .sc-empty {
-    color: #9ca3af !important;
+/* Tela Scout (.sc-*) e multiselects (.ms-*): migradas para os design tokens
+   direto nas views (Scout, Relatórios, Treinadores, Times) — sem overrides. */
+
+/* Resultado da disputa de pênaltis (mata-mata) exibido junto ao placar.
+   var(--text-muted) resolve para o cinza certo em cada tema — não precisa
+   mais de override dark. */
+.cf-pen-score,
+.lib-pen,
+.sul-pen,
+.ucl-pen,
+.bra-jogo-pen,
+.copa-jogo-pen,
+.placar-pen,
+.hoje-pen {
+    display: inline-block;
+    margin-left: .25rem;
+    font-size: .72em;
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
 }

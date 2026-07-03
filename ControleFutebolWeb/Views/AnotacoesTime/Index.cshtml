@@ -296,7 +296,7 @@
                             <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.TimeCasa.EscudoUrl })" alt="@j.TimeCasa.Nome" />
                         }
                         <span class="@(oj.TimeEhCasa ? "tm-atual" : "")">@j.TimeCasa?.Nome</span>
-                        <span class="an-game-score">@(j.PlacarCasa?.ToString() ?? "–") x @(j.PlacarVisitante?.ToString() ?? "–")</span>
+                        <span class="an-game-score">@(j.PlacarCasa?.ToString() ?? "–") x @(j.PlacarVisitante?.ToString() ?? "–")@if (j.PenaltisCasa.HasValue && j.PenaltisVisitante.HasValue) { <text> (@j.PenaltisCasa-@j.PenaltisVisitante pên.)</text> }</span>
                         <span class="@(!oj.TimeEhCasa ? "tm-atual" : "")">@j.TimeVisitante?.Nome</span>
                         @if (!string.IsNullOrEmpty(j.TimeVisitante?.EscudoUrl))
                         {

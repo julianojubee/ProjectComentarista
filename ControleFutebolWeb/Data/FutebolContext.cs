@@ -28,11 +28,13 @@ namespace ControleFutebolWeb.Data
         public DbSet<TransfermarktSincronizacaoLog> TransfermarktSincronizacaoLogs { get; set; }
         public DbSet<Substituicao> Substituicoes { get; set; }
         public DbSet<PenaltiPerdido> PenaltisPerdidos { get; set; }
+        public DbSet<PenaltiDisputa> PenaltisDisputa { get; set; }
         public DbSet<EstatisticaJogador> EstatisticasJogador { get; set; }
         public DbSet<CriterioNota> CriteriosNota { get; set; }
         public DbSet<AnotacaoTime> AnotacoesTime { get; set; }
         public DbSet<JogoAnalisadoUsuario> JogosAnalisadosUsuario { get; set; }
         public DbSet<ObservacaoJogoUsuario> ObservacoesJogoUsuario { get; set; }
+        public DbSet<ObservacaoJogoTag> ObservacoesJogoTag { get; set; }
         public DbSet<CompeticaoTopTierUsuario> CompeticoesTopTierUsuario { get; set; }
         public DbSet<CronometroPartida> CronometrosPartida { get; set; }
         public DbSet<FaseTatica> FasesTaticas { get; set; }
@@ -204,7 +206,7 @@ namespace ControleFutebolWeb.Data
                 entity.HasOne(e => e.JogadorEntrou)
                     .WithMany()
                     .HasForeignKey(e => e.JogadorEntrouId)
-                    .OnDelete(DeleteBehavior.Cascade);
+                    .OnDelete(DeleteBehavior.SetNull);
 
                 entity.HasOne(e => e.JogadorSaiu)
                     .WithMany()
@@ -261,9 +263,13 @@ namespace ControleFutebolWeb.Data
             // 🔹 Índices para acelerar filtros/joins frequentes em relatórios e listagens.
             // (As FKs JogoId/JogadorId/CompeticaoId já são indexadas automaticamente pelo EF.)
             modelBuilder.Entity<Jogo>().HasIndex(j => j.Temporada);
+            // Data é filtrada por intervalo em "Jogos de Hoje" e usada em ORDER BY
+            // em várias listagens — sem índice vira seq scan com a tabela grande.
+            modelBuilder.Entity<Jogo>().HasIndex(j => j.Data);
             modelBuilder.Entity<Jogador>().HasIndex(j => j.Posicao);
             modelBuilder.Entity<Nota>().HasIndex(n => new { n.UsuarioId, n.JogoId, n.JogadorId });
             modelBuilder.Entity<Escalacao>().HasIndex(e => new { e.JogoId, e.UsuarioId });
+            modelBuilder.Entity<ObservacaoJogoTag>().HasIndex(o => new { o.JogadorId, o.UsuarioId });
 
             // 🔹 Converte nomes de tabelas e colunas para minúsculas
             foreach (var entity in modelBuilder.Model.GetEntityTypes())

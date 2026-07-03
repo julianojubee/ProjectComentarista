@@ -1165,6 +1165,10 @@ else
                                     @if (realizado)
                                     {
                                         <span class="lib-score">@jogo.PlacarCasa x @jogo.PlacarVisitante</span>
+                                        @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
+                                        {
+                                            <span class="lib-pen">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</span>
+                                        }
                                     }
                                     else
                                     {
@@ -1337,7 +1341,7 @@ else
                                     </div>
                                     <div class="sel-pick-info">
                                         <span class="sel-pick-nome">@j.Nome</span>
-                                        <span class="sel-pick-meta">@j.Posicao @(string.IsNullOrEmpty(timeNome) ? "" : "· " + timeNome)</span>
+                                        <span class="sel-pick-meta">@j.Posicao@(string.IsNullOrEmpty(timeNome) ? "" : " · " + timeNome)@(Model.NotaMediaPorJogador.TryGetValue(j.Id, out var notaMed) ? " · ⭐ " + notaMed.ToString("0.0", inv) : "")</span>
                                     </div>
                                 </div>
                             }
@@ -1395,7 +1399,7 @@ else
             var p = new URLSearchParams(location.search);
             p.delete('selFormacaoId'); // usa a formação própria da seleção escolhida
             p.set('aba', 'selecao');
-            if (v === 'nova') { p.delete('selId'); p.set('nova', '1'); }
+            if (v === 'nova') { p.delete('selId'); p.set('nova', 'true'); }
             else { p.set('selId', v); p.delete('nova'); }
             location.search = p.toString();
         }

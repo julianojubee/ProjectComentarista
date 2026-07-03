@@ -568,6 +568,10 @@ else
                                 {
                                     <span class="copa-jogo-result">
                                         @c.JogoIda.PlacarCasa x @c.JogoIda.PlacarVisitante
+                                        @if (c.JogoIda.PenaltisCasa.HasValue && c.JogoIda.PenaltisVisitante.HasValue)
+                                        {
+                                            <span class="copa-jogo-pen">(@c.JogoIda.PenaltisCasa-@c.JogoIda.PenaltisVisitante pên.)</span>
+                                        }
                                     </span>
                                 }
                                 else
@@ -603,6 +607,10 @@ else
                                 {
                                     <span class="copa-jogo-result">
                                         @c.JogoVolta.PlacarCasa x @c.JogoVolta.PlacarVisitante
+                                        @if (c.JogoVolta.PenaltisCasa.HasValue && c.JogoVolta.PenaltisVisitante.HasValue)
+                                        {
+                                            <span class="copa-jogo-pen">(@c.JogoVolta.PenaltisCasa-@c.JogoVolta.PenaltisVisitante pên.)</span>
+                                        }
                                     </span>
                                 }
                                 else

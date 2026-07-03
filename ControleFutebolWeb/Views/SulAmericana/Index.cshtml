@@ -350,6 +350,10 @@ else
                                     @if (realizado)
                                     {
                                         <span class="sul-score">@jogo.PlacarCasa x @jogo.PlacarVisitante</span>
+                                        @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
+                                        {
+                                            <span class="sul-pen">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</span>
+                                        }
                                     }
                                     else
                                     {

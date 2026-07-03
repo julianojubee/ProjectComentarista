@@ -47,5 +47,15 @@ namespace ControleFutebolWeb.Controllers
 
             return View(logs);
         }
+
+        // POST: /TransfermarktLogs/Limpar
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Limpar()
+        {
+            var total = await _context.TransfermarktSincronizacaoLogs.ExecuteDeleteAsync();
+            TempData["Sucesso"] = $"{total} log(s) apagado(s).";
+            return RedirectToAction(nameof(Index));
+        }
     }
 }

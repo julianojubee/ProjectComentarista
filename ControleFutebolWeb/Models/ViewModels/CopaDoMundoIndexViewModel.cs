@@ -26,6 +26,9 @@ namespace ControleFutebolWeb.Models.ViewModels
         public List<SelecaoSlotVM> SelecaoSlots { get; set; } = new();
         public List<Jogador> PoolJogadores { get; set; } = new();
         public Dictionary<int, Jogador> JogadoresPorId { get; set; } = new();
+
+        // Nota média do jogador na competição (para ranquear/exibir no picker da seleção).
+        public Dictionary<int, double> NotaMediaPorJogador { get; set; } = new();
     }
 
     /// <summary>Um slot do campo da seleção: posição (X/Y %) + jogador escolhido (se houver).</summary>

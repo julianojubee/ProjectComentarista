@@ -97,8 +97,8 @@
         position: absolute;
         top: calc(100% + 6px);
         left: 0; right: 0;
-        background: var(--color-background-primary, #fff);
-        border: 0.5px solid var(--color-border-tertiary, #e5e7eb);
+        background: var(--surface);
+        border: 0.5px solid var(--border);
         border-radius: 10px;
         box-shadow: 0 8px 24px rgba(0,0,0,.12);
         z-index: 999;
@@ -112,13 +112,13 @@
         gap: 10px;
         padding: 9px 14px;
         text-decoration: none;
-        color: var(--color-text-primary, #111827);
+        color: var(--text);
         font-size: 13px;
-        border-bottom: 0.5px solid var(--color-border-tertiary, #f3f4f6);
+        border-bottom: 0.5px solid var(--border-subtle);
         transition: background .1s;
     }
     .cf-search-item:last-child { border-bottom: none; }
-    .cf-search-item:hover { background: var(--color-background-secondary, #f9fafb); text-decoration: none; color: inherit; }
+    .cf-search-item:hover { background: var(--surface-2); text-decoration: none; color: inherit; }
     .cf-search-badge {
         font-size: 10px;
         font-weight: 700;
@@ -133,8 +133,8 @@
     .cf-badge-competicao{ background: #fef9c3; color: #854d0e; }
     .cf-badge-jogo      { background: #f3e8ff; color: #6b21a8; }
     .cf-search-nome     { flex: 1; font-weight: 500; }
-    .cf-search-extra    { font-size: 11px; color: var(--color-text-secondary, #6b7280); }
-    .cf-search-empty    { padding: 14px; text-align: center; color: var(--color-text-secondary, #6b7280); font-size: 13px; }
+    .cf-search-extra    { font-size: 11px; color: var(--text-muted); }
+    .cf-search-empty    { padding: 14px; text-align: center; color: var(--text-muted); font-size: 13px; }
 
     .cf-hero-actions {
         display: flex;
@@ -189,8 +189,8 @@
     }
 
     .cf-stat-card {
-        background: #fff;
-        border: 0.5px solid #e5e7eb;
+        background: var(--surface);
+        border: 0.5px solid var(--border);
         border-radius: 10px;
         padding: 1rem 1.25rem;
         text-align: center;
@@ -199,14 +199,14 @@
     .cf-stat-num {
         font-size: 26px;
         font-weight: 600;
-        color: #111827;
+        color: var(--text);
         line-height: 1.1;
         margin-bottom: 4px;
     }
 
     .cf-stat-label {
         font-size: 12px;
-        color: #6b7280;
+        color: var(--text-muted);
         font-weight: 400;
     }
 
@@ -214,7 +214,7 @@
     .cf-section-label {
         font-size: 11px;
         font-weight: 600;
-        color: #9ca3af;
+        color: var(--text-muted);
         text-transform: uppercase;
         letter-spacing: 0.7px;
         margin-bottom: 12px;
@@ -229,8 +229,8 @@
     }
 
     .cf-module-card {
-        background: #fff;
-        border: 0.5px solid #e5e7eb;
+        background: var(--surface);
+        border: 0.5px solid var(--border);
         border-radius: 12px;
         padding: 1.1rem 1.1rem 1rem;
         text-decoration: none;
@@ -239,7 +239,7 @@
     }
 
         .cf-module-card:hover {
-            border-color: #c0d4f0;
+            border-color: var(--accent-border);
             box-shadow: 0 2px 12px rgba(55,138,221,0.08);
             text-decoration: none;
         }
@@ -258,13 +258,13 @@
     .cf-module-card h3 {
         font-size: 13px;
         font-weight: 600;
-        color: #111827;
+        color: var(--text);
         margin: 0 0 4px;
     }
 
     .cf-module-card p {
         font-size: 12px;
-        color: #6b7280;
+        color: var(--text-muted);
         margin: 0;
         line-height: 1.5;
     }
@@ -288,8 +288,8 @@
     }
 
     .cf-panel {
-        background: #fff;
-        border: 0.5px solid #e5e7eb;
+        background: var(--surface);
+        border: 0.5px solid var(--border);
         border-radius: 12px;
         padding: 1.1rem 1.25rem;
     }
@@ -297,10 +297,10 @@
     .cf-panel-header {
         font-size: 13px;
         font-weight: 600;
-        color: #111827;
+        color: var(--text);
         margin-bottom: 12px;
         padding-bottom: 10px;
-        border-bottom: 0.5px solid #f0f0f0;
+        border-bottom: 0.5px solid var(--border-subtle);
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -323,7 +323,7 @@
         align-items: center;
         gap: 7px;
         padding: 7px 0;
-        border-bottom: 0.5px solid #f5f5f5;
+        border-bottom: 0.5px solid var(--border-subtle);
         font-size: 12px;
     }
 
@@ -337,8 +337,8 @@
         height: 24px;
         border-radius: 50%;
         overflow: hidden;
-        background: #f3f4f6;
-        border: 0.5px solid #e5e7eb;
+        background: var(--surface-3);
+        border: 0.5px solid var(--border);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -354,12 +354,12 @@
     .cf-team-badge-abbr {
         font-size: 8px;
         font-weight: 600;
-        color: #6b7280;
+        color: var(--text-muted);
     }
 
     .cf-team-name {
         flex: 1;
-        color: #374151;
+        color: var(--text-2);
         font-size: 12px;
         white-space: nowrap;
         overflow: hidden;
@@ -370,11 +370,11 @@
     .cf-score {
         font-weight: 600;
         font-size: 12px;
-        background: #f9fafb;
-        border: 0.5px solid #e5e7eb;
+        background: var(--surface-2);
+        border: 0.5px solid var(--border);
         padding: 2px 8px;
         border-radius: 6px;
-        color: #111827;
+        color: var(--text);
         white-space: nowrap;
         flex-shrink: 0;
     }
@@ -404,7 +404,7 @@
 
     .cf-match-date {
         font-size: 10px;
-        color: #9ca3af;
+        color: var(--text-muted);
         white-space: nowrap;
         flex-shrink: 0;
     }
@@ -415,7 +415,7 @@
         align-items: center;
         gap: 8px;
         padding: 6px 0;
-        border-bottom: 0.5px solid #f5f5f5;
+        border-bottom: 0.5px solid var(--border-subtle);
         font-size: 12px;
     }
 
@@ -436,7 +436,7 @@
     }
 
     .cf-rank-normal {
-        color: #9ca3af;
+        color: var(--text-muted);
     }
 
     .cf-rank-drop {
@@ -456,7 +456,7 @@
 
     .cf-classif-detail {
         font-size: 10px;
-        color: #9ca3af;
+        color: var(--text-muted);
         white-space: nowrap;
         flex-shrink: 0;
     }
@@ -469,12 +469,12 @@
     }
 
     .cf-qa {
-        background: #f9fafb;
-        border: 0.5px solid #e5e7eb;
+        background: var(--surface-2);
+        border: 0.5px solid var(--border);
         border-radius: 9px;
         padding: 10px 12px;
         font-size: 13px;
-        color: #374151;
+        color: var(--text-2);
         text-decoration: none;
         display: flex;
         align-items: center;
@@ -483,9 +483,9 @@
     }
 
         .cf-qa:hover {
-            background: #f0f7ff;
-            border-color: #bfdbfe;
-            color: #1d4ed8;
+            background: var(--accent-surface);
+            border-color: var(--accent-border);
+            color: var(--link-hover);
             text-decoration: none;
         }
 
@@ -499,7 +499,7 @@
     /* ── Rodada badge ────────────────────────────── */
     .cf-rodada {
         font-size: 10px;
-        color: #9ca3af;
+        color: var(--text-muted);
     }
 </style>
 
@@ -604,7 +604,7 @@
 
             @if (!Model.JogosRecentes.Any())
             {
-                <p style="font-size:12px; color:#9ca3af; text-align:center; padding:1rem 0;">
+                <p style="font-size:12px; color:var(--text-muted); text-align:center; padding:1rem 0;">
                     Nenhum jogo finalizado ainda.
                 </p>
             }
@@ -626,7 +626,13 @@
                             }
                         </div>
                         <span class="cf-team-name">@jogo.TimeCasa?.Nome</span>
-                        <span class="cf-score">@jogo.PlacarCasa &times; @jogo.PlacarVisitante</span>
+                        <span class="cf-score">
+                            @jogo.PlacarCasa &times; @jogo.PlacarVisitante
+                            @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
+                            {
+                                <span class="cf-pen-score">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</span>
+                            }
+                        </span>
                         <span class="cf-team-name" style="text-align:right;">@jogo.TimeVisitante?.Nome</span>
                         <div class="cf-team-badge">
                             @if (!string.IsNullOrEmpty(jogo.TimeVisitante?.EscudoUrl))
@@ -655,7 +661,7 @@
 
             @if (!Model.Classificacao.Any())
             {
-                <p style="font-size:12px; color:#9ca3af; text-align:center; padding:1rem 0;">
+                <p style="font-size:12px; color:var(--text-muted); text-align:center; padding:1rem 0;">
                     Nenhum dado disponível ainda.
                 </p>
             }

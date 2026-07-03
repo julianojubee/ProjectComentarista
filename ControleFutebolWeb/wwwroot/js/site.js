@@ -1,7 +1,7 @@
 ﻿// ── Proteção CSRF para chamadas AJAX ─────────────────────────────────────────
 // Injeta o token antiforgery (header RequestVerificationToken) em todas as
 // requisições não-seguras (POST/PUT/DELETE/PATCH) para a mesma origem. Assim os
-// fetch/$.ajax existentes continuam funcionando com a validação global ativada.
+// fetch existentes continuam funcionando com a validação global ativada.
 (function () {
     var meta = document.querySelector('meta[name="csrf-token"]');
     var token = meta ? meta.getAttribute('content') : null;
@@ -14,7 +14,6 @@
         return true; // URL relativa = mesma origem
     };
 
-    // 1) fetch
     if (window.fetch) {
         var fetchOriginal = window.fetch;
         window.fetch = function (input, init) {
@@ -28,15 +27,6 @@
             }
             return fetchOriginal.call(this, input, init);
         };
-    }
-
-    // 2) jQuery ($.ajax / $.post)
-    if (window.jQuery) {
-        window.jQuery(document).ajaxSend(function (_e, xhr, opts) {
-            if (ehNaoSeguro(opts.type) && mesmaOrigem(opts.url)) {
-                xhr.setRequestHeader('RequestVerificationToken', token);
-            }
-        });
     }
 })();
 

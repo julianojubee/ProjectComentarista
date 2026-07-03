@@ -1,4 +1,4 @@
-﻿@model IEnumerable<ControleFutebolWeb.Models.Jogador>
+﻿@model ControleFutebolWeb.Models.ViewModels.JogadoresIndexViewModel
 @using ControleFutebolWeb.Helpers
 @{
     ViewData["Title"] = "Jogadores";
@@ -191,38 +191,38 @@
 <form asp-action="Index" method="get" class="players-filter">
     <div>
         <label for="nome" class="form-label">Nome do jogador</label>
-        <input type="text" id="nome" name="nome" value="@ViewBag.Nome" class="form-control" placeholder="Buscar por nome..." />
+        <input type="text" id="nome" name="nome" value="@Model.Nome" class="form-control" placeholder="Buscar por nome..." />
     </div>
 
     <div>
         <label for="posicao" class="form-label">Posição</label>
-        @Html.DropDownList("posicao", (SelectList)ViewBag.Posicoes, "Todas", new { @class = "form-select" })
+        @Html.DropDownList("posicao", Model.Posicoes, "Todas", new { @class = "form-select" })
     </div>
 
     <div>
         <label for="nacionalidade" class="form-label">Nacionalidade</label>
-        @Html.DropDownList("nacionalidade", (SelectList)ViewBag.Nacionalidades, "Todas", new { @class = "form-select" })
+        @Html.DropDownList("nacionalidade", Model.Nacionalidades, "Todas", new { @class = "form-select" })
     </div>
 
     <div>
         <label for="timeId" class="form-label">Time</label>
-        @Html.DropDownList("timeId", (SelectList)ViewBag.Times, "Todos", new { @class = "form-select" })
+        @Html.DropDownList("timeId", Model.Times, "Todos", new { @class = "form-select" })
     </div>
 
     <div>
         <label for="idadeMin" class="form-label">Idade mín.</label>
-        <input type="number" id="idadeMin" name="idadeMin" min="0" max="60" value="@ViewBag.IdadeMin" class="form-control" placeholder="ex: 18" style="width:110px;" />
+        <input type="number" id="idadeMin" name="idadeMin" min="0" max="60" value="@Model.IdadeMin" class="form-control" placeholder="ex: 18" style="width:110px;" />
     </div>
 
     <div>
         <label for="idadeMax" class="form-label">Idade máx.</label>
-        <input type="number" id="idadeMax" name="idadeMax" min="0" max="60" value="@ViewBag.IdadeMax" class="form-control" placeholder="ex: 23" style="width:110px;" />
+        <input type="number" id="idadeMax" name="idadeMax" min="0" max="60" value="@Model.IdadeMax" class="form-control" placeholder="ex: 23" style="width:110px;" />
     </div>
 
     <div>
         <label class="form-label d-block">Sem idade</label>
         <div class="form-check" style="padding-top:6px;">
-            <input type="checkbox" id="semIdade" name="semIdade" value="true" class="form-check-input" @(ViewBag.SemIdade == true ? "checked" : "") />
+            <input type="checkbox" id="semIdade" name="semIdade" value="true" class="form-check-input" @(Model.SemIdade ? "checked" : "") />
             <label for="semIdade" class="form-check-label">Somente sem idade</label>
         </div>
     </div>
@@ -233,9 +233,9 @@
     </div>
 </form>
 
-@if (ViewBag.SemIdade == true && Model.Any())
+@if (Model.SemIdade && Model.Itens.Any())
 {
-    var totalSemIdade = ViewBag.TotalJogadores ?? Model.Count();
+    var totalSemIdade = Model.TotalJogadores;
     <form asp-action="AtualizarInfoTodosSemIdade" method="post" style="margin-bottom:12px;">
         @Html.AntiForgeryToken()
         <button type="submit" class="btn btn-outline-success cf-small-btn"
@@ -246,24 +246,24 @@
 }
 
 @{
-    int paginaAtual = ViewBag.PaginaAtual ?? 1;
-    int totalPaginas = ViewBag.TotalPaginas ?? 1;
-    int totalJogadores = ViewBag.TotalJogadores ?? Model.Count();
-    int pageSize = ViewBag.PageSize ?? 50;
+    int paginaAtual = Model.PaginaAtual;
+    int totalPaginas = Model.TotalPaginas;
+    int totalJogadores = Model.TotalJogadores;
+    int pageSize = Model.PageSize;
     int primeiroDaPagina = totalJogadores == 0 ? 0 : (paginaAtual - 1) * pageSize + 1;
     int ultimoDaPagina = Math.Min(paginaAtual * pageSize, totalJogadores);
 
     // Filtros atuais para preservar nos links
     var rotaFiltros = new Dictionary<string, string?>
     {
-        ["nome"] = (string?)ViewBag.Nome,
-        ["posicao"] = (string?)ViewBag.FiltroPosicao,
-        ["nacionalidade"] = (string?)ViewBag.FiltroNacionalidade,
-        ["timeId"] = ViewBag.FiltroTimeId?.ToString(),
-        ["sortOrder"] = (string?)ViewBag.FiltroSortOrder,
-        ["idadeMin"] = ViewBag.IdadeMin?.ToString(),
-        ["idadeMax"] = ViewBag.IdadeMax?.ToString(),
-        ["semIdade"] = ViewBag.SemIdade == true ? "true" : null,
+        ["nome"] = Model.Nome,
+        ["posicao"] = Model.FiltroPosicao,
+        ["nacionalidade"] = Model.FiltroNacionalidade,
+        ["timeId"] = Model.FiltroTimeId?.ToString(),
+        ["sortOrder"] = Model.FiltroSortOrder,
+        ["idadeMin"] = Model.IdadeMin?.ToString(),
+        ["idadeMax"] = Model.IdadeMax?.ToString(),
+        ["semIdade"] = Model.SemIdade ? "true" : null,
     };
     Func<int, Dictionary<string, string?>> rotaComPagina = (p) =>
     {
@@ -279,14 +279,17 @@
 </div>
 
 <div class="player-list">
-    @foreach (var jogador in Model)
+    @foreach (var jogador in Model.Itens)
     {
         <div class="player-row">
             <!-- Foto -->
             <div class="player-photo">
                 @if (!string.IsNullOrEmpty(jogador.FotoUrl))
                 {
-                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogador.FotoUrl })" alt="@jogador.Nome" loading="lazy" decoding="async" width="42" height="42" />
+                    <img src="@Url.FotoSrc(jogador.FotoUrl)" alt="@jogador.Nome"
+                         loading="lazy" decoding="async" width="42" height="42"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                    <span style="display:none; color:#6b7280; font-size:18px;">👤</span>
                 }
                 else
                 {
@@ -396,7 +399,7 @@
             </tr>
         </thead>
         <tbody>
-            @foreach (var jogador in Model)
+            @foreach (var jogador in Model.Itens)
             {
                 <tr>
                     <td>

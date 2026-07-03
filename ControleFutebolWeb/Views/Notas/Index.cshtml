@@ -24,6 +24,10 @@
                     @nota.Jogo?.TimeCasa?.Nome (@nota.Jogo?.PlacarCasa)
                     x
                     @nota.Jogo?.TimeVisitante?.Nome (@nota.Jogo?.PlacarVisitante)
+                    @if (nota.Jogo?.PenaltisCasa.HasValue == true && nota.Jogo?.PenaltisVisitante.HasValue == true)
+                    {
+                        <span class="text-muted">(@nota.Jogo.PenaltisCasa-@nota.Jogo.PenaltisVisitante pên.)</span>
+                    }
                     - @ControleFutebolWeb.Helpers.DateHelper.FormatarData(nota.Jogo?.Data, "dd/MM/yyyy")
                 </td>
                 <td>@nota.Valor</td>

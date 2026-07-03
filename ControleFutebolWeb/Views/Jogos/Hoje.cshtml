@@ -313,6 +313,10 @@
                                     @if (realizado)
                                     {
                                         <span class="hoje-placar">@jogo.PlacarCasa–@jogo.PlacarVisitante</span>
+                                        @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
+                                        {
+                                            <span class="hoje-pen">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</span>
+                                        }
                                     }
                                     else
                                     {

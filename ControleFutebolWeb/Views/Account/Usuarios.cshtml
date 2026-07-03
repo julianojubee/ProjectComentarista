@@ -69,29 +69,34 @@
                         </form>
                     </td>
                 </tr>
-
-                <!-- Modal redefinir senha -->
-                <div class="modal fade" id="modalSenha-@u.Id" tabindex="-1">
-                    <div class="modal-dialog">
-                        <form asp-action="RedefinirSenha" method="post" class="modal-content">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="id" value="@u.Id" />
-                            <div class="modal-header">
-                                <h5 class="modal-title">Redefinir senha — @u.Nome</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <label class="form-label">Nova senha</label>
-                                <input type="password" name="novaSenha" class="form-control" required minlength="6" />
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                <button type="submit" class="btn btn-warning">Redefinir</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
             }
         </tbody>
     </table>
 </div>
+
+@* Modais de redefinir senha: precisam ficar fora da <table> — um <div> como
+   filho direto de <tbody> é HTML inválido e o navegador o realoca durante o
+   parsing (foster parenting), o que deixava o modal aberto mas não-clicável. *@
+@foreach (var u in Model)
+{
+    <div class="modal fade" id="modalSenha-@u.Id" tabindex="-1">
+        <div class="modal-dialog">
+            <form asp-action="RedefinirSenha" method="post" class="modal-content">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@u.Id" />
+                <div class="modal-header">
+                    <h5 class="modal-title">Redefinir senha — @u.Nome</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label">Nova senha</label>
+                    <input type="password" name="novaSenha" class="form-control" required minlength="6" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">Redefinir</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}

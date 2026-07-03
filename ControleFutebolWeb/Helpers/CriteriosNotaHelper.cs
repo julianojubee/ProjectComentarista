@@ -89,8 +89,12 @@ namespace ControleFutebolWeb.Helpers
                 return golsSofridosTime == 0;
             }
 
-            // Fallback: estatística individual (preenchida principalmente para goleiros).
-            return e.GolsSofridos == 0;
+            // Fallback quando e.Jogo não veio carregado na consulta: a estatística
+            // individual GolsSofridos só é confiável para goleiros — para jogadores
+            // de linha ela é sempre 0 e daria o bônus indevidamente. Nesse caso é
+            // melhor NÃO dar o bônus do que inflar a nota.
+            bool goleiro = pos!.Equals("Goleiro", StringComparison.OrdinalIgnoreCase);
+            return goleiro && e.GolsSofridos == 0;
         }
 
         // Calcula a pontuação usando os critérios do banco (ou padrões se lista vazia)

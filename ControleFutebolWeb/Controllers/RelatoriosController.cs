@@ -319,12 +319,16 @@ namespace ControleFutebolWeb.Controllers
             // Jogos com placar; se incluirNaoAnalisados=false, restringe aos analisados pelo usuário
             var jogosAnalisadosIds = usuarioId != null
                 ? await _context.JogosAnalisadosUsuario
-                    .Where(j => j.UsuarioId == usuarioId)
+                    .Where(j => j.UsuarioId == usuarioId && j.Analisado)
                     .Select(j => j.JogoId)
                     .ToHashSetAsync()
                 : new HashSet<int>();
 
+            // Tudo aqui é somente leitura (alimenta a view): AsNoTrackingWithIdentityResolution
+            // evita o custo do change tracker mas mantém a deduplicação das entidades
+            // repetidas nos Includes (mesmo Jogador/Time em milhares de linhas).
             var jogosQuery = _context.Jogos
+            .AsNoTrackingWithIdentityResolution()
             .Include(j => j.TimeCasa)
             .Include(j => j.TimeVisitante)
             .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue
@@ -354,18 +358,25 @@ namespace ControleFutebolWeb.Controllers
 
             // Carregar dados relacionados filtrados pelos jogos
             var gols = await _context.Gols
+                .AsNoTrackingWithIdentityResolution()
                 .Include(g => g.Jogador).ThenInclude(j => j!.Time)
                 .Include(g => g.Jogador).ThenInclude(j => j!.Selecao)
                 .Where(g => jogoIds.Contains(g.JogoId))
                 .ToListAsync();
 
             var estatisticasJogadores = await _context.EstatisticasJogador
+                .AsNoTrackingWithIdentityResolution()
                 .Include(e => e.Jogador).ThenInclude(j => j!.Time)
                 .Include(e => e.Jogador).ThenInclude(j => j!.Selecao)
+                // Jogo precisa vir junto: o bônus "não sofreu gol" (CriteriosNotaHelper)
+                // lê e.Jogo (placar). Sem tracking não há fixup entre consultas, então
+                // sem este Include a navegação fica null e o bônus sai errado.
+                .Include(e => e.Jogo)
                 .Where(e => jogoIds.Contains(e.JogoId))
                 .ToListAsync();
 
             var escalacoes = await _context.Escalacoes
+                .AsNoTrackingWithIdentityResolution()
                 .Include(e => e.Jogador).ThenInclude(j => j!.Time)
                 .Include(e => e.Jogador).ThenInclude(j => j!.Selecao)
                 .Where(e => jogoIds.Contains(e.JogoId) && e.JogadorId.HasValue && e.Titular
@@ -373,18 +384,21 @@ namespace ControleFutebolWeb.Controllers
                 .ToListAsync();
 
             var cartoes = await _context.Cartoes
+                .AsNoTrackingWithIdentityResolution()
                 .Include(c => c.Jogador).ThenInclude(j => j!.Time)
                 .Include(c => c.Jogador).ThenInclude(j => j!.Selecao)
                 .Where(c => jogoIds.Contains(c.JogoId))
                 .ToListAsync();
 
             var assistencias = await _context.Assistencias
+                .AsNoTrackingWithIdentityResolution()
                 .Include(a => a.Jogador).ThenInclude(j => j!.Time)
                 .Include(a => a.Jogador).ThenInclude(j => j!.Selecao)
                 .Where(a => jogoIds.Contains(a.JogoId))
                 .ToListAsync();
 
             var notas = await _context.Notas
+                .AsNoTrackingWithIdentityResolution()
                 .Include(n => n.Jogador).ThenInclude(j => j!.Time)
                 .Include(n => n.Jogador).ThenInclude(j => j!.Selecao)
                 .Where(n => jogoIds.Contains(n.JogoId)
@@ -394,7 +408,7 @@ namespace ControleFutebolWeb.Controllers
             var topTierIdsRel = usuarioId != null
                 ? await _context.CompeticoesTopTierUsuario.Where(t => t.UsuarioId == usuarioId).Select(t => t.CompeticaoId).ToHashSetAsync()
                 : new HashSet<int>();
-            var competicoes = (await _context.Competicoes.OrderBy(c => c.Nome).ToListAsync())
+            var competicoes = (await _context.Competicoes.AsNoTracking().OrderBy(c => c.Nome).ToListAsync())
                 .OrderByDescending(c => topTierIdsRel.Contains(c.Id)).ThenBy(c => c.Nome).ToList();
 
             // Lista de times do filtro: só os que participam das competições selecionadas (ou todos, se nenhuma)
@@ -409,12 +423,13 @@ namespace ControleFutebolWeb.Controllers
                     .Select(j => j.TimeVisitanteId);
                 var idsTimesNasComps = await idsCasa.Union(idsVisitante).ToListAsync();
                 times = await _context.Times
+                    .AsNoTracking()
                     .Where(t => idsTimesNasComps.Contains(t.Id))
                     .OrderBy(t => t.Nome).ToListAsync();
             }
             else
             {
-                times = await _context.Times.OrderBy(t => t.Nome).ToListAsync();
+                times = await _context.Times.AsNoTracking().OrderBy(t => t.Nome).ToListAsync();
             }
 
             // Filtro por time: inclui jogadores vinculados ao clube OU à seleção (para competições de seleção)
@@ -564,22 +579,31 @@ namespace ControleFutebolWeb.Controllers
 
                 if (!jogos.Any()) continue;
 
-                var jogoIds = jogos.Select(j => j.Id).ToHashSet();
+                // Gols/cartões/assistências são contados por TODOS os jogos da competição,
+                // não só os com placar definido: a reimportação de escalação/eventos
+                // (ForcarReimportarEscalacaoAsync) grava gols do jogo sem atualizar o placar,
+                // então um jogo pode ter gols registrados mesmo com PlacarCasa/PlacarVisitante
+                // nulos — restringir ao placar sub-contava o total.
+                var todosJogoIdsComp = await _context.Jogos
+                    .Where(j => j.CompeticaoId == comp.Id)
+                    .Select(j => j.Id)
+                    .ToListAsync();
+                var jogoIdsTodos = todosJogoIdsComp.ToHashSet();
 
                 var gols = await _context.Gols
                     .Include(g => g.Jogador)
                         .ThenInclude(j => j.Time)
-                    .Where(g => jogoIds.Contains(g.JogoId))
+                    .Where(g => jogoIdsTodos.Contains(g.JogoId))
                     .ToListAsync();
 
                 var cartoes = await _context.Cartoes
-                    .Where(c => jogoIds.Contains(c.JogoId))
+                    .Where(c => jogoIdsTodos.Contains(c.JogoId))
                     .ToListAsync();
 
                 var assistencias = await _context.Assistencias
                     .Include(a => a.Jogador)
                         .ThenInclude(j => j.Time)
-                    .Where(a => jogoIds.Contains(a.JogoId))
+                    .Where(a => jogoIdsTodos.Contains(a.JogoId))
                     .ToListAsync();
 
                 int vitoriasMandante = 0, vitoriasVisitante = 0, empates = 0;

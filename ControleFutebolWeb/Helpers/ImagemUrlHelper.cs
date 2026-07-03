@@ -21,5 +21,21 @@ namespace ControleFutebolWeb.Helpers
 
             return foto;
         }
+
+        /// <summary>
+        /// Mesma regra do <see cref="FotoSrc"/>, mas gera URL absoluta — necessário
+        /// para as respostas da API (api/v1/*), consumidas pelo app Android, que não
+        /// têm uma "página atual" para resolver uma URL relativa contra.
+        /// </summary>
+        public static string? FotoSrcAbsoluto(this IUrlHelper url, HttpRequest request, string? foto)
+        {
+            if (string.IsNullOrWhiteSpace(foto)) return null;
+
+            if (Uri.TryCreate(foto, UriKind.Absolute, out var uri) &&
+                uri.Host.EndsWith("api-sports.io", StringComparison.OrdinalIgnoreCase))
+                return url.Action("Imagem", "MediaProxy", new { url = foto }, request.Scheme);
+
+            return foto;
+        }
     }
 }

@@ -48,6 +48,10 @@
                     @if (jogo.PlacarCasa >= 0 && jogo.PlacarVisitante >= 0)
                     {
                         @($"{jogo.PlacarCasa} - {jogo.PlacarVisitante}")
+                        @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
+                        {
+                            <span class="text-muted">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</span>
+                        }
                     }
                     else
                     {

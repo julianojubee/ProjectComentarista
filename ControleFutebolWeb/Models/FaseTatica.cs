@@ -18,5 +18,6 @@ namespace ControleFutebolWeb.Models
         public string Chave { get; set; } = "";   // usado em Escalacao.FaseEscalacao
         public int Ordem { get; set; }
         public int MinutoInicio { get; set; }
+        public string? Nome { get; set; }
     }
 }

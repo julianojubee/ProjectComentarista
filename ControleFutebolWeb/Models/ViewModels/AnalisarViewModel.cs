@@ -39,15 +39,22 @@ namespace ControleFutebolWeb.Models.ViewModels
         public List<int> JogadoresSairamCasa { get; set; } = new();
         public List<int> JogadoresSairamVisitante { get; set; } = new();
 
+        // Tooltip da seta verde: id de quem entrou → "nome de quem saiu (minuto')".
+        public Dictionary<int, string> EntrouNoLugarDe { get; set; } = new();
+
         public Dictionary<int, int> GolsPorJogador { get; set; } = new();
         public Dictionary<int, int> AssistsPorJogador { get; set; } = new();
 
         // Jogo analisado pelo usuário atual (existência de JogoAnalisadoUsuario).
         public bool Analisado { get; set; }
 
-        public string? ObservacoesUsuario { get; set; }
-
         // Observações livres do jogo (público, curiosidades etc.), por usuário.
         public string? ObservacoesLivresUsuario { get; set; }
+
+        // Observações categorizadas por tag (mandante/visitante/competição/jogador/marco).
+        public List<ObservacaoJogoTag> ObservacoesTag { get; set; } = new();
+
+        // Jogadores escalados neste jogo (qualquer fase), para o seletor da tag "Jogador".
+        public List<Jogador> JogadoresEscalados { get; set; } = new();
     }
 }

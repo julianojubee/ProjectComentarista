@@ -433,6 +433,16 @@ namespace ControleFutebolWeb.Services
             await ImportarLineupEEventos(context, jogo,
                 fx, jogo.TimeCasa, jogo.TimeVisitante, cicloId, ct);
 
+            // Atualiza as formações do jogo a partir da API — antes só o fluxo de
+            // sincronização fazia isso; a reimportação deixava os selects de
+            // formação (Inicial/Final) sem preencher.
+            var formCasaStr = fx.Lineups.FirstOrDefault(l => l.Team.Id == fx.Teams.Home.Id)?.Formation;
+            var formVisStr  = fx.Lineups.FirstOrDefault(l => l.Team.Id == fx.Teams.Away.Id)?.Formation;
+            if (!string.IsNullOrWhiteSpace(formCasaStr))
+                jogo.FormacaoCasaId = (await ObterOuCriarFormacao(context, formCasaStr, ct)).Id;
+            if (!string.IsNullOrWhiteSpace(formVisStr))
+                jogo.FormacaoVisitanteId = (await ObterOuCriarFormacao(context, formVisStr, ct)).Id;
+
             if (fx.Statistics.Any())
                 jogo.EstatisticasJson = MontarEstatisticasJson(fx);
 
@@ -759,6 +769,20 @@ namespace ControleFutebolWeb.Services
                     existente.PenaltisCasa = fx.Score.Penalty.Home;
                     existente.PenaltisVisitante = fx.Score.Penalty.Away;
 
+                    // Jogo criado como "Agendado" nasceu com a formação padrão (a 1ª da tabela).
+                    // Agora que a lineup real chegou, corrige a formação do jogo para bater com o
+                    // campo (fonte de verdade da API). Só atualiza a formação do jogo — as posições
+                    // em campo (escalação) e observações continuam preservadas.
+                    if (fx.Lineups.Any())
+                    {
+                        var formCasaStr = fx.Lineups.FirstOrDefault(l => l.Team.Id == fx.Teams.Home.Id)?.Formation;
+                        var formVisStr  = fx.Lineups.FirstOrDefault(l => l.Team.Id == fx.Teams.Away.Id)?.Formation;
+                        if (!string.IsNullOrWhiteSpace(formCasaStr))
+                            existente.FormacaoCasaId = (await ObterOuCriarFormacao(context, formCasaStr, ct)).Id;
+                        if (!string.IsNullOrWhiteSpace(formVisStr))
+                            existente.FormacaoVisitanteId = (await ObterOuCriarFormacao(context, formVisStr, ct)).Id;
+                    }
+
                     var temEscalacao = await context.Escalacoes
                         .AnyAsync(e => e.JogoId == existente.Id && e.JogadorId != null, ct);
 
@@ -848,6 +872,10 @@ namespace ControleFutebolWeb.Services
             context.Cartoes.RemoveRange(cartoesOld);
             var subsOld = await context.Substituicoes.Where(s => s.JogoId == jogo.Id).ToListAsync(ct);
             context.Substituicoes.RemoveRange(subsOld);
+            var penPerdOld = await context.PenaltisPerdidos.Where(p => p.JogoId == jogo.Id).ToListAsync(ct);
+            context.PenaltisPerdidos.RemoveRange(penPerdOld);
+            var penDispOld = await context.PenaltisDisputa.Where(p => p.JogoId == jogo.Id).ToListAsync(ct);
+            context.PenaltisDisputa.RemoveRange(penDispOld);
 
             // Mapa: IdApi → Jogador local (para vincular eventos)
             var jogadorMap = new Dictionary<int, Jogador>();
@@ -940,6 +968,7 @@ namespace ControleFutebolWeb.Services
             await context.SaveChangesAsync(ct);
 
             // Eventos
+            var ordemPenaltiDisputa = 0;
             foreach (var ev in fx.Events)
             {
                 var isTimeCasa = ev.Team.Id == fx.Teams.Home.Id;
@@ -953,6 +982,35 @@ namespace ControleFutebolWeb.Services
                         var jogador = await ResolverJogador(context, ev.Player.Id.Value,
                             ev.Player.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct);
                         if (jogador == null) break;
+
+                        // Disputa de pênaltis (mata-mata): a api-football marca cada cobrança
+                        // com comments "Penalty Shootout". Convertido = detail "Penalty",
+                        // perdido/defendido = detail "Missed Penalty". Registra a cobrança
+                        // (com a ordem) sem somar ao placar do tempo normal nem aos gols.
+                        if (ev.Comments?.Contains("Shootout", StringComparison.OrdinalIgnoreCase) == true)
+                        {
+                            context.PenaltisDisputa.Add(new PenaltiDisputa
+                            {
+                                JogoId = jogo.Id, JogadorId = jogador.Id,
+                                IsTimeCasa = isTimeCasa,
+                                Convertido = ev.Detail?.Contains("Missed", StringComparison.OrdinalIgnoreCase) != true,
+                                Ordem = ++ordemPenaltiDisputa
+                            });
+                            break;
+                        }
+
+                        // A api-football marca pênalti perdido/defendido como type "Goal"
+                        // com detail "Missed Penalty" — NÃO é gol. Registra como evento
+                        // próprio (com minuto), sem somar ao placar nem à contagem de gols.
+                        if (ev.Detail?.Contains("Missed", StringComparison.OrdinalIgnoreCase) == true)
+                        {
+                            context.PenaltisPerdidos.Add(new PenaltiPerdido
+                            {
+                                JogoId = jogo.Id, JogadorId = jogador.Id,
+                                Minuto = minuto, IsTimeCasa = isTimeCasa
+                            });
+                            break;
+                        }
 
                         var contra = ev.Detail?.Contains("Own", StringComparison.OrdinalIgnoreCase) == true;
                         context.Gols.Add(new Gol
@@ -1004,10 +1062,13 @@ namespace ControleFutebolWeb.Services
                             entrou = await ResolverJogador(context, ev.Assist.Id.Value,
                                 ev.Assist.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct);
 
+                        // Se quem entrou não foi resolvido, fica null — jamais usar o
+                        // jogador que saiu como fallback: isso registrava "fulano entrou
+                        // no lugar de fulano" e quebrava as setas ↑/↓ da tela Analisar.
                         context.Substituicoes.Add(new Substituicao
                         {
                             JogoId = jogo.Id,
-                            JogadorEntrouId = entrou?.Id ?? saiu.Id,
+                            JogadorEntrouId = entrou?.Id,
                             JogadorSaiuId = saiu.Id,
                             Minuto = minuto,
                             IsTimeCasa = isTimeCasa
@@ -1019,7 +1080,9 @@ namespace ControleFutebolWeb.Services
 
             await context.SaveChangesAsync(ct);
 
-            int gols = fx.Events.Count(e => e.Type.Equals("Goal", StringComparison.OrdinalIgnoreCase));
+            int gols = fx.Events.Count(e => e.Type.Equals("Goal", StringComparison.OrdinalIgnoreCase)
+                && e.Detail?.Contains("Missed", StringComparison.OrdinalIgnoreCase) != true
+                && e.Comments?.Contains("Shootout", StringComparison.OrdinalIgnoreCase) != true);
             int cartoes = fx.Events.Count(e => e.Type.Equals("Card", StringComparison.OrdinalIgnoreCase));
             int subs = fx.Events.Count(e => e.Type.Equals("subst", StringComparison.OrdinalIgnoreCase));
             int titulares = fx.Lineups.Sum(l => l.StartXI.Count);
@@ -1338,10 +1401,14 @@ namespace ControleFutebolWeb.Services
         {
             var nome = TraduzirNomeTIme(nomeOriginal);
 
+            // O fallback por nome só pode casar com times ainda sem IdApi (cadastrados
+            // manualmente, sem vínculo com a API) — nunca com um time já vinculado a OUTRO
+            // IdApi, senão dois clubes reais de países diferentes com o mesmo nome (ex.:
+            // "Athletic Club" na Espanha e no Brasil) acabam sendo tratados como o mesmo time.
             var time = await context.Times.FirstOrDefaultAsync(t => t.IdApi == idApi, ct)
-                    ?? await context.Times.FirstOrDefaultAsync(t => t.Nome == nome, ct)
+                    ?? await context.Times.FirstOrDefaultAsync(t => t.IdApi == 0 && t.Nome == nome, ct)
                     ?? (nomeOriginal != nome
-                        ? await context.Times.FirstOrDefaultAsync(t => t.Nome == nomeOriginal, ct)
+                        ? await context.Times.FirstOrDefaultAsync(t => t.IdApi == 0 && t.Nome == nomeOriginal, ct)
                         : null);
 
             if (time != null)

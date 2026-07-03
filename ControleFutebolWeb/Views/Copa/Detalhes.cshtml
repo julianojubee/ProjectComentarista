@@ -32,7 +32,13 @@
                 <td>@ControleFutebolWeb.Helpers.DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy HH:mm")</td>
                 <td>@jogo.TimeCasa?.Nome</td>
                 <td>@jogo.TimeVisitante?.Nome</td>
-                <td>@(jogo.PlacarCasa.HasValue ? $"{jogo.PlacarCasa} x {jogo.PlacarVisitante}" : "-")</td>
+                <td>
+                    @(jogo.PlacarCasa.HasValue ? $"{jogo.PlacarCasa} x {jogo.PlacarVisitante}" : "-")
+                    @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
+                    {
+                        <span class="text-muted">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</span>
+                    }
+                </td>
             </tr>
         }
     </tbody>

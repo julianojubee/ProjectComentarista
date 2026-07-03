@@ -1,0 +1,4 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Tema de "casca" da Activity antes do Compose assumir o conteúdo. -->
+    <style name="Theme.ComentaristaFutebol" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

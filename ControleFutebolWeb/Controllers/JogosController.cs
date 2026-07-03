@@ -45,6 +45,7 @@ namespace ControleFutebolWeb.Controllers
             var fimUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(fimDiaBrasil, DateTimeKind.Unspecified), fusoHorarioBrasil);
 
             var jogos = await _context.Jogos
+                .AsNoTracking()
                 .Include(j => j.TimeCasa)
                 .Include(j => j.TimeVisitante)
                 .Include(j => j.Competicao)
@@ -54,7 +55,7 @@ namespace ControleFutebolWeb.Controllers
 
             var jogosAnalisadosIds = uid != null
                 ? await _context.JogosAnalisadosUsuario
-                    .Where(j => j.UsuarioId == uid)
+                    .Where(j => j.UsuarioId == uid && j.Analisado)
                     .Select(j => j.JogoId)
                     .ToHashSetAsync()
                 : new HashSet<int>();
@@ -560,18 +561,32 @@ namespace ControleFutebolWeb.Controllers
 
                     foreach (var sub in substituicoes)
                     {
-                        if (sub.JogadorSaiuId == null) continue;
+                        if (sub.JogadorSaiuId == null || sub.JogadorEntrouId == null
+                            || sub.JogadorEntrouId == sub.JogadorSaiuId) // linhas antigas corrompidas (entrou=saiu)
+                            continue;
 
+                        // Slot em campo de quem saiu (titular). Sem ele, não há o que substituir.
                         var slotSaiu = clonesFinais.FirstOrDefault(c =>
                             c.JogadorId == sub.JogadorSaiuId && c.IsTimeCasa == sub.IsTimeCasa && c.Titular);
+                        if (slotSaiu == null) continue;
+
+                        // Se quem entrou já está em campo, nada a fazer (evita reprocessar).
+                        bool jaEmCampo = clonesFinais.Any(c =>
+                            c.JogadorId == sub.JogadorEntrouId && c.IsTimeCasa == sub.IsTimeCasa && c.Titular);
+                        if (jaEmCampo) continue;
+
+                        // Slot de quem entrou (no banco). Pode não existir se a importação trouxe
+                        // o banco incompleto ou o jogador não estava entre os reservas.
                         var slotEntrou = clonesFinais.FirstOrDefault(c =>
-                            c.JogadorId == sub.JogadorEntrouId && c.IsTimeCasa == sub.IsTimeCasa);
+                            c.JogadorId == sub.JogadorEntrouId && c.IsTimeCasa == sub.IsTimeCasa && !c.Titular);
 
-                        if (slotSaiu == null || slotEntrou == null) continue;
+                        // Quem saiu vai para o banco (se houver slot de reserva); senão, apenas deixa o campo.
+                        if (slotEntrou != null)
+                            slotEntrou.JogadorId = slotSaiu.JogadorId;
 
-                        var jogadorIdTemp = slotSaiu.JogadorId;
-                        slotSaiu.JogadorId = slotEntrou.JogadorId;
-                        slotEntrou.JogadorId = jogadorIdTemp;
+                        // Quem entrou assume a posição em campo de quem saiu — mesmo que não
+                        // estivesse no banco importado (garante a seta verde no jogador certo).
+                        slotSaiu.JogadorId = sub.JogadorEntrouId;
                     }
 
                     _context.Escalacoes.AddRange(clonesFinais);
@@ -910,11 +925,28 @@ namespace ControleFutebolWeb.Controllers
 
                 // Usa Substituicoes como fonte primária e complementa com diff INICIAL/FINAL
                 var subsJogo = await _context.Substituicoes
+                    .Include(s => s.JogadorSaiu)
                     .Where(s => s.JogoId == id)
                     .ToListAsync();
 
-                var entrouCasaSubs     = subsJogo.Where(s => s.IsTimeCasa  && s.JogadorEntrouId != 0).Select(s => s.JogadorEntrouId).ToHashSet();
-                var entrouVisitanteSubs= subsJogo.Where(s => !s.IsTimeCasa && s.JogadorEntrouId != 0).Select(s => s.JogadorEntrouId).ToHashSet();
+                // Tooltip da seta verde: "Entrou no lugar de {nome} ({minuto}')"
+                vm.EntrouNoLugarDe = subsJogo
+                    .Where(s => s.JogadorEntrouId.HasValue
+                             && s.JogadorEntrouId != s.JogadorSaiuId
+                             && s.JogadorSaiu != null)
+                    .GroupBy(s => s.JogadorEntrouId!.Value)
+                    .ToDictionary(
+                        g => g.Key,
+                        g =>
+                        {
+                            var s = g.First();
+                            return s.Minuto > 0 ? $"{s.JogadorSaiu!.Nome} ({s.Minuto}')" : s.JogadorSaiu!.Nome;
+                        });
+
+                // Ignora "entrou == saiu": linhas gravadas pelo import antigo quando o
+                // jogador que entrou não era resolvido (fallback errado, já removido).
+                var entrouCasaSubs     = subsJogo.Where(s => s.IsTimeCasa  && s.JogadorEntrouId.HasValue && s.JogadorEntrouId != s.JogadorSaiuId).Select(s => s.JogadorEntrouId!.Value).ToHashSet();
+                var entrouVisitanteSubs= subsJogo.Where(s => !s.IsTimeCasa && s.JogadorEntrouId.HasValue && s.JogadorEntrouId != s.JogadorSaiuId).Select(s => s.JogadorEntrouId!.Value).ToHashSet();
                 var saiuCasaSubs       = subsJogo.Where(s => s.IsTimeCasa  && s.JogadorSaiuId.HasValue).Select(s => s.JogadorSaiuId!.Value).ToHashSet();
                 var saiuVisitanteSubs  = subsJogo.Where(s => !s.IsTimeCasa && s.JogadorSaiuId.HasValue).Select(s => s.JogadorSaiuId!.Value).ToHashSet();
 
@@ -991,15 +1023,30 @@ namespace ControleFutebolWeb.Controllers
             vm.FormacaoCasaSelecionada = idFormacaoCasa;
             vm.FormacaoVisitanteSelecionada = idFormacaoVisitante;
             vm.FaseEscalacaoAtual = faseAtual;
-            // "Analisado" é por usuário (existência da linha em JogosAnalisadosUsuario),
+            // "Analisado" é por usuário (flag Analisado em JogosAnalisadosUsuario),
             // não o campo global Jogo.Analisado — assim o estado bate com a lista /Jogos
             // e não "desmarca" ao recarregar a tela após salvar a escalação.
+            // A linha pode existir com Analisado=false (usuário desmarcou, mas as
+            // Observacoes continuam preservadas nela) — por isso checa o flag, não
+            // só a existência da linha.
             var analiseUsuario = await _context.JogosAnalisadosUsuario
                 .FirstOrDefaultAsync(j => j.JogoId == id && j.UsuarioId == usuarioId);
-            vm.Analisado = analiseUsuario != null;
-            vm.ObservacoesUsuario = analiseUsuario?.Observacoes;
+            vm.Analisado = analiseUsuario?.Analisado == true;
             vm.ObservacoesLivresUsuario = (await _context.ObservacoesJogoUsuario
                 .FirstOrDefaultAsync(o => o.JogoId == id && o.UsuarioId == usuarioId))?.Texto;
+
+            vm.ObservacoesTag = await _context.ObservacoesJogoTag
+                .Include(o => o.Jogador)
+                .Where(o => o.JogoId == id && o.UsuarioId == usuarioId)
+                .OrderBy(o => o.Ordem)
+                .ToListAsync();
+
+            vm.JogadoresEscalados = await _context.Escalacoes
+                .Where(e => e.JogoId == id && e.JogadorId != null)
+                .Select(e => e.Jogador!)
+                .Distinct()
+                .OrderBy(j => j.Nome)
+                .ToListAsync();
             vm.EscalacaoFinalDisponivel = await _context.Escalacoes.AnyAsync(e => e.JogoId == id && e.FaseEscalacao == "FINAL" && e.UsuarioId == usuarioId);
             vm.MostrarBancoReservas = faseAtual == "INICIAL";
 
@@ -1040,7 +1087,6 @@ namespace ControleFutebolWeb.Controllers
             int formacaoCasaId,
             int formacaoVisitanteId,
             string? faseEscalacao,
-            string? observacoesComTags,
             List<EscalacaoInput> escalacaoCasa,
             List<EscalacaoInput> escalacaoVisitante,
             List<EscalacaoInput> reservasCasa,
@@ -1140,14 +1186,13 @@ namespace ControleFutebolWeb.Controllers
                 if (formacaoVisitanteId > 0) jogo.FormacaoVisitanteId = formacaoVisitanteId;
                 if (faseAtual == "FINAL")
                 {
-                    var observacoes = string.IsNullOrWhiteSpace(observacoesComTags) ? null : observacoesComTags.Trim();
-                    // Registrar análise por usuário (observações são por usuário)
+                    // Registrar análise por usuário. Analisado fica true pelo default do
+                    // model — salvar a escalação final já marca o jogo como analisado
+                    // (comportamento pré-existente).
                     var registroUsuario = await _context.JogosAnalisadosUsuario
                         .FirstOrDefaultAsync(j => j.JogoId == id && j.UsuarioId == usuarioId);
                     if (registroUsuario == null)
-                        _context.JogosAnalisadosUsuario.Add(new JogoAnalisadoUsuario { JogoId = id, UsuarioId = usuarioId, Observacoes = observacoes });
-                    else
-                        registroUsuario.Observacoes = observacoes;
+                        _context.JogosAnalisadosUsuario.Add(new JogoAnalisadoUsuario { JogoId = id, UsuarioId = usuarioId });
                 }
             }
 
@@ -1277,10 +1322,24 @@ namespace ControleFutebolWeb.Controllers
                 .OrderBy(s => s.Minuto)
                 .ToListAsync();
 
+            var penaltisPerdidos = await _context.PenaltisPerdidos
+                .Include(p => p.Jogador)
+                .Where(p => p.JogoId == jogoId)
+                .OrderBy(p => p.Minuto)
+                .ToListAsync();
+
+            var penaltisDisputa = await _context.PenaltisDisputa
+                .Include(p => p.Jogador)
+                .Where(p => p.JogoId == jogoId)
+                .OrderBy(p => p.Ordem)
+                .ToListAsync();
+
             var resultado = new
             {
                 placarCasa = jogo.PlacarCasa,
                 placarVis = jogo.PlacarVisitante,
+                penaltisCasa = jogo.PenaltisCasa,
+                penaltisVis = jogo.PenaltisVisitante,
 
                 gols = gols.Select(g => new
                 {
@@ -1321,6 +1380,23 @@ namespace ControleFutebolWeb.Controllers
                     nomeEntrou = s.JogadorEntrou?.Nome,
                     nomeSaiu = s.JogadorSaiu?.Nome,
                     timeCasaId = s.IsTimeCasa ? (int?)jogo.TimeCasaId : null
+                }),
+
+                penaltisPerdidos = penaltisPerdidos.Select(p => new
+                {
+                    id = p.Id,
+                    minuto = p.Minuto,
+                    nomeJogador = p.Jogador?.Nome,
+                    timeCasaId = p.IsTimeCasa ? (int?)jogo.TimeCasaId : null
+                }),
+
+                penaltisDisputa = penaltisDisputa.Select(p => new
+                {
+                    id = p.Id,
+                    ordem = p.Ordem,
+                    nomeJogador = p.Jogador?.Nome,
+                    convertido = p.Convertido,
+                    isCasa = p.IsTimeCasa
                 })
             };
 
@@ -1540,13 +1616,65 @@ namespace ControleFutebolWeb.Controllers
             var registro = await _context.JogosAnalisadosUsuario
                 .FirstOrDefaultAsync(j => j.JogoId == req.JogoId && j.UsuarioId == usuarioId);
 
-            if (req.Analisado == 1 && registro == null)
-                _context.JogosAnalisadosUsuario.Add(new JogoAnalisadoUsuario { JogoId = req.JogoId, UsuarioId = usuarioId });
-            else if (req.Analisado == 0 && registro != null)
-                _context.JogosAnalisadosUsuario.Remove(registro);
+            // NUNCA remove a linha: ela também guarda as Observacoes da escalação
+            // final (ver SalvarEscalacao). Remover apagava as observações do usuário
+            // ao desmarcar "analisado" — aqui só alternamos o flag Analisado.
+            if (registro == null)
+                _context.JogosAnalisadosUsuario.Add(new JogoAnalisadoUsuario
+                {
+                    JogoId = req.JogoId,
+                    UsuarioId = usuarioId,
+                    Analisado = req.Analisado == 1
+                });
+            else
+                registro.Analisado = req.Analisado == 1;
 
             await _context.SaveChangesAsync();
             return Ok(new { analisado = req.Analisado });
+        }
+
+        public class SalvarObservacoesJogoRequest
+        {
+            public int JogoId { get; set; }
+            public string? Texto { get; set; }
+        }
+
+        // POST: Jogos/SalvarObservacoesJogo
+        // Observações livres do jogo (público, curiosidades etc.), por usuário.
+        // Independente do "marcar como analisado".
+        [HttpPost]
+        public async Task<IActionResult> SalvarObservacoesJogo([FromBody] SalvarObservacoesJogoRequest req)
+        {
+            var usuarioId = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(usuarioId)) return Unauthorized();
+
+            if (!await _context.Jogos.AnyAsync(j => j.Id == req.JogoId))
+                return NotFound(new { erro = "Jogo não encontrado." });
+
+            var texto = string.IsNullOrWhiteSpace(req.Texto) ? null : req.Texto.Trim();
+
+            var registro = await _context.ObservacoesJogoUsuario
+                .FirstOrDefaultAsync(o => o.JogoId == req.JogoId && o.UsuarioId == usuarioId);
+
+            if (registro == null)
+            {
+                if (texto != null)
+                    _context.ObservacoesJogoUsuario.Add(new ObservacaoJogoUsuario
+                    {
+                        JogoId = req.JogoId,
+                        UsuarioId = usuarioId,
+                        Texto = texto,
+                        DtAlt = DateTime.UtcNow
+                    });
+            }
+            else
+            {
+                registro.Texto = texto;
+                registro.DtAlt = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { ok = true });
         }
 
         // POST: Jogos/ReimportarEscalacao/12964
@@ -1555,6 +1683,9 @@ namespace ControleFutebolWeb.Controllers
         [HttpPost]
         public IActionResult ReimportarEscalacao(int id)
         {
+            // Captura o usuário ANTES do background — User não existe na thread do Task.Run.
+            var uid = _userManager.GetUserId(User);
+
             // Executa em background para não travar o request (operação pode levar 1-2 min)
             _ = Task.Run(async () =>
             {
@@ -1564,6 +1695,38 @@ namespace ControleFutebolWeb.Controllers
                 try
                 {
                     var (ok, msg) = await svc.ForcarReimportarEscalacaoAsync(ctx, id);
+
+                    // A reimportação atualiza só as escalações compartilhadas (UsuarioId == null).
+                    // Se o usuário já tinha uma cópia pessoal deste jogo, ela "sombreia" a nova e
+                    // ele continuaria vendo a escalação antiga. Remove a cópia pessoal dele para que
+                    // a tela Analisar recopie da importação fresca no próximo acesso.
+                    //
+                    // IMPORTANTE: apaga SOMENTE as fases INICIAL/FINAL (as que a cópia-do-compartilhado
+                    // regenera). As fases táticas intermediárias (cronômetro) têm FaseEscalacao == Chave
+                    // e NÃO são recriáveis pela importação — preservá-las evita perder a escalação que o
+                    // usuário salvou durante o jogo.
+                    if (ok && !string.IsNullOrEmpty(uid))
+                    {
+                        var pessoais = await ctx.Escalacoes
+                            .Where(e => e.JogoId == id && e.UsuarioId == uid
+                                     && (e.FaseEscalacao == "INICIAL"
+                                         || e.FaseEscalacao == "FINAL"
+                                         || e.FaseEscalacao == null))
+                            .ToListAsync();
+                        if (pessoais.Count > 0)
+                        {
+                            ctx.Escalacoes.RemoveRange(pessoais);
+                            await ctx.SaveChangesAsync();
+                        }
+
+                        // Recria as cópias pessoais JÁ AQUI, em vez de esperar a tela
+                        // recopiar sob demanda: a recópia da FINAL clona a INICIAL
+                        // pessoal, então abrir a aba Final (ou uma fase tática) antes
+                        // da Inicial deixava a Final sem fonte e ela caía nos fallbacks
+                        // (escalação de outro jogo / slots vazios).
+                        await RecriarEscalacoesPessoaisAsync(ctx, id, uid);
+                    }
+
                     _logger.LogInformation("[ReimportarEscalacao] Jogo {Id}: {Ok} — {Msg}", id, ok, msg);
                 }
                 catch (Exception ex)
@@ -1574,6 +1737,67 @@ namespace ControleFutebolWeb.Controllers
 
             TempData["Mensagem"] = "⏳ Re-importação iniciada em background. Aguarde ~1 minuto e recarregue a página.";
             return RedirectToAction("Analisar", new { id });
+        }
+
+        // Recria as cópias pessoais INICIAL e FINAL a partir da importação fresca:
+        // INICIAL = cópia da escalação compartilhada; FINAL = INICIAL com as
+        // substituições importadas aplicadas (mesma lógica da tela Analisar).
+        private static async Task RecriarEscalacoesPessoaisAsync(FutebolContext ctx, int jogoId, string usuarioId)
+        {
+            var compartilhadas = await ctx.Escalacoes
+                .Where(e => e.JogoId == jogoId && e.UsuarioId == null
+                         && (e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null))
+                .ToListAsync();
+            if (compartilhadas.Count == 0) return;
+
+            Escalacao Clonar(Escalacao e, string fase) => new()
+            {
+                JogoId = jogoId,
+                JogadorId = e.JogadorId,
+                Titular = e.Titular,
+                Posicao = e.Posicao,
+                IsTimeCasa = e.IsTimeCasa,
+                PosicaoX = e.PosicaoX,
+                PosicaoY = e.PosicaoY,
+                FaseEscalacao = fase,
+                UsuarioId = usuarioId
+            };
+
+            var iniciais = compartilhadas.Select(e => Clonar(e, "INICIAL")).ToList();
+            var finais   = compartilhadas.Select(e => Clonar(e, "FINAL")).ToList();
+
+            // Aplica as substituições na FINAL: quem entrou assume a posição em
+            // campo de quem saiu; quem saiu vai para o banco (se houver slot).
+            var substituicoes = await ctx.Substituicoes
+                .Where(s => s.JogoId == jogoId)
+                .OrderBy(s => s.Minuto)
+                .ToListAsync();
+
+            foreach (var sub in substituicoes)
+            {
+                if (sub.JogadorSaiuId == null || sub.JogadorEntrouId == null
+                    || sub.JogadorEntrouId == sub.JogadorSaiuId)
+                    continue;
+
+                var slotSaiu = finais.FirstOrDefault(c =>
+                    c.JogadorId == sub.JogadorSaiuId && c.IsTimeCasa == sub.IsTimeCasa && c.Titular);
+                if (slotSaiu == null) continue;
+
+                bool jaEmCampo = finais.Any(c =>
+                    c.JogadorId == sub.JogadorEntrouId && c.IsTimeCasa == sub.IsTimeCasa && c.Titular);
+                if (jaEmCampo) continue;
+
+                var slotEntrou = finais.FirstOrDefault(c =>
+                    c.JogadorId == sub.JogadorEntrouId && c.IsTimeCasa == sub.IsTimeCasa && !c.Titular);
+
+                if (slotEntrou != null)
+                    slotEntrou.JogadorId = slotSaiu.JogadorId;
+                slotSaiu.JogadorId = sub.JogadorEntrouId;
+            }
+
+            ctx.Escalacoes.AddRange(iniciais);
+            ctx.Escalacoes.AddRange(finais);
+            await ctx.SaveChangesAsync();
         }
 
         // POST: Jogos/BuscarGrupo/12964
@@ -1670,6 +1894,149 @@ namespace ControleFutebolWeb.Controllers
                 _logger.LogError(ex, "[H2H] Erro ao buscar confrontos para jogo {Id}", id);
                 return StatusCode(500, "Erro ao buscar confrontos na API.");
             }
+        }
+
+        // GET: Jogos/PreJogo/5 — resumo pré-jogo (V/E/D, forma, destaques, observações)
+        // dos dois times, calculado a partir do banco local (sem depender da API externa).
+        [HttpGet]
+        public async Task<IActionResult> PreJogo(int id)
+        {
+            var jogo = await _context.Jogos
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .FirstOrDefaultAsync(j => j.Id == id);
+
+            if (jogo == null) return NotFound();
+
+            var casa = await MontarResumoPreJogoAsync(jogo, jogo.TimeCasaId, jogo.TimeCasa);
+            var visitante = await MontarResumoPreJogoAsync(jogo, jogo.TimeVisitanteId, jogo.TimeVisitante);
+
+            return Json(new { casa, visitante });
+        }
+
+        // Resumo de um time para o modal Pré-jogo, restrito à mesma competição/temporada do jogo.
+        private async Task<object> MontarResumoPreJogoAsync(Jogo jogo, int timeId, Time? time)
+        {
+            // Jogos finalizados do time na mesma competição/temporada (mais recentes primeiro)
+            var jogosTime = await _context.Jogos
+                .Where(j => j.CompeticaoId == jogo.CompeticaoId
+                         && j.Temporada == jogo.Temporada
+                         && j.Id != jogo.Id
+                         && (j.TimeCasaId == timeId || j.TimeVisitanteId == timeId)
+                         && j.PlacarCasa != null && j.PlacarVisitante != null)
+                .OrderByDescending(j => j.Data)
+                .Select(j => new { j.TimeCasaId, j.PlacarCasa, j.PlacarVisitante })
+                .ToListAsync();
+
+            int v = 0, e = 0, d = 0, golsPro = 0, golsContra = 0;
+            var form = new List<string>();
+            foreach (var j in jogosTime)
+            {
+                bool ehCasa = j.TimeCasaId == timeId;
+                int golsTime = (ehCasa ? j.PlacarCasa : j.PlacarVisitante) ?? 0;
+                int golsOpp = (ehCasa ? j.PlacarVisitante : j.PlacarCasa) ?? 0;
+                golsPro += golsTime;
+                golsContra += golsOpp;
+
+                string r = golsTime > golsOpp ? "V" : golsTime == golsOpp ? "E" : "D";
+                if (r == "V") v++; else if (r == "E") e++; else d++;
+                if (form.Count < 5) form.Add(r);
+            }
+            int total = v + e + d;
+            int aproveitamento = total > 0 ? (int)Math.Round((v * 3 + e) * 100.0 / (total * 3)) : 0;
+
+            // Artilheiros do time na competição/temporada
+            var artilheiros = await _context.Gols
+                .Where(g => g.Jogo.CompeticaoId == jogo.CompeticaoId
+                         && g.Jogo.Temporada == jogo.Temporada
+                         && !g.Contra
+                         && (g.Jogador.TimeId == timeId || g.Jogador.SelecaoId == timeId))
+                .GroupBy(g => new { g.JogadorId, g.Jogador.Nome, g.Jogador.FotoUrl })
+                .Select(grp => new { grp.Key.JogadorId, grp.Key.Nome, grp.Key.FotoUrl, Gols = grp.Count() })
+                .OrderByDescending(x => x.Gols)
+                .Take(5)
+                .ToListAsync();
+
+            // Assistências do time na competição/temporada (mapa jogador → total)
+            var assistsLista = await _context.Assistencias
+                .Where(a => a.Jogo.CompeticaoId == jogo.CompeticaoId
+                         && a.Jogo.Temporada == jogo.Temporada
+                         && (a.Jogador.TimeId == timeId || a.Jogador.SelecaoId == timeId))
+                .GroupBy(a => new { a.JogadorId, a.Jogador.Nome, a.Jogador.FotoUrl })
+                .Select(grp => new { grp.Key.JogadorId, grp.Key.Nome, grp.Key.FotoUrl, Assists = grp.Count() })
+                .OrderByDescending(x => x.Assists)
+                .ToListAsync();
+            var assistsMap = assistsLista.ToDictionary(x => x.JogadorId, x => x.Assists);
+
+            // Destaques: artilheiros + até 2 maiores assistentes que ainda não apareceram
+            var idsArtilheiros = artilheiros.Select(a => a.JogadorId).ToHashSet();
+            var destaques = artilheiros
+                .Select(a => new
+                {
+                    nome = a.Nome,
+                    foto = string.IsNullOrEmpty(a.FotoUrl) ? null : Url.Action("Imagem", "MediaProxy", new { url = a.FotoUrl }),
+                    gols = a.Gols,
+                    assists = assistsMap.TryGetValue(a.JogadorId, out var asi) ? asi : 0
+                })
+                .Concat(assistsLista
+                    .Where(a => !idsArtilheiros.Contains(a.JogadorId))
+                    .Take(2)
+                    .Select(a => new
+                    {
+                        nome = a.Nome,
+                        foto = string.IsNullOrEmpty(a.FotoUrl) ? null : Url.Action("Imagem", "MediaProxy", new { url = a.FotoUrl }),
+                        gols = 0,
+                        assists = a.Assists
+                    }))
+                .ToList();
+
+            // Observações automáticas a partir dos números
+            var observacoes = new List<string>();
+            if (total == 0)
+            {
+                observacoes.Add("Sem jogos finalizados nesta competição/temporada.");
+            }
+            else
+            {
+                observacoes.Add($"{v}V · {e}E · {d}D em {total} jogo(s) — {aproveitamento}% de aproveitamento.");
+                int saldo = golsPro - golsContra;
+                observacoes.Add($"Gols: {golsPro} marcados, {golsContra} sofridos (saldo {(saldo >= 0 ? "+" : "")}{saldo}).");
+
+                // Sequência atual (a partir do jogo mais recente)
+                if (form.Count > 0)
+                {
+                    string atual = form[0];
+                    int seq = 0;
+                    foreach (var f in form) { if (f == atual) seq++; else break; }
+                    if (seq > 1)
+                    {
+                        string plural = atual == "V" ? "vitórias" : atual == "E" ? "empates" : "derrotas";
+                        observacoes.Add($"Sequência de {seq} {plural}.");
+                    }
+                }
+
+                if (destaques.Count > 0 && destaques[0].gols > 0)
+                {
+                    var art = destaques[0];
+                    observacoes.Add($"Destaque: {art.nome} ({art.gols} gol{(art.gols > 1 ? "s" : "")}).");
+                }
+            }
+
+            return new
+            {
+                nome = time?.Nome,
+                escudo = string.IsNullOrEmpty(time?.EscudoUrl) ? null : Url.Action("Imagem", "MediaProxy", new { url = time!.EscudoUrl }),
+                vitorias = v,
+                empates = e,
+                derrotas = d,
+                jogos = total,
+                golsPro,
+                golsContra,
+                aproveitamento,
+                form,
+                destaques,
+                observacoes
+            };
         }
 
         // POST: Jogos/BuscarGrupoEmLote
@@ -1803,6 +2170,7 @@ namespace ControleFutebolWeb.Controllers
         {
             public int JogoId { get; set; }
             public int Minuto { get; set; }
+            public string? Nome { get; set; }
             public List<FaseTaticaSlot> Titulares { get; set; } = new();
         }
 
@@ -1824,7 +2192,8 @@ namespace ControleFutebolWeb.Controllers
                 UsuarioId = usuarioId,
                 Chave = chave,
                 Ordem = ordemMax + 1,
-                MinutoInicio = Math.Max(0, req.Minuto)
+                MinutoInicio = Math.Max(0, req.Minuto),
+                Nome = string.IsNullOrWhiteSpace(req.Nome) ? null : req.Nome.Trim()
             });
 
             foreach (var s in req.Titulares.Where(s => s.JogadorId > 0))
@@ -1862,6 +2231,67 @@ namespace ControleFutebolWeb.Controllers
                 .ToListAsync();
             _context.Escalacoes.RemoveRange(escs);
             _context.FasesTaticas.Remove(fase);
+            await _context.SaveChangesAsync();
+            return Ok(new { sucesso = true });
+        }
+
+        private static readonly string[] TiposObservacaoTagValidos = { "MANDANTE", "VISITANTE", "COMPETICAO", "JOGADOR", "MARCO" };
+
+        public class ObservacaoTagRequest
+        {
+            public int JogoId { get; set; }
+            public string Tipo { get; set; } = "";
+            public int? JogadorId { get; set; }
+            public string Texto { get; set; } = "";
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AdicionarObservacaoTag([FromBody] ObservacaoTagRequest req)
+        {
+            if (req == null || req.JogoId <= 0 || !TiposObservacaoTagValidos.Contains(req.Tipo) || string.IsNullOrWhiteSpace(req.Texto))
+                return BadRequest("Dados inválidos.");
+            if (req.Tipo == "JOGADOR" && (req.JogadorId is null || req.JogadorId <= 0))
+                return BadRequest("Selecione o jogador.");
+
+            var usuarioId = _userManager.GetUserId(User)!;
+
+            var ordemMax = await _context.ObservacoesJogoTag
+                .Where(o => o.JogoId == req.JogoId && o.UsuarioId == usuarioId)
+                .Select(o => (int?)o.Ordem).MaxAsync() ?? 0;
+
+            var obs = new ObservacaoJogoTag
+            {
+                JogoId = req.JogoId,
+                UsuarioId = usuarioId,
+                Tipo = req.Tipo,
+                JogadorId = req.Tipo == "JOGADOR" ? req.JogadorId : null,
+                Texto = req.Texto.Trim(),
+                Ordem = ordemMax + 1
+            };
+            _context.ObservacoesJogoTag.Add(obs);
+            await _context.SaveChangesAsync();
+
+            string? jogadorNome = null;
+            if (obs.JogadorId.HasValue)
+            {
+                var jogadorObs = await _context.Jogadores.FirstOrDefaultAsync(j => j.Id == obs.JogadorId);
+                jogadorNome = jogadorObs?.NomeExibicao;
+            }
+
+            return Ok(new { obs.Id, obs.Tipo, obs.JogadorId, jogadorNome, obs.Texto });
+        }
+
+        public class RemoverObservacaoTagRequest { public int Id { get; set; } }
+
+        [HttpPost]
+        public async Task<IActionResult> RemoverObservacaoTag([FromBody] RemoverObservacaoTagRequest req)
+        {
+            var usuarioId = _userManager.GetUserId(User)!;
+            var obs = await _context.ObservacoesJogoTag
+                .FirstOrDefaultAsync(o => o.Id == req.Id && o.UsuarioId == usuarioId);
+            if (obs == null) return NotFound();
+
+            _context.ObservacoesJogoTag.Remove(obs);
             await _context.SaveChangesAsync();
             return Ok(new { sucesso = true });
         }

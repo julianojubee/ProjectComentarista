@@ -5,10 +5,12 @@ using ControleFutebolWeb.Converters; // ← importa o converter
 using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 
 internal class Program
 {
@@ -46,12 +48,38 @@ internal class Program
         .AddEntityFrameworkStores<FutebolContext>()
         .AddDefaultTokenProviders();
 
+        // Autenticação por token (JWT), usada pela API (Controllers/Api) que o app
+        // Android consome. Convive com o cookie da Identity, que continua sendo o
+        // esquema padrão para as rotas MVC/Razor existentes.
+        var jwtKey = builder.Configuration["Jwt:Key"];
+        if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(jwtKey))
+            throw new InvalidOperationException("Jwt:Key não configurada (defina via user-secrets/env Jwt__Key).");
+        var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "ControleFutebolWeb";
+        var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "ControleFutebolWebApi";
+
+        builder.Services.AddAuthentication()
+            .AddJwtBearer("Bearer", options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = jwtIssuer,
+                    ValidAudience = jwtAudience,
+                    IssuerSigningKey = new SymmetricSecurityKey(
+                        Encoding.UTF8.GetBytes(string.IsNullOrWhiteSpace(jwtKey) ? "chave-de-desenvolvimento-apenas-para-testes-locais" : jwtKey))
+                };
+            });
+
         builder.Services.AddAuthorization(options =>
         {
             options.AddPolicy("Admin", policy =>
                 policy.AddRequirements(new AdminRequirement()));
         });
         builder.Services.AddScoped<IAuthorizationHandler, AdminHandler>();
+        builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 
         builder.Services.ConfigureApplicationCookie(options =>
         {
@@ -210,8 +238,28 @@ internal class Program
             await next();
         });
 
-        app.UseHttpsRedirection();
-        app.UseStaticFiles();
+        // Em produção, o nginx já força HTTPS e envia X-Forwarded-Proto: https, então
+        // UseForwardedHeaders acima já faz Request.IsHttps=true e este redirect vira
+        // no-op para tráfego legítimo. Em dev, pula: permite testar a API (app Android,
+        // emulador) via HTTP puro sem lidar com o certificado autoassinado do Kestrel.
+        if (!app.Environment.IsDevelopment())
+        {
+            app.UseHttpsRedirection();
+        }
+        // Cache-Control para estáticos: arquivos versionados via asp-append-version
+        // (?v=hash — a URL muda quando o conteúdo muda) podem ser imutáveis por 1 ano;
+        // os demais (libs, imagens de escudo) ganham 1 dia, pois a URL não muda se o
+        // arquivo for substituído.
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            OnPrepareResponse = ctx =>
+            {
+                var cacheControl = ctx.Context.Request.Query.ContainsKey("v")
+                    ? "public,max-age=31536000,immutable"
+                    : "public,max-age=86400";
+                ctx.Context.Response.Headers.CacheControl = cacheControl;
+            }
+        });
         app.UseRouting();
         app.UseAuthentication();
         app.UseAuthorization();

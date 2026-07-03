@@ -194,11 +194,84 @@ namespace ControleFutebolWeb.Controllers
                                  && (temporada == null || j.Temporada == temporada)
                            select e.JogadorId!.Value).Distinct().ToList();
 
+            // Nota média de cada jogador do pool na competição, usada para ranquear o picker.
+            // Mesma lógica do relatório: por jogo usa a nota manual (override) ou a calculada
+            // (NotaBaseFixa + Valor); para jogos NÃO analisados (sem Nota) cai na pontuação
+            // derivada das estatísticas importadas (EstatisticaJogador). Média entre os jogos.
+            if (uid != null)
+            {
+                var jogoIdsComp = _context.Jogos
+                    .Where(j => j.CompeticaoId == competicaoId
+                                && (temporada == null || j.Temporada == temporada))
+                    .Select(j => j.Id)
+                    .ToList();
+
+                var notas = _context.Notas
+                    .AsNoTracking()
+                    .Where(n => n.UsuarioId == uid
+                                && jogoIdsComp.Contains(n.JogoId)
+                                && poolIds.Contains(n.JogadorId))
+                    .Select(n => new { n.JogadorId, n.JogoId, n.Valor, n.NotaManual })
+                    .ToList();
+
+                var estatisticas = _context.EstatisticasJogador
+                    .AsNoTracking()
+                    .Where(e => jogoIdsComp.Contains(e.JogoId) && poolIds.Contains(e.JogadorId))
+                    .ToList();
+
+                var criteriosBanco = CriteriosNotaHelper.MergeCriterios(
+                    _context.CriteriosNota.Where(c => c.UsuarioId == null).ToList(),
+                    _context.CriteriosNota.Where(c => c.UsuarioId == uid).ToList());
+
+                var notasPorJogador = notas.GroupBy(n => n.JogadorId)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+                var estatsPorJogador = estatisticas.GroupBy(e => e.JogadorId)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+
+                foreach (var jId in poolIds)
+                {
+                    var jogoIdSet = new HashSet<int>();
+                    if (notasPorJogador.TryGetValue(jId, out var nLst)) foreach (var n in nLst) jogoIdSet.Add(n.JogoId);
+                    if (estatsPorJogador.TryGetValue(jId, out var eLst)) foreach (var e in eLst) jogoIdSet.Add(e.JogoId);
+                    if (jogoIdSet.Count == 0) continue;
+
+                    var notasDict = (notasPorJogador.GetValueOrDefault(jId) ?? new())
+                        .GroupBy(n => n.JogoId)
+                        .ToDictionary(g => g.Key, g => (
+                            valor: g.Average(n => n.Valor),
+                            manual: g.Any(n => n.NotaManual.HasValue)
+                                ? (double?)g.Where(n => n.NotaManual.HasValue).Average(n => n.NotaManual!.Value)
+                                : null));
+                    var estatsDict = (estatsPorJogador.GetValueOrDefault(jId) ?? new())
+                        .GroupBy(e => e.JogoId)
+                        .ToDictionary(g => g.Key, g => g.ToList());
+
+                    double soma = 0; int comp = 0;
+                    foreach (var jogoId in jogoIdSet)
+                    {
+                        double nj;
+                        if (notasDict.TryGetValue(jogoId, out var ni))
+                            nj = ni.manual.HasValue
+                                ? Math.Round(Math.Max(0, Math.Min(10, ni.manual.Value)), 2)
+                                : Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima, Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + ni.valor)), 2);
+                        else if (estatsDict.TryGetValue(jogoId, out var es))
+                            nj = Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima,
+                                    Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + es.Sum(e => CriteriosNotaHelper.CalcularPontuacao(e, criteriosBanco)))), 2);
+                        else continue;
+                        soma += nj; comp++;
+                    }
+                    if (comp > 0) vm.NotaMediaPorJogador[jId] = Math.Round(soma / comp, 2);
+                }
+            }
+
+            // Ranqueia por nota média (desc); jogadores sem nota vão para o fim, em ordem alfabética.
             vm.PoolJogadores = _context.Jogadores
                 .Include(j => j.Time)
                 .Include(j => j.Selecao)
                 .Where(j => poolIds.Contains(j.Id))
-                .OrderBy(j => j.Nome)
+                .ToList()
+                .OrderByDescending(j => vm.NotaMediaPorJogador.TryGetValue(j.Id, out var m) ? m : double.NegativeInfinity)
+                .ThenBy(j => j.Nome)
                 .ToList();
 
             vm.JogadoresPorId = vm.PoolJogadores.ToDictionary(j => j.Id);

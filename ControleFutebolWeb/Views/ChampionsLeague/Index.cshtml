@@ -478,6 +478,10 @@ else
                                     @if (realizado)
                                     {
                                         <span class="ucl-mata-score">@jogo.PlacarCasa × @jogo.PlacarVisitante</span>
+                                        @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
+                                        {
+                                            <span class="ucl-pen">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</span>
+                                        }
                                     }
                                     else
                                     {
@@ -534,6 +538,10 @@ else
                                     @if (realizado)
                                     {
                                         <span class="ucl-score">@jogo.PlacarCasa x @jogo.PlacarVisitante</span>
+                                        @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
+                                        {
+                                            <span class="ucl-pen">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</span>
+                                        }
                                     }
                                     else
                                     {

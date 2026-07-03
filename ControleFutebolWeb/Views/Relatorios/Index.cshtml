@@ -22,6 +22,17 @@
     /* ── Reset ─────────────────────────────────────────────────────────── */
     .rpt-root * { box-sizing: border-box; }
 
+    /* Tokens locais da tela (os globais vêm do site.css). O tom âmbar é a
+       identidade desta página; cada tema resolve o tint/texto adequado. */
+    .rpt-root {
+        --hover-warm: #fffbf0;              /* hover com tint âmbar */
+        --amber-text: #d97706;
+    }
+    [data-theme="dark"] .rpt-root {
+        --hover-warm: rgba(245, 158, 11, .07);
+        --amber-text: #fbbf24;
+    }
+
     /* ── Hero ──────────────────────────────────────────────────────────── */
     .rpt-hero {
         position: relative;
@@ -64,12 +75,13 @@
         display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
         margin-bottom: 1.4rem;
         padding: .85rem 1rem;
-        background: #fff; border: .5px solid #e5e7eb; border-radius: 12px;
+        background: var(--surface); border: .5px solid var(--border); border-radius: 12px;
     }
-    .rpt-filter label { font-size: 12px; font-weight: 600; color: #374151; }
+    .rpt-filter label { font-size: 12px; font-weight: 600; color: var(--text-2); }
     .rpt-filter select {
-        border: 1px solid #d1d5db; border-radius: 8px;
-        padding: 7px 12px; font-size: 13px; color: #111827;
+        border: 1px solid var(--border-strong); border-radius: 8px;
+        padding: 7px 12px; font-size: 13px; color: var(--text);
+        background: var(--input-bg);
     }
     .rpt-filter button {
         padding: 8px 16px; border-radius: 8px;
@@ -78,20 +90,20 @@
     }
     .rpt-filter button:hover { background: #d97706; }
     .rpt-filter .rpt-clear {
-        background: #f3f4f6; color: #374151; border: .5px solid #e5e7eb;
+        background: var(--surface-3); color: var(--text-2); border: .5px solid var(--border);
         font-weight: 500;
     }
-    .rpt-filter .rpt-clear:hover { background: #e5e7eb; }
+    .rpt-filter .rpt-clear:hover { background: var(--border); }
     .rpt-check-wrap {
         display: flex; align-items: center; gap: 7px;
         padding: 6px 12px; border-radius: 8px;
-        border: 1px solid #e5e7eb; background: #fafafa;
+        border: 1px solid var(--border); background: var(--surface-2);
         cursor: pointer; user-select: none;
         transition: border-color .15s, background .15s;
     }
-    .rpt-check-wrap:hover { border-color: #f59e0b; background: #fffbf0; }
+    .rpt-check-wrap:hover { border-color: #f59e0b; background: var(--hover-warm); }
     .rpt-check-wrap input[type=checkbox] { accent-color: #f59e0b; width: 15px; height: 15px; cursor: pointer; }
-    .rpt-check-wrap span { font-size: 12px; font-weight: 600; color: #374151; }
+    .rpt-check-wrap span { font-size: 12px; font-weight: 600; color: var(--text-2); }
 
     /* ── Totalizadores ───────────────────────────────────────────────────── */
     .rpt-totals {
@@ -117,11 +129,11 @@
     }
     .rpt-tab {
         padding: 7px 16px; border-radius: 999px;
-        border: 1px solid #e5e7eb; background: #fff;
-        font-size: 12px; font-weight: 600; color: #374151;
+        border: 1px solid var(--border); background: var(--surface);
+        font-size: 12px; font-weight: 600; color: var(--text-2);
         cursor: pointer; transition: all .15s; user-select: none;
     }
-    .rpt-tab:hover { border-color: #f59e0b; color: #d97706; }
+    .rpt-tab:hover { border-color: #f59e0b; color: var(--amber-text); }
     .rpt-tab.active {
         background: #f59e0b; color: #fff;
         border-color: #f59e0b; box-shadow: 0 2px 8px rgba(245,158,11,.3);
@@ -140,12 +152,12 @@
 
     /* ── Card ────────────────────────────────────────────────────────────── */
     .rpt-card {
-        background: #fff; border: .5px solid #e5e7eb;
+        background: var(--surface); border: .5px solid var(--border);
         border-radius: 14px; overflow: hidden;
     }
     .rpt-card-header {
         padding: 12px 16px 10px;
-        border-bottom: .5px solid #f0f0f0;
+        border-bottom: .5px solid var(--border-subtle);
         display: flex; align-items: center; gap: 8px;
     }
     .rpt-card-icon {
@@ -155,24 +167,24 @@
     }
     .rpt-card-title {
         font-family: 'Barlow Condensed', sans-serif;
-        font-size: 1rem; font-weight: 700; color: #111827;
+        font-size: 1rem; font-weight: 700; color: var(--text);
         text-transform: uppercase; letter-spacing: .5px;
         margin: 0;
     }
-    .rpt-card-sub { font-size: 11px; color: #9ca3af; margin: 0; }
+    .rpt-card-sub { font-size: 11px; color: var(--text-muted); margin: 0; }
 
     /* ── Linha de ranking ────────────────────────────────────────────────── */
     .rpt-row {
         display: flex; align-items: center; gap: 10px;
-        padding: 9px 16px; border-bottom: .5px solid #f9f9f9;
+        padding: 9px 16px; border-bottom: .5px solid var(--border-subtle);
         font-size: 13px; transition: background .12s;
     }
     .rpt-row:last-child { border-bottom: none; }
-    .rpt-row:hover { background: #fffbf0; }
+    .rpt-row:hover { background: var(--hover-warm); }
 
     .rpt-rank {
         width: 22px; font-size: 11px; font-weight: 700;
-        color: #9ca3af; text-align: center; flex-shrink: 0;
+        color: var(--text-muted); text-align: center; flex-shrink: 0;
     }
     .rpt-rank.gold   { color: #f59e0b; }
     .rpt-rank.silver { color: #9ca3af; }
@@ -180,15 +192,15 @@
 
     .rpt-avatar {
         width: 32px; height: 32px; border-radius: 50%;
-        background: #f3f4f6; border: .5px solid #e5e7eb;
+        background: var(--surface-3); border: .5px solid var(--border);
         display: flex; align-items: center; justify-content: center;
-        font-size: 10px; font-weight: 700; color: #6b7280;
+        font-size: 10px; font-weight: 700; color: var(--text-muted);
         overflow: hidden; flex-shrink: 0;
     }
     .rpt-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
-    .rpt-name { flex: 1; font-weight: 500; color: #111827; min-width: 0; }
-    .rpt-name small { display: block; font-size: 11px; color: #9ca3af; font-weight: 400; }
+    .rpt-name { flex: 1; font-weight: 500; color: var(--text); min-width: 0; }
+    .rpt-name small { display: block; font-size: 11px; color: var(--text-muted); font-weight: 400; }
 
     .rpt-badge-value {
         padding: 3px 10px; border-radius: 6px;
@@ -209,20 +221,20 @@
 
     /* ── Barra de progresso ──────────────────────────────────────────────── */
     .rpt-bar-wrap { flex: 1; }
-    .rpt-bar-bg { background: #f3f4f6; border-radius: 4px; height: 6px; overflow: hidden; }
+    .rpt-bar-bg { background: var(--surface-3); border-radius: 4px; height: 6px; overflow: hidden; }
     .rpt-bar-fill { height: 100%; border-radius: 4px; transition: width .4s; }
 
     /* ── Nota breakdown row ───────────────────────────────────────────────── */
     .nota-meta {
         display: flex; gap: 12px; flex-wrap: wrap;
-        font-size: 10px; color: #9ca3af; margin-top: 2px;
+        font-size: 10px; color: var(--text-muted); margin-top: 2px;
     }
     .nota-meta span { display: flex; align-items: center; gap: 3px; }
 
     /* ── Time row ─────────────────────────────────────────────────────────── */
     .rpt-team-badge {
         width: 26px; height: 26px; border-radius: 50%;
-        border: .5px solid #e5e7eb; background: #f9f9f9;
+        border: .5px solid var(--border); background: var(--surface-2);
         object-fit: contain; flex-shrink: 0;
     }
 
@@ -251,8 +263,8 @@
         background: linear-gradient(180deg, #f59e0b, #d97706);
         transition: height .3s;
     }
-    .rodada-bar-label { font-size: 9px; color: #9ca3af; }
-    .rodada-bar-val   { font-size: 10px; font-weight: 700; color: #374151; }
+    .rodada-bar-label { font-size: 9px; color: var(--text-muted); }
+    .rodada-bar-val   { font-size: 10px; font-weight: 700; color: var(--text-2); }
 
     /* ── Posição badge ───────────────────────────────────────────────────── */
     .pos-badge {
@@ -263,7 +275,7 @@
     .pos-ZG { background: #f0fdf4; color: #166534; }
     .pos-MC { background: #fdf4ff; color: #7e22ce; }
     .pos-AT { background: #fff7ed; color: #c2410c; }
-    .pos-xx { background: #f9fafb; color: #6b7280; }
+    .pos-xx { background: var(--surface-2); color: var(--text-muted); }
 
     @@media (max-width: 600px) {
         .rpt-grid { grid-template-columns: 1fr; }
@@ -313,13 +325,13 @@
         .ms-box {
             display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
             min-height: 38px; padding: 4px 30px 4px 8px; cursor: pointer;
-            border: 1px solid #d1d5db; border-radius: 8px; background: #fff; font-size: 13px;
+            border: 1px solid var(--border-strong); border-radius: 8px; background: var(--input-bg); font-size: 13px;
         }
         .ms-box::after {
             content: "▾"; position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-            color: #6b7280; pointer-events: none;
+            color: var(--text-muted); pointer-events: none;
         }
-        .ms-placeholder { color: #9ca3af; }
+        .ms-placeholder { color: var(--text-muted); }
         .ms-chip {
             display: inline-flex; align-items: center; gap: 4px;
             background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe;
@@ -329,21 +341,21 @@
         .ms-chip-x:hover { opacity: 1; }
         .ms-panel {
             position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50;
-            background: #fff; border: 1px solid #d1d5db; border-radius: 8px;
+            background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px;
             box-shadow: 0 8px 24px rgba(0,0,0,.12); max-height: 280px; overflow-y: auto;
             display: none; padding: 4px;
         }
         .ms-panel.open { display: block; }
         .ms-opt {
             display: flex; align-items: center; gap: 8px; padding: 7px 10px;
-            border-radius: 6px; cursor: pointer; font-size: 13px; color: #111827;
+            border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text);
         }
-        .ms-opt:hover { background: #f3f4f6; }
+        .ms-opt:hover { background: var(--surface-3); }
         .ms-opt input { cursor: pointer; }
         .ms-search {
             width: 100%; box-sizing: border-box; padding: 7px 10px; margin-bottom: 4px;
-            border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; outline: none;
-            position: sticky; top: 0; background: #fff;
+            border: 1px solid var(--border-strong); border-radius: 6px; font-size: 13px; outline: none;
+            position: sticky; top: 0; background: var(--input-bg);
         }
         .ms-search:focus { border-color: #6366f1; }
     </style>
@@ -586,12 +598,12 @@
             <div class="rpt-metric-text">
                 <h4>Como a Nota Final é calculada</h4>
                 <p>
-                    Cada jogador começa com <strong>2 pontos</strong> de base.<br />
-                    A isso se soma a <strong>média das ações</strong> avaliadas no jogo
-                    (passes, dribles, gols, etc.), com os pesos definidos em
+                    Cada jogador começa com <strong>4 pontos</strong> de base.<br />
+                    A isso se somam as <strong>ações avaliadas</strong> no jogo
+                    (passes, dribles, gols, etc.), cada uma multiplicada pelo peso definido em
                     <strong>Cadastros &gt; Critérios de Nota</strong>.
                     Goleiros e defensores ganham ainda <strong>+2 pts</strong> quando o time não sofre gol.
-                    Nota final limitada entre 0 e 10.
+                    Nota final limitada entre 4 e 10.
                 </p>
             </div>
         </div>
@@ -609,7 +621,7 @@
 
                 @if (!Model.RankingNotas.Any())
                 {
-                    <div style="padding:2rem;text-align:center;color:#9ca3af;font-size:13px;">
+                    <div style="padding:2rem;text-align:center;color:var(--text-muted);font-size:13px;">
                         Nenhuma avaliação registrada ainda. Avalie jogadores na tela de análise de jogo.
                     </div>
                 }
@@ -618,7 +630,7 @@
                     <div style="overflow-x:auto;">
                         <table style="width:100%;border-collapse:collapse;">
                             <thead>
-                                <tr style="background:#f9fafb;font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;">
+                                <tr style="background:var(--surface-2);font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">
                                     <th style="padding:8px 16px;text-align:left;width:32px;">#</th>
                                     <th style="padding:8px 8px;text-align:left;">Jogador</th>
                                     <th style="padding:8px;text-align:center;">Nota</th>
@@ -645,7 +657,7 @@
                                         var s when s.Contains("ATA") || s.Contains("PON") || s.Contains("CEN") => "pos-AT",
                                         _ => "pos-xx"
                                     };
-                                    <tr style="border-bottom:.5px solid #f5f5f5;font-size:12px;" onmouseover="this.style.background='#fffbf0'" onmouseout="this.style.background=''">
+                                    <tr style="border-bottom:.5px solid var(--border-subtle);font-size:12px;" onmouseover="this.style.background='var(--hover-warm)'" onmouseout="this.style.background=''">
                                         <td style="padding:9px 16px;font-weight:700;color:@(i==0?"#f59e0b":i==1?"#9ca3af":i==2?"#b45309":"#d1d5db");">
                                             @(i + 1)
                                         </td>
@@ -653,11 +665,11 @@
                                             <div style="display:flex;align-items:center;gap:8px;">
                                                 @if (!string.IsNullOrEmpty(item.Jogador.FotoUrl))
                                                 {
-                                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = item.Jogador.FotoUrl })" style="width:30px;height:30px;border-radius:50%;object-fit:cover;border:.5px solid #e5e7eb;" />
+                                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = item.Jogador.FotoUrl })" style="width:30px;height:30px;border-radius:50%;object-fit:cover;border:.5px solid var(--border);" />
                                                 }
                                                 else
                                                 {
-                                                    <div style="width:30px;height:30px;border-radius:50%;background:#f3f4f6;border:.5px solid #e5e7eb;display:flex;align-items:center;justify-content:center;font-size:11px;color:#9ca3af;">👤</div>
+                                                    <div style="width:30px;height:30px;border-radius:50%;background:var(--surface-3);border:.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-muted);">👤</div>
                                                 }
                                                 <div>
                                                     <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@item.Jogador.Id"
@@ -667,7 +679,7 @@
                                                         @{ var teRank = TimeExibicao(item.Jogador); }
                                                         @if (!string.IsNullOrEmpty(teRank.Nome))
                                                         {
-                                                            <span style="font-size:10px;color:#9ca3af;display:inline-flex;align-items:center;gap:3px;">
+                                                            <span style="font-size:10px;color:var(--text-muted);display:inline-flex;align-items:center;gap:3px;">
                                                                 @if (!string.IsNullOrEmpty(teRank.Escudo))
                                                                 {
                                                                     <img src="@Url.Action("Imagem", "MediaProxy", new { url = teRank.Escudo })" style="width:12px;height:12px;border-radius:50%;object-fit:cover;" />
@@ -686,7 +698,7 @@
                                             </div>
                                         </td>
                                         <td style="padding:9px 12px;min-width:160px;">
-                                            <div style="font-size:10px;color:#6b7280;display:flex;flex-direction:column;gap:2px;">
+                                            <div style="font-size:10px;color:var(--text-muted);display:flex;flex-direction:column;gap:2px;">
                                                 <div style="display:flex;justify-content:space-between;font-weight:700;color:inherit;">
                                                     <span>Nota</span>
                                                     <span>@item.NotaFinal.ToString("0.00")</span>
@@ -733,11 +745,11 @@
                             <div style="width:20px;font-size:11px;font-weight:700;color:@(i==0?"#f59e0b":i==1?"#9ca3af":i==2?"#b45309":"#d1d5db");">@(i+1)</div>
                             @if (!string.IsNullOrEmpty(item.Jogador.FotoUrl))
                             {
-                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = item.Jogador.FotoUrl })" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:.5px solid #e5e7eb;flex-shrink:0;" />
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = item.Jogador.FotoUrl })" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:.5px solid var(--border);flex-shrink:0;" />
                             }
                             else
                             {
-                                <div style="width:26px;height:26px;border-radius:50%;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:10px;color:#9ca3af;flex-shrink:0;">👤</div>
+                                <div style="width:26px;height:26px;border-radius:50%;background:var(--surface-3);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text-muted);flex-shrink:0;">👤</div>
                             }
                             <div style="flex:1;min-width:0;">
                                 <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@item.Jogador.Id"
@@ -747,7 +759,7 @@
                                 @{ var teItem = TimeExibicao(item.Jogador); }
                                 @if (!string.IsNullOrEmpty(teItem.Nome))
                                 {
-                                    <div style="font-size:10px;color:#9ca3af;">
+                                    <div style="font-size:10px;color:var(--text-muted);">
                                         @if (!string.IsNullOrEmpty(teItem.Escudo))
                                         {
                                             <img src="@Url.Action("Imagem", "MediaProxy", new { url = teItem.Escudo })" style="width:12px;height:12px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:3px;" />
@@ -780,14 +792,14 @@
                     {
                         var barWidth = Math.Round((mp.Media / 10.0) * 100, 1);
                         <div class="rpt-row">
-                            <div style="width:90px;font-size:12px;font-weight:600;color:#374151;">@mp.Posicao</div>
+                            <div style="width:90px;font-size:12px;font-weight:600;color:var(--text-2);">@mp.Posicao</div>
                             <div class="rpt-bar-wrap">
                                 <div class="rpt-bar-bg">
                                     <div class="rpt-bar-fill" style="width:@barWidth%;background:linear-gradient(90deg,#f59e0b,#fbbf24);"></div>
                                 </div>
                             </div>
                             <div style="font-size:13px;font-weight:700;color:inherit;min-width:36px;text-align:right;">@mp.Media</div>
-                            <div style="font-size:10px;color:#9ca3af;min-width:40px;text-align:right;">@mp.TotalJogadores jog.</div>
+                            <div style="font-size:10px;color:var(--text-muted);min-width:40px;text-align:right;">@mp.TotalJogadores jog.</div>
                         </div>
                     }
                 </div>
@@ -810,7 +822,7 @@
                 </div>
                 @if (!Model.Artilheiros.Any())
                 {
-                    <div style="padding:1.5rem;text-align:center;color:#9ca3af;font-size:13px;">Nenhum gol registrado.</div>
+                    <div style="padding:1.5rem;text-align:center;color:var(--text-muted);font-size:13px;">Nenhum gol registrado.</div>
                 }
                 @{
                     var maxGols = Model.Artilheiros.Any() ? Model.Artilheiros.Max(a => a.Valor) : 1;
@@ -860,7 +872,7 @@
                 </div>
                 @if (!Model.Assistencias.Any())
                 {
-                    <div style="padding:1.5rem;text-align:center;color:#9ca3af;font-size:13px;">Nenhuma assistência registrada.</div>
+                    <div style="padding:1.5rem;text-align:center;color:var(--text-muted);font-size:13px;">Nenhuma assistência registrada.</div>
                 }
                 @{
                     var maxAssist = Model.Assistencias.Any() ? Model.Assistencias.Max(a => a.Valor) : 1;
@@ -954,7 +966,7 @@
                 </div>
                 @if (!Model.MaisPartidas.Any())
                 {
-                    <div style="padding:1.5rem;text-align:center;color:#9ca3af;font-size:13px;">Nenhuma escalação registrada.</div>
+                    <div style="padding:1.5rem;text-align:center;color:var(--text-muted);font-size:13px;">Nenhuma escalação registrada.</div>
                 }
                 @{
                     var maxP = Model.MaisPartidas.Any() ? Model.MaisPartidas.Max(a => a.Valor) : 1;
@@ -1034,7 +1046,7 @@
                 }
                 @if (!Model.MaisCartoesAmarelos.Any())
                 {
-                    <div style="padding:1.5rem;text-align:center;color:#9ca3af;font-size:13px;">Sem cartões registrados.</div>
+                    <div style="padding:1.5rem;text-align:center;color:var(--text-muted);font-size:13px;">Sem cartões registrados.</div>
                 }
             </div>
 
@@ -1073,7 +1085,7 @@
                 }
                 @if (!Model.MaisCartoesVermelhos.Any())
                 {
-                    <div style="padding:1.5rem;text-align:center;color:#9ca3af;font-size:13px;">Sem expulsões registradas.</div>
+                    <div style="padding:1.5rem;text-align:center;color:var(--text-muted);font-size:13px;">Sem expulsões registradas.</div>
                 }
             </div>
 
@@ -1368,7 +1380,7 @@
         @if (!Model.GolsPorRodada.Any())
         {
             <div class="rpt-card">
-                <div style="padding:2rem;text-align:center;color:#9ca3af;font-size:13px;">
+                <div style="padding:2rem;text-align:center;color:var(--text-muted);font-size:13px;">
                     Nenhum dado de rodada disponível.
                 </div>
             </div>
@@ -1403,7 +1415,7 @@
                 <div style="overflow-x:auto;">
                     <table style="width:100%;border-collapse:collapse;font-size:12px;">
                         <thead>
-                            <tr style="background:#f9fafb;color:#6b7280;font-size:10px;text-transform:uppercase;">
+                            <tr style="background:var(--surface-2);color:var(--text-muted);font-size:10px;text-transform:uppercase;">
                                 <th style="padding:7px 16px;text-align:left;">Rodada</th>
                                 <th style="padding:7px;text-align:center;">Jogos</th>
                                 <th style="padding:7px;text-align:center;">Total Gols</th>
@@ -1413,7 +1425,7 @@
                         <tbody>
                             @foreach (var r in Model.GolsPorRodada)
                             {
-                                <tr style="border-bottom:.5px solid #f5f5f5;">
+                                <tr style="border-bottom:.5px solid var(--border-subtle);">
                                     <td style="padding:8px 16px;font-weight:600;">Rodada @r.Rodada</td>
                                     <td style="text-align:center;">@r.Jogos</td>
                                     <td style="text-align:center;font-weight:700;color:#f59e0b;">@r.TotalGols</td>
@@ -1445,7 +1457,7 @@
         @if (!rankingsEstat.Any(r => r.Lista.Any()))
         {
             <div class="rpt-card">
-                <div style="padding:2rem;text-align:center;color:#9ca3af;font-size:13px;">
+                <div style="padding:2rem;text-align:center;color:var(--text-muted);font-size:13px;">
                     Nenhuma estatística individual disponível para os filtros selecionados.<br>
                     <small>As estatísticas são importadas via API ao analisar cada jogo.</small>
                 </div>
@@ -1466,7 +1478,7 @@
                         </div>
                         @if (!lista.Any())
                         {
-                            <div style="padding:1rem 0;text-align:center;color:#9ca3af;font-size:12px;">Sem dados</div>
+                            <div style="padding:1rem 0;text-align:center;color:var(--text-muted);font-size:12px;">Sem dados</div>
                         }
                         else
                         {
@@ -1476,7 +1488,7 @@
                                 {
                                     var val = unidade == "total" ? item.Total : item.Media;
                                     var bar = maxVal > 0 ? val / maxVal * 100 : 0;
-                                    <li style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:.5px solid #f5f5f5;">
+                                    <li style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:.5px solid var(--border-subtle);">
                                         @{
                                             // Usa a seleção quando a competição filtrada é de seleções OU quando filtrado pela própria seleção
                                             bool usarSelecao = item.Jogador.Selecao != null
@@ -1484,7 +1496,7 @@
                                             var logoUrl = usarSelecao ? item.Jogador.Selecao?.EscudoUrl : item.Jogador.Time?.EscudoUrl;
                                             var nomeAbrev = usarSelecao ? item.Jogador.Selecao?.Nome : item.Jogador.Time?.Nome;
                                         }
-                                        <div style="width:26px;height:26px;border-radius:50%;overflow:hidden;border:1px solid #e5e7eb;background:#f3f4f6;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:#6b7280;">
+                                        <div style="width:26px;height:26px;border-radius:50%;overflow:hidden;border:1px solid var(--border);background:var(--surface-3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:var(--text-muted);">
                                             @if (!string.IsNullOrWhiteSpace(logoUrl))
                                             {
                                                 <img src="@Url.Action("Imagem", "MediaProxy", new { url = logoUrl })" style="width:100%;height:100%;object-fit:contain;" />
@@ -1498,13 +1510,13 @@
                                             <div style="font-size:12px;font-weight:600;color:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                                                 <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@item.Jogador.Id" style="color:inherit;text-decoration:none;">@item.Jogador.Nome</a>
                                             </div>
-                                            <div style="height:4px;background:#f3f4f6;border-radius:2px;margin-top:3px;">
+                                            <div style="height:4px;background:var(--surface-3);border-radius:2px;margin-top:3px;">
                                                 <div style="height:100%;width:@(bar.ToString("F1", System.Globalization.CultureInfo.InvariantCulture))%;background:@cor;border-radius:2px;"></div>
                                             </div>
                                         </div>
                                         <div style="text-align:right;flex-shrink:0;">
                                             <div style="font-size:14px;font-weight:700;color:@cor;">@(unidade == "total" ? val.ToString("F0") : val.ToString("F2"))</div>
-                                            <div style="font-size:10px;color:#9ca3af;">@(unidade == "total" ? $"{item.Partidas} jogo(s)" : $"{item.Partidas} jogo(s)")</div>
+                                            <div style="font-size:10px;color:var(--text-muted);">@(unidade == "total" ? $"{item.Partidas} jogo(s)" : $"{item.Partidas} jogo(s)")</div>
                                         </div>
                                     </li>
                                 }
@@ -1522,7 +1534,7 @@
     <div id="sec-estat-competicoes" class="rpt-section">
         @if (!Model.EstatisticasCompeticoes.Any())
         {
-            <p style="text-align:center;color:#6b7280;padding:2rem;">Nenhuma competição com jogos analisados.</p>
+            <p style="text-align:center;color:var(--text-muted);padding:2rem;">Nenhuma competição com jogos analisados.</p>
         }
         else
         {
@@ -1575,6 +1587,7 @@
                         </div>
                         <div style="display:flex;gap:1.5rem;margin-top:.5rem;">
                             <span style="font-size:11px;color:#22c55e;">🟢 Mandante: @ec.VitoriasMandante</span>
+                            @* Bloco sempre-escuro: cinza fixo, não usa token (no tema claro o token escurece) *@
                             <span style="font-size:11px;color:#9ca3af;">⬜ Empates: @ec.Empates</span>
                             <span style="font-size:11px;color:#3b82f6;">🔵 Visitante: @ec.VitoriasVisitante</span>
                         </div>

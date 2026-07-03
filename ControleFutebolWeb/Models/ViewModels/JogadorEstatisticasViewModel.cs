@@ -29,5 +29,8 @@ namespace ControleFutebolWeb.Models.ViewModels
         public double NotaBaseFixa { get; set; }     // 4.0 (base) — nota mínima 4.0
         public bool OrigemManual { get; set; }       // true = nota dada por um analista
         public double? NotaManual { get; set; }      // nota final informada manualmente (override)
+
+        // Observações marcadas com a tag "Jogador" (ObservacaoJogoTag) para esse jogo.
+        public List<string> ObservacoesJogador { get; set; } = new();
     }
 }

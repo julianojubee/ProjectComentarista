@@ -82,8 +82,8 @@
     }
 
     .cf-stat-card {
-        background: #fff;
-        border: 0.5px solid #e5e7eb;
+        background: var(--surface);
+        border: 0.5px solid var(--border);
         border-radius: 10px;
         padding: 1rem 1.25rem;
         text-align: center;
@@ -92,19 +92,19 @@
     .cf-stat-num {
         font-size: 24px;
         font-weight: 600;
-        color: #111827;
+        color: var(--text);
         line-height: 1.1;
         margin-bottom: 4px;
     }
 
     .cf-stat-label {
         font-size: 12px;
-        color: #6b7280;
+        color: var(--text-muted);
     }
 
     .cf-panel {
-        background: #fff;
-        border: 0.5px solid #e5e7eb;
+        background: var(--surface);
+        border: 0.5px solid var(--border);
         border-radius: 12px;
         padding: 1rem 1rem 0.7rem;
     }
@@ -121,7 +121,7 @@
     .cf-panel-title {
         font-size: 14px;
         font-weight: 600;
-        color: #111827;
+        color: var(--text);
         margin: 0;
     }
 
@@ -148,8 +148,8 @@
         gap: 10px;
         margin-bottom: 1rem;
         padding: 0.9rem;
-        background: #f9fafb;
-        border: 1px solid #f1f5f9;
+        background: var(--surface-2);
+        border: 1px solid var(--border-subtle);
         border-radius: 10px;
     }
 
@@ -162,18 +162,18 @@
     .cf-filter-group label {
         font-size: 11px;
         font-weight: 600;
-        color: #6b7280;
+        color: var(--text-muted);
         text-transform: uppercase;
         letter-spacing: 0.4px;
     }
 
     .cf-filter-group select {
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--border-strong);
         border-radius: 8px;
         padding: 7px 10px;
         font-size: 13px;
-        color: #111827;
-        background: #fff;
+        color: var(--text);
+        background: var(--input-bg);
     }
 
     .cf-filter-actions {
@@ -198,8 +198,8 @@
     }
 
     .cf-filter-clear {
-        background: #e5e7eb;
-        color: #374151;
+        background: var(--border);
+        color: var(--text-2);
     }
 
 
@@ -217,23 +217,26 @@
         font-size: 11px;
         text-transform: uppercase;
         letter-spacing: 0.6px;
-        color: #6b7280;
+        color: var(--text-muted);
         font-weight: 600;
         padding: 10px 8px;
-        border-bottom: 1px solid #f0f0f0;
+        border-bottom: 1px solid var(--border-subtle);
         white-space: nowrap;
     }
 
     .cf-jogos-table td {
         padding: 11px 8px;
-        border-bottom: 1px solid #f5f5f5;
+        border-bottom: 1px solid var(--border-subtle);
         vertical-align: middle;
         font-size: 13px;
-        color: #111827;
+        color: var(--text);
     }
 
     .cf-jogos-table tbody tr:hover {
-        background: #fafcff;
+        background: #fafcff; /* tint azulado, identidade da tela */
+    }
+    [data-theme="dark"] .cf-jogos-table tbody tr:hover {
+        background: var(--surface-2);
     }
 
     .cf-team-cell {
@@ -247,14 +250,14 @@
         height: 24px;
         border-radius: 50%;
         overflow: hidden;
-        border: 1px solid #e5e7eb;
-        background: #f3f4f6;
+        border: 1px solid var(--border);
+        background: var(--surface-3);
         flex-shrink: 0;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 9px;
-        color: #6b7280;
+        color: var(--text-muted);
         font-weight: 600;
     }
 
@@ -266,8 +269,8 @@
 
     .cf-score {
         font-weight: 600;
-        background: #f9fafb;
-        border: 0.5px solid #e5e7eb;
+        background: var(--surface-2);
+        border: 0.5px solid var(--border);
         padding: 3px 9px;
         border-radius: 6px;
         display: inline-block;
@@ -277,7 +280,7 @@
 
     .cf-status {
         font-size: 11px;
-        color: #9ca3af;
+        color: var(--text-muted);
     }
 
     .cf-actions {
@@ -303,7 +306,7 @@
 
     .cf-pager-info {
         font-size: 12px;
-        color: #6b7280;
+        color: var(--text-muted);
     }
 
     .cf-pager-nav {
@@ -317,16 +320,16 @@
         font-weight: 600;
         padding: 6px 12px;
         border-radius: 8px;
-        border: 1px solid #d1d5db;
-        background: #fff;
-        color: #374151;
+        border: 1px solid var(--border-strong);
+        background: var(--input-bg);
+        color: var(--text-2);
         text-decoration: none;
     }
 
     .cf-pager-btn:hover {
-        background: #f0f7ff;
-        border-color: #bfdbfe;
-        color: #1d4ed8;
+        background: var(--accent-surface);
+        border-color: var(--accent-border);
+        color: var(--link-hover);
         text-decoration: none;
     }
 
@@ -337,7 +340,7 @@
 
     .cf-pager-cur {
         font-size: 12px;
-        color: #6b7280;
+        color: var(--text-muted);
     }
 
     @@media (max-width: 600px) {
@@ -521,6 +524,10 @@
                                 @if (jogo.PlacarCasa >= 0 && jogo.PlacarVisitante >= 0)
                                 {
                                     <span class="cf-score">@jogo.PlacarCasa x @jogo.PlacarVisitante</span>
+                                    @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
+                                    {
+                                        <span class="cf-pen-score">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</span>
+                                    }
                                 }
                                 else
                                 {

@@ -1,5 +1,6 @@
 ﻿using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Models;
+using ControleFutebolWeb.Models.ViewModels;
 using ControleFutebolWeb.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -67,20 +68,25 @@ namespace ControleFutebolWeb.Controllers
                 .Take(pageSize)
                 .ToListAsync();
 
-            // Listas completas para os tag selectors
-            ViewBag.Competicoes = await _context.Competicoes.OrderBy(c => c.Nome).ToListAsync();
-            ViewBag.Times = await _context.Times.OrderBy(t => t.Nome).ToListAsync();
-            ViewBag.NacionalidadesLista = await _context.Nacionalidades.OrderBy(n => n.Nome).ToListAsync();
-            ViewBag.CompeticaoIdsFiltro = competicaoIds;
-            ViewBag.TimeIdsFiltro = timeIds;
-            ViewBag.NacionalidadesFiltro = nacionalidades;
+            var vm = new TreinadoresIndexViewModel
+            {
+                Itens = treinadoresPagina,
 
-            ViewBag.PaginaAtual = page;
-            ViewBag.TotalPaginas = totalPaginas;
-            ViewBag.TotalTreinadores = totalTreinadores;
-            ViewBag.PageSize = pageSize;
+                // Listas completas para os tag selectors
+                Competicoes = await _context.Competicoes.OrderBy(c => c.Nome).ToListAsync(),
+                Times = await _context.Times.OrderBy(t => t.Nome).ToListAsync(),
+                NacionalidadesLista = await _context.Nacionalidades.OrderBy(n => n.Nome).ToListAsync(),
+                CompeticaoIdsFiltro = competicaoIds,
+                TimeIdsFiltro = timeIds,
+                NacionalidadesFiltro = nacionalidades,
 
-            return View(treinadoresPagina);
+                PaginaAtual = page,
+                TotalPaginas = totalPaginas,
+                TotalTreinadores = totalTreinadores,
+                PageSize = pageSize
+            };
+
+            return View(vm);
         }
 
         // GET: Treinadores/Details/5

@@ -251,7 +251,7 @@
                         string bgColor = vitoria ? "#22c55e" : empate ? "#6b7280" : "#ef4444";
                         string letra = vitoria ? "V" : empate ? "E" : "D";
 
-                        <span title="@jogo.PlacarCasa x @jogo.PlacarVisitante"
+                        <span title="@jogo.PlacarCasa x @jogo.PlacarVisitante@(jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue ? $" ({jogo.PenaltisCasa}-{jogo.PenaltisVisitante} pên.)" : "")"
                               style="display:inline-flex;align-items:center;justify-content:center;
                          width:28px;height:28px;border-radius:50%;
                          background:@bgColor;color:#fff;
@@ -337,6 +337,10 @@
                                             else
                                             {
                                                 <span class="badge bg-danger">❌ @jogo.PlacarCasa x @jogo.PlacarVisitante</span>
+                                            }
+                                            @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
+                                            {
+                                                <span class="badge bg-light text-dark border">@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.</span>
                                             }
                                         }
                                         else

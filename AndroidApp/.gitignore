@@ -1,0 +1,15 @@
+# Build
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+**/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+local.properties
+
+# Gerado pelo Android Studio na primeira sincronização (não versionar o .jar binário)
+gradle/wrapper/gradle-wrapper.jar

@@ -199,6 +199,11 @@ namespace ControleFutebolWeb.Services
 
         [JsonPropertyName("detail")]
         public string Detail { get; set; } = "";
+
+        // Comentário do lance. Usado para identificar disputa de pênaltis:
+        // a api-football marca cada cobrança com comments "Penalty Shootout".
+        [JsonPropertyName("comments")]
+        public string? Comments { get; set; }
     }
 
     public class AfEventTime

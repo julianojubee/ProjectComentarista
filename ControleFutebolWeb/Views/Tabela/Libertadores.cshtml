@@ -574,6 +574,10 @@ else
                                     @if (realizado)
                                     {
                                         <span class="lib-score">@jogo.PlacarCasa x @jogo.PlacarVisitante</span>
+                                        @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
+                                        {
+                                            <span class="lib-pen">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</span>
+                                        }
                                     }
                                     else
                                     {

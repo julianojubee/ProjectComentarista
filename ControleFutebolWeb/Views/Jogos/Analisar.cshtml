@@ -3,6 +3,10 @@
 @using ControleFutebolWeb.Helpers
 @using System.Text.Json
 @{
+    // Título da aba do navegador: app na frente + confronto, para diferenciar
+    // várias análises abertas ao mesmo tempo (ex.: "Comentarista Esportivo - Nova Zelândia x Bélgica").
+    ViewData["TitleOverride"] = $"Comentarista Esportivo - {Model.Jogo.TimeCasa?.Nome} x {Model.Jogo.TimeVisitante?.Nome}";
+
     var faseAtual = (Model.FaseEscalacaoAtual as string) ?? "INICIAL";
     var faseEhInicial = faseAtual == "INICIAL";
     var fasesTaticas = (Model.FasesTaticas as List<ControleFutebolWeb.Models.FaseTatica>) ?? new List<ControleFutebolWeb.Models.FaseTatica>();
@@ -11,6 +15,13 @@
     var jogadoresEntraramVisitante = (Model.JogadoresEntraramVisitante as List<int>) ?? new List<int>();
     var jogadoresSairamCasa = (Model.JogadoresSairamCasa as List<int>) ?? new List<int>();
     var jogadoresSairamVisitante = (Model.JogadoresSairamVisitante as List<int>) ?? new List<int>();
+    var entrouNoLugarDe = (Model.EntrouNoLugarDe as Dictionary<int, string>) ?? new Dictionary<int, string>();
+    // Texto do tooltip da seta verde: com o registro da substituição mostra
+    // "Entrou no lugar de {nome} ({min}')"; sem registro, o texto genérico.
+    string TituloEntrou(int jogadorId) =>
+        entrouNoLugarDe.TryGetValue(jogadorId, out var saiu)
+            ? $"Entrou no lugar de {saiu}"
+            : "Jogador entrou";
     var golsPorJogador = (Model.GolsPorJogador as Dictionary<int, int>) ?? new Dictionary<int, int>();
     var assistsPorJogador = (Model.AssistsPorJogador as Dictionary<int, int>) ?? new Dictionary<int, int>();
 
@@ -94,7 +105,12 @@
         transform: translate(-50%, -50%);
     }
 
-        .posicao-drop * {
+        /* Botões +/ℹ e a seta ↑ ficam fora do pointer-events:none: precisam
+           receber clique/hover. IMPORTANTE: os três :not() elevam a
+           especificidade desta regra acima dos estilos dos próprios botões —
+           qualquer novo elemento interativo dentro do slot precisa ser
+           adicionado aqui também. */
+        .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in) {
             pointer-events: none;
         }
 
@@ -290,7 +306,7 @@
         white-space: pre-wrap;
     }
 
-    .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador) {
+    .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in) {
         pointer-events: none;
     }
 
@@ -308,7 +324,15 @@
         margin-left: 6px;
     }
 
+    /* Seta verde de "entrou": posicionada de forma absoluta no canto inferior
+       direito do círculo do jogador. Antes ficava DENTRO de .player-name, que
+       tem max-width:64px + overflow:hidden — nomes longos truncados cortavam a
+       seta junto (por isso ela "sumia às vezes"). */
     .sub-chip-in {
+        position: absolute;
+        top: 24px;              /* borda inferior do círculo de 36px */
+        left: 50%;
+        margin-left: 9px;       /* metade do círculo (18px) - metade do chip */
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -318,8 +342,12 @@
         background: #16a34a;
         color: #fff;
         font-size: 10px;
-        margin-left: 6px;
         line-height: 1;
+        border: 1.5px solid #fff;
+        box-shadow: 0 1px 3px rgba(0,0,0,.45);
+        z-index: 3;
+        pointer-events: auto; /* recebe hover para o tooltip */
+        cursor: help;
     }
 
     .obs-box {
@@ -386,6 +414,104 @@
         padding: 5px 9px;
         font-size: 12px;
         cursor: pointer;
+    }
+
+    .obs-tag-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 6px 0;
+        border-bottom: 1px dashed #e5e7eb;
+        font-size: 13px;
+    }
+    .obs-tag-row:last-child { border-bottom: none; }
+    .obs-tag-badge {
+        flex: 0 0 auto;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 999px;
+        color: #fff;
+        white-space: nowrap;
+    }
+    .obs-tag-badge-mandante { background: #2563eb; }
+    .obs-tag-badge-visitante { background: #dc2626; }
+    .obs-tag-badge-competicao { background: #7c3aed; }
+    .obs-tag-badge-jogador { background: #059669; }
+    .obs-tag-badge-marco { background: #d97706; }
+    .obs-tag-jogador-nome {
+        flex: 0 0 auto;
+        font-weight: 600;
+        color: #374151;
+        font-size: 12px;
+    }
+    .obs-tag-texto { flex: 1; color: #374151; }
+    .obs-tag-remover {
+        flex: 0 0 auto;
+        cursor: pointer;
+        color: #dc3545;
+        font-weight: 700;
+        padding: 0 4px;
+    }
+
+    /* ── Observações livres do jogo ── */
+    .obs-jogo-box {
+        max-width: 980px;
+        margin: 14px auto 0;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 14px 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+
+    .obs-jogo-header {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+    }
+
+    .obs-jogo-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: #1f2937;
+    }
+
+    .obs-jogo-hint {
+        font-size: 12px;
+        color: #9ca3af;
+    }
+
+    .obs-jogo-textarea {
+        width: 100%;
+        min-height: 90px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 13px;
+        line-height: 1.45;
+        resize: vertical;
+    }
+
+        .obs-jogo-textarea:focus {
+            outline: none;
+            border-color: #22c55e;
+            box-shadow: 0 0 0 3px rgba(34,197,94,.15);
+        }
+
+    .obs-jogo-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 8px;
+    }
+
+    .obs-jogo-status {
+        font-size: 12px;
+        color: #6b7280;
     }
 
     .cf-comp-hero {
@@ -555,6 +681,64 @@
         font-size: 0.82rem;
     }
     .mb-meta-icon { font-size: 1rem; }
+
+    /* ── Disputa de pênaltis ──────────────────────────────── */
+    .mb-pen-result {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1px;
+        margin-top: -2px;
+        padding-bottom: 6px;
+    }
+    .mb-pen-score { font-size: .95rem; font-weight: 700; color: #fff; }
+    .mb-pen-winner { font-size: .78rem; font-weight: 600; color: #4ade80; }
+
+    .mb-penaltis {
+        margin: 4px auto 8px;
+        max-width: 520px;
+        padding: 10px 14px;
+        border-radius: 12px;
+        background: rgba(255,255,255,.05);
+        border: 1px solid rgba(255,255,255,.12);
+    }
+    .mb-pen-head {
+        text-align: center;
+        font-size: .72rem;
+        letter-spacing: .08em;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: rgba(255,255,255,.6);
+        margin-bottom: 8px;
+    }
+    .mb-pen-cols {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 5px 18px;
+    }
+    .mb-pen-col { display: flex; flex-direction: column; gap: 5px; }
+    .mb-pen-kick {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: .85rem;
+        color: rgba(255,255,255,.9);
+    }
+    .mb-pen-col.vis .mb-pen-kick { flex-direction: row-reverse; }
+    .mb-pen-ord {
+        min-width: 14px;
+        text-align: center;
+        font-size: .75rem;
+        color: rgba(255,255,255,.4);
+    }
+    .mb-pen-ball { font-size: .8rem; line-height: 1; }
+    .mb-pen-kick.ok   .mb-pen-ball { color: #4ade80; }
+    .mb-pen-kick.fail .mb-pen-ball { color: #f87171; }
+    .mb-pen-kick.fail .mb-pen-name {
+        color: rgba(255,255,255,.5);
+        text-decoration: line-through;
+    }
+    .mb-pen-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
     /* ── Toolbar de eventos ───────────────────────────────── */
     .mb-toolbar-toggle {
@@ -910,6 +1094,19 @@
         </div>
     </div>
 
+    @if (Model.Jogo.PenaltisCasa.HasValue && Model.Jogo.PenaltisVisitante.HasValue)
+    {
+        var casaVenceuPen = Model.Jogo.PenaltisCasa > Model.Jogo.PenaltisVisitante;
+        var vencedorPen = casaVenceuPen ? Model.Jogo.TimeCasa?.Nome : Model.Jogo.TimeVisitante?.Nome;
+        <div class="mb-pen-result">
+            <span class="mb-pen-score">@Model.Jogo.PenaltisCasa - @Model.Jogo.PenaltisVisitante nos pênaltis</span>
+            <span class="mb-pen-winner">@vencedorPen avançou</span>
+        </div>
+    }
+
+    <!-- Disputa de pênaltis (preenchida via JS quando houver) -->
+    <div class="mb-penaltis" id="mbPenaltis" style="display:none;"></div>
+
     @if (!string.IsNullOrWhiteSpace(Model.Jogo.Estadio) || !string.IsNullOrWhiteSpace(Model.Jogo.Arbitro))
     {
         <div class="mb-meta">
@@ -960,6 +1157,9 @@
         </div>
         <div class="mb-toolbar-toggle" id="mbH2HToggle" onclick="abrirH2H(@Model.Jogo.Id)" style="margin:0; cursor:pointer;">
             <span>⚔️ Últimos confrontos</span>
+        </div>
+        <div class="mb-toolbar-toggle" id="mbPreJogoToggle" onclick="abrirPreJogo(@Model.Jogo.Id)" style="margin:0; cursor:pointer;">
+            <span>🔍 Pré-jogo</span>
         </div>
     </div>
 
@@ -1065,15 +1265,15 @@
     {
         <form asp-action="ReimportarEscalacao" asp-controller="Jogos" asp-route-id="@Model.Jogo.Id"
               method="post" style="margin:0;"
-              onsubmit="return confirm('Re-importar escalação do Transfermarkt?\n\nIsso vai apagar todas as escalações, gols, cartões e assistências deste jogo e reimportar do zero.')">
+              onsubmit="return confirm('Reimportar dados do jogo?\n\nIsso vai reimportar do zero a escalação (titulares/reservas), gols, cartões e assistências deste jogo, e recarregar a SUA escalação a partir da importação.\n\nSuas observações e notas já digitadas NÃO são alteradas.')">
             @Html.AntiForgeryToken()
             <button type="submit"
                     style="display:flex; align-items:center; gap:6px; padding:8px 14px;
                            border-radius:8px; border:1px solid #f59e0b; background:#fffbeb;
                            color:#92400e; font-size:13px; font-weight:500; cursor:pointer;
                            white-space:nowrap;"
-                    title="Apaga e re-importa escalação, gols e cartões do Transfermarkt (corrige posições erradas)">
-                🔄 Re-importar Transfermarkt
+                    title="Apaga e reimporta escalação, gols e cartões deste jogo (não mexe nas suas observações)">
+                🔄 Reimportar dados
             </button>
         </form>
     }
@@ -1195,7 +1395,10 @@
             <input type="hidden" name="formacaoVisitanteId" value="@Model.FormacaoVisitanteSelecionada" />
             <input type="hidden" name="faseEscalacao" value="@faseAtual" />
             <label class="fw-bold">Formação @Model.Jogo.TimeCasa.Nome:</label>
-            <select name="formacaoCasaId" class="form-select" onchange="this.form.submit()">
+            @* requestSubmit (e não submit): dispara o listener de submit que serializa
+               as observações — submit() programático pulava a serialização e o post
+               vazio apagava as observações salvas. *@
+            <select name="formacaoCasaId" class="form-select" onchange="this.form.requestSubmit()">
                 @foreach (var f in (IEnumerable<SelectListItem>)Model.FormacoesCasa)
                 {
                     <option value="@f.Value" @(f.Selected ? "selected" : "")>@f.Text</option>
@@ -1209,7 +1412,7 @@
             <input type="hidden" name="formacaoCasaId" value="@Model.FormacaoCasaSelecionada" />
             <input type="hidden" name="faseEscalacao" value="@faseAtual" />
             <label class="fw-bold">Formação @Model.Jogo.TimeVisitante.Nome:</label>
-            <select name="formacaoVisitanteId" class="form-select" onchange="this.form.submit()">
+            <select name="formacaoVisitanteId" class="form-select" onchange="this.form.requestSubmit()">
                 @foreach (var f in (IEnumerable<SelectListItem>)Model.FormacoesVisitante)
                 {
                     <option value="@f.Value" @(f.Selected ? "selected" : "")>@f.Text</option>
@@ -1219,19 +1422,15 @@
     </div>
 </div>
 
-<!-- ── Cronômetro da partida ─────────────────────────────────────── -->
+<!-- ── Fase tática da partida ─────────────────────────────────────── -->
 <div class="d-flex align-items-center gap-2 mb-2 p-2"
      style="background:#0f172a; border-radius:8px; color:#e2e8f0; flex-wrap:wrap;">
-    <span style="font-size:12px; color:#94a3b8;">⏱ Cronômetro</span>
-    <span id="cronoDisplay" style="font-variant-numeric:tabular-nums; font-size:20px; font-weight:700; min-width:62px;">00:00</span>
-    <span id="cronoEstado" style="font-size:11px; color:#94a3b8;">parado</span>
-    <button type="button" class="btn btn-sm btn-success" onclick="cronoAcao('iniciar')">▶ Iniciar</button>
-    <button type="button" class="btn btn-sm btn-warning" onclick="cronoAcao('parar')">⏸ Parar</button>
-    <button type="button" class="btn btn-sm btn-danger" onclick="cronoAcao('finalizar')">⏹ Finalizar</button>
     <div class="ms-auto d-flex align-items-center gap-1">
+        <label style="font-size:11px; color:#94a3b8;">nome</label>
+        <input type="text" id="faseNome" maxlength="60" placeholder="ex: Fase de ataque"
+               class="form-control form-control-sm" style="width:180px;" />
         <label style="font-size:11px; color:#94a3b8;">min</label>
         <input type="number" id="faseMinuto" min="0" max="130" value="0"
-               oninput="this.dataset.editado='1'"
                class="form-control form-control-sm" style="width:64px;" />
         <button type="button" class="btn btn-sm btn-primary" onclick="salvarFaseTatica()" title="Salva a escalação atual como uma fase tática no minuto informado">
             💾 Salvar fase
@@ -1257,6 +1456,7 @@
             var f = fasesTaticas[fi];
             var fim = fi < fasesTaticas.Count - 1 ? (int?)(fasesTaticas[fi + 1].MinutoInicio - 1) : null;
             var faixa = fim.HasValue ? $"{f.MinutoInicio}'–{fim}'" : $"{f.MinutoInicio}'→";
+            var rotulo = string.IsNullOrWhiteSpace(f.Nome) ? faixa : $"{f.Nome} ({faixa})";
             <li class="nav-item">
                 <a class="nav-link @(faseAtual == f.Chave ? "active" : "")"
                    asp-action="Analisar"
@@ -1265,7 +1465,7 @@
                    asp-route-formacaoVisitanteId="@Model.FormacaoVisitanteSelecionada"
                    asp-route-faseEscalacao="@f.Chave"
                    title="Fase tática (@faixa)">
-                    @faixa
+                    @rotulo
                     @if (faseAtual == f.Chave)
                     {
                         <span style="cursor:pointer; margin-left:6px; color:#dc3545;"
@@ -1297,7 +1497,6 @@
     <input type="hidden" name="formacaoCasaId" value="@Model.FormacaoCasaSelecionada" />
     <input type="hidden" name="formacaoVisitanteId" value="@Model.FormacaoVisitanteSelecionada" />
     <input type="hidden" name="faseEscalacao" value="@faseAtual" />
-    <input type="hidden" id="observacoesComTags" name="observacoesComTags" value="" />
 
     <div class="row">
 
@@ -1380,13 +1579,12 @@
                                 @if (esc.Jogador != null)
                                 {
                                     <div class="player-circle player-circle-casa">@(esc.Jogador.NumeroCamisa?.ToString() ?? "")</div>
-                                    <div class="player-name">
-                                        @esc.Jogador.Nome
-                                        @if (!faseEhInicial && jogadoresEntraramCasa.Contains(esc.Jogador.Id))
-                                        {
-                                            <span class="sub-chip-in" title="Jogador entrou">↑</span>
-                                        }
-                                    </div>
+                                    @* Fora de .player-name: o overflow:hidden dela cortava a seta em nomes longos *@
+                                    @if (!faseEhInicial && jogadoresEntraramCasa.Contains(esc.Jogador.Id))
+                                    {
+                                        <span class="sub-chip-in" title="@TituloEntrou(esc.Jogador.Id)">↑</span>
+                                    }
+                                    <div class="player-name">@esc.Jogador.Nome</div>
                                     <button type="button"
                                             id="btn-avaliar-@esc.Jogador.Id"
                                             class="btn-avaliar"
@@ -1477,13 +1675,11 @@
                                 @if (esc.Jogador != null)
                                 {
                                     <div class="player-circle player-circle-vis">@(esc.Jogador.NumeroCamisa?.ToString() ?? "")</div>
-                                    <div class="player-name">
-                                        @esc.Jogador.Nome
-                                        @if (!faseEhInicial && jogadoresEntraramVisitante.Contains(esc.Jogador.Id))
-                                        {
-                                            <span class="sub-chip-in" title="Jogador entrou">↑</span>
-                                        }
-                                    </div>
+                                    @if (!faseEhInicial && jogadoresEntraramVisitante.Contains(esc.Jogador.Id))
+                                    {
+                                        <span class="sub-chip-in" title="@TituloEntrou(esc.Jogador.Id)">↑</span>
+                                    }
+                                    <div class="player-name">@esc.Jogador.Nome</div>
                                     <button type="button"
                                             id="btn-avaliar-@esc.Jogador.Id"
                                             class="btn-avaliar"
@@ -1600,17 +1796,68 @@
 
     </div>
 
-    @if (!faseEhInicial)
-    {
-        <div class="obs-box">
-            <div class="obs-title">Observações da escalação final</div>
-            <div id="obsRows"></div>
-            <div class="obs-actions">
-                <button type="button" class="obs-btn" onclick="adicionarLinhaObs('CASA', '')">+ Observação mandante</button>
-                <button type="button" class="obs-btn" onclick="adicionarLinhaObs('VISITANTE', '')">+ Observação visitante</button>
-            </div>
+    <!-- ── Observações livres do jogo (por usuário) ───────────────────────── -->
+    <div class="obs-jogo-box">
+        <div class="obs-jogo-header">
+            <span class="obs-jogo-title">📝 Observações do jogo</span>
+            <span class="obs-jogo-hint">Público, curiosidades, contexto… (só você vê · salva automaticamente)</span>
         </div>
-    }
+        <textarea id="obsJogoTexto" class="obs-jogo-textarea" rows="4"
+                  placeholder="Ex.: Público de 45 mil. Primeiro encontro entre as seleções na Copa. Clima quente, gramado pesado…">@(Model.ObservacoesLivresUsuario as string)</textarea>
+        <div class="obs-jogo-actions">
+            <span id="obsJogoStatus" class="obs-jogo-status"></span>
+            <button type="button" id="obsJogoSalvarBtn" class="btn btn-success btn-sm" onclick="salvarObservacoesJogo()">
+                Salvar agora
+            </button>
+        </div>
+    </div>
+
+    <div class="obs-box">
+        <div class="obs-title">Observações do jogo (mandante, visitante, competição, jogador, marcos históricos…)</div>
+        <div id="obsTagList">
+            @foreach (var o in Model.ObservacoesTag)
+            {
+                var rotulo = o.Tipo switch
+                {
+                    "MANDANTE" => "Mandante",
+                    "VISITANTE" => "Visitante",
+                    "COMPETICAO" => "Competição",
+                    "JOGADOR" => "Jogador",
+                    "MARCO" => "Marco",
+                    _ => o.Tipo
+                };
+                <div class="obs-tag-row" data-id="@o.Id">
+                    <span class="obs-tag-badge obs-tag-badge-@o.Tipo.ToLowerInvariant()">@rotulo</span>
+                    @if (o.Tipo == "JOGADOR" && o.Jogador != null)
+                    {
+                        <span class="obs-tag-jogador-nome">@o.Jogador.NomeExibicao</span>
+                    }
+                    <span class="obs-tag-texto">@o.Texto</span>
+                    <span class="obs-tag-remover" onclick="removerObservacaoTag(@o.Id, this)" title="Remover">&times;</span>
+                </div>
+            }
+        </div>
+        <div class="obs-actions" style="flex-wrap:wrap;">
+            <select id="obsTagTipo" class="form-select form-select-sm" style="width:auto;" onchange="atualizarSeletorJogadorObs()">
+                <option value="MANDANTE">Mandante (@Model.Jogo.TimeCasa.Nome)</option>
+                <option value="VISITANTE">Visitante (@Model.Jogo.TimeVisitante.Nome)</option>
+                <option value="COMPETICAO">Competição</option>
+                <option value="JOGADOR">Jogador</option>
+                <option value="MARCO">Marco histórico</option>
+            </select>
+            <select id="obsTagJogador" class="form-select form-select-sm" style="width:auto; display:none;">
+                <option value="">Selecione o jogador…</option>
+                @foreach (var j in Model.JogadoresEscalados)
+                {
+                    <option value="@j.Id">@j.NomeExibicao</option>
+                }
+            </select>
+            <input type="text" id="obsTagTexto" class="form-control form-control-sm"
+                   style="flex:1; min-width:220px;"
+                   placeholder="Ex.: primeiro gol do jogador em mata-mata da competição / jogo mil do clube / título histórico após 41 anos…" />
+            <button type="button" class="obs-btn" onclick="adicionarObservacaoTag()">+ Adicionar observação</button>
+        </div>
+    </div>
 
     <div class="text-center mt-3">
         <button type="submit" class="btn btn-success">Salvar Escalação @(faseEhInicial ? "Inicial" : "Final")</button>
@@ -1775,75 +2022,89 @@
         vis:  '@Url.Content(CamisaHelper.ObterCamisa(Model.Jogo, Model.Jogo.TimeVisitante))'
     };
     const faseEscalacaoAtual = '@faseAtual';
-    const observacoesSalvasRaw = @Html.Raw(System.Text.Json.JsonSerializer.Serialize((Model.ObservacoesUsuario as string) ?? ""));
-    const escudosObservacao = {
-        CASA: '@(string.IsNullOrEmpty(Model.Jogo.TimeCasa.EscudoUrl) ? "" : Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeCasa.EscudoUrl }))',
-        VISITANTE: '@(string.IsNullOrEmpty(Model.Jogo.TimeVisitante.EscudoUrl) ? "" : Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeVisitante.EscudoUrl }))'
-    };
+    const JOGO_ID_OBS_TAG = @Model.Jogo.Id;
 
-    function autoResizeObs(textarea) {
-        if (!textarea) return;
-        textarea.style.height = 'auto';
-        textarea.style.height = `${Math.max(textarea.scrollHeight, 38)}px`;
+    const rotulosObsTag = { MANDANTE: 'Mandante', VISITANTE: 'Visitante', COMPETICAO: 'Competição', JOGADOR: 'Jogador', MARCO: 'Marco' };
+
+    function atualizarSeletorJogadorObs() {
+        const tipo = document.getElementById('obsTagTipo').value;
+        document.getElementById('obsTagJogador').style.display = tipo === 'JOGADOR' ? '' : 'none';
     }
 
-    function atualizarEscudoLinhaObs(selectEl) {
-        const row = selectEl.closest('.obs-row');
-        if (!row) return;
-        const icon = row.querySelector('.obs-team-icon');
-        if (!icon) return;
-        icon.src = escudosObservacao[selectEl.value] || '';
-    }
-
-    function adicionarLinhaObs(timeTag, texto) {
-        const container = document.getElementById('obsRows');
+    function adicionarLinhaObsTag(obs) {
+        const container = document.getElementById('obsTagList');
         if (!container) return;
 
         const row = document.createElement('div');
-        row.className = 'obs-row';
+        row.className = 'obs-tag-row';
+        row.dataset.id = obs.id;
+        const nomeJogadorHtml = obs.jogadorNome
+            ? `<span class="obs-tag-jogador-nome">${obs.jogadorNome}</span>`
+            : '';
         row.innerHTML = `
-            <div class="obs-team-pick">
-                <img class="obs-team-icon" src="${escudosObservacao[timeTag] || ''}" alt="${timeTag}" />
-                <select class="form-select form-select-sm" onchange="atualizarEscudoLinhaObs(this)">
-                    <option value="CASA" ${timeTag === 'CASA' ? 'selected' : ''}>@Model.Jogo.TimeCasa.Nome</option>
-                    <option value="VISITANTE" ${timeTag === 'VISITANTE' ? 'selected' : ''}>@Model.Jogo.TimeVisitante.Nome</option>
-                </select>
-            </div>
-            <textarea placeholder="Escreva a observação..." oninput="autoResizeObs(this)"></textarea>
+            <span class="obs-tag-badge obs-tag-badge-${obs.tipo.toLowerCase()}">${rotulosObsTag[obs.tipo] || obs.tipo}</span>
+            ${nomeJogadorHtml}
+            <span class="obs-tag-texto"></span>
+            <span class="obs-tag-remover" title="Remover">&times;</span>
         `;
+        row.querySelector('.obs-tag-texto').textContent = obs.texto;
+        row.querySelector('.obs-tag-remover').addEventListener('click', () => removerObservacaoTag(obs.id, row.querySelector('.obs-tag-remover')));
         container.appendChild(row);
-        const ta = row.querySelector('textarea');
-        ta.value = texto || '';
-        autoResizeObs(ta);
     }
 
-    function carregarObservacoesSalvas() {
-        const valor = (observacoesSalvasRaw || '').trim();
-        if (!valor) return;
+    async function adicionarObservacaoTag() {
+        const tipo = document.getElementById('obsTagTipo').value;
+        const jogadorSelect = document.getElementById('obsTagJogador');
+        const textoEl = document.getElementById('obsTagTexto');
+        const texto = (textoEl.value || '').trim();
 
-        const linhas = valor.split('\n').map(l => l.trim()).filter(Boolean);
-        linhas.forEach(linha => {
-            const match = linha.match(/^\[(CASA|VISITANTE)\]\s*(.*)$/i);
-            if (match) {
-                adicionarLinhaObs(match[1].toUpperCase(), match[2] || '');
+        if (!texto) { alert('Escreva o texto da observação.'); return; }
+        if (tipo === 'JOGADOR' && !jogadorSelect.value) { alert('Selecione o jogador.'); return; }
+
+        try {
+            const resp = await fetch('/Jogos/AdicionarObservacaoTag', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    jogoId: JOGO_ID_OBS_TAG,
+                    tipo,
+                    jogadorId: tipo === 'JOGADOR' ? parseInt(jogadorSelect.value, 10) : null,
+                    texto
+                })
+            });
+            if (resp.ok) {
+                const obs = await resp.json();
+                adicionarLinhaObsTag(obs);
+                textoEl.value = '';
+            } else {
+                alert('Erro ao salvar a observação.');
             }
-        });
+        } catch {
+            alert('Erro de conexão ao salvar a observação.');
+        }
     }
 
-    function serializarObservacoesComTags() {
-        const hidden = document.getElementById('observacoesComTags');
-        if (!hidden) return;
-
-        const rows = Array.from(document.querySelectorAll('#obsRows .obs-row'));
-        const linhas = rows.map(row => {
-            const team = row.querySelector('select')?.value || 'CASA';
-            const texto = (row.querySelector('textarea')?.value || '').trim();
-            if (!texto) return null;
-            return `[${team}] ${texto}`;
-        }).filter(Boolean);
-
-        hidden.value = linhas.join('\n');
+    async function removerObservacaoTag(id, btn) {
+        if (!confirm('Remover esta observação?')) return;
+        try {
+            const resp = await fetch('/Jogos/RemoverObservacaoTag', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id })
+            });
+            if (resp.ok) {
+                btn.closest('.obs-tag-row')?.remove();
+            } else {
+                alert('Erro ao remover a observação.');
+            }
+        } catch {
+            alert('Erro de conexão ao remover a observação.');
+        }
     }
+
+    document.querySelectorAll('#obsTagList .obs-tag-remover').forEach(btn => {
+        btn.addEventListener('click', () => removerObservacaoTag(parseInt(btn.closest('.obs-tag-row').dataset.id, 10), btn));
+    });
 
     // ── Inicializa conjuntos de usados ─────────────────────────────────────
     function initUsados() {
@@ -2048,19 +2309,7 @@
     }
 
     initUsados();
-    if (faseEscalacaoAtual === 'FINAL') {
-        carregarObservacoesSalvas();
-        if (!document.querySelector('#obsRows .obs-row')) {
-            adicionarLinhaObs('CASA', '');
-            adicionarLinhaObs('VISITANTE', '');
-        }
-    }
-
-    if (formPrincipal) {
-        formPrincipal.addEventListener('submit', function () {
-            if (faseEscalacaoAtual === 'FINAL') serializarObservacoesComTags();
-        });
-    }
+    atualizarSeletorJogadorObs();
 </script>
 
 <script>
@@ -2360,10 +2609,50 @@
                     nomeSaiu: s.nomeSaiu || null
                 });
             });
+
+            // Renderiza pênaltis perdidos
+            (data.penaltisPerdidos || []).forEach(p => {
+                adicionarEventoNaTimeline({
+                    id: 'pp_' + p.id, tipo: 'penaltiPerdido',
+                    time: p.timeCasaId ? 'casa' : 'vis',
+                    minuto: p.minuto, acrescimo: 0,
+                    nomeJogador: p.nomeJogador
+                });
+            });
+
+            // Renderiza a disputa de pênaltis (cobranças convertidas e perdidas)
+            renderizarDisputaPenaltis(data.penaltisDisputa || [], data.penaltisCasa, data.penaltisVis);
         } catch (e) {
             console.warn('Não foi possível carregar eventos:', e);
         }
     })();
+
+    // ══ Disputa de pênaltis ═══════════════════════════════════════════════
+    function renderizarDisputaPenaltis(lista, placarCasa, placarVis) {
+        const box = document.getElementById('mbPenaltis');
+        if (!box || !lista.length) return;
+
+        // i = índice dentro da coluna do time → numera 1..n por time (igual ao placar oficial),
+        // em vez da ordem global alternada entre os dois times.
+        const linha = (p, i) => `
+            <div class="mb-pen-kick ${p.convertido ? 'ok' : 'fail'}">
+                <span class="mb-pen-ord">${i + 1}</span>
+                <span class="mb-pen-ball">${p.convertido ? '●' : '✖'}</span>
+                <span class="mb-pen-name">${p.nomeJogador || '?'}</span>
+            </div>`;
+
+        const casa = lista.filter(p => p.isCasa);
+        const vis  = lista.filter(p => !p.isCasa);
+        const placar = (placarCasa != null && placarVis != null) ? ` (${placarCasa}-${placarVis})` : '';
+
+        box.innerHTML = `
+            <div class="mb-pen-head">PÊNALTIS${placar}</div>
+            <div class="mb-pen-cols">
+                <div class="mb-pen-col casa">${casa.map(linha).join('')}</div>
+                <div class="mb-pen-col vis">${vis.map(linha).join('')}</div>
+            </div>`;
+        box.style.display = '';
+    }
 
     // ══ Modal de Evento ═══════════════════════════════════════════════════
     function abrirModalEvento(tipo, time) {
@@ -2494,16 +2783,20 @@
         const tl = ev.tipo === 'gol'
             ? document.getElementById('mbTimelineGols')
             : document.getElementById('mbTimelineOutros');
-        const icones = { gol: '⚽', amarelo: '🟨', vermelho: '🟥', substituicao: '🔄' };
+        const icones = { gol: '⚽', amarelo: '🟨', vermelho: '🟥', substituicao: '🔄', penaltiPerdido: '🚫' };
         const icon   = ev.isContra ? '🔴⚽' : icones[ev.tipo] || '📌';
         const minStr = ev.acrescimo > 0 ? `${ev.minuto}+${ev.acrescimo}'` : `${ev.minuto}'`;
         const assistStr = ev.nomeAssistencia
             ? `<small>Assist.: ${ev.nomeAssistencia}</small>` : '';
         const subStr = ev.tipo === 'substituicao' && ev.nomeSaiu
             ? `<small>↓ ${ev.nomeSaiu}</small>` : '';
+        const ppStr = ev.tipo === 'penaltiPerdido'
+            ? `<small>Pênalti perdido</small>` : '';
 
         const isSub = ev.tipo === 'substituicao';
-        const delBtn = isSub ? '' : `<button class="mb-event-del"
+        // Pênalti perdido vem da importação e não tem endpoint de remoção manual.
+        const semDel = isSub || ev.tipo === 'penaltiPerdido';
+        const delBtn = semDel ? '' : `<button class="mb-event-del"
                     onclick="removerEvento(this, '${ev.tipo}', ${ev.id || 0})"
                     title="Remover">×</button>`;
 
@@ -2516,7 +2809,7 @@
             <span class="mb-event-icon">${icon}</span>
             <div class="mb-event-text">
                 <strong>${isSub ? '↑ ' : ''}${ev.nomeJogador || '?'}</strong>
-                ${assistStr}${subStr}
+                ${assistStr}${subStr}${ppStr}
             </div>
             ${delBtn}`;
 
@@ -2586,6 +2879,65 @@
             alert('Erro de conexão.');
         }
     }
+
+    // ══ Observações livres do jogo (por usuário) — com autosave ═══════════
+    let obsJogoStatusTimer = null;
+    let obsJogoSaveTimer = null;
+    let obsJogoUltimoSalvo = (document.getElementById('obsJogoTexto')?.value ?? '');
+
+    async function salvarObservacoesJogo(auto = false) {
+        const btn = document.getElementById('obsJogoSalvarBtn');
+        const statusEl = document.getElementById('obsJogoStatus');
+        const campo = document.getElementById('obsJogoTexto');
+        if (!campo) return;
+        const texto = campo.value;
+
+        // No autosave, não reenvia se nada mudou desde o último save.
+        if (auto && texto === obsJogoUltimoSalvo) return;
+
+        if (btn) btn.disabled = true;
+        statusEl.style.color = '#6b7280';
+        statusEl.textContent = 'Salvando…';
+
+        try {
+            const resp = await fetch('/Jogos/SalvarObservacoesJogo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ jogoId: jogoIdPlacar, texto })
+            });
+            if (!resp.ok) throw new Error();
+            obsJogoUltimoSalvo = texto;
+            statusEl.style.color = '#16a34a';
+            statusEl.textContent = '✓ Salvo';
+        } catch (e) {
+            statusEl.style.color = '#dc2626';
+            statusEl.textContent = 'Erro ao salvar';
+        } finally {
+            if (btn) btn.disabled = false;
+            clearTimeout(obsJogoStatusTimer);
+            obsJogoStatusTimer = setTimeout(() => { statusEl.textContent = ''; }, 3000);
+        }
+    }
+
+    (function initAutosaveObsJogo() {
+        const campo = document.getElementById('obsJogoTexto');
+        if (!campo) return;
+        const statusEl = document.getElementById('obsJogoStatus');
+
+        // Autosave 1,2s depois de parar de digitar.
+        campo.addEventListener('input', () => {
+            statusEl.style.color = '#9ca3af';
+            statusEl.textContent = 'Editando…';
+            clearTimeout(obsJogoSaveTimer);
+            obsJogoSaveTimer = setTimeout(() => salvarObservacoesJogo(true), 1200);
+        });
+
+        // Salva na hora ao sair do campo, se houve mudança.
+        campo.addEventListener('blur', () => {
+            clearTimeout(obsJogoSaveTimer);
+            salvarObservacoesJogo(true);
+        });
+    })();
 
     // Fecha modais com ESC
     document.addEventListener('keydown', e => {
@@ -2742,68 +3094,139 @@
     });
 </script>
 
+<!-- ── Modal Pré-jogo ─────────────────────────────────────────────────── -->
+<div id="modal-prejogo" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:10000; align-items:center; justify-content:center;">
+    <div style="background:#0f1b2d; border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:1.4rem; width:780px; max-width:96vw; max-height:90vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,.5);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <h5 style="margin:0; color:#e2e8f0; font-size:15px; font-weight:700;">🔍 Pré-jogo</h5>
+            <button onclick="fecharPreJogo()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1;">&times;</button>
+        </div>
+        <div id="prejogo-corpo">
+            <div style="text-align:center; color:#94a3b8; padding:2rem 0;">Carregando...</div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .pj-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @@media (max-width: 640px) { .pj-grid { grid-template-columns: 1fr; } }
+    .pj-col {
+        background: rgba(255,255,255,.04);
+        border: 1px solid rgba(255,255,255,.08);
+        border-radius: 12px;
+        padding: 1rem;
+    }
+    .pj-col.casa { border-top: 3px solid var(--cor-camisa-casa); }
+    .pj-col.vis  { border-top: 3px solid var(--cor-camisa-vis); }
+    .pj-team-head { display: flex; align-items: center; gap: .6rem; margin-bottom: .8rem; }
+    .pj-team-head img { width: 34px; height: 34px; object-fit: contain; }
+    .pj-team-nome { font-size: 14px; font-weight: 700; color: #e2e8f0; }
+    .pj-record { display: flex; gap: .5rem; }
+    .pj-rec-box { flex: 1; text-align: center; background: rgba(0,0,0,.25); border-radius: 8px; padding: .45rem .2rem; }
+    .pj-rec-num { font-size: 19px; font-weight: 800; line-height: 1.1; }
+    .pj-rec-label { font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: .4px; }
+    .pj-v .pj-rec-num { color: #4ade80; }
+    .pj-e .pj-rec-num { color: #cbd5e1; }
+    .pj-d .pj-rec-num { color: #f87171; }
+    .pj-section-title { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: .5px; margin: .9rem 0 .4rem; }
+    .pj-form { display: flex; gap: 4px; }
+    .pj-form span { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; }
+    .pj-form .V { background: #16a34a; }
+    .pj-form .E { background: #64748b; }
+    .pj-form .D { background: #dc2626; }
+    .pj-player { display: flex; align-items: center; gap: .5rem; padding: .35rem 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+    .pj-player:last-child { border-bottom: none; }
+    .pj-player img, .pj-player .pj-noimg { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+    .pj-player .pj-noimg { background: rgba(255,255,255,.1); }
+    .pj-player-nome { flex: 1; font-size: 12px; color: #e2e8f0; }
+    .pj-player-stat { font-size: 11px; color: #94a3b8; white-space: nowrap; }
+    .pj-obs { padding-left: 1.1rem; margin: 0; font-size: 12px; color: #cbd5e1; line-height: 1.5; }
+    .pj-obs li { margin-bottom: .3rem; }
+    .pj-vazio { font-size: 12px; color: #64748b; }
+</style>
+
 <script>
-    // ══════════════ CRONÔMETRO DA PARTIDA + FASES TÁTICAS ══════════════
+    async function abrirPreJogo(jogoId) {
+        var modal = document.getElementById('modal-prejogo');
+        var corpo = document.getElementById('prejogo-corpo');
+        modal.style.display = 'flex';
+        corpo.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:2rem 0;">Carregando...</div>';
+
+        try {
+            var resp = await fetch('/Jogos/PreJogo/' + jogoId);
+            if (!resp.ok) {
+                var msg = await resp.text();
+                corpo.innerHTML = '<div style="color:#f87171;text-align:center;padding:1rem;">' + msg + '</div>';
+                return;
+            }
+            var dados = await resp.json();
+            corpo.innerHTML = '<div class="pj-grid">' +
+                colunaPreJogo(dados.casa, 'casa') +
+                colunaPreJogo(dados.visitante, 'vis') +
+            '</div>';
+        } catch (e) {
+            corpo.innerHTML = '<div style="color:#f87171;text-align:center;padding:1rem;">Erro ao carregar dados do pré-jogo.</div>';
+        }
+    }
+
+    function escHtml(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function colunaPreJogo(t, lado) {
+        if (!t) return '';
+        var escudo = t.escudo ? '<img src="' + t.escudo + '" alt="">' : '';
+
+        var record = '<div class="pj-record">' +
+            '<div class="pj-rec-box pj-v"><div class="pj-rec-num">' + t.vitorias + '</div><div class="pj-rec-label">Vitórias</div></div>' +
+            '<div class="pj-rec-box pj-e"><div class="pj-rec-num">' + t.empates + '</div><div class="pj-rec-label">Empates</div></div>' +
+            '<div class="pj-rec-box pj-d"><div class="pj-rec-num">' + t.derrotas + '</div><div class="pj-rec-label">Derrotas</div></div>' +
+        '</div>';
+
+        var form = (t.form && t.form.length)
+            ? '<div class="pj-section-title">Últimos jogos</div><div class="pj-form">' +
+              t.form.map(function (f) { return '<span class="' + f + '">' + f + '</span>'; }).join('') + '</div>'
+            : '';
+
+        var players = '<div class="pj-section-title">Jogadores em destaque</div>';
+        if (t.destaques && t.destaques.length) {
+            players += t.destaques.map(function (p) {
+                var foto = p.foto ? '<img src="' + p.foto + '" alt="">' : '<div class="pj-noimg"></div>';
+                var stat = [];
+                if (p.gols) stat.push('⚽ ' + p.gols);
+                if (p.assists) stat.push('🅰 ' + p.assists);
+                return '<div class="pj-player">' + foto +
+                    '<span class="pj-player-nome">' + escHtml(p.nome) + '</span>' +
+                    '<span class="pj-player-stat">' + stat.join(' · ') + '</span></div>';
+            }).join('');
+        } else {
+            players += '<div class="pj-vazio">Sem gols/assistências registrados.</div>';
+        }
+
+        var obs = (t.observacoes && t.observacoes.length)
+            ? '<div class="pj-section-title">Observações</div><ul class="pj-obs">' +
+              t.observacoes.map(function (o) { return '<li>' + escHtml(o) + '</li>'; }).join('') + '</ul>'
+            : '';
+
+        return '<div class="pj-col ' + lado + '">' +
+            '<div class="pj-team-head">' + escudo + '<span class="pj-team-nome">' + escHtml(t.nome) + '</span></div>' +
+            record + form + players + obs +
+        '</div>';
+    }
+
+    function fecharPreJogo() {
+        document.getElementById('modal-prejogo').style.display = 'none';
+    }
+
+    document.getElementById('modal-prejogo').addEventListener('click', function (e) {
+        if (e.target === this) fecharPreJogo();
+    });
+</script>
+
+<script>
+    // ══════════════ FASES TÁTICAS ══════════════
     const CRONO_JOGO_ID = @Model.Jogo.Id;
-
-    let cronoEstado = 'PARADO';
-    let cronoBaseSegundos = 0;     // segundos vindos do servidor no último sync
-    let cronoSyncTs = Date.now();  // momento do último sync (ms)
-
-    function cronoSegundosAtuais() {
-        if (cronoEstado === 'RODANDO')
-            return cronoBaseSegundos + Math.floor((Date.now() - cronoSyncTs) / 1000);
-        return cronoBaseSegundos;
-    }
-
-    function cronoRender() {
-        const s = cronoSegundosAtuais();
-        const mm = String(Math.floor(s / 60)).padStart(2, '0');
-        const ss = String(s % 60).padStart(2, '0');
-        const disp = document.getElementById('cronoDisplay');
-        if (disp) disp.textContent = `${mm}:${ss}`;
-        const est = document.getElementById('cronoEstado');
-        if (est) est.textContent = cronoEstado === 'RODANDO' ? 'em andamento'
-                               : cronoEstado === 'FINALIZADO' ? 'finalizado' : 'parado';
-
-        // Sugere o minuto atual no campo de fase, enquanto o usuário não editar manualmente
-        const campo = document.getElementById('faseMinuto');
-        if (campo && !campo.dataset.editado && cronoEstado === 'RODANDO')
-            campo.value = Math.floor(s / 60);
-    }
-
-    function aplicarEstadoCrono(estado, segundos) {
-        cronoEstado = estado;
-        cronoBaseSegundos = segundos;
-        cronoSyncTs = Date.now();
-        cronoRender();
-    }
-
-    async function cronoAcao(acao) {
-        try {
-            const resp = await fetch('/Jogos/CronometroAcao', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ jogoId: CRONO_JOGO_ID, acao })
-            });
-            if (resp.ok) {
-                const d = await resp.json();
-                aplicarEstadoCrono(d.estado, d.segundos);
-            }
-        } catch { }
-    }
-
-    setInterval(cronoRender, 1000);
-
-    (async function initCrono() {
-        try {
-            const resp = await fetch(`/Jogos/CronometroEstado?jogoId=${CRONO_JOGO_ID}`);
-            if (resp.ok) {
-                const d = await resp.json();
-                aplicarEstadoCrono(d.estado, d.segundos);
-            }
-        } catch { }
-    })();
 
     // ── Fases táticas: salvar a escalação atual como uma nova fase ──
     function coletarTitularesFase() {
@@ -2825,6 +3248,7 @@
 
     async function salvarFaseTatica() {
         const minuto = parseInt(document.getElementById('faseMinuto').value || '0', 10) || 0;
+        const nome = document.getElementById('faseNome').value.trim();
         const titulares = coletarTitularesFase();
         if (titulares.length === 0) {
             alert('Não há jogadores escalados para salvar como fase tática.');
@@ -2834,7 +3258,7 @@
             const resp = await fetch('/Jogos/SalvarFaseTatica', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ jogoId: CRONO_JOGO_ID, minuto, titulares })
+                body: JSON.stringify({ jogoId: CRONO_JOGO_ID, minuto, nome, titulares })
             });
             if (resp.ok) {
                 const d = await resp.json();
