@@ -55,7 +55,9 @@ namespace ControleFutebolWeb.Controllers
                 jogadores = jogadores.Where(j => j.Nome.ToLower().Contains(nome.ToLower()));
 
             if (!string.IsNullOrEmpty(posicao))
-                jogadores = jogadores.Where(j => j.Posicao == posicao);
+                // Contains: a posição do jogador pode ser composta ("Lateral Direito/Zagueiro")
+                // e filtros genéricos ("Meia") devem pegar as variantes ("Meia Ofensivo").
+                jogadores = jogadores.Where(j => j.Posicao.Contains(posicao));
 
             if (!string.IsNullOrEmpty(nacionalidade))
                 jogadores = jogadores.Where(j => j.Nacionalidade.Nome == nacionalidade);
@@ -107,12 +109,13 @@ namespace ControleFutebolWeb.Controllers
             vm.IdadeMax = idadeMax;
             vm.SemIdade = semIdade;
 
-            // Preenche combos com SelectList
+            // Preenche combos com SelectList — nomes alinhados com PosicaoFormacao.NomePosicao
+            // (o filtro é Contains, então "Meia" também pega "Meia Ofensivo" etc.)
             var posicoes = new List<string> {
-            "Goleiro","Zagueiro","Meio-campo","Volante","Atacante",
-            "Ponta Esquerda","Ponta Direita","Meia Ofensivo",
-            "Lateral Esquerdo","Lateral Direito","Centroavante"
-         };
+                "Goleiro","Defensor","Zagueiro","Lateral Direito","Lateral Esquerdo",
+                "Ala","Volante","Meia","Meia Ofensivo",
+                "Ponta Direita","Ponta Esquerda","Centroavante","Atacante"
+            };
             vm.Posicoes = new SelectList(posicoes, posicao);
 
             var nacionalidades = _context.Nacionalidades

@@ -22,17 +22,26 @@
         _ => "Ruim"
     };
 
-    // Escalacao.Posicao guarda o nome por extenso ("Goleiro", "Defensor", "Meia",
-    // "Atacante") — siglas antigas (GL/ZG/MC/AT) são aceitas por compatibilidade.
-    string SiglaPosicao(string p) => p switch
+    // Escalacao.Posicao pode ser o genérico da API ("Goleiro", "Defensor", "Meia",
+    // "Atacante"), o nome granular da formação ("Lateral Direito", "Ponta Esquerda")
+    // ou siglas antigas (GL/ZG/MC/AT) — abrevia por palavra-chave.
+    string SiglaPosicao(string pos)
     {
-        "Goleiro" or "GL" => "GL",
-        "Defensor" or "ZG" => "DF",
-        "Meia" or "MC" => "ME",
-        "Atacante" or "AT" => "AT",
-        "LD" or "LE" => p,
-        _ => p.Length > 3 ? p[..3].ToUpperInvariant() : p
-    };
+        var p = (pos ?? "").Trim().ToLowerInvariant();
+        if (p.Length == 0) return "";
+        if (p is "gl" or "zg" or "ld" or "le" or "mc" or "at") return p.ToUpperInvariant();
+        if (p.Contains("gol"))        return "GL";
+        if (p.StartsWith("zag"))      return "ZG";
+        if (p.StartsWith("lateral"))  return p.Contains("esq") ? "LE" : "LD";
+        if (p.StartsWith("ala"))      return "AL";
+        if (p.StartsWith("volante"))  return "VL";
+        if (p.StartsWith("meia"))     return p.Contains("ofensiv") ? "MO" : "ME";
+        if (p.StartsWith("ponta"))    return p.Contains("esq") ? "PE" : "PD";
+        if (p.StartsWith("centro"))   return "CA";
+        if (p.StartsWith("ata"))      return "AT";
+        if (p.StartsWith("def"))      return "DF";
+        return p.Length > 3 ? p[..3].ToUpperInvariant() : p.ToUpperInvariant();
+    }
 
     string NomePosicao(string p) => p switch
     {

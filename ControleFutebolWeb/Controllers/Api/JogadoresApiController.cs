@@ -34,7 +34,8 @@ namespace ControleFutebolWeb.Controllers.Api
             if (timeId.HasValue)
                 query = query.Where(j => j.TimeId == timeId.Value);
             if (!string.IsNullOrWhiteSpace(posicao))
-                query = query.Where(j => j.Posicao == posicao);
+                // Contains: posição pode ser composta ("Lateral Direito/Zagueiro")
+                query = query.Where(j => j.Posicao.Contains(posicao));
             if (!string.IsNullOrWhiteSpace(nome))
                 query = query.Where(j => j.Nome.ToLower().Contains(nome.ToLower()));
 

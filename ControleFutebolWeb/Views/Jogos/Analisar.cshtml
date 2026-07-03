@@ -25,13 +25,24 @@
     var golsPorJogador = (Model.GolsPorJogador as Dictionary<int, int>) ?? new Dictionary<int, int>();
     var assistsPorJogador = (Model.AssistsPorJogador as Dictionary<int, int>) ?? new Dictionary<int, int>();
 
-    string AbreviarPosicao(string? pos) => pos switch {
-        "Goleiro"  => "GL",
-        "Defensor" => "DF",
-        "Meia"     => "ME",
-        "Atacante" => "AT",
-        _          => pos ?? ""
-    };
+    // Abrevia pela primeira posição (pode ser composta: "Lateral Direito/Zagueiro")
+    // e reconhece os nomes granulares vindos de PosicaoFormacao.
+    string AbreviarPosicao(string? pos)
+    {
+        var p = (pos ?? "").Split('/')[0].Trim().ToLowerInvariant();
+        if (p.Length == 0) return "";
+        if (p.Contains("gol"))        return "GL";
+        if (p.StartsWith("zag"))      return "ZG";
+        if (p.StartsWith("lateral"))  return p.Contains("esq") ? "LE" : "LD";
+        if (p.StartsWith("ala"))      return "AL";
+        if (p.StartsWith("volante"))  return "VL";
+        if (p.StartsWith("meia"))     return p.Contains("ofensiv") ? "MO" : "ME";
+        if (p.StartsWith("ponta"))    return p.Contains("esq") ? "PE" : "PD";
+        if (p.StartsWith("centro"))   return "CA";
+        if (p.StartsWith("ata"))      return "AT";
+        if (p.StartsWith("def"))      return "DF";
+        return p.Length > 2 ? p[..2].ToUpperInvariant() : p.ToUpperInvariant();
+    }
 
     // Estatísticas da partida (posse, finalizações, etc.) — ver Jogo.EstatisticasJson
     Dictionary<string, string> statsCasa = new();

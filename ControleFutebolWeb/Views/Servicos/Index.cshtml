@@ -121,6 +121,23 @@
         </form>
     </div>
 
+    <div class="srv-card">
+        <div class="srv-header">
+            <span class="srv-nome">🎽 Recalcular posições dos jogadores</span>
+        </div>
+        <div class="srv-desc">
+            Substitui a posição genérica da API ("Meia", "Defensor"...) pela posição real
+            em que o jogador atuou, casando as escalações com os slots da formação de cada
+            jogo ("Lateral Direito", "Ponta Esquerda"...). Quem jogou em mais de uma posição
+            fica com as duas mais frequentes (ex.: "Lateral Direito/Zagueiro").
+        </div>
+        <form method="post" asp-controller="Admin" asp-action="RecalcularPosicoesJogadores"
+              onsubmit="return confirm('Recalcular as posições de todos os jogadores com escalação registrada?');">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn-srv btn-reiniciar">🎽 Recalcular agora</button>
+        </form>
+    </div>
+
     <div id="srv-lista">
         @foreach (var s in Model)
         {
