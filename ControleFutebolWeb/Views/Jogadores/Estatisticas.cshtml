@@ -269,6 +269,67 @@
         margin-top: .2rem;
     }
 
+    /* ── Abas do card de jogo (Ações / Resumo) ── */
+    .aba-jogo-tabs {
+        display: flex;
+        gap: 2px;
+        padding: 0 1.1rem;
+        border-bottom: 1px solid rgba(255,255,255,.05);
+    }
+
+    .aba-jogo-btn {
+        background: none;
+        border: none;
+        color: var(--muted);
+        font-size: .72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .3px;
+        padding: .5rem .7rem .4rem;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+    }
+
+        .aba-jogo-btn.ativa {
+            color: var(--texto);
+            border-bottom-color: var(--accent);
+        }
+
+        .aba-jogo-btn:hover { color: var(--texto); }
+
+    .aba-jogo-content { display: none; }
+    .aba-jogo-content.ativa { display: block; }
+
+    .resumo-jogo-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+        gap: .6rem;
+        padding: .8rem 1.1rem;
+    }
+
+    .resumo-jogo-item {
+        background: rgba(255,255,255,.03);
+        border: 1px solid var(--cinza3);
+        border-radius: 8px;
+        padding: .5rem .7rem;
+        text-align: center;
+    }
+
+    .resumo-jogo-valor {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 1.1rem;
+        font-weight: 800;
+        color: var(--texto);
+        line-height: 1.2;
+    }
+
+    .resumo-jogo-label {
+        font-size: .68rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: .3px;
+    }
+
     .jogo-gols {
         display: flex;
         align-items: center;
@@ -1200,6 +1261,7 @@
         else
         {
             <div id="historicoLista" class="historico-collapsed">
+            @{ var idx = 0; }
             @foreach (var item in Model.NotasPorJogo)
             {
                 bool isCasaJogador = item.Jogo.TimeCasaId == Model.Jogador.TimeId
@@ -1351,86 +1413,144 @@
                         </div>
                     </div>
 
+                    @{
+                        var temMinutagem = item.Minutos.HasValue;
+                        var temPosicao = !string.IsNullOrWhiteSpace(item.Posicao);
+                    }
+
                     @if (item.Analisado)
                     {
-                        <!-- Decomposição da nota -->
-                        <div style="display:flex; align-items:stretch; font-size:11px;
-                                border-bottom:1px solid rgba(255,255,255,.05);">
-                            <div style="flex:1; padding:.5rem 1.1rem; display:flex;
-                                    flex-direction:column; justify-content:center; gap:2px;">
-                                <div style="color:rgba(255,255,255,.35); font-size:10px;
-                                         letter-spacing:.4px; text-transform:uppercase;
-                                         margin-bottom:2px;">
-                                    Composição da nota
-                                </div>
-                                @if (item.NotaManual.HasValue)
-                                {
-                                    <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center;">
-                                        <span style="color:rgba(255,255,255,.5);">
-                                            Nota manual <strong style="color:@notaColor;">@item.NotaFinal.ToString("0.00")</strong>
-                                        </span>
-                                        <span style="color:rgba(255,255,255,.35); font-size:10px;">ações registradas abaixo (sem peso na nota)</span>
-                                    </div>
-                                }
-                                else
-                                {
-                                    <div style="display:flex; gap:16px; flex-wrap:wrap;">
-                                        <span style="color:rgba(255,255,255,.5);">
-                                            Base <strong style="color:#e2e8f0;">@item.NotaBaseFixa.ToString("0.0")</strong>
-                                        </span>
-                                        <span style="color:rgba(255,255,255,.5);">
-                                            Ações <strong style="color:@(item.Nota >= 0 ? "#4ade80" : "#f87171");">
-                                                @(item.Nota >= 0 ? "+" : "")@item.Nota.ToString("0.##")
-                                            </strong>
-                                        </span>
-                                        <span style="color:rgba(255,255,255,.5);">
-                                            = <strong style="color:@notaColor;">@item.NotaFinal.ToString("0.00")</strong>
-                                        </span>
-                                    </div>
-                                }
-                            </div>
+                        <!-- Abas: Resumo (posição, minutagem, gols, assist) / Ações (composição da nota) -->
+                        <div class="aba-jogo-tabs">
+                            <button type="button" class="aba-jogo-btn" onclick="mostrarAbaJogo(this, 'acoes-@idx')">Ações</button>
+                            <button type="button" class="aba-jogo-btn ativa" onclick="mostrarAbaJogo(this, 'resumo-@idx')">Resumo</button>
                         </div>
 
-                        @if (item.Detalhes.Any())
-                        {
-                            <div style="padding:.6rem 1.1rem; display:flex; flex-wrap:wrap; gap:6px;">
-                                @foreach (var d in item.Detalhes.Where(d => d.Quantidade > 0))
-                                {
-                                    var dColor = d.Peso > 0 ? "#4ade80" : "#f87171";
-                                    var dBg = d.Peso > 0 ? "rgba(34,197,94,.1)" : "rgba(239,68,68,.1)";
-                                    var sinal = d.Peso > 0 ? "+" : "";
-                                    <span style="background:@dBg; color:@dColor; font-size:10px;
-                                                     font-weight:600; padding:2px 9px; border-radius:999px;
-                                                     border:1px solid @dColor;">
-                                        @d.AcaoLabel × @d.Quantidade
-                                        <span style="opacity:.7;">(@sinal@(d.Peso * d.Quantidade) pts)</span>
-                                    </span>
-                                }
-                            </div>
-                        }
-
-                        @if (!string.IsNullOrWhiteSpace(item.Comentario))
-                        {
-                            <div class="comentario-texto" style="padding:.5rem 1.1rem .8rem;">
-                                "@item.Comentario"
-                            </div>
-                        }
-
-                        @if (item.ObservacoesJogador.Any())
-                        {
-                            <div style="padding:0 1.1rem .8rem; display:flex; flex-direction:column; gap:4px;">
-                                @foreach (var obs in item.ObservacoesJogador)
-                                {
-                                    <div style="font-size:12.5px; color:#a7f3d0; background:rgba(5,150,105,.12);
-                                                border:1px solid rgba(5,150,105,.4); border-radius:8px; padding:6px 10px;">
-                                        📌 @obs
+                        <div class="aba-jogo-content" data-aba="acoes-@idx">
+                            <!-- Decomposição da nota -->
+                            <div style="display:flex; align-items:stretch; font-size:11px;
+                                    border-bottom:1px solid rgba(255,255,255,.05);">
+                                <div style="flex:1; padding:.5rem 1.1rem; display:flex;
+                                        flex-direction:column; justify-content:center; gap:2px;">
+                                    <div style="color:rgba(255,255,255,.35); font-size:10px;
+                                             letter-spacing:.4px; text-transform:uppercase;
+                                             margin-bottom:2px;">
+                                        Composição da nota
                                     </div>
-                                }
+                                    @if (item.NotaManual.HasValue)
+                                    {
+                                        <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center;">
+                                            <span style="color:rgba(255,255,255,.5);">
+                                                Nota manual <strong style="color:@notaColor;">@item.NotaFinal.ToString("0.00")</strong>
+                                            </span>
+                                            <span style="color:rgba(255,255,255,.35); font-size:10px;">ações registradas abaixo (sem peso na nota)</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div style="display:flex; gap:16px; flex-wrap:wrap;">
+                                            <span style="color:rgba(255,255,255,.5);">
+                                                Base <strong style="color:#e2e8f0;">@item.NotaBaseFixa.ToString("0.0")</strong>
+                                            </span>
+                                            <span style="color:rgba(255,255,255,.5);">
+                                                Ações <strong style="color:@(item.Nota >= 0 ? "#4ade80" : "#f87171");">
+                                                    @(item.Nota >= 0 ? "+" : "")@item.Nota.ToString("0.##")
+                                                </strong>
+                                            </span>
+                                            <span style="color:rgba(255,255,255,.5);">
+                                                = <strong style="color:@notaColor;">@item.NotaFinal.ToString("0.00")</strong>
+                                            </span>
+                                        </div>
+                                    }
+                                </div>
                             </div>
-                        }
+
+                            @if (item.Detalhes.Any())
+                            {
+                                <div style="padding:.6rem 1.1rem; display:flex; flex-wrap:wrap; gap:6px;">
+                                    @foreach (var d in item.Detalhes.Where(d => d.Quantidade > 0))
+                                    {
+                                        var dColor = d.Peso > 0 ? "#4ade80" : "#f87171";
+                                        var dBg = d.Peso > 0 ? "rgba(34,197,94,.1)" : "rgba(239,68,68,.1)";
+                                        var sinal = d.Peso > 0 ? "+" : "";
+                                        var pts = Math.Round(d.Peso * d.Quantidade, 2);
+                                        <span style="background:@dBg; color:@dColor; font-size:10px;
+                                                         font-weight:600; padding:2px 9px; border-radius:999px;
+                                                         border:1px solid @dColor;">
+                                            @d.AcaoLabel × @d.Quantidade
+                                            <span style="opacity:.7;">(@sinal@(pts.ToString("0.##", inv)) pts)</span>
+                                        </span>
+                                    }
+                                </div>
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(item.Comentario))
+                            {
+                                <div class="comentario-texto" style="padding:.5rem 1.1rem .8rem;">
+                                    "@item.Comentario"
+                                </div>
+                            }
+
+                            @if (item.ObservacoesJogador.Any())
+                            {
+                                <div style="padding:0 1.1rem .8rem; display:flex; flex-direction:column; gap:4px;">
+                                    @foreach (var obs in item.ObservacoesJogador)
+                                    {
+                                        <div style="font-size:12.5px; color:#a7f3d0; background:rgba(5,150,105,.12);
+                                                    border:1px solid rgba(5,150,105,.4); border-radius:8px; padding:6px 10px;">
+                                            📌 @obs
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+
+                        <div class="aba-jogo-content ativa" data-aba="resumo-@idx">
+                            <div class="resumo-jogo-grid">
+                                <div class="resumo-jogo-item">
+                                    <div class="resumo-jogo-valor">@(temPosicao ? item.Posicao : "—")</div>
+                                    <div class="resumo-jogo-label">Posição</div>
+                                </div>
+                                <div class="resumo-jogo-item">
+                                    <div class="resumo-jogo-valor">@(temMinutagem ? $"{item.Minutos}'" : "—")</div>
+                                    <div class="resumo-jogo-label">Minutagem</div>
+                                </div>
+                                <div class="resumo-jogo-item">
+                                    <div class="resumo-jogo-valor">@item.Gols</div>
+                                    <div class="resumo-jogo-label">Gols</div>
+                                </div>
+                                <div class="resumo-jogo-item">
+                                    <div class="resumo-jogo-valor">@item.Assistencias</div>
+                                    <div class="resumo-jogo-label">Assistências</div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else if (temPosicao || temMinutagem || item.Gols > 0 || item.Assistencias > 0)
+                    {
+                        <!-- Sem nota, mas há dado de participação (posição/minutagem/gols/assist) -->
+                        <div class="resumo-jogo-grid">
+                            <div class="resumo-jogo-item">
+                                <div class="resumo-jogo-valor">@(temPosicao ? item.Posicao : "—")</div>
+                                <div class="resumo-jogo-label">Posição</div>
+                            </div>
+                            <div class="resumo-jogo-item">
+                                <div class="resumo-jogo-valor">@(temMinutagem ? $"{item.Minutos}'" : "—")</div>
+                                <div class="resumo-jogo-label">Minutagem</div>
+                            </div>
+                            <div class="resumo-jogo-item">
+                                <div class="resumo-jogo-valor">@item.Gols</div>
+                                <div class="resumo-jogo-label">Gols</div>
+                            </div>
+                            <div class="resumo-jogo-item">
+                                <div class="resumo-jogo-valor">@item.Assistencias</div>
+                                <div class="resumo-jogo-label">Assistências</div>
+                            </div>
+                        </div>
                     }
 
                 </div>
+                idx++;
             }
             </div>
 
@@ -1474,6 +1594,16 @@
         const btn = document.getElementById('btnExpandHistorico');
         if (lista) lista.classList.remove('historico-collapsed');
         if (btn) btn.style.display = 'none';
+    }
+
+    // ── Abas do card de jogo (Ações / Resumo) ───────────────────────────────
+    function mostrarAbaJogo(btn, aba) {
+        const card = btn.closest('.jogo-item');
+        if (!card) return;
+        card.querySelectorAll('.aba-jogo-btn').forEach(b => b.classList.remove('ativa'));
+        card.querySelectorAll('.aba-jogo-content').forEach(c => c.classList.remove('ativa'));
+        btn.classList.add('ativa');
+        card.querySelector(`.aba-jogo-content[data-aba="${aba}"]`)?.classList.add('ativa');
     }
 
     // ── Histórico por Temporada ───────────────────────────────────────────────

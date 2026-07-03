@@ -61,6 +61,8 @@ namespace ControleFutebolWeb.Models.ViewModels
         public bool Analisado { get; set; }          // false = sem nota, só participou
         public double Nota { get; set; }
         public string Comentario { get; set; }
+        public string? Posicao { get; set; }         // posição escalada nesse jogo (fase INICIAL, ou FINAL se só entrou depois)
+        public int? Minutos { get; set; }            // minutos jogados (só quando há estatística importada)
         public int Gols { get; set; }
         public int Assistencias { get; set; }
         public int Cartoes { get; set; }

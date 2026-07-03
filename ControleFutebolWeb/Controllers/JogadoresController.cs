@@ -456,6 +456,22 @@ namespace ControleFutebolWeb.Controllers
             var jogosComNotaManualIds = notas.Select(n => n.JogoId).ToHashSet();
             var jogosComEstatisticaIds = estatisticas.Select(e => e.JogoId).ToHashSet();
 
+            // Escalação titular usada em cada jogo (prefere fase INICIAL; se o jogador só
+            // aparece na FINAL — entrou no decorrer —, usa a FINAL). Reaproveitada tanto
+            // para a posição por jogo (histórico) quanto para o agregado "Posições em campo".
+            var escalacaoSelecionadaPorJogo = escalacoes
+                .Where(e => e.Titular && !string.IsNullOrWhiteSpace(e.Posicao) && e.Posicao != "RES")
+                .GroupBy(e => e.JogoId)
+                .Select(g => g
+                    .OrderBy(e => e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null ? 0 : 1)
+                    .First())
+                .ToList();
+
+            var posicaoPorJogoId = escalacaoSelecionadaPorJogo.ToDictionary(e => e.JogoId, e => e.Posicao);
+            var minutosPorJogoId = estatisticas
+                .Where(e => e.Minutos.HasValue)
+                .ToDictionary(e => e.JogoId, e => e.Minutos!.Value);
+
             var criteriosCompartilhados = await _context.CriteriosNota
                 .Where(c => c.UsuarioId == null).ToListAsync();
             var criteriosUsuario = await _context.CriteriosNota
@@ -495,6 +511,8 @@ namespace ControleFutebolWeb.Controllers
                     Analisado = analisado,
                     Nota = notaValor,
                     Comentario = comentario ?? "",
+                    Posicao = posicaoPorJogoId.TryGetValue(jogo.Id, out var posJogo) ? posJogo : null,
+                    Minutos = minutosPorJogoId.TryGetValue(jogo.Id, out var minJogo) ? minJogo : null,
                     Gols = gols.Count(g => g.JogoId == jogo.Id),
                     Assistencias = assistencias.Count(a => a.JogoId == jogo.Id),
                     Cartoes = cartoes.Count(c => c.JogoId == jogo.Id),
@@ -549,15 +567,7 @@ namespace ControleFutebolWeb.Controllers
                     item.ObservacoesJogador = obsJogador;
 
             // ── Posições em campo (agregado das escalações tituladas) ─────
-            // Por jogo, prefere a posição da fase INICIAL (origem); se o jogador
-            // só aparece na FINAL (entrou durante o jogo), usa a FINAL.
-            var posicoesPorJogo = escalacoes
-                .Where(e => e.Titular && !string.IsNullOrWhiteSpace(e.Posicao) && e.Posicao != "RES")
-                .GroupBy(e => e.JogoId)
-                .Select(g => g
-                    .OrderBy(e => e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null ? 0 : 1)
-                    .First())
-                .ToList();
+            var posicoesPorJogo = escalacaoSelecionadaPorJogo;
 
             var posicoesJogadas = posicoesPorJogo
                 .GroupBy(e => e.Posicao!)
