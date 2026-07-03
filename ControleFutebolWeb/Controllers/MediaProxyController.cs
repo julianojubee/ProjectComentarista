@@ -10,13 +10,17 @@ namespace ControleFutebolWeb.Controllers
         private readonly IConfiguration _config;
         private readonly IMemoryCache _cache;
 
-        private static readonly HashSet<string> _allowedHosts = new(StringComparer.OrdinalIgnoreCase)
+        private static readonly HashSet<string> _apiSportsHosts = new(StringComparer.OrdinalIgnoreCase)
         {
             "media.api-sports.io",
             "media-1.api-sports.io",
             "media-2.api-sports.io",
             "media-3.api-sports.io",
         };
+
+        private static readonly HashSet<string> _allowedHosts = new(
+            _apiSportsHosts.Append("flagcdn.com"), // bandeiras de países (FlagHelper.GetFlagImageUrl)
+            StringComparer.OrdinalIgnoreCase);
 
         private sealed record CachedImage(byte[] Bytes, string ContentType);
 
@@ -51,7 +55,8 @@ namespace ControleFutebolWeb.Controllers
                 var client = _httpClientFactory.CreateClient("MediaProxy");
 
                 // Fotos do api-sports exigem autenticação mesmo para imagens
-                if (_allowedHosts.Contains(uri.Host))
+                // (a key só vai para hosts do api-sports, não para os demais proxied)
+                if (_apiSportsHosts.Contains(uri.Host))
                 {
                     var apiKey = _config["ApiFootball:Key"];
                     if (!string.IsNullOrEmpty(apiKey) &&

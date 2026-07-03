@@ -86,6 +86,20 @@
             gap: .3rem;
         }
 
+        .jogador-meta .meta-escudo {
+            width: 18px;
+            height: 18px;
+            object-fit: contain;
+        }
+
+        .jogador-meta .meta-bandeira {
+            width: 22px;
+            height: 15px;
+            object-fit: cover;
+            border-radius: 2px;
+            box-shadow: 0 0 0 1px rgba(255,255,255,.15);
+        }
+
     /* ── Cards de resumo ── */
     .resumo-grid {
         display: grid;
@@ -702,11 +716,34 @@
                     <span>📅 @Model.Jogador.Idade anos</span>
                     @if (Model.Jogador.Time != null)
                     {
-                        <span>🏟️ @Model.Jogador.Time.Nome</span>
+                        <span>
+                            @if (!string.IsNullOrEmpty(Model.Jogador.Time.EscudoUrl))
+                            {
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogador.Time.EscudoUrl })"
+                                     class="meta-escudo" alt="" />
+                            }
+                            else
+                            {
+                                <text>🏟️</text>
+                            }
+                            @Model.Jogador.Time.Nome
+                        </span>
                     }
                     @if (Model.Jogador.Nacionalidade != null)
                     {
-                        <span>🌍 @Model.Jogador.Nacionalidade.Nome</span>
+                        var bandeiraUrl = FlagHelper.GetFlagImageUrl(Model.Jogador.Nacionalidade.Nome);
+                        <span>
+                            @if (bandeiraUrl != null)
+                            {
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = bandeiraUrl })"
+                                     class="meta-bandeira" alt="" />
+                            }
+                            else
+                            {
+                                <text>🌍</text>
+                            }
+                            @Model.Jogador.Nacionalidade.Nome
+                        </span>
                     }
                 </div>
                 <button type="button" class="btn-semelhantes" onclick="abrirSemelhantes()">

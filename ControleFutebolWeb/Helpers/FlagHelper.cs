@@ -34,6 +34,15 @@ namespace ControleFutebolWeb.Helpers
             { "cuba", "🇨🇺" },
             { "el salvador", "🇸🇻" },
             { "aruba", "🇦🇼" },
+            { "haiti", "🇭🇹" },
+            { "jamaica", "🇯🇲" },
+            { "curaçao", "🇨🇼" },
+            { "guadalupe", "🇬🇵" },
+            { "martinica", "🇲🇶" },
+            { "trinidad e tobago", "🇹🇹" },
+            { "granada", "🇬🇩" },
+            { "bermudas", "🇧🇲" },
+            { "guiana francesa", "🇬🇫" },
 
             // Europa
             { "frança", "🇫🇷" },
@@ -63,6 +72,11 @@ namespace ControleFutebolWeb.Helpers
             { "eslovênia", "🇸🇮" },
             { "croácia", "🇭🇷" },
             { "bósnia-herzegovina", "🇧🇦" },
+            { "bósnia e herzegovina", "🇧🇦" },
+            { "kosovo", "🇽🇰" },
+            { "moldávia", "🇲🇩" },
+            { "islândia", "🇮🇸" },
+            { "malta", "🇲🇹" },
             { "sérvia", "🇷🇸" },
             { "montenegro", "🇲🇪" },
             { "macedônia do norte", "🇲🇰" },
@@ -104,6 +118,26 @@ namespace ControleFutebolWeb.Helpers
             { "gâmbia", "🇬🇲" },
             { "angola", "🇦🇴" },
             { "cabo verde", "🇨🇻" },
+            { "guiné", "🇬🇳" },
+            { "benin", "🇧🇯" },
+            { "togo", "🇹🇬" },
+            { "serra leoa", "🇸🇱" },
+            { "mauritânia", "🇲🇷" },
+            { "sudão", "🇸🇩" },
+            { "quênia", "🇰🇪" },
+            { "etiópia", "🇪🇹" },
+            { "tanzânia", "🇹🇿" },
+            { "uganda", "🇺🇬" },
+            { "zâmbia", "🇿🇲" },
+            { "zimbábue", "🇿🇼" },
+            { "madagascar", "🇲🇬" },
+            { "comores", "🇰🇲" },
+            { "burundi", "🇧🇮" },
+            { "níger", "🇳🇪" },
+            { "chade", "🇹🇩" },
+            { "malaui", "🇲🇼" },
+            { "botsuana", "🇧🇼" },
+            { "namíbia", "🇳🇦" },
 
             // Ásia
             { "china", "🇨🇳" },
@@ -119,10 +153,46 @@ namespace ControleFutebolWeb.Helpers
             { "filipinas", "🇵🇭" },
             { "qatar", "🇶🇦" },
             { "emirados árabes unidos", "🇦🇪" },
+            { "emirados árabes", "🇦🇪" },
+            { "iraque", "🇮🇶" },
+            { "jordânia", "🇯🇴" },
+            { "arábia saudita", "🇸🇦" },
+            { "líbano", "🇱🇧" },
+            { "palestina", "🇵🇸" },
+            { "bahrein", "🇧🇭" },
+            { "kuwait", "🇰🇼" },
+            { "omã", "🇴🇲" },
+            { "iêmen", "🇾🇪" },
+            { "índia", "🇮🇳" },
+            { "tailândia", "🇹🇭" },
+            { "vietnã", "🇻🇳" },
+            { "coreia do norte", "🇰🇵" },
+            { "taiwan", "🇹🇼" },
+            { "hong kong", "🇭🇰" },
+            { "singapura", "🇸🇬" },
+            { "tadjiquistão", "🇹🇯" },
+            { "quirguistão", "🇰🇬" },
+            { "turcomenistão", "🇹🇲" },
+            { "afeganistão", "🇦🇫" },
+            { "paquistão", "🇵🇰" },
 
             // Oceania
             { "austrália", "🇦🇺" },
-            { "nova zelândia", "🇳🇿" }
+            { "nova zelândia", "🇳🇿" },
+            { "fiji", "🇫🇯" },
+            { "papua-nova guiné", "🇵🇬" },
+            { "taiti", "🇵🇫" },
+            { "nova caledônia", "🇳🇨" }
+        };
+
+        // Subdivisões do Reino Unido têm bandeira própria no flagcdn, mas o emoji
+        // é o mesmo (🇬🇧) — resolvidas por nome antes da conversão emoji→ISO.
+        private static readonly Dictionary<string, string> CodigosEspeciais = new()
+        {
+            { "inglaterra", "gb-eng" },
+            { "escócia", "gb-sct" },
+            { "país de gales", "gb-wls" },
+            { "irlanda do norte", "gb-nir" },
         };
 
         public static string GetFlagEmoji(string pais)
@@ -130,6 +200,32 @@ namespace ControleFutebolWeb.Helpers
             if (string.IsNullOrWhiteSpace(pais)) return "";
             pais = pais.Trim().ToLowerInvariant();
             return Bandeiras.TryGetValue(pais, out var emoji) ? emoji : "";
+        }
+
+        /// <summary>
+        /// URL de imagem da bandeira (flagcdn) para o país em português, ou null se
+        /// desconhecido. O código ISO alpha-2 é derivado do próprio emoji (cada
+        /// bandeira emoji é o par de "regional indicators" do código do país).
+        /// Preferir isto a GetFlagEmoji em HTML: navegadores no Windows não
+        /// renderizam emojis de bandeira (mostram só as letras do código).
+        /// </summary>
+        public static string? GetFlagImageUrl(string pais)
+        {
+            if (string.IsNullOrWhiteSpace(pais)) return null;
+            var chave = pais.Trim().ToLowerInvariant();
+
+            if (CodigosEspeciais.TryGetValue(chave, out var especial))
+                return $"https://flagcdn.com/h24/{especial}.png";
+
+            var emoji = GetFlagEmoji(chave);
+            if (string.IsNullOrEmpty(emoji)) return null;
+
+            var letras = emoji.EnumerateRunes()
+                .Where(r => r.Value >= 0x1F1E6 && r.Value <= 0x1F1FF)
+                .Select(r => (char)('a' + (r.Value - 0x1F1E6)))
+                .ToArray();
+
+            return letras.Length == 2 ? $"https://flagcdn.com/h24/{new string(letras)}.png" : null;
         }
     }
 }
