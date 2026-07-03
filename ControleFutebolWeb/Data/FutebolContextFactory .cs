@@ -1,5 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
+using System.Reflection;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.Extensions.Configuration;
 
 namespace ControleFutebolWeb.Data
 {
@@ -7,10 +9,23 @@ namespace ControleFutebolWeb.Data
     {
         public FutebolContext CreateDbContext(string[] args)
         {
-            var optionsBuilder = new DbContextOptionsBuilder<FutebolContext>();
+            // Mesma fonte de configuração usada em runtime (Program.cs): appsettings.json
+            // + user-secrets — evita senha hardcoded e evita o dotnet ef apontar pro
+            // banco/porta errado (ver [[infra-deploy]] sobre a factory apontar pro
+            // Postgres 9.2/5432 por engano).
+            var config = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: true)
+                .AddUserSecrets(Assembly.GetExecutingAssembly())
+                .AddEnvironmentVariables()
+                .Build();
 
-            // String de conexão igual à usada em runtime (appsettings/user-secrets): Postgres 17, porta 5433
-            optionsBuilder.UseNpgsql("Host=localhost;Port=5433;Database=ProjectComentarista;Username=postgres;Password=180695");
+            var connectionString = config.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException(
+                    "ConnectionStrings:DefaultConnection não configurada. Rode: dotnet user-secrets set \"ConnectionStrings:DefaultConnection\" \"Host=...;Port=...;Database=...;Username=...;Password=...\"");
+
+            var optionsBuilder = new DbContextOptionsBuilder<FutebolContext>();
+            optionsBuilder.UseNpgsql(connectionString);
 
             return new FutebolContext(optionsBuilder.Options);
         }
