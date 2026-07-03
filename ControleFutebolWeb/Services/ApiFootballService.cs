@@ -1366,7 +1366,10 @@ namespace ControleFutebolWeb.Services
             FutebolContext context, string nomeRaw, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(nomeRaw)) return null;
-            var nome = nomeRaw.Trim();
+            // A api-football devolve o país em inglês; traduz antes de buscar/criar
+            // para não duplicar a nacionalidade ("Brazil" vs "Brasil") — o filtro por
+            // nacionalidade em /Jogadores depende de um nome único por país.
+            var nome = CountryHelper.Traduzir(nomeRaw.Trim());
             var nac = await context.Nacionalidades
                 .FirstOrDefaultAsync(n => n.Nome.ToLower() == nome.ToLower(), ct);
             if (nac == null)

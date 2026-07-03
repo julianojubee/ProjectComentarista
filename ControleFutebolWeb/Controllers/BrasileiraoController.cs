@@ -39,15 +39,9 @@ namespace ControleFutebolWeb.Controllers
 
                 foreach (var jogadorApi in detalhe.Elenco)
                 {
-                    // Verifica se a nacionalidade já existe
-                    var nacionalidade = _context.Nacionalidades
-                        .FirstOrDefault(n => n.Nome == jogadorApi.Nacionalidade);
-
-                    if (nacionalidade == null)
-                    {
-                        nacionalidade = new Nacionalidade { Nome = jogadorApi.Nacionalidade };
-                        _context.Nacionalidades.Add(nacionalidade);
-                    }
+                    // Busca/cria já traduzindo o país para português (evita duplicar
+                    // "Brazil"/"Brasil" na tabela de nacionalidades).
+                    var nacionalidade = ObterOuCriarNacionalidade(jogadorApi.Nacionalidade);
 
                     // Evita duplicar jogadores
                     if (!_context.Jogadores.Any(j => j.Nome == jogadorApi.Nome && j.TimeId == time.Id))
@@ -76,9 +70,13 @@ namespace ControleFutebolWeb.Controllers
         {
             var nomeNormalizado = CountryHelper.Traduzir(nomeApi.Trim());
 
-            // Busca ignorando maiúsculas/minúsculas
-            var nacionalidade = _context.Nacionalidades
-                .FirstOrDefault(n => n.Nome.ToLower() == nomeNormalizado.ToLower());
+            // Busca ignorando maiúsculas/minúsculas — inclui as recém-adicionadas no
+            // change tracker (Local), senão um loop de importação sem SaveChanges no
+            // meio cria a mesma nacionalidade várias vezes.
+            var nacionalidade = _context.Nacionalidades.Local
+                    .FirstOrDefault(n => string.Equals(n.Nome, nomeNormalizado, StringComparison.OrdinalIgnoreCase))
+                ?? _context.Nacionalidades
+                    .FirstOrDefault(n => n.Nome.ToLower() == nomeNormalizado.ToLower());
 
             if (nacionalidade == null)
             {

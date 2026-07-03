@@ -105,6 +105,22 @@
         </div>
     }
 
+    <div class="srv-card">
+        <div class="srv-header">
+            <span class="srv-nome">🌍 Normalizar nacionalidades</span>
+        </div>
+        <div class="srv-desc">
+            Traduz nacionalidades importadas em inglês para português e mescla duplicatas
+            (ex.: "Brazil" + "Brasil"), reatribuindo jogadores e treinadores — corrige o
+            filtro por nacionalidade na tela de Jogadores.
+        </div>
+        <form method="post" asp-controller="Admin" asp-action="NormalizarNacionalidades"
+              onsubmit="return confirm('Normalizar e mesclar as nacionalidades duplicadas?');">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn-srv btn-reiniciar">🌍 Normalizar agora</button>
+        </form>
+    </div>
+
     <div id="srv-lista">
         @foreach (var s in Model)
         {
