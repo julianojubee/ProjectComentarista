@@ -1224,6 +1224,26 @@ namespace ControleFutebolWeb.Controllers
             }
 
             await _context.SaveChangesAsync();
+
+            // Atualiza automaticamente a posição (tática) dos jogadores envolvidos
+            // neste jogo — mesmo cálculo do botão "Recalcular posições" em Serviços,
+            // mas restrito aos jogadores do jogo. Falha aqui não pode impedir o save.
+            try
+            {
+                var jogadoresDoJogo = await _context.Escalacoes
+                    .Where(e => e.JogoId == id && e.JogadorId != null && e.Titular)
+                    .Select(e => e.JogadorId!.Value)
+                    .Distinct()
+                    .ToListAsync();
+
+                if (jogadoresDoJogo.Count > 0)
+                    await PosicaoJogadorHelper.RecalcularAsync(_context, jogadoresDoJogo);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[SalvarEscalacao] Falha ao recalcular posições dos jogadores do jogo {JogoId}.", id);
+            }
+
             return RedirectToAction("Analisar", new { id, faseEscalacao = faseAtual });
         }
 
