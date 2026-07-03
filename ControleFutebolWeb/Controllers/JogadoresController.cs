@@ -416,10 +416,13 @@ namespace ControleFutebolWeb.Controllers
 
             // Estatísticas importadas (api-football) — usadas quando não há nota manual,
             // para mostrar de onde vem a nota calculada automaticamente em /Relatorios.
+            // Exclui reservas não utilizados (Minutos 0/null): a api-football cria uma
+            // linha de estatística pra todo o elenco relacionado, mesmo quem não jogou —
+            // sem esse filtro o jogo aparecia com nota automática 4.0 sem ele ter atuado.
             var estatisticasQuery = _context.EstatisticasJogador
                 .Include(e => e.Jogo).ThenInclude(j => j.TimeCasa)
                 .Include(e => e.Jogo).ThenInclude(j => j.TimeVisitante)
-                .Where(e => e.JogadorId == id);
+                .Where(e => e.JogadorId == id && e.Minutos != null && e.Minutos > 0);
 
             if (competicaoId.HasValue)
                 estatisticasQuery = estatisticasQuery.Where(e => e.Jogo.CompeticaoId == competicaoId);
@@ -669,7 +672,9 @@ namespace ControleFutebolWeb.Controllers
                 .ToDictionary(g => g.Key, g => g.Count());
 
             // Fallback de jogos via estatísticas importadas (quando não há escalação).
+            // Exclui reservas não utilizados (Minutos 0/null).
             var jogosEstatPorJogador = (await _context.EstatisticasJogador
+                    .Where(e => e.Minutos != null && e.Minutos > 0)
                     .Select(e => new { e.JogadorId, e.JogoId })
                     .Distinct()
                     .ToListAsync())
@@ -682,7 +687,9 @@ namespace ControleFutebolWeb.Controllers
 
             // Estatísticas avançadas (api-football) somadas por jogador — base
             // para as métricas defensivas / de criação usadas conforme a posição.
+            // Exclui reservas não utilizados (Minutos 0/null).
             var estatAgg = await _context.EstatisticasJogador
+                .Where(e => e.Minutos != null && e.Minutos > 0)
                 .GroupBy(e => e.JogadorId)
                 .Select(g => new
                 {

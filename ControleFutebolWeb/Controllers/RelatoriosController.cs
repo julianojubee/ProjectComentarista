@@ -131,7 +131,10 @@ namespace ControleFutebolWeb.Controllers
 
             var estatisticas = await _context.EstatisticasJogador
                 .AsNoTracking()
-                .Where(e => jogoIds.Contains(e.JogoId) && jogadorIds.Contains(e.JogadorId))
+                // Exclui reservas não utilizados (Minutos 0/null) — ver comentário
+                // equivalente em MontarViewModel.
+                .Where(e => jogoIds.Contains(e.JogoId) && jogadorIds.Contains(e.JogadorId)
+                         && e.Minutos != null && e.Minutos > 0)
                 .ToListAsync();
 
             var notas = await _context.Notas
@@ -372,7 +375,11 @@ namespace ControleFutebolWeb.Controllers
                 // lê e.Jogo (placar). Sem tracking não há fixup entre consultas, então
                 // sem este Include a navegação fica null e o bônus sai errado.
                 .Include(e => e.Jogo)
-                .Where(e => jogoIds.Contains(e.JogoId))
+                // Exclui reservas não utilizados: a api-football cria uma linha de
+                // estatística para todo mundo do elenco relacionado, mesmo quem não
+                // entrou em campo (Minutos 0/null) — sem isso, o banco "jogaria" a
+                // nota base (4.0) em cima de estatísticas zeradas de quem nem jogou.
+                .Where(e => jogoIds.Contains(e.JogoId) && e.Minutos != null && e.Minutos > 0)
                 .ToListAsync();
 
             var escalacoes = await _context.Escalacoes
