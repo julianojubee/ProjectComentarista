@@ -48,9 +48,6 @@ namespace ControleFutebolWeb.Models.ViewModels
         // Jogo analisado pelo usuário atual (existência de JogoAnalisadoUsuario).
         public bool Analisado { get; set; }
 
-        // Observações livres do jogo (público, curiosidades etc.), por usuário.
-        public string? ObservacoesLivresUsuario { get; set; }
-
         // Observações categorizadas por tag (mandante/visitante/competição/jogador/marco).
         public List<ObservacaoJogoTag> ObservacoesTag { get; set; } = new();
 

@@ -1032,8 +1032,6 @@ namespace ControleFutebolWeb.Controllers
             var analiseUsuario = await _context.JogosAnalisadosUsuario
                 .FirstOrDefaultAsync(j => j.JogoId == id && j.UsuarioId == usuarioId);
             vm.Analisado = analiseUsuario?.Analisado == true;
-            vm.ObservacoesLivresUsuario = (await _context.ObservacoesJogoUsuario
-                .FirstOrDefaultAsync(o => o.JogoId == id && o.UsuarioId == usuarioId))?.Texto;
 
             vm.ObservacoesTag = await _context.ObservacoesJogoTag
                 .Include(o => o.Jogador)
@@ -1631,50 +1629,6 @@ namespace ControleFutebolWeb.Controllers
 
             await _context.SaveChangesAsync();
             return Ok(new { analisado = req.Analisado });
-        }
-
-        public class SalvarObservacoesJogoRequest
-        {
-            public int JogoId { get; set; }
-            public string? Texto { get; set; }
-        }
-
-        // POST: Jogos/SalvarObservacoesJogo
-        // Observações livres do jogo (público, curiosidades etc.), por usuário.
-        // Independente do "marcar como analisado".
-        [HttpPost]
-        public async Task<IActionResult> SalvarObservacoesJogo([FromBody] SalvarObservacoesJogoRequest req)
-        {
-            var usuarioId = _userManager.GetUserId(User);
-            if (string.IsNullOrEmpty(usuarioId)) return Unauthorized();
-
-            if (!await _context.Jogos.AnyAsync(j => j.Id == req.JogoId))
-                return NotFound(new { erro = "Jogo não encontrado." });
-
-            var texto = string.IsNullOrWhiteSpace(req.Texto) ? null : req.Texto.Trim();
-
-            var registro = await _context.ObservacoesJogoUsuario
-                .FirstOrDefaultAsync(o => o.JogoId == req.JogoId && o.UsuarioId == usuarioId);
-
-            if (registro == null)
-            {
-                if (texto != null)
-                    _context.ObservacoesJogoUsuario.Add(new ObservacaoJogoUsuario
-                    {
-                        JogoId = req.JogoId,
-                        UsuarioId = usuarioId,
-                        Texto = texto,
-                        DtAlt = DateTime.UtcNow
-                    });
-            }
-            else
-            {
-                registro.Texto = texto;
-                registro.DtAlt = DateTime.UtcNow;
-            }
-
-            await _context.SaveChangesAsync();
-            return Ok(new { ok = true });
         }
 
         // POST: Jogos/ReimportarEscalacao/12964
