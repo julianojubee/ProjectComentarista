@@ -445,7 +445,21 @@
         color: #374151;
         font-size: 12px;
     }
-    .obs-tag-texto { flex: 1; color: #374151; }
+    .obs-tag-texto {
+        flex: 1;
+        min-width: 0;
+        color: #374151;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+    .obs-tag-input {
+        flex: 1;
+        min-width: 220px;
+        resize: none;
+        overflow: hidden;
+        line-height: 1.35;
+        min-height: 32px;
+    }
     .obs-tag-remover {
         flex: 0 0 auto;
         cursor: pointer;
@@ -1776,9 +1790,9 @@
                     <option value="@j.Id">@j.NomeExibicao</option>
                 }
             </select>
-            <input type="text" id="obsTagTexto" class="form-control form-control-sm"
-                   style="flex:1; min-width:220px;"
-                   placeholder="Ex.: primeiro gol do jogador em mata-mata da competição / jogo mil do clube / título histórico após 41 anos…" />
+            <textarea id="obsTagTexto" class="form-control form-control-sm obs-tag-input" rows="1"
+                      oninput="autoResizeObsTagTexto(this)"
+                      placeholder="Ex.: primeiro gol do jogador em mata-mata da competição / jogo mil do clube / título histórico após 41 anos…"></textarea>
             <button type="button" class="obs-btn" onclick="adicionarObservacaoTag()">+ Adicionar observação</button>
         </div>
     </div>
@@ -1955,6 +1969,12 @@
         document.getElementById('obsTagJogador').style.display = tipo === 'JOGADOR' ? '' : 'none';
     }
 
+    function autoResizeObsTagTexto(textarea) {
+        if (!textarea) return;
+        textarea.style.height = 'auto';
+        textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+
     function adicionarLinhaObsTag(obs) {
         const container = document.getElementById('obsTagList');
         if (!container) return;
@@ -2000,6 +2020,7 @@
                 const obs = await resp.json();
                 adicionarLinhaObsTag(obs);
                 textoEl.value = '';
+                autoResizeObsTagTexto(textoEl);
             } else {
                 alert('Erro ao salvar a observação.');
             }
