@@ -981,7 +981,7 @@ namespace ControleFutebolWeb.Services
                     {
                         if (ev.Player.Id == null) break;
                         var jogador = await ResolverJogador(context, ev.Player.Id.Value,
-                            ev.Player.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct);
+                            ev.Player.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct, jogo: jogo);
                         if (jogador == null) break;
 
                         // Disputa de pênaltis (mata-mata): a api-football marca cada cobrança
@@ -1025,7 +1025,7 @@ namespace ControleFutebolWeb.Services
                         if (!contra && ev.Assist?.Id != null)
                         {
                             var assist = await ResolverJogador(context, ev.Assist.Id.Value,
-                                ev.Assist.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct);
+                                ev.Assist.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct, jogo: jogo);
                             if (assist != null)
                                 context.Assistencias.Add(new Assistencia
                                 {
@@ -1039,7 +1039,7 @@ namespace ControleFutebolWeb.Services
                     {
                         if (ev.Player.Id == null) break;
                         var jogador = await ResolverJogador(context, ev.Player.Id.Value,
-                            ev.Player.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct);
+                            ev.Player.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct, jogo: jogo);
                         if (jogador == null) break;
 
                         var tipo = ev.Detail?.Contains("Yellow", StringComparison.OrdinalIgnoreCase) == true
@@ -1057,13 +1057,13 @@ namespace ControleFutebolWeb.Services
                         // Convenção da api-football: player = quem SAIU, assist = quem ENTROU
                         if (ev.Player.Id == null) break;
                         var saiu = await ResolverJogador(context, ev.Player.Id.Value,
-                            ev.Player.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct);
+                            ev.Player.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct, jogo: jogo);
                         if (saiu == null) break;
 
                         Jogador? entrou = null;
                         if (ev.Assist?.Id != null)
                             entrou = await ResolverJogador(context, ev.Assist.Id.Value,
-                                ev.Assist.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct);
+                                ev.Assist.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct, jogo: jogo);
 
                         // Se quem entrou não foi resolvido, fica null — jamais usar o
                         // jogador que saiu como fallback: isso registrava "fulano entrou
@@ -1167,7 +1167,7 @@ namespace ControleFutebolWeb.Services
 
             var posicao = MapearPosicao(info.Pos);
 
-            var jogador = await ResolverJogador(context, info.Id.Value, info.Name, time, map, ct, info.Number, posicao);
+            var jogador = await ResolverJogador(context, info.Id.Value, info.Name, time, map, ct, info.Number, posicao, jogo);
             if (jogador == null) return;
 
             context.Escalacoes.Add(new Escalacao
@@ -1261,7 +1261,8 @@ namespace ControleFutebolWeb.Services
             Dictionary<int, Jogador> map,
             CancellationToken ct,
             int? numeroCamisa = null,
-            string? posicao = null)
+            string? posicao = null,
+            Jogo? jogo = null)
         {
             if (map.TryGetValue(idApi, out var cached)) return cached;
 
@@ -1366,7 +1367,20 @@ namespace ControleFutebolWeb.Services
                     }
                     else
                     {
-                        // Transferência entre clubes
+                        // Transferência entre clubes: troca o clube e registra no
+                        // histórico da Janela de Transferências.
+                        context.Transferencias.Add(new Transferencia
+                        {
+                            JogadorId = jogador.Id,
+                            TimeOrigemId = jogador.TimeId,
+                            TimeDestinoId = time.Id,
+                            JogoId = jogo?.Id,
+                            Data = jogo?.Data ?? DateTime.UtcNow
+                        });
+                        _logger.LogInformation(
+                            "[ApiFoot] Transferência detectada: {Jogador} — {Origem} → {Destino}",
+                            jogador.Nome, jogador.Time?.Nome ?? jogador.TimeId.ToString(), time.Nome);
+
                         jogador.TimeId = time.Id;
                         alterado = true;
                     }

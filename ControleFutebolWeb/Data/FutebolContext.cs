@@ -41,6 +41,7 @@ namespace ControleFutebolWeb.Data
         public DbSet<FaseTatica> FasesTaticas { get; set; }
         public DbSet<CuriosidadeTime> CuriosidadesTime { get; set; }
         public DbSet<SelecaoCopaUsuario> SelecoesCopaUsuario { get; set; }
+        public DbSet<Transferencia> Transferencias { get; set; }
 
         public override int SaveChanges()
         {
@@ -271,6 +272,21 @@ namespace ControleFutebolWeb.Data
             modelBuilder.Entity<Nota>().HasIndex(n => new { n.UsuarioId, n.JogoId, n.JogadorId });
             modelBuilder.Entity<Escalacao>().HasIndex(e => new { e.JogoId, e.UsuarioId });
             modelBuilder.Entity<ObservacaoJogoTag>().HasIndex(o => new { o.JogadorId, o.UsuarioId });
+
+            // Transferências: apagar time/jogo não apaga o histórico (FK vira null);
+            // apagar o jogador remove as transferências dele junto.
+            modelBuilder.Entity<Transferencia>(entity =>
+            {
+                entity.HasOne(t => t.Jogador).WithMany().HasForeignKey(t => t.JogadorId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(t => t.TimeOrigem).WithMany().HasForeignKey(t => t.TimeOrigemId)
+                    .OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(t => t.TimeDestino).WithMany().HasForeignKey(t => t.TimeDestinoId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(t => t.Jogo).WithMany().HasForeignKey(t => t.JogoId)
+                    .OnDelete(DeleteBehavior.SetNull);
+                entity.HasIndex(t => t.Data);
+            });
 
             // 🔹 Converte nomes de tabelas e colunas para minúsculas
             foreach (var entity in modelBuilder.Model.GetEntityTypes())
