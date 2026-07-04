@@ -1264,8 +1264,9 @@
             @{ var idx = 0; }
             @foreach (var item in Model.NotasPorJogo)
             {
-                bool isCasaJogador = item.Jogo.TimeCasaId == Model.Jogador.TimeId
-                                  || item.Jogo.TimeCasaId == Model.Jogador.SelecaoId;
+                // Lado do jogador NAQUELE jogo (vem da escalação da época, via item.IsCasa)
+                // — usar o time atual inverteria os jogos do clube antigo após uma transferência.
+                bool isCasaJogador = item.IsCasa;
 
                 var adversario = isCasaJogador
                     ? item.Jogo.TimeVisitante?.Nome

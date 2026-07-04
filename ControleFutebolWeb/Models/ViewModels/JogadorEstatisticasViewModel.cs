@@ -67,6 +67,10 @@ namespace ControleFutebolWeb.Models.ViewModels
         public int Assistencias { get; set; }
         public int Cartoes { get; set; }
         public string Resultado { get; set; }        // "V", "E", "D", "?" (sem placar)
+
+        // De que lado o jogador estava NESTE jogo (da escalação da época, não do
+        // time atual — após uma transferência o time atual inverteria o histórico).
+        public bool IsCasa { get; set; }
         public double BonusResultado { get; set; }
         public double NotaFinal { get; set; }
         public List<Notadetalhe> Detalhes { get; set; } = new();

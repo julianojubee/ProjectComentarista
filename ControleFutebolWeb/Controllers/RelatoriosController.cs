@@ -465,6 +465,14 @@ namespace ControleFutebolWeb.Controllers
                 resultadoPorJogoTime[(j.Id, j.TimeVisitanteId)] = resVis;
             }
 
+            // Lado (casa/visitante) de cada jogador em cada jogo, tirado da escalação
+            // da época — usar o time ATUAL do jogador inverteria V/D/E dos jogos do
+            // clube antigo depois de uma transferência (o adversário viraria "seu time").
+            var ladoPorJogadorJogo = escalacoes
+                .Where(e => e.JogadorId.HasValue)
+                .GroupBy(e => (e.JogadorId!.Value, e.JogoId))
+                .ToDictionary(g => g.Key, g => g.First().IsTimeCasa);
+
             // ── Estatísticas de times ─────────────────────────────────────────────
             var statsTimes = CalcularEstatisticasTimes(jogos);
             // Quando há filtro de times, mostra apenas os times selecionados (não os adversários)
@@ -496,7 +504,7 @@ namespace ControleFutebolWeb.Controllers
                 TotalCartaoVermelho = cartoes.Count(c => c.Tipo == "Vermelho"),
 
                 // Jogadores
-                RankingNotas = CalcularRankingMisto(notas, estatisticasJogadores, resultadoPorJogoTime, jogos, 20, usuarioId),
+                RankingNotas = CalcularRankingMisto(notas, estatisticasJogadores, resultadoPorJogoTime, jogos, 20, usuarioId, ladoPorJogadorJogo),
                 Artilheiros = RankGols(gols, false, 15),
                 GolsContraRanking = RankGols(gols, true, 10),
                 Assistencias = RankAssistencias(assistencias, 15),
@@ -546,7 +554,7 @@ namespace ControleFutebolWeb.Controllers
             };
 
             // Rankings por posição (usa ranking completo, sem limite de 20)
-            var rankingCompleto = CalcularRankingMisto(notas, estatisticasJogadores, resultadoPorJogoTime, jogos, int.MaxValue, usuarioId);
+            var rankingCompleto = CalcularRankingMisto(notas, estatisticasJogadores, resultadoPorJogoTime, jogos, int.MaxValue, usuarioId, ladoPorJogadorJogo);
             vm.RankingGoleiros   = FiltrarRankingPorPosicao(rankingCompleto, "Goleiro");
             vm.RankingDefensores = FiltrarRankingPorPosicao(rankingCompleto, "Defensor");
             vm.RankingMeias      = FiltrarRankingPorPosicao(rankingCompleto, "Meia");
@@ -821,12 +829,14 @@ namespace ControleFutebolWeb.Controllers
             Dictionary<(int jogoId, int timeId), ResultadoJogo> resultadoPorJogoTime,
             List<Jogo> jogos,
             int limite = 20,
-            string? usuarioId = null)
+            string? usuarioId = null,
+            Dictionary<(int jogadorId, int jogoId), bool>? ladoPorJogadorJogo = null)
         {
             var criteriosBanco = CriteriosNotaHelper.MergeCriterios(
                 _context.CriteriosNota.Where(c => c.UsuarioId == null).ToList(),
                 _context.CriteriosNota.Where(c => c.UsuarioId == usuarioId).ToList());
             var compPorJogo = jogos.ToDictionary(j => j.Id, j => j.CompeticaoId);
+            var jogoPorId = jogos.ToDictionary(j => j.Id);
 
             int JogosDoTimeNoCampeonato(int compId, int timeId) =>
                 jogos.Count(j => j.CompeticaoId == compId
@@ -931,7 +941,15 @@ namespace ControleFutebolWeb.Controllers
                     jogosComputados++;
 
                     ResultadoJogo res = ResultadoJogo.Empate;
-                    bool achouResultado = (jogador.TimeId > 0 && resultadoPorJogoTime.TryGetValue((jogoId, jogador.TimeId), out res))
+                    bool achouResultado;
+                    // Prioriza o lado registrado na escalação daquele jogo (correto mesmo
+                    // após transferência); só cai pro time atual sem escalação salva.
+                    if (ladoPorJogadorJogo != null && ladoPorJogadorJogo.TryGetValue((jogador.Id, jogoId), out var ladoCasa)
+                        && jogoPorId.TryGetValue(jogoId, out var jogoDoLado))
+                        achouResultado = resultadoPorJogoTime.TryGetValue(
+                            (jogoId, ladoCasa ? jogoDoLado.TimeCasaId : jogoDoLado.TimeVisitanteId), out res);
+                    else
+                        achouResultado = (jogador.TimeId > 0 && resultadoPorJogoTime.TryGetValue((jogoId, jogador.TimeId), out res))
                                       || (jogador.SelecaoId.HasValue && resultadoPorJogoTime.TryGetValue((jogoId, jogador.SelecaoId.Value), out res));
                     if (achouResultado)
                     {

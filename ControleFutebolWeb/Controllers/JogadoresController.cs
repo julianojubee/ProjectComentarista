@@ -492,6 +492,13 @@ namespace ControleFutebolWeb.Controllers
 
             var posicaoPorJogoId = escalacaoSelecionadaPorJogo
                 .ToDictionary(e => e.JogoId, e => granularPorEscalacao[e.Id]);
+
+            // Lado (casa/visitante) do jogador em cada jogo, tirado da escalação da
+            // época — inclui reservas. Usar o time ATUAL inverteria o histórico após
+            // uma transferência (os jogos do clube antigo virariam "contra" ele).
+            var ladoPorJogoId = escalacoes
+                .GroupBy(e => e.JogoId)
+                .ToDictionary(g => g.Key, g => g.First().IsTimeCasa);
             var minutosPorJogoId = estatisticas
                 .Where(e => e.Minutos.HasValue)
                 .ToDictionary(e => e.JogoId, e => e.Minutos!.Value);
@@ -508,8 +515,12 @@ namespace ControleFutebolWeb.Controllers
             {
                 var pc = jogo.PlacarCasa ?? 0;
                 var pv = jogo.PlacarVisitante ?? 0;
-                bool isCasa = jogo.TimeCasaId == jogador.TimeId
-                           || jogo.TimeCasaId == jogador.SelecaoId;
+                // Prioriza o lado registrado na escalação daquele jogo (correto mesmo
+                // após uma transferência); só cai pro time atual quando não há
+                // escalação salva pra esse jogo (só nota/estatística importada).
+                bool isCasa = ladoPorJogoId.TryGetValue(jogo.Id, out var ladoCasa)
+                    ? ladoCasa
+                    : (jogo.TimeCasaId == jogador.TimeId || jogo.TimeCasaId == jogador.SelecaoId);
 
                 int golsPro    = isCasa ? pc : pv;
                 int golsContra = isCasa ? pv : pc;
@@ -541,6 +552,7 @@ namespace ControleFutebolWeb.Controllers
                     Assistencias = assistencias.Count(a => a.JogoId == jogo.Id),
                     Cartoes = cartoes.Count(c => c.JogoId == jogo.Id),
                     Resultado = resultado,
+                    IsCasa = isCasa,
                     BonusResultado = 0,
                     NotaFinal = notaFinal,
                     Detalhes = detalhes,
