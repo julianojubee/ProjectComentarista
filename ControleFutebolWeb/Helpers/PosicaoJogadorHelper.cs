@@ -1,4 +1,5 @@
 using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace ControleFutebolWeb.Helpers
@@ -53,15 +54,10 @@ namespace ControleFutebolWeb.Helpers
             foreach (var e in porJogo)
             {
                 var formacaoId = e.IsTimeCasa ? e.FormacaoCasaId : e.FormacaoVisitanteId;
-                if (formacaoId == null ||
-                    !slotsPorFormacao.TryGetValue(formacaoId.Value, out var slots) ||
-                    slots.Count == 0)
+                if (formacaoId == null || !slotsPorFormacao.TryGetValue(formacaoId.Value, out var slots))
                     continue;
 
-                var slot = slots.MinBy(s =>
-                    Math.Pow(s.PosicaoX - e.PosicaoX, 2) + Math.Pow(s.PosicaoY - e.PosicaoY, 2))!;
-
-                var nome = NormalizarNomePosicao(slot.NomePosicao);
+                var nome = PosicaoGranular(slots, e.PosicaoX, e.PosicaoY);
                 if (string.IsNullOrWhiteSpace(nome)) continue;
 
                 if (!nomesPorJogador.TryGetValue(e.JogadorId!.Value, out var lista))
@@ -90,6 +86,17 @@ namespace ControleFutebolWeb.Helpers
 
             await context.SaveChangesAsync(ct);
             return (atualizados, jogadores.Count);
+        }
+
+        // Casa as coordenadas (Escalacao.PosicaoX/Y) com o slot mais próximo da
+        // formação (PosicaoFormacao) e devolve o nome granular normalizado — usado
+        // tanto para recalcular Jogador.Posicao (agregado) quanto para exibir a
+        // posição jogada em cada partida (histórico em /Jogadores/Estatisticas).
+        public static string? PosicaoGranular(List<PosicaoFormacao> slots, double x, double y)
+        {
+            if (slots.Count == 0) return null;
+            var slot = slots.MinBy(s => Math.Pow(s.PosicaoX - x, 2) + Math.Pow(s.PosicaoY - y, 2))!;
+            return NormalizarNomePosicao(slot.NomePosicao);
         }
 
         // Unifica o gênero do sufixo de lado ("Meia Direito" ≡ "Meia Direita",

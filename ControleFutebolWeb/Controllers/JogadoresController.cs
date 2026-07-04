@@ -470,7 +470,28 @@ namespace ControleFutebolWeb.Controllers
                     .First())
                 .ToList();
 
-            var posicaoPorJogoId = escalacaoSelecionadaPorJogo.ToDictionary(e => e.JogoId, e => e.Posicao);
+            // Posição granular por jogo: casa as coordenadas do slot com a formação
+            // usada naquele jogo (mesma lógica de PosicaoJogadorHelper.RecalcularAsync),
+            // em vez de confiar no texto bruto salvo em Escalacao.Posicao — que pode
+            // ter ficado genérico ("Defensor") dependendo de como a escalação daquele
+            // jogo específico foi criada/importada.
+            var slotsPorFormacao = (await _context.PosicoesFormacao.ToListAsync())
+                .GroupBy(p => p.FormacaoId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            string? PosicaoGranularDe(Escalacao e)
+            {
+                var formacaoId = e.IsTimeCasa ? e.Jogo.FormacaoCasaId : e.Jogo.FormacaoVisitanteId;
+                if (formacaoId == null || !slotsPorFormacao.TryGetValue(formacaoId.Value, out var slots))
+                    return null;
+                return PosicaoJogadorHelper.PosicaoGranular(slots, e.PosicaoX, e.PosicaoY);
+            }
+
+            var granularPorEscalacao = escalacaoSelecionadaPorJogo
+                .ToDictionary(e => e.Id, e => PosicaoGranularDe(e) ?? e.Posicao!);
+
+            var posicaoPorJogoId = escalacaoSelecionadaPorJogo
+                .ToDictionary(e => e.JogoId, e => granularPorEscalacao[e.Id]);
             var minutosPorJogoId = estatisticas
                 .Where(e => e.Minutos.HasValue)
                 .ToDictionary(e => e.JogoId, e => e.Minutos!.Value);
@@ -573,7 +594,7 @@ namespace ControleFutebolWeb.Controllers
             var posicoesPorJogo = escalacaoSelecionadaPorJogo;
 
             var posicoesJogadas = posicoesPorJogo
-                .GroupBy(e => e.Posicao!)
+                .GroupBy(e => granularPorEscalacao[e.Id])
                 .Select(g => new PosicaoJogadaItem
                 {
                     Posicao = g.Key,
