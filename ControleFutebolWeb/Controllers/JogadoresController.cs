@@ -618,6 +618,8 @@ namespace ControleFutebolWeb.Controllers
                 .OrderByDescending(p => p.Jogos)
                 .ToList();
 
+            AfastarPosicoesSobrepostas(posicoesJogadas);
+
             // ── Médias por jogo (estatísticas importadas) ─────────────────
             MediasPorJogo? medias = null;
             if (estatisticas.Count > 0)
@@ -1217,5 +1219,68 @@ namespace ControleFutebolWeb.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        // Afasta os pontos do mini-campo "Posições em campo" (Estatisticas.cshtml)
+        // quando duas posições têm médias muito próximas (ex.: Centroavante e
+        // Atacante) — sem isso os círculos se sobrepõem e o texto vira ilegível.
+        // Trabalha em pixels (dimensões fixas do .mini-campo: 160×240, dot 34px)
+        // e depois converte de volta para % antes de devolver.
+        private static void AfastarPosicoesSobrepostas(List<PosicaoJogadaItem> posicoes)
+        {
+            const double largura = 160, altura = 240, diametro = 34, distMinima = diametro + 6;
+            const double margem = diametro / 2 + 4;
+
+            if (posicoes.Count < 2) return;
+
+            var pts = posicoes.Select(p => (x: p.X / 100.0 * largura, y: p.Y / 100.0 * altura)).ToList();
+
+            // Clampa a CADA iteração (não só no final): senão pontos empurrados perto
+            // da borda voltam a colidir quando o clamp final os "esmaga" de volta.
+            void Clampar()
+            {
+                for (int k = 0; k < pts.Count; k++)
+                    pts[k] = (Math.Clamp(pts[k].x, margem, largura - margem),
+                              Math.Clamp(pts[k].y, margem, altura - margem));
+            }
+
+            Clampar();
+
+            for (int iter = 0; iter < 20; iter++)
+            {
+                bool moveu = false;
+                for (int i = 0; i < pts.Count; i++)
+                {
+                    for (int j = i + 1; j < pts.Count; j++)
+                    {
+                        double dx = pts[j].x - pts[i].x, dy = pts[j].y - pts[i].y;
+                        double dist = Math.Sqrt(dx * dx + dy * dy);
+
+                        if (dist <= 0.01)
+                        {
+                            // Exatamente sobrepostos: espalha em ângulos diferentes por par
+                            // (não sempre a mesma direção, senão pontos em cadeia colidem de novo).
+                            double ang = 2 * Math.PI * j / pts.Count;
+                            pts[j] = (pts[i].x + Math.Cos(ang) * distMinima, pts[i].y + Math.Sin(ang) * distMinima);
+                            moveu = true;
+                        }
+                        else if (dist < distMinima)
+                        {
+                            double falta = (distMinima - dist) / 2;
+                            double ux = dx / dist, uy = dy / dist;
+                            pts[i] = (pts[i].x - ux * falta, pts[i].y - uy * falta);
+                            pts[j] = (pts[j].x + ux * falta, pts[j].y + uy * falta);
+                            moveu = true;
+                        }
+                    }
+                }
+                Clampar();
+                if (!moveu) break;
+            }
+
+            for (int i = 0; i < posicoes.Count; i++)
+            {
+                posicoes[i].X = Math.Round(pts[i].x / largura * 100, 1);
+                posicoes[i].Y = Math.Round(pts[i].y / altura * 100, 1);
+            }
+        }
     }
 }
