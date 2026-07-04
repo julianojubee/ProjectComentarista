@@ -216,7 +216,10 @@ namespace ControleFutebolWeb.Controllers
 
                 var estatisticas = _context.EstatisticasJogador
                     .AsNoTracking()
-                    .Where(e => jogoIdsComp.Contains(e.JogoId) && poolIds.Contains(e.JogadorId))
+                    // Exclui reservas não utilizados (Minutos 0/null): sem isso o jogador
+                    // que ficou no banco ganharia a nota base (4.0) em jogo que não atuou.
+                    .Where(e => jogoIdsComp.Contains(e.JogoId) && poolIds.Contains(e.JogadorId)
+                             && e.Minutos != null && e.Minutos > 0)
                     .ToList();
 
                 var criteriosBanco = CriteriosNotaHelper.MergeCriterios(
