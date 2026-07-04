@@ -1350,15 +1350,24 @@ namespace ControleFutebolWeb.Services
                 }
 
                 // Mantém TimeId = clube e SelecaoId = seleção, sem criar jogador duplicado
-                // quando o mesmo IdApi aparece em competições de clube e de seleção.
+                // quando o mesmo IdApi aparece em competições de clube e de seleção. Uma
+                // seleção nunca entra como origem/destino na Janela de Transferências —
+                // só troca real de clube é registrada.
                 if (jogador.TimeId != time.Id && jogador.SelecaoId != time.Id)
                 {
+                    // TimeId atual é a seleção quando: o time carregado está marcado como tal,
+                    // ou (defesa extra, caso a competição da seleção não tenha o flag EhSelecao
+                    // marcado) quando o SelecaoId já registrado é o próprio TimeId atual — sinal
+                    // de que esse "clube" é só o placeholder criado antes de o clube ser conhecido.
+                    var origemEhSelecao = (jogador.Time != null && jogador.Time.EhSelecao)
+                        || (jogador.SelecaoId != null && jogador.TimeId == jogador.SelecaoId);
+
                     if (time.EhSelecao)
                     {
                         jogador.SelecaoId = time.Id;
                         alterado = true;
                     }
-                    else if (jogador.Time != null && jogador.Time.EhSelecao)
+                    else if (origemEhSelecao)
                     {
                         // O TimeId atual na verdade é a seleção (criado antes do clube ser conhecido)
                         jogador.SelecaoId = jogador.TimeId;

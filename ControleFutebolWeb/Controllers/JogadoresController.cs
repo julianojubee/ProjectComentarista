@@ -607,13 +607,35 @@ namespace ControleFutebolWeb.Controllers
 
             var posicoesJogadas = posicoesPorJogo
                 .GroupBy(e => granularPorEscalacao[e.Id])
-                .Select(g => new PosicaoJogadaItem
+                .Select(g =>
                 {
-                    Posicao = g.Key,
-                    Jogos = g.Count(),
-                    Pct = Math.Round(100.0 * g.Count() / posicoesPorJogo.Count),
-                    X = Math.Round(g.Average(e => e.PosicaoX), 1),
-                    Y = Math.Round(g.Average(e => e.PosicaoY), 1),
+                    // (0,0) não é uma posição real em nenhuma formação (todo slot cadastrado
+                    // fica afastado dos cantos) — indica escalação sem coordenada salva, ex.:
+                    // formação sem posições configuradas em PosicoesFormacao. Entra na contagem
+                    // (a posição em si, herdada da API, ainda vale), mas não pode entrar na média
+                    // de X/Y, senão puxa o ponto no mini-campo pro canto do ataque.
+                    var comCoordenada = g.Where(e => e.PosicaoX != 0 || e.PosicaoY != 0).ToList();
+                    double x, y;
+                    if (comCoordenada.Count > 0)
+                    {
+                        x = Math.Round(comCoordenada.Average(e => e.PosicaoX), 1);
+                        y = Math.Round(comCoordenada.Average(e => e.PosicaoY), 1);
+                    }
+                    else
+                    {
+                        // Nenhuma escalação do grupo tem coordenada real (ex.: só jogos com
+                        // formação sem slots cadastrados) — usa uma âncora genérica pelo
+                        // rótulo em vez de (0,0), que cairia no canto do ataque.
+                        (x, y) = CoordenadaGenericaPorRotulo(g.Key);
+                    }
+                    return new PosicaoJogadaItem
+                    {
+                        Posicao = g.Key,
+                        Jogos = g.Count(),
+                        Pct = Math.Round(100.0 * g.Count() / posicoesPorJogo.Count),
+                        X = x,
+                        Y = y,
+                    };
                 })
                 .OrderByDescending(p => p.Jogos)
                 .ToList();
@@ -1218,6 +1240,19 @@ namespace ControleFutebolWeb.Controllers
 
             return RedirectToAction(nameof(Index));
         }
+
+        // Âncora genérica no mini-campo para os rótulos crus vindos da API (usados
+        // quando a formação do jogo não tem slots cadastrados em PosicoesFormacao,
+        // então não há coordenada real pra calcular a média) — mantém o ponto na
+        // zona correta do campo (defesa/meio/ataque) em vez do canto (0,0).
+        private static (double X, double Y) CoordenadaGenericaPorRotulo(string rotulo) => rotulo switch
+        {
+            "Goleiro"  => (50, 90),
+            "Defensor" => (50, 78),
+            "Meia"     => (50, 48),
+            "Atacante" => (50, 18),
+            _          => (50, 50)
+        };
 
         // Afasta os pontos do mini-campo "Posições em campo" (Estatisticas.cshtml)
         // quando duas posições têm médias muito próximas (ex.: Centroavante e
