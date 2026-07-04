@@ -23,5 +23,11 @@ namespace ControleFutebolWeb.Models
         public Jogo? Jogo { get; set; }
 
         public DateTime Data { get; set; }
+
+        // null = detecção automática (import), compartilhada com todo mundo.
+        // Preenchido = transferência manual, só o próprio usuário pode excluir —
+        // um engano de um usuário não deve afetar o que os outros veem/gerenciam.
+        public string? UsuarioId { get; set; }
+        public ApplicationUser? Usuario { get; set; }
     }
 }

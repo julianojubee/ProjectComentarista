@@ -146,6 +146,19 @@
             text-decoration: none;
         }
 
+    .trf-excluir {
+        background: none;
+        border: none;
+        color: #f87171;
+        font-size: .72rem;
+        cursor: pointer;
+        padding: 0;
+        margin-top: .3rem;
+        text-decoration: underline;
+    }
+
+        .trf-excluir:hover { color: #ef4444; }
+
     .trf-vazio {
         text-align: center;
         color: #94a3b8;
@@ -295,6 +308,14 @@
                         else
                         {
                             <div style="color:#facc15;">manual</div>
+                            @if (t.UsuarioId != null && t.UsuarioId == (string?)ViewBag.UsuarioAtualId)
+                            {
+                                <form method="post" asp-action="Excluir" asp-route-id="@t.Id"
+                                      onsubmit="return confirm('Excluir esta transferência? Se o jogador ainda estiver em @t.TimeDestino?.Nome, ele volta para @(t.TimeOrigem?.Nome ?? "o clube anterior").');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="trf-excluir">excluir</button>
+                                </form>
+                            }
                         }
                     </div>
                 </div>

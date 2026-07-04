@@ -1,6 +1,7 @@
 using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Models;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -14,10 +15,12 @@ namespace ControleFutebolWeb.Controllers
     public class TransferenciasController : Controller
     {
         private readonly FutebolContext _context;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public TransferenciasController(FutebolContext context)
+        public TransferenciasController(FutebolContext context, UserManager<ApplicationUser> userManager)
         {
             _context = context;
+            _userManager = userManager;
         }
 
         // GET: /Transferencias?timeId=1&competicaoId=2&jogador=borre
@@ -91,6 +94,8 @@ namespace ControleFutebolWeb.Controllers
                 await _context.Times.Where(t => !t.EhSelecao).OrderBy(t => t.Nome).ToListAsync(),
                 "Id", "Nome");
 
+            ViewBag.UsuarioAtualId = _userManager.GetUserId(User);
+
             return View(transferencias);
         }
 
@@ -125,13 +130,16 @@ namespace ControleFutebolWeb.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            var usuarioId = _userManager.GetUserId(User);
+
             _context.Transferencias.Add(new Transferencia
             {
                 JogadorId = jogador.Id,
                 TimeOrigemId = jogador.TimeId,
                 TimeDestinoId = destino.Id,
                 JogoId = null,
-                Data = DateTime.UtcNow
+                Data = DateTime.UtcNow,
+                UsuarioId = usuarioId
             });
 
             var origemNome = jogador.Time?.Nome ?? "sem clube";
@@ -139,6 +147,45 @@ namespace ControleFutebolWeb.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Sucesso"] = $"{jogador.NomeExibicao} transferido: {origemNome} → {destino.Nome}.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // POST: /Transferencias/Excluir
+        // Só quem criou a transferência manual pode excluí-la — um engano de um
+        // usuário não deve afetar o histórico/dados dos outros. Se o jogador ainda
+        // estiver no clube de destino (ninguém o transferiu de novo depois), o clube
+        // volta pro de origem; se já houve outra transferência por cima, só remove
+        // o registro do histórico (reverter o time seria incorreto).
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Excluir(int id)
+        {
+            var usuarioId = _userManager.GetUserId(User);
+
+            var transferencia = await _context.Transferencias
+                .Include(t => t.Jogador)
+                .Include(t => t.TimeOrigem)
+                .FirstOrDefaultAsync(t => t.Id == id);
+
+            if (transferencia == null)
+            {
+                TempData["Erro"] = "Transferência não encontrada.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (transferencia.JogoId != null || transferencia.UsuarioId != usuarioId)
+            {
+                TempData["Erro"] = "Só é possível excluir transferências manuais criadas por você.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (transferencia.Jogador.TimeId == transferencia.TimeDestinoId && transferencia.TimeOrigemId != null)
+                transferencia.Jogador.TimeId = transferencia.TimeOrigemId.Value;
+
+            _context.Transferencias.Remove(transferencia);
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = $"Transferência de {transferencia.Jogador.NomeExibicao} excluída.";
             return RedirectToAction(nameof(Index));
         }
     }

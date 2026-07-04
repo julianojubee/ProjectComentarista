@@ -285,6 +285,8 @@ namespace ControleFutebolWeb.Data
                     .OnDelete(DeleteBehavior.Cascade);
                 entity.HasOne(t => t.Jogo).WithMany().HasForeignKey(t => t.JogoId)
                     .OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(t => t.Usuario).WithMany().HasForeignKey(t => t.UsuarioId)
+                    .OnDelete(DeleteBehavior.SetNull);
                 entity.HasIndex(t => t.Data);
             });
 
