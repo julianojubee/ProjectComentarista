@@ -1,5 +1,6 @@
 using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
+using ControleFutebolWeb.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -88,6 +89,54 @@ namespace ControleFutebolWeb.Controllers
 
             TempData["Sucesso"] =
                 $"Posições recalculadas: {atualizados} jogador(es) atualizados a partir de {comEscalacao} com escalações registradas.";
+            return RedirectToAction("Index", "Servicos");
+        }
+
+        // POST: /Admin/AtualizarPlacarPenaltis
+        // Backfill de jogos importados antes da correção que fazia a api-football
+        // gravar cada cobrança em PenaltisDisputa mas nunca atualizava
+        // Jogo.PenaltisCasa/PenaltisVisitante — por isso a tela de Jogos, o
+        // chaveamento da Copa e o resumo do placar em Analisar mostravam empate em
+        // vez de quem avançou/venceu nos pênaltis. Deriva o placar (cobranças
+        // convertidas por lado) a partir de PenaltisDisputa para todo jogo que já
+        // tem disputa registrada.
+        [HttpPost]
+        public async Task<IActionResult> AtualizarPlacarPenaltis()
+        {
+            var porJogo = await _context.PenaltisDisputa
+                .GroupBy(p => p.JogoId)
+                .Select(g => new
+                {
+                    JogoId = g.Key,
+                    Casa = g.Count(p => p.IsTimeCasa && p.Convertido),
+                    Visitante = g.Count(p => !p.IsTimeCasa && p.Convertido)
+                })
+                .ToListAsync();
+
+            var jogoIds = porJogo.Select(g => g.JogoId).ToList();
+            var jogos = await _context.Jogos
+                .Where(j => jogoIds.Contains(j.Id))
+                .ToDictionaryAsync(j => j.Id);
+
+            int atualizados = 0;
+            foreach (var g in porJogo)
+            {
+                if (!jogos.TryGetValue(g.JogoId, out var jogo)) continue;
+                if (jogo.PenaltisCasa == g.Casa && jogo.PenaltisVisitante == g.Visitante) continue;
+
+                jogo.PenaltisCasa = g.Casa;
+                jogo.PenaltisVisitante = g.Visitante;
+                atualizados++;
+            }
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "[Admin] AtualizarPlacarPenaltis: {A} jogo(s) atualizados (de {T} com disputa registrada).",
+                atualizados, porJogo.Count);
+
+            TempData["Sucesso"] =
+                $"Placar de pênaltis atualizado: {atualizados} jogo(s) de {porJogo.Count} com disputa registrada.";
             return RedirectToAction("Index", "Servicos");
         }
     }

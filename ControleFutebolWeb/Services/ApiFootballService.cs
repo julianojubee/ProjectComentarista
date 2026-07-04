@@ -969,6 +969,7 @@ namespace ControleFutebolWeb.Services
 
             // Eventos
             var ordemPenaltiDisputa = 0;
+            var penaltisDisputaNovos = new List<PenaltiDisputa>();
             foreach (var ev in fx.Events)
             {
                 var isTimeCasa = ev.Team.Id == fx.Teams.Home.Id;
@@ -989,13 +990,15 @@ namespace ControleFutebolWeb.Services
                         // (com a ordem) sem somar ao placar do tempo normal nem aos gols.
                         if (ev.Comments?.Contains("Shootout", StringComparison.OrdinalIgnoreCase) == true)
                         {
-                            context.PenaltisDisputa.Add(new PenaltiDisputa
+                            var penDisputa = new PenaltiDisputa
                             {
                                 JogoId = jogo.Id, JogadorId = jogador.Id,
                                 IsTimeCasa = isTimeCasa,
                                 Convertido = ev.Detail?.Contains("Missed", StringComparison.OrdinalIgnoreCase) != true,
                                 Ordem = ++ordemPenaltiDisputa
-                            });
+                            };
+                            context.PenaltisDisputa.Add(penDisputa);
+                            penaltisDisputaNovos.Add(penDisputa);
                             break;
                         }
 
@@ -1076,6 +1079,22 @@ namespace ControleFutebolWeb.Services
                         break;
                     }
                 }
+            }
+
+            // Placar da disputa de pênaltis = cobranças convertidas por lado. Sem isso,
+            // Jogo.PenaltisCasa/PenaltisVisitante ficavam sempre null (nada os
+            // preenchia), quebrando quem depende deles pra saber quem avançou/venceu
+            // nos pênaltis (lista de Jogos, chaveamento da Copa, resumo do placar em
+            // Analisar) — mesmo com as cobranças already certinhas em PenaltisDisputa.
+            if (penaltisDisputaNovos.Count > 0)
+            {
+                jogo.PenaltisCasa = penaltisDisputaNovos.Count(p => p.IsTimeCasa && p.Convertido);
+                jogo.PenaltisVisitante = penaltisDisputaNovos.Count(p => !p.IsTimeCasa && p.Convertido);
+            }
+            else
+            {
+                jogo.PenaltisCasa = null;
+                jogo.PenaltisVisitante = null;
             }
 
             await context.SaveChangesAsync(ct);

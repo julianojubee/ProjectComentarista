@@ -138,6 +138,23 @@
         </form>
     </div>
 
+    <div class="srv-card">
+        <div class="srv-header">
+            <span class="srv-nome">🥅 Atualizar placar de pênaltis</span>
+        </div>
+        <div class="srv-desc">
+            Corrige jogos importados antes do ajuste que fazia a disputa de pênaltis ficar
+            sem placar (mostrando empate na lista de Jogos, no chaveamento da Copa e no
+            resumo do placar em Analisar, mesmo indo pros pênaltis). Deriva o placar a
+            partir das cobranças já registradas — não mexe em jogos sem disputa.
+        </div>
+        <form method="post" asp-controller="Admin" asp-action="AtualizarPlacarPenaltis"
+              onsubmit="return confirm('Atualizar o placar de pênaltis de todos os jogos com disputa registrada?');">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn-srv btn-reiniciar">🥅 Atualizar agora</button>
+        </form>
+    </div>
+
     <div id="srv-lista">
         @foreach (var s in Model)
         {
