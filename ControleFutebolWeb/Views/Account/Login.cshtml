@@ -6,85 +6,252 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Login — Comentarista</title>
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <style>
-        body {
-            background: linear-gradient(135deg, #0a1628 0%, #1a2f4e 55%, #0f2040 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .login-card {
-            background: #fff;
-            border-radius: 16px;
-            padding: 2.5rem 2rem;
-            width: 100%;
-            max-width: 400px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-        }
-        .login-logo {
-            text-align: center;
-            margin-bottom: 1.5rem;
-        }
-        .login-logo .ball { font-size: 2.5rem; }
-        .login-logo h1 { font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0.4rem 0 0.2rem; }
-        .login-logo p  { font-size: 0.85rem; color: #6b7280; margin: 0; }
-        .btn-login {
-            background: linear-gradient(135deg, #1a2f4e, #2563eb);
-            color: #fff;
-            border: none;
-            width: 100%;
-            padding: 0.75rem;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 1rem;
-            margin-top: 0.5rem;
-        }
-        .btn-login:hover { opacity: 0.92; color: #fff; }
-        .form-control:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login — Análise de Craque</title>
+  <link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0a; }
+
+    @@keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @@keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @@keyframes pulse {
+      0%, 100% { opacity: 0.6; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.08); }
+    }
+    @@keyframes scanline {
+      0% { transform: translateY(-100%); }
+      100% { transform: translateY(100vh); }
+    }
+
+    .login-input {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      padding: 12px 14px;
+      color: #fff;
+      font-family: 'Barlow', sans-serif;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .login-input:focus {
+      border-color: rgba(234,179,8,0.6);
+      background: rgba(255,255,255,0.07);
+    }
+    .login-input::placeholder { color: rgba(255,255,255,0.25); }
+
+    .login-btn {
+      width: 100%;
+      background: #EAB308;
+      color: #0a0a0a;
+      border: none;
+      border-radius: 6px;
+      padding: 13px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .login-btn:hover { background: #FCD34D; }
+    .login-btn:active { transform: scale(0.98); }
+
+    .tag-pill {
+      display: inline-block;
+      border: 1px solid rgba(234,179,8,0.4);
+      color: rgba(234,179,8,0.8);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      padding: 4px 10px;
+      border-radius: 2px;
+    }
+
+    .stat-item { text-align: center; }
+    .stat-num {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 28px;
+      font-weight: 900;
+      color: #EAB308;
+      line-height: 1;
+    }
+    .stat-lbl {
+      font-family: 'Barlow', sans-serif;
+      font-size: 11px;
+      color: rgba(255,255,255,0.4);
+      letter-spacing: 0.5px;
+      margin-top: 3px;
+    }
+
+    .check-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Barlow', sans-serif;
+      font-size: 13px;
+      color: rgba(255,255,255,0.45);
+      cursor: pointer;
+      user-select: none;
+    }
+    .check-label input[type=checkbox] { accent-color: #EAB308; width: 14px; height: 14px; }
+
+    .login-error {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.35);
+      color: #fca5a5;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 18px;
+      font-family: 'Barlow', sans-serif;
+      font-size: 13px;
+    }
+    .login-error div + div { margin-top: 4px; }
+
+    /* Responsivo: empilha em telas menores */
+    @@media (max-width: 860px) {
+      html, body { overflow: auto; height: auto; }
+      .login-wrap { flex-direction: column !important; height: auto !important; min-height: 100vh; }
+      .left-panel { min-height: 320px; padding: 28px 24px !important; }
+      .right-panel { width: 100% !important; padding: 40px 24px !important; }
+      .stats-bar { gap: 20px !important; flex-wrap: wrap; }
+    }
+    @@media (max-width: 520px) {
+      .stats-bar { display: none !important; }
+    }
+  </style>
 </head>
 <body>
-    <div class="login-card">
-        <div class="login-logo">
-            <div class="ball">⚽</div>
-            <h1>Comentarista</h1>
-            <p>Análise de futebol</p>
-        </div>
 
-        @if (!ViewData.ModelState.IsValid)
-        {
-            <div class="alert alert-danger py-2">
-                @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
-                {
-                    <div>@error.ErrorMessage</div>
-                }
-            </div>
-        }
+<div class="login-wrap" style="width:100vw; height:100vh; display:flex; background:#0a0a0a; position:relative; overflow:hidden;">
 
-        <form method="post" asp-action="Login" asp-route-returnUrl="@ViewBag.ReturnUrl">
-            @Html.AntiForgeryToken()
-            <div class="mb-3">
-                <label asp-for="UserName" class="form-label fw-semibold">Usuário</label>
-                <input asp-for="UserName" class="form-control" placeholder="seu.usuario" autocomplete="username" autofocus />
-            </div>
-            <div class="mb-3">
-                <label asp-for="Password" class="form-label fw-semibold">Senha</label>
-                <input asp-for="Password" class="form-control" type="password" placeholder="••••••" autocomplete="current-password" />
-            </div>
-            <div class="form-check mb-3">
-                <input asp-for="RememberMe" class="form-check-input" type="checkbox" id="rememberMe" />
-                <label class="form-check-label text-muted" for="rememberMe">Manter conectado</label>
-            </div>
-            <button type="submit" class="btn-login">Entrar</button>
-        </form>
-        <div class="text-center mt-3">
-            <a asp-action="ForgotPassword" class="text-decoration-none small text-muted">Esqueci minha senha</a>
-        </div>
+  <!-- Scanline overlay -->
+  <div style="position:absolute; inset:0; pointer-events:none; z-index:1; overflow:hidden;">
+    <div style="position:absolute; left:0; right:0; height:2px; background:linear-gradient(transparent,rgba(234,179,8,0.06),transparent); animation:scanline 8s linear infinite;"></div>
+  </div>
+
+  <!-- LEFT PANEL: Field + Branding -->
+  <div class="left-panel" style="flex:1; position:relative; display:flex; flex-direction:column; justify-content:space-between; padding:40px 48px; overflow:hidden; animation:fadeIn 1s ease both;">
+
+    <!-- Logo -->
+    <div style="display:flex; align-items:center; gap:14px; z-index:2; animation:fadeUp 0.6s ease both;">
+      <div style="width:44px; height:44px; border:2px solid #EAB308; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;">
+        <div style="width:22px; height:2px; background:#EAB308;"></div>
+        <div style="width:22px; height:2px; background:#EAB308; opacity:0.5;"></div>
+        <div style="width:22px; height:2px; background:#EAB308;"></div>
+      </div>
+      <div>
+        <div style="font-family:'Barlow Condensed',sans-serif; font-size:22px; font-weight:900; color:#EAB308; letter-spacing:2px; line-height:1;">ANÁLISE</div>
+        <div style="font-family:'Barlow Condensed',sans-serif; font-size:11px; font-weight:400; color:rgba(255,255,255,0.5); letter-spacing:3px;">DE CRAQUE</div>
+      </div>
     </div>
+
+    <!-- Animated field canvas -->
+    <field-canvas style="position:absolute; inset:0; width:100%; height:100%; display:block;"></field-canvas>
+
+    <!-- Tag pill -->
+    <div style="position:relative; z-index:2; max-width:520px;">
+      <div style="margin-bottom:16px; animation:fadeUp 0.7s 0.1s ease both; opacity:0; animation-fill-mode:forwards;">
+        <span class="tag-pill">SCOUT · ANÁLISE · TÁTICA</span>
+      </div>
+    </div>
+
+    <!-- Stats bar -->
+    <div class="stats-bar" style="position:relative; z-index:2; display:flex; gap:40px; align-items:center; animation:fadeUp 0.7s 0.4s ease both; opacity:0; animation-fill-mode:forwards;">
+      <div class="stat-item"><div class="stat-num">+2.000</div><div class="stat-lbl">Jogadores avaliados</div></div>
+      <div style="width:1px; height:32px; background:rgba(255,255,255,0.1);"></div>
+      <div class="stat-item"><div class="stat-num">+84</div><div class="stat-lbl">Competições</div></div>
+      <div style="width:1px; height:32px; background:rgba(255,255,255,0.1);"></div>
+      <div class="stat-item"><div class="stat-num">+399</div><div class="stat-lbl">Times cadastrados</div></div>
+      <div style="width:1px; height:32px; background:rgba(255,255,255,0.1);"></div>
+      <div class="stat-item"><div class="stat-num">4-3-3</div><div class="stat-lbl">Formações táticas</div></div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL: Login -->
+  <div class="right-panel" style="width:420px; flex-shrink:0; background:rgba(255,255,255,0.025); border-left:1px solid rgba(255,255,255,0.06); display:flex; flex-direction:column; justify-content:center; padding:56px 48px; position:relative; z-index:2; animation:fadeIn 0.8s 0.2s ease both; opacity:0; animation-fill-mode:forwards;">
+
+    <!-- Top accent line -->
+    <div style="position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg, transparent, #EAB308, transparent);"></div>
+
+    <!-- Header -->
+    <div style="margin-bottom:36px;">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+        <div style="width:8px; height:8px; background:#EAB308; border-radius:50%; animation:pulse 2s ease-in-out infinite;"></div>
+        <span style="font-family:'Barlow Condensed',sans-serif; font-size:11px; color:rgba(234,179,8,0.7); letter-spacing:2.5px; font-weight:600;">ACESSO AO SISTEMA</span>
+      </div>
+      <h2 style="font-family:'Barlow Condensed',sans-serif; font-size:32px; font-weight:800; color:#fff; letter-spacing:-0.3px; line-height:1;">Bem-vindo de volta</h2>
+      <p style="font-family:'Barlow',sans-serif; font-size:14px; color:rgba(255,255,255,0.35); margin-top:6px;">Entre na sua conta para continuar a análise.</p>
+    </div>
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="login-error">
+            @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+            {
+                <div>@error.ErrorMessage</div>
+            }
+        </div>
+    }
+
+    <!-- Form -->
+    <form method="post" asp-action="Login" asp-route-returnUrl="@ViewBag.ReturnUrl" style="display:flex; flex-direction:column; gap:18px;">
+      @Html.AntiForgeryToken()
+      <div>
+        <label style="display:block; font-family:'Barlow',sans-serif; font-size:12px; font-weight:500; color:rgba(255,255,255,0.5); letter-spacing:0.8px; margin-bottom:7px;" asp-for="UserName">USUÁRIO</label>
+        <input asp-for="UserName" class="login-input" type="text" placeholder="Seu usuário ou e-mail" autocomplete="username" autofocus>
+      </div>
+      <div>
+        <label style="display:block; font-family:'Barlow',sans-serif; font-size:12px; font-weight:500; color:rgba(255,255,255,0.5); letter-spacing:0.8px; margin-bottom:7px;" asp-for="Password">SENHA</label>
+        <input asp-for="Password" class="login-input" type="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-top:-4px;">
+        <label class="check-label">
+          <input asp-for="RememberMe" type="checkbox">
+          Manter conectado
+        </label>
+        <a asp-action="ForgotPassword" style="font-family:'Barlow',sans-serif; font-size:13px; color:rgba(234,179,8,0.7); text-decoration:none;">Esqueci minha senha</a>
+      </div>
+
+      <button type="submit" class="login-btn" style="margin-top:8px;">Entrar em campo ⟶</button>
+    </form>
+
+    <!-- Divider -->
+    <div style="display:flex; align-items:center; gap:12px; margin-top:32px;">
+      <div style="flex:1; height:1px; background:rgba(255,255,255,0.07);"></div>
+      <span style="font-family:'Barlow',sans-serif; font-size:11px; color:rgba(255,255,255,0.2);">MÓDULOS DO SISTEMA</span>
+      <div style="flex:1; height:1px; background:rgba(255,255,255,0.07);"></div>
+    </div>
+
+    <!-- Feature pills -->
+    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:20px;">
+      <span style="font-family:'Barlow Condensed',sans-serif; font-size:12px; padding:5px 12px; border:1px solid rgba(255,255,255,0.08); border-radius:3px; color:rgba(255,255,255,0.35); letter-spacing:1px;">SCOUT</span>
+      <span style="font-family:'Barlow Condensed',sans-serif; font-size:12px; padding:5px 12px; border:1px solid rgba(255,255,255,0.08); border-radius:3px; color:rgba(255,255,255,0.35); letter-spacing:1px;">ESCALAÇÃO</span>
+      <span style="font-family:'Barlow Condensed',sans-serif; font-size:12px; padding:5px 12px; border:1px solid rgba(255,255,255,0.08); border-radius:3px; color:rgba(255,255,255,0.35); letter-spacing:1px;">ANÁLISE TÁTICA</span>
+      <span style="font-family:'Barlow Condensed',sans-serif; font-size:12px; padding:5px 12px; border:1px solid rgba(255,255,255,0.08); border-radius:3px; color:rgba(255,255,255,0.35); letter-spacing:1px;">COMPETIÇÕES</span>
+      <span style="font-family:'Barlow Condensed',sans-serif; font-size:12px; padding:5px 12px; border:1px solid rgba(255,255,255,0.08); border-radius:3px; color:rgba(255,255,255,0.35); letter-spacing:1px;">RELATÓRIOS</span>
+    </div>
+
+    <!-- Footer -->
+    <div style="margin-top:auto; padding-top:32px;">
+      <p style="font-family:'Barlow',sans-serif; font-size:11px; color:rgba(255,255,255,0.18); text-align:center;">© 2026 Análise de Craque · Todos os direitos reservados</p>
+    </div>
+
+  </div>
+</div>
+
+<script src="~/js/field-canvas.js" asp-append-version="true"></script>
 </body>
 </html>

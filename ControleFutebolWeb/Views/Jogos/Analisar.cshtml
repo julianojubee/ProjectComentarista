@@ -4,8 +4,8 @@
 @using System.Text.Json
 @{
     // Título da aba do navegador: app na frente + confronto, para diferenciar
-    // várias análises abertas ao mesmo tempo (ex.: "Comentarista Esportivo - Nova Zelândia x Bélgica").
-    ViewData["TitleOverride"] = $"Comentarista Esportivo - {Model.Jogo.TimeCasa?.Nome} x {Model.Jogo.TimeVisitante?.Nome}";
+    // várias análises abertas ao mesmo tempo (ex.: "Análise de Craque - Nova Zelândia x Bélgica").
+    ViewData["TitleOverride"] = $"Análise de Craque - {Model.Jogo.TimeCasa?.Nome} x {Model.Jogo.TimeVisitante?.Nome}";
 
     var faseAtual = (Model.FaseEscalacaoAtual as string) ?? "INICIAL";
     var faseEhInicial = faseAtual == "INICIAL";

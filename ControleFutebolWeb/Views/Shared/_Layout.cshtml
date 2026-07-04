@@ -64,9 +64,9 @@
     <meta name="csrf-token" content="@_antiforgery.GetAndStoreTokens(Context).RequestToken" />
     @{
         // Título da aba: páginas podem definir ViewData["TitleOverride"] para
-        // controlar o título completo; senão usa o padrão "{Title} - Comentarista Esportivo".
+        // controlar o título completo; senão usa o padrão "{Title} - Análise de Craque".
         var tituloAba = (ViewData["TitleOverride"] as string)
-            ?? ((ViewData["Title"] as string ?? "") + " - Comentarista Esportivo");
+            ?? ((ViewData["Title"] as string ?? "") + " - Análise de Craque");
     }
     <title>@tituloAba</title>
     @* data-theme aciona os overrides custom (site.css); data-bs-theme aciona o
