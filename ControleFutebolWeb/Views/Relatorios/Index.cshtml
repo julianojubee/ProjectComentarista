@@ -22,26 +22,41 @@
     /* ── Reset ─────────────────────────────────────────────────────────── */
     .rpt-root * { box-sizing: border-box; }
 
-    /* Tokens locais da tela (os globais vêm do site.css). O tom âmbar é a
-       identidade desta página; cada tema resolve o tint/texto adequado. */
+    /* Página sempre no tema escuro/dourado (mesmo padrão das telas já
+       convertidas — Home, Times, Jogadores, Jogos, Competições), independente
+       do toggle claro/escuro do site. O tom âmbar continua sendo a identidade
+       desta tela específica (Central de Dados). */
     .rpt-root {
-        --hover-warm: #fffbf0;              /* hover com tint âmbar */
-        --amber-text: #d97706;
-    }
-    [data-theme="dark"] .rpt-root {
-        --hover-warm: rgba(245, 158, 11, .07);
+        margin: 0 -12px;
+        background: #0f0f0f;
+        border-radius: 14px;
+        overflow: hidden;
+        color: #e5e7eb;
+        font-family: 'Barlow', Arial, sans-serif;
+
+        --hover-warm: rgba(245, 158, 11, .08);
         --amber-text: #fbbf24;
+        --surface: #161616;
+        --surface-2: #1a1a1a;
+        --surface-3: #222222;
+        --border: #262626;
+        --border-strong: #333333;
+        --border-subtle: #1e1e1e;
+        --text: #f1f5f9;
+        --text-2: #e5e7eb;
+        --text-muted: #6b7280;
+        --input-bg: #1a1a1a;
     }
 
     /* ── Hero ──────────────────────────────────────────────────────────── */
     .rpt-hero {
         position: relative;
         background: linear-gradient(135deg, #0a1628 0%, #111e35 55%, #0a1628 100%);
-        border-radius: 16px;
-        padding: 2.4rem 2rem 2rem;
-        margin-bottom: 1.5rem;
+        padding: 44px 2.5rem 38px;
         overflow: hidden;
     }
+    .rpt-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #d4a520; }
+    .rpt-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(to top, #0f0f0f, transparent); pointer-events: none; }
     .rpt-hero::before {
         content: "";
         position: absolute;
@@ -105,39 +120,53 @@
     .rpt-check-wrap input[type=checkbox] { accent-color: #f59e0b; width: 15px; height: 15px; cursor: pointer; }
     .rpt-check-wrap span { font-size: 12px; font-weight: 600; color: var(--text-2); }
 
+    /* ── Toolbar (alertas, scout, filtros) ───────────────────────────────── */
+    .rpt-toolbar { padding: 20px 2.5rem 0; }
+    .rpt-toolbar .alert-success {
+        background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); color: #4ade80;
+    }
+    .rpt-toolbar .alert-success .btn-close { filter: invert(1); }
+
     /* ── Totalizadores ───────────────────────────────────────────────────── */
+    .rpt-totals-bar { background: #111; border-bottom: 1px solid #1a1a1a; padding: 0 2.5rem; }
     .rpt-totals {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        gap: 10px; margin-bottom: 1.6rem;
+        max-width: 1544px; margin: 0 auto;
     }
     .rpt-total-card {
-        background: linear-gradient(160deg, #0d1b2a 0%, #192841 100%);
-        border: .5px solid rgba(255,255,255,.07);
-        border-radius: 12px; padding: 1rem 1.1rem; text-align: center;
+        background: none; border: none; border-right: 1px solid #1a1a1a;
+        border-radius: 0; padding: 16px 12px; text-align: center;
     }
     .rpt-total-num {
         font-family: 'Barlow Condensed', sans-serif;
-        font-size: 2rem; font-weight: 800; color: #fbbf24;
-        line-height: 1; margin-bottom: 4px;
+        font-size: 1.7rem; font-weight: 800; color: #fbbf24;
+        line-height: 1; margin-bottom: 3px;
     }
-    .rpt-total-label { font-size: 11px; color: rgba(255,255,255,.5); letter-spacing: .4px; }
+    .rpt-total-label { font-size: .6rem; color: rgba(255,255,255,.35); text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }
 
     /* ── Tabs ────────────────────────────────────────────────────────────── */
+    .rpt-tabs-bar {
+        background: #111; border-bottom: 1px solid #1e1e1e; padding: 0 2.5rem;
+        position: sticky; top: 62px; z-index: 50;
+    }
     .rpt-tabs {
-        display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1.2rem;
+        display: flex; gap: 0; overflow-x: auto; max-width: 1544px; margin: 0 auto;
     }
     .rpt-tab {
-        padding: 7px 16px; border-radius: 999px;
-        border: 1px solid var(--border); background: var(--surface);
-        font-size: 12px; font-weight: 600; color: var(--text-2);
-        cursor: pointer; transition: all .15s; user-select: none;
+        padding: 14px 18px; border-radius: 0;
+        border: none; background: transparent; border-bottom: 2px solid transparent;
+        font-size: .8rem; font-weight: 600; color: var(--text-muted);
+        cursor: pointer; transition: color .15s; user-select: none; white-space: nowrap;
     }
-    .rpt-tab:hover { border-color: #f59e0b; color: var(--amber-text); }
+    .rpt-tab:hover { color: var(--amber-text); }
     .rpt-tab.active {
-        background: #f59e0b; color: #fff;
-        border-color: #f59e0b; box-shadow: 0 2px 8px rgba(245,158,11,.3);
+        background: transparent; color: var(--amber-text); font-weight: 700;
+        border-bottom-color: var(--amber-text); box-shadow: none;
     }
+
+    /* ── Conteúdo ────────────────────────────────────────────────────────── */
+    .rpt-main { padding: 24px 2.5rem 48px; max-width: 1544px; margin: 0 auto; }
 
     /* ── Seções ──────────────────────────────────────────────────────────── */
     .rpt-section { display: none; }
@@ -240,14 +269,14 @@
 
     /* ── Métrica explicativa ──────────────────────────────────────────────── */
     .rpt-metric-box {
-        background: linear-gradient(135deg, #fffbf0 0%, #fef3c7 100%);
-        border: 1px solid #fde68a; border-radius: 12px;
+        background: rgba(245,158,11,.08);
+        border: 1px solid rgba(245,158,11,.25); border-radius: 12px;
         padding: 1rem 1.2rem; margin-bottom: 1.2rem;
         display: flex; gap: 12px; align-items: flex-start;
     }
     .rpt-metric-icon { font-size: 24px; flex-shrink: 0; line-height: 1; }
-    .rpt-metric-text h4 { font-size: 13px; font-weight: 700; color: #92400e; margin: 0 0 4px; }
-    .rpt-metric-text p  { font-size: 12px; color: #78350f; margin: 0; line-height: 1.5; }
+    .rpt-metric-text h4 { font-size: 13px; font-weight: 700; color: #fbbf24; margin: 0 0 4px; }
+    .rpt-metric-text p  { font-size: 12px; color: rgba(255,255,255,.6); margin: 0; line-height: 1.5; }
     .rpt-chip {
         display: inline-flex; align-items: center; gap: 4px;
         padding: 2px 8px; border-radius: 999px;
@@ -271,10 +300,10 @@
         font-size: 10px; font-weight: 700; padding: 2px 7px;
         border-radius: 5px; text-transform: uppercase; letter-spacing: .3px;
     }
-    .pos-GL { background: #eff6ff; color: #1d4ed8; }
-    .pos-ZG { background: #f0fdf4; color: #166534; }
-    .pos-MC { background: #fdf4ff; color: #7e22ce; }
-    .pos-AT { background: #fff7ed; color: #c2410c; }
+    .pos-GL { background: rgba(59,130,246,.15); color: #60a5fa; }
+    .pos-ZG { background: rgba(34,197,94,.15); color: #4ade80; }
+    .pos-MC { background: rgba(168,85,247,.15); color: #c084fc; }
+    .pos-AT { background: rgba(249,115,22,.15); color: #fb923c; }
     .pos-xx { background: var(--surface-2); color: var(--text-muted); }
 
     @@media (max-width: 600px) {
@@ -296,6 +325,8 @@
 
     <!-- Hero -->
     <div class="rpt-hero">
+        <div class="rpt-hero-stripe"></div>
+        <div class="rpt-hero-fade"></div>
         <div class="rpt-hero-content">
             <div class="rpt-hero-badge">📊 Central de Dados</div>
             <h1>Relatórios</h1>
@@ -303,6 +334,7 @@
         </div>
     </div>
 
+    <div class="rpt-toolbar">
     @if (TempData["Sucesso"] != null)
     {
         <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
@@ -314,7 +346,7 @@
     <!-- Scout + Manutenção -->
     <div style="text-align:right;margin-bottom:8px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
         <a asp-action="Scout" asp-controller="Relatorios"
-           style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;border:1px solid #7c3aed;background:#f5f3ff;color:#6d28d9;font-size:13px;font-weight:600;text-decoration:none;">
+           style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;border:1px solid rgba(124,58,237,.4);background:rgba(124,58,237,.12);color:#c084fc;font-size:13px;font-weight:600;text-decoration:none;">
             🔍 Scout de Jogadores
         </a>
     </div>
@@ -334,7 +366,7 @@
         .ms-placeholder { color: var(--text-muted); }
         .ms-chip {
             display: inline-flex; align-items: center; gap: 4px;
-            background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe;
+            background: rgba(245,158,11,.12); color: #fbbf24; border: 1px solid rgba(245,158,11,.3);
             border-radius: 6px; padding: 2px 6px; font-size: 12px; font-weight: 600;
         }
         .ms-chip-x { cursor: pointer; font-weight: 700; line-height: 1; opacity: .7; }
@@ -545,49 +577,56 @@
         initMulti('compMulti', 'compBox', 'compPanel', 'Todas as competições', recarregarTimes);
     })();
     </script>
+    </div><!-- /.rpt-toolbar -->
 
     <!-- Totalizadores -->
-    <div class="rpt-totals">
-        <div class="rpt-total-card">
-            <div class="rpt-total-num">@Model.TotalJogos</div>
-            <div class="rpt-total-label">Partidas</div>
-        </div>
-        <div class="rpt-total-card">
-            <div class="rpt-total-num">@Model.TotalGols</div>
-            <div class="rpt-total-label">Gols</div>
-        </div>
-        <div class="rpt-total-card">
-            <div class="rpt-total-num" style="color:#ef4444;">@Model.TotalGolsContra</div>
-            <div class="rpt-total-label">Gols Contra</div>
-        </div>
-        <div class="rpt-total-card">
-            <div class="rpt-total-num" style="color:#fde047;">@Model.TotalCartaoAmarelo</div>
-            <div class="rpt-total-label">Cart. Amarelos</div>
-        </div>
-        <div class="rpt-total-card">
-            <div class="rpt-total-num" style="color:#f87171;">@Model.TotalCartaoVermelho</div>
-            <div class="rpt-total-label">Cart. Vermelhos</div>
-        </div>
-        @if (Model.TotalJogos > 0)
-        {
+    <div class="rpt-totals-bar">
+        <div class="rpt-totals">
             <div class="rpt-total-card">
-                <div class="rpt-total-num" style="color:#34d399;">@(Math.Round((double)Model.TotalGols / Model.TotalJogos, 1))</div>
-                <div class="rpt-total-label">Média Gols/Jogo</div>
+                <div class="rpt-total-num">@Model.TotalJogos</div>
+                <div class="rpt-total-label">Partidas</div>
             </div>
-        }
+            <div class="rpt-total-card">
+                <div class="rpt-total-num">@Model.TotalGols</div>
+                <div class="rpt-total-label">Gols</div>
+            </div>
+            <div class="rpt-total-card">
+                <div class="rpt-total-num" style="color:#ef4444;">@Model.TotalGolsContra</div>
+                <div class="rpt-total-label">Gols Contra</div>
+            </div>
+            <div class="rpt-total-card">
+                <div class="rpt-total-num" style="color:#fde047;">@Model.TotalCartaoAmarelo</div>
+                <div class="rpt-total-label">Cart. Amarelos</div>
+            </div>
+            <div class="rpt-total-card">
+                <div class="rpt-total-num" style="color:#f87171;">@Model.TotalCartaoVermelho</div>
+                <div class="rpt-total-label">Cart. Vermelhos</div>
+            </div>
+            @if (Model.TotalJogos > 0)
+            {
+                <div class="rpt-total-card">
+                    <div class="rpt-total-num" style="color:#34d399;">@(Math.Round((double)Model.TotalGols / Model.TotalJogos, 1))</div>
+                    <div class="rpt-total-label">Média Gols/Jogo</div>
+                </div>
+            }
+        </div>
     </div>
 
     <!-- Tabs -->
-    <div class="rpt-tabs">
-        <div class="rpt-tab active" onclick="showSection('notas')">⭐ Notas</div>
-        <div class="rpt-tab" onclick="showSection('gols')">⚽ Artilharia</div>
-        <div class="rpt-tab" onclick="showSection('partidas')">🎽 Partidas</div>
-        <div class="rpt-tab" onclick="showSection('cartoes')">🟨 Disciplina</div>
-        <div class="rpt-tab" onclick="showSection('times')">🏟️ Times</div>
-        <div class="rpt-tab" onclick="showSection('rodadas')">📈 Rodadas</div>
-        <div class="rpt-tab" onclick="showSection('estat-jogadores')">📊 Estatísticas Jogadores</div>
-        <div class="rpt-tab" onclick="showSection('estat-competicoes')">🏆 Estatísticas Competições</div>
+    <div class="rpt-tabs-bar">
+        <div class="rpt-tabs">
+            <div class="rpt-tab active" onclick="showSection('notas')">⭐ Notas</div>
+            <div class="rpt-tab" onclick="showSection('gols')">⚽ Artilharia</div>
+            <div class="rpt-tab" onclick="showSection('partidas')">🎽 Partidas</div>
+            <div class="rpt-tab" onclick="showSection('cartoes')">🟨 Disciplina</div>
+            <div class="rpt-tab" onclick="showSection('times')">🏟️ Times</div>
+            <div class="rpt-tab" onclick="showSection('rodadas')">📈 Rodadas</div>
+            <div class="rpt-tab" onclick="showSection('estat-jogadores')">📊 Estatísticas Jogadores</div>
+            <div class="rpt-tab" onclick="showSection('estat-competicoes')">🏆 Estatísticas Competições</div>
+        </div>
     </div>
+
+    <div class="rpt-main">
 
     <!-- ══ SEÇÃO: NOTAS ══════════════════════════════════════════════════════ -->
     <div id="sec-notas" class="rpt-section visible">
@@ -1528,8 +1567,6 @@
         }
     </div>
 
-</div>
-
     <!-- ══ SEÇÃO: ESTATÍSTICAS COMPETIÇÕES ══════════════════════════════════ -->
     <div id="sec-estat-competicoes" class="rpt-section">
         @if (!Model.EstatisticasCompeticoes.Any())
@@ -1653,7 +1690,8 @@
         }
     </div>
 
-</div>
+    </div><!-- /.rpt-main -->
+</div><!-- /.rpt-root -->
 
 <script>
     function showSection(name) {
