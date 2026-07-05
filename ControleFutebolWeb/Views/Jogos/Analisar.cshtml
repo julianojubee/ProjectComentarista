@@ -164,6 +164,38 @@
     .an-root .table thead th { color: #6b7280; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid #262626; font-weight: 700; }
     .an-root .table-sm td, .an-root .table-sm th { padding: .35rem .5rem; }
 
+    /* ── Campo: substitui a textura antiga (campo.png) pelo gramado plano
+       do novo layout, com as marcações desenhadas em divs (igual ao mock). ── */
+    .an-root .campo {
+        background: linear-gradient(180deg, #14532d 0%, #166534 100%) !important;
+        border: 2px solid rgba(255,255,255,.15) !important;
+        border-radius: 10px !important;
+        max-height: none !important;
+        height: auto !important;
+    }
+    .campo-linha-meio { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(255,255,255,.22); pointer-events: none; }
+    .campo-circulo { position: absolute; left: 50%; top: 50%; width: 22%; aspect-ratio: 1; border: 1.5px solid rgba(255,255,255,.2); border-radius: 50%; transform: translate(-50%,-50%); pointer-events: none; }
+    .campo-area-sup, .campo-area-inf { position: absolute; left: 20%; right: 20%; height: 14%; border: 1.5px solid rgba(255,255,255,.2); pointer-events: none; }
+    .campo-area-sup { top: -1px; border-top: none; }
+    .campo-area-inf { bottom: -1px; border-bottom: none; }
+    .campo-gol-sup, .campo-gol-inf { position: absolute; left: 30%; right: 30%; height: 6%; border: 1.5px solid rgba(255,255,255,.2); background: rgba(255,255,255,.04); pointer-events: none; }
+    .campo-gol-sup { top: -1px; border-top: none; }
+    .campo-gol-inf { bottom: -1px; border-bottom: none; }
+
+    /* ── Larguras do layout: lista de jogadores fixa em 190px, campo flexível
+       (igual ao grid 190px 1fr 1fr 190px do novo layout) ── */
+    .an-root #painelEscalacao .col-5.scroll-panel { flex: 0 0 190px; max-width: 190px; width: 190px; }
+    .an-root #painelEscalacao .col-7 { flex: 1 1 0%; max-width: 100%; width: auto; }
+
+    /* ── Cabeçalho do painel de jogadores (escudo + nome do time) ── */
+    .jog-panel-header {
+        display: flex; align-items: center; gap: 6px; padding: 8px 10px;
+        background: #111; border: 1px solid #262626; border-bottom: none;
+        border-radius: 10px 10px 0 0; font-size: .72rem; font-weight: 700;
+        color: #6b7280; text-transform: uppercase; letter-spacing: .1em;
+    }
+    .jog-panel-header img { width: 14px; height: 14px; object-fit: contain; }
+
     .posicao-drop {
         position: absolute;
         text-align: center;
@@ -1581,6 +1613,13 @@
             <div class="row">
                 <!-- Lista de jogadores -->
                 <div class="col-5 scroll-panel">
+                    <div class="jog-panel-header">
+                        @if (!string.IsNullOrEmpty(Model.Jogo.TimeCasa?.EscudoUrl))
+                        {
+                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeCasa.EscudoUrl })" alt="" />
+                        }
+                        @Model.Jogo.TimeCasa?.Nome
+                    </div>
                     @{
                         var treinadorCasa = Model.TreinadorCasa as ControleFutebolWeb.Models.Treinador;
                     }
@@ -1638,6 +1677,12 @@
                     <div id="campoCasa" class="campo"
                          ondrop="dropNoCampo(event, 'campoCasa')"
                          ondragover="allowDrop(event)">
+                        <div class="campo-linha-meio"></div>
+                        <div class="campo-circulo"></div>
+                        <div class="campo-area-sup"></div>
+                        <div class="campo-area-inf"></div>
+                        <div class="campo-gol-sup"></div>
+                        <div class="campo-gol-inf"></div>
                         <svg class="setas-svg" data-campo-svg="campoCasa">
                             <defs>
                                 <marker id="setaHeadCasa" markerWidth="12" markerHeight="10" refX="10" refY="5"
@@ -1744,6 +1789,12 @@
                     <div id="campoVisitante" class="campo"
                          ondrop="dropNoCampo(event, 'campoVisitante')"
                          ondragover="allowDrop(event)">
+                        <div class="campo-linha-meio"></div>
+                        <div class="campo-circulo"></div>
+                        <div class="campo-area-sup"></div>
+                        <div class="campo-area-inf"></div>
+                        <div class="campo-gol-sup"></div>
+                        <div class="campo-gol-inf"></div>
                         <svg class="setas-svg" data-campo-svg="campoVisitante">
                             <defs>
                                 <marker id="setaHeadVis" markerWidth="12" markerHeight="10" refX="10" refY="5"
@@ -1836,6 +1887,13 @@
 
                 <!-- Lista de jogadores visitante -->
                 <div class="col-5 scroll-panel">
+                    <div class="jog-panel-header">
+                        @if (!string.IsNullOrEmpty(Model.Jogo.TimeVisitante?.EscudoUrl))
+                        {
+                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeVisitante.EscudoUrl })" alt="" />
+                        }
+                        @Model.Jogo.TimeVisitante?.Nome
+                    </div>
                     @{
                         var treinadorVis = Model.TreinadorVisitante as ControleFutebolWeb.Models.Treinador;
                     }
