@@ -1,25 +1,28 @@
-﻿@model ControleFutebolWeb.Models.ViewModels.JogadorEstatisticasViewModel
+@model ControleFutebolWeb.Models.ViewModels.JogadorEstatisticasViewModel
 @using ControleFutebolWeb.Helpers
 @using ControleFutebolWeb.Models
 @{
     ViewData["Title"] = $"Estatísticas — {Model.Jogador.NomeExibicao}";
 
-    string NotaCor(int nota) => nota switch
+    // Escala única de nota (mesma usada nos cards de jogo) — cor e rótulo.
+    string CorNota(double nota) => nota switch
     {
-        >= 8 => "#22c55e",
-        >= 6 => "#f59e0b",
-        >= 4 => "#f97316",
-        _ => "#ef4444"
+        >= 8.5 => "#f59e0b",
+        >= 7.5 => "#22c55e",
+        >= 6.5 => "#3b82f6",
+        >= 5.5 => "#6b7280",
+        >= 4.5 => "#f97316",
+        _      => "#ef4444"
     };
 
-    string NotaLabel(int nota) => nota switch
+    string LabelNota(double nota) => nota switch
     {
-        >= 9 => "Excepcional",
-        >= 8 => "Ótimo",
-        >= 7 => "Bom",
-        >= 6 => "Regular",
-        >= 5 => "Abaixo",
-        _ => "Ruim"
+        >= 8.5 => "Elite",
+        >= 7.5 => "Ótimo",
+        >= 6.5 => "Bom",
+        >= 5.5 => "Regular",
+        >= 4.5 => "Abaixo",
+        _      => "Fraco"
     };
 
     // Escalacao.Posicao pode ser o genérico da API ("Goleiro", "Defensor", "Meia",
@@ -55,999 +58,334 @@
     };
 
     var inv = System.Globalization.CultureInfo.InvariantCulture;
+
+    var competicoes = ViewBag.Competicoes as List<Competicao> ?? new();
+    var competicaoAtual = ViewBag.CompeticaoId as int?;
 }
 
 <link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
 <style>
-    :root {
-        --verde: #16a34a;
-        --verde2: #22c55e;
-        --cinza1: #0f0f0f;
-        --cinza2: #161616;
-        --cinza3: #262626;
-        --texto: #f1f5f9;
-        --muted: #9ca3af;
-        --accent: #d4a520;
-    }
+    .je, .je *, .je *::before, .je *::after { box-sizing: border-box; }
 
-    .estat-page {
-        background: var(--cinza1);
-        min-height: 100vh;
-        color: var(--texto);
-        font-family: 'Barlow', sans-serif;
-        padding: 2rem 1rem 4rem;
-    }
-
-    /* ── Header do jogador ── */
-    .jogador-header {
-        display: flex;
-        align-items: center;
-        gap: 1.5rem;
-        margin-bottom: 2rem;
-        padding: 1.6rem 1.8rem;
+    .je {
+        margin: 0 -12px;
+        background: #0f0f0f;
+        color: #e5e7eb;
+        font-family: 'Barlow', Arial, sans-serif;
         border-radius: 14px;
-        background: linear-gradient(135deg, #0a1628 0%, #1a2f4e 55%, #0a1628 100%);
-        border: 1px solid var(--cinza3);
-        position: relative;
         overflow: hidden;
     }
-
-    .jogador-header::before {
-        content: '';
-        position: absolute;
-        left: 0; top: 0; bottom: 0;
-        width: 4px;
-        background: var(--accent);
-    }
-
-    .jogador-escudo {
-        width: 72px;
-        height: 72px;
-        object-fit: contain;
-        filter: drop-shadow(0 2px 8px rgba(0,0,0,.5));
-    }
-
-    .jogador-nome {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 2.4rem;
-        font-weight: 800;
-        letter-spacing: .02em;
-        line-height: 1;
-        margin: 0;
-    }
-
-    .jogador-meta {
-        font-size: .85rem;
-        color: var(--muted);
-        margin-top: .3rem;
-        display: flex;
-        gap: 1rem;
-        flex-wrap: wrap;
-    }
-
-        .jogador-meta span {
-            display: flex;
-            align-items: center;
-            gap: .3rem;
-        }
-
-        .jogador-meta .meta-escudo {
-            width: 18px;
-            height: 18px;
-            object-fit: contain;
-        }
-
-        .jogador-meta .meta-bandeira {
-            width: 22px;
-            height: 15px;
-            object-fit: cover;
-            border-radius: 2px;
-            box-shadow: 0 0 0 1px rgba(255,255,255,.15);
-        }
-
-    /* ── Cards de resumo ── */
-    .resumo-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 1rem;
-        margin-bottom: 2rem;
-    }
-
-    .resumo-card {
-        background: var(--cinza2);
-        border: 1px solid var(--cinza3);
-        border-radius: 12px;
-        padding: 1.1rem 1rem;
-        text-align: center;
-        position: relative;
-        overflow: hidden;
-    }
-
-        .resumo-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: var(--accent-color, var(--verde2));
-        }
-
-    .resumo-valor {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 2.6rem;
-        font-weight: 800;
-        line-height: 1;
-        color: var(--accent-color, var(--verde2));
-    }
-
-    .resumo-label {
-        font-size: .75rem;
-        color: var(--muted);
-        text-transform: uppercase;
-        letter-spacing: .08em;
-        margin-top: .3rem;
-    }
-
-    /* ── Barra de média visual ── */
-    .media-bar-wrap {
-        background: var(--cinza2);
-        border: 1px solid var(--cinza3);
-        border-radius: 12px;
-        padding: 1.2rem 1.5rem;
-        margin-bottom: 2rem;
-    }
-
-    .media-bar-titulo {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 1rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: .1em;
-        color: var(--muted);
-        margin-bottom: .8rem;
-    }
-
-    .media-bar-track {
-        background: var(--cinza3);
-        border-radius: 99px;
-        height: 12px;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .media-bar-fill {
-        height: 100%;
-        border-radius: 99px;
-        transition: width .8s cubic-bezier(.4,0,.2,1);
-        background: linear-gradient(90deg, var(--verde), var(--verde2));
-    }
-
-    .media-bar-labels {
-        display: flex;
-        justify-content: space-between;
-        font-size: .75rem;
-        color: var(--muted);
-        margin-top: .4rem;
-    }
-
-    /* ── Tabela de jogos ── */
-    .jogos-titulo {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 1.4rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: .08em;
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
-        gap: .6rem;
-    }
-
-        .jogos-titulo::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: var(--cinza3);
-        }
-
-    .jogo-item {
-        background: var(--cinza2);
-        border: 1px solid var(--cinza3);
-        border-radius: 10px;
-        padding: .9rem 1.1rem;
-        margin-bottom: .6rem;
-        display: grid;
-        grid-template-columns: 1fr auto auto;
-        align-items: center;
-        gap: 1rem;
-        transition: border-color .2s;
-    }
-
-        .jogo-item:hover {
-            border-color: var(--cinza3);
-            background: #263245;
-        }
-
-    .jogo-adversario {
-        font-size: .95rem;
-        font-weight: 500;
-    }
-
-    .jogo-data {
-        font-size: .75rem;
-        color: var(--muted);
-        margin-top: .2rem;
-    }
-
-    /* ── Abas do card de jogo (Ações / Resumo) ── */
-    .aba-jogo-tabs {
-        display: flex;
-        gap: 2px;
-        padding: 0 1.1rem;
-        border-bottom: 1px solid rgba(255,255,255,.05);
-    }
-
-    .aba-jogo-btn {
-        background: none;
-        border: none;
-        color: var(--muted);
-        font-size: .72rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: .3px;
-        padding: .5rem .7rem .4rem;
-        cursor: pointer;
-        border-bottom: 2px solid transparent;
-    }
-
-        .aba-jogo-btn.ativa {
-            color: var(--texto);
-            border-bottom-color: var(--accent);
-        }
-
-        .aba-jogo-btn:hover { color: var(--texto); }
-
-    .aba-jogo-content { display: none; }
-    .aba-jogo-content.ativa { display: block; }
-
-    .resumo-jogo-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-        gap: .6rem;
-        padding: .8rem 1.1rem;
-    }
-
-    .resumo-jogo-item {
-        background: rgba(255,255,255,.03);
-        border: 1px solid var(--cinza3);
-        border-radius: 8px;
-        padding: .5rem .7rem;
-        text-align: center;
-    }
-
-    .resumo-jogo-valor {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 1.1rem;
-        font-weight: 800;
-        color: var(--texto);
-        line-height: 1.2;
-    }
-
-    .resumo-jogo-label {
-        font-size: .68rem;
-        color: var(--muted);
-        text-transform: uppercase;
-        letter-spacing: .3px;
-    }
-
-    .jogo-gols {
-        display: flex;
-        align-items: center;
-        gap: .35rem;
-        font-size: .85rem;
-        color: var(--verde2);
-        font-weight: 600;
-        min-width: 50px;
-        justify-content: center;
-    }
-
-    .badge-nota {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 1.3rem;
-        font-weight: 800;
-        width: 42px;
-        height: 42px;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #000;
-    }
-
-    .comentario-texto {
-        font-size: .78rem;
-        color: var(--muted);
-        margin-top: .25rem;
-        font-style: italic;
-    }
-
-    /* ── Vazio ── */
-    .sem-dados {
-        text-align: center;
-        color: var(--muted);
-        padding: 3rem;
-        font-size: .95rem;
-    }
-
-    /* ── Perfil tático: posições em campo + médias por jogo ── */
-    .perfil-grid {
-        display: grid;
-        grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.4fr);
-        gap: 1rem;
-        margin-bottom: 2rem;
-    }
-
-    @@media (max-width: 900px) {
-        .perfil-grid { grid-template-columns: 1fr; }
-    }
-
-    .perfil-card {
-        background: var(--cinza2);
-        border-radius: 14px;
-        padding: 1.1rem 1.2rem;
-        border: 1px solid var(--cinza3);
-    }
-
-    .perfil-titulo {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 1.15rem;
-        font-weight: 700;
-        letter-spacing: .5px;
-        text-transform: uppercase;
-        margin-bottom: .9rem;
-        color: var(--texto);
-    }
-
-    .perfil-sub {
-        font-size: .75rem;
-        color: var(--muted);
-        text-transform: none;
-        letter-spacing: 0;
-        font-family: 'Barlow', sans-serif;
-        font-weight: 400;
-    }
-
-    .perfil-posicoes {
-        display: flex;
-        gap: 1rem;
-        align-items: flex-start;
-    }
-
-    .mini-campo {
-        position: relative;
-        flex: 0 0 160px;
-        aspect-ratio: 2 / 3;
-        background: linear-gradient(180deg, #14532d 0%, #166534 100%);
-        border: 2px solid rgba(255,255,255,.25);
-        border-radius: 8px;
-        overflow: hidden;
-    }
-
-        /* linhas do campo */
-        .mini-campo::before { /* linha do meio */
-            content: '';
-            position: absolute;
-            left: 0; right: 0; top: 50%;
-            border-top: 1.5px solid rgba(255,255,255,.25);
-        }
-
-        .mini-campo::after { /* círculo central */
-            content: '';
-            position: absolute;
-            left: 50%; top: 50%;
-            width: 34%; aspect-ratio: 1;
-            transform: translate(-50%, -50%);
-            border: 1.5px solid rgba(255,255,255,.25);
-            border-radius: 50%;
-        }
-
-    .mc-area-sup, .mc-area-inf {
-        position: absolute;
-        left: 26%;
-        width: 48%;
-        height: 16%;
-        border: 1.5px solid rgba(255,255,255,.25);
-    }
-
-    .mc-area-sup { top: -2px; border-top: none; }
-    .mc-area-inf { bottom: -2px; border-bottom: none; }
-
-    .mc-dot {
-        position: absolute;
-        transform: translate(-50%, -50%);
-        width: 34px;
-        height: 34px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 11px;
-        font-weight: 800;
-        color: #0f172a;
-        background: var(--verde2);
-        border: 2px solid rgba(255,255,255,.85);
-        box-shadow: 0 2px 6px rgba(0,0,0,.45);
-        z-index: 1;
-    }
-
-    .mc-dot-principal {
-        background: var(--accent);
-        z-index: 2;
-    }
-
-    .pos-lista {
-        flex: 1;
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: .45rem;
-    }
-
-    .pos-item {
-        display: flex;
-        align-items: center;
-        gap: .55rem;
-        font-size: .82rem;
-        min-width: 0;
-    }
-
-    .pos-sigla {
-        flex: 0 0 34px;
-        text-align: center;
-        font-weight: 800;
-        font-size: .72rem;
-        padding: 2px 0;
-        border-radius: 6px;
-        background: var(--cinza3);
-        color: var(--texto);
-    }
-
-    .pos-item-principal .pos-sigla { background: var(--accent); color: #0f172a; }
-
-    .pos-nome {
-        color: var(--texto);
-        flex: 1;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-    .pos-pct  { color: var(--muted); font-size: .75rem; white-space: nowrap; flex: 0 0 auto; }
-
-    .donut-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-        gap: .8rem;
-        margin-bottom: 1rem;
-    }
-
-    .donut { text-align: center; }
-
-    .donut-ring {
-        width: 74px;
-        height: 74px;
-        border-radius: 50%;
-        margin: 0 auto .4rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .donut-hole {
-        width: 54px;
-        height: 54px;
-        border-radius: 50%;
-        background: var(--cinza2);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 800;
-        font-size: .95rem;
-        color: var(--texto);
-    }
-
-    .donut-label {
-        font-size: .8rem;
-        font-weight: 600;
-        color: var(--texto);
-    }
-
-    .donut-media {
-        font-size: .72rem;
-        color: var(--muted);
-    }
-
-    .medias-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
-        gap: .55rem;
-    }
-
-    .media-chip {
-        background: rgba(255,255,255,.04);
-        border: 1px solid var(--cinza3);
-        border-radius: 10px;
-        padding: .5rem .6rem;
-        text-align: center;
-    }
-
-    .media-chip-valor {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 1.25rem;
-        font-weight: 800;
-        color: var(--texto);
-        line-height: 1.1;
-    }
-
-    .media-chip-label {
-        font-size: .68rem;
-        color: var(--muted);
-        text-transform: uppercase;
-        letter-spacing: .3px;
-    }
-
-    /* ── Colapsável histórico por jogo ── */
-    .historico-collapsed .jogo-item:nth-child(n+4) {
-        display: none;
-    }
-
-    .btn-expand {
-        display: block;
-        width: 100%;
-        background: var(--cinza2);
-        border: 1px dashed var(--cinza3);
-        border-radius: 10px;
-        color: var(--muted);
-        font-size: .85rem;
-        padding: .65rem 1rem;
-        cursor: pointer;
-        text-align: center;
-        margin-top: .4rem;
-        transition: background .2s, color .2s;
-    }
-
-    .btn-expand:hover {
-        background: var(--cinza3);
-        color: var(--texto);
-    }
-
-    /* ── Histórico por Temporada ── */
-    .temporada-grid {
-        display: grid;
-        gap: 1rem;
-    }
-
-    .temporada-card {
-        background: var(--cinza2);
-        border: 1px solid var(--cinza3);
-        border-radius: 12px;
-        overflow: hidden;
-    }
-
-    .temporada-header {
-        display: flex;
-        align-items: center;
-        gap: .75rem;
-        padding: .85rem 1.1rem;
-        border-bottom: 1px solid rgba(255,255,255,.06);
-    }
-
-    .temporada-liga-logo {
-        width: 28px;
-        height: 28px;
-        object-fit: contain;
-    }
-
-    .temporada-liga-nome {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 1.1rem;
-        font-weight: 700;
-        flex: 1;
-    }
-
-    .temporada-liga-pais {
-        font-size: .75rem;
-        color: var(--muted);
-    }
-
-    .temporada-stats {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-        gap: 0;
-    }
-
-    .stat-box {
-        padding: .7rem .8rem;
-        text-align: center;
-        border-right: 1px solid rgba(255,255,255,.05);
-        border-bottom: 1px solid rgba(255,255,255,.05);
-    }
-
-    .stat-box:last-child {
-        border-right: none;
-    }
-
-    .stat-val {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 1.5rem;
-        font-weight: 800;
-        line-height: 1;
-        color: var(--texto);
-    }
-
-    .stat-val.highlight-green { color: #4ade80; }
-    .stat-val.highlight-blue  { color: #60a5fa; }
-    .stat-val.highlight-orange { color: #fb923c; }
-    .stat-val.highlight-yellow { color: #facc15; }
-    .stat-val.highlight-red   { color: #f87171; }
-
-    .stat-lbl {
-        font-size: .65rem;
-        color: var(--muted);
-        text-transform: uppercase;
-        letter-spacing: .06em;
-        margin-top: .2rem;
-    }
-
-    .rating-badge {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: .9rem;
-        font-weight: 800;
-        padding: .2rem .6rem;
-        border-radius: 6px;
-        background: rgba(250,204,21,.15);
-        color: #facc15;
-        border: 1px solid rgba(250,204,21,.3);
-    }
-
-    .temporada-footer {
-        display: flex;
-        gap: .5rem;
-        flex-wrap: wrap;
-        padding: .55rem 1.1rem;
-        background: rgba(0,0,0,.15);
-        font-size: .72rem;
-        color: var(--muted);
-    }
-
-    .temporada-chip {
-        background: rgba(255,255,255,.06);
-        border-radius: 999px;
-        padding: .15rem .6rem;
-        display: flex;
-        align-items: center;
-        gap: .3rem;
-    }
-
-    .season-selector {
-        display: flex;
-        align-items: center;
-        gap: .6rem;
-        margin-bottom: 1rem;
-        flex-wrap: wrap;
-    }
-
-    .season-btn {
-        background: var(--cinza2);
-        border: 1px solid var(--cinza3);
-        color: var(--muted);
-        font-size: .82rem;
-        font-weight: 600;
-        padding: .3rem .85rem;
-        border-radius: 999px;
-        cursor: pointer;
-        transition: all .2s;
-    }
-
-    .season-btn.active, .season-btn:hover {
-        background: var(--verde);
-        border-color: var(--verde);
-        color: #fff;
-    }
+    .je a { text-decoration: none; color: inherit; }
+    .je h1 { font-family: 'Barlow Condensed', Arial, sans-serif; }
 
     /* ── Voltar ── */
-    .btn-voltar {
-        display: inline-flex;
-        align-items: center;
-        gap: .4rem;
-        background: var(--cinza2);
-        border: 1px solid var(--cinza3);
-        color: var(--texto);
-        padding: .45rem 1rem;
-        border-radius: 8px;
-        font-size: .85rem;
-        text-decoration: none;
-        margin-bottom: 1.5rem;
-        transition: background .2s;
+    .je-top { padding: 20px 2.5rem 0; }
+    .je-voltar {
+        display: inline-flex; align-items: center; gap: .4rem;
+        font-size: .8rem; color: #6b7280; margin-bottom: 14px;
+    }
+    .je-voltar:hover { color: #d4a520; }
+
+    /* ── Header do jogador ── */
+    .je-header {
+        background: linear-gradient(135deg, #090909 0%, #141414 100%);
+        border-bottom: 1px solid #222;
+        padding: 32px 2.5rem 28px;
+    }
+    .je-header-inner {
+        max-width: 1100px; margin: 0 auto;
+        display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
     }
 
-        .btn-voltar:hover {
-            background: var(--cinza3);
-            color: var(--texto);
-        }
-
-    .jogador-foto {
-        width: 72px;
-        height: 72px;
-        object-fit: cover;
-        border-radius: 12px;
-        border: 2px solid var(--cinza3);
-        filter: drop-shadow(0 2px 6px rgba(0,0,0,.4));
-        background: var(--cinza2);
+    .je-escudo-wrap {
+        width: 64px; height: 64px; border-radius: 50%;
+        background: #0f0f0f; border: 1px solid #2a2a2a;
+        display: flex; align-items: center; justify-content: center;
+        overflow: hidden; flex-shrink: 0;
     }
+    .je-escudo-wrap img { width: 82%; height: 82%; object-fit: contain; }
 
-    /* ── Botão "Jogadores semelhantes" ── */
-    .btn-semelhantes {
-        margin-top: .7rem;
-        display: inline-flex;
-        align-items: center;
-        gap: .4rem;
-        background: linear-gradient(90deg, var(--verde), var(--verde2));
-        color: #fff;
-        border: none;
-        padding: .5rem 1.1rem;
-        border-radius: 8px;
-        font-size: .85rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: filter .2s, transform .1s;
+    .je-foto-wrap {
+        width: 72px; height: 72px; border-radius: 12px;
+        background: #1e293b; border: 2px solid #2a3a52;
+        display: flex; align-items: center; justify-content: center;
+        overflow: hidden; flex-shrink: 0;
     }
+    .je-foto-wrap img { width: 100%; height: 100%; object-fit: cover; }
 
-    .btn-semelhantes:hover { filter: brightness(1.1); }
-    .btn-semelhantes:active { transform: scale(.97); }
-
-    /* ── Modal ── */
-    .modal-overlay {
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,.7);
-        backdrop-filter: blur(3px);
-        display: none;
-        align-items: flex-start;
-        justify-content: center;
-        z-index: 1000;
-        padding: 2rem 1rem;
-        overflow-y: auto;
+    .je-info { flex: 1; min-width: 200px; }
+    .je-nome {
+        font-size: 2.4rem; font-weight: 800; color: #f1f5f9;
+        margin: 0 0 6px; line-height: 1;
     }
-
-    .modal-overlay.open { display: flex; }
-
-    .modal-box {
-        background: var(--cinza1);
-        border: 1px solid var(--cinza3);
-        border-radius: 16px;
-        width: 100%;
-        max-width: 720px;
-        box-shadow: 0 20px 60px rgba(0,0,0,.6);
-        overflow: hidden;
+    .je-meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .je-pos-badge {
+        display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 6px;
+        background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.35);
+        color: #4ade80; font-size: .72rem; font-weight: 700; letter-spacing: .06em;
     }
+    .je-meta-item { font-size: .8rem; color: #6b7280; display: flex; align-items: center; gap: 6px; }
+    .je-meta-item img { width: 16px; height: 16px; object-fit: contain; }
+    .je-meta-item.je-meta-clube { color: #9ca3af; }
 
-    .modal-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        padding: 1.1rem 1.4rem;
-        border-bottom: 1px solid var(--cinza3);
+    .je-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; flex-wrap: wrap; }
+    .je-select-wrap { position: relative; }
+    .je-select {
+        appearance: none; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px;
+        color: #9ca3af; font-size: .82rem; padding: 8px 28px 8px 12px; cursor: pointer; outline: none;
     }
+    .je-select:focus { border-color: #d4a520; }
+    .je-select-arrow { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: #555; pointer-events: none; }
+    .je-clear { font-size: .75rem; color: #6b7280; }
+    .je-clear:hover { color: #d4a520; }
 
-    .modal-titulo {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 1.4rem;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: .04em;
-        margin: 0;
+    .je-btn-semelhantes {
+        display: flex; align-items: center; gap: 7px; padding: 8px 16px;
+        background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.28); border-radius: 8px;
+        color: #4ade80; font-size: .8rem; font-weight: 700; cursor: pointer;
     }
+    .je-btn-semelhantes:hover { background: rgba(34,197,94,0.2); }
 
-    .modal-close {
-        background: var(--cinza2);
-        border: 1px solid var(--cinza3);
-        color: var(--texto);
-        width: 34px;
-        height: 34px;
-        border-radius: 8px;
-        font-size: 1.1rem;
-        cursor: pointer;
-        flex-shrink: 0;
+    /* ── Conteúdo principal ── */
+    .je-main { padding: 28px 2.5rem 64px; max-width: 1244px; margin: 0 auto; }
+
+    .je-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .je-resumo-card {
+        background: #161616; border: 1px solid #262626; border-radius: 12px;
+        padding: 18px 14px; text-align: center; position: relative; overflow: hidden;
     }
-
-    .modal-close:hover { background: var(--cinza3); }
-
-    .modal-criterios {
-        display: flex;
-        flex-wrap: wrap;
-        gap: .4rem;
-        padding: .9rem 1.4rem;
-        border-bottom: 1px solid var(--cinza3);
-        background: rgba(0,0,0,.15);
+    .je-resumo-card::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+        background: var(--je-cor, #22c55e);
     }
+    .je-resumo-valor { font-size: 2.4rem; font-weight: 800; line-height: 1; color: var(--je-cor, #22c55e); }
+    .je-resumo-label { font-size: .68rem; color: #4b5563; text-transform: uppercase; letter-spacing: .1em; font-weight: 700; margin-top: 4px; }
 
-    .criterio-chip {
-        background: rgba(34,197,94,.12);
-        border: 1px solid rgba(34,197,94,.3);
-        color: #4ade80;
-        font-size: .72rem;
-        font-weight: 600;
-        padding: .2rem .65rem;
-        border-radius: 999px;
+    .je-perf { background: #161616; border: 1px solid #262626; border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; }
+    .je-perf-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 6px; }
+    .je-perf-label { font-size: .68rem; font-weight: 700; letter-spacing: .14em; color: #6b7280; text-transform: uppercase; }
+    .je-perf-valor { font-size: 1rem; font-weight: 800; }
+    .je-perf-track { background: #222; border-radius: 999px; height: 10px; overflow: hidden; }
+    .je-perf-fill { height: 100%; border-radius: 999px; transition: width .8s ease; }
+    .je-perf-escala { display: flex; justify-content: space-between; margin-top: 6px; font-size: .68rem; color: #374151; }
+
+    .je-perfil-grid { display: grid; grid-template-columns: 320px 1fr; gap: 20px; margin-bottom: 24px; align-items: start; }
+    @@media (max-width: 900px) { .je-perfil-grid { grid-template-columns: 1fr; } }
+
+    .je-card { background: #161616; border: 1px solid #262626; border-radius: 12px; padding: 20px; }
+    .je-card-titulo { font-size: .68rem; font-weight: 700; letter-spacing: .14em; color: #6b7280; text-transform: uppercase; margin-bottom: 16px; }
+
+    .je-campo-row { display: flex; gap: 16px; align-items: flex-start; }
+    .je-campo {
+        position: relative; width: 130px; flex-shrink: 0; aspect-ratio: 2/3;
+        background: linear-gradient(180deg, #14532d 0%, #166534 100%);
+        border: 2px solid rgba(255,255,255,.2); border-radius: 8px; overflow: hidden;
     }
-
-    .modal-body {
-        padding: 1rem 1.4rem 1.4rem;
-        display: grid;
-        gap: .6rem;
+    .je-campo-linha { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(255,255,255,.2); }
+    .je-campo-circulo {
+        position: absolute; left: 50%; top: 50%; width: 44px; height: 44px;
+        border: 1.5px solid rgba(255,255,255,.2); border-radius: 50%; transform: translate(-50%, -50%);
     }
-
-    .sem-card {
-        display: flex;
-        align-items: center;
-        gap: .9rem;
-        background: var(--cinza2);
-        border: 1px solid var(--cinza3);
-        border-radius: 12px;
-        padding: .7rem .9rem;
-        transition: border-color .2s, background .2s;
+    .je-campo-area-sup, .je-campo-area-inf {
+        position: absolute; left: 22%; width: 56%; height: 15%; border: 1.5px solid rgba(255,255,255,.2);
     }
-
-    .sem-card:hover {
-        border-color: var(--verde2);
-        background: #263245;
+    .je-campo-area-sup { top: -1px; border-top: none; }
+    .je-campo-area-inf { bottom: -1px; border-bottom: none; }
+    .je-campo-dot {
+        position: absolute; transform: translate(-50%, -50%); width: 28px; height: 28px; border-radius: 50%;
+        color: #0f172a; display: flex; align-items: center; justify-content: center;
+        font-size: 9px; font-weight: 800; border: 2px solid rgba(255,255,255,.7);
+        box-shadow: 0 2px 6px rgba(0,0,0,.5); z-index: 1; background: #22c55e;
     }
+    .je-campo-dot-principal { background: #facc15; z-index: 2; }
 
-    .sem-foto {
-        width: 52px;
-        height: 52px;
-        border-radius: 10px;
-        object-fit: cover;
-        background: var(--cinza3);
-        border: 1px solid var(--cinza3);
-        flex-shrink: 0;
+    .je-pos-lista { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+    .je-pos-item { display: flex; align-items: center; gap: 8px; }
+    .je-pos-sigla {
+        flex-shrink: 0; width: 34px; text-align: center; padding: 2px 0; border-radius: 6px;
+        font-size: .72rem; font-weight: 800; background: #334155; color: #f1f5f9;
     }
+    .je-pos-item-principal .je-pos-sigla { background: #facc15; color: #0f172a; }
+    .je-pos-nome { font-size: .82rem; font-weight: 600; color: #e5e7eb; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .je-pos-sub { font-size: .68rem; color: #6b7280; }
 
-    .sem-info { flex: 1; min-width: 0; }
+    .je-donuts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+    .je-donut { text-align: center; }
+    .je-donut-ring { width: 74px; height: 74px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
+    .je-donut-hole { width: 54px; height: 54px; border-radius: 50%; background: #1a1a1a; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: .9rem; color: #f1f5f9; }
+    .je-donut-label { font-size: .82rem; font-weight: 600; color: #e5e7eb; margin-top: 6px; }
+    .je-donut-sub { font-size: .68rem; color: #6b7280; margin-top: 2px; }
 
-    .sem-nome {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 1.15rem;
-        font-weight: 700;
-        color: var(--texto);
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: .4rem;
+    .je-chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    @@media (max-width: 560px) { .je-chips { grid-template-columns: repeat(2, 1fr); } }
+    .je-chip { background: rgba(255,255,255,.03); border: 1px solid #222; border-radius: 10px; padding: 10px 8px; text-align: center; }
+    .je-chip-valor { font-size: 1.25rem; font-weight: 800; color: #f1f5f9; line-height: 1; }
+    .je-chip-label { font-size: .62rem; color: #6b7280; text-transform: uppercase; letter-spacing: .06em; margin-top: 3px; }
+
+    .je-section { margin-bottom: 24px; }
+    .je-section-row { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; cursor: pointer; background: none; border: none; width: 100%; padding: 0 0 16px; border-bottom: 1px solid transparent; }
+    .je-section-row.je-com-linha { border-bottom-color: #222; }
+    .je-section-titulo { font-size: .7rem; font-weight: 700; letter-spacing: .18em; color: #6b7280; text-transform: uppercase; white-space: nowrap; }
+    .je-section-linha { flex: 1; height: 1px; background: #222; }
+    .je-section-badge { font-size: .68rem; padding: 2px 10px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 999px; color: #6b7280; font-weight: 600; }
+    .je-section-chevron { color: #6b7280; flex-shrink: 0; transition: transform .15s; }
+
+    .je-season-selector { display: flex; align-items: center; gap: .5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .je-season-btn {
+        background: #161616; border: 1px solid #262626; color: #9ca3af;
+        font-size: .8rem; font-weight: 600; padding: 6px 14px; border-radius: 999px; cursor: pointer; transition: all .15s;
     }
+    .je-season-btn.active, .je-season-btn:hover { background: #d4a520; border-color: #d4a520; color: #141414; }
 
-    .sem-nome:hover { color: var(--verde2); text-decoration: underline; }
-
-    .sem-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: .35rem .8rem;
-        font-size: .75rem;
-        color: var(--muted);
-        margin-top: .2rem;
+    .je-temporada-grid { display: grid; gap: 1rem; }
+    .je-temporada-card { background: #161616; border: 1px solid #262626; border-radius: 12px; overflow: hidden; }
+    .je-temporada-header { display: flex; align-items: center; gap: .75rem; padding: 14px 20px; border-bottom: 1px solid #1e1e1e; background: #111; }
+    .je-temporada-logo { width: 28px; height: 28px; object-fit: contain; }
+    .je-temporada-nome { font-size: 1rem; font-weight: 700; color: #f1f5f9; flex: 1; min-width: 0; }
+    .je-temporada-pais { font-size: .75rem; color: #6b7280; display: flex; align-items: center; gap: 5px; }
+    .je-rating-badge {
+        font-size: .9rem; font-weight: 800; padding: 2px 10px; border-radius: 999px;
+        background: rgba(212,165,32,.12); color: #d4a520; border: 1px solid rgba(212,165,32,.25); flex-shrink: 0;
     }
+    .je-temporada-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
+    .je-stat-box { padding: 14px 8px; text-align: center; border-right: 1px solid #1e1e1e; border-bottom: 1px solid #1e1e1e; }
+    .je-stat-val { font-size: 1.5rem; font-weight: 800; line-height: 1; color: #f1f5f9; }
+    .je-stat-lbl { font-size: .58rem; color: #4b5563; text-transform: uppercase; letter-spacing: .06em; margin-top: 3px; font-weight: 700; }
+    .je-stat-val.hl-green  { color: #4ade80; }
+    .je-stat-val.hl-blue   { color: #60a5fa; }
+    .je-stat-val.hl-orange { color: #fb923c; }
+    .je-stat-val.hl-yellow { color: #facc15; }
+    .je-temporada-footer { display: flex; gap: .5rem; flex-wrap: wrap; padding: 10px 20px; background: rgba(0,0,0,.15); font-size: .72rem; color: #6b7280; }
+    .je-temporada-chip { background: rgba(255,255,255,.06); border-radius: 999px; padding: 2px 10px; display: flex; align-items: center; gap: .3rem; }
 
-    .sem-meta span { display: inline-flex; align-items: center; gap: .25rem; }
+    /* ── Histórico por jogo ── */
+    .je-jogos-lista { display: flex; flex-direction: column; gap: 8px; }
+    .je-jogo-card { background: #161616; border: 1px solid #262626; border-radius: 12px; overflow: hidden; transition: border-color .15s; }
+    .je-jogo-card:hover { border-color: #2a2a2a; }
+    .je-jogo-row { display: flex; align-items: center; gap: 14px; padding: 14px 18px; flex-wrap: wrap; cursor: pointer; }
+    .je-jogo-row:hover .je-jogo-adv { color: #d4a520; }
+    .je-jogo-badge { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #fff; flex-shrink: 0; }
+    .je-jogo-info { flex: 1; min-width: 0; }
+    .je-jogo-linha1 { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; flex-wrap: wrap; }
+    .je-jogo-escudo { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; border-radius: 50%; }
+    .je-jogo-adv { font-size: .9rem; font-weight: 600; color: #f1f5f9; }
+    .je-jogo-placar { font-size: .82rem; color: #4b5563; font-weight: 500; margin-left: .3rem; }
+    .je-tag { display: inline-flex; align-items: center; gap: 3px; font-size: .68rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; }
+    .je-tag-gol { background: rgba(34,197,94,.12); color: #4ade80; border: 1px solid rgba(34,197,94,.25); }
+    .je-tag-assist { background: rgba(251,146,60,.12); color: #fb923c; border: 1px solid rgba(251,146,60,.25); }
+    .je-tag-auto { font-size: .62rem; font-weight: 600; color: #38bdf8; padding: 1px 8px; border-radius: 999px; background: rgba(56,189,248,.1); border: 1px solid rgba(56,189,248,.25); }
+    .je-tag-sem { background: rgba(148,163,184,.12); color: #94a3b8; font-size: .62rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; border: 1px solid rgba(148,163,184,.25); }
+    .je-jogo-data { font-size: .68rem; color: #4b5563; }
 
-    .sem-stats {
-        display: flex;
-        gap: .4rem;
-        flex-shrink: 0;
-        justify-content: flex-end;
-        flex-wrap: wrap;
-        max-width: 190px;
+    .je-nota-circle { width: 52px; height: 52px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; }
+    .je-nota-val { font-size: 1rem; font-weight: 800; line-height: 1; }
+    .je-nota-label { font-size: .52rem; font-weight: 600; opacity: .75; letter-spacing: .04em; margin-top: 1px; }
+
+    .je-ver-analise {
+        font-size: .7rem; padding: 6px 12px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px;
+        color: #9ca3af; font-weight: 600; flex-shrink: 0; cursor: pointer;
     }
+    .je-ver-analise:hover { border-color: #d4a520; color: #d4a520; }
+    .je-ver-analise.aberto { border-color: #d4a520; color: #d4a520; }
 
-    .sem-stat {
-        text-align: center;
-        min-width: 36px;
+    .je-stats-mini { display: flex; gap: 0; padding: 8px 18px; background: #111; border-top: 1px solid #1e1e1e; flex-wrap: wrap; }
+    .je-stat-mini { flex: 1; text-align: center; padding: 0 4px; border-right: 1px solid #1e1e1e; min-width: 64px; }
+    .je-stat-mini:last-child { border-right: none; }
+    .je-stat-mini-val { font-size: 1rem; font-weight: 800; color: #f1f5f9; line-height: 1; }
+    .je-stat-mini-lbl { font-size: .58rem; color: #4b5563; text-transform: uppercase; margin-top: 1px; }
+
+    .je-analise-panel { display: none; border-top: 1px solid #1e1e1e; background: #111; }
+    .je-analise-panel.aberto { display: block; }
+    .je-analise-comp { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; padding: 10px 18px; border-bottom: 1px solid #1e1e1e; font-size: 11px; }
+    .je-analise-comp-titulo { color: rgba(255,255,255,.35); font-size: 10px; letter-spacing: .4px; text-transform: uppercase; width: 100%; margin-bottom: 2px; }
+    .je-analise-comp span { color: rgba(255,255,255,.5); }
+    .je-detalhes { padding: 10px 18px; display: flex; flex-wrap: wrap; gap: 6px; }
+    .je-detalhe-chip { font-size: 10px; font-weight: 600; padding: 2px 9px; border-radius: 999px; border: 1px solid; }
+    .je-comentario { padding: 0 18px 10px; font-size: .78rem; color: #6b7280; font-style: italic; }
+    .je-obs { padding: 0 18px 10px; display: flex; flex-direction: column; gap: 4px; }
+    .je-obs-item { font-size: 12.5px; color: #a7f3d0; background: rgba(5,150,105,.12); border: 1px solid rgba(5,150,105,.4); border-radius: 8px; padding: 6px 10px; }
+
+    .je-historico-collapsed .je-jogo-card:nth-child(n+4) { display: none; }
+    .je-btn-expand {
+        display: block; width: 100%; background: #161616; border: 1px dashed #262626; border-radius: 10px;
+        color: #6b7280; font-size: .85rem; padding: .65rem 1rem; cursor: pointer; text-align: center; margin-top: .4rem;
+        transition: background .2s, color .2s;
     }
+    .je-btn-expand:hover { background: #262626; color: #e5e7eb; }
 
-    .sem-stat-val {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 1.2rem;
-        font-weight: 800;
-        line-height: 1;
-        color: var(--texto);
+    .je-sem-dados { text-align: center; color: #6b7280; padding: 3rem; font-size: .95rem; }
+
+    /* ── Modal: jogadores semelhantes ── */
+    .je-modal-overlay {
+        position: fixed; inset: 0; background: rgba(0,0,0,.7); backdrop-filter: blur(3px);
+        display: none; align-items: flex-start; justify-content: center; z-index: 1000; padding: 2rem 1rem; overflow-y: auto;
     }
-
-    .sem-stat-lbl {
-        font-size: .6rem;
-        text-transform: uppercase;
-        color: var(--muted);
-        letter-spacing: .05em;
-        margin-top: .15rem;
-    }
-
-    .sem-escudo {
-        width: 14px;
-        height: 14px;
-        object-fit: contain;
-        vertical-align: middle;
-    }
-
+    .je-modal-overlay.open { display: flex; }
+    .je-modal-box { background: #0f0f0f; border: 1px solid #262626; border-radius: 16px; width: 100%; max-width: 720px; box-shadow: 0 20px 60px rgba(0,0,0,.6); overflow: hidden; font-family: 'Barlow', sans-serif; color: #e5e7eb; }
+    .je-modal-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.4rem; border-bottom: 1px solid #262626; }
+    .je-modal-titulo { font-size: 1.4rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; margin: 0; }
+    .je-modal-close { background: #161616; border: 1px solid #262626; color: #e5e7eb; width: 34px; height: 34px; border-radius: 8px; font-size: 1.1rem; cursor: pointer; flex-shrink: 0; }
+    .je-modal-close:hover { background: #262626; }
+    .je-modal-criterios { display: flex; flex-wrap: wrap; gap: .4rem; padding: .9rem 1.4rem; border-bottom: 1px solid #262626; background: rgba(0,0,0,.15); }
+    .je-criterio-chip { background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.3); color: #4ade80; font-size: .72rem; font-weight: 600; padding: .2rem .65rem; border-radius: 999px; }
+    .je-modal-body { padding: 1rem 1.4rem 1.4rem; display: grid; gap: .6rem; }
+    .je-sem-card { display: flex; align-items: center; gap: .9rem; background: #161616; border: 1px solid #262626; border-radius: 12px; padding: .7rem .9rem; transition: border-color .2s, background .2s; }
+    .je-sem-card:hover { border-color: #4ade80; background: #1c1c1c; }
+    .je-sem-foto { width: 52px; height: 52px; border-radius: 10px; object-fit: cover; background: #262626; border: 1px solid #262626; flex-shrink: 0; }
+    .je-sem-info { flex: 1; min-width: 0; }
+    .je-sem-nome { font-size: 1.15rem; font-weight: 700; color: #f1f5f9; text-decoration: none; display: inline-flex; align-items: center; gap: .4rem; }
+    .je-sem-nome:hover { color: #4ade80; text-decoration: underline; }
+    .je-sem-meta { display: flex; flex-wrap: wrap; gap: .35rem .8rem; font-size: .75rem; color: #6b7280; margin-top: .2rem; }
+    .je-sem-meta span { display: inline-flex; align-items: center; gap: .25rem; }
+    .je-sem-stats { display: flex; gap: .4rem; flex-shrink: 0; justify-content: flex-end; flex-wrap: wrap; max-width: 190px; }
+    .je-sem-stat { text-align: center; min-width: 36px; }
+    .je-sem-stat-val { font-size: 1.2rem; font-weight: 800; line-height: 1; color: #f1f5f9; }
+    .je-sem-stat-lbl { font-size: .6rem; text-transform: uppercase; color: #6b7280; letter-spacing: .05em; margin-top: .15rem; }
+    .je-sem-escudo { width: 14px; height: 14px; object-fit: contain; vertical-align: middle; }
 </style>
 
-<div class="estat-page">
-    <div class="container" style="max-width:860px;">
+<div class="je">
+    <div class="je-top">
+        <a href="javascript:history.back()" class="je-voltar">← Voltar à lista</a>
+    </div>
 
-        <a href="javascript:history.back()" class="btn-voltar">← Voltar</a>
+    <!-- ── Header do jogador ─────────────────────────────────────────── -->
+    <div class="je-header">
+        <div class="je-header-inner">
 
-        <!-- Filtro de competição -->
-        @{
-            var competicoes = ViewBag.Competicoes as List<Competicao> ?? new();
-            var competicaoAtual = ViewBag.CompeticaoId as int?;
-        }
-        @if (competicoes.Count > 1)
-        {
-            <form method="get" style="margin-bottom:1.2rem; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <input type="hidden" name="id" value="@Model.Jogador.Id" />
-                <label style="font-size:12px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.5px;">Competição</label>
-                <select name="competicaoId" onchange="this.form.submit()"
-                        style="background:var(--cinza2); color:var(--texto); border:1px solid var(--cinza3); border-radius:8px; padding:6px 12px; font-size:13px; cursor:pointer;">
-                    <option value="">Todas</option>
-                    @foreach (var c in competicoes)
-                    {
-                        <option value="@c.Id" selected="@(competicaoAtual == c.Id)">@c.Nome</option>
-                    }
-                </select>
-                @if (competicaoAtual.HasValue)
-                {
-                    <a href="/Jogadores/Estatisticas/@Model.Jogador.Id"
-                       style="font-size:12px; color:var(--muted); text-decoration:none;">✕ limpar</a>
-                }
-            </form>
-        }
-
-        <!-- Header -->
-        <div class="jogador-header">
             @if (Model.Jogador.Time?.EscudoUrl != null)
             {
-                <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogador.Time.EscudoUrl })" class="jogador-escudo" />
+                <div class="je-escudo-wrap">
+                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogador.Time.EscudoUrl })" alt="" />
+                </div>
             }
 
-            @if (!string.IsNullOrWhiteSpace(Model.Jogador.FotoUrl))
-            {
-                <img src="@Url.FotoSrc(Model.Jogador.FotoUrl)" class="jogador-foto"
-                     onerror="this.onerror=null; this.src='/images/placeholder-jogador.png'" />
-            }
-            else
-            {
-                <img src="/images/placeholder-jogador.png" class="jogador-foto" />
-            }
-            <div>
-                <h1 class="jogador-nome">@Model.Jogador.NomeExibicao</h1>
-                <div class="jogador-meta">
-                    <span>🎽 @Model.Jogador.Posicao</span>
+            <div class="je-foto-wrap">
+                @if (!string.IsNullOrWhiteSpace(Model.Jogador.FotoUrl))
+                {
+                    <img src="@Url.FotoSrc(Model.Jogador.FotoUrl)" onerror="this.onerror=null; this.src='/images/placeholder-jogador.png'" />
+                }
+                else
+                {
+                    <img src="/images/placeholder-jogador.png" />
+                }
+            </div>
+
+            <div class="je-info">
+                <h1 class="je-nome">@Model.Jogador.NomeExibicao</h1>
+                <div class="je-meta">
+                    <span class="je-pos-badge">@Model.Jogador.Posicao</span>
                     @if (Model.Jogador.NumeroCamisa.HasValue)
                     {
-                        <span># @Model.Jogador.NumeroCamisa</span>
+                        <span class="je-meta-item">Nº @Model.Jogador.NumeroCamisa</span>
                     }
-                    <span>📅 @Model.Jogador.Idade anos</span>
+                    <span class="je-meta-item">@Model.Jogador.Idade anos</span>
                     @if (Model.Jogador.Time != null)
                     {
-                        <span>
+                        <span class="je-meta-item je-meta-clube">
                             @if (!string.IsNullOrEmpty(Model.Jogador.Time.EscudoUrl))
                             {
-                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogador.Time.EscudoUrl })"
-                                     class="meta-escudo" alt="" />
-                            }
-                            else
-                            {
-                                <text>🏟️</text>
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogador.Time.EscudoUrl })" alt="" />
                             }
                             @Model.Jogador.Time.Nome
                         </span>
@@ -1055,104 +393,132 @@
                     @if (Model.Jogador.Nacionalidade != null)
                     {
                         var bandeiraUrl = FlagHelper.GetFlagImageUrl(Model.Jogador.Nacionalidade.Nome);
-                        <span>
+                        <span class="je-meta-item">
                             @if (bandeiraUrl != null)
                             {
-                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = bandeiraUrl })"
-                                     class="meta-bandeira" alt="" />
-                            }
-                            else
-                            {
-                                <text>🌍</text>
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = bandeiraUrl })" alt="" />
                             }
                             @Model.Jogador.Nacionalidade.Nome
                         </span>
                     }
                 </div>
-                <button type="button" class="btn-semelhantes" onclick="abrirSemelhantes()">
-                    🔍 Jogadores semelhantes
+            </div>
+
+            <div class="je-actions">
+                @if (competicoes.Count > 1)
+                {
+                    <form method="get" style="display:flex; align-items:center; gap:8px;">
+                        <input type="hidden" name="id" value="@Model.Jogador.Id" />
+                        <div class="je-select-wrap">
+                            <select name="competicaoId" class="je-select" onchange="this.form.submit()">
+                                <option value="">Todas as competições</option>
+                                @foreach (var c in competicoes)
+                                {
+                                    <option value="@c.Id" selected="@(competicaoAtual == c.Id)">@c.Nome</option>
+                                }
+                            </select>
+                            <div class="je-select-arrow">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg>
+                            </div>
+                        </div>
+                    </form>
+                    @if (competicaoAtual.HasValue)
+                    {
+                        <a href="/Jogadores/Estatisticas/@Model.Jogador.Id" class="je-clear">✕ limpar</a>
+                    }
+                }
+                <button type="button" class="je-btn-semelhantes" onclick="abrirSemelhantes()">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                    Semelhantes
                 </button>
             </div>
         </div>
+    </div>
+
+    <!-- ── Conteúdo principal ────────────────────────────────────────── -->
+    <div class="je-main">
 
         <!-- Cards de resumo -->
-        <div class="resumo-grid">
-            <div class="resumo-card" style="--accent-color: #facc15;">
-                <div class="resumo-valor">@Model.MediaNotas.ToString("0.0")</div>
-                <div class="resumo-label">Média Geral</div>
+        <div class="je-resumo">
+            <div class="je-resumo-card" style="--je-cor:#facc15;">
+                <div class="je-resumo-valor">@Model.MediaNotas.ToString("0.0")</div>
+                <div class="je-resumo-label">Média Geral</div>
             </div>
-            <div class="resumo-card" style="--accent-color: #60a5fa;">
-                <div class="resumo-valor">@Model.TotalJogosParticipados</div>
-                <div class="resumo-label">Jogos</div>
+            <div class="je-resumo-card" style="--je-cor:#60a5fa;">
+                <div class="je-resumo-valor">@Model.TotalJogosParticipados</div>
+                <div class="je-resumo-label">Jogos</div>
             </div>
-            <div class="resumo-card" style="--accent-color: #a78bfa;">
-                <div class="resumo-valor">@Model.TotalJogos</div>
-                <div class="resumo-label">Avaliados</div>
+            <div class="je-resumo-card" style="--je-cor:#a78bfa;">
+                <div class="je-resumo-valor">@Model.TotalJogos</div>
+                <div class="je-resumo-label">Avaliados</div>
             </div>
-            <div class="resumo-card" style="--accent-color: #22c55e;">
-                <div class="resumo-valor">@Model.TotalGols</div>
-                <div class="resumo-label">Gols</div>
+            <div class="je-resumo-card" style="--je-cor:#22c55e;">
+                <div class="je-resumo-valor">@Model.TotalGols</div>
+                <div class="je-resumo-label">Gols</div>
             </div>
             @if (Model.TotalAssistencias > 0)
             {
-                <div class="resumo-card" style="--accent-color: #fb923c;">
-                    <div class="resumo-valor">@Model.TotalAssistencias</div>
-                    <div class="resumo-label">Assistências</div>
+                <div class="je-resumo-card" style="--je-cor:#fb923c;">
+                    <div class="je-resumo-valor">@Model.TotalAssistencias</div>
+                    <div class="je-resumo-label">Assistências</div>
                 </div>
             }
         </div>
 
-        <!-- Barra de média -->
+        <!-- Índice de desempenho -->
         @if (Model.TotalJogos > 0)
         {
-            <div class="media-bar-wrap">
-                <div class="media-bar-titulo">Índice de Desempenho</div>
-                <div class="media-bar-track">
-                    <div class="media-bar-fill" style="width: @((Model.MediaNotas / 10.0 * 100).ToString(" 0", System.Globalization.CultureInfo.InvariantCulture))%"></div>
-                </div>
-                <div class="media-bar-labels">
-                    <span>0</span>
-                    <span style="color:var(--texto); font-weight:600;">
-                        @Model.MediaNotas.ToString("0.0") / 10 — @NotaLabel((int)Math.Round(Model.MediaNotas))
+            <div class="je-perf">
+                <div class="je-perf-top">
+                    <span class="je-perf-label">Índice de Desempenho</span>
+                    <span class="je-perf-valor" style="color:@CorNota(Model.MediaNotas);">
+                        @Model.MediaNotas.ToString("0.0") / 10 — @LabelNota(Model.MediaNotas)
                     </span>
-                    <span>10</span>
+                </div>
+                <div class="je-perf-track">
+                    <div class="je-perf-fill"
+                         style="width:@((Model.MediaNotas / 10.0 * 100).ToString("0", inv))%; background: linear-gradient(90deg, #16a34a, @CorNota(Model.MediaNotas));"></div>
+                </div>
+                <div class="je-perf-escala">
+                    <span>0</span><span>5</span><span>10</span>
                 </div>
             </div>
         }
 
-        <!-- ── Perfil tático: posições em campo + médias por jogo ──────────── -->
+        <!-- Perfil tático: posições em campo + médias por jogo -->
         @if (Model.PosicoesJogadas.Any() || Model.Medias != null)
         {
-            <div class="perfil-grid">
+            <div class="je-perfil-grid">
                 @if (Model.PosicoesJogadas.Any())
                 {
-                    <div class="perfil-card">
-                        <div class="perfil-titulo">
-                            Posições em campo
-                            <span class="perfil-sub">(escalações registradas)</span>
-                        </div>
-                        <div class="perfil-posicoes">
-                            <div class="mini-campo">
-                                <div class="mc-area-sup"></div>
-                                <div class="mc-area-inf"></div>
+                    <div class="je-card">
+                        <div class="je-card-titulo">Posições em Campo</div>
+                        <div class="je-campo-row">
+                            <div class="je-campo">
+                                <div class="je-campo-linha"></div>
+                                <div class="je-campo-circulo"></div>
+                                <div class="je-campo-area-sup"></div>
+                                <div class="je-campo-area-inf"></div>
                                 @foreach (var p in Model.PosicoesJogadas)
                                 {
                                     var principal = p == Model.PosicoesJogadas[0];
-                                    <div class="mc-dot @(principal ? "mc-dot-principal" : "")"
+                                    <div class="je-campo-dot @(principal ? "je-campo-dot-principal" : "")"
                                          style="left:@p.X.ToString("0.#", inv)%; top:@p.Y.ToString("0.#", inv)%;"
                                          title="@NomePosicao(p.Posicao) — @p.Jogos jogo(s) (@p.Pct%)">
                                         @SiglaPosicao(p.Posicao)
                                     </div>
                                 }
                             </div>
-                            <div class="pos-lista">
+                            <div class="je-pos-lista">
                                 @foreach (var p in Model.PosicoesJogadas)
                                 {
                                     var principal = p == Model.PosicoesJogadas[0];
-                                    <div class="pos-item @(principal ? "pos-item-principal" : "")">
-                                        <span class="pos-sigla">@SiglaPosicao(p.Posicao)</span>
-                                        <span class="pos-nome">@NomePosicao(p.Posicao)</span>
-                                        <span class="pos-pct">@p.Jogos j · @p.Pct%</span>
+                                    <div class="je-pos-item @(principal ? "je-pos-item-principal" : "")">
+                                        <span class="je-pos-sigla">@SiglaPosicao(p.Posicao)</span>
+                                        <div style="flex:1; min-width:0;">
+                                            <div class="je-pos-nome">@NomePosicao(p.Posicao)</div>
+                                            <div class="je-pos-sub">@p.Jogos jogos · @p.Pct%</div>
+                                        </div>
                                     </div>
                                 }
                             </div>
@@ -1163,440 +529,294 @@
                 @if (Model.Medias != null)
                 {
                     var m = Model.Medias;
-                    <div class="perfil-card">
-                        <div class="perfil-titulo">
-                            Médias por jogo
-                            <span class="perfil-sub">(@m.Jogos jogo@(m.Jogos == 1 ? "" : "s") com estatísticas importadas)</span>
-                        </div>
+                    <div class="je-card">
+                        <div class="je-card-titulo">Médias por Jogo <span style="text-transform:none; letter-spacing:0; font-weight:400; color:#4b5563;">(@m.Jogos jogo@(m.Jogos == 1 ? "" : "s") com estatísticas importadas)</span></div>
 
-                        <div class="donut-grid">
-                            <div class="donut">
-                                <div class="donut-ring"
-                                     style="background: conic-gradient(#22c55e 0 @(m.FinalizacoesPct)%, var(--cinza3) 0);">
-                                    <div class="donut-hole">@m.FinalizacoesPct%</div>
+                        <div class="je-donuts">
+                            <div class="je-donut">
+                                <div class="je-donut-ring" style="background: conic-gradient(#22c55e 0 @(m.FinalizacoesPct)%, #1e293b @(m.FinalizacoesPct)% 100%);">
+                                    <div class="je-donut-hole">@m.FinalizacoesPct%</div>
                                 </div>
-                                <div class="donut-label">Finalizações</div>
-                                <div class="donut-media">@m.Finalizacoes.ToString("0.#") por jogo · % no gol</div>
+                                <div class="je-donut-label">Finalizações</div>
+                                <div class="je-donut-sub">@m.Finalizacoes.ToString("0.#")/jogo · % no gol</div>
                             </div>
-                            <div class="donut">
-                                <div class="donut-ring"
-                                     style="background: conic-gradient(#60a5fa 0 @(m.DriblesPct)%, var(--cinza3) 0);">
-                                    <div class="donut-hole">@m.DriblesPct%</div>
+                            <div class="je-donut">
+                                <div class="je-donut-ring" style="background: conic-gradient(#60a5fa 0 @(m.DriblesPct)%, #1e293b @(m.DriblesPct)% 100%);">
+                                    <div class="je-donut-hole">@m.DriblesPct%</div>
                                 </div>
-                                <div class="donut-label">Dribles</div>
-                                <div class="donut-media">@m.Dribles.ToString("0.#") por jogo · % certos</div>
+                                <div class="je-donut-label">Dribles</div>
+                                <div class="je-donut-sub">@m.Dribles.ToString("0.#")/jogo · % certos</div>
                             </div>
-                            <div class="donut">
-                                <div class="donut-ring"
-                                     style="background: conic-gradient(#facc15 0 @(m.DuelosPct)%, var(--cinza3) 0);">
-                                    <div class="donut-hole">@m.DuelosPct%</div>
+                            <div class="je-donut">
+                                <div class="je-donut-ring" style="background: conic-gradient(#facc15 0 @(m.DuelosPct)%, #1e293b @(m.DuelosPct)% 100%);">
+                                    <div class="je-donut-hole">@m.DuelosPct%</div>
                                 </div>
-                                <div class="donut-label">Duelos</div>
-                                <div class="donut-media">@m.Duelos.ToString("0.#") por jogo · % vencidos</div>
+                                <div class="je-donut-label">Duelos</div>
+                                <div class="je-donut-sub">@m.Duelos.ToString("0.#")/jogo · % vencidos</div>
                             </div>
                         </div>
 
-                        <div class="medias-grid">
-                            <div class="media-chip">
-                                <div class="media-chip-valor">@m.Passes.ToString("0.#")</div>
-                                <div class="media-chip-label">Passes</div>
-                            </div>
-                            <div class="media-chip">
-                                <div class="media-chip-valor">@m.PassesChave.ToString("0.#")</div>
-                                <div class="media-chip-label">Passes-chave</div>
-                            </div>
-                            <div class="media-chip">
-                                <div class="media-chip-valor">@m.Desarmes.ToString("0.#")</div>
-                                <div class="media-chip-label">Desarmes</div>
-                            </div>
-                            <div class="media-chip">
-                                <div class="media-chip-valor">@m.Interceptacoes.ToString("0.#")</div>
-                                <div class="media-chip-label">Interceptações</div>
-                            </div>
-                            <div class="media-chip">
-                                <div class="media-chip-valor">@m.Bloqueios.ToString("0.#")</div>
-                                <div class="media-chip-label">Bloqueios</div>
-                            </div>
+                        <div class="je-chips">
+                            <div class="je-chip"><div class="je-chip-valor">@m.Passes.ToString("0.#")</div><div class="je-chip-label">Passes</div></div>
+                            <div class="je-chip"><div class="je-chip-valor">@m.PassesChave.ToString("0.#")</div><div class="je-chip-label">Passes-chave</div></div>
+                            <div class="je-chip"><div class="je-chip-valor">@m.Desarmes.ToString("0.#")</div><div class="je-chip-label">Desarmes</div></div>
+                            <div class="je-chip"><div class="je-chip-valor">@m.Interceptacoes.ToString("0.#")</div><div class="je-chip-label">Interceptações</div></div>
+                            <div class="je-chip"><div class="je-chip-valor">@m.Bloqueios.ToString("0.#")</div><div class="je-chip-label">Bloqueios</div></div>
                             @if (m.Defesas > 0)
                             {
-                                <div class="media-chip">
-                                    <div class="media-chip-valor">@m.Defesas.ToString("0.#")</div>
-                                    <div class="media-chip-label">Defesas</div>
-                                </div>
+                                <div class="je-chip"><div class="je-chip-valor">@m.Defesas.ToString("0.#")</div><div class="je-chip-label">Defesas</div></div>
                             }
-                            <div class="media-chip">
-                                <div class="media-chip-valor">@m.FaltasSofridas.ToString("0.#")</div>
-                                <div class="media-chip-label">Faltas sofridas</div>
-                            </div>
-                            <div class="media-chip">
-                                <div class="media-chip-valor">@m.FaltasCometidas.ToString("0.#")</div>
-                                <div class="media-chip-label">Faltas cometidas</div>
-                            </div>
+                            <div class="je-chip"><div class="je-chip-valor">@m.FaltasSofridas.ToString("0.#")</div><div class="je-chip-label">Faltas sofridas</div></div>
+                            <div class="je-chip"><div class="je-chip-valor">@m.FaltasCometidas.ToString("0.#")</div><div class="je-chip-label">Faltas cometidas</div></div>
                         </div>
                     </div>
                 }
             </div>
         }
 
-        <!-- ── Histórico por Temporada ─────────────────────────────────────── -->
+        <!-- Histórico por Temporada -->
         @if (Model.Jogador.IdApi.HasValue)
         {
-            <div class="jogos-titulo" style="cursor:pointer;" onclick="toggleTemporada()" id="temporadaTitulo">
-                Histórico por Temporada
-                <span id="temporadaToggleIcon" style="font-size:.85rem; color:var(--muted); font-weight:400; margin-left:.4rem;">▼ mostrar</span>
-            </div>
+            <div class="je-section">
+                <button type="button" class="je-section-row" onclick="toggleTemporada()" id="temporadaTitulo">
+                    <span class="je-section-titulo">Histórico por Temporada</span>
+                    <div class="je-section-linha"></div>
+                    <svg id="temporadaChevron" class="je-section-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg>
+                </button>
 
-            <div id="temporadaWrapper" style="display:none;">
-                <div class="season-selector" id="seasonSelector">
-                    @{
-                        var anoAtual = DateTime.Now.Year;
-                    }
-                    @for (int ano = anoAtual; ano >= anoAtual - 3; ano--)
-                    {
-                        <button class="season-btn @(ano == anoAtual ? "active" : "")"
-                                onclick="carregarTemporada(@Model.Jogador.Id, @ano, this)">
-                            @ano
-                        </button>
-                    }
-                </div>
-
-                <div id="temporadaContainer"></div>
-            </div>
-        }
-
-        <!-- Lista por jogo -->
-        <div class="jogos-titulo" style="margin-top:2rem; cursor:pointer;" onclick="toggleHistorico()" id="historicoTitulo">
-            Histórico por Jogo
-            <span id="historicoToggleIcon" style="font-size:.85rem; color:var(--muted); font-weight:400; margin-left:.4rem;">▼ mostrar</span>
-        </div>
-
-        <div id="historicoWrapper" style="display:none;">
-
-        @if (!Model.NotasPorJogo.Any())
-        {
-            <div class="sem-dados">
-                Nenhum jogo registrado para este jogador ainda.
-            </div>
-        }
-        else
-        {
-            <div id="historicoLista" class="historico-collapsed">
-            @{ var idx = 0; }
-            @foreach (var item in Model.NotasPorJogo)
-            {
-                // Lado do jogador NAQUELE jogo (vem da escalação da época, via item.IsCasa)
-                // — usar o time atual inverteria os jogos do clube antigo após uma transferência.
-                bool isCasaJogador = item.IsCasa;
-
-                var adversario = isCasaJogador
-                    ? item.Jogo.TimeVisitante?.Nome
-                    : item.Jogo.TimeCasa?.Nome;
-
-                var adversarioEscudo = isCasaJogador
-                    ? item.Jogo.TimeVisitante?.EscudoUrl
-                    : item.Jogo.TimeCasa?.EscudoUrl;
-
-                var placar = (item.Jogo.PlacarCasa.HasValue && item.Jogo.PlacarVisitante.HasValue)
-                    ? $"{item.GolsPro} x {item.GolsContra}"
-                    : "–";
-
-                var penaltis = (item.Jogo.PenaltisCasa.HasValue && item.Jogo.PenaltisVisitante.HasValue)
-                    ? (isCasaJogador
-                        ? $"({item.Jogo.PenaltisCasa}-{item.Jogo.PenaltisVisitante} pên.)"
-                        : $"({item.Jogo.PenaltisVisitante}-{item.Jogo.PenaltisCasa} pên.)")
-                    : null;
-
-                var resBg = item.Resultado switch
-                {
-                    "V" => "#16a34a",
-                    "E" => "#b45309",
-                    "D" => "#dc2626",
-                    _   => "#334155"
-                };
-                var resLabel = item.Resultado switch
-                {
-                    "V" => "Vitória",
-                    "E" => "Empate",
-                    "D" => "Derrota",
-                    _   => "?"
-                };
-
-                string notaColor = item.Analisado ? item.NotaFinal switch
-                {
-                    >= 8.5 => "#f59e0b",
-                    >= 7.5 => "#22c55e",
-                    >= 6.5 => "#3b82f6",
-                    >= 5.5 => "#6b7280",
-                    >= 4.5 => "#f97316",
-                    _      => "#ef4444"
-                } : "#334155";
-
-                string notaLabel = item.Analisado ? item.NotaFinal switch
-                {
-                    >= 8.5 => "Elite",
-                    >= 7.5 => "Ótimo",
-                    >= 6.5 => "Bom",
-                    >= 5.5 => "Regular",
-                    >= 4.5 => "Abaixo",
-                    _      => "Fraco"
-                } : "Sem nota";
-
-                <div class="jogo-item" style="flex-direction:column; gap:0; padding:0; overflow:hidden;
-                     @(!item.Analisado ? "opacity:.75;" : "")">
-
-                    <!-- Cabeçalho do card -->
-                    <div style="display:flex; align-items:center; gap:10px;
-                            padding:.85rem 1.1rem; border-bottom:1px solid rgba(255,255,255,.06);">
-
-                        <!-- Badge resultado -->
-                        <div style="width:28px; height:28px; border-radius:6px;
-                                background:@resBg; display:flex; align-items:center;
-                                justify-content:center; font-size:11px; font-weight:800;
-                                color:#fff; flex-shrink:0;">
-                            @item.Resultado
-                        </div>
-
-                        <!-- Adversário + data -->
-                        <div style="flex:1; min-width:0;">
-                            <div style="display:flex; align-items:center; gap:7px; flex-wrap:wrap;">
-                                @if (!string.IsNullOrEmpty(adversarioEscudo))
-                                {
-                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = adversarioEscudo })"
-                                         style="width:18px;height:18px;object-fit:contain;
-                                                border-radius:50%;border:.5px solid rgba(255,255,255,.15);" />
-                                }
-                                <span class="jogo-adversario">
-                                    vs @adversario
-                                    <span style="color:rgba(255,255,255,.4); font-size:.8rem;
-                                             margin-left:.4rem; font-weight:400;">@placar @penaltis</span>
-                                </span>
-                                @if (item.Gols > 0)
-                                {
-                                    <span style="display:inline-flex;align-items:center;gap:3px;
-                                                 background:rgba(34,197,94,.15);color:#4ade80;
-                                                 font-size:11px;font-weight:600;
-                                                 padding:1px 7px;border-radius:999px;">
-                                        ⚽ @item.Gols
-                                    </span>
-                                }
-                                @if (item.Assistencias > 0)
-                                {
-                                    <span style="display:inline-flex;align-items:center;gap:3px;
-                                                 background:rgba(251,146,60,.15);color:#fb923c;
-                                                 font-size:11px;font-weight:600;
-                                                 padding:1px 7px;border-radius:999px;">
-                                        🅰️ @item.Assistencias
-                                    </span>
-                                }
-                                @if (!item.Analisado)
-                                {
-                                    <span style="background:rgba(148,163,184,.12);color:#94a3b8;
-                                                 font-size:10px;font-weight:600;
-                                                 padding:1px 8px;border-radius:999px;
-                                                 border:1px solid rgba(148,163,184,.25);">
-                                        sem análise
-                                    </span>
-                                }
-                                else if (!item.OrigemManual)
-                                {
-                                    <span style="background:rgba(56,189,248,.12);color:#38bdf8;
-                                                 font-size:10px;font-weight:600;
-                                                 padding:1px 8px;border-radius:999px;
-                                                 border:1px solid rgba(56,189,248,.3);">
-                                        nota automática
-                                    </span>
-                                }
-                            </div>
-                            <div class="jogo-data">
-                                @DateHelper.FormatarData(item.Jogo.Data, "dd/MM/yyyy")
-                                @if (item.Jogo.Rodada > 0) { <text>— Rodada @item.Jogo.Rodada</text> }
-                            </div>
-                        </div>
-
-                        <!-- Nota Final (círculo) -->
-                        <div style="display:flex;flex-direction:column;align-items:center;
-                                justify-content:center; width:52px; height:52px;
-                                border-radius:50%; border:2px solid @notaColor;
-                                color:@notaColor; flex-shrink:0;">
-                            @if (item.Analisado)
-                            {
-                                <span style="font-family:'Barlow Condensed',sans-serif;
-                                         font-size:16px;font-weight:800;line-height:1;">
-                                    @item.NotaFinal.ToString("0.0")
-                                </span>
-                                <span style="font-size:8px;font-weight:600;opacity:.7;
-                                         letter-spacing:.3px;">@notaLabel</span>
-                            }
-                            else
-                            {
-                                <span style="font-size:18px; opacity:.4;">–</span>
-                            }
-                        </div>
+                <div id="temporadaWrapper" style="display:none;">
+                    <div class="je-season-selector" id="seasonSelector">
+                        @{
+                            var anoAtual = DateTime.Now.Year;
+                        }
+                        @for (int ano = anoAtual; ano >= anoAtual - 3; ano--)
+                        {
+                            <button class="je-season-btn @(ano == anoAtual ? "active" : "")"
+                                    onclick="carregarTemporada(@Model.Jogador.Id, @ano, this)">
+                                @ano
+                            </button>
+                        }
                     </div>
 
-                    @{
-                        var temMinutagem = item.Minutos.HasValue;
-                        var temPosicao = !string.IsNullOrWhiteSpace(item.Posicao);
-                    }
+                    <div id="temporadaContainer"></div>
+                </div>
+            </div>
+        }
 
-                    @if (item.Analisado)
+        <!-- Histórico por Jogo -->
+        <div class="je-section">
+            <button type="button" class="je-section-row je-com-linha" onclick="toggleHistorico()" id="historicoTitulo">
+                <span class="je-section-titulo">Histórico por Jogo</span>
+                <div class="je-section-linha" style="background:transparent;"></div>
+                <span class="je-section-badge">@Model.NotasPorJogo.Count jogos</span>
+                <svg id="historicoChevron" class="je-section-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg>
+            </button>
+
+            <div id="historicoWrapper" style="display:none;">
+
+            @if (!Model.NotasPorJogo.Any())
+            {
+                <div class="je-sem-dados">
+                    Nenhum jogo registrado para este jogador ainda.
+                </div>
+            }
+            else
+            {
+                <div id="historicoLista" class="je-jogos-lista je-historico-collapsed">
+                @{ var idx = 0; }
+                @foreach (var item in Model.NotasPorJogo)
+                {
+                    // Lado do jogador NAQUELE jogo (vem da escalação da época, via item.IsCasa)
+                    // — usar o time atual inverteria os jogos do clube antigo após uma transferência.
+                    bool isCasaJogador = item.IsCasa;
+
+                    var adversario = isCasaJogador
+                        ? item.Jogo.TimeVisitante?.Nome
+                        : item.Jogo.TimeCasa?.Nome;
+
+                    var adversarioEscudo = isCasaJogador
+                        ? item.Jogo.TimeVisitante?.EscudoUrl
+                        : item.Jogo.TimeCasa?.EscudoUrl;
+
+                    var placar = (item.Jogo.PlacarCasa.HasValue && item.Jogo.PlacarVisitante.HasValue)
+                        ? $"{item.GolsPro} x {item.GolsContra}"
+                        : "–";
+
+                    var penaltis = (item.Jogo.PenaltisCasa.HasValue && item.Jogo.PenaltisVisitante.HasValue)
+                        ? (isCasaJogador
+                            ? $"({item.Jogo.PenaltisCasa}-{item.Jogo.PenaltisVisitante} pên.)"
+                            : $"({item.Jogo.PenaltisVisitante}-{item.Jogo.PenaltisCasa} pên.)")
+                        : null;
+
+                    var resBg = item.Resultado switch
                     {
-                        <!-- Abas: Resumo (posição, minutagem, gols, assist) / Ações (composição da nota) -->
-                        <div class="aba-jogo-tabs">
-                            <button type="button" class="aba-jogo-btn" onclick="mostrarAbaJogo(this, 'acoes-@idx')">Ações</button>
-                            <button type="button" class="aba-jogo-btn ativa" onclick="mostrarAbaJogo(this, 'resumo-@idx')">Resumo</button>
+                        "V" => "#16a34a",
+                        "E" => "#b45309",
+                        "D" => "#dc2626",
+                        _   => "#334155"
+                    };
+
+                    string notaColor = item.Analisado ? CorNota(item.NotaFinal) : "#334155";
+                    string notaLabel = item.Analisado ? LabelNota(item.NotaFinal) : "Sem nota";
+
+                    var temMinutagem = item.Minutos.HasValue;
+                    var temPosicao = !string.IsNullOrWhiteSpace(item.Posicao);
+                    var temAnalise = item.Analisado && (item.Detalhes.Any(d => d.Quantidade > 0) || !string.IsNullOrWhiteSpace(item.Comentario) || item.ObservacoesJogador.Any() || item.NotaManual.HasValue);
+
+                    <div class="je-jogo-card" style="@(!item.Analisado ? "opacity:.75;" : "")">
+
+                        <!-- Linha principal -->
+                        <div class="je-jogo-row" onclick="irParaJogo(event, @item.Jogo.Id)" title="Ver jogo">
+                            <div class="je-jogo-badge" style="background:@resBg;">@item.Resultado</div>
+
+                            <div class="je-jogo-info">
+                                <div class="je-jogo-linha1">
+                                    @if (!string.IsNullOrEmpty(adversarioEscudo))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = adversarioEscudo })" class="je-jogo-escudo" alt="" />
+                                    }
+                                    <span class="je-jogo-adv">vs @adversario<span class="je-jogo-placar">@placar @penaltis</span></span>
+                                    @if (item.Gols > 0)
+                                    {
+                                        <span class="je-tag je-tag-gol">⚽ @item.Gols</span>
+                                    }
+                                    @if (item.Assistencias > 0)
+                                    {
+                                        <span class="je-tag je-tag-assist">🅰️ @item.Assistencias</span>
+                                    }
+                                    @if (!item.Analisado)
+                                    {
+                                        <span class="je-tag-sem">sem análise</span>
+                                    }
+                                    else if (!item.OrigemManual)
+                                    {
+                                        <span class="je-tag-auto">nota automática</span>
+                                    }
+                                </div>
+                                <div class="je-jogo-data">
+                                    @DateHelper.FormatarData(item.Jogo.Data, "dd/MM/yyyy")
+                                    @if (item.Jogo.Rodada > 0) { <text> — Rodada @item.Jogo.Rodada</text> }
+                                </div>
+                            </div>
+
+                            <div class="je-nota-circle" style="border:2px solid @notaColor; color:@notaColor;">
+                                @if (item.Analisado)
+                                {
+                                    <span class="je-nota-val">@item.NotaFinal.ToString("0.0")</span>
+                                    <span class="je-nota-label">@notaLabel</span>
+                                }
+                                else
+                                {
+                                    <span style="font-size:18px; opacity:.4;">–</span>
+                                }
+                            </div>
+
+                            @if (temAnalise)
+                            {
+                                <button type="button" class="je-ver-analise" onclick="event.stopPropagation(); toggleAnalise(this, 'analise-@idx')">Ver análise</button>
+                            }
                         </div>
 
-                        <div class="aba-jogo-content" data-aba="acoes-@idx">
-                            <!-- Decomposição da nota -->
-                            <div style="display:flex; align-items:stretch; font-size:11px;
-                                    border-bottom:1px solid rgba(255,255,255,.05);">
-                                <div style="flex:1; padding:.5rem 1.1rem; display:flex;
-                                        flex-direction:column; justify-content:center; gap:2px;">
-                                    <div style="color:rgba(255,255,255,.35); font-size:10px;
-                                             letter-spacing:.4px; text-transform:uppercase;
-                                             margin-bottom:2px;">
-                                        Composição da nota
-                                    </div>
+                        <!-- Stats resumidos -->
+                        <div class="je-stats-mini">
+                            <div class="je-stat-mini">
+                                <div class="je-stat-mini-val">@(temPosicao ? item.Posicao : "—")</div>
+                                <div class="je-stat-mini-lbl">Posição</div>
+                            </div>
+                            <div class="je-stat-mini">
+                                <div class="je-stat-mini-val">@(temMinutagem ? $"{item.Minutos}'" : "—")</div>
+                                <div class="je-stat-mini-lbl">Minutos</div>
+                            </div>
+                            <div class="je-stat-mini">
+                                <div class="je-stat-mini-val">@item.Gols</div>
+                                <div class="je-stat-mini-lbl">Gols</div>
+                            </div>
+                            <div class="je-stat-mini">
+                                <div class="je-stat-mini-val">@item.Assistencias</div>
+                                <div class="je-stat-mini-lbl">Assistências</div>
+                            </div>
+                        </div>
+
+                        @if (temAnalise)
+                        {
+                            <div class="je-analise-panel" data-analise="analise-@idx">
+                                <div class="je-analise-comp">
+                                    <div class="je-analise-comp-titulo">Composição da nota</div>
                                     @if (item.NotaManual.HasValue)
                                     {
-                                        <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center;">
-                                            <span style="color:rgba(255,255,255,.5);">
-                                                Nota manual <strong style="color:@notaColor;">@item.NotaFinal.ToString("0.00")</strong>
-                                            </span>
-                                            <span style="color:rgba(255,255,255,.35); font-size:10px;">ações registradas abaixo (sem peso na nota)</span>
-                                        </div>
+                                        <span>Nota manual <strong style="color:@notaColor;">@item.NotaFinal.ToString("0.00")</strong></span>
+                                        <span style="color:rgba(255,255,255,.35); font-size:10px;">ações registradas abaixo (sem peso na nota)</span>
                                     }
                                     else
                                     {
-                                        <div style="display:flex; gap:16px; flex-wrap:wrap;">
-                                            <span style="color:rgba(255,255,255,.5);">
-                                                Base <strong style="color:#e2e8f0;">@item.NotaBaseFixa.ToString("0.0")</strong>
-                                            </span>
-                                            <span style="color:rgba(255,255,255,.5);">
-                                                Ações <strong style="color:@(item.Nota >= 0 ? "#4ade80" : "#f87171");">
-                                                    @(item.Nota >= 0 ? "+" : "")@item.Nota.ToString("0.##")
-                                                </strong>
-                                            </span>
-                                            <span style="color:rgba(255,255,255,.5);">
-                                                = <strong style="color:@notaColor;">@item.NotaFinal.ToString("0.00")</strong>
-                                            </span>
-                                        </div>
+                                        <span>Base <strong style="color:#e2e8f0;">@item.NotaBaseFixa.ToString("0.0")</strong></span>
+                                        <span>Ações <strong style="color:@(item.Nota >= 0 ? "#4ade80" : "#f87171");">@(item.Nota >= 0 ? "+" : "")@item.Nota.ToString("0.##")</strong></span>
+                                        <span>= <strong style="color:@notaColor;">@item.NotaFinal.ToString("0.00")</strong></span>
                                     }
                                 </div>
-                            </div>
 
-                            @if (item.Detalhes.Any())
-                            {
-                                <div style="padding:.6rem 1.1rem; display:flex; flex-wrap:wrap; gap:6px;">
-                                    @foreach (var d in item.Detalhes.Where(d => d.Quantidade > 0))
-                                    {
-                                        var dColor = d.Peso > 0 ? "#4ade80" : "#f87171";
-                                        var dBg = d.Peso > 0 ? "rgba(34,197,94,.1)" : "rgba(239,68,68,.1)";
-                                        var sinal = d.Peso > 0 ? "+" : "";
-                                        var pts = Math.Round(d.Peso * d.Quantidade, 2);
-                                        <span style="background:@dBg; color:@dColor; font-size:10px;
-                                                         font-weight:600; padding:2px 9px; border-radius:999px;
-                                                         border:1px solid @dColor;">
-                                            @d.AcaoLabel × @d.Quantidade
-                                            <span style="opacity:.7;">(@sinal@(pts.ToString("0.##", inv)) pts)</span>
-                                        </span>
-                                    }
-                                </div>
-                            }
+                                @if (item.Detalhes.Any(d => d.Quantidade > 0))
+                                {
+                                    <div class="je-detalhes">
+                                        @foreach (var d in item.Detalhes.Where(d => d.Quantidade > 0))
+                                        {
+                                            var dColor = d.Peso > 0 ? "#4ade80" : "#f87171";
+                                            var dBg = d.Peso > 0 ? "rgba(34,197,94,.1)" : "rgba(239,68,68,.1)";
+                                            var sinal = d.Peso > 0 ? "+" : "";
+                                            var pts = Math.Round(d.Peso * d.Quantidade, 2);
+                                            <span class="je-detalhe-chip" style="background:@dBg; color:@dColor; border-color:@dColor;">
+                                                @d.AcaoLabel × @d.Quantidade
+                                                <span style="opacity:.7;">(@sinal@(pts.ToString("0.##", inv)) pts)</span>
+                                            </span>
+                                        }
+                                    </div>
+                                }
 
-                            @if (!string.IsNullOrWhiteSpace(item.Comentario))
-                            {
-                                <div class="comentario-texto" style="padding:.5rem 1.1rem .8rem;">
-                                    "@item.Comentario"
-                                </div>
-                            }
+                                @if (!string.IsNullOrWhiteSpace(item.Comentario))
+                                {
+                                    <div class="je-comentario">"@item.Comentario"</div>
+                                }
 
-                            @if (item.ObservacoesJogador.Any())
-                            {
-                                <div style="padding:0 1.1rem .8rem; display:flex; flex-direction:column; gap:4px;">
-                                    @foreach (var obs in item.ObservacoesJogador)
-                                    {
-                                        <div style="font-size:12.5px; color:#a7f3d0; background:rgba(5,150,105,.12);
-                                                    border:1px solid rgba(5,150,105,.4); border-radius:8px; padding:6px 10px;">
-                                            📌 @obs
-                                        </div>
-                                    }
-                                </div>
-                            }
-                        </div>
+                                @if (item.ObservacoesJogador.Any())
+                                {
+                                    <div class="je-obs">
+                                        @foreach (var obs in item.ObservacoesJogador)
+                                        {
+                                            <div class="je-obs-item">📌 @obs</div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
 
-                        <div class="aba-jogo-content ativa" data-aba="resumo-@idx">
-                            <div class="resumo-jogo-grid">
-                                <div class="resumo-jogo-item">
-                                    <div class="resumo-jogo-valor">@(temPosicao ? item.Posicao : "—")</div>
-                                    <div class="resumo-jogo-label">Posição</div>
-                                </div>
-                                <div class="resumo-jogo-item">
-                                    <div class="resumo-jogo-valor">@(temMinutagem ? $"{item.Minutos}'" : "—")</div>
-                                    <div class="resumo-jogo-label">Minutagem</div>
-                                </div>
-                                <div class="resumo-jogo-item">
-                                    <div class="resumo-jogo-valor">@item.Gols</div>
-                                    <div class="resumo-jogo-label">Gols</div>
-                                </div>
-                                <div class="resumo-jogo-item">
-                                    <div class="resumo-jogo-valor">@item.Assistencias</div>
-                                    <div class="resumo-jogo-label">Assistências</div>
-                                </div>
-                            </div>
-                        </div>
-                    }
-                    else if (temPosicao || temMinutagem || item.Gols > 0 || item.Assistencias > 0)
-                    {
-                        <!-- Sem nota, mas há dado de participação (posição/minutagem/gols/assist) -->
-                        <div class="resumo-jogo-grid">
-                            <div class="resumo-jogo-item">
-                                <div class="resumo-jogo-valor">@(temPosicao ? item.Posicao : "—")</div>
-                                <div class="resumo-jogo-label">Posição</div>
-                            </div>
-                            <div class="resumo-jogo-item">
-                                <div class="resumo-jogo-valor">@(temMinutagem ? $"{item.Minutos}'" : "—")</div>
-                                <div class="resumo-jogo-label">Minutagem</div>
-                            </div>
-                            <div class="resumo-jogo-item">
-                                <div class="resumo-jogo-valor">@item.Gols</div>
-                                <div class="resumo-jogo-label">Gols</div>
-                            </div>
-                            <div class="resumo-jogo-item">
-                                <div class="resumo-jogo-valor">@item.Assistencias</div>
-                                <div class="resumo-jogo-label">Assistências</div>
-                            </div>
-                        </div>
-                    }
-
+                    </div>
+                    idx++;
+                }
                 </div>
-                idx++;
-            }
-            </div>
 
-            @if (Model.NotasPorJogo.Count > 3)
-            {
-                <button class="btn-expand" id="btnExpandHistorico" onclick="expandirHistorico()">
-                    Ver todos os @Model.NotasPorJogo.Count jogos ▼
-                </button>
+                @if (Model.NotasPorJogo.Count > 3)
+                {
+                    <button class="je-btn-expand" id="btnExpandHistorico" onclick="expandirHistorico()">
+                        Ver todos os @Model.NotasPorJogo.Count jogos ▼
+                    </button>
+                }
             }
-        }
 
-        </div><!-- /#historicoWrapper -->
+            </div><!-- /#historicoWrapper -->
+        </div>
 
     </div>
 </div>
 
 <!-- ── Modal: Jogadores semelhantes ─────────────────────────────────────── -->
-<div class="modal-overlay" id="semelhantesModal" onclick="if(event.target===this)fecharSemelhantes()">
-    <div class="modal-box">
-        <div class="modal-header">
-            <h2 class="modal-titulo">Jogadores semelhantes</h2>
-            <button type="button" class="modal-close" onclick="fecharSemelhantes()">✕</button>
+<div class="je-modal-overlay" id="semelhantesModal" onclick="if(event.target===this)fecharSemelhantes()">
+    <div class="je-modal-box">
+        <div class="je-modal-header">
+            <h2 class="je-modal-titulo">Jogadores semelhantes</h2>
+            <button type="button" class="je-modal-close" onclick="fecharSemelhantes()">✕</button>
         </div>
-        <div class="modal-criterios" id="semelhantesCriterios"></div>
-        <div class="modal-body" id="semelhantesBody"></div>
+        <div class="je-modal-criterios" id="semelhantesCriterios"></div>
+        <div class="je-modal-body" id="semelhantesBody"></div>
     </div>
 </div>
 
@@ -1604,59 +824,65 @@
     // ── Histórico por jogo colapsável ─────────────────────────────────────────
     function toggleHistorico() {
         const wrapper = document.getElementById('historicoWrapper');
-        const icon = document.getElementById('historicoToggleIcon');
+        const chevron = document.getElementById('historicoChevron');
         const isVisible = wrapper.style.display !== 'none';
         wrapper.style.display = isVisible ? 'none' : 'block';
-        icon.textContent = isVisible ? '▼ mostrar' : '▲ ocultar';
+        chevron.style.transform = isVisible ? '' : 'rotate(180deg)';
     }
 
     function expandirHistorico() {
         const lista = document.getElementById('historicoLista');
         const btn = document.getElementById('btnExpandHistorico');
-        if (lista) lista.classList.remove('historico-collapsed');
+        if (lista) lista.classList.remove('je-historico-collapsed');
         if (btn) btn.style.display = 'none';
     }
 
-    // ── Abas do card de jogo (Ações / Resumo) ───────────────────────────────
-    function mostrarAbaJogo(btn, aba) {
-        const card = btn.closest('.jogo-item');
+    // ── Ir para a tela do jogo ao clicar no card ────────────────────────────
+    function irParaJogo(e, jogoId) {
+        if (e.target.closest('.je-ver-analise')) return;
+        window.location.href = `/Jogos/Analisar/${jogoId}`;
+    }
+
+    // ── Ver análise (composição da nota) por jogo ───────────────────────────
+    function toggleAnalise(btn, key) {
+        const card = btn.closest('.je-jogo-card');
         if (!card) return;
-        card.querySelectorAll('.aba-jogo-btn').forEach(b => b.classList.remove('ativa'));
-        card.querySelectorAll('.aba-jogo-content').forEach(c => c.classList.remove('ativa'));
-        btn.classList.add('ativa');
-        card.querySelector(`.aba-jogo-content[data-aba="${aba}"]`)?.classList.add('ativa');
+        const painel = card.querySelector(`.je-analise-panel[data-analise="${key}"]`);
+        if (!painel) return;
+        const aberto = painel.classList.toggle('aberto');
+        btn.classList.toggle('aberto', aberto);
+        btn.textContent = aberto ? 'Ocultar análise' : 'Ver análise';
     }
 
     // ── Histórico por Temporada ───────────────────────────────────────────────
     const jogadorId = @Model.Jogador.Id;
-    const temIdApi = @(Model.Jogador.IdApi.HasValue ? "true" : "false");
     let temporadaCarregada = false;
 
     function toggleTemporada() {
         const wrapper = document.getElementById('temporadaWrapper');
-        const icon = document.getElementById('temporadaToggleIcon');
+        const chevron = document.getElementById('temporadaChevron');
         const isVisible = wrapper.style.display !== 'none';
         wrapper.style.display = isVisible ? 'none' : 'block';
-        icon.textContent = isVisible ? '▼ mostrar' : '▲ ocultar';
+        chevron.style.transform = isVisible ? '' : 'rotate(180deg)';
         if (!isVisible && !temporadaCarregada) {
             temporadaCarregada = true;
-            carregarTemporada(jogadorId, @DateTime.Now.Year, document.querySelector('.season-btn.active'));
+            carregarTemporada(jogadorId, @DateTime.Now.Year, document.querySelector('.je-season-btn.active'));
         }
     }
 
     function carregarTemporada(jogId, season, btnEl) {
-        document.querySelectorAll('.season-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.je-season-btn').forEach(b => b.classList.remove('active'));
         if (btnEl) btnEl.classList.add('active');
 
         const container = document.getElementById('temporadaContainer');
         if (!container) return;
-        container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:2rem;font-size:.9rem;">Carregando...</div>';
+        container.innerHTML = '<div style="text-align:center;color:#6b7280;padding:2rem;font-size:.9rem;">Carregando...</div>';
 
         fetch(`/Jogadores/EstatisticasTemporada?id=${jogId}&season=${season}`)
             .then(r => r.json())
             .then(data => {
                 if (!data || data.error || data.length === 0) {
-                    container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:2rem;font-size:.9rem;">Nenhuma estatística disponível para essa temporada.</div>';
+                    container.innerHTML = '<div style="text-align:center;color:#6b7280;padding:2rem;font-size:.9rem;">Nenhuma estatística disponível para essa temporada.</div>';
                     return;
                 }
                 renderTemporada(data, container);
@@ -1669,17 +895,17 @@
     function statBox(val, label, cls) {
         cls = cls || '';
         const display = (val === null || val === undefined || val === 0 || val === '0') ? '<span style="opacity:.3">–</span>' : val;
-        return `<div class="stat-box"><div class="stat-val ${cls}">${display}</div><div class="stat-lbl">${label}</div></div>`;
+        return `<div class="je-stat-box"><div class="je-stat-val ${cls}">${display}</div><div class="je-stat-lbl">${label}</div></div>`;
     }
 
     function renderTemporada(data, container) {
         const proxyBase = '/MediaProxy/Imagem?url=';
 
         const html = data.map(function(s) {
-            const logoLeague = s.league.logo ? `<img src="${proxyBase}${encodeURIComponent(s.league.logo)}" class="temporada-liga-logo" />` : '';
+            const logoLeague = s.league.logo ? `<img src="${proxyBase}${encodeURIComponent(s.league.logo)}" class="je-temporada-logo" />` : '';
             const flag = s.league.flag ? `<img src="${proxyBase}${encodeURIComponent(s.league.flag)}" style="width:16px;height:12px;object-fit:cover;border-radius:2px;" />` : '';
             const logoTeam = s.team.logo ? `<img src="${proxyBase}${encodeURIComponent(s.team.logo)}" style="width:20px;height:20px;object-fit:contain;" />` : '';
-            const rating = s.games.rating ? `<span class="rating-badge">${parseFloat(s.games.rating).toFixed(1)}</span>` : '';
+            const rating = s.games.rating ? `<span class="je-rating-badge">${parseFloat(s.games.rating).toFixed(1)}</span>` : '';
 
             const duelPct = (s.duels.total > 0) ? Math.round(s.duels.won / s.duels.total * 100) + '%' : null;
             const dribPct = (s.dribbles.attempts > 0) ? Math.round(s.dribbles.success / s.dribbles.attempts * 100) + '%' : null;
@@ -1694,27 +920,27 @@
             if (s.cards.red > 0)       chips.push(`🟥 ${s.cards.red}`);
 
             const footerHtml = chips.length
-                ? `<div class="temporada-footer">${chips.map(c => `<span class="temporada-chip">${c}</span>`).join('')}</div>`
+                ? `<div class="je-temporada-footer">${chips.map(c => `<span class="je-temporada-chip">${c}</span>`).join('')}</div>`
                 : '';
 
             return `
-            <div class="temporada-card">
-                <div class="temporada-header">
+            <div class="je-temporada-card">
+                <div class="je-temporada-header">
                     ${logoLeague}
                     <div style="flex:1;min-width:0;">
-                        <div class="temporada-liga-nome">${s.league.name}</div>
-                        <div class="temporada-liga-pais" style="display:flex;align-items:center;gap:5px;">${flag} ${s.league.country || ''} &nbsp;·&nbsp; ${logoTeam} ${s.team.name}</div>
+                        <div class="je-temporada-nome">${s.league.name}</div>
+                        <div class="je-temporada-pais">${flag} ${s.league.country || ''} &nbsp;·&nbsp; ${logoTeam} ${s.team.name}</div>
                     </div>
                     ${rating}
                 </div>
-                <div class="temporada-stats">
-                    ${statBox(s.games.appearences || null, 'Jogos', 'highlight-blue')}
-                    ${statBox(s.goals.total || null, 'Gols', 'highlight-green')}
-                    ${statBox(s.goals.assists || null, 'Assist.', 'highlight-orange')}
+                <div class="je-temporada-stats">
+                    ${statBox(s.games.appearences || null, 'Jogos', 'hl-blue')}
+                    ${statBox(s.goals.total || null, 'Gols', 'hl-green')}
+                    ${statBox(s.goals.assists || null, 'Assist.', 'hl-orange')}
                     ${statBox(s.shots.total || null, 'Finalizações', '')}
                     ${statBox(s.shots.on || null, 'No Alvo', '')}
                     ${statBox(s.passes.total || null, 'Passes', '')}
-                    ${statBox(s.passes.key || null, 'P. Chave', 'highlight-yellow')}
+                    ${statBox(s.passes.key || null, 'P. Chave', 'hl-yellow')}
                     ${statBox(s.passes.accuracy ? s.passes.accuracy + '%' : null, 'Precisão', '')}
                     ${statBox(s.tackles.total || null, 'Desarmes', '')}
                     ${statBox(s.tackles.interceptions || null, 'Intercept.', '')}
@@ -1725,10 +951,8 @@
             </div>`;
         }).join('');
 
-        container.innerHTML = `<div class="temporada-grid">${html}</div>`;
+        container.innerHTML = `<div class="je-temporada-grid">${html}</div>`;
     }
-
-    // carrega temporada só quando o usuário expandir a seção
 
     // ── Jogadores semelhantes ─────────────────────────────────────────────────
     let semelhantesCarregado = false;
@@ -1755,7 +979,7 @@
     function carregarSemelhantes() {
         const body = document.getElementById('semelhantesBody');
         const criterios = document.getElementById('semelhantesCriterios');
-        body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:2rem;font-size:.9rem;">Buscando jogadores semelhantes...</div>';
+        body.innerHTML = '<div style="text-align:center;color:#6b7280;padding:2rem;font-size:.9rem;">Buscando jogadores semelhantes...</div>';
         criterios.innerHTML = '';
 
         fetch(`/Jogadores/JogadoresSemelhantes?id=${jogadorId}`)
@@ -1784,19 +1008,19 @@
 
         // Chips dos critérios usados (já vêm prontos do servidor, conforme a posição)
         const chips = data.criterios || [];
-        criteriosEl.innerHTML = chips.map(t => `<span class="criterio-chip">${t}</span>`).join('');
+        criteriosEl.innerHTML = chips.map(t => `<span class="je-criterio-chip">${t}</span>`).join('');
 
         const colunas = data.colunas || [];
         const jogadores = data.jogadores || [];
         if (jogadores.length === 0) {
-            body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:2rem;font-size:.9rem;">Nenhum jogador com perfil semelhante foi encontrado na base.</div>';
+            body.innerHTML = '<div style="text-align:center;color:#6b7280;padding:2rem;font-size:.9rem;">Nenhum jogador com perfil semelhante foi encontrado na base.</div>';
             return;
         }
 
         body.innerHTML = jogadores.map(function (p) {
             const foto = fotoSrc(p.fotoUrl);
             const escudo = p.escudoUrl
-                ? `<img src="${proxyBase}${encodeURIComponent(p.escudoUrl)}" class="sem-escudo" />`
+                ? `<img src="${proxyBase}${encodeURIComponent(p.escudoUrl)}" class="je-sem-escudo" />`
                 : '';
             const clube = p.clube ? `${escudo} ${p.clube}` : '';
             const idade = p.idade > 0 ? `📅 ${p.idade} anos` : '';
@@ -1810,17 +1034,17 @@
 
             const stats = p.stats || [];
             const statsHtml = colunas.map((label, i) =>
-                `<div class="sem-stat"><div class="sem-stat-val">${stats[i] != null ? stats[i] : 0}</div><div class="sem-stat-lbl">${label}</div></div>`
+                `<div class="je-sem-stat"><div class="je-sem-stat-val">${stats[i] != null ? stats[i] : 0}</div><div class="je-sem-stat-lbl">${label}</div></div>`
             ).join('');
 
             return `
-            <div class="sem-card">
-                <img src="${foto}" class="sem-foto" onerror="this.onerror=null; this.src='/images/placeholder-jogador.png'" />
-                <div class="sem-info">
-                    <a class="sem-nome" href="/Jogadores/Estatisticas/${p.id}">${p.nome}</a>
-                    <div class="sem-meta">${metaParts.join('')}</div>
+            <div class="je-sem-card">
+                <img src="${foto}" class="je-sem-foto" onerror="this.onerror=null; this.src='/images/placeholder-jogador.png'" />
+                <div class="je-sem-info">
+                    <a class="je-sem-nome" href="/Jogadores/Estatisticas/${p.id}">${p.nome}</a>
+                    <div class="je-sem-meta">${metaParts.join('')}</div>
                 </div>
-                <div class="sem-stats">${statsHtml}</div>
+                <div class="je-sem-stats">${statsHtml}</div>
             </div>`;
         }).join('');
     }
