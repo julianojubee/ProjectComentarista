@@ -98,6 +98,7 @@
 
 <div id="jogador-tooltip"></div>
 
+<div class="an-root">
 <style>
     :root {
         --cor-camisa-casa: #@(string.IsNullOrWhiteSpace(Model.Jogo.CorCamisaCasa) ? "dc3545" : Model.Jogo.CorCamisaCasa);
@@ -105,6 +106,63 @@
         --cor-camisa-vis:  #@(string.IsNullOrWhiteSpace(Model.Jogo.CorCamisaVisitante) ? "0d6efd" : Model.Jogo.CorCamisaVisitante);
         --cor-numero-vis:  #@(string.IsNullOrWhiteSpace(Model.Jogo.CorNumeroVisitante) ? "ffffff" : Model.Jogo.CorNumeroVisitante);
     }
+
+    /* ── Página sempre no tema escuro/dourado (mesmo padrão das telas já
+       convertidas — Home, Times, Jogadores, Jogos, Competições, Relatórios,
+       Estatísticas). Full-bleed: ocupa a largura toda, ignorando o gutter
+       do .container do layout. ── */
+    .an-root {
+        margin: 0 -12px;
+        background: #0f0f0f;
+        border-radius: 14px;
+        overflow: hidden;
+        padding: 20px 2.5rem 48px;
+        color: #e5e7eb;
+        font-family: 'Barlow', Arial, sans-serif;
+    }
+    .an-root * { box-sizing: border-box; }
+
+    /* Bootstrap genérico usado nesta tela → reskin dark */
+    .an-root .form-select, .an-root .form-control {
+        background: #1a1a1a !important; border: 1px solid #2a2a2a !important;
+        color: #e5e7eb !important; border-radius: 8px !important;
+        font-family: 'Barlow', Arial, sans-serif !important;
+    }
+    .an-root .form-select:focus, .an-root .form-control:focus { border-color: #d4a520 !important; box-shadow: none !important; }
+    .an-root .form-select option { background: #1a1a1a; }
+    .an-root label, .an-root .form-label, .an-root .fw-bold { color: #9ca3af !important; }
+    .an-root .text-muted { color: #6b7280 !important; }
+
+    .an-root .nav-tabs { border-bottom: 2px solid #222; }
+    .an-root .nav-tabs .nav-link {
+        color: #6b7280; border: none; border-bottom: 2px solid transparent;
+        font-size: .85rem; font-weight: 600; margin-bottom: -2px; background: transparent;
+    }
+    .an-root .nav-tabs .nav-link:hover { color: #d4a520; border-color: transparent; }
+    .an-root .nav-tabs .nav-link.active {
+        color: #d4a520; background: transparent; border-color: transparent transparent #d4a520; font-weight: 700;
+    }
+
+    .an-root .btn-outline-primary {
+        color: #60a5fa; border-color: rgba(59,130,246,.4); background: rgba(59,130,246,.08);
+    }
+    .an-root .btn-outline-primary:hover { background: rgba(59,130,246,.18); color: #93c5fd; border-color: rgba(59,130,246,.5); }
+    .an-root .btn-outline-warning {
+        color: #d4a520; border-color: rgba(212,165,32,.5); background: rgba(212,165,32,.08);
+    }
+    .an-root .btn-outline-warning:hover { background: rgba(212,165,32,.18); color: #f0c04a; }
+    .an-root .btn-primary { background: #d4a520; border-color: #d4a520; color: #141414; }
+    .an-root .btn-primary:hover { background: #c49918; border-color: #c49918; }
+    .an-root .badge.bg-secondary { background: #374151 !important; }
+
+    .an-root .cf-card { background: #161616; border: 1px solid #262626; border-radius: 12px; }
+
+    /* Tabelas Bootstrap (listas de jogadores) → reskin dark */
+    .an-root .table { color: #e5e7eb; margin-bottom: 0; }
+    .an-root .table > :not(caption) > * > * { background-color: transparent; border-color: #1e1e1e; color: #e5e7eb; box-shadow: none; }
+    .an-root .table-striped > tbody > tr:nth-of-type(odd) > * { background-color: rgba(255,255,255,0.03); }
+    .an-root .table thead th { color: #6b7280; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid #262626; font-weight: 700; }
+    .an-root .table-sm td, .an-root .table-sm th { padding: .35rem .5rem; }
 
     .posicao-drop {
         position: absolute;
@@ -197,20 +255,20 @@
 
     .banco {
         min-height: 100px;
-        border: 2px dashed #aaa;
+        border: 2px dashed #333;
         border-radius: 6px;
         padding: 8px;
         display: flex;
         flex-wrap: wrap;
         gap: 6px;
         align-items: flex-start;
-        background: #f9f9f9;
+        background: #111;
         margin-top: 8px;
     }
 
         .banco.drag-over {
-            border-color: #198754;
-            background: #e8f5e9;
+            border-color: #d4a520;
+            background: rgba(212,165,32,0.06);
         }
 
     .reserva-card {
@@ -218,7 +276,7 @@
         flex-direction: column;
         align-items: center;
         font-size: 11px;
-        color: #333;
+        color: #9ca3af;
         width: 56px;
         cursor: pointer;
         position: relative;
@@ -243,7 +301,7 @@
 
     .banco-label {
         font-size: 12px;
-        color: #666;
+        color: #6b7280;
         margin-bottom: 4px;
         font-weight: 500;
     }
@@ -404,16 +462,16 @@
 
     .obs-box {
         margin-top: 14px;
-        border: 1px solid #d1d5db;
+        border: 1px solid #262626;
         border-radius: 10px;
         padding: 10px;
-        background: #fafafa;
+        background: #161616;
     }
 
     .obs-title {
         font-size: 13px;
         font-weight: 600;
-        color: #374151;
+        color: #9ca3af;
         margin-bottom: 8px;
     }
 
@@ -436,21 +494,24 @@
         height: 20px;
         object-fit: contain;
         border-radius: 50%;
-        border: 1px solid #e5e7eb;
-        background: #fff;
+        border: 1px solid #2a2a2a;
+        background: #1a1a1a;
     }
 
     .obs-row textarea {
         width: 100%;
         min-height: 38px;
-        border: 1px solid #d1d5db;
+        border: 1px solid #2a2a2a;
         border-radius: 8px;
         padding: 8px 10px;
         font-size: 13px;
         resize: none;
         overflow: hidden;
         line-height: 1.35;
+        background: #0f0f0f;
+        color: #e5e7eb;
     }
+    .obs-row textarea:focus { border-color: #d4a520; outline: none; }
 
     .obs-actions {
         display: flex;
@@ -459,21 +520,22 @@
     }
 
     .obs-btn {
-        border: 1px solid #d1d5db;
-        background: #fff;
-        color: #374151;
+        border: 1px solid #2a2a2a;
+        background: #1a1a1a;
+        color: #9ca3af;
         border-radius: 8px;
         padding: 5px 9px;
         font-size: 12px;
         cursor: pointer;
     }
+    .obs-btn:hover { border-color: #d4a520; color: #d4a520; }
 
     .obs-tag-row {
         display: flex;
         align-items: flex-start;
         gap: 8px;
         padding: 6px 0;
-        border-bottom: 1px dashed #e5e7eb;
+        border-bottom: 1px dashed #262626;
         font-size: 13px;
     }
     .obs-tag-row:last-child { border-bottom: none; }
@@ -494,13 +556,13 @@
     .obs-tag-jogador-nome {
         flex: 0 0 auto;
         font-weight: 600;
-        color: #374151;
+        color: #e5e7eb;
         font-size: 12px;
     }
     .obs-tag-texto {
         flex: 1;
         min-width: 0;
-        color: #374151;
+        color: #9ca3af;
         white-space: pre-wrap;
         word-break: break-word;
     }
@@ -1235,36 +1297,36 @@
 
 <!-- ── Status de Análise ───────────────────────────────────────────── -->
 <div style="display:flex; align-items:center; gap:12px; margin-bottom:1rem;
-            padding:.85rem 1.2rem; background:#fff; border:.5px solid #e5e7eb;
+            padding:.85rem 1.2rem; background:#161616; border:1px solid #262626;
             border-radius:12px;">
     <div style="display:flex; align-items:center; gap:10px; flex:1;">
         <div id="statusIcon" style="width:36px; height:36px; border-radius:50%;
              display:flex; align-items:center; justify-content:center; font-size:18px;
-             background:@(Model.Analisado ? "#dcfce7" : "#f3f4f6");
-             border:2px solid @(Model.Analisado ? "#22c55e" : "#e5e7eb");">
+             background:@(Model.Analisado ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.06)");
+             border:2px solid @(Model.Analisado ? "#22c55e" : "#333");">
             @(Model.Analisado ? "✅" : "⏳")
         </div>
         <div>
             <div id="statusLabel" style="font-size:13px; font-weight:600;
-                 color:@(Model.Analisado ? "#15803d" : "#374151");">
+                 color:@(Model.Analisado ? "#4ade80" : "#9ca3af");">
                 @(Model.Analisado ? "Jogo analisado" : "Aguardando análise")
             </div>
-            <div style="font-size:11px; color:#9ca3af;">
+            <div style="font-size:11px; color:#6b7280;">
                 Marque como analisado após revisar escalação final e eventos
             </div>
         </div>
     </div>
 
     <label style="display:flex; align-items:center; gap:8px; cursor:pointer;
-                  padding:8px 14px; border-radius:8px; border:1px solid #e5e7eb;
-                  background:#f9fafb; user-select:none;"
+                  padding:8px 14px; border-radius:8px; border:1px solid #262626;
+                  background:#1a1a1a; user-select:none;"
            title="Marcar/desmarcar jogo como analisado">
         <input type="checkbox"
                id="chkAnalisado"
                style="width:16px; height:16px; cursor:pointer; accent-color:#22c55e;"
                @(Model.Analisado ? "checked" : "")
                onchange="toggleAnalisado(this)" />
-        <span style="font-size:13px; font-weight:500; color:#374151;">Marcar como analisado</span>
+        <span style="font-size:13px; font-weight:500; color:#9ca3af;">Marcar como analisado</span>
     </label>
 
     @if (!string.IsNullOrWhiteSpace(Model.Jogo.LinkDetalhes))
@@ -1275,8 +1337,8 @@
             @Html.AntiForgeryToken()
             <button type="submit"
                     style="display:flex; align-items:center; gap:6px; padding:8px 14px;
-                           border-radius:8px; border:1px solid #f59e0b; background:#fffbeb;
-                           color:#92400e; font-size:13px; font-weight:500; cursor:pointer;
+                           border-radius:8px; border:1px solid rgba(245,158,11,0.4); background:rgba(245,158,11,0.08);
+                           color:#fbbf24; font-size:13px; font-weight:500; cursor:pointer;
                            white-space:nowrap;"
                     title="Apaga e reimporta escalação, gols e cartões deste jogo (não mexe nas suas observações)">
                 🔄 Reimportar dados
@@ -1525,7 +1587,7 @@
                     @if (treinadorCasa != null)
                     {
                         <div class="d-flex align-items-center gap-2 px-1 py-1 mb-1"
-                             style="background:#f0f4ff;border-radius:7px;border:1px solid #dce4f5;">
+                             style="background:#161616;border-radius:7px;border:1px solid #262626;">
                             @if (!string.IsNullOrWhiteSpace(treinadorCasa.FotoUrl))
                             {
                                 <img src="@Url.FotoSrc(treinadorCasa.FotoUrl)"
@@ -1538,7 +1600,7 @@
                             }
                             <div>
                                 <div style="font-size:9px;color:#6b7280;text-transform:uppercase;line-height:1;">Treinador</div>
-                                <div style="font-size:12px;font-weight:600;color:#1e3a5f;">@treinadorCasa.Nome</div>
+                                <div style="font-size:12px;font-weight:600;color:#f1f5f9;">@treinadorCasa.Nome</div>
                             </div>
                         </div>
                     }
@@ -1780,7 +1842,7 @@
                     @if (treinadorVis != null)
                     {
                         <div class="d-flex align-items-center gap-2 px-1 py-1 mb-1"
-                             style="background:#f0f4ff;border-radius:7px;border:1px solid #dce4f5;">
+                             style="background:#161616;border-radius:7px;border:1px solid #262626;">
                             @if (!string.IsNullOrWhiteSpace(treinadorVis.FotoUrl))
                             {
                                 <img src="@Url.FotoSrc(treinadorVis.FotoUrl)"
@@ -1793,7 +1855,7 @@
                             }
                             <div>
                                 <div style="font-size:9px;color:#6b7280;text-transform:uppercase;line-height:1;">Treinador</div>
-                                <div style="font-size:12px;font-weight:600;color:#1e3a5f;">@treinadorVis.Nome</div>
+                                <div style="font-size:12px;font-weight:600;color:#f1f5f9;">@treinadorVis.Nome</div>
                             </div>
                         </div>
                     }
@@ -1913,21 +1975,21 @@
                 <div style="display:flex;align-items:center;gap:8px;">
                     <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeCasa?.EscudoUrl })"
                          alt="@Model.Jogo.TimeCasa?.Nome" style="width:28px;height:28px;object-fit:contain;" />
-                    <span style="font-weight:700;color:#1e3a5f;">@Model.Jogo.TimeCasa?.Nome</span>
+                    <span style="font-weight:700;color:#f1f5f9;">@Model.Jogo.TimeCasa?.Nome</span>
                 </div>
                 <div style="font-size:12px;color:#6b7280;text-transform:uppercase;font-weight:600;">Posse de bola</div>
                 <div style="display:flex;align-items:center;gap:8px;">
-                    <span style="font-weight:700;color:#1e3a5f;">@Model.Jogo.TimeVisitante?.Nome</span>
+                    <span style="font-weight:700;color:#f1f5f9;">@Model.Jogo.TimeVisitante?.Nome</span>
                     <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeVisitante?.EscudoUrl })"
                          alt="@Model.Jogo.TimeVisitante?.Nome" style="width:28px;height:28px;object-fit:contain;" />
                 </div>
             </div>
 
-            <div style="display:flex;align-items:center;height:10px;border-radius:6px;overflow:hidden;margin-bottom:0.25rem;background:#e5e7eb;">
-                <div style="height:100%;background:#1e3a5f;width:@(possCasa)%;"></div>
-                <div style="height:100%;background:#9ca3af;width:@(possVis)%;"></div>
+            <div style="display:flex;align-items:center;height:10px;border-radius:6px;overflow:hidden;margin-bottom:0.25rem;background:#222;">
+                <div style="height:100%;background:#dc2626;width:@(possCasa)%;"></div>
+                <div style="height:100%;background:#2563eb;width:@(possVis)%;"></div>
             </div>
-            <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:#1e3a5f;margin-bottom:1.5rem;">
+            <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:#f1f5f9;margin-bottom:1.5rem;">
                 <span>@(possCasa)%</span>
                 <span style="color:#6b7280;">@(possVis)%</span>
             </div>
@@ -1943,14 +2005,14 @@
                 var pctVis = 100 - pctCasa;
 
                 <div style="margin-bottom:1rem;">
-                    <div style="display:flex;justify-content:space-between;font-size:13px;color:#374151;margin-bottom:4px;">
+                    <div style="display:flex;justify-content:space-between;font-size:13px;color:#e5e7eb;margin-bottom:4px;">
                         <span style="font-weight:700;">@valCasaStr</span>
                         <span style="color:#6b7280;">@label</span>
                         <span style="font-weight:700;">@valVisStr</span>
                     </div>
-                    <div style="display:flex;align-items:center;height:8px;border-radius:5px;overflow:hidden;background:#e5e7eb;">
-                        <div style="height:100%;background:#1e3a5f;width:@(pctCasa)%;"></div>
-                        <div style="height:100%;background:#9ca3af;width:@(pctVis)%;"></div>
+                    <div style="display:flex;align-items:center;height:8px;border-radius:5px;overflow:hidden;background:#222;">
+                        <div style="height:100%;background:#dc2626;width:@(pctCasa)%;"></div>
+                        <div style="height:100%;background:#2563eb;width:@(pctVis)%;"></div>
                     </div>
                 </div>
             }
@@ -1972,15 +2034,15 @@
 
 <input type="hidden" id="jogoId" value="@Model.Jogo.Id" />
 <!-- Modal de Avaliação -->
-<div id="modal-avaliacao" onclick="if (event.target === this) salvarAvaliacao();" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
-    <div style="background:white; border-radius:12px; width:360px; max-width:95vw; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.2);">
+<div id="modal-avaliacao" onclick="if (event.target === this) salvarAvaliacao();" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:#1a1a1a; border:1px solid #2a2a2a; color:#e5e7eb; border-radius:12px; width:360px; max-width:95vw; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.5);">
         <!-- Cabeçalho fixo -->
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; padding:1.25rem 1.25rem 0.75rem; border-bottom:1px solid #eee; flex-shrink:0;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; padding:1.25rem 1.25rem 0.75rem; border-bottom:1px solid #262626; flex-shrink:0;">
             <div>
-                <h5 id="av-nome" style="margin:0; font-size:15px; font-weight:600;"></h5>
-                <small id="av-pos" style="color:#888;"></small>
+                <h5 id="av-nome" style="margin:0; font-size:15px; font-weight:600; color:#f1f5f9;"></h5>
+                <small id="av-pos" style="color:#6b7280;"></small>
             </div>
-            <button type="button" onclick="fecharAvaliacao()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#999;">&times;</button>
+            <button type="button" onclick="fecharAvaliacao()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#6b7280;">&times;</button>
         </div>
 
         <!-- Corpo rolável (somente as ações) -->
@@ -1988,38 +2050,38 @@
             <div id="av-acoes"></div>
 
             <!-- Bônus automáticos -->
-            <div id="av-bonus-bloco" style="display:none; margin-top:0.75rem; padding:0.6rem 0.75rem; background:#f8faff; border-radius:8px; border:1px solid #e0eaff;">
-                <div style="font-size:11px; font-weight:600; color:#2563eb; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">⚡ Bônus automáticos</div>
+            <div id="av-bonus-bloco" style="display:none; margin-top:0.75rem; padding:0.6rem 0.75rem; background:rgba(59,130,246,0.08); border-radius:8px; border:1px solid rgba(59,130,246,0.25);">
+                <div style="font-size:11px; font-weight:600; color:#60a5fa; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">⚡ Bônus automáticos</div>
                 <div id="av-bonus-linhas" style="display:flex; flex-direction:column; gap:4px;"></div>
-                <div style="margin-top:6px; padding-top:6px; border-top:1px solid #dbeafe; display:flex; justify-content:space-between; font-size:13px; font-weight:600;">
+                <div style="margin-top:6px; padding-top:6px; border-top:1px solid rgba(59,130,246,0.25); display:flex; justify-content:space-between; font-size:13px; font-weight:600; color:#e5e7eb;">
                     <span>Subtotal bônus</span>
-                    <span id="av-bonus-subtotal" style="color:#2563eb;">+0</span>
+                    <span id="av-bonus-subtotal" style="color:#60a5fa;">+0</span>
                 </div>
             </div>
         </div>
 
         <!-- Rodapé fixo: pontuação + observação + salvar -->
-        <div style="flex-shrink:0; padding:0.75rem 1.25rem 1.25rem; border-top:1px solid #eee; background:white;">
+        <div style="flex-shrink:0; padding:0.75rem 1.25rem 1.25rem; border-top:1px solid #262626; background:#1a1a1a;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="color:#666; font-size:13px;">Pontuação total</span>
+                <span style="color:#9ca3af; font-size:13px;">Pontuação total</span>
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <span id="av-total" style="font-size:22px; font-weight:600;">0</span>
+                    <span id="av-total" style="font-size:22px; font-weight:600; color:#f1f5f9;">0</span>
                     <span id="av-nota" style="padding:3px 10px; border-radius:20px; font-size:12px; font-weight:500;">Regular</span>
                 </div>
             </div>
             <div style="margin-top:0.75rem; display:flex; align-items:center; gap:8px;">
-                <label for="av-nota-manual" style="font-size:12px; color:#666; flex:1;">
+                <label for="av-nota-manual" style="font-size:12px; color:#9ca3af; flex:1;">
                     Nota manual (opcional)
-                    <span style="display:block; font-size:10px; color:#999;">Se preenchida, vale como nota final (ignora base + ações)</span>
+                    <span style="display:block; font-size:10px; color:#6b7280;">Se preenchida, vale como nota final (ignora base + ações)</span>
                 </label>
                 <input type="number" id="av-nota-manual" min="0" max="10" step="0.1" placeholder="—"
-                       style="width:70px; font-size:14px; text-align:center; border:1px solid #ddd; border-radius:6px; padding:6px;">
+                       style="width:70px; font-size:14px; text-align:center; border:1px solid #2a2a2a; border-radius:6px; padding:6px; background:#0f0f0f; color:#e5e7eb;">
             </div>
             <div style="margin-top:0.75rem;">
-                <label style="font-size:12px; color:#666;">Observação:</label>
-                <textarea id="av-obs" rows="2" style="width:100%; margin-top:4px; font-size:13px; border:1px solid #ddd; border-radius:6px; padding:6px; resize:vertical;"></textarea>
+                <label style="font-size:12px; color:#9ca3af;">Observação:</label>
+                <textarea id="av-obs" rows="2" style="width:100%; margin-top:4px; font-size:13px; border:1px solid #2a2a2a; border-radius:6px; padding:6px; resize:vertical; background:#0f0f0f; color:#e5e7eb;"></textarea>
             </div>
-            <button type="button" onclick="salvarAvaliacao()" style="width:100%; margin-top:10px; padding:8px; background:#198754; color:white; border:none; border-radius:6px; font-size:14px; cursor:pointer;">Salvar</button>
+            <button type="button" onclick="salvarAvaliacao()" style="width:100%; margin-top:10px; padding:8px; background:#d4a520; color:#141414; border:none; border-radius:6px; font-size:14px; font-weight:700; cursor:pointer;">Salvar</button>
         </div>
     </div>
 </div>
@@ -2590,17 +2652,17 @@
             if (!avaliacoes[jogadorId][a.id]) avaliacoes[jogadorId][a.id] = 0;
 
             const row = document.createElement('div');
-            row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f0f0f0;';
+            row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #262626;color:#e5e7eb;';
             row.innerHTML = `
                 <div style="flex:1;font-size:13px;">
                     <div>${a.label}</div>
-                    <div style="font-size:11px;color:#999;">${a.peso > 0 ? '+' + a.peso : a.peso} ponto(s)</div>
+                    <div style="font-size:11px;color:#6b7280;">${a.peso > 0 ? '+' + a.peso : a.peso} ponto(s)</div>
                 </div>
                 <button type="button" onclick="ajustarAcao(${jogadorId},'${a.id}',-1)"
-                    style="width:28px;height:28px;border-radius:50%;border:1px solid #ddd;background:#f8f8f8;font-size:16px;cursor:pointer;">&#8722;</button>
-                <span id="av-cnt-${a.id}" style="min-width:28px;text-align:center;font-size:14px;font-weight:600;">${avaliacoes[jogadorId][a.id]}</span>
+                    style="width:28px;height:28px;border-radius:50%;border:1px solid #2a2a2a;background:#1a1a1a;color:#e5e7eb;font-size:16px;cursor:pointer;">&#8722;</button>
+                <span id="av-cnt-${a.id}" style="min-width:28px;text-align:center;font-size:14px;font-weight:600;color:#f1f5f9;">${avaliacoes[jogadorId][a.id]}</span>
                 <button type="button" onclick="ajustarAcao(${jogadorId},'${a.id}',+1)"
-                    style="width:28px;height:28px;border-radius:50%;border:1px solid #ddd;background:#f8f8f8;font-size:16px;cursor:pointer;">+</button>`;
+                    style="width:28px;height:28px;border-radius:50%;border:1px solid #2a2a2a;background:#1a1a1a;color:#e5e7eb;font-size:16px;cursor:pointer;">+</button>`;
             container.appendChild(row);
         });
 
@@ -2625,12 +2687,12 @@
         const el   = document.getElementById('av-total');
         const chip = document.getElementById('av-nota');
         el.textContent = total;
-        el.style.color = total > 0 ? '#198754' : total < 0 ? '#dc3545' : '#333';
+        el.style.color = total > 0 ? '#4ade80' : total < 0 ? '#f87171' : '#9ca3af';
 
-        if      (total >= 5) { chip.textContent = 'Excelente'; chip.style.cssText = 'padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;background:#d1e7dd;color:#0f5132;'; }
-        else if (total >= 2) { chip.textContent = 'Bom';       chip.style.cssText = 'padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;background:#d1e7dd;color:#0f5132;'; }
-        else if (total >= 0) { chip.textContent = 'Regular';   chip.style.cssText = 'padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;background:#fff3cd;color:#664d03;'; }
-        else                 { chip.textContent = 'Ruim';      chip.style.cssText = 'padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;background:#f8d7da;color:#842029;'; }
+        if      (total >= 5) { chip.textContent = 'Excelente'; chip.style.cssText = 'padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;background:rgba(34,197,94,0.15);color:#4ade80;'; }
+        else if (total >= 2) { chip.textContent = 'Bom';       chip.style.cssText = 'padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;background:rgba(34,197,94,0.15);color:#4ade80;'; }
+        else if (total >= 0) { chip.textContent = 'Regular';   chip.style.cssText = 'padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;background:rgba(245,158,11,0.15);color:#fbbf24;'; }
+        else                 { chip.textContent = 'Ruim';      chip.style.cssText = 'padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;background:rgba(239,68,68,0.15);color:#f87171;'; }
     }
 
     async function salvarAvaliacao() {
@@ -3076,16 +3138,16 @@
         const label = document.getElementById('statusLabel');
 
         if (analisado === 1) {
-            icon.style.background    = '#dcfce7';
+            icon.style.background    = 'rgba(34,197,94,0.12)';
             icon.style.borderColor   = '#22c55e';
             icon.textContent         = '✅';
-            label.style.color        = '#15803d';
+            label.style.color        = '#4ade80';
             label.textContent        = 'Jogo analisado';
         } else {
-            icon.style.background    = '#f3f4f6';
-            icon.style.borderColor   = '#e5e7eb';
+            icon.style.background    = 'rgba(255,255,255,0.06)';
+            icon.style.borderColor   = '#333';
             icon.textContent         = '⏳';
-            label.style.color        = '#374151';
+            label.style.color        = '#9ca3af';
             label.textContent        = 'Aguardando análise';
         }
     } catch (e) {
@@ -3446,3 +3508,4 @@
         });
     }
 </script>
+</div><!-- /.an-root -->
