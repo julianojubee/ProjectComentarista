@@ -1,251 +1,19 @@
-﻿@model ControleFutebolWeb.Models.ViewModels.JogadoresIndexViewModel
+@model ControleFutebolWeb.Models.ViewModels.JogadoresIndexViewModel
 @using ControleFutebolWeb.Helpers
 @{
     ViewData["Title"] = "Jogadores";
-    @if (TempData["Sucesso"] != null)
+
+    (string bg, string border, string text) CorPosicao(string? posRaw)
     {
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            @TempData["Sucesso"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    }
-    @if (TempData["Erro"] != null)
-    {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            @TempData["Erro"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    }
-}
-
-<style>
-    .cf-hero {
-        position: relative;
-        background: linear-gradient(135deg, #0a1628 0%, #1a2f4e 55%, #0f2040 100%);
-        border-radius: 14px;
-        padding: 2.6rem 2rem;
-        text-align: center;
-        overflow: hidden;
-        margin-bottom: 1.5rem;
-        color: #fff;
+        var p = (posRaw ?? "").ToLowerInvariant();
+        if (p.Contains("gol"))       return ("rgba(245,158,11,0.15)", "rgba(245,158,11,0.35)", "#fbbf24");
+        if (p.StartsWith("zag") || p.StartsWith("def")) return ("rgba(59,130,246,0.15)", "rgba(59,130,246,0.35)", "#60a5fa");
+        if (p.StartsWith("lateral") || p.StartsWith("ala")) return ("rgba(59,130,246,0.15)", "rgba(59,130,246,0.35)", "#60a5fa");
+        if (p.StartsWith("volante") || p.StartsWith("meia")) return ("rgba(168,85,247,0.15)", "rgba(168,85,247,0.35)", "#c084fc");
+        if (p.StartsWith("ponta") || p.StartsWith("centro") || p.StartsWith("ata")) return ("rgba(34,197,94,0.15)", "rgba(34,197,94,0.35)", "#4ade80");
+        return ("rgba(107,114,128,0.15)", "rgba(107,114,128,0.3)", "#9ca3af");
     }
 
-    /* Banner um pouco mais alto para acomodar os recortes */
-    .cf-hero { min-height: 230px; }
-
-    /* Recortes de jogadores (PNG sem fundo) ancorados na base do banner */
-    .cf-hero-montage {
-        position: absolute;
-        inset: 0;
-        z-index: 1;
-        display: flex;
-        align-items: flex-end;
-        justify-content: flex-end;
-        gap: 0;
-        padding: 0 1rem;
-        pointer-events: none;
-    }
-
-    .cf-hero-montage img {
-        height: 100%;
-        width: auto;
-        object-fit: contain;
-        object-position: bottom center;
-        margin-left: -22px; /* leve sobreposição entre os jogadores */
-        filter: drop-shadow(0 4px 10px rgba(0,0,0,0.35));
-        opacity: 0.95;
-    }
-
-    .cf-hero-montage img:first-child { margin-left: 0; }
-
-    /* Leve clareamento na esquerda para o texto respirar sobre o gradiente */
-    .cf-hero-overlay {
-        position: absolute;
-        inset: 0;
-        z-index: 2;
-        background: linear-gradient(90deg, rgba(10,22,40,0.55) 0%, rgba(10,22,40,0.15) 45%, rgba(10,22,40,0) 70%);
-    }
-
-    .cf-hero-content { position: relative; z-index: 3; text-align: left; }
-
-    @@media (max-width: 640px) {
-        .cf-hero-montage { opacity: 0.4; justify-content: center; }
-        .cf-hero-content { text-align: center; }
-    }
-
-    .cf-hero-badge {
-        display: inline-block;
-        background: rgba(55, 138, 221, 0.2);
-        color: #85b7eb;
-        font-size: 11px;
-        font-weight: 600;
-        padding: 4px 14px;
-        border-radius: 20px;
-        border: 1px solid rgba(55, 138, 221, 0.35);
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        margin-bottom: 0.9rem;
-    }
-
-    .cf-hero h1 { font-size: 1.9rem; color: #fff; margin-bottom: 0.6rem; font-weight: 600; }
-    .cf-hero p  { color: rgba(255,255,255,0.65); margin: 0; font-size: 0.95rem; }
-
-    .players-filter {
-        display:flex;
-        gap:12px;
-        align-items:flex-end;
-        flex-wrap:wrap;
-        margin-bottom: 12px;
-    }
-
-    /* Lista de jogadores */
-    .player-list { display: flex; flex-direction: column; gap: 0; margin-top: 1rem; }
-
-    .player-row {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        padding: 10px 14px;
-        background: #fff;
-        border: 0.5px solid #e5e7eb;
-        border-bottom: none;
-        transition: background 0.12s;
-    }
-
-    .player-row:first-child { border-radius: 10px 10px 0 0; }
-    .player-row:last-child  { border-bottom: 0.5px solid #e5e7eb; border-radius: 0 0 10px 10px; }
-    .player-row:only-child  { border-radius: 10px; border-bottom: 0.5px solid #e5e7eb; }
-
-    .player-row:hover { background: #f0f6ff; }
-
-    .player-photo {
-        width: 42px;
-        height: 42px;
-        border-radius: 50%;
-        background: #f3f4f6;
-        border: 0.5px solid #e5e7eb;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        flex-shrink: 0;
-    }
-
-    .player-photo img { width: 100%; height: 100%; object-fit: cover; }
-
-    .player-info { flex: 1; min-width: 0; }
-
-    .player-name-link {
-        font-weight: 600;
-        color: #1d4ed8;
-        font-size: 0.97rem;
-        text-decoration: none;
-    }
-
-    .player-name-link:hover { text-decoration: underline; }
-
-    .player-meta { color: #6b7280; font-size: 13px; margin-top: 1px; }
-
-    .player-club {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        flex-shrink: 0;
-        min-width: 140px;
-    }
-
-    .player-club img { width: 22px; height: 22px; object-fit: contain; }
-
-    .player-club-name { font-size: 13px; color: #374151; }
-
-    .player-actions { display: flex; gap: 6px; flex-shrink: 0; }
-
-    .cf-small-btn { font-size: 12px; padding: 5px 9px; }
-
-    @@media (max-width: 640px) {
-        .cf-hero { padding: 1.8rem 1rem; }
-        .cf-hero h1 { font-size: 1.5rem; }
-        .players-filter { flex-direction: column; align-items: stretch; }
-        .players-filter > div { width: 100%; }
-        .players-filter select { width: 100%; }
-        .player-club { min-width: 100px; }
-        .player-actions { flex-wrap: wrap; }
-    }
-</style>
-
-<div class="cf-hero">
-    <div class="cf-hero-montage">
-        <img src="~/Images/banner/vinicius.png" alt="" />
-        <img src="~/Images/banner/mbappe.png" alt="" />
-        <img src="~/Images/banner/haaland.png" alt="" />
-        <img src="~/Images/banner/ronaldo.png" alt="" />
-    </div>
-    <div class="cf-hero-overlay"></div>
-    <div class="cf-hero-content">
-        <div class="cf-hero-badge">Cadastros</div>
-        <h1>Jogadores</h1>
-        <p>Consulte e gerencie os jogadores cadastrados no sistema.</p>
-    </div>
-</div>
-
-<form asp-action="Index" method="get" class="players-filter">
-    <div>
-        <label for="nome" class="form-label">Nome do jogador</label>
-        <input type="text" id="nome" name="nome" value="@Model.Nome" class="form-control" placeholder="Buscar por nome..." />
-    </div>
-
-    <div>
-        <label for="posicao" class="form-label">Posição</label>
-        @Html.DropDownList("posicao", Model.Posicoes, "Todas", new { @class = "form-select" })
-    </div>
-
-    <div>
-        <label for="nacionalidade" class="form-label">Nacionalidade</label>
-        @Html.DropDownList("nacionalidade", Model.Nacionalidades, "Todas", new { @class = "form-select" })
-    </div>
-
-    <div>
-        <label for="timeId" class="form-label">Time</label>
-        @Html.DropDownList("timeId", Model.Times, "Todos", new { @class = "form-select" })
-    </div>
-
-    <div>
-        <label for="idadeMin" class="form-label">Idade mín.</label>
-        <input type="number" id="idadeMin" name="idadeMin" min="0" max="60" value="@Model.IdadeMin" class="form-control" placeholder="ex: 18" style="width:110px;" />
-    </div>
-
-    <div>
-        <label for="idadeMax" class="form-label">Idade máx.</label>
-        <input type="number" id="idadeMax" name="idadeMax" min="0" max="60" value="@Model.IdadeMax" class="form-control" placeholder="ex: 23" style="width:110px;" />
-    </div>
-
-    <div>
-        <label class="form-label d-block">Sem idade</label>
-        <div class="form-check" style="padding-top:6px;">
-            <input type="checkbox" id="semIdade" name="semIdade" value="true" class="form-check-input" @(Model.SemIdade ? "checked" : "") />
-            <label for="semIdade" class="form-check-label">Somente sem idade</label>
-        </div>
-    </div>
-
-    <div>
-        <button type="submit" class="btn btn-primary cf-small-btn">Filtrar</button>
-        <a asp-action="Create" class="btn btn-success cf-small-btn" style="margin-left:6px;">Novo Jogador</a>
-    </div>
-</form>
-
-@if (Model.SemIdade && Model.Itens.Any())
-{
-    var totalSemIdade = Model.TotalJogadores;
-    <form asp-action="AtualizarInfoTodosSemIdade" method="post" style="margin-bottom:12px;">
-        @Html.AntiForgeryToken()
-        <button type="submit" class="btn btn-outline-success cf-small-btn"
-                onclick="return confirm('Atualizar pela API todos os @totalSemIdade jogadores sem idade? Isso pode levar alguns segundos.')">
-            🔄 Atualizar todos sem idade (@totalSemIdade)
-        </button>
-    </form>
-}
-
-@{
     int paginaAtual = Model.PaginaAtual;
     int totalPaginas = Model.TotalPaginas;
     int totalJogadores = Model.TotalJogadores;
@@ -253,7 +21,6 @@
     int primeiroDaPagina = totalJogadores == 0 ? 0 : (paginaAtual - 1) * pageSize + 1;
     int ultimoDaPagina = Math.Min(paginaAtual * pageSize, totalJogadores);
 
-    // Filtros atuais para preservar nos links
     var rotaFiltros = new Dictionary<string, string?>
     {
         ["nome"] = Model.Nome,
@@ -271,119 +38,381 @@
         d["page"] = p.ToString();
         return d;
     };
+
+    bool temFiltro = !string.IsNullOrEmpty(Model.Nome) || !string.IsNullOrEmpty(Model.FiltroPosicao)
+        || !string.IsNullOrEmpty(Model.FiltroNacionalidade) || Model.FiltroTimeId.HasValue
+        || Model.IdadeMin.HasValue || Model.IdadeMax.HasValue || Model.SemIdade;
 }
 
-<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:6px 0;color:#6b7280;font-size:13px;">
-    <span>Mostrando <strong>@primeiroDaPagina–@ultimoDaPagina</strong> de <strong>@totalJogadores</strong> jogadores</span>
-    <span>Página @paginaAtual de @totalPaginas</span>
-</div>
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
 
-<div class="player-list">
-    @foreach (var jogador in Model.Itens)
+<style>
+    .jg * { box-sizing: border-box; }
+
+    .jg {
+        margin: 0 -12px;
+        background: #0f0f0f;
+        color: #e5e7eb;
+        font-family: 'Barlow', Arial, sans-serif;
+        border-radius: 14px;
+        overflow: hidden;
+    }
+    .jg a { text-decoration: none; color: inherit; }
+    .jg h1 { font-family: 'Barlow Condensed', Arial, sans-serif; }
+
+    /* ── Hero ────────────────────────────────────── */
+    .jg-hero {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #060d1a 0%, #0d1e35 55%, #060d1a 100%);
+        min-height: 260px;
+        display: flex;
+        align-items: center;
+    }
+    .jg-hero-pattern { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.04; pointer-events: none; }
+    .jg-hero-fade { position: absolute; inset: 0; background: linear-gradient(90deg, #060d1a 35%, rgba(6,13,26,0.6) 58%, rgba(6,13,26,0.1) 78%, transparent 100%); pointer-events: none; z-index: 1; }
+    .jg-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #d4a520; z-index: 3; }
+
+    .jg-hero-montage { position: absolute; right: 0; bottom: 0; display: flex; align-items: flex-end; z-index: 1; height: 112%; }
+    .jg-hero-montage img { height: 100%; object-fit: contain; object-position: bottom; margin-left: -30px; filter: drop-shadow(0 4px 16px rgba(0,0,0,0.5)); opacity: 0.95; }
+    .jg-hero-montage img:first-child { margin-left: 0; }
+
+    .jg-hero-content { position: relative; z-index: 3; padding: 2rem 2.5rem; }
+    .jg-hero-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .jg-hero-kicker-line { height: 2px; width: 28px; background: #d4a520; }
+    .jg-hero-kicker span { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.28em; color: #d4a520; text-transform: uppercase; }
+    .jg-hero h1 { font-size: 2.9rem; font-weight: 800; color: #f1f5f9; margin: 0 0 8px; line-height: 1; }
+    .jg-hero p { font-size: 0.88rem; color: #6b7280; margin: 0 0 20px; max-width: 380px; }
+
+    .jg-kpis { display: flex; gap: 22px; align-items: center; }
+    .jg-kpi-num { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.7rem; font-weight: 800; color: #d4a520; line-height: 1; }
+    .jg-kpi-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; color: #4b5563; text-transform: uppercase; display: block; margin-top: 2px; }
+    .jg-kpi-sep { width: 1px; height: 30px; background: #1e2d45; }
+
+    /* ── Filtros ─────────────────────────────────── */
+    .jg-filters {
+        background: #141414; border-bottom: 1px solid #222; padding: 14px 2.5rem;
+        position: sticky; top: 62px; z-index: 50;
+        display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap;
+    }
+    .jg-field { display: flex; flex-direction: column; gap: 4px; }
+    .jg-field label { font-size: 0.62rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.06em; }
+    .jg-input, .jg-select {
+        background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; color: #e5e7eb;
+        font-size: 0.83rem; padding: 8px 12px; outline: none; font-family: inherit;
+    }
+    .jg-input:focus, .jg-select:focus { border-color: #d4a520; }
+    .jg-select { appearance: none; cursor: pointer; }
+    .jg-input-narrow { width: 100px; }
+    .jg-check { display: flex; align-items: center; gap: 6px; padding-bottom: 8px; }
+    .jg-check input { accent-color: #d4a520; cursor: pointer; }
+    .jg-check label { font-size: 0.78rem; color: #9ca3af; cursor: pointer; }
+
+    .jg-btn { padding: 8px 18px; border-radius: 8px; font-size: 0.82rem; font-weight: 800; border: none; cursor: pointer; letter-spacing: 0.02em; }
+    .jg-btn-gold { background: #d4a520; color: #141414; }
+    .jg-btn-gold:hover { background: #c49918; }
+    .jg-btn-ghost { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: #9ca3af; }
+    .jg-btn-ghost:hover { border-color: #d4a520; color: #d4a520; }
+
+    /* ── Lista ───────────────────────────────────── */
+    .jg-list-wrap { padding: 20px 2.5rem 3rem; max-width: 1544px; margin: 0 auto; }
+
+    .jg-summary { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; color: #6b7280; font-size: 0.8rem; }
+    .jg-summary strong { color: #9ca3af; }
+
+    .jg-bulk-btn { margin-bottom: 14px; }
+
+    .jg-row {
+        display: grid; grid-template-columns: 42px 1fr 200px auto; gap: 16px; align-items: center;
+        padding: 11px 16px; background: #141414; border: 1px solid #1e1e1e; border-radius: 10px;
+        margin-bottom: 6px; transition: border-color 0.15s, background 0.15s;
+    }
+    .jg-row:hover { background: #1a1a1a; border-color: #2a2a2a; }
+
+    .jg-photo {
+        width: 42px; height: 42px; border-radius: 50%; background: #1e293b; border: 1px solid #2a3a52;
+        display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;
+    }
+    .jg-photo img { width: 100%; height: 100%; object-fit: cover; }
+
+    .jg-info { min-width: 0; }
+    .jg-name {
+        font-size: 0.9rem; font-weight: 700; color: #eecb6c;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; margin-bottom: 4px;
+    }
+    .jg-name:hover { color: #d4a520; text-decoration: underline; }
+    .jg-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .jg-pos-badge {
+        display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 6px;
+        font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; white-space: nowrap;
+    }
+    .jg-meta span.idade { font-size: 0.72rem; color: #6b7280; }
+    .jg-meta span.flag { font-size: 0.9rem; line-height: 1; }
+
+    .jg-club { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .jg-club img { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
+    .jg-club span { font-size: 0.83rem; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .jg-actions { display: flex; align-items: center; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+    .jg-actions a, .jg-actions button {
+        font-size: 0.7rem; padding: 4px 10px; border-radius: 6px; font-weight: 700; flex-shrink: 0;
+        cursor: pointer; white-space: nowrap;
+    }
+    .jg-act-detalhes { background: transparent; border: 1px solid #3b82f6; color: #6ea8fe; }
+    .jg-act-detalhes:hover { background: rgba(59,130,246,0.12); }
+    .jg-act-editar { background: #d97706; border: 1px solid #d97706; color: #fff; }
+    .jg-act-editar:hover { background: #b45309; }
+    .jg-act-excluir { background: #dc2626; border: 1px solid #dc2626; color: #fff; }
+    .jg-act-excluir:hover { background: #b91c1c; }
+    .jg-act-atualizar { background: transparent; border: 1px solid #16a34a; color: #4ade80; display: inline-flex; align-items: center; gap: 4px; }
+    .jg-act-atualizar:hover { background: rgba(22,163,74,0.12); }
+
+    /* ── Paginação ───────────────────────────────── */
+    .jg-pagination { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 28px; flex-wrap: wrap; }
+    .jg-page-btn {
+        padding: 8px 14px; background: #161616; border: 1px solid #2a2a2a; border-radius: 8px;
+        color: #6b7280; font-size: 0.82rem; cursor: pointer; text-decoration: none;
+    }
+    .jg-page-btn:hover { border-color: #d4a520; color: #d4a520; }
+    .jg-page-btn.ativo { background: #d4a520; border-color: #d4a520; color: #141414; font-weight: 800; }
+    .jg-page-btn.disabled { opacity: 0.4; pointer-events: none; }
+    .jg-page-ellipsis { color: #4b5563; font-size: 0.82rem; padding: 0 4px; }
+
+    .jg-empty { text-align: center; color: #6b7280; padding: 3rem 1rem; font-size: 0.9rem; background: #161616; border: 1px solid #262626; border-radius: 12px; }
+
+    @@media (max-width: 900px) {
+        .jg-row { grid-template-columns: 36px 1fr; grid-template-areas: "photo info" "club club" "actions actions"; }
+        .jg-club { grid-area: club; margin-top: 4px; }
+        .jg-actions { grid-area: actions; justify-content: flex-start; margin-top: 6px; }
+    }
+    @@media (max-width: 640px) {
+        .jg-hero-content, .jg-filters, .jg-list-wrap { padding-left: 1.2rem; padding-right: 1.2rem; }
+        .jg-hero h1 { font-size: 2rem; }
+        .jg-hero-montage { display: none; }
+    }
+</style>
+
+<div class="jg">
+
+    @if (TempData["Sucesso"] != null)
     {
-        <div class="player-row">
-            <!-- Foto -->
-            <div class="player-photo">
-                @if (!string.IsNullOrEmpty(jogador.FotoUrl))
-                {
-                    <img src="@Url.FotoSrc(jogador.FotoUrl)" alt="@jogador.Nome"
-                         loading="lazy" decoding="async" width="42" height="42"
-                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-                    <span style="display:none; color:#6b7280; font-size:18px;">👤</span>
-                }
-                else
-                {
-                    <span style="color:#6b7280;font-size:18px;">👤</span>
-                }
-            </div>
-
-            <!-- Nome + meta -->
-            <div class="player-info">
-                <a class="player-name-link" href="https://analisedecraque.cloud/Jogadores/Estatisticas/@jogador.Id" target="_blank" rel="noopener">
-                    @jogador.NomeExibicao
-                </a>
-                <div class="player-meta">@jogador.Posicao • @jogador.Idade anos • <span title="@jogador.Nacionalidade?.Nome">@FlagHelper.GetFlagEmoji(jogador.Nacionalidade?.Nome)</span></div>
-            </div>
-
-            <!-- Clube -->
-            <div class="player-club">
-                @if (jogador.Time != null)
-                {
-                    @if (!string.IsNullOrEmpty(jogador.Time.EscudoUrl))
-                    {
-                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogador.Time.EscudoUrl })" alt="@jogador.Time.Nome" loading="lazy" decoding="async" width="22" height="22" />
-                    }
-                    <span class="player-club-name">@jogador.Time.Nome</span>
-                }
-                else
-                {
-                    <span class="player-club-name text-muted">—</span>
-                }
-            </div>
-
-            <!-- Ações -->
-            <div class="player-actions">
-                <a asp-action="Details" asp-route-id="@jogador.Id" class="btn btn-outline-primary btn-sm cf-small-btn">Detalhes</a>
-                <a asp-action="Edit" asp-route-id="@jogador.Id" class="btn btn-warning btn-sm cf-small-btn">Editar</a>
-                <a asp-action="Delete" asp-route-id="@jogador.Id" class="btn btn-danger btn-sm cf-small-btn">Excluir</a>
-
-                <form asp-action="AtualizarInfo" asp-route-id="@jogador.Id" method="post" style="display:inline;">
-                    @Html.AntiForgeryToken()
-                    <button type="submit" class="btn btn-outline-success btn-sm cf-small-btn"
-                            title="Atualizar nacionalidade, idade e foto pela API"
-                            onclick="return confirm('Atualizar informações de @jogador.Nome pela API?')">
-                        🔄 Atualizar Informações
-                    </button>
-                </form>
-
-            </div>
+        <div class="alert alert-success alert-dismissible fade show m-3" role="alert">
+            @TempData["Sucesso"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show m-3" role="alert">
+            @TempData["Erro"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Hero -->
+    <div class="jg-hero">
+        <img class="jg-hero-pattern" src="~/Images/banner/escudos-pattern.svg" alt="" />
+        <div class="jg-hero-fade"></div>
+        <div class="jg-hero-stripe"></div>
+        <div class="jg-hero-montage">
+            <img src="~/Images/banner/mbappe.png" alt="" />
+            <img src="~/Images/banner/haaland.png" alt="" />
+            <img src="~/Images/banner/vinicius.png" alt="" />
+        </div>
+        <div class="jg-hero-content">
+            <div class="jg-hero-kicker">
+                <div class="jg-hero-kicker-line"></div>
+                <span>Cadastros</span>
+            </div>
+            <h1>Jogadores</h1>
+            <p>Consulte e gerencie os jogadores cadastrados. Filtre por posição, clube ou nacionalidade.</p>
+            <div class="jg-kpis">
+                <div>
+                    <span class="jg-kpi-num">@Model.TotalJogadoresGlobal</span>
+                    <span class="jg-kpi-label">Jogadores</span>
+                </div>
+                <div class="jg-kpi-sep"></div>
+                <div>
+                    <span class="jg-kpi-num">@Model.TotalTimesComJogadores</span>
+                    <span class="jg-kpi-label">Clubes</span>
+                </div>
+                <div class="jg-kpi-sep"></div>
+                <div>
+                    <span class="jg-kpi-num">@Model.TotalNacionalidadesGlobal</span>
+                    <span class="jg-kpi-label">Nacion.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <form asp-action="Index" method="get" class="jg-filters">
+        <div class="jg-field">
+            <label for="nome">Nome</label>
+            <input type="text" id="nome" name="nome" value="@Model.Nome" class="jg-input" placeholder="Buscar jogador..." />
+        </div>
+        <div class="jg-field">
+            <label for="posicao">Posição</label>
+            @Html.DropDownList("posicao", Model.Posicoes, "Todas", new { @class = "jg-select" })
+        </div>
+        <div class="jg-field">
+            <label for="nacionalidade">Nacionalidade</label>
+            @Html.DropDownList("nacionalidade", Model.Nacionalidades, "Todas", new { @class = "jg-select" })
+        </div>
+        <div class="jg-field">
+            <label for="timeId">Time</label>
+            @Html.DropDownList("timeId", Model.Times, "Todos", new { @class = "jg-select" })
+        </div>
+        <div class="jg-field">
+            <label for="idadeMin">Idade mín.</label>
+            <input type="number" id="idadeMin" name="idadeMin" min="0" max="60" value="@Model.IdadeMin" class="jg-input jg-input-narrow" placeholder="ex: 18" />
+        </div>
+        <div class="jg-field">
+            <label for="idadeMax">Idade máx.</label>
+            <input type="number" id="idadeMax" name="idadeMax" min="0" max="60" value="@Model.IdadeMax" class="jg-input jg-input-narrow" placeholder="ex: 23" />
+        </div>
+        <div class="jg-check">
+            <input type="checkbox" id="semIdade" name="semIdade" value="true" @(Model.SemIdade ? "checked" : "") />
+            <label for="semIdade">Somente sem idade</label>
+        </div>
+
+        <button type="submit" class="jg-btn jg-btn-gold">Filtrar</button>
+        @if (temFiltro)
+        {
+            <a asp-action="Index" class="jg-btn jg-btn-ghost">✕ Limpar</a>
+        }
+
+        <div style="flex:1;"></div>
+        <a asp-action="Create" class="jg-btn jg-btn-gold">+ Novo Jogador</a>
+    </form>
+
+    <div class="jg-list-wrap">
+
+        @if (Model.SemIdade && Model.Itens.Any())
+        {
+            <form asp-action="AtualizarInfoTodosSemIdade" method="post" class="jg-bulk-btn">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="jg-btn jg-btn-ghost"
+                        onclick="return confirm('Atualizar pela API todos os @Model.TotalJogadores jogadores sem idade? Isso pode levar alguns segundos.')">
+                    🔄 Atualizar todos sem idade (@Model.TotalJogadores)
+                </button>
+            </form>
+        }
+
+        <div class="jg-summary">
+            <span>Mostrando <strong>@primeiroDaPagina&ndash;@ultimoDaPagina</strong> de <strong>@totalJogadores</strong> jogadores</span>
+            <span>Página @paginaAtual de @totalPaginas</span>
+        </div>
+
+        @if (!Model.Itens.Any())
+        {
+            <div class="jg-empty">Nenhum jogador encontrado com os filtros selecionados.</div>
+        }
+        else
+        {
+            @foreach (var jogador in Model.Itens)
+            {
+                var cor = CorPosicao(jogador.Posicao);
+
+                <div class="jg-row">
+                    <div class="jg-photo">
+                        @if (!string.IsNullOrEmpty(jogador.FotoUrl))
+                        {
+                            <img src="@Url.FotoSrc(jogador.FotoUrl)" alt="@jogador.Nome"
+                                 loading="lazy" decoding="async" width="42" height="42"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                            <span style="display:none; color:#64748b; font-size:18px;">👤</span>
+                        }
+                        else
+                        {
+                            <span style="color:#64748b;font-size:18px;">👤</span>
+                        }
+                    </div>
+
+                    <div class="jg-info">
+                        <a class="jg-name" asp-action="Estatisticas" asp-route-id="@jogador.Id">
+                            @jogador.NomeExibicao
+                        </a>
+                        <div class="jg-meta">
+                            @if (!string.IsNullOrEmpty(jogador.Posicao))
+                            {
+                                <span class="jg-pos-badge" style="background:@cor.bg;border:1px solid @cor.border;color:@cor.text;">@jogador.Posicao</span>
+                            }
+                            <span class="idade">@jogador.Idade anos</span>
+                            <span class="flag" title="@jogador.Nacionalidade?.Nome">@FlagHelper.GetFlagEmoji(jogador.Nacionalidade?.Nome)</span>
+                        </div>
+                    </div>
+
+                    <div class="jg-club">
+                        @if (jogador.Time != null)
+                        {
+                            @if (!string.IsNullOrEmpty(jogador.Time.EscudoUrl))
+                            {
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogador.Time.EscudoUrl })" alt="@jogador.Time.Nome" loading="lazy" decoding="async" />
+                            }
+                            <span>@jogador.Time.Nome</span>
+                        }
+                        else
+                        {
+                            <span>&mdash;</span>
+                        }
+                    </div>
+
+                    <div class="jg-actions">
+                        <a asp-action="Details" asp-route-id="@jogador.Id" class="jg-act-detalhes">Detalhes</a>
+                        <a asp-action="Edit" asp-route-id="@jogador.Id" class="jg-act-editar">Editar</a>
+                        <a asp-action="Delete" asp-route-id="@jogador.Id" class="jg-act-excluir">Excluir</a>
+                        <form asp-action="AtualizarInfo" asp-route-id="@jogador.Id" method="post" style="display:inline;">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="jg-act-atualizar" title="Atualizar nacionalidade, idade e foto pela API"
+                                    onclick="return confirm('Atualizar informações de @jogador.Nome pela API?')">
+                                🔄 Atualizar
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            }
+        }
+
+        @if (totalPaginas > 1)
+        {
+            int janela = 2;
+            int inicio = Math.Max(1, paginaAtual - janela);
+            int fim = Math.Min(totalPaginas, paginaAtual + janela);
+
+            <nav aria-label="Paginação de jogadores" class="jg-pagination">
+                <a class="jg-page-btn @(paginaAtual <= 1 ? "disabled" : "")" asp-action="Index" asp-all-route-data="rotaComPagina(paginaAtual - 1)">«</a>
+
+                @if (inicio > 1)
+                {
+                    <a class="jg-page-btn" asp-action="Index" asp-all-route-data="rotaComPagina(1)">1</a>
+                    @if (inicio > 2)
+                    {
+                        <span class="jg-page-ellipsis">…</span>
+                    }
+                }
+
+                @for (int p = inicio; p <= fim; p++)
+                {
+                    <a class="jg-page-btn @(p == paginaAtual ? "ativo" : "")" asp-action="Index" asp-all-route-data="rotaComPagina(p)">@p</a>
+                }
+
+                @if (fim < totalPaginas)
+                {
+                    @if (fim < totalPaginas - 1)
+                    {
+                        <span class="jg-page-ellipsis">…</span>
+                    }
+                    <a class="jg-page-btn" asp-action="Index" asp-all-route-data="rotaComPagina(totalPaginas)">@totalPaginas</a>
+                }
+
+                <a class="jg-page-btn @(paginaAtual >= totalPaginas ? "disabled" : "")" asp-action="Index" asp-all-route-data="rotaComPagina(paginaAtual + 1)">»</a>
+                <span style="font-size:0.75rem;color:#4b5563;margin-left:8px;">Página @paginaAtual de @totalPaginas</span>
+            </nav>
+        }
+
+    </div>
 </div>
-
-@if (totalPaginas > 1)
-{
-    int janela = 2; // páginas vizinhas mostradas ao redor da atual
-    int inicio = Math.Max(1, paginaAtual - janela);
-    int fim = Math.Min(totalPaginas, paginaAtual + janela);
-
-    <nav aria-label="Paginação de jogadores" style="margin-top:14px;">
-        <ul class="pagination justify-content-center flex-wrap">
-            <li class="page-item @(paginaAtual <= 1 ? "disabled" : "")">
-                <a class="page-link" asp-action="Index" asp-all-route-data="rotaComPagina(paginaAtual - 1)">«</a>
-            </li>
-
-            @if (inicio > 1)
-            {
-                <li class="page-item"><a class="page-link" asp-action="Index" asp-all-route-data="rotaComPagina(1)">1</a></li>
-                @if (inicio > 2)
-                {
-                    <li class="page-item disabled"><span class="page-link">…</span></li>
-                }
-            }
-
-            @for (int p = inicio; p <= fim; p++)
-            {
-                <li class="page-item @(p == paginaAtual ? "active" : "")">
-                    <a class="page-link" asp-action="Index" asp-all-route-data="rotaComPagina(p)">@p</a>
-                </li>
-            }
-
-            @if (fim < totalPaginas)
-            {
-                @if (fim < totalPaginas - 1)
-                {
-                    <li class="page-item disabled"><span class="page-link">…</span></li>
-                }
-                <li class="page-item"><a class="page-link" asp-action="Index" asp-all-route-data="rotaComPagina(totalPaginas)">@totalPaginas</a></li>
-            }
-
-            <li class="page-item @(paginaAtual >= totalPaginas ? "disabled" : "")">
-                <a class="page-link" asp-action="Index" asp-all-route-data="rotaComPagina(paginaAtual + 1)">»</a>
-            </li>
-        </ul>
-    </nav>
-}
 
 <noscript>
     <h3>Lista de Jogadores (sem JavaScript)</h3>
@@ -432,5 +461,3 @@
         </tbody>
     </table>
 </noscript>
-
-

@@ -1,6 +1,7 @@
 @model IEnumerable<ControleFutebolWeb.Models.ApplicationUser>
 @{
     ViewData["Title"] = "Usuários";
+    var limiteOnline = DateTime.UtcNow.AddMinutes(-5);
 }
 
 <style>
@@ -42,17 +43,35 @@
                 <th>Usuário</th>
                 <th>E-mail</th>
                 <th>Admin</th>
+                <th>Status</th>
                 <th style="text-align:right">Ações</th>
             </tr>
         </thead>
         <tbody>
             @foreach (var u in Model)
             {
+                var online = u.UltimoAcesso.HasValue && u.UltimoAcesso.Value >= limiteOnline;
                 <tr>
                     <td>@u.Nome</td>
                     <td><code>@u.UserName</code></td>
                     <td>@u.Email</td>
                     <td>@(u.IsAdmin ? "✅" : "—")</td>
+                    <td>
+                        @if (online)
+                        {
+                            <span class="badge bg-success">Online</span>
+                        }
+                        else if (u.UltimoAcesso.HasValue)
+                        {
+                            <span class="badge bg-secondary" title="@u.UltimoAcesso.Value.ToLocalTime()">
+                                Offline há @FormatarTempoDecorrido(DateTime.UtcNow - u.UltimoAcesso.Value)
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Nunca acessou</span>
+                        }
+                    </td>
                     <td style="text-align:right">
                         <!-- Redefinir senha -->
                         <button class="btn btn-sm btn-outline-warning"
@@ -99,4 +118,13 @@
             </form>
         </div>
     </div>
+}
+
+@functions {
+    string FormatarTempoDecorrido(TimeSpan decorrido)
+    {
+        if (decorrido.TotalMinutes < 60) return $"{(int)decorrido.TotalMinutes} min";
+        if (decorrido.TotalHours < 24) return $"{(int)decorrido.TotalHours} h";
+        return $"{(int)decorrido.TotalDays} d";
+    }
 }

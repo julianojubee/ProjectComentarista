@@ -1,8 +1,11 @@
-﻿@model ControleFutebolWeb.Models.ViewModels.HomeViewModel
+@model ControleFutebolWeb.Models.ViewModels.HomeViewModel
+@using ControleFutebolWeb.Helpers
 
 @{
     ViewData["Title"] = "Início";
 }
+
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
 
 <style>
     /* ── Reset local ─────────────────────────────── */
@@ -10,115 +13,186 @@
         box-sizing: border-box;
     }
 
+    .cf-home {
+        margin: 0 -12px; /* compensa o .container do layout pra ocupar a largura toda */
+        background: #0f0f0f;
+        color: #e5e7eb;
+        font-family: 'Barlow', Arial, sans-serif;
+        border-radius: 14px;
+        overflow: hidden;
+    }
+
+    .cf-home a { text-decoration: none; color: inherit; }
+    .cf-home h1, .cf-home h2, .cf-home h3 { font-family: 'Barlow Condensed', Arial, sans-serif; }
+
     /* ── Hero ────────────────────────────────────── */
     .cf-hero {
         position: relative;
-        background: linear-gradient(135deg, #0a1628 0%, #1a2f4e 55%, #0f2040 100%);
-        border-radius: 14px;
-        padding: 3.5rem 2rem;
-        text-align: center;
         overflow: hidden;
-        margin-bottom: 2rem;
+        min-height: 380px;
+        background: #0a0a0a;
+        display: flex;
+        align-items: center;
     }
 
-    .cf-hero-pitch {
+    .cf-hero-pattern {
         position: absolute;
         inset: 0;
-        opacity: 0.06;
-        background-image: radial-gradient(circle at 50% 50%, transparent 28%, #fff 28.5%, #fff 29.2%, transparent 29.8%), linear-gradient(90deg, transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%), linear-gradient(transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%);
+        object-fit: cover;
+        opacity: 0.05;
         pointer-events: none;
+    }
+
+    .cf-hero-fade-left {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, #0a0a0a 40%, rgba(10,10,10,0.85) 60%, rgba(10,10,10,0.4) 80%, transparent 100%);
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    .cf-hero-stripe {
+        position: absolute;
+        left: 0; top: 0; bottom: 0;
+        width: 3px;
+        background: #d4a520;
+        z-index: 3;
+    }
+
+    .cf-hero-player {
+        position: absolute;
+        right: 0; bottom: 0;
+        height: 112%;
+        object-fit: contain;
+        object-position: bottom right;
+        z-index: 1;
+        opacity: 0.9;
     }
 
     .cf-hero-content {
         position: relative;
-        z-index: 1;
+        z-index: 3;
+        padding: 2.5rem 3rem;
+        max-width: 620px;
     }
 
-    .cf-hero-badge {
-        display: inline-block;
-        background: rgba(55, 138, 221, 0.2);
-        color: #85b7eb;
-        font-size: 11px;
-        font-weight: 600;
-        padding: 4px 14px;
-        border-radius: 20px;
-        border: 1px solid rgba(55, 138, 221, 0.35);
-        letter-spacing: 1px;
+    .cf-hero-kicker {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+
+    .cf-hero-kicker-line { height: 2px; width: 28px; background: #d4a520; }
+
+    .cf-hero-kicker span {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.24em;
+        color: #d4a520;
         text-transform: uppercase;
-        margin-bottom: 1.1rem;
     }
 
     .cf-hero h1 {
-        font-size: 2rem;
-        font-weight: 600;
-        color: #fff;
-        margin-bottom: 0.6rem;
-        letter-spacing: -0.5px;
+        font-size: 2.8rem;
+        font-weight: 800;
+        line-height: 1.05;
+        color: #f1f5f9;
+        margin: 0 0 14px;
+        letter-spacing: -0.01em;
     }
 
+    .cf-hero h1 .gold { color: #d4a520; }
+
     .cf-hero p {
-        color: rgba(255,255,255,0.5);
+        color: #9ca3af;
         font-size: 0.95rem;
-        margin-bottom: 1.4rem;
+        margin: 0 0 26px;
+        max-width: 420px;
+        line-height: 1.6;
     }
 
     /* ── Search ──────────────────────────────────── */
-    .cf-search-wrap {
-        position: relative;
-        max-width: 480px;
-        margin: 0 auto 1.4rem;
+    .cf-search-wrap { position: relative; max-width: 460px; }
+
+    .cf-search-box {
+        display: flex;
+        align-items: stretch;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 9px;
+        overflow: hidden;
+        transition: border-color 0.15s;
     }
-    .cf-search-input {
-        width: 100%;
-        padding: 11px 44px 11px 16px;
-        border-radius: 10px;
-        border: 1px solid rgba(255,255,255,0.18);
-        background: rgba(255,255,255,0.10);
-        color: #fff;
-        font-size: 14px;
-        outline: none;
-        transition: border-color .15s, background .15s;
-    }
-    .cf-search-input::placeholder { color: rgba(255,255,255,0.45); }
-    .cf-search-input:focus {
-        border-color: rgba(55,138,221,0.7);
-        background: rgba(255,255,255,0.14);
-    }
+
+    .cf-search-box:focus-within { border-color: #d4a520; }
+
     .cf-search-icon {
-        position: absolute;
-        right: 13px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: rgba(255,255,255,0.45);
-        font-size: 16px;
-        pointer-events: none;
+        display: flex;
+        align-items: center;
+        padding: 0 14px;
+        color: #666;
+        flex-shrink: 0;
     }
+
+    .cf-search-input {
+        flex: 1;
+        padding: 13px 4px;
+        background: transparent;
+        border: none;
+        color: #f1f5f9;
+        font-size: 0.88rem;
+        outline: none;
+        font-family: inherit;
+    }
+
+    .cf-search-input::placeholder { color: #666; }
+
+    .cf-search-btn {
+        padding: 0 22px;
+        background: #d4a520;
+        color: #141414;
+        font-weight: 700;
+        font-size: 0.8rem;
+        border: none;
+        cursor: pointer;
+        letter-spacing: 0.04em;
+        flex-shrink: 0;
+        transition: background 0.15s;
+    }
+
+    .cf-search-btn:hover { background: #c49918; }
+
     .cf-search-dropdown {
         position: absolute;
         top: calc(100% + 6px);
         left: 0; right: 0;
-        background: var(--surface);
-        border: 0.5px solid var(--border);
+        background: #1a1a1a;
+        border: 1px solid #333;
         border-radius: 10px;
-        box-shadow: 0 8px 24px rgba(0,0,0,.12);
+        box-shadow: 0 8px 24px rgba(0,0,0,.4);
         z-index: 999;
         overflow: hidden;
         display: none;
     }
+
     .cf-search-dropdown.open { display: block; }
+
     .cf-search-item {
         display: flex;
         align-items: center;
         gap: 10px;
         padding: 9px 14px;
         text-decoration: none;
-        color: var(--text);
+        color: #e5e7eb;
         font-size: 13px;
-        border-bottom: 0.5px solid var(--border-subtle);
+        border-bottom: 1px solid #262626;
         transition: background .1s;
     }
+
     .cf-search-item:last-child { border-bottom: none; }
-    .cf-search-item:hover { background: var(--surface-2); text-decoration: none; color: inherit; }
+    .cf-search-item:hover { background: #222; text-decoration: none; color: inherit; }
+
     .cf-search-badge {
         font-size: 10px;
         font-weight: 700;
@@ -128,378 +202,307 @@
         white-space: nowrap;
         flex-shrink: 0;
     }
-    .cf-badge-time      { background: #dbeafe; color: #1d4ed8; }
-    .cf-badge-jogador   { background: #dcfce7; color: #15803d; }
-    .cf-badge-competicao{ background: #fef9c3; color: #854d0e; }
-    .cf-badge-jogo      { background: #f3e8ff; color: #6b21a8; }
-    .cf-search-nome     { flex: 1; font-weight: 500; }
-    .cf-search-extra    { font-size: 11px; color: var(--text-muted); }
-    .cf-search-empty    { padding: 14px; text-align: center; color: var(--text-muted); font-size: 13px; }
 
-    .cf-hero-actions {
-        display: flex;
-        gap: 10px;
-        justify-content: center;
-        flex-wrap: wrap;
-    }
+    .cf-badge-time       { background: rgba(56,138,221,0.18);  color: #7db8ee; }
+    .cf-badge-jogador    { background: rgba(34,197,94,0.16);   color: #6ee0a0; }
+    .cf-badge-competicao { background: rgba(212,165,32,0.18);  color: #eecb6c; }
 
-    .cf-btn-primary {
-        background: #378add;
-        color: #fff;
-        border: none;
-        padding: 10px 24px;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 500;
-        text-decoration: none;
-        display: inline-block;
-        transition: background 0.15s;
-    }
+    .cf-search-nome  { flex: 1; font-weight: 500; }
+    .cf-search-extra { font-size: 11px; color: #6b7280; }
+    .cf-search-empty { padding: 14px; text-align: center; color: #6b7280; font-size: 13px; }
 
-        .cf-btn-primary:hover {
-            background: #2a6db5;
-            color: #fff;
-            text-decoration: none;
-        }
-
-    .cf-btn-ghost {
-        background: rgba(255,255,255,0.07);
-        color: rgba(255,255,255,0.7);
-        border: 1px solid rgba(255,255,255,0.18);
-        padding: 10px 24px;
-        border-radius: 8px;
-        font-size: 14px;
-        text-decoration: none;
-        display: inline-block;
-        transition: background 0.15s;
-    }
-
-        .cf-btn-ghost:hover {
-            background: rgba(255,255,255,0.12);
-            color: #fff;
-            text-decoration: none;
-        }
-
-    /* ── Stats strip ─────────────────────────────── */
+    /* ── Stats bar ───────────────────────────────── */
     .cf-stats {
+        background: #141414;
+        border-top: 1px solid #262626;
+        border-bottom: 1px solid #262626;
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-        gap: 10px;
-        margin-bottom: 2rem;
+        grid-template-columns: repeat(4, 1fr);
     }
 
     .cf-stat-card {
-        background: var(--surface);
-        border: 0.5px solid var(--border);
+        padding: 20px 28px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        border-right: 1px solid #262626;
+        transition: background 0.15s;
+    }
+
+    .cf-stat-card:last-child { border-right: none; }
+    .cf-stat-card:hover { background: #191919; }
+
+    .cf-stat-icon {
+        width: 40px;
+        height: 40px;
         border-radius: 10px;
-        padding: 1rem 1.25rem;
-        text-align: center;
+        background: rgba(212,165,32,0.12);
+        border: 1px solid rgba(212,165,32,0.25);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
     }
 
     .cf-stat-num {
-        font-size: 26px;
-        font-weight: 600;
-        color: var(--text);
-        line-height: 1.1;
-        margin-bottom: 4px;
+        font-size: 1.9rem;
+        font-weight: 800;
+        color: #d4a520;
+        line-height: 1;
     }
 
     .cf-stat-label {
-        font-size: 12px;
-        color: var(--text-muted);
-        font-weight: 400;
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        color: #6b7280;
+        text-transform: uppercase;
+        margin-top: 3px;
     }
 
     /* ── Section label ───────────────────────────── */
     .cf-section-label {
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 18px;
+    }
+
+    .cf-section-label span {
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        color: #6b7280;
         text-transform: uppercase;
-        letter-spacing: 0.7px;
-        margin-bottom: 12px;
+        white-space: nowrap;
     }
 
-    /* ── Feature cards ───────────────────────────── */
-    .cf-modules {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        gap: 10px;
-        margin-bottom: 2rem;
-    }
+    .cf-section-label .line { flex: 1; height: 1px; background: #222; }
 
-    .cf-module-card {
-        background: var(--surface);
-        border: 0.5px solid var(--border);
-        border-radius: 12px;
-        padding: 1.1rem 1.1rem 1rem;
-        text-decoration: none;
-        display: block;
-        transition: border-color 0.15s, box-shadow 0.15s;
-    }
-
-        .cf-module-card:hover {
-            border-color: var(--accent-border);
-            box-shadow: 0 2px 12px rgba(55,138,221,0.08);
-            text-decoration: none;
-        }
-
-    .cf-module-icon {
-        width: 34px;
-        height: 34px;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 10px;
-        font-size: 16px;
-    }
-
-    .cf-module-card h3 {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--text);
-        margin: 0 0 4px;
-    }
-
-    .cf-module-card p {
-        font-size: 12px;
-        color: var(--text-muted);
-        margin: 0;
-        line-height: 1.5;
-    }
-
-    /* ── Two-col grid ────────────────────────────── */
-    .cf-two-col {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-        margin-bottom: 2rem;
-    }
-
-    @@media (max-width: 640px) {
-        .cf-two-col { grid-template-columns: 1fr; }
-        .cf-hero { padding: 1.8rem 1rem; }
-        .cf-hero h1 { font-size: 1.5rem; }
-        .cf-hero-actions { flex-direction: column; align-items: center; }
-        .cf-btn-primary, .cf-btn-ghost { width: 100%; max-width: 260px; text-align: center; }
-        .cf-modules { grid-template-columns: repeat(2, 1fr); }
-        .cf-stats { grid-template-columns: repeat(2, 1fr); }
-    }
-
-    .cf-panel {
-        background: var(--surface);
-        border: 0.5px solid var(--border);
-        border-radius: 12px;
-        padding: 1.1rem 1.25rem;
-    }
-
-    .cf-panel-header {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--text);
-        margin-bottom: 12px;
-        padding-bottom: 10px;
-        border-bottom: 0.5px solid var(--border-subtle);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-
-    .cf-panel-link {
-        font-size: 11px;
-        color: #378add;
-        text-decoration: none;
-        font-weight: 400;
-    }
-
-        .cf-panel-link:hover {
-            text-decoration: underline;
-        }
-
-    /* ── Match items ─────────────────────────────── */
-    .cf-match {
-        display: flex;
-        align-items: center;
-        gap: 7px;
-        padding: 7px 0;
-        border-bottom: 0.5px solid var(--border-subtle);
-        font-size: 12px;
-    }
-
-        .cf-match:last-child {
-            border-bottom: none;
-            padding-bottom: 0;
-        }
-
-    .cf-team-badge {
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        overflow: hidden;
-        background: var(--surface-3);
-        border: 0.5px solid var(--border);
-        display: flex;
-        align-items: center;
-        justify-content: center;
+    .cf-section-link {
+        font-size: 0.72rem;
+        color: #d4a520;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
         flex-shrink: 0;
     }
 
-        .cf-team-badge img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
+    .cf-section-link:hover { color: #f0c040; }
 
-    .cf-team-badge-abbr {
-        font-size: 8px;
-        font-weight: 600;
-        color: var(--text-muted);
+    /* ── Acesso rápido ───────────────────────────── */
+    .cf-quick-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 12px;
+        padding: 0 2.5rem;
+        margin-bottom: 2rem;
     }
+
+    .cf-quick-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 9px;
+        padding: 18px 10px 16px;
+        background: #161616;
+        border: 1px solid #262626;
+        border-radius: 12px;
+        transition: all 0.18s;
+    }
+
+    .cf-quick-card:hover {
+        background: #1e1e1e;
+        border-color: #d4a520;
+        transform: translateY(-2px);
+    }
+
+    .cf-quick-card .icon { font-size: 1.6rem; line-height: 1; }
+    .cf-quick-card .label { font-size: 0.82rem; font-weight: 700; color: #f1f5f9; text-align: center; }
+    .cf-quick-card .desc  { font-size: 0.68rem; color: #6b7280; font-weight: 500; text-align: center; }
+
+    /* ── Main grid ───────────────────────────────── */
+    .cf-main-grid {
+        padding: 0 2.5rem 2.5rem;
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        gap: 26px;
+        align-items: start;
+    }
+
+    /* ── Jogos recentes ──────────────────────────── */
+    .cf-games-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .cf-game-card {
+        background: #161616;
+        border: 1px solid #262626;
+        border-radius: 12px;
+        padding: 14px 16px;
+        transition: border-color 0.18s;
+    }
+
+    .cf-game-card:hover { border-color: #3a3a3a; }
+
+    .cf-game-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    .cf-game-comp {
+        font-size: 0.65rem;
+        font-weight: 700;
+        color: #d4a520;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .cf-game-date { font-size: 0.65rem; color: #4b5563; font-weight: 600; flex-shrink: 0; }
+
+    .cf-game-teams { display: flex; align-items: center; gap: 7px; }
+
+    .cf-team-badge {
+        width: 22px; height: 22px;
+        border-radius: 50%;
+        overflow: hidden;
+        background: #0f0f0f;
+        border: 1px solid #333;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .cf-team-badge img { width: 100%; height: 100%; object-fit: contain; }
+    .cf-team-badge-abbr { font-size: 8px; font-weight: 700; color: #6b7280; }
 
     .cf-team-name {
         flex: 1;
-        color: var(--text-2);
-        font-size: 12px;
-        white-space: nowrap;
+        font-size: 0.82rem;
         overflow: hidden;
         text-overflow: ellipsis;
+        white-space: nowrap;
         min-width: 0;
     }
 
     .cf-score {
+        font-family: 'Barlow Condensed', Arial, sans-serif;
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: #f1f5f9;
+        background: #0f0f0f;
+        padding: 2px 11px;
+        border-radius: 7px;
+        flex-shrink: 0;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+    }
+
+    .cf-game-footer {
+        margin-top: 12px;
+        padding-top: 10px;
+        border-top: 1px solid #222;
+    }
+
+    .cf-analisar-link {
+        font-size: 0.7rem;
+        color: #6b7280;
         font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .cf-analisar-link:hover { color: #d4a520; }
+
+    .cf-empty {
+        grid-column: 1 / -1;
         font-size: 12px;
-        background: var(--surface-2);
-        border: 0.5px solid var(--border);
-        padding: 2px 8px;
-        border-radius: 6px;
-        color: var(--text);
-        white-space: nowrap;
-        flex-shrink: 0;
-    }
-
-    .cf-result {
-        font-size: 10px;
-        padding: 2px 7px;
-        border-radius: 10px;
-        font-weight: 600;
-        flex-shrink: 0;
-    }
-
-    .cf-result-w {
-        background: #dcfce7;
-        color: #15803d;
-    }
-
-    .cf-result-d {
-        background: #fef9c3;
-        color: #a16207;
-    }
-
-    .cf-result-l {
-        background: #fee2e2;
-        color: #b91c1c;
-    }
-
-    .cf-match-date {
-        font-size: 10px;
-        color: var(--text-muted);
-        white-space: nowrap;
-        flex-shrink: 0;
+        color: #6b7280;
+        text-align: center;
+        padding: 1.5rem 0;
+        background: #161616;
+        border: 1px solid #262626;
+        border-radius: 12px;
     }
 
     /* ── Classificação ───────────────────────────── */
-    .cf-classif {
+    .cf-classif-panel {
+        background: #161616;
+        border: 1px solid #262626;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .cf-classif-head {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 6px 0;
-        border-bottom: 0.5px solid var(--border-subtle);
-        font-size: 12px;
+        padding: 10px 16px;
+        background: #111;
+        border-bottom: 1px solid #222;
     }
 
-        .cf-classif:last-child {
-            border-bottom: none;
-        }
+    .cf-classif-head span {
+        font-size: 0.6rem;
+        color: #4b5563;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
 
-    .cf-rank {
-        width: 20px;
-        font-size: 11px;
+    .cf-classif-row {
+        display: flex;
+        align-items: center;
+        padding: 9px 16px;
+        border-bottom: 1px solid #1e1e1e;
+        transition: background 0.15s;
+    }
+
+    .cf-classif-row:last-child { border-bottom: none; }
+    .cf-classif-row:hover { background: #1e1e1e; }
+
+    .cf-classif-bar { width: 3px; height: 26px; border-radius: 2px; flex-shrink: 0; margin-right: 10px; }
+
+    .cf-classif-pos { width: 20px; font-size: 0.78rem; font-weight: 700; flex-shrink: 0; }
+    .cf-classif-pos.top  { color: #d4a520; }
+    .cf-classif-pos.mid  { color: #6b7280; }
+    .cf-classif-pos.drop { color: #ef4444; }
+
+    .cf-classif-time {
+        flex: 1;
+        font-size: 0.82rem;
+        color: #e5e7eb;
         font-weight: 600;
-        text-align: center;
-        flex-shrink: 0;
-    }
-
-    .cf-rank-top {
-        color: #d97706;
-    }
-
-    .cf-rank-normal {
-        color: var(--text-muted);
-    }
-
-    .cf-rank-drop {
-        color: #b91c1c;
-    }
-
-    .cf-pts {
-        font-size: 11px;
-        font-weight: 600;
-        background: #eff6ff;
-        color: #1d4ed8;
-        padding: 2px 8px;
-        border-radius: 10px;
-        margin-left: auto;
-        flex-shrink: 0;
-    }
-
-    .cf-classif-detail {
-        font-size: 10px;
-        color: var(--text-muted);
         white-space: nowrap;
-        flex-shrink: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding-right: 8px;
+        min-width: 0;
     }
 
-    /* ── Quick actions ───────────────────────────── */
-    .cf-quick {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 8px;
+    .cf-classif-cols { display: flex; gap: 0; flex-shrink: 0; }
+    .cf-classif-cols span { width: 26px; font-size: 0.75rem; color: #6b7280; text-align: center; }
+    .cf-classif-cols .pts { width: 32px; font-size: 0.82rem; color: #d4a520; font-weight: 800; }
+
+    /* ── Responsivo ──────────────────────────────── */
+    @@media (max-width: 900px) {
+        .cf-main-grid { grid-template-columns: 1fr; }
+        .cf-games-grid { grid-template-columns: 1fr; }
+        .cf-stats { grid-template-columns: repeat(2, 1fr); }
+        .cf-stat-card:nth-child(2) { border-right: none; }
     }
 
-    .cf-qa {
-        background: var(--surface-2);
-        border: 0.5px solid var(--border);
-        border-radius: 9px;
-        padding: 10px 12px;
-        font-size: 13px;
-        color: var(--text-2);
-        text-decoration: none;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        transition: background 0.15s, border-color 0.15s;
-    }
-
-        .cf-qa:hover {
-            background: var(--accent-surface);
-            border-color: var(--accent-border);
-            color: var(--link-hover);
-            text-decoration: none;
-        }
-
-    .cf-qa-dot {
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        flex-shrink: 0;
-    }
-
-    /* ── Rodada badge ────────────────────────────── */
-    .cf-rodada {
-        font-size: 10px;
-        color: var(--text-muted);
+    @@media (max-width: 640px) {
+        .cf-hero-player { display: none; }
+        .cf-hero-content { padding: 2rem 1.4rem; max-width: 100%; }
+        .cf-hero h1 { font-size: 2rem; }
+        .cf-quick-grid, .cf-main-grid { padding-left: 1.2rem; padding-right: 1.2rem; }
+        .cf-stats { grid-template-columns: repeat(2, 1fr); }
     }
 </style>
 
@@ -507,215 +510,271 @@
 
     <!-- Hero -->
     <div class="cf-hero">
-        <div class="cf-hero-pitch"></div>
+        <img class="cf-hero-pattern" src="~/Images/banner/escudos-pattern.svg" alt="" />
+        <div class="cf-hero-fade-left"></div>
+        <div class="cf-hero-stripe"></div>
+        <img class="cf-hero-player" src="~/Images/banner/vinicius.png" alt="" />
+
         <div class="cf-hero-content">
-            <div class="cf-hero-badge">Futebol 2026</div>
-            <h1>Controle de Futebol</h1>
-            <p>Gerencie times, escalações, jogos e competições com análise tática completa.</p>
+            <div class="cf-hero-kicker">
+                <div class="cf-hero-kicker-line"></div>
+                <span>Dashboard principal</span>
+            </div>
+
+            <h1>Análise de futebol,<br /><span class="gold">sem planilha.</span></h1>
+            <p>Gerencie times, jogadores e competições. Avalie partidas com critérios configuráveis. Tudo em um lugar.</p>
 
             <div class="cf-search-wrap">
-                <input id="cfSearchInput" type="text" class="cf-search-input"
-                       placeholder="Buscar time, jogador, competição…" autocomplete="off" />
-                <span class="cf-search-icon ti ti-search"></span>
+                <div class="cf-search-box">
+                    <span class="cf-search-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                    </span>
+                    <input id="cfSearchInput" type="text" class="cf-search-input"
+                           placeholder="Buscar time, jogador ou competição..." autocomplete="off" />
+                    <button type="button" class="cf-search-btn">Buscar</button>
+                </div>
                 <div id="cfSearchDropdown" class="cf-search-dropdown"></div>
             </div>
-
-            <div class="cf-hero-actions">
-                <a href="@Url.Action("Index", "Jogos")" class="cf-btn-primary">Ver jogos &rarr;</a>
-                <a href="@Url.Action("Index", "Times")" class="cf-btn-ghost">Gerenciar times</a>
-            </div>
         </div>
     </div>
 
-    <!-- Stats strip -->
+    <!-- Stats bar -->
     <div class="cf-stats">
         <div class="cf-stat-card">
-            <div class="cf-stat-num">@Model.TotalTimes</div>
-            <div class="cf-stat-label">Times</div>
+            <div class="cf-stat-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d4a520" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" /></svg>
+            </div>
+            <div>
+                <div class="cf-stat-num" data-count="@Model.TotalTimes">0</div>
+                <div class="cf-stat-label">Times</div>
+            </div>
         </div>
         <div class="cf-stat-card">
-            <div class="cf-stat-num">@Model.TotalJogadores</div>
-            <div class="cf-stat-label">Jogadores</div>
+            <div class="cf-stat-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d4a520" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+            </div>
+            <div>
+                <div class="cf-stat-num" data-count="@Model.TotalJogadores">0</div>
+                <div class="cf-stat-label">Jogadores</div>
+            </div>
         </div>
         <div class="cf-stat-card">
-            <div class="cf-stat-num">@Model.TotalJogos</div>
-            <div class="cf-stat-label">Jogos</div>
+            <div class="cf-stat-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d4a520" stroke-width="2"><circle cx="12" cy="12" r="10" /><path d="M12 8v4l3 3" /></svg>
+            </div>
+            <div>
+                <div class="cf-stat-num" data-count="@Model.TotalJogos">0</div>
+                <div class="cf-stat-label">Jogos</div>
+            </div>
         </div>
         <div class="cf-stat-card">
-            <div class="cf-stat-num">@Model.TotalCompeticoes</div>
-            <div class="cf-stat-label">Competições</div>
+            <div class="cf-stat-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d4a520" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" /></svg>
+            </div>
+            <div>
+                <div class="cf-stat-num" data-count="@Model.TotalCompeticoes">0</div>
+                <div class="cf-stat-label">Competições</div>
+            </div>
         </div>
     </div>
 
-    <!-- Módulos -->
-    <div class="cf-section-label">Módulos do sistema</div>
-    <div class="cf-modules">
-        <a href="@Url.Action("Index", "Times")" class="cf-module-card">
-            <div class="cf-module-icon" style="background:#eff6ff;">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <rect x="2" y="4" width="12" height="9" rx="1.5" stroke="#378add" stroke-width="1.4" />
-                    <path d="M5 4V3a3 3 0 016 0v1" stroke="#378add" stroke-width="1.4" />
-                    <circle cx="8" cy="9" r="1.5" fill="#378add" />
-                </svg>
-            </div>
-            <h3>Times</h3>
-            <p>Elenco, escudo, camisa e formação padrão.</p>
+    <!-- Acesso rápido -->
+    <div style="padding: 2.2rem 2.5rem 0;">
+        <div class="cf-section-label">
+            <span>Acesso rápido</span>
+            <div class="line"></div>
+        </div>
+    </div>
+    <div class="cf-quick-grid">
+        <a href="@Url.Action("Index", "Jogadores")" class="cf-quick-card">
+            <span class="icon">⚽</span>
+            <div class="label">Jogadores</div>
+            <div class="desc">@Model.TotalJogadores cadastrados</div>
         </a>
-        <a href="@Url.Action("Index", "Jogadores")" class="cf-module-card">
-            <div class="cf-module-icon" style="background:#f0fdf4;">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <circle cx="8" cy="5" r="2.5" stroke="#16a34a" stroke-width="1.4" />
-                    <path d="M3 14c0-2.761 2.239-5 5-5s5 2.239 5 5" stroke="#16a34a" stroke-width="1.4" stroke-linecap="round" />
-                </svg>
-            </div>
-            <h3>Jogadores</h3>
-            <p>Posição, camisa, idade e nacionalidade.</p>
+        <a href="@Url.Action("Index", "Times")" class="cf-quick-card">
+            <span class="icon">🏟</span>
+            <div class="label">Times</div>
+            <div class="desc">@Model.TotalTimes clubes</div>
         </a>
-        <a href="@Url.Action("Index", "Jogos")" class="cf-module-card">
-            <div class="cf-module-icon" style="background:#fffbeb;">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <rect x="2" y="2" width="12" height="12" rx="2" stroke="#d97706" stroke-width="1.4" />
-                    <path d="M8 5v3l2 2" stroke="#d97706" stroke-width="1.4" stroke-linecap="round" />
-                </svg>
-            </div>
-            <h3>Jogos</h3>
-            <p>Placares, gols, cartões e escalação tática.</p>
+        <a href="@Url.Action("Index", "Competicoes")" class="cf-quick-card">
+            <span class="icon">🏆</span>
+            <div class="label">Competições</div>
+            <div class="desc">@Model.TotalCompeticoes competições</div>
         </a>
-        <a href="@Url.Action("Index", "Competicoes")" class="cf-module-card">
-            <div class="cf-module-icon" style="background:#f0fdf9;">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M8 2l1.5 4h4l-3.5 2.5 1.5 4L8 10l-3.5 2.5 1.5-4L2.5 6h4L8 2z" stroke="#0f766e" stroke-width="1.3" stroke-linejoin="round" />
-                </svg>
-            </div>
-            <h3>Competições</h3>
-            <p>Classificação, grupos e tabela por rodada.</p>
+        <a href="@Url.Action("Index", "Jogos")" class="cf-quick-card">
+            <span class="icon">📋</span>
+            <div class="label">Jogos</div>
+            <div class="desc">@Model.TotalJogos partidas</div>
+        </a>
+        <a href="@Url.Action("Create", "Jogos")" class="cf-quick-card">
+            <span class="icon">➕</span>
+            <div class="label">Novo jogo</div>
+            <div class="desc">Cadastrar partida</div>
+        </a>
+        <a href="@Url.Action("Scout", "Relatorios")" class="cf-quick-card">
+            <span class="icon">🔍</span>
+            <div class="label">Scout</div>
+            <div class="desc">Busca avançada</div>
+        </a>
+        <a href="@Url.Action("Index", "Relatorios")" class="cf-quick-card">
+            <span class="icon">📊</span>
+            <div class="label">Relatórios</div>
+            <div class="desc">Estatísticas gerais</div>
         </a>
     </div>
 
     <!-- Jogos recentes + Classificação -->
-    <div class="cf-two-col">
+    <div class="cf-main-grid">
 
         <!-- Jogos recentes -->
-        <div class="cf-panel">
-            <div class="cf-panel-header">
-                Jogos recentes
-                <a href="@Url.Action("Index", "Jogos")" class="cf-panel-link">ver todos &rarr;</a>
+        <div>
+            <div class="cf-section-label">
+                <span>Últimos resultados</span>
+                <div class="line"></div>
+                <a href="@Url.Action("Index", "Jogos")" class="cf-section-link">ver todos &rarr;</a>
             </div>
 
-            @if (!Model.JogosRecentes.Any())
-            {
-                <p style="font-size:12px; color:var(--text-muted); text-align:center; padding:1rem 0;">
-                    Nenhum jogo finalizado ainda.
-                </p>
-            }
-            else
-            {
-                @foreach (var jogo in Model.JogosRecentes)
+            <div class="cf-games-grid">
+                @if (!Model.JogosRecentes.Any())
                 {
-                    <div class="cf-match">
-                        <div class="cf-team-badge">
-                            @if (!string.IsNullOrEmpty(jogo.TimeCasa?.EscudoUrl))
-                            {
-                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa.EscudoUrl })" alt="@jogo.TimeCasa.Nome" />
-                            }
-                            else
-                            {
-                                <span class="cf-team-badge-abbr">
-                                    @(jogo.TimeCasa?.Nome?.Length >= 3 ? jogo.TimeCasa.Nome.Substring(0, 3).ToUpper() : jogo.TimeCasa?.Nome)
+                    <div class="cf-empty">Nenhum jogo finalizado ainda.</div>
+                }
+                else
+                {
+                    @foreach (var jogo in Model.JogosRecentes)
+                    {
+                        bool casaVenceu = (jogo.PlacarCasa ?? 0) > (jogo.PlacarVisitante ?? 0);
+                        bool visVenceu = (jogo.PlacarVisitante ?? 0) > (jogo.PlacarCasa ?? 0);
+
+                        <a href="@Url.Action("Analisar", "Jogos", new { id = jogo.Id })" class="cf-game-card" style="display:block;">
+                            <div class="cf-game-top">
+                                <span class="cf-game-comp">@(jogo.Competicao?.Nome ?? "—")</span>
+                                <span class="cf-game-date">@DateHelper.FormatarData(jogo.Data, "dd/MM")</span>
+                            </div>
+                            <div class="cf-game-teams">
+                                <div class="cf-team-badge">
+                                    @if (!string.IsNullOrEmpty(jogo.TimeCasa?.EscudoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa.EscudoUrl })" alt="@jogo.TimeCasa.Nome" />
+                                    }
+                                    else
+                                    {
+                                        <span class="cf-team-badge-abbr">
+                                            @(jogo.TimeCasa?.Nome?.Length >= 3 ? jogo.TimeCasa.Nome.Substring(0, 3).ToUpper() : jogo.TimeCasa?.Nome)
+                                        </span>
+                                    }
+                                </div>
+                                <span class="cf-team-name" style="font-weight:@(casaVenceu ? "700" : "500"); color:@(casaVenceu ? "#f1f5f9" : "#9ca3af");">@jogo.TimeCasa?.Nome</span>
+                                <span class="cf-score">
+                                    @jogo.PlacarCasa &ndash; @jogo.PlacarVisitante
                                 </span>
-                            }
-                        </div>
-                        <span class="cf-team-name">@jogo.TimeCasa?.Nome</span>
-                        <span class="cf-score">
-                            @jogo.PlacarCasa &times; @jogo.PlacarVisitante
+                                <span class="cf-team-name" style="text-align:right; font-weight:@(visVenceu ? "700" : "500"); color:@(visVenceu ? "#f1f5f9" : "#9ca3af");">@jogo.TimeVisitante?.Nome</span>
+                                <div class="cf-team-badge">
+                                    @if (!string.IsNullOrEmpty(jogo.TimeVisitante?.EscudoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante.EscudoUrl })" alt="@jogo.TimeVisitante.Nome" />
+                                    }
+                                    else
+                                    {
+                                        <span class="cf-team-badge-abbr">
+                                            @(jogo.TimeVisitante?.Nome?.Length >= 3 ? jogo.TimeVisitante.Nome.Substring(0, 3).ToUpper() : jogo.TimeVisitante?.Nome)
+                                        </span>
+                                    }
+                                </div>
+                            </div>
                             @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
                             {
-                                <span class="cf-pen-score">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</span>
+                                <div style="text-align:center; font-size:0.65rem; color:#6b7280; margin-top:4px;">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</div>
                             }
-                        </span>
-                        <span class="cf-team-name" style="text-align:right;">@jogo.TimeVisitante?.Nome</span>
-                        <div class="cf-team-badge">
-                            @if (!string.IsNullOrEmpty(jogo.TimeVisitante?.EscudoUrl))
-                            {
-                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante.EscudoUrl })" alt="@jogo.TimeVisitante.Nome" />
-                            }
-                            else
-                            {
-                                <span class="cf-team-badge-abbr">
-                                    @(jogo.TimeVisitante?.Nome?.Length >= 3 ? jogo.TimeVisitante.Nome.Substring(0, 3).ToUpper() : jogo.TimeVisitante?.Nome)
+                            <div class="cf-game-footer">
+                                <span class="cf-analisar-link">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M2 12h20M16 6l6 6-6 6" /></svg>
+                                    Analisar partida
                                 </span>
-                            }
-                        </div>
-                        <span class="cf-rodada">R@(jogo.Rodada)</span>
-                    </div>
+                            </div>
+                        </a>
+                    }
                 }
-            }
+            </div>
         </div>
 
         <!-- Classificação -->
-        <div class="cf-panel">
-            <div class="cf-panel-header">
-                Classificação
-                <a href="@Url.Action("Index", "Competicoes")" class="cf-panel-link">ver completa &rarr;</a>
+        <div>
+            <div class="cf-section-label">
+                <span>Classificação</span>
+                <div class="line"></div>
+                <a href="@Url.Action("Index", "Competicoes")" class="cf-section-link">ver completa &rarr;</a>
             </div>
 
             @if (!Model.Classificacao.Any())
             {
-                <p style="font-size:12px; color:var(--text-muted); text-align:center; padding:1rem 0;">
-                    Nenhum dado disponível ainda.
-                </p>
+                <div class="cf-empty">Nenhum dado disponível ainda.</div>
             }
             else
             {
-                @foreach (var c in Model.Classificacao)
-                {
-                    string rankClass = c.Posicao <= 4 ? "cf-rank-top" : (c.Posicao >= Model.Classificacao.Count - 2 ? "cf-rank-drop" : "cf-rank-normal");
-
-                    <div class="cf-classif">
-                        <span class="cf-rank @rankClass">@c.Posicao</span>
-                        <div class="cf-team-badge">
-                            @if (!string.IsNullOrEmpty(c.Time?.EscudoUrl))
-                            {
-                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.Time.EscudoUrl })" alt="@c.Time.Nome" />
-                            }
-                            else
-                            {
-                                <span class="cf-team-badge-abbr">
-                                    @(c.Time?.Nome?.Length >= 3 ? c.Time.Nome.Substring(0, 3).ToUpper() : c.Time?.Nome)
-                                </span>
-                            }
+                <div class="cf-classif-panel">
+                    <div class="cf-classif-head">
+                        <div style="width:3px; margin-right:10px; flex-shrink:0;"></div>
+                        <span style="width:20px; flex-shrink:0;">#</span>
+                        <div style="width:22px; flex-shrink:0;"></div>
+                        <span style="flex:1;">Time</span>
+                        <div class="cf-classif-cols">
+                            <span>J</span><span>V</span><span>E</span><span>D</span><span class="pts">Pts</span>
                         </div>
-                        <span class="cf-team-name">@c.Time?.Nome</span>
-                        <span class="cf-classif-detail">@c.Jogos J &bull; @c.SaldoGols SG</span>
-                        <span class="cf-pts">@c.Pontos pts</span>
                     </div>
-                }
+
+                    @foreach (var c in Model.Classificacao)
+                    {
+                        string faixa = c.Posicao <= 4 ? "top" : (c.Posicao >= Model.Classificacao.Count - 2 ? "drop" : "mid");
+                        string corBarra = faixa == "top" ? "#d4a520" : (faixa == "drop" ? "#ef4444" : "#374151");
+
+                        <div class="cf-classif-row">
+                            <div class="cf-classif-bar" style="background:@corBarra;"></div>
+                            <span class="cf-classif-pos @faixa">@c.Posicao</span>
+                            <div class="cf-team-badge" style="margin-right:6px;">
+                                @if (!string.IsNullOrEmpty(c.Time?.EscudoUrl))
+                                {
+                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.Time.EscudoUrl })" alt="@c.Time.Nome" />
+                                }
+                                else
+                                {
+                                    <span class="cf-team-badge-abbr">
+                                        @(c.Time?.Nome?.Length >= 3 ? c.Time.Nome.Substring(0, 3).ToUpper() : c.Time?.Nome)
+                                    </span>
+                                }
+                            </div>
+                            <span class="cf-classif-time">@c.Time?.Nome</span>
+                            <div class="cf-classif-cols">
+                                <span>@c.Jogos</span><span>@c.Vitorias</span><span>@c.Empates</span><span>@c.Derrotas</span>
+                                <span class="pts">@c.Pontos</span>
+                            </div>
+                        </div>
+                    }
+                </div>
             }
         </div>
-    </div>
 
-    <!-- Ações rápidas -->
-    <div class="cf-section-label">Ações rápidas</div>
-    <div class="cf-quick">
-        <a href="@Url.Action("Create", "Jogos")" class="cf-qa">
-            <div class="cf-qa-dot" style="background:#378add;"></div>
-            Novo jogo
-        </a>
-        <a href="@Url.Action("Index", "Jogadores")" class="cf-qa">
-            <div class="cf-qa-dot" style="background:#7c3aed;"></div>
-            Ver jogadores
-        </a>
-        <a href="@Url.Action("Index", "Competicoes")" class="cf-qa">
-            <div class="cf-qa-dot" style="background:#be185d;"></div>
-            Competições
-        </a>
     </div>
-
 </div>
 
 @section Scripts {
 <script>
 (function () {
+    // ── Contadores animados da barra de estatísticas ──────────────────
+    document.querySelectorAll('.cf-stat-num[data-count]').forEach(function (el) {
+        var target = parseInt(el.getAttribute('data-count'), 10) || 0;
+        var duration = 1200;
+        var start = performance.now();
+        function animate(now) {
+            var p = Math.min((now - start) / duration, 1);
+            var ease = 1 - Math.pow(1 - p, 3);
+            el.textContent = Math.round(target * ease).toLocaleString('pt-BR');
+            if (p < 1) requestAnimationFrame(animate);
+        }
+        requestAnimationFrame(animate);
+    });
+
+    // ── Busca global (time / jogador / competição) ────────────────────
     const input = document.getElementById('cfSearchInput');
     const dropdown = document.getElementById('cfSearchDropdown');
     if (!input || !dropdown) return;
@@ -777,7 +836,7 @@
 
         dropdown.innerHTML = items.map(item => {
             const url   = esc((urls[item.tipo] || (() => '#'))(item.id));
-            const nome  = esc(item.nome || '').replace(re, '<mark style="background:#fef08a;border-radius:2px;padding:0 1px">$1</mark>');
+            const nome  = esc(item.nome || '').replace(re, '<mark style="background:#d4a520;color:#141414;border-radius:2px;padding:0 1px">$1</mark>');
             const badge = `<span class="cf-search-badge ${esc(badgeClass[item.tipo] || '')}">${esc(item.tipo)}</span>`;
             const extra = item.extra ? `<span class="cf-search-extra">${esc(item.extra)}</span>` : '';
             return `<a href="${url}" class="cf-search-item">${badge}<span class="cf-search-nome">${nome}</span>${extra}</a>`;
@@ -788,4 +847,3 @@
 })();
 </script>
 }
-

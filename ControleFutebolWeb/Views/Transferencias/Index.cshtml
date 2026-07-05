@@ -271,7 +271,7 @@
 
                     <div class="trf-jogador">
                         <img src="@(string.IsNullOrEmpty(t.Jogador.FotoUrl) ? "/images/placeholder-jogador.png" : Url.FotoSrc(t.Jogador.FotoUrl))"
-                             onerror="this.src='/images/placeholder-jogador.png'" alt="" />
+                             onerror="this.onerror=null; this.src='/images/placeholder-jogador.png'" alt="" />
                         <div style="min-width:0;">
                             <div class="trf-jogador-nome">
                                 <a href="@Url.Action("Estatisticas", "Jogadores", new { id = t.JogadorId })"

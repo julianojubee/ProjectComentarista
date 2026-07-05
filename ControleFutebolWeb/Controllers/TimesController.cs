@@ -54,13 +54,52 @@ namespace ControleFutebolWeb.Controllers
                 query = query.Where(t => timeIds.Contains(t.Id));
             }
 
-            var times = await query.OrderBy(t => t.Nome).ToListAsync();
+            var times = await query.Include(t => t.FormacaoPadrao).OrderBy(t => t.Nome).ToListAsync();
+            var timeIdsPagina = times.Select(t => t.Id).ToList();
+
+            // Jogadores por time (evita carregar a coleção inteira só pra contar)
+            var jogadoresPorTime = await _context.Jogadores
+                .Where(j => timeIdsPagina.Contains(j.TimeId))
+                .GroupBy(j => j.TimeId)
+                .Select(g => new { TimeId = g.Key, Qtd = g.Count() })
+                .ToDictionaryAsync(x => x.TimeId, x => x.Qtd);
+
+            // Forma recente (últimos 5 jogos finalizados de cada time exibido)
+            var jogosRecentesPorTime = await _context.Jogos
+                .AsNoTracking()
+                .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue &&
+                    (timeIdsPagina.Contains(j.TimeCasaId) || timeIdsPagina.Contains(j.TimeVisitanteId)))
+                .OrderByDescending(j => j.Data)
+                .Select(j => new { j.TimeCasaId, j.TimeVisitanteId, j.PlacarCasa, j.PlacarVisitante })
+                .ToListAsync();
+
+            var formaPorTime = new Dictionary<int, List<char>>();
+            void AdicionarForma(int timeId, char resultado)
+            {
+                if (!timeIdsPagina.Contains(timeId)) return;
+                if (!formaPorTime.TryGetValue(timeId, out var lista))
+                    formaPorTime[timeId] = lista = new List<char>();
+                if (lista.Count < 5) lista.Add(resultado);
+            }
+            foreach (var j in jogosRecentesPorTime)
+            {
+                int pc = j.PlacarCasa!.Value, pv = j.PlacarVisitante!.Value;
+                AdicionarForma(j.TimeCasaId, pc > pv ? 'V' : pc < pv ? 'D' : 'E');
+                AdicionarForma(j.TimeVisitanteId, pv > pc ? 'V' : pv < pc ? 'D' : 'E');
+            }
 
             // Listas completas para os tag selectors
             ViewBag.Competicoes = await _context.Competicoes.OrderBy(c => c.Nome).ToListAsync();
             ViewBag.Times = await _context.Times.OrderBy(t => t.Nome).ToListAsync();
             ViewBag.CompeticaoIdsFiltro = competicaoIds;
             ViewBag.TimeIdsFiltro = timeIds;
+            ViewBag.JogadoresPorTime = jogadoresPorTime;
+            ViewBag.FormaPorTime = formaPorTime;
+
+            // KPIs do topo da página (totais globais, independentes do filtro aplicado)
+            ViewBag.TotalTimesGlobal = await _context.Times.CountAsync();
+            ViewBag.TotalJogadoresGlobal = await _context.Jogadores.CountAsync();
+            ViewBag.TotalCompeticoesGlobal = await _context.Competicoes.CountAsync();
 
             return View(times);
         }

@@ -50,11 +50,12 @@ namespace ControleFutebolWeb.Controllers
 
         public async Task<IActionResult> Index()
         {
-            // �ltimos 6 jogos finalizados (com placar)
+            // Últimos 6 jogos finalizados (com placar)
             var jogosRecentes = await _context.Jogos
                 .AsNoTracking()
                 .Include(j => j.TimeCasa)
                 .Include(j => j.TimeVisitante)
+                .Include(j => j.Competicao)
                 .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue)
                 .OrderByDescending(j => j.Data)
                 .Take(6)

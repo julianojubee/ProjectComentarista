@@ -40,6 +40,14 @@ namespace ControleFutebolWeb.Controllers
 
             var anotacoes = await query.OrderByDescending(a => a.DtInc).ToListAsync();
 
+            // Contagem por categoria (sempre do total do time, não afetada pela busca "q") —
+            // usada no card "Resumo" da barra lateral.
+            var contagemCategorias = await _context.AnotacoesTime
+                .Where(a => a.TimeId == timeId && a.UsuarioId == uid)
+                .GroupBy(a => a.Categoria ?? "")
+                .Select(g => new { Categoria = g.Key, Qtd = g.Count() })
+                .ToDictionaryAsync(x => x.Categoria, x => x.Qtd);
+
             // Observações sobre este time feitas na tela de analisar (tags Mandante/Visitante,
             // do próprio usuário). Mantemos as do lado em que o time jogou em cada partida.
             var tagsDoTime = await _context.ObservacoesJogoTag
@@ -73,6 +81,8 @@ namespace ControleFutebolWeb.Controllers
             ViewBag.Time = time;
             ViewBag.Q    = q;
             ViewBag.ObservacoesJogos = observacoesJogos;
+            ViewBag.ContagemCategorias = contagemCategorias;
+            ViewBag.NovaAnotacao = new AnotacaoTime { TimeId = timeId };
             return View(anotacoes);
         }
 

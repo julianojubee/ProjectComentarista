@@ -148,6 +148,11 @@ namespace ControleFutebolWeb.Controllers
             vm.TotalJogadores = totalJogadores;
             vm.PageSize = pageSize;
 
+            // KPIs do hero (totais globais, independentes do filtro aplicado)
+            vm.TotalJogadoresGlobal = _context.Jogadores.Count();
+            vm.TotalTimesComJogadores = _context.Jogadores.Select(j => j.TimeId).Distinct().Count();
+            vm.TotalNacionalidadesGlobal = nacionalidades.Count;
+
             // Filtros atuais, para preservar nos links de paginação
             vm.FiltroPosicao = posicao;
             vm.FiltroNacionalidade = nacionalidade;

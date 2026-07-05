@@ -38,5 +38,10 @@ namespace ControleFutebolWeb.Models.ViewModels
         public int TotalPaginas { get; set; }
         public int TotalJogadores { get; set; }
         public int PageSize { get; set; }
+
+        // KPIs do hero (totais globais, sem filtro aplicado)
+        public int TotalJogadoresGlobal { get; set; }
+        public int TotalTimesComJogadores { get; set; }
+        public int TotalNacionalidadesGlobal { get; set; }
     }
 }

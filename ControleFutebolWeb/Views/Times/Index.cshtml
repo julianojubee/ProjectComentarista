@@ -1,17 +1,7 @@
-﻿@model IEnumerable<ControleFutebolWeb.Models.Time>
+@model IEnumerable<ControleFutebolWeb.Models.Time>
 
 @section Scripts {
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            // Botões importar
-            document.querySelectorAll(".btn-importar").forEach(btn => {
-                btn.addEventListener("click", function () {
-                    btn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Importando...`;
-                    btn.classList.add("disabled");
-                });
-            });
-        });
-
         (function () {
             // Tag selector genérico: renderiza chips a partir dos checkboxes de um painel
             function initMulti(wrapId, boxId, panelId, placeholder, onChange) {
@@ -132,306 +122,425 @@
 
 @{
     ViewData["Title"] = "Times";
+
+    var competicoesLista = ViewBag.Competicoes as IEnumerable<ControleFutebolWeb.Models.Competicao> ?? Enumerable.Empty<ControleFutebolWeb.Models.Competicao>();
+    var timesLista = ViewBag.Times as IEnumerable<ControleFutebolWeb.Models.Time> ?? Enumerable.Empty<ControleFutebolWeb.Models.Time>();
+    var compSel = ViewBag.CompeticaoIdsFiltro as List<int> ?? new List<int>();
+    var timeSel = ViewBag.TimeIdsFiltro as List<int> ?? new List<int>();
+    var jogadoresPorTime = ViewBag.JogadoresPorTime as Dictionary<int, int> ?? new Dictionary<int, int>();
+    var formaPorTime = ViewBag.FormaPorTime as Dictionary<int, List<char>> ?? new Dictionary<int, List<char>>();
+
+    int totalTimesGlobal = ViewBag.TotalTimesGlobal ?? 0;
+    int totalJogadoresGlobal = ViewBag.TotalJogadoresGlobal ?? 0;
+    int totalCompeticoesGlobal = ViewBag.TotalCompeticoesGlobal ?? 0;
+
+    bool temFiltro = compSel.Any() || timeSel.Any();
+    int exibidos = Model.Count();
+    string subtitulo = temFiltro ? $"{exibidos} de {totalTimesGlobal} times" : $"{totalTimesGlobal} times cadastrados";
+
+    string CorForma(char r) => r switch { 'V' => "#22c55e", 'D' => "#ef4444", _ => "#6b7280" };
 }
 
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+
 <style>
-    /* Reused Home visual identity (hero + card grid) */
-    .cf-hero {
-        position: relative;
-        background: linear-gradient(135deg, #0a1628 0%, #1a2f4e 55%, #0f2040 100%);
+    .cf-times * { box-sizing: border-box; }
+
+    .cf-times {
+        margin: 0 -12px;
+        background: #0f0f0f;
+        color: #e5e7eb;
+        font-family: 'Barlow', Arial, sans-serif;
         border-radius: 14px;
-        padding: 2.6rem 2rem;
-        text-align: center;
         overflow: hidden;
-        margin-bottom: 1.5rem;
-        color: #fff;
     }
 
-    /* Imagem de escudos ao fundo, com opacidade, por cima do gradiente azul */
-    .cf-hero::before {
-        content: "";
+    .cf-times a { text-decoration: none; color: inherit; }
+    .cf-times h1 { font-family: 'Barlow Condensed', Arial, sans-serif; }
+
+    /* ── Hero ────────────────────────────────────── */
+    .cft-hero {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #0a1628 0%, #0f2040 55%, #0a1628 100%);
+        padding: 2.4rem 2.5rem;
+    }
+
+    .cft-hero-pattern {
         position: absolute;
         inset: 0;
-        z-index: 0;
-        background-image: url('/Images/banner/escudos-pattern.svg');
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-        opacity: 0.22;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        opacity: 0.08;
         pointer-events: none;
     }
 
-    .cf-hero-content { position: relative; z-index: 1; }
-
-    .cf-hero-badge {
-        display: inline-block;
-        background: rgba(55, 138, 221, 0.2);
-        color: #85b7eb;
-        font-size: 11px;
-        font-weight: 600;
-        padding: 4px 14px;
-        border-radius: 20px;
-        border: 1px solid rgba(55, 138, 221, 0.35);
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        margin-bottom: 0.9rem;
+    .cft-hero-stripe {
+        position: absolute;
+        left: 0; top: 0; bottom: 0;
+        width: 3px;
+        background: #d4a520;
     }
 
-    .cf-hero h1 { font-size: 1.9rem; color: #fff; margin-bottom: 0.6rem; font-weight: 600; }
-    .cf-hero p  { color: rgba(255,255,255,0.65); margin: 0; font-size: 0.95rem; }
+    .cft-hero-content { position: relative; z-index: 1; }
 
-    /* Grid of team cards */
-    .cf-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 12px;
-        margin-top: 1rem;
+    .cft-hero-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .cft-hero-kicker-line { height: 2px; width: 28px; background: #d4a520; }
+    .cft-hero-kicker span {
+        font-size: 0.68rem; font-weight: 700; letter-spacing: 0.24em;
+        color: #d4a520; text-transform: uppercase;
     }
 
-    .cf-card {
-        background: var(--surface);
-        border: 0.5px solid var(--border);
-        border-radius: 12px;
-        padding: 1rem;
-        text-decoration: none;
+    .cft-hero-row {
+        display: flex; align-items: flex-end; justify-content: space-between;
+        flex-wrap: wrap; gap: 20px;
+    }
+
+    .cft-hero h1 { font-size: 2.6rem; font-weight: 800; color: #f1f5f9; margin: 0 0 8px; line-height: 1; }
+    .cft-hero p { color: #94a3b8; font-size: 0.92rem; margin: 0; max-width: 480px; }
+
+    .cft-kpis { display: flex; gap: 20px; flex-shrink: 0; }
+    .cft-kpi { text-align: center; }
+    .cft-kpi-num {
+        font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 2.1rem;
+        font-weight: 800; color: #d4a520; line-height: 1;
+    }
+    .cft-kpi-label {
+        font-size: 0.63rem; font-weight: 700; letter-spacing: 0.1em;
+        color: #64748b; text-transform: uppercase; margin-top: 3px;
+    }
+    .cft-kpi-sep { width: 1px; background: #1e3a5f; align-self: stretch; }
+
+    /* ── Filtros ─────────────────────────────────── */
+    .cft-filters {
+        background: #141414;
+        border-bottom: 1px solid #262626;
+        padding: 16px 2.5rem;
         display: flex;
-        flex-direction: column;
-        gap: 8px;
-        transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
-        min-height: 140px;
-    }
-
-    .cf-card:hover {
-        border-color: #c0d4f0;
-        box-shadow: 0 6px 18px rgba(55,138,221,0.06);
-        transform: translateY(-3px);
-        text-decoration: none;
-    }
-
-    .cf-team-top {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .cf-team-badge {
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        background: var(--surface-3);
-        border: 0.5px solid var(--border);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        overflow: hidden;
-    }
-
-    .cf-team-badge img { width: 100%; height: 100%; object-fit: contain; }
-
-    .cf-team-name {
-        font-weight: 700;
-        color: var(--text);
-        font-size: 1rem;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .cf-team-meta {
-        font-size: 12px;
-        color: var(--text-muted);
-    }
-
-    .cf-card-actions {
-        margin-top: auto;
-        display: flex;
-        gap: 8px;
+        align-items: flex-end;
+        gap: 14px;
         flex-wrap: wrap;
     }
 
-    .cf-small-btn {
-        font-size: 13px;
-        padding: 6px 10px;
+    .cft-filter-label {
+        font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
+        color: #6b7280; text-transform: uppercase; margin-bottom: 6px; display: block;
     }
 
-    /* Keep existing filter form spacing consistent */
-    .times-filter {
-        display:flex;
-        gap:12px;
-        align-items:flex-end;
-        flex-wrap:wrap;
-        margin-bottom: 12px;
-    }
+    .cft-subtitulo { margin-left: auto; font-size: 0.78rem; color: #6b7280; font-weight: 600; }
 
-    /* ── Tag selector (igual Relatórios) ── */
-    .ms-wrap { position: relative; min-width: 240px; flex: 1; }
+    /* Tag selector — mesma lógica funcional, visual escuro */
+    .ms-wrap { position: relative; min-width: 240px; }
     .ms-box {
         display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
-        min-height: 38px; padding: 4px 30px 4px 8px; cursor: pointer;
-        border: 1px solid var(--border-strong); border-radius: 8px; background: var(--input-bg); font-size: 13px;
+        min-height: 40px; padding: 4px 30px 4px 10px; cursor: pointer;
+        border: 1px solid #333; border-radius: 8px; background: #1a1a1a; font-size: 13px;
+        position: relative;
     }
     .ms-box::after {
         content: "▾"; position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-        color: var(--text-muted); pointer-events: none;
+        color: #6b7280; pointer-events: none;
     }
-    .ms-placeholder { color: var(--text-muted); }
+    .ms-placeholder { color: #6b7280; }
     .ms-chip {
         display: inline-flex; align-items: center; gap: 4px;
-        background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe;
+        background: rgba(212,165,32,0.14); color: #eecb6c; border: 1px solid rgba(212,165,32,0.3);
         border-radius: 6px; padding: 2px 6px; font-size: 12px; font-weight: 600;
     }
     .ms-chip-x { cursor: pointer; font-weight: 700; line-height: 1; opacity: .7; }
     .ms-chip-x:hover { opacity: 1; }
     .ms-panel {
         position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50;
-        background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px;
-        box-shadow: 0 8px 24px rgba(0,0,0,.12); max-height: 280px; overflow-y: auto;
+        background: #1a1a1a; border: 1px solid #333; border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0,0,0,.5); max-height: 280px; overflow-y: auto;
         display: none; padding: 4px;
     }
     .ms-panel.open { display: block; }
     .ms-opt {
         display: flex; align-items: center; gap: 8px; padding: 7px 10px;
-        border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text);
+        border-radius: 6px; cursor: pointer; font-size: 13px; color: #e5e7eb;
     }
-    .ms-opt:hover { background: var(--surface-3); }
-    .ms-opt input { cursor: pointer; }
+    .ms-opt:hover { background: #262626; }
+    .ms-opt input { cursor: pointer; accent-color: #d4a520; }
     .ms-search {
         width: 100%; box-sizing: border-box; padding: 7px 10px; margin-bottom: 4px;
-        border: 1px solid var(--border-strong); border-radius: 6px; font-size: 13px; outline: none;
-        position: sticky; top: 0; background: var(--input-bg);
+        border: 1px solid #333; border-radius: 6px; font-size: 13px; outline: none;
+        position: sticky; top: 0; background: #141414; color: #e5e7eb;
     }
-    .ms-search:focus { border-color: #6366f1; }
+    .ms-search::placeholder { color: #666; }
+    .ms-search:focus { border-color: #d4a520; }
+
+    .cft-btn {
+        padding: 9px 18px; border-radius: 8px; font-size: 0.85rem; font-weight: 700;
+        border: none; cursor: pointer;
+    }
+    .cft-btn-primary { background: #d4a520; color: #141414; }
+    .cft-btn-primary:hover { background: #c49918; }
+    .cft-btn-ghost { background: transparent; color: #9ca3af; border: 1px solid #333; }
+    .cft-btn-ghost:hover { color: #f1f5f9; border-color: #444; }
+
+    /* ── Grid de cards ───────────────────────────── */
+    .cft-grid-wrap { padding: 28px 2.5rem 3rem; }
+
+    .cft-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+    }
+
+    .cft-card {
+        background: #161616;
+        border: 1px solid #262626;
+        border-radius: 14px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        transition: all 0.18s;
+    }
+
+    .cft-card:hover {
+        border-color: #d4a520;
+        background: #1a1a1a;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 32px rgba(212,165,32,0.06);
+    }
+
+    .cft-card-top { display: flex; align-items: flex-start; gap: 16px; }
+
+    .cft-badge {
+        width: 58px; height: 58px; border-radius: 50%;
+        background: #0f0f0f; border: 1px solid #2a2a2a;
+        display: flex; align-items: center; justify-content: center;
+        overflow: hidden; flex-shrink: 0;
+    }
+
+    .cft-badge img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+    .cft-badge-abbr { font-size: 11px; font-weight: 700; color: #6b7280; }
+
+    .cft-card-info { flex: 1; min-width: 0; padding-top: 2px; }
+
+    .cft-nome {
+        font-size: 1.05rem; font-weight: 700; color: #f1f5f9;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px;
+    }
+
+    .cft-cidade { display: flex; align-items: center; gap: 5px; margin-bottom: 8px; }
+    .cft-cidade span { font-size: 0.75rem; color: #6b7280; }
+
+    .cft-formacao {
+        display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px;
+        background: rgba(212,165,32,0.1); border: 1px solid rgba(212,165,32,0.22); border-radius: 6px;
+    }
+    .cft-formacao span { font-size: 0.7rem; font-weight: 700; color: #d4a520; letter-spacing: 0.06em; }
+
+    .cft-divider { height: 1px; background: #1e1e1e; }
+
+    .cft-card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .cft-stat-mini { display: flex; align-items: center; gap: 14px; }
+    .cft-jogadores { display: flex; align-items: center; gap: 5px; }
+    .cft-jogadores span { font-size: 0.78rem; color: #9ca3af; font-weight: 600; }
+
+    .cft-forma { display: flex; gap: 3px; align-items: center; }
+    .cft-forma-item {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 16px; height: 16px; border-radius: 3px; color: #fff; font-size: 8px; font-weight: 800; flex-shrink: 0;
+    }
+
+    .cft-cta {
+        font-size: 0.72rem; color: #d4a520; font-weight: 700;
+        display: flex; align-items: center; gap: 4px; flex-shrink: 0; white-space: nowrap;
+    }
+
+    .cft-empty {
+        text-align: center; padding: 3rem 1rem; color: #6b7280;
+        background: #161616; border: 1px solid #262626; border-radius: 14px;
+    }
+
+    @@media (max-width: 640px) {
+        .cft-hero, .cft-filters, .cft-grid-wrap { padding-left: 1.2rem; padding-right: 1.2rem; }
+        .cft-hero h1 { font-size: 2rem; }
+        .cft-subtitulo { margin-left: 0; width: 100%; }
+    }
 </style>
 
-<!-- Hero matching Home -->
-<div class="cf-hero">
-    <div class="cf-hero-content">
-        <div class="cf-hero-badge">Painel</div>
-        <h1>Times</h1>
-        <p>Gerencie escudos, uniformes e acesse a página de detalhes dos clubes.</p>
-    </div>
-</div>
+<div class="cf-times">
 
-@{
-    var competicoesLista = ViewBag.Competicoes as IEnumerable<ControleFutebolWeb.Models.Competicao> ?? Enumerable.Empty<ControleFutebolWeb.Models.Competicao>();
-    var timesLista = ViewBag.Times as IEnumerable<ControleFutebolWeb.Models.Time> ?? Enumerable.Empty<ControleFutebolWeb.Models.Time>();
-    var compSel = ViewBag.CompeticaoIdsFiltro as List<int> ?? new List<int>();
-    var timeSel = ViewBag.TimeIdsFiltro as List<int> ?? new List<int>();
-}
-
-<form asp-action="Index" method="get" class="times-filter">
-    <div>
-        <label class="form-label">Competições</label>
-        <div class="ms-wrap" id="compMulti">
-            <div class="ms-box" id="compBox" tabindex="0"></div>
-            <div class="ms-panel" id="compPanel">
-                <input type="text" class="ms-search" id="compSearch" placeholder="Buscar competição…" autocomplete="off" />
-                <div id="compOptions">
-                    @foreach (var c in competicoesLista)
-                    {
-                        <label class="ms-opt">
-                            <input type="checkbox" name="competicaoIds" value="@c.Id"
-                                   data-nome="@c.Nome"
-                                   @(compSel.Contains(c.Id) ? "checked" : "") />
-                            <span>@c.Nome</span>
-                        </label>
-                    }
+    <!-- Hero -->
+    <div class="cft-hero">
+        <img class="cft-hero-pattern" src="~/Images/banner/escudos-pattern.svg" alt="" />
+        <div class="cft-hero-stripe"></div>
+        <div class="cft-hero-content">
+            <div class="cft-hero-kicker">
+                <div class="cft-hero-kicker-line"></div>
+                <span>Gestão</span>
+            </div>
+            <div class="cft-hero-row">
+                <div>
+                    <h1>Times</h1>
+                    <p>Gerencie escudos, uniformes, escalação padrão e acesse os detalhes de cada clube.</p>
+                </div>
+                <div class="cft-kpis">
+                    <div class="cft-kpi">
+                        <div class="cft-kpi-num">@totalTimesGlobal</div>
+                        <div class="cft-kpi-label">Times</div>
+                    </div>
+                    <div class="cft-kpi-sep"></div>
+                    <div class="cft-kpi">
+                        <div class="cft-kpi-num">@totalJogadoresGlobal</div>
+                        <div class="cft-kpi-label">Jogadores</div>
+                    </div>
+                    <div class="cft-kpi-sep"></div>
+                    <div class="cft-kpi">
+                        <div class="cft-kpi-num">@totalCompeticoesGlobal</div>
+                        <div class="cft-kpi-label">Competições</div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div>
-        <label class="form-label">Times</label>
-        <div class="ms-wrap" id="timeMulti">
-            <div class="ms-box" id="timeBox" tabindex="0"></div>
-            <div class="ms-panel" id="timePanel">
-                <input type="text" class="ms-search" id="timeSearch" placeholder="Buscar time…" autocomplete="off" />
-                <div id="timeOptions">
-                    @foreach (var t in timesLista)
-                    {
-                        <label class="ms-opt">
-                            <input type="checkbox" name="timeIds" value="@t.Id"
-                                   data-nome="@t.Nome"
-                                   @(timeSel.Contains(t.Id) ? "checked" : "") />
-                            <span>@t.Nome</span>
-                        </label>
-                    }
+    <!-- Filtros -->
+    <form asp-action="Index" method="get" class="cft-filters">
+        <div>
+            <span class="cft-filter-label">Competições</span>
+            <div class="ms-wrap" id="compMulti">
+                <div class="ms-box" id="compBox" tabindex="0"></div>
+                <div class="ms-panel" id="compPanel">
+                    <input type="text" class="ms-search" id="compSearch" placeholder="Buscar competição…" autocomplete="off" />
+                    <div id="compOptions">
+                        @foreach (var c in competicoesLista)
+                        {
+                            <label class="ms-opt">
+                                <input type="checkbox" name="competicaoIds" value="@c.Id"
+                                       data-nome="@c.Nome"
+                                       @(compSel.Contains(c.Id) ? "checked" : "") />
+                                <span>@c.Nome</span>
+                            </label>
+                        }
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="d-flex align-items-end gap-2">
-        <button type="submit" class="btn btn-primary">Filtrar</button>
-        @if (compSel.Any() || timeSel.Any())
+        <div>
+            <span class="cft-filter-label">Times</span>
+            <div class="ms-wrap" id="timeMulti">
+                <div class="ms-box" id="timeBox" tabindex="0"></div>
+                <div class="ms-panel" id="timePanel">
+                    <input type="text" class="ms-search" id="timeSearch" placeholder="Buscar time…" autocomplete="off" />
+                    <div id="timeOptions">
+                        @foreach (var t in timesLista)
+                        {
+                            <label class="ms-opt">
+                                <input type="checkbox" name="timeIds" value="@t.Id"
+                                       data-nome="@t.Nome"
+                                       @(timeSel.Contains(t.Id) ? "checked" : "") />
+                                <span>@t.Nome</span>
+                            </label>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="cft-btn cft-btn-primary">Filtrar</button>
+        @if (temFiltro)
         {
-            <a asp-action="Index" class="btn btn-outline-secondary">✕ Limpar</a>
+            <a asp-action="Index" class="cft-btn cft-btn-ghost">✕ Limpar</a>
         }
-    </div>
-</form>
 
-@if (TempData["Mensagem"] != null)
-{
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        @TempData["Mensagem"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-}
+        <div class="cft-subtitulo">@subtitulo</div>
+    </form>
 
-@if (TempData["MensagemErro"] != null)
-{
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        @TempData["MensagemErro"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-}
+    @if (TempData["Mensagem"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show m-3" role="alert">
+            @TempData["Mensagem"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
 
-<table class="table">
-    <thead>
-        <tr>
-            <th>Nome</th>
-            <th>Escudo</th>
-      
-            <th>Ações</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var time in Model)
+    @if (TempData["MensagemErro"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show m-3" role="alert">
+            @TempData["MensagemErro"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <!-- Grid -->
+    <div class="cft-grid-wrap">
+        @if (!Model.Any())
         {
-            <tr>
-                <td>@time.Nome</td>
-                <td>
-                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = time.EscudoUrl })" alt="@time.Nome" style="height:40px;" />
-                </td>
-               
-                <td>
-                    <a asp-action="Details"
-                       asp-controller="Times"
-                       asp-route-id="@time.Id"
-                       class="btn btn-sm btn-info">
-                        Detalhes
+            <div class="cft-empty">Nenhum time encontrado com os filtros selecionados.</div>
+        }
+        else
+        {
+            <div class="cft-grid">
+                @foreach (var time in Model)
+                {
+                    int qtdJogadores = jogadoresPorTime.TryGetValue(time.Id, out var qj) ? qj : 0;
+                    var forma = formaPorTime.TryGetValue(time.Id, out var f) ? f : new List<char>();
+
+                    <a asp-action="Details" asp-controller="Times" asp-route-id="@time.Id" class="cft-card">
+                        <div class="cft-card-top">
+                            <div class="cft-badge">
+                                @if (!string.IsNullOrEmpty(time.EscudoUrl))
+                                {
+                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = time.EscudoUrl })" alt="@time.Nome" />
+                                }
+                                else
+                                {
+                                    <span class="cft-badge-abbr">
+                                        @(time.Nome?.Length >= 3 ? time.Nome.Substring(0, 3).ToUpper() : time.Nome)
+                                    </span>
+                                }
+                            </div>
+                            <div class="cft-card-info">
+                                <div class="cft-nome">@time.Nome</div>
+                                <div class="cft-cidade">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                                    <span>@time.Cidade</span>
+                                </div>
+                                @if (time.FormacaoPadrao != null)
+                                {
+                                    <div class="cft-formacao">
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#d4a520" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" /></svg>
+                                        <span>@time.FormacaoPadrao.Nome</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="cft-divider"></div>
+
+                        <div class="cft-card-bottom">
+                            <div class="cft-stat-mini">
+                                <div class="cft-jogadores">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
+                                    <span>@qtdJogadores</span>
+                                </div>
+                                @if (forma.Any())
+                                {
+                                    <div class="cft-forma">
+                                        @foreach (var r in forma)
+                                        {
+                                            <span class="cft-forma-item" style="background:@CorForma(r);">@r</span>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                            <span class="cft-cta">
+                                Ver detalhes
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                            </span>
+                        </div>
                     </a>
-                </td>
-            </tr>
+                }
+            </div>
         }
-    </tbody>
-</table>
-
-@if (TempData["Mensagem"] != null)
-{
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        @TempData["Mensagem"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-}
 
-@if (TempData["MensagemErro"] != null)
-{
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        @TempData["MensagemErro"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-}
-
+</div>

@@ -1,6 +1,9 @@
-﻿@model ControleFutebolWeb.Models.ViewModels.JogosIndexViewModel
+@model ControleFutebolWeb.Models.ViewModels.JogosIndexViewModel
+@using ControleFutebolWeb.Helpers
 
 @{
+    ViewData["Title"] = "Jogos";
+
     var competicoesMap = Model.CompeticoesMap ?? new Dictionary<int, string>();
     var totalJogos = Model.TotalJogos;
     var jogosFinalizados = Model.TotalFinalizados;
@@ -17,577 +20,435 @@
         ["startDate"] = Model.StartDate,
         ["endDate"] = Model.EndDate
     };
+
+    bool temFiltro = Model.CompeticaoIdFiltro.HasValue || Model.TeamIdFiltro.HasValue
+        || !string.IsNullOrEmpty(Model.StatusFiltro) && Model.StatusFiltro != "all"
+        || !string.IsNullOrEmpty(Model.StartDate) || !string.IsNullOrEmpty(Model.EndDate);
+
+    // Cores por competição (igual ao layout enviado: cada campeonato tem uma cor de badge)
+    (string bg, string border, string text) CorCompeticao(string? nome)
+    {
+        var n = (nome ?? "").ToLowerInvariant();
+        if (n.Contains("brasileir"))      return ("rgba(34,197,94,0.12)",  "rgba(34,197,94,0.3)",  "#4ade80");
+        if (n.Contains("copa do brasil")) return ("rgba(255,215,0,0.12)",  "rgba(255,215,0,0.3)",  "#fbbf24");
+        if (n.Contains("libertadores"))   return ("rgba(59,130,246,0.12)","rgba(59,130,246,0.3)", "#60a5fa");
+        if (n.Contains("champions"))      return ("rgba(168,85,247,0.12)","rgba(168,85,247,0.3)", "#c084fc");
+        return ("rgba(107,114,128,0.12)", "rgba(107,114,128,0.3)", "#9ca3af");
+    }
 }
 
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+
 <style>
-    .cf-jogos * {
-        box-sizing: border-box;
-    }
+    .jgs * { box-sizing: border-box; }
 
-    .cf-jogos-hero {
-        position: relative;
-        background: linear-gradient(135deg, #0a1628 0%, #1a2f4e 55%, #0f2040 100%);
+    .jgs {
+        margin: 0 -12px;
+        background: #0f0f0f;
+        color: #e5e7eb;
+        font-family: 'Barlow', Arial, sans-serif;
         border-radius: 14px;
-        padding: 2.8rem 2rem;
-        text-align: center;
         overflow: hidden;
-        margin-bottom: 1.5rem;
     }
+    .jgs a { text-decoration: none; color: inherit; }
+    .jgs h1 { font-family: 'Barlow Condensed', Arial, sans-serif; }
 
-    .cf-jogos-hero::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        opacity: 0.08;
-        background-image: radial-gradient(circle at 50% 50%, transparent 28%, #fff 28.5%, #fff 29.2%, transparent 29.8%), linear-gradient(90deg, transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%), linear-gradient(transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%);
-    }
-
-    .cf-jogos-hero-content {
+    /* ── Hero ────────────────────────────────────── */
+    .jgs-hero {
         position: relative;
-        z-index: 1;
+        overflow: hidden;
+        background: linear-gradient(135deg, #060d1a 0%, #0d1e35 55%, #060d1a 100%);
+        padding: 44px 72px 38px;
+    }
+    .jgs-hero-pattern { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.05; pointer-events: none; }
+    .jgs-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #d4a520; }
+    .jgs-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(to top, #0f0f0f, transparent); pointer-events: none; }
+
+    .jgs-hero-row {
+        position: relative; z-index: 1;
+        display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 24px;
+    }
+    .jgs-hero-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .jgs-hero-kicker-line { height: 2px; width: 28px; background: #d4a520; }
+    .jgs-hero-kicker span { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.28em; color: #d4a520; text-transform: uppercase; }
+    .jgs-hero h1 { font-size: 3.4rem; font-weight: 800; color: #f1f5f9; margin: 0 0 8px; line-height: 1; }
+    .jgs-hero p { font-size: 0.9rem; color: #6b7280; margin: 0; }
+
+    .jgs-kpis { display: flex; gap: 28px; align-items: center; flex-shrink: 0; }
+    .jgs-kpi-num { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 2.2rem; font-weight: 800; line-height: 1; }
+    .jgs-kpi-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; color: #4b5563; text-transform: uppercase; margin-top: 3px; }
+    .jgs-kpi-sep { width: 1px; height: 36px; background: #1e2d45; }
+
+    /* ── Filtros ─────────────────────────────────── */
+    .jgs-filters { background: #141414; border-bottom: 1px solid #222; padding: 14px 72px; position: sticky; top: 62px; z-index: 50; }
+    .jgs-filters-row { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+    .jgs-select-wrap { position: relative; }
+    .jgs-select-chevron { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: #4b5563; pointer-events: none; }
+
+    .jgs-select {
+        appearance: none; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px;
+        color: #9ca3af; font-size: 0.83rem; padding: 9px 28px 9px 12px; cursor: pointer; outline: none;
+        font-family: inherit;
+    }
+    .jgs-select:focus { border-color: #d4a520; }
+
+    .jgs-date {
+        background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; color: #9ca3af;
+        font-size: 0.83rem; padding: 9px 12px; outline: none; cursor: pointer; font-family: inherit;
+        color-scheme: dark;
+    }
+    .jgs-date:focus { border-color: #d4a520; }
+    .jgs-date-sep { color: #4b5563; font-size: 0.8rem; }
+
+    .jgs-subtitulo { font-size: 0.75rem; color: #4b5563; font-weight: 600; }
+
+    .jgs-btn { display: flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 8px; font-size: 0.82rem; font-weight: 800; border: none; cursor: pointer; flex-shrink: 0; }
+    .jgs-btn-gold { background: #d4a520; color: #141414; }
+    .jgs-btn-gold:hover { background: #c49918; }
+    .jgs-btn-green { background: #16a34a; color: #fff; }
+    .jgs-btn-green:hover { background: #15803d; }
+    .jgs-btn-ghost { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: #9ca3af; }
+    .jgs-btn-ghost:hover { border-color: #d4a520; color: #d4a520; }
+
+    /* ── Lista ───────────────────────────────────── */
+    .jgs-list-wrap { padding: 24px 72px 64px; max-width: 1544px; margin: 0 auto; }
+
+    .jgs-col-headers {
+        display: grid; grid-template-columns: 100px 160px 1fr 120px 1fr 220px; gap: 12px;
+        padding: 8px 16px; margin-bottom: 4px;
+    }
+    .jgs-col-headers span { font-size: 0.62rem; color: #374151; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }
+
+    .jgs-row {
+        display: grid; grid-template-columns: 100px 160px 1fr 120px 1fr 220px; gap: 12px; align-items: center;
+        padding: 11px 16px; background: #141414; border: 1px solid #1e1e1e; border-radius: 10px;
+        margin-bottom: 6px; transition: border-color 0.15s, background 0.15s;
+    }
+    .jgs-row:hover { background: #1a1a1a; border-color: #2a2a2a; }
+
+    .jgs-data-dia { font-size: 0.8rem; font-weight: 600; color: #e5e7eb; }
+    .jgs-data-hora { font-size: 0.68rem; color: #4b5563; margin-top: 1px; }
+
+    .jgs-comp-badge {
+        display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 5px;
+        font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; white-space: nowrap;
+        overflow: hidden; text-overflow: ellipsis; max-width: 100%;
     }
 
-    .cf-jogos-badge {
-        display: inline-block;
-        background: rgba(55, 138, 221, 0.2);
-        color: #85b7eb;
-        font-size: 11px;
-        font-weight: 600;
-        padding: 4px 14px;
-        border-radius: 20px;
-        border: 1px solid rgba(55, 138, 221, 0.35);
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        margin-bottom: 1rem;
+    .jgs-team-cell { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .jgs-team-badge {
+        width: 28px; height: 28px; border-radius: 50%; background: #0f0f0f; border: 1px solid #2a2a2a;
+        display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;
+        font-size: 9px; font-weight: 700; color: #6b7280;
+    }
+    .jgs-team-badge img { width: 90%; height: 90%; object-fit: contain; }
+    .jgs-team-cell span { font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .jgs-score-wrap { text-align: center; }
+    .jgs-score {
+        font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.2rem; font-weight: 800; color: #f1f5f9;
+        background: #0f0f0f; padding: 3px 12px; border-radius: 6px; letter-spacing: 0.08em; white-space: nowrap;
+    }
+    .jgs-pen { display: block; font-size: 0.6rem; color: #6b7280; margin-top: 2px; }
+    .jgs-agendado {
+        font-size: 0.72rem; font-weight: 600; color: #60a5fa; background: rgba(59,130,246,0.1);
+        border: 1px solid rgba(59,130,246,0.25); padding: 3px 10px; border-radius: 6px; white-space: nowrap;
     }
 
-    .cf-jogos-hero h1 {
-        color: #fff;
-        font-size: 1.95rem;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
+    .jgs-actions { display: flex; align-items: center; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+    .jgs-actions a {
+        font-size: 0.7rem; padding: 4px 10px; border-radius: 6px; font-weight: 700; flex-shrink: 0; white-space: nowrap;
     }
-
-    .cf-jogos-hero p {
-        color: rgba(255, 255, 255, 0.65);
-        margin: 0;
-        font-size: 0.95rem;
-    }
-
-    .cf-stats {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-        gap: 10px;
-        margin-bottom: 1.5rem;
-    }
-
-    .cf-stat-card {
-        background: var(--surface);
-        border: 0.5px solid var(--border);
-        border-radius: 10px;
-        padding: 1rem 1.25rem;
-        text-align: center;
-    }
-
-    .cf-stat-num {
-        font-size: 24px;
-        font-weight: 600;
-        color: var(--text);
-        line-height: 1.1;
-        margin-bottom: 4px;
-    }
-
-    .cf-stat-label {
-        font-size: 12px;
-        color: var(--text-muted);
-    }
-
-    .cf-panel {
-        background: var(--surface);
-        border: 0.5px solid var(--border);
-        border-radius: 12px;
-        padding: 1rem 1rem 0.7rem;
-    }
-
-    .cf-panel-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.9rem;
-        flex-wrap: wrap;
-        gap: 8px;
-    }
-
-    .cf-panel-title {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--text);
-        margin: 0;
-    }
-
-    .cf-import-btn {
-        background: #16a34a;
-        color: #fff;
-        border: none;
-        padding: 8px 12px;
-        border-radius: 8px;
-        font-size: 12px;
-        font-weight: 600;
-        text-decoration: none;
-    }
-
-    .cf-import-btn:hover {
-        color: #fff;
-        background: #15803d;
-        text-decoration: none;
-    }
-
-    .cf-filters {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-        gap: 10px;
-        margin-bottom: 1rem;
-        padding: 0.9rem;
-        background: var(--surface-2);
-        border: 1px solid var(--border-subtle);
-        border-radius: 10px;
-    }
-
-    .cf-filter-group {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-    }
-
-    .cf-filter-group label {
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.4px;
-    }
-
-    .cf-filter-group select {
-        border: 1px solid var(--border-strong);
-        border-radius: 8px;
-        padding: 7px 10px;
-        font-size: 13px;
-        color: var(--text);
-        background: var(--input-bg);
-    }
-
-    .cf-filter-actions {
-        display: flex;
-        align-items: end;
-        gap: 8px;
-    }
-
-    .cf-filter-btn {
-        border: none;
-        border-radius: 8px;
-        padding: 8px 12px;
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
-        text-decoration: none;
-    }
-
-    .cf-filter-apply {
-        background: #2563eb;
-        color: #fff;
-    }
-
-    .cf-filter-clear {
-        background: var(--border);
-        color: var(--text-2);
-    }
-
-
-    .cf-table-wrap {
-        overflow-x: auto;
-    }
-
-    .cf-jogos-table {
-        width: 100%;
-        border-collapse: collapse;
-        min-width: 820px;
-    }
-
-    .cf-jogos-table th {
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-        color: var(--text-muted);
-        font-weight: 600;
-        padding: 10px 8px;
-        border-bottom: 1px solid var(--border-subtle);
+    .jgs-act-detalhes { background: transparent; border: 1px solid #3b82f6; color: #6ea8fe; }
+    .jgs-act-detalhes:hover { background: rgba(59,130,246,0.1); }
+    .jgs-badge-analisado {
+        font-size: 0.65rem; padding: 3px 8px; background: rgba(34,197,94,0.1);
+        border: 1px solid rgba(34,197,94,0.25); border-radius: 5px; color: #4ade80; font-weight: 700;
         white-space: nowrap;
     }
+    .jgs-act-editar { background: #d97706; border: 1px solid #d97706; color: #fff; }
+    .jgs-act-editar:hover { background: #b45309; }
+    .jgs-act-excluir { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: #f87171; }
+    .jgs-act-excluir:hover { background: rgba(239,68,68,0.15); }
 
-    .cf-jogos-table td {
-        padding: 11px 8px;
-        border-bottom: 1px solid var(--border-subtle);
-        vertical-align: middle;
-        font-size: 13px;
-        color: var(--text);
-    }
+    .jgs-empty { text-align: center; color: #6b7280; padding: 3rem 1rem; font-size: 0.9rem; background: #161616; border: 1px solid #262626; border-radius: 12px; }
 
-    .cf-jogos-table tbody tr:hover {
-        background: #fafcff; /* tint azulado, identidade da tela */
+    /* ── Paginação ───────────────────────────────── */
+    .jgs-pager { display: flex; align-items: center; justify-content: space-between; margin-top: 28px; flex-wrap: wrap; gap: 12px; }
+    .jgs-pager-info { font-size: 0.75rem; color: #4b5563; }
+    .jgs-pager-nav { display: flex; align-items: center; gap: 8px; }
+    .jgs-pager-btn {
+        padding: 8px 16px; background: #161616; border: 1px solid #2a2a2a; border-radius: 8px;
+        color: #6b7280; font-size: 0.82rem; cursor: pointer; font-weight: 600;
     }
-    [data-theme="dark"] .cf-jogos-table tbody tr:hover {
-        background: var(--surface-2);
-    }
+    .jgs-pager-btn:hover { border-color: #d4a520; color: #d4a520; }
+    .jgs-pager-btn.disabled { opacity: 0.4; pointer-events: none; }
+    .jgs-pager-cur { font-size: 0.78rem; color: #4b5563; padding: 0 8px; }
 
-    .cf-team-cell {
-        display: flex;
-        align-items: center;
-        gap: 8px;
+    @@media (max-width: 900px) {
+        .jgs-row, .jgs-col-headers { grid-template-columns: 90px 1fr 100px; }
+        .jgs-col-headers span:nth-child(2), .jgs-col-headers span:nth-child(5), .jgs-col-headers span:nth-child(6) { display: none; }
+        .jgs-row { grid-template-areas: "data comp comp" "casa casa placar" "vis vis placar" "acoes acoes acoes"; grid-template-columns: 1fr 1fr 100px; }
+        .jgs-row > *:nth-child(1) { grid-area: data; }
+        .jgs-row > *:nth-child(2) { grid-area: comp; }
+        .jgs-row > *:nth-child(3) { grid-area: casa; }
+        .jgs-row > *:nth-child(4) { grid-area: placar; }
+        .jgs-row > *:nth-child(5) { grid-area: vis; }
+        .jgs-row > *:nth-child(6) { grid-area: acoes; margin-top: 6px; justify-content: flex-start; }
     }
-
-    .cf-team-badge {
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        overflow: hidden;
-        border: 1px solid var(--border);
-        background: var(--surface-3);
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 9px;
-        color: var(--text-muted);
-        font-weight: 600;
-    }
-
-    .cf-team-badge img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-    }
-
-    .cf-score {
-        font-weight: 600;
-        background: var(--surface-2);
-        border: 0.5px solid var(--border);
-        padding: 3px 9px;
-        border-radius: 6px;
-        display: inline-block;
-        min-width: 52px;
-        text-align: center;
-    }
-
-    .cf-status {
-        font-size: 11px;
-        color: var(--text-muted);
-    }
-
-    .cf-actions {
-        display: flex;
-        gap: 6px;
-        justify-content: flex-end;
-        flex-wrap: wrap;
-    }
-
-    .cf-actions .btn {
-        padding: 4px 8px;
-        font-size: 11px;
-    }
-
-    .cf-pager {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 10px;
-        padding: 0.9rem 0.2rem 0.3rem;
-    }
-
-    .cf-pager-info {
-        font-size: 12px;
-        color: var(--text-muted);
-    }
-
-    .cf-pager-nav {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .cf-pager-btn {
-        font-size: 12px;
-        font-weight: 600;
-        padding: 6px 12px;
-        border-radius: 8px;
-        border: 1px solid var(--border-strong);
-        background: var(--input-bg);
-        color: var(--text-2);
-        text-decoration: none;
-    }
-
-    .cf-pager-btn:hover {
-        background: var(--accent-surface);
-        border-color: var(--accent-border);
-        color: var(--link-hover);
-        text-decoration: none;
-    }
-
-    .cf-pager-btn.disabled {
-        opacity: 0.45;
-        cursor: default;
-    }
-
-    .cf-pager-cur {
-        font-size: 12px;
-        color: var(--text-muted);
-    }
-
-    @@media (max-width: 600px) {
-        .cf-jogos-hero { padding: 1.6rem 1rem; }
-        .cf-jogos-hero h1 { font-size: 1.4rem; }
-        .cf-stats { grid-template-columns: repeat(3, 1fr); }
-        .cf-filters { grid-template-columns: 1fr; }
-        .cf-filter-actions { flex-direction: row; }
+    @@media (max-width: 640px) {
+        .jgs-hero, .jgs-filters, .jgs-list-wrap { padding-left: 1.2rem; padding-right: 1.2rem; }
+        .jgs-hero h1 { font-size: 2rem; }
     }
 </style>
 
-@if (TempData["Sucesso"] != null)
-{
-    <div class="alert alert-success">@TempData["Sucesso"]</div>
-}
-@if (TempData["Aviso"] != null)
-{
-    <div class="alert alert-warning">@TempData["Aviso"]</div>
-}
-@if (TempData["Erro"] != null)
-{
-    <div class="alert alert-danger">@TempData["Erro"]</div>
-}
+<div class="jgs">
 
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success m-3">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Aviso"] != null)
+    {
+        <div class="alert alert-warning m-3">@TempData["Aviso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger m-3">@TempData["Erro"]</div>
+    }
 
-<div class="cf-jogos">
-    <div class="cf-jogos-hero">
-        <div class="cf-jogos-hero-content">
-            <div class="cf-jogos-badge">Central de partidas</div>
-            <h1>Jogos</h1>
-            <p>Visualize confrontos, placares e acesse rapidamente o detalhe de cada partida.</p>
+    <!-- Hero -->
+    <div class="jgs-hero">
+        <img class="jgs-hero-pattern" src="~/Images/banner/escudos-pattern.svg" alt="" />
+        <div class="jgs-hero-stripe"></div>
+        <div class="jgs-hero-fade"></div>
+        <div class="jgs-hero-row">
+            <div>
+                <div class="jgs-hero-kicker">
+                    <div class="jgs-hero-kicker-line"></div>
+                    <span>Central de partidas</span>
+                </div>
+                <h1>Jogos</h1>
+                <p>Visualize confrontos, placares e acesse o detalhe de cada partida.</p>
+            </div>
+            <div class="jgs-kpis">
+                <div>
+                    <div class="jgs-kpi-num" style="color:#d4a520;">@totalJogos</div>
+                    <div class="jgs-kpi-label">Total</div>
+                </div>
+                <div class="jgs-kpi-sep"></div>
+                <div>
+                    <div class="jgs-kpi-num" style="color:#22c55e;">@jogosFinalizados</div>
+                    <div class="jgs-kpi-label">Finalizados</div>
+                </div>
+                <div class="jgs-kpi-sep"></div>
+                <div>
+                    <div class="jgs-kpi-num" style="color:#60a5fa;">@jogosAgendados</div>
+                    <div class="jgs-kpi-label">Agendados</div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="cf-stats">
-        <div class="cf-stat-card">
-            <div class="cf-stat-num">@totalJogos</div>
-            <div class="cf-stat-label">Total de jogos</div>
-        </div>
-        <div class="cf-stat-card">
-            <div class="cf-stat-num">@jogosFinalizados</div>
-            <div class="cf-stat-label">Finalizados</div>
-        </div>
-        <div class="cf-stat-card">
-            <div class="cf-stat-num">@jogosAgendados</div>
-            <div class="cf-stat-label">Agendados</div>
-        </div>
-    </div>
-
-    <div class="cf-panel">
-        
-        <form method="get" asp-action="Index" class="cf-filters">
-            <div class="cf-filter-group">
-                <label for="competicaoId">Campeonato</label>
-                <select id="competicaoId" name="competicaoId" asp-items="Model.CompeticaoList">
+    <!-- Filtros -->
+    <div class="jgs-filters">
+        <form method="get" asp-action="Index" class="jgs-filters-row">
+            <div class="jgs-select-wrap">
+                <select id="competicaoId" name="competicaoId" asp-items="Model.CompeticaoList" class="jgs-select">
                     <option value="">Todos os campeonatos</option>
                 </select>
+                <div class="jgs-select-chevron"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg></div>
             </div>
 
-            <div class="cf-filter-group">
-                <label for="teamId">Time</label>
-                <select id="teamId" name="teamId" asp-items="Model.TimeList">
+            <div class="jgs-select-wrap">
+                <select id="teamId" name="teamId" asp-items="Model.TimeList" class="jgs-select">
                     <option value="">Todos os times</option>
                 </select>
+                <div class="jgs-select-chevron"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg></div>
             </div>
 
-            <div class="cf-filter-group">
-                <label for="status">Status</label>
-                <select id="status" name="status" asp-items="Model.StatusList"></select>
+            <div class="jgs-select-wrap">
+                <select id="status" name="status" asp-items="Model.StatusList" class="jgs-select"></select>
+                <div class="jgs-select-chevron"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg></div>
             </div>
 
-            <div class="cf-filter-actions">
-                <button type="submit" class="cf-filter-btn cf-filter-apply">Filtrar</button>
-                <a asp-action="Index" class="cf-filter-btn cf-filter-clear">Limpar</a>
-            </div>
+            <input type="date" id="startDate" name="startDate" value="@Model.StartDate" class="jgs-date" />
+            <span class="jgs-date-sep">–</span>
+            <input type="date" id="endDate" name="endDate" value="@Model.EndDate" class="jgs-date" />
+
+            <span class="jgs-subtitulo">@totalJogos jogo@(totalJogos == 1 ? "" : "s")</span>
+
+            <div style="flex:1;"></div>
+
+            @if (temFiltro)
+            {
+                <a asp-action="Index" class="jgs-btn jgs-btn-ghost">✕ Limpar</a>
+            }
+            <button type="submit" class="jgs-btn jgs-btn-gold" style="display:inline-block;">Filtrar</button>
+            <a asp-action="Create" class="jgs-btn jgs-btn-green">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                Novo Jogo
+            </a>
         </form>
+    </div>
 
-        <script>
-        (function () {
-            var selComp = document.getElementById('competicaoId');
-            var selTime = document.getElementById('teamId');
-            var selectedTeamId = '@(Context.Request.Query["teamId"])';
+    <div class="jgs-list-wrap">
 
-            function carregarTimes(compId) {
-                if (!compId) {
-                    // Restaura todos os times
-                    fetch('/Jogos/TimesPorCompeticao?competicaoId=0')
-                        .then(function() {})
-                        .catch(function() {});
-                    // Habilita sem filtro: recarrega a página sem competição já faz isso
-                    selTime.disabled = false;
-                    return;
-                }
-                fetch('/Jogos/TimesPorCompeticao?competicaoId=' + compId)
-                    .then(function(r) { return r.json(); })
-                    .then(function(times) {
-                        var anterior = selTime.value;
-                        selTime.innerHTML = '<option value="">Todos os times</option>';
-                        times.forEach(function(t) {
-                            var opt = document.createElement('option');
-                            opt.value = t.id;
-                            opt.textContent = t.nome;
-                            if (String(t.id) === String(anterior) || String(t.id) === selectedTeamId) opt.selected = true;
-                            selTime.appendChild(opt);
-                        });
-                    });
-            }
-
-            selComp.addEventListener('change', function() {
-                carregarTimes(this.value);
-            });
-
-            // Na carga inicial, se já há competição selecionada, filtra os times
-            if (selComp.value) {
-                carregarTimes(selComp.value);
-            }
-        })();
-        </script>
-        @* Na Index de jogos, adicione este bloco após os filtros de busca: *@
-        @{
-            // NOTA: historicamente este valor lia `ViewBag.CompeticaoList as int?` — um SelectList
-            // convertido para int? sempre resulta null, então o bloco abaixo nunca renderizou.
-            // Comportamento mantido na migração para ViewModel. Ver pendência no relatório.
-            int? compId = null;
-        }
-
-        @if (compId.HasValue)
-        {
-            <form asp-action="BuscarGrupoEmLote" method="post" class="d-inline ms-2"
-                  onsubmit="return confirm('Isso irá buscar o grupo de todos os jogos sem grupo nesta competição. Pode demorar alguns minutos. Continuar?')">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="competicaoId" value="@compId" />
-                <button type="submit" class="btn btn-sm btn-outline-warning">
-                    <i class="ti ti-tags" aria-hidden="true"></i>
-                    Buscar grupos em lote
-                </button>
-            </form>
-        }
-
-        <div class="cf-table-wrap">
-            <table class="cf-jogos-table">
-                <thead>
-                    <tr>
-                        <th>Data</th>
-                        <th>Competição</th>
-                        <th>Casa</th>
-                        <th>Placar</th>
-                        <th>Visitante</th>
-                        <th style="text-align:right;">Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var jogo in Model.Jogos)
-                    {
-                        var nomeCompeticao = competicoesMap.TryGetValue(jogo.CompeticaoId, out var nome) ? nome : "Sem competição";
-                        var linkCompeticao = jogo.CompeticaoId == 1
-                            ? Url.Action("Brasileirao", "Tabela")
-                            : Url.Action("Detalhes", "Competicoes", new { id = jogo.CompeticaoId });
-
-                        <tr>
-                            <td>@ControleFutebolWeb.Helpers.DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy")</td>
-                            <td>
-                                <a href="@linkCompeticao">@nomeCompeticao</a>
-                            </td>
-                            <td>
-                                <div class="cf-team-cell">
-                                    <div class="cf-team-badge">
-                                        @if (!string.IsNullOrWhiteSpace(jogo.TimeCasa?.EscudoUrl))
-                                        {
-                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa.EscudoUrl })" alt="@jogo.TimeCasa.Nome" />
-                                        }
-                                        else
-                                        {
-                                            @(jogo.TimeCasa?.Nome?.Length >= 3 ? jogo.TimeCasa.Nome.Substring(0, 3).ToUpper() : jogo.TimeCasa?.Nome)
-                                        }
-                                    </div>
-                                    <span>@jogo.TimeCasa?.Nome</span>
-                                </div>
-                            </td>
-                            <td>
-                                @if (jogo.PlacarCasa >= 0 && jogo.PlacarVisitante >= 0)
-                                {
-                                    <span class="cf-score">@jogo.PlacarCasa x @jogo.PlacarVisitante</span>
-                                    @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
-                                    {
-                                        <span class="cf-pen-score">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</span>
-                                    }
-                                }
-                                else
-                                {
-                                    <span class="cf-status">Agendado</span>
-                                }
-                            </td>
-                            <td>
-                                <div class="cf-team-cell">
-                                    <div class="cf-team-badge">
-                                        @if (!string.IsNullOrWhiteSpace(jogo.TimeVisitante?.EscudoUrl))
-                                        {
-                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante.EscudoUrl })" alt="@jogo.TimeVisitante.Nome" />
-                                        }
-                                        else
-                                        {
-                                            @(jogo.TimeVisitante?.Nome?.Length >= 3 ? jogo.TimeVisitante.Nome.Substring(0, 3).ToUpper() : jogo.TimeVisitante?.Nome)
-                                        }
-                                    </div>
-                                    <span>@jogo.TimeVisitante?.Nome</span>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="cf-actions">
-                                    <a asp-action="Analisar" asp-route-id="@jogo.Id" class="btn btn-info btn-sm">Detalhes</a>
-                                    <a asp-action="Edit" asp-route-id="@jogo.Id" class="btn btn-warning btn-sm">Editar</a>
-                                    <a asp-action="Delete" asp-route-id="@jogo.Id" class="btn btn-danger btn-sm">Excluir</a>
-                                </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+        <div class="jgs-col-headers">
+            <span>Data</span>
+            <span>Competição</span>
+            <span>Casa</span>
+            <span style="text-align:center;">Placar</span>
+            <span>Visitante</span>
+            <span style="text-align:right;">Ações</span>
         </div>
+
+        @if (!Model.Jogos.Any())
+        {
+            <div class="jgs-empty">Nenhum jogo encontrado com os filtros selecionados.</div>
+        }
+        else
+        {
+            @foreach (var jogo in Model.Jogos)
+            {
+                var nomeCompeticao = competicoesMap.TryGetValue(jogo.CompeticaoId, out var nome) ? nome : "Sem competição";
+                var linkCompeticao = jogo.CompeticaoId == 1
+                    ? Url.Action("Brasileirao", "Tabela")
+                    : Url.Action("Detalhes", "Competicoes", new { id = jogo.CompeticaoId });
+                bool finalizado = jogo.PlacarCasa >= 0 && jogo.PlacarVisitante >= 0;
+                bool casaVenceu = finalizado && jogo.PlacarCasa > jogo.PlacarVisitante;
+                bool visVenceu = finalizado && jogo.PlacarVisitante > jogo.PlacarCasa;
+                var cor = CorCompeticao(nomeCompeticao);
+
+                <div class="jgs-row">
+                    <div>
+                        <div class="jgs-data-dia">@DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy")</div>
+                        <div class="jgs-data-hora">@DateHelper.FormatarData(jogo.Data, "HH:mm")</div>
+                    </div>
+
+                    <div>
+                        <a href="@linkCompeticao" class="jgs-comp-badge" style="background:@cor.bg;border:1px solid @cor.border;color:@cor.text;">@nomeCompeticao</a>
+                    </div>
+
+                    <div class="jgs-team-cell">
+                        <div class="jgs-team-badge">
+                            @if (!string.IsNullOrWhiteSpace(jogo.TimeCasa?.EscudoUrl))
+                            {
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa.EscudoUrl })" alt="@jogo.TimeCasa.Nome" />
+                            }
+                            else
+                            {
+                                @(jogo.TimeCasa?.Nome?.Length >= 3 ? jogo.TimeCasa.Nome.Substring(0, 3).ToUpper() : jogo.TimeCasa?.Nome)
+                            }
+                        </div>
+                        <span style="font-weight:@(casaVenceu ? "700" : "500"); color:@(casaVenceu ? "#f1f5f9" : "#6b7280");">@jogo.TimeCasa?.Nome</span>
+                    </div>
+
+                    <div class="jgs-score-wrap">
+                        @if (finalizado)
+                        {
+                            <span class="jgs-score">@jogo.PlacarCasa &ndash; @jogo.PlacarVisitante</span>
+                            @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
+                            {
+                                <span class="jgs-pen">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</span>
+                            }
+                        }
+                        else
+                        {
+                            <span class="jgs-agendado">Agendado</span>
+                        }
+                    </div>
+
+                    <div class="jgs-team-cell">
+                        <div class="jgs-team-badge">
+                            @if (!string.IsNullOrWhiteSpace(jogo.TimeVisitante?.EscudoUrl))
+                            {
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante.EscudoUrl })" alt="@jogo.TimeVisitante.Nome" />
+                            }
+                            else
+                            {
+                                @(jogo.TimeVisitante?.Nome?.Length >= 3 ? jogo.TimeVisitante.Nome.Substring(0, 3).ToUpper() : jogo.TimeVisitante?.Nome)
+                            }
+                        </div>
+                        <span style="font-weight:@(visVenceu ? "700" : "500"); color:@(visVenceu ? "#f1f5f9" : "#6b7280");">@jogo.TimeVisitante?.Nome</span>
+                    </div>
+
+                    <div class="jgs-actions">
+                        @if (jogo.Analisado == 1)
+                        {
+                            <span class="jgs-badge-analisado">✓ Analisado</span>
+                        }
+                        <a asp-action="Analisar" asp-route-id="@jogo.Id" class="jgs-act-detalhes">Analisar</a>
+                        <a asp-action="Edit" asp-route-id="@jogo.Id" class="jgs-act-editar">Editar</a>
+                        <a asp-action="Delete" asp-route-id="@jogo.Id" class="jgs-act-excluir">Excluir</a>
+                    </div>
+                </div>
+            }
+        }
 
         @if (Model.TotalPaginas > 1)
         {
             var ini = (Model.PaginaAtual - 1) * Model.PageSize + 1;
             var fim = Math.Min(Model.PaginaAtual * Model.PageSize, Model.TotalJogos);
-            <div class="cf-pager">
-                <span class="cf-pager-info">Mostrando @ini–@fim de @Model.TotalJogos jogos</span>
-                <nav class="cf-pager-nav">
+            <div class="jgs-pager">
+                <span class="jgs-pager-info">Mostrando @ini&ndash;@fim de @Model.TotalJogos jogos</span>
+                <nav class="jgs-pager-nav">
                     @if (Model.PaginaAtual > 1)
                     {
-                        <a class="cf-pager-btn" asp-action="Index" asp-all-route-data="rotaPagina(Model.PaginaAtual - 1)">&laquo; Anterior</a>
+                        <a class="jgs-pager-btn" asp-action="Index" asp-all-route-data="rotaPagina(Model.PaginaAtual - 1)">« Anterior</a>
                     }
                     else
                     {
-                        <span class="cf-pager-btn disabled">&laquo; Anterior</span>
+                        <span class="jgs-pager-btn disabled">« Anterior</span>
                     }
-                    <span class="cf-pager-cur">Página @Model.PaginaAtual de @Model.TotalPaginas</span>
+                    <span class="jgs-pager-cur">Página @Model.PaginaAtual de @Model.TotalPaginas</span>
                     @if (Model.PaginaAtual < Model.TotalPaginas)
                     {
-                        <a class="cf-pager-btn" asp-action="Index" asp-all-route-data="rotaPagina(Model.PaginaAtual + 1)">Próxima &raquo;</a>
+                        <a class="jgs-pager-btn" asp-action="Index" asp-all-route-data="rotaPagina(Model.PaginaAtual + 1)">Próxima »</a>
                     }
                     else
                     {
-                        <span class="cf-pager-btn disabled">Próxima &raquo;</span>
+                        <span class="jgs-pager-btn disabled">Próxima »</span>
                     }
                 </nav>
             </div>
         }
     </div>
 </div>
+
+<script>
+(function () {
+    var selComp = document.getElementById('competicaoId');
+    var selTime = document.getElementById('teamId');
+    var selectedTeamId = '@(Context.Request.Query["teamId"])';
+
+    function carregarTimes(compId) {
+        if (!compId) {
+            selTime.disabled = false;
+            return;
+        }
+        fetch('/Jogos/TimesPorCompeticao?competicaoId=' + compId)
+            .then(function(r) { return r.json(); })
+            .then(function(times) {
+                var anterior = selTime.value;
+                selTime.innerHTML = '<option value="">Todos os times</option>';
+                times.forEach(function(t) {
+                    var opt = document.createElement('option');
+                    opt.value = t.id;
+                    opt.textContent = t.nome;
+                    if (String(t.id) === String(anterior) || String(t.id) === selectedTeamId) opt.selected = true;
+                    selTime.appendChild(opt);
+                });
+            });
+    }
+
+    selComp.addEventListener('change', function() {
+        carregarTimes(this.value);
+    });
+
+    if (selComp.value) {
+        carregarTimes(selComp.value);
+    }
+})();
+</script>

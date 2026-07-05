@@ -156,7 +156,10 @@ namespace ControleFutebolWeb.Controllers
             if (usuario == null || !usuario.IsAdmin)
                 return Forbid();
 
-            var usuarios = _userManager.Users.OrderBy(u => u.Nome).ToList();
+            var usuarios = _userManager.Users
+                .OrderByDescending(u => u.UltimoAcesso)
+                .ThenBy(u => u.Nome)
+                .ToList();
             return View(usuarios);
         }
 

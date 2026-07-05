@@ -3,6 +3,7 @@ using System.Text;
 using ControleFutebolWeb.Authorization;
 using ControleFutebolWeb.Converters; // ← importa o converter
 using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Filters;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -105,6 +106,8 @@ internal class Program
             options.Filters.Add(new Microsoft.AspNetCore.Mvc.Authorization.AuthorizeFilter());
             // Valida antiforgery em TODOS os POST/PUT/DELETE/PATCH por padrão (anti-CSRF).
             options.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute());
+            // Registra o último acesso do usuário autenticado (painel de "usuários online").
+            options.Filters.Add(typeof(AtividadeUsuarioFilter));
         })
             .AddJsonOptions(options =>
             {
