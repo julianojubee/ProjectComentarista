@@ -187,14 +187,26 @@
     .an-root #painelEscalacao .col-5.scroll-panel { flex: 0 0 190px; max-width: 190px; width: 190px; }
     .an-root #painelEscalacao .col-7 { flex: 1 1 0%; max-width: 100%; width: auto; }
 
-    /* ── Cabeçalho do painel de jogadores (escudo + nome do time) ── */
+    /* ── Painel de jogadores (cabeçalho com escudo + nome + lista) ── */
+    .jog-panel {
+        background: #161616; border: 1px solid #262626; border-radius: 10px; overflow: hidden;
+    }
     .jog-panel-header {
         display: flex; align-items: center; gap: 6px; padding: 8px 10px;
-        background: #111; border: 1px solid #262626; border-bottom: none;
-        border-radius: 10px 10px 0 0; font-size: .72rem; font-weight: 700;
+        background: #111; border-bottom: 1px solid #1e1e1e;
+        font-size: .72rem; font-weight: 700;
         color: #6b7280; text-transform: uppercase; letter-spacing: .1em;
     }
-    .jog-panel-header img { width: 14px; height: 14px; object-fit: contain; }
+    .jog-panel-header img { width: 14px; height: 14px; object-fit: contain; flex-shrink: 0; }
+    .jog-panel .filtro-jogador { margin: 6px 8px 4px; width: calc(100% - 16px); }
+    .jog-panel table { table-layout: fixed; width: 100%; }
+    .an-root .jog-panel table th, .an-root .jog-panel table td { padding: .3rem .25rem !important; }
+    .an-root .jog-panel table th:first-child, .an-root .jog-panel table td:first-child { width: 32px; padding: .3rem .25rem .3rem 0 !important; }
+    .jog-panel table td:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .an-root .jog-panel table th:last-child, .an-root .jog-panel table td:last-child { width: 34px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; padding: .3rem 0 .3rem 2px !important; }
+    .an-root .scroll-panel::-webkit-scrollbar { width: 5px; }
+    .an-root .scroll-panel::-webkit-scrollbar-track { background: #111; }
+    .an-root .scroll-panel::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
 
     .posicao-drop {
         position: absolute;
@@ -267,15 +279,17 @@
         padding: 4px 8px;
         margin-bottom: 4px;
         font-size: 12px;
-        border: 1px solid #cbd5e1;
+        border: 1px solid #2a2a2a;
         border-radius: 6px;
-        background: #f8fafc;
-        color: #1e293b;
+        background: #1a1a1a;
+        color: #e5e7eb;
         box-sizing: border-box;
         position: sticky;
         top: 0;
         z-index: 5;
     }
+    .filtro-jogador:focus { border-color: #d4a520; outline: none; }
+    .filtro-jogador::placeholder { color: #6b7280; }
 
     .jogador-row {
         cursor: grab;
@@ -1613,13 +1627,6 @@
             <div class="row">
                 <!-- Lista de jogadores -->
                 <div class="col-5 scroll-panel">
-                    <div class="jog-panel-header">
-                        @if (!string.IsNullOrEmpty(Model.Jogo.TimeCasa?.EscudoUrl))
-                        {
-                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeCasa.EscudoUrl })" alt="" />
-                        }
-                        @Model.Jogo.TimeCasa?.Nome
-                    </div>
                     @{
                         var treinadorCasa = Model.TreinadorCasa as ControleFutebolWeb.Models.Treinador;
                     }
@@ -1643,6 +1650,14 @@
                             </div>
                         </div>
                     }
+                    <div class="jog-panel">
+                    <div class="jog-panel-header">
+                        @if (!string.IsNullOrEmpty(Model.Jogo.TimeCasa?.EscudoUrl))
+                        {
+                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeCasa.EscudoUrl })" alt="" />
+                        }
+                        @Model.Jogo.TimeCasa?.Nome
+                    </div>
                     <input type="text" id="filtroCasa" class="filtro-jogador" placeholder="🔍 Buscar por nome ou número..." oninput="filtrarLista('listaCasa', this.value)" />
                     <table class="table table-sm table-striped">
                         <thead><tr><th></th><th>Nome</th><th>Pos</th></tr></thead>
@@ -1670,6 +1685,7 @@
                             }
                         </tbody>
                     </table>
+                    </div><!-- /.jog-panel -->
                 </div>
 
                 <!-- Campinho casa -->
@@ -1887,13 +1903,6 @@
 
                 <!-- Lista de jogadores visitante -->
                 <div class="col-5 scroll-panel">
-                    <div class="jog-panel-header">
-                        @if (!string.IsNullOrEmpty(Model.Jogo.TimeVisitante?.EscudoUrl))
-                        {
-                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeVisitante.EscudoUrl })" alt="" />
-                        }
-                        @Model.Jogo.TimeVisitante?.Nome
-                    </div>
                     @{
                         var treinadorVis = Model.TreinadorVisitante as ControleFutebolWeb.Models.Treinador;
                     }
@@ -1917,8 +1926,16 @@
                             </div>
                         </div>
                     }
-                    <table class="table table-sm table-striped">
+                    <div class="jog-panel">
+                    <div class="jog-panel-header">
+                        @if (!string.IsNullOrEmpty(Model.Jogo.TimeVisitante?.EscudoUrl))
+                        {
+                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeVisitante.EscudoUrl })" alt="" />
+                        }
+                        @Model.Jogo.TimeVisitante?.Nome
+                    </div>
                     <input type="text" id="filtroVis" class="filtro-jogador" placeholder="🔍 Buscar por nome ou número..." oninput="filtrarLista('listaVisitante', this.value)" />
+                    <table class="table table-sm table-striped">
                         <thead><tr><th></th><th>Nome</th><th>Pos</th></tr></thead>
                         <tbody id="listaVisitante">
                             @foreach (var jogador in (List<ControleFutebolWeb.Models.Jogador>)Model.JogadoresVisitante)
@@ -1944,6 +1961,7 @@
                             }
                         </tbody>
                     </table>
+                    </div><!-- /.jog-panel -->
                 </div>
             </div>
         </div>
