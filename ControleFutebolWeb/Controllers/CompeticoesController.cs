@@ -91,8 +91,24 @@ namespace ControleFutebolWeb.Controllers
                 .OrderBy(c => c.Nome)
                 .ToListAsync();
 
+            // Contagem de jogos e times distintos por competição (para os cards da tela).
+            var jogosPorCompeticao = await _context.Jogos
+                .GroupBy(j => j.CompeticaoId)
+                .Select(g => new { CompeticaoId = g.Key, Jogos = g.Count() })
+                .ToDictionaryAsync(g => g.CompeticaoId, g => g.Jogos);
+
+            var timesPorCompeticao = await _context.Jogos
+                .Select(j => new { j.CompeticaoId, j.TimeCasaId, j.TimeVisitanteId })
+                .ToListAsync();
+            var timesDict = timesPorCompeticao
+                .SelectMany(j => new[] { (j.CompeticaoId, TimeId: j.TimeCasaId), (j.CompeticaoId, TimeId: j.TimeVisitanteId) })
+                .GroupBy(x => x.CompeticaoId)
+                .ToDictionary(g => g.Key, g => g.Select(x => x.TimeId).Distinct().Count());
+
             // Injetar TopTier calculado por usuário via ViewBag
             ViewBag.TopTierIds = topTierIds;
+            ViewBag.JogosPorCompeticao = jogosPorCompeticao;
+            ViewBag.TimesPorCompeticao = timesDict;
             return View(competicoes);
         }
 

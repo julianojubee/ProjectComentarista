@@ -1,0 +1,58 @@
+@model Competicao
+
+<!-- Modal link -->
+<div class="modal fade" id="linkModal-@Model.Id" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-controller="Competicoes" asp-action="SalvarLinkCompeticao" asp-route-id="@Model.Id" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title">Informar URL da Competição</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" name="linkCompeticao" class="form-control"
+                           placeholder="Cole o link aqui"
+                           value="@Model.LinkTransfermarket" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal escudo -->
+<div class="modal fade" id="logoModal-@Model.Id" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-controller="Competicoes" asp-action="SalvarLogo" asp-route-id="@Model.Id" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title">Escudo de @Model.Nome</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    @if (!string.IsNullOrWhiteSpace(Model.LogoUrl))
+                    {
+                        <div class="text-center mb-3">
+                            <img src="@Model.LogoUrl" alt="@Model.Nome"
+                                 style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:1px solid #262626;" />
+                        </div>
+                    }
+                    <label class="form-label fw-semibold">URL do escudo</label>
+                    <input type="url" name="logoUrl" class="form-control"
+                           placeholder="https://..."
+                           value="@Model.LogoUrl" />
+                    <div class="form-text">Cole a URL da imagem. Deixe vazio para usar o escudo padrão.</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
