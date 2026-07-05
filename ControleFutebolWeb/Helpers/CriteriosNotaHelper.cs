@@ -142,10 +142,22 @@ namespace ControleFutebolWeb.Helpers
             IEnumerable<CriterioNota> compartilhados,
             IEnumerable<CriterioNota> doUsuario)
         {
-            var overrides = doUsuario.ToDictionary(c => c.AcaoId);
-            return compartilhados
+            // Dedup defensivo por AcaoId: registros duplicados no banco (compartilhados
+            // ou do usuário) não podem somar peso em dobro/triplo no cálculo da nota —
+            // mantém o de menor Id (primeiro cadastrado) de cada AcaoId.
+            var compartilhadosUnicos = compartilhados
+                .GroupBy(c => c.AcaoId)
+                .Select(g => g.OrderBy(c => c.Id).First())
+                .ToList();
+            var doUsuarioUnico = doUsuario
+                .GroupBy(c => c.AcaoId)
+                .Select(g => g.OrderBy(c => c.Id).First())
+                .ToList();
+
+            var overrides = doUsuarioUnico.ToDictionary(c => c.AcaoId);
+            return compartilhadosUnicos
                 .Select(c => overrides.TryGetValue(c.AcaoId, out var u) ? u : c)
-                .Concat(doUsuario.Where(u => !compartilhados.Any(c => c.AcaoId == u.AcaoId)))
+                .Concat(doUsuarioUnico.Where(u => !compartilhadosUnicos.Any(c => c.AcaoId == u.AcaoId)))
                 .Where(c => c.Ativo)
                 .OrderBy(c => c.Ordem)
                 .ToList();
