@@ -3,324 +3,346 @@
 
 @{
     ViewData["Title"] = "Janela de Transferências";
+    bool temFiltro = ViewBag.FiltroTimeId != null || ViewBag.FiltroCompeticaoId != null || !string.IsNullOrEmpty((string?)ViewBag.FiltroJogador);
 }
 
 <style>
-    .trf-page {
-        background: #0f172a;
-        min-height: 100vh;
-        color: #f1f5f9;
-        padding: 2rem 1rem 4rem;
-    }
+    .tf-root, .tf-root *, .tf-root *::before, .tf-root *::after { box-sizing: border-box; }
 
-    .trf-wrap { max-width: 980px; margin: 0 auto; }
-
-    .trf-titulo {
-        font-size: 1.6rem;
-        font-weight: 800;
-        letter-spacing: .5px;
-        margin-bottom: .3rem;
-    }
-
-    .trf-sub {
-        color: #94a3b8;
-        font-size: .85rem;
-        margin-bottom: 1.4rem;
-    }
-
-    .trf-filtros {
-        background: #1e293b;
-        border: 1px solid #334155;
-        border-radius: 12px;
-        padding: .9rem 1rem;
-        display: flex;
-        gap: .6rem;
-        flex-wrap: wrap;
-        align-items: center;
-        margin-bottom: 1.2rem;
-    }
-
-        .trf-filtros select,
-        .trf-filtros input {
-            background: #0f172a;
-            border: 1px solid #334155;
-            color: #e2e8f0;
-            border-radius: 8px;
-            padding: .4rem .6rem;
-            font-size: .85rem;
-        }
-
-    .trf-card {
-        background: #1e293b;
-        border: 1px solid #334155;
-        border-radius: 12px;
-        padding: .8rem 1.1rem;
-        margin-bottom: .55rem;
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        flex-wrap: wrap;
-    }
-
-    .trf-data {
-        flex: 0 0 82px;
-        color: #94a3b8;
-        font-size: .78rem;
-    }
-
-    .trf-jogador {
-        flex: 1 1 180px;
-        display: flex;
-        align-items: center;
-        gap: .6rem;
-        min-width: 0;
-    }
-
-        .trf-jogador img {
-            width: 34px;
-            height: 34px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 1px solid #334155;
-            background: #0f172a;
-        }
-
-    .trf-jogador-nome {
-        font-weight: 700;
-        white-space: nowrap;
+    .tf-root {
+        margin: 0 -12px;
+        background: #0f0f0f;
+        border-radius: 14px;
         overflow: hidden;
-        text-overflow: ellipsis;
+        color: #e5e7eb;
+        font-family: 'Barlow', Arial, sans-serif;
     }
+    .tf-root a { text-decoration: none; color: inherit; }
 
-    .trf-jogador-pos {
-        font-size: .72rem;
-        color: #94a3b8;
+    /* ── Hero ── */
+    .tf-hero {
+        position: relative; overflow: hidden;
+        background: linear-gradient(135deg, #0a1628 0%, #0f2040 55%, #0a1628 100%);
+        padding: 44px 2.5rem 36px;
     }
-
-    .trf-fluxo {
-        flex: 1 1 260px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: .7rem;
+    .tf-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #d4a520; }
+    .tf-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(to top, #0f0f0f, transparent); pointer-events: none; }
+    .tf-hero-inner { position: relative; z-index: 1; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+    .tf-hero-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .tf-hero-kicker-line { height: 2px; width: 28px; background: #d4a520; }
+    .tf-hero-kicker span { font-size: .68rem; font-weight: 700; letter-spacing: .28em; color: #d4a520; text-transform: uppercase; }
+    .tf-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3.2rem; font-weight: 800; color: #f1f5f9; margin: 0 0 8px; line-height: 1; }
+    .tf-hero p { font-size: .9rem; color: #6b7280; margin: 0; max-width: 480px; }
+    .tf-btn-manual {
+        display: flex; align-items: center; gap: 7px; padding: 10px 18px;
+        background: #d4a520; color: #141414; font-size: .85rem; font-weight: 800;
+        border: none; border-radius: 8px; cursor: pointer; flex-shrink: 0;
     }
+    .tf-btn-manual:hover { background: #c49918; }
 
-    .trf-time {
-        display: flex;
-        align-items: center;
-        gap: .45rem;
-        min-width: 0;
+    /* ── Barra de filtros ── */
+    .tf-filterbar { background: #141414; border-bottom: 1px solid #222; padding: 14px 2.5rem; }
+    .tf-filterbar form { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; max-width: 1400px; margin: 0 auto; }
+    .tf-select-wrap { position: relative; }
+    .tf-select {
+        appearance: none; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px;
+        color: #9ca3af; font-size: .83rem; padding: 9px 28px 9px 12px; cursor: pointer; outline: none; min-width: 170px;
     }
-
-        .trf-time img {
-            width: 24px;
-            height: 24px;
-            object-fit: contain;
-        }
-
-        .trf-time span {
-            font-size: .85rem;
-            font-weight: 600;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 140px;
-        }
-
-    .trf-seta {
-        color: #facc15;
-        font-size: 1.1rem;
-        font-weight: 800;
-        flex-shrink: 0;
+    .tf-select:focus { border-color: #d4a520; }
+    .tf-select-arrow { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: #4b5563; pointer-events: none; }
+    .tf-search-box {
+        display: flex; align-items: center; flex: 1; min-width: 180px; max-width: 260px;
+        background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; overflow: hidden;
     }
+    .tf-search-box:focus-within { border-color: #d4a520; }
+    .tf-search-icon { padding: 0 10px; color: #4b5563; display: flex; align-items: center; }
+    .tf-search-box input { flex: 1; padding: 9px 4px; background: transparent; border: none; color: #f1f5f9; font-size: .83rem; outline: none; }
+    .tf-btn-filtrar { padding: 9px 18px; background: #3b82f6; color: #fff; font-size: .83rem; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; }
+    .tf-btn-filtrar:hover { background: #2563eb; }
+    .tf-btn-limpar { padding: 9px 14px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); color: #9ca3af; font-size: .8rem; font-weight: 600; border-radius: 8px; }
+    .tf-btn-limpar:hover { border-color: #d4a520; color: #d4a520; }
+    .tf-total { font-size: .75rem; color: #4b5563; font-weight: 600; margin-left: 8px; }
 
-    .trf-contexto {
-        flex: 0 0 auto;
-        text-align: right;
-        font-size: .74rem;
-        color: #94a3b8;
+    /* ── Conteúdo ── */
+    .tf-main { padding: 24px 2.5rem 64px; max-width: 1544px; margin: 0 auto; display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start; }
+    @@media (max-width: 900px) { .tf-main { grid-template-columns: 1fr; } }
+
+    .tf-alert { border-radius: 8px; padding: .7rem 1rem; margin-bottom: 1rem; font-size: .88rem; }
+    .tf-alert-sucesso { background: rgba(34,197,94,.12); color: #4ade80; border: 1px solid rgba(34,197,94,.25); }
+    .tf-alert-erro { background: rgba(239,68,68,.12); color: #f87171; border: 1px solid rgba(239,68,68,.25); }
+
+    .tf-col-headers {
+        display: grid; grid-template-columns: minmax(120px, 1.6fr) minmax(90px, 1fr) minmax(90px, 1fr) minmax(70px, .6fr) minmax(110px, .9fr); gap: 12px;
+        padding: 8px 16px; margin-bottom: 4px; align-items: center;
     }
+    .tf-col-headers span { font-size: .62rem; color: #374151; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
 
-        .trf-contexto a {
-            color: #60a5fa;
-            text-decoration: none;
-        }
-
-    .trf-excluir {
-        background: none;
-        border: none;
-        color: #f87171;
-        font-size: .72rem;
-        cursor: pointer;
-        padding: 0;
-        margin-top: .3rem;
-        text-decoration: underline;
+    .tf-row {
+        display: grid; grid-template-columns: minmax(120px, 1.6fr) minmax(90px, 1fr) minmax(90px, 1fr) minmax(70px, .6fr) minmax(110px, .9fr); gap: 12px;
+        padding: 11px 16px; background: #141414; border: 1px solid #1e1e1e; border-radius: 10px;
+        margin-bottom: 6px; align-items: center; transition: border-color .15s, background .15s;
     }
+    .tf-row:hover { background: #1a1a1a; border-color: #2a2a2a; }
 
-        .trf-excluir:hover { color: #ef4444; }
-
-    .trf-vazio {
-        text-align: center;
-        color: #94a3b8;
-        padding: 3rem 1rem;
-        background: #1e293b;
-        border: 1px dashed #334155;
-        border-radius: 12px;
+    .tf-jogador { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .tf-jogador-avatar {
+        width: 36px; height: 36px; border-radius: 50%; background: #1e293b; border: 1px solid #2a3a52;
+        display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;
     }
+    .tf-jogador-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .tf-jogador-nome { font-size: .87rem; font-weight: 700; color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tf-jogador-pos { font-size: .68rem; color: #6b7280; margin-top: 1px; }
+
+    .tf-time { display: flex; align-items: center; gap: 7px; min-width: 0; }
+    .tf-time img { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
+    .tf-time-origem { font-size: .82rem; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tf-time-destino { font-size: .82rem; color: #f1f5f9; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tf-seta { color: #d4a520; font-size: .9rem; flex-shrink: 0; }
+
+    .tf-data { font-size: .8rem; color: #6b7280; }
+
+    .tf-tipo-acao { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+    .tf-tipo-badge { font-size: .65rem; font-weight: 700; padding: 2px 8px; border-radius: 5px; white-space: nowrap; }
+    .tf-tipo-manual { background: rgba(168,85,247,.12); color: #c084fc; border: 1px solid rgba(168,85,247,.28); }
+    .tf-tipo-auto { background: rgba(59,130,246,.12); color: #60a5fa; border: 1px solid rgba(59,130,246,.28); }
+    .tf-link-jogo { font-size: .68rem; padding: 3px 8px; background: rgba(59,130,246,.08); border: 1px solid rgba(59,130,246,.2); border-radius: 5px; color: #60a5fa; font-weight: 600; }
+    .tf-link-jogo:hover { background: rgba(59,130,246,.15); }
+    .tf-excluir {
+        font-size: .68rem; padding: 3px 8px; background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2);
+        border-radius: 5px; color: #f87171; font-weight: 600; cursor: pointer;
+    }
+    .tf-excluir:hover { background: rgba(239,68,68,.15); }
+
+    .tf-vazio { text-align: center; color: #6b7280; padding: 3rem 1rem; background: #141414; border: 1px dashed #262626; border-radius: 12px; }
+    .tf-vazio small { font-size: .8rem; }
+
+    /* ── Sidebar transferência manual ── */
+    .tf-sidebar { position: sticky; top: 78px; }
+    .tf-manual-card { background: #161616; border: 1px solid #262626; border-radius: 14px; overflow: hidden; }
+    .tf-manual-header { padding: 14px 18px; background: #111; border-bottom: 1px solid #222; display: flex; align-items: center; justify-content: space-between; }
+    .tf-manual-header-title { display: flex; align-items: center; gap: 8px; }
+    .tf-manual-dot { width: 8px; height: 8px; border-radius: 50%; background: #d4a520; }
+    .tf-manual-header-title span { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .9rem; font-weight: 700; color: #f1f5f9; text-transform: uppercase; letter-spacing: .04em; }
+    .tf-manual-close { color: #4b5563; background: transparent; border: none; cursor: pointer; font-size: 1.1rem; }
+    .tf-manual-close:hover { color: #9ca3af; }
+    .tf-manual-body { padding: 18px; }
+    .tf-field { margin-bottom: 14px; }
+    .tf-field label { display: block; font-size: .68rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
+    .tf-field-select-wrap { position: relative; }
+    .tf-field select, .tf-field input {
+        width: 100%; appearance: none; padding: 10px 28px 10px 12px; background: #0f0f0f;
+        border: 1px solid #2a2a2a; border-radius: 8px; color: #e5e7eb; font-size: .87rem; outline: none; cursor: pointer;
+    }
+    .tf-field input { cursor: text; padding-right: 12px; }
+    .tf-field select:focus, .tf-field input:focus { border-color: #d4a520; }
+    .tf-field-arrow { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #555; pointer-events: none; }
+    .tf-manual-warn { background: rgba(212,165,32,.06); border: 1px solid rgba(212,165,32,.18); border-radius: 8px; padding: 10px 12px; margin-bottom: 16px; }
+    .tf-manual-warn p { font-size: .75rem; color: #9ca3af; margin: 0; line-height: 1.6; }
+    .tf-btn-confirmar {
+        width: 100%; padding: 11px; background: #d4a520; color: #141414; font-weight: 800;
+        font-size: .87rem; border: none; border-radius: 8px; cursor: pointer; letter-spacing: .04em;
+    }
+    .tf-btn-confirmar:hover { background: #c49918; }
 </style>
 
-<div class="trf-page">
-    <div class="trf-wrap">
-        <div class="trf-titulo">🔁 Janela de Transferências</div>
-        <div class="trf-sub">
-            Trocas de clube detectadas automaticamente: quando um jogador já cadastrado para um
-            time aparece na escalação de outro clube, ele é transferido e a movimentação fica
-            registrada aqui. Seleções nacionais não contam como transferência.
+<div class="tf-root">
+    <!-- ── Hero ── -->
+    <div class="tf-hero">
+        <div class="tf-hero-stripe"></div>
+        <div class="tf-hero-fade"></div>
+        <div class="tf-hero-inner">
+            <div>
+                <div class="tf-hero-kicker">
+                    <div class="tf-hero-kicker-line"></div>
+                    <span>Mercado</span>
+                </div>
+                <h1>Transferências</h1>
+                <p>Histórico de trocas de clube — detecções automáticas por jogo e transferências manuais.</p>
+            </div>
+            <button type="button" class="tf-btn-manual" onclick="toggleFormManual()">+ Transferência Manual</button>
         </div>
+    </div>
 
-        @if (TempData["Sucesso"] != null)
-        {
-            <div style="background:rgba(34,197,94,.12); color:#4ade80; border:1px solid rgba(34,197,94,.25);
-                        border-radius:8px; padding:.7rem 1rem; margin-bottom:1rem; font-size:.88rem;">
-                ✅ @TempData["Sucesso"]
-            </div>
-        }
-        @if (TempData["Erro"] != null)
-        {
-            <div style="background:rgba(239,68,68,.12); color:#f87171; border:1px solid rgba(239,68,68,.25);
-                        border-radius:8px; padding:.7rem 1rem; margin-bottom:1rem; font-size:.88rem;">
-                ⚠️ @TempData["Erro"]
-            </div>
-        }
-
-        <!-- ── Transferência manual ── -->
-        <div class="trf-filtros" style="flex-direction:column; align-items:stretch; gap:.5rem;">
-            <div style="display:flex; align-items:center; justify-content:space-between; cursor:pointer;"
-                 onclick="const f = document.getElementById('formTrfManual'); f.style.display = f.style.display === 'none' ? '' : 'none';">
-                <span style="font-weight:700; font-size:.9rem;">➕ Transferência manual</span>
-                <span style="font-size:.75rem; color:#94a3b8;">
-                    para quando você não quer esperar o jogador aparecer escalado num jogo
-                </span>
-            </div>
-            <form id="formTrfManual" method="post" asp-action="TransferirManual"
-                  style="display:none; gap:.6rem; flex-wrap:wrap; align-items:center;"
-                  onsubmit="return confirm('Confirmar a transferência do jogador selecionado?');">
-                @Html.AntiForgeryToken()
-                <input type="text" id="buscaJogadorManual" placeholder="Digite para filtrar jogadores…"
-                       style="flex:1 1 200px; min-width:180px;"
-                       oninput="filtrarJogadoresManual(this.value)" />
-                <select name="jogadorId" id="selJogadorManual" required style="flex:1 1 240px; min-width:200px;">
-                    <option value="">Selecione o jogador…</option>
-                    @foreach (var j in ViewBag.JogadoresManual)
+    <!-- ── Barra de filtros ── -->
+    <div class="tf-filterbar">
+        <form method="get">
+            <div class="tf-select-wrap">
+                <select name="timeId" class="tf-select" onchange="this.form.submit()">
+                    <option value="">Todos os times</option>
+                    @foreach (var item in (Microsoft.AspNetCore.Mvc.Rendering.SelectList)ViewBag.Times)
                     {
-                        <option value="@j.Id">@j.Rotulo</option>
+                        <option value="@item.Value" selected="@item.Selected">@item.Text</option>
                     }
                 </select>
-                <span class="trf-seta">→</span>
-                <select name="timeDestinoId" required style="flex:1 1 180px; min-width:160px;">
-                    <option value="">Clube de destino…</option>
-                    @foreach (var item in (Microsoft.AspNetCore.Mvc.Rendering.SelectList)ViewBag.TimesDestino)
+                <div class="tf-select-arrow"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg></div>
+            </div>
+            <div class="tf-select-wrap">
+                <select name="competicaoId" class="tf-select" onchange="this.form.submit()">
+                    <option value="">Todas as competições</option>
+                    @foreach (var item in (Microsoft.AspNetCore.Mvc.Rendering.SelectList)ViewBag.Competicoes)
                     {
-                        <option value="@item.Value">@item.Text</option>
+                        <option value="@item.Value" selected="@item.Selected">@item.Text</option>
                     }
                 </select>
-                <button type="submit" class="btn btn-warning btn-sm" style="font-weight:700;">Transferir</button>
-            </form>
-        </div>
-
-        <form method="get" class="trf-filtros">
-            <select name="timeId" onchange="this.form.submit()">
-                <option value="">Todos os times</option>
-                @foreach (var item in (Microsoft.AspNetCore.Mvc.Rendering.SelectList)ViewBag.Times)
-                {
-                    <option value="@item.Value" selected="@item.Selected">@item.Text</option>
-                }
-            </select>
-            <select name="competicaoId" onchange="this.form.submit()">
-                <option value="">Todas as competições</option>
-                @foreach (var item in (Microsoft.AspNetCore.Mvc.Rendering.SelectList)ViewBag.Competicoes)
-                {
-                    <option value="@item.Value" selected="@item.Selected">@item.Text</option>
-                }
-            </select>
-            <input type="text" name="jogador" value="@ViewBag.FiltroJogador"
-                   placeholder="Buscar jogador…" style="flex:1; min-width:160px;" />
-            <button type="submit" class="btn btn-primary btn-sm">Filtrar</button>
-            @if (ViewBag.FiltroTimeId != null || ViewBag.FiltroCompeticaoId != null || !string.IsNullOrEmpty((string?)ViewBag.FiltroJogador))
+                <div class="tf-select-arrow"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg></div>
+            </div>
+            <div class="tf-search-box">
+                <div class="tf-search-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg></div>
+                <input type="text" name="jogador" value="@ViewBag.FiltroJogador" placeholder="Filtrar por jogador..." />
+            </div>
+            <button type="submit" class="tf-btn-filtrar">Filtrar</button>
+            @if (temFiltro)
             {
-                <a href="@Url.Action("Index")" class="btn btn-outline-secondary btn-sm">Limpar</a>
+                <a href="@Url.Action("Index")" class="tf-btn-limpar">Limpar</a>
             }
+            <span class="tf-total">@Model.Count registro@(Model.Count == 1 ? "" : "s")</span>
         </form>
+    </div>
 
-        @if (!Model.Any())
-        {
-            <div class="trf-vazio">
-                Nenhuma transferência registrada ainda.<br />
-                <span style="font-size:.8rem;">
-                    As transferências passam a ser registradas automaticamente quando um jogador
-                    aparece escalado por um clube diferente do atual em uma importação de jogo.
-                </span>
-            </div>
-        }
-        else
-        {
-            foreach (var t in Model)
+    <!-- ── Conteúdo ── -->
+    <div class="tf-main">
+
+        <!-- Lista de transferências -->
+        <div>
+            @if (TempData["Sucesso"] != null)
             {
-                <div class="trf-card">
-                    <div class="trf-data">@t.Data.ToString("dd/MM/yyyy")</div>
+                <div class="tf-alert tf-alert-sucesso">✅ @TempData["Sucesso"]</div>
+            }
+            @if (TempData["Erro"] != null)
+            {
+                <div class="tf-alert tf-alert-erro">⚠️ @TempData["Erro"]</div>
+            }
 
-                    <div class="trf-jogador">
-                        <img src="@(string.IsNullOrEmpty(t.Jogador.FotoUrl) ? "/images/placeholder-jogador.png" : Url.FotoSrc(t.Jogador.FotoUrl))"
-                             onerror="this.onerror=null; this.src='/images/placeholder-jogador.png'" alt="" />
-                        <div style="min-width:0;">
-                            <div class="trf-jogador-nome">
-                                <a href="@Url.Action("Estatisticas", "Jogadores", new { id = t.JogadorId })"
-                                   style="color:inherit; text-decoration:none;">@t.Jogador.NomeExibicao</a>
+            @if (!Model.Any())
+            {
+                <div class="tf-vazio">
+                    Nenhuma transferência registrada ainda.<br />
+                    <small>
+                        As transferências passam a ser registradas automaticamente quando um jogador
+                        aparece escalado por um clube diferente do atual em uma importação de jogo.
+                    </small>
+                </div>
+            }
+            else
+            {
+                <div class="tf-col-headers">
+                    <span>Jogador</span>
+                    <span>Origem</span>
+                    <span>Destino</span>
+                    <span>Data</span>
+                    <span style="text-align:right;">Tipo / Ação</span>
+                </div>
+
+                foreach (var t in Model)
+                {
+                    <div class="tf-row">
+                        <div class="tf-jogador">
+                            <div class="tf-jogador-avatar">
+                                <img src="@(string.IsNullOrEmpty(t.Jogador.FotoUrl) ? "/images/placeholder-jogador.png" : Url.FotoSrc(t.Jogador.FotoUrl))"
+                                     onerror="this.onerror=null; this.src='/images/placeholder-jogador.png'" alt="" />
                             </div>
-                            <div class="trf-jogador-pos">@t.Jogador.Posicao</div>
+                            <div style="min-width:0;">
+                                <div class="tf-jogador-nome">
+                                    <a href="@Url.Action("Estatisticas", "Jogadores", new { id = t.JogadorId })">@t.Jogador.NomeExibicao</a>
+                                </div>
+                                <div class="tf-jogador-pos">@t.Jogador.Posicao</div>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="trf-fluxo">
-                        <div class="trf-time">
+                        <div class="tf-time">
                             @if (!string.IsNullOrEmpty(t.TimeOrigem?.EscudoUrl))
                             {
                                 <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.TimeOrigem.EscudoUrl })" alt="" />
                             }
-                            <span>@(t.TimeOrigem?.Nome ?? "—")</span>
+                            <span class="tf-time-origem">@(t.TimeOrigem?.Nome ?? "—")</span>
                         </div>
-                        <span class="trf-seta">→</span>
-                        <div class="trf-time">
+
+                        <div class="tf-time">
+                            <span class="tf-seta">→</span>
                             @if (!string.IsNullOrEmpty(t.TimeDestino?.EscudoUrl))
                             {
                                 <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.TimeDestino.EscudoUrl })" alt="" />
                             }
-                            <span>@t.TimeDestino?.Nome</span>
+                            <span class="tf-time-destino">@t.TimeDestino?.Nome</span>
+                        </div>
+
+                        <div class="tf-data">@t.Data.ToString("dd/MM/yyyy")</div>
+
+                        <div class="tf-tipo-acao">
+                            @if (t.JogoId != null)
+                            {
+                                <span class="tf-tipo-badge tf-tipo-auto" title="@(t.Jogo?.Competicao?.Nome ?? "")">🤖 Auto</span>
+                                <a href="@Url.Action("Analisar", "Jogos", new { id = t.JogoId })" class="tf-link-jogo">ver jogo →</a>
+                            }
+                            else
+                            {
+                                <span class="tf-tipo-badge tf-tipo-manual">👤 Manual</span>
+                                @if (t.UsuarioId != null && t.UsuarioId == (string?)ViewBag.UsuarioAtualId)
+                                {
+                                    <form method="post" asp-action="Excluir" asp-route-id="@t.Id" style="margin:0;"
+                                          onsubmit="return confirm('Excluir esta transferência? Se o jogador ainda estiver em @t.TimeDestino?.Nome, ele volta para @(t.TimeOrigem?.Nome ?? "o clube anterior").');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="tf-excluir">Excluir</button>
+                                    </form>
+                                }
+                            }
                         </div>
                     </div>
-
-                    <div class="trf-contexto">
-                        @if (t.Jogo != null)
-                        {
-                            <div>@(t.Jogo.Competicao?.Nome ?? "")</div>
-                            <a href="@Url.Action("Analisar", "Jogos", new { id = t.JogoId })">ver jogo →</a>
-                        }
-                        else
-                        {
-                            <div style="color:#facc15;">manual</div>
-                            @if (t.UsuarioId != null && t.UsuarioId == (string?)ViewBag.UsuarioAtualId)
-                            {
-                                <form method="post" asp-action="Excluir" asp-route-id="@t.Id"
-                                      onsubmit="return confirm('Excluir esta transferência? Se o jogador ainda estiver em @t.TimeDestino?.Nome, ele volta para @(t.TimeOrigem?.Nome ?? "o clube anterior").');">
-                                    @Html.AntiForgeryToken()
-                                    <button type="submit" class="trf-excluir">excluir</button>
-                                </form>
-                            }
-                        }
-                    </div>
-                </div>
+                }
             }
-        }
+        </div>
+
+        <!-- Sidebar: transferência manual -->
+        <div class="tf-sidebar">
+            <div class="tf-manual-card" id="formManualCard" style="display:none;">
+                <div class="tf-manual-header">
+                    <div class="tf-manual-header-title">
+                        <div class="tf-manual-dot"></div>
+                        <span>Transferência Manual</span>
+                    </div>
+                    <button type="button" class="tf-manual-close" onclick="toggleFormManual()">×</button>
+                </div>
+                <form method="post" asp-action="TransferirManual"
+                      onsubmit="return confirm('Confirmar a transferência do jogador selecionado?');">
+                    @Html.AntiForgeryToken()
+                    <div class="tf-manual-body">
+                        <div class="tf-field">
+                            <label>Jogador</label>
+                            <input type="text" id="buscaJogadorManual" placeholder="Digite para filtrar jogadores…"
+                                   oninput="filtrarJogadoresManual(this.value)" style="margin-bottom:6px;" />
+                            <div class="tf-field-select-wrap">
+                                <select name="jogadorId" id="selJogadorManual" required>
+                                    <option value="">Selecione um jogador...</option>
+                                    @foreach (var j in ViewBag.JogadoresManual)
+                                    {
+                                        <option value="@j.Id">@j.Rotulo</option>
+                                    }
+                                </select>
+                                <div class="tf-field-arrow"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg></div>
+                            </div>
+                        </div>
+                        <div class="tf-field">
+                            <label>Clube de Destino</label>
+                            <div class="tf-field-select-wrap">
+                                <select name="timeDestinoId" required>
+                                    <option value="">Selecione o destino...</option>
+                                    @foreach (var item in (Microsoft.AspNetCore.Mvc.Rendering.SelectList)ViewBag.TimesDestino)
+                                    {
+                                        <option value="@item.Value">@item.Text</option>
+                                    }
+                                </select>
+                                <div class="tf-field-arrow"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg></div>
+                            </div>
+                        </div>
+                        <div class="tf-manual-warn">
+                            <p>⚠️ A transferência atualiza o clube do jogador e fica registrada no histórico. Somente você pode excluir registros manuais que criou.</p>
+                        </div>
+                        <button type="submit" class="tf-btn-confirmar">Confirmar Transferência</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
     </div>
 </div>
 
@@ -335,5 +357,10 @@
         }
         // Se a seleção atual ficou escondida, volta pro placeholder
         if (sel.selectedOptions[0]?.hidden) sel.value = '';
+    }
+
+    function toggleFormManual() {
+        const card = document.getElementById('formManualCard');
+        card.style.display = card.style.display === 'none' ? '' : 'none';
     }
 </script>
