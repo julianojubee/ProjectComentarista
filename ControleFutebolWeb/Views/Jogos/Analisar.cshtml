@@ -260,12 +260,12 @@
         font-weight: 700;
     }
 
-        /* Botões +/ℹ e a seta ↑ ficam fora do pointer-events:none: precisam
-           receber clique/hover. IMPORTANTE: os três :not() elevam a
-           especificidade desta regra acima dos estilos dos próprios botões —
-           qualquer novo elemento interativo dentro do slot precisa ser
-           adicionado aqui também. */
-        .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in) {
+        /* Botões +/ℹ, a seta ↑ e o selo de cartão vermelho ficam fora do
+           pointer-events:none: precisam receber clique/hover. IMPORTANTE: os
+           :not() elevam a especificidade desta regra acima dos estilos dos
+           próprios botões — qualquer novo elemento interativo dentro do slot
+           precisa ser adicionado aqui também. */
+        .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in):not(.card-vermelho-badge) {
             pointer-events: none;
         }
 
@@ -463,7 +463,7 @@
         white-space: pre-wrap;
     }
 
-    .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in) {
+    .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in):not(.card-vermelho-badge) {
         pointer-events: none;
     }
 
@@ -504,6 +504,31 @@
         box-shadow: 0 1px 3px rgba(0,0,0,.45);
         z-index: 3;
         pointer-events: auto; /* recebe hover para o tooltip */
+        cursor: help;
+    }
+
+    /* Jogador expulso (cartão vermelho): botão em campo fica cinza/desabilitado
+       e não pode mais ser arrastado (ver draggable="false" no HTML do slot). */
+    .posicao-drop.expulso {
+        cursor: not-allowed;
+    }
+    .posicao-drop.expulso .player-circle {
+        filter: grayscale(1);
+        opacity: .55;
+    }
+    .card-vermelho-badge {
+        position: absolute;
+        top: -4px;
+        left: 50%;
+        margin-left: 9px;      /* mesmo cálculo do .sub-chip-in: metade do círculo de 36px */
+        width: 11px;
+        height: 15px;
+        background: #dc2626;
+        border: 1.5px solid #fff;
+        border-radius: 2px;
+        box-shadow: 0 1px 3px rgba(0,0,0,.45);
+        z-index: 3;
+        pointer-events: auto;
         cursor: help;
     }
 
@@ -1276,6 +1301,9 @@
         <div class="mb-toolbar-toggle" id="mbPreJogoToggle" onclick="abrirPreJogo(@Model.Jogo.Id)" style="margin:0; cursor:pointer;">
             <span>🔍 Pré-jogo</span>
         </div>
+        <div class="mb-toolbar-toggle" id="mbPosJogoToggle" onclick="abrirPosJogo(@Model.Jogo.Id)" style="margin:0; cursor:pointer;">
+            <span>📝 Pós-jogo</span>
+        </div>
     </div>
 
     <div class="mb-toolbar" id="mbToolbar" style="display:none;">
@@ -1713,13 +1741,14 @@
                         }
                         @foreach (var esc in (List<ControleFutebolWeb.Models.Escalacao>)Model.EscalacoesCasa)
                         {
-                            <div class="posicao-drop"
+                            bool expulsoCasa = esc.Jogador != null && Model.JogadoresComCartaoVermelho.Contains(esc.Jogador.Id);
+                            <div class="posicao-drop @(expulsoCasa ? "expulso" : "")"
                                  data-index="casa_@idxCasa"
                                  data-posicao="@esc.Posicao"
                                  data-campo="casa"
                                  data-escid="@esc.Id"
                                  data-temjogador="@(esc.Jogador != null ? "1" : "0")"
-                                 draggable="true"
+                                 draggable="@(expulsoCasa ? "false" : "true")"
                                  ondragstart="dragPosicao(event, 'casa_@idxCasa')"
                                  ondrop="dropEscalacao(event, 'casa_@idxCasa')"
                                  ondragover="allowDrop(event)"
@@ -1727,6 +1756,10 @@
                                 @if (esc.Jogador != null)
                                 {
                                     <div class="player-circle player-circle-casa">@(esc.Jogador.NumeroCamisa?.ToString() ?? "")</div>
+                                    @if (expulsoCasa)
+                                    {
+                                        <span class="card-vermelho-badge" title="Expulso (cartão vermelho)"></span>
+                                    }
                                     @* Fora de .player-name: o overflow:hidden dela cortava a seta em nomes longos *@
                                     @if (!faseEhInicial && jogadoresEntraramCasa.Contains(esc.Jogador.Id))
                                     {
@@ -1825,13 +1858,14 @@
                         }
                         @foreach (var esc in (List<ControleFutebolWeb.Models.Escalacao>)Model.EscalacoesVisitante)
                         {
-                            <div class="posicao-drop"
+                            bool expulsoVis = esc.Jogador != null && Model.JogadoresComCartaoVermelho.Contains(esc.Jogador.Id);
+                            <div class="posicao-drop @(expulsoVis ? "expulso" : "")"
                                  data-index="vis_@idxVis"
                                  data-posicao="@esc.Posicao"
                                  data-campo="vis"
                                  data-escid="@esc.Id"
                                  data-temjogador="@(esc.Jogador != null ? "1" : "0")"
-                                 draggable="true"
+                                 draggable="@(expulsoVis ? "false" : "true")"
                                  ondragstart="dragPosicao(event, 'vis_@idxVis')"
                                  ondrop="dropEscalacao(event, 'vis_@idxVis')"
                                  ondragover="allowDrop(event)"
@@ -1839,6 +1873,10 @@
                                 @if (esc.Jogador != null)
                                 {
                                     <div class="player-circle player-circle-vis">@(esc.Jogador.NumeroCamisa?.ToString() ?? "")</div>
+                                    @if (expulsoVis)
+                                    {
+                                        <span class="card-vermelho-badge" title="Expulso (cartão vermelho)"></span>
+                                    }
                                     @if (!faseEhInicial && jogadoresEntraramVisitante.Contains(esc.Jogador.Id))
                                     {
                                         <span class="sub-chip-in" title="@TituloEntrou(esc.Jogador.Id)">↑</span>
@@ -3467,6 +3505,271 @@
 
     document.getElementById('modal-prejogo').addEventListener('click', function (e) {
         if (e.target === this) fecharPreJogo();
+    });
+</script>
+
+<!-- ── Modal Pós-jogo ─────────────────────────────────────────────────── -->
+<div id="modal-posjogo" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:10000; align-items:center; justify-content:center;">
+    <div style="background:#0f1b2d; border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:1.4rem; width:900px; max-width:96vw; max-height:92vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,.5);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <h5 style="margin:0; color:#e2e8f0; font-size:15px; font-weight:700;">📝 Pós-jogo</h5>
+            <button onclick="fecharPosJogo()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1;">&times;</button>
+        </div>
+        <div id="posjogo-corpo">
+            <div style="text-align:center; color:#94a3b8; padding:2rem 0;">Carregando...</div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .pgj-placar { display:flex; align-items:center; justify-content:center; gap:1.2rem; padding:.6rem 0 1.1rem; border-bottom:1px solid rgba(255,255,255,.08); margin-bottom:1.1rem; }
+    .pgj-placar-time { display:flex; align-items:center; gap:8px; }
+    .pgj-placar-time img { width:30px; height:30px; object-fit:contain; }
+    .pgj-placar-time span { font-size:13px; font-weight:700; color:#e2e8f0; }
+    .pgj-placar-num { font-size:26px; font-weight:800; color:#f1f5f9; letter-spacing:.05em; }
+    .pgj-placar-pen { font-size:11px; color:#94a3b8; text-align:center; margin-top:-.9rem; margin-bottom:1rem; }
+    .pgj-resumo { padding-left:1.1rem; margin:0 0 1.2rem; font-size:12.5px; color:#94a3b8; line-height:1.6; }
+    .pgj-resumo li { margin-bottom:.2rem; }
+    .pgj-section-title { font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing:.5px; margin:1.2rem 0 .6rem; }
+    .pgj-obs-item { display:flex; gap:.5rem; padding:.4rem 0; border-bottom:1px solid rgba(255,255,255,.05); font-size:12.5px; color:#cbd5e1; line-height:1.5; }
+    .pgj-obs-item:last-child { border-bottom:none; }
+    .pgj-obs-badge { flex-shrink:0; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; padding:2px 7px; border-radius:5px; height:fit-content; white-space:nowrap; }
+    .pgj-obs-badge.MANDANTE { background:rgba(220,38,38,.15); color:#f87171; }
+    .pgj-obs-badge.VISITANTE { background:rgba(37,99,235,.15); color:#60a5fa; }
+    .pgj-obs-badge.COMPETICAO { background:rgba(148,163,184,.15); color:#cbd5e1; }
+    .pgj-obs-badge.JOGADOR { background:rgba(212,165,32,.15); color:#d4a520; }
+    .pgj-obs-badge.MARCO { background:rgba(34,197,94,.15); color:#4ade80; }
+    .pgj-obs-vazio { font-size:12px; color:#64748b; }
+
+    /* ── Lista de jogadores (lado a lado, com nota) ── */
+    .pgj-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; }
+    @@media (max-width: 640px) { .pgj-grid { grid-template-columns:1fr; } }
+    .pgj-col { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:.7rem .9rem; }
+    .pgj-col.casa { border-top:3px solid var(--cor-camisa-casa); }
+    .pgj-col.vis { border-top:3px solid var(--cor-camisa-vis); }
+    .pgj-lineup-row { display:flex; align-items:center; gap:.5rem; padding:.3rem 0; border-bottom:1px solid rgba(255,255,255,.05); }
+    .pgj-lineup-row:last-child { border-bottom:none; }
+    .pgj-lineup-num { width:18px; text-align:center; color:#94a3b8; font-weight:700; font-size:11px; flex-shrink:0; }
+    .pgj-lineup-nome { flex:1; font-size:12.5px; color:#e2e8f0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .pgj-lineup-eventos { display:flex; gap:6px; align-items:center; flex-shrink:0; }
+    .pgj-evt { font-size:10px; color:#94a3b8; display:inline-flex; align-items:center; gap:2px; white-space:nowrap; }
+    .pgj-evt-card { width:8px; height:11px; border-radius:1.5px; display:inline-block; }
+    .pgj-evt-card.amarelo { background:#eab308; }
+    .pgj-evt-card.vermelho { background:#dc2626; }
+    .pgj-evt-sub-out { color:#f87171; }
+    .pgj-evt-sub-in { color:#4ade80; }
+    .pgj-lineup-nota { font-size:12px; font-weight:800; color:#fff; border-radius:5px; padding:1px 6px; min-width:26px; text-align:center; flex-shrink:0; }
+    .pgj-reservas-label { font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:.4px; margin:.6rem 0 .2rem; padding-top:.4rem; border-top:1px solid rgba(255,255,255,.08); }
+
+    /* ── Campinho tático (pós-jogo, somente leitura) ── */
+    .pgj-campo-wrap { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; }
+    @@media (max-width: 640px) { .pgj-campo-wrap { grid-template-columns:1fr; } }
+    .pgj-campo-jog { position:absolute; transform:translate(-50%,-50%); text-align:center; color:#fff; font-size:10px; text-shadow:1px 1px 2px black; }
+    .pgj-campo-nota { margin:2px auto 0; width:fit-content; min-width:20px; padding:1px 5px; border-radius:5px; font-size:10.5px; font-weight:800; color:#fff; box-shadow:0 1px 2px rgba(0,0,0,.4); }
+    .pgj-campo-nome { font-size:9px; margin-top:2px; max-width:72px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-left:auto; margin-right:auto; }
+
+    /* ── Estatísticas ── */
+    .pgj-stat-row { margin-bottom:.85rem; }
+    .pgj-stat-labels { display:flex; justify-content:space-between; font-size:12.5px; color:#e5e7eb; margin-bottom:4px; }
+    .pgj-stat-labels .num { font-weight:700; }
+    .pgj-stat-labels .lbl { color:#6b7280; }
+    .pgj-stat-bar { display:flex; align-items:center; height:8px; border-radius:5px; overflow:hidden; background:#222; }
+    .pgj-stat-bar .casa { height:100%; background:#dc2626; }
+    .pgj-stat-bar .vis { height:100%; background:#2563eb; }
+
+    /* ── Estatísticas por jogador (destaque de cada time por métrica) ── */
+    .pgj-pj-row { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px; padding:.4rem 0; border-bottom:1px solid rgba(255,255,255,.05); font-size:12px; }
+    .pgj-pj-row:last-child { border-bottom:none; }
+    .pgj-pj-side { display:flex; align-items:center; gap:6px; min-width:0; }
+    .pgj-pj-side.casa { justify-content:flex-end; }
+    .pgj-pj-side.vis { justify-content:flex-start; }
+    .pgj-pj-side.vazio { color:#475569; font-size:11px; }
+    .pgj-pj-avatar { width:22px; height:22px; border-radius:50%; object-fit:cover; background:rgba(255,255,255,.1); flex-shrink:0; }
+    .pgj-pj-nome { color:#e2e8f0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:108px; }
+    .pgj-pj-val { font-weight:800; color:#f1f5f9; min-width:16px; text-align:center; flex-shrink:0; }
+    .pgj-pj-arrow { font-size:10px; flex-shrink:0; }
+    .pgj-pj-arrow.up { color:#4ade80; }
+    .pgj-pj-arrow.down { color:#f87171; }
+    .pgj-pj-label { font-size:10px; color:#94a3b8; text-transform:uppercase; text-align:center; letter-spacing:.4px; white-space:nowrap; }
+</style>
+
+<script>
+    async function abrirPosJogo(jogoId) {
+        var modal = document.getElementById('modal-posjogo');
+        var corpo = document.getElementById('posjogo-corpo');
+        modal.style.display = 'flex';
+        corpo.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:2rem 0;">Carregando...</div>';
+
+        try {
+            var resp = await fetch('/Jogos/PosJogo/' + jogoId);
+            if (!resp.ok) {
+                var msg = await resp.text();
+                corpo.innerHTML = '<div style="color:#f87171;text-align:center;padding:1rem;">' + msg + '</div>';
+                return;
+            }
+            var dados = await resp.json();
+            corpo.innerHTML = montarPosJogo(dados);
+        } catch (e) {
+            corpo.innerHTML = '<div style="color:#f87171;text-align:center;padding:1rem;">Erro ao carregar dados do pós-jogo.</div>';
+        }
+    }
+
+    function notaCor(n) {
+        if (n >= 8) return '#16a34a';
+        if (n >= 6.5) return '#65a30d';
+        if (n >= 5) return '#ca8a04';
+        return '#dc2626';
+    }
+
+    function iconesEventosLineup(j) {
+        var partes = [];
+        (j.cartoesAmarelos || []).forEach(function (m) {
+            partes.push('<span class="pgj-evt"><span class="pgj-evt-card amarelo"></span>' + m + "'</span>");
+        });
+        if (j.cartaoVermelho) {
+            partes.push('<span class="pgj-evt"><span class="pgj-evt-card vermelho"></span>' + j.cartaoVermelho + "'</span>");
+        }
+        if (j.saiuMinuto) {
+            partes.push('<span class="pgj-evt pgj-evt-sub-out">▼ ' + j.saiuMinuto + "'</span>");
+        }
+        if (j.entrouMinuto) {
+            partes.push('<span class="pgj-evt pgj-evt-sub-in">▲ ' + j.entrouMinuto + "'</span>");
+        }
+        return partes.join('');
+    }
+
+    function linhaLineup(j) {
+        var notaHtml = (j.nota != null)
+            ? ('<span class="pgj-lineup-nota" style="background:' + notaCor(j.nota) + ';">' + j.nota + '</span>')
+            : '';
+        return '<div class="pgj-lineup-row">' +
+            '<span class="pgj-lineup-num">' + (j.numero != null ? j.numero : '') + '</span>' +
+            '<span class="pgj-lineup-nome">' + escHtml(j.nome) + '</span>' +
+            '<span class="pgj-lineup-eventos">' + iconesEventosLineup(j) + '</span>' +
+            notaHtml +
+        '</div>';
+    }
+
+    function colunaLineup(titulares, reservas, lado) {
+        var html = '';
+        if (titulares && titulares.length) html += titulares.map(linhaLineup).join('');
+        if (reservas && reservas.length) html += '<div class="pgj-reservas-label">Reservas</div>' + reservas.map(linhaLineup).join('');
+        if (!html) html = '<div class="pgj-obs-vazio">Escalação não registrada.</div>';
+        return '<div class="pgj-col ' + lado + '">' + html + '</div>';
+    }
+
+    function jogadorCampo(j, lado) {
+        var notaHtml = (j.nota != null)
+            ? ('<div class="pgj-campo-nota" style="background:' + notaCor(j.nota) + ';">' + j.nota + '</div>')
+            : '';
+        return '<div class="pgj-campo-jog" style="left:' + j.posicaoX + '%; top:' + j.posicaoY + '%;">' +
+            '<div class="player-circle player-circle-' + lado + '">' + (j.numero != null ? j.numero : '') + '</div>' +
+            notaHtml +
+            '<div class="pgj-campo-nome">' + escHtml(j.nome) + '</div>' +
+        '</div>';
+    }
+
+    function campoTime(lista, lado) {
+        var jogadores = (lista || []).map(function (j) { return jogadorCampo(j, lado); }).join('');
+        return '<div class="campo pgj-campo">' +
+            '<div class="campo-linha-meio"></div><div class="campo-circulo"></div>' +
+            '<div class="campo-area-sup"></div><div class="campo-area-inf"></div>' +
+            '<div class="campo-gol-sup"></div><div class="campo-gol-inf"></div>' +
+            jogadores +
+        '</div>';
+    }
+
+    function montarPosJogo(d) {
+        var escCasa = d.casa && d.casa.escudo ? '<img src="' + d.casa.escudo + '" alt="">' : '';
+        var escVis = d.visitante && d.visitante.escudo ? '<img src="' + d.visitante.escudo + '" alt="">' : '';
+
+        var placar = '<div class="pgj-placar">' +
+            '<div class="pgj-placar-time">' + escCasa + '<span>' + escHtml(d.casa ? d.casa.nome : '') + '</span></div>' +
+            '<div class="pgj-placar-num">' + (d.placarCasa ?? '-') + ' &ndash; ' + (d.placarVisitante ?? '-') + '</div>' +
+            '<div class="pgj-placar-time"><span>' + escHtml(d.visitante ? d.visitante.nome : '') + '</span>' + escVis + '</div>' +
+        '</div>';
+
+        var pens = (d.penaltisCasa != null && d.penaltisVisitante != null)
+            ? '<div class="pgj-placar-pen">Pênaltis: ' + d.penaltisCasa + ' &ndash; ' + d.penaltisVisitante + '</div>'
+            : '';
+
+        var resumo = (d.resumo && d.resumo.length)
+            ? '<ul class="pgj-resumo">' + d.resumo.map(function (r) { return '<li>' + escHtml(r) + '</li>'; }).join('') + '</ul>'
+            : '';
+
+        var lineupHtml = '<div class="pgj-section-title">Jogadores</div><div class="pgj-grid">' +
+            colunaLineup(d.lineup.casaTitulares, d.lineup.casaReservas, 'casa') +
+            colunaLineup(d.lineup.visTitulares, d.lineup.visReservas, 'vis') +
+        '</div>';
+
+        var campoHtml = '<div class="pgj-section-title">Campo</div><div class="pgj-campo-wrap">' +
+            campoTime(d.campo.casa, 'casa') + campoTime(d.campo.visitante, 'vis') +
+        '</div>';
+
+        var statsHtml = '';
+        if (d.estatisticas && d.estatisticas.length) {
+            statsHtml = '<div class="pgj-section-title">Estatísticas</div>' + d.estatisticas.map(function (m) {
+                var vc = parseFloat(String(m.casa).replace('%', '')) || 0;
+                var vv = parseFloat(String(m.vis).replace('%', '')) || 0;
+                var total = vc + vv;
+                var pc = total > 0 ? (vc / total * 100) : 50;
+                var pv = 100 - pc;
+                return '<div class="pgj-stat-row">' +
+                    '<div class="pgj-stat-labels"><span class="num">' + escHtml(m.casa) + '</span><span class="lbl">' + escHtml(m.label) + '</span><span class="num">' + escHtml(m.vis) + '</span></div>' +
+                    '<div class="pgj-stat-bar"><div class="casa" style="width:' + pc + '%;"></div><div class="vis" style="width:' + pv + '%;"></div></div>' +
+                '</div>';
+            }).join('');
+        }
+
+        var estatJogHtml = '';
+        if (d.estatisticasJogador && d.estatisticasJogador.length) {
+            estatJogHtml = '<div class="pgj-section-title">Estatísticas por jogador</div>' +
+                d.estatisticasJogador.map(linhaEstatJogador).join('');
+        }
+
+        var obsHtml = '<div class="pgj-section-title">Observações da partida</div>';
+        if (d.observacoes && d.observacoes.length) {
+            obsHtml += d.observacoes.map(function (o) {
+                var texto = (o.tipo === 'JOGADOR' && o.jogadorNome) ? ('<strong>' + escHtml(o.jogadorNome) + ':</strong> ' + escHtml(o.texto)) : escHtml(o.texto);
+                return '<div class="pgj-obs-item"><span class="pgj-obs-badge ' + o.tipo + '">' + o.tipo + '</span><span>' + texto + '</span></div>';
+            }).join('');
+        } else {
+            obsHtml += '<div class="pgj-obs-vazio">Nenhuma observação registrada para esta partida.</div>';
+        }
+
+        return placar + pens + resumo + lineupHtml + campoHtml + statsHtml + estatJogHtml + obsHtml;
+    }
+
+    function jogadorStatSide(j, lado, melhorLado) {
+        if (!j) return '<div class="pgj-pj-side ' + lado + ' vazio">-</div>';
+        var arrow = '';
+        if (melhorLado === lado) arrow = '<span class="pgj-pj-arrow up">▲</span>';
+        else if (melhorLado) arrow = '<span class="pgj-pj-arrow down">▼</span>';
+        var foto = j.foto ? '<img class="pgj-pj-avatar" src="' + j.foto + '" alt="">' : '<div class="pgj-pj-avatar"></div>';
+        var valorEl = '<span class="pgj-pj-val">' + j.valor + '</span>';
+        var nomeEl = '<span class="pgj-pj-nome">' + escHtml(j.nome) + '</span>';
+        return (lado === 'casa')
+            ? '<div class="pgj-pj-side casa">' + arrow + valorEl + foto + nomeEl + '</div>'
+            : '<div class="pgj-pj-side vis">' + nomeEl + foto + valorEl + arrow + '</div>';
+    }
+
+    function linhaEstatJogador(m) {
+        var vc = m.casa ? m.casa.valor : -1;
+        var vv = m.vis ? m.vis.valor : -1;
+        var melhorLado = vc === vv ? null : (vc > vv ? 'casa' : 'vis');
+        return '<div class="pgj-pj-row">' +
+            jogadorStatSide(m.casa, 'casa', melhorLado) +
+            '<div class="pgj-pj-label">' + escHtml(m.label) + '</div>' +
+            jogadorStatSide(m.vis, 'vis', melhorLado) +
+        '</div>';
+    }
+
+    function fecharPosJogo() {
+        document.getElementById('modal-posjogo').style.display = 'none';
+    }
+
+    document.getElementById('modal-posjogo').addEventListener('click', function (e) {
+        if (e.target === this) fecharPosJogo();
     });
 </script>
 

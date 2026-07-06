@@ -1,4 +1,4 @@
-﻿@model ControleFutebolWeb.Models.ViewModels.TreinadoresIndexViewModel
+@model ControleFutebolWeb.Models.ViewModels.TreinadoresIndexViewModel
 @using ControleFutebolWeb.Helpers
 
 @section Scripts {
@@ -120,214 +120,6 @@
     </script>
 }
 
-<style>
-    /* Home identity (hero + cards) */
-    .cf-hero {
-        position: relative;
-        background: linear-gradient(135deg, #0a1628 0%, #1a2f4e 55%, #0f2040 100%);
-        border-radius: 14px;
-        padding: 2.6rem 2rem;
-        text-align: center;
-        overflow: hidden;
-        margin-bottom: 1.5rem;
-        color: #fff;
-        min-height: 280px;
-    }
-
-    /* Recorte dos treinadores (PNG sem fundo) ancorado à direita do banner */
-    .cf-hero-treinadores {
-        position: absolute;
-        right: 0;
-        bottom: 0;
-        height: 128%;
-        z-index: 0;
-        pointer-events: none;
-        display: flex;
-        align-items: flex-end;
-    }
-
-    .cf-hero-treinadores img {
-        height: 100%;
-        width: auto;
-        object-fit: contain;
-        object-position: bottom right;
-        filter: drop-shadow(0 4px 10px rgba(0,0,0,0.35));
-        opacity: 0.95;
-    }
-
-    /* Escurecimento na esquerda para o texto ficar legível sobre o gradiente */
-    .cf-hero-overlay {
-        position: absolute;
-        inset: 0;
-        z-index: 1;
-        background: linear-gradient(90deg, rgba(10,22,40,0.55) 0%, rgba(10,22,40,0.15) 45%, rgba(10,22,40,0) 70%);
-        pointer-events: none;
-    }
-
-    .cf-hero-content {
-        position: relative;
-        z-index: 2;
-        text-align: left;
-    }
-
-    @@media (max-width: 640px) {
-        .cf-hero-treinadores { opacity: 0.35; }
-        .cf-hero-content { text-align: center; }
-    }
-
-    .cf-hero-badge {
-        display: inline-block;
-        background: rgba(55, 138, 221, 0.2);
-        color: #85b7eb;
-        font-size: 11px;
-        font-weight: 600;
-        padding: 4px 14px;
-        border-radius: 20px;
-        border: 1px solid rgba(55, 138, 221, 0.35);
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        margin-bottom: 0.9rem;
-    }
-
-    .cf-hero h1 {
-        font-size: 1.9rem;
-        color: #fff;
-        margin-bottom: 0.6rem;
-        font-weight: 600;
-    }
-
-    .cf-hero p {
-        color: rgba(255,255,255,0.65);
-        margin: 0;
-        font-size: 0.95rem;
-    }
-
-    /* Filters row */
-    .players-filter {
-        display: flex;
-        gap: 12px;
-        align-items: flex-end;
-        flex-wrap: wrap;
-        margin-bottom: 12px;
-    }
-
-    /* ── Tag selector (igual Times/Relatórios) ── */
-    .ms-wrap { position: relative; min-width: 220px; flex: 1; }
-    .ms-box {
-        display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
-        min-height: 38px; padding: 4px 30px 4px 8px; cursor: pointer;
-        border: 1px solid var(--border-strong); border-radius: 8px; background: var(--input-bg); font-size: 13px;
-    }
-    .ms-box::after {
-        content: "▾"; position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-        color: var(--text-muted); pointer-events: none;
-    }
-    .ms-placeholder { color: var(--text-muted); }
-    .ms-chip {
-        display: inline-flex; align-items: center; gap: 4px;
-        background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe;
-        border-radius: 6px; padding: 2px 6px; font-size: 12px; font-weight: 600;
-    }
-    .ms-chip-x { cursor: pointer; font-weight: 700; line-height: 1; opacity: .7; }
-    .ms-chip-x:hover { opacity: 1; }
-    .ms-panel {
-        position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50;
-        background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px;
-        box-shadow: 0 8px 24px rgba(0,0,0,.12); max-height: 280px; overflow-y: auto;
-        display: none; padding: 4px;
-    }
-    .ms-panel.open { display: block; }
-    .ms-opt {
-        display: flex; align-items: center; gap: 8px; padding: 7px 10px;
-        border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text);
-    }
-    .ms-opt:hover { background: var(--surface-3); }
-    .ms-opt input { cursor: pointer; }
-    .ms-search {
-        width: 100%; box-sizing: border-box; padding: 7px 10px; margin-bottom: 4px;
-        border: 1px solid var(--border-strong); border-radius: 6px; font-size: 13px; outline: none;
-        position: sticky; top: 0; background: var(--input-bg);
-    }
-    .ms-search:focus { border-color: #6366f1; }
-
-    /* Lista de treinadores (igual Jogadores) */
-    .player-list { display: flex; flex-direction: column; gap: 0; margin-top: 1rem; }
-
-    .player-row {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        padding: 10px 14px;
-        background: #fff;
-        border: 0.5px solid #e5e7eb;
-        border-bottom: none;
-        transition: background 0.12s;
-    }
-
-    .player-row:first-child { border-radius: 10px 10px 0 0; }
-    .player-row:last-child  { border-bottom: 0.5px solid #e5e7eb; border-radius: 0 0 10px 10px; }
-    .player-row:only-child  { border-radius: 10px; border-bottom: 0.5px solid #e5e7eb; }
-    .player-row:hover { background: #f0f6ff; }
-
-    .player-photo {
-        width: 42px;
-        height: 42px;
-        border-radius: 50%;
-        background: #f3f4f6;
-        border: 0.5px solid #e5e7eb;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        flex-shrink: 0;
-    }
-
-    .player-photo img { width: 100%; height: 100%; object-fit: cover; }
-
-    .player-info { flex: 1; min-width: 0; }
-
-    .tr-name { font-weight: 600; color: #111827; font-size: 0.97rem; white-space: normal; overflow-wrap: break-word; }
-
-    .player-meta { color: #6b7280; font-size: 13px; margin-top: 1px; }
-
-    .player-club {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        flex-shrink: 0;
-        min-width: 140px;
-    }
-
-    .player-club img { width: 22px; height: 22px; object-fit: contain; }
-
-    .player-club-name { font-size: 13px; color: #374151; }
-
-    .player-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }
-
-    .cf-small-btn {
-        font-size: 12px;
-        padding: 5px 9px;
-    }
-
-    @@media (max-width: 640px) {
-        .cf-hero {
-            padding: 1.8rem 1rem;
-        }
-        .player-club { min-width: 100px; }
-    }
-</style>
-<div class="cf-hero">
-    <div class="cf-hero-treinadores">
-        <img src="~/Images/banner/treinadores.png" alt="" />
-    </div>
-    <div class="cf-hero-overlay"></div>
-    <div class="cf-hero-content">
-        <div class="cf-hero-badge">Cadastros</div>
-        <h1>Treinadores</h1>
-        <p>Consulte e gerencie os treinadores cadastrados no sistema.</p>
-    </div>
-</div>
-
 @{
     var competicoesLista = Model.Competicoes;
     var timesLista = Model.Times;
@@ -335,80 +127,8 @@
     var compSel = Model.CompeticaoIdsFiltro;
     var timeSel = Model.TimeIdsFiltro;
     var nacSel = Model.NacionalidadesFiltro;
-}
+    bool temFiltro = !string.IsNullOrWhiteSpace(Model.NomeFiltro) || compSel.Any() || timeSel.Any() || nacSel.Any();
 
-<form asp-action="Index" method="get" class="players-filter">
-    <div style="flex:1;min-width:220px;">
-        <label class="form-label">Competições</label>
-        <div class="ms-wrap" id="compMulti">
-            <div class="ms-box" id="compBox" tabindex="0"></div>
-            <div class="ms-panel" id="compPanel">
-                <input type="text" class="ms-search" id="compSearch" placeholder="Buscar competição…" autocomplete="off" />
-                <div id="compOptions">
-                    @foreach (var c in competicoesLista)
-                    {
-                        <label class="ms-opt">
-                            <input type="checkbox" name="competicaoIds" value="@c.Id" data-nome="@c.Nome"
-                                   @(compSel.Contains(c.Id) ? "checked" : "") />
-                            <span>@c.Nome</span>
-                        </label>
-                    }
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div style="flex:1;min-width:220px;">
-        <label class="form-label">Times</label>
-        <div class="ms-wrap" id="timeMulti">
-            <div class="ms-box" id="timeBox" tabindex="0"></div>
-            <div class="ms-panel" id="timePanel">
-                <input type="text" class="ms-search" id="timeSearch" placeholder="Buscar time…" autocomplete="off" />
-                <div id="timeOptions">
-                    @foreach (var t in timesLista)
-                    {
-                        <label class="ms-opt">
-                            <input type="checkbox" name="timeIds" value="@t.Id" data-nome="@t.Nome"
-                                   @(timeSel.Contains(t.Id) ? "checked" : "") />
-                            <span>@t.Nome</span>
-                        </label>
-                    }
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div style="flex:1;min-width:220px;">
-        <label class="form-label">Nacionalidades</label>
-        <div class="ms-wrap" id="nacMulti">
-            <div class="ms-box" id="nacBox" tabindex="0"></div>
-            <div class="ms-panel" id="nacPanel">
-                <input type="text" class="ms-search" id="nacSearch" placeholder="Buscar nacionalidade…" autocomplete="off" />
-                <div id="nacOptions">
-                    @foreach (var n in nacLista)
-                    {
-                        <label class="ms-opt">
-                            <input type="checkbox" name="nacionalidades" value="@n.Nome" data-nome="@n.Nome"
-                                   @(nacSel.Contains(n.Nome) ? "checked" : "") />
-                            <span>@n.Nome</span>
-                        </label>
-                    }
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="d-flex align-items-end gap-2">
-        <button type="submit" class="btn btn-primary cf-small-btn">Filtrar</button>
-        @if (compSel.Any() || timeSel.Any() || nacSel.Any())
-        {
-            <a asp-action="Index" class="btn btn-outline-secondary cf-small-btn">✕ Limpar</a>
-        }
-        <a asp-action="Create" class="btn btn-success cf-small-btn">Novo Treinador</a>
-    </div>
-</form>
-
-@{
     int paginaAtual = Model.PaginaAtual;
     int totalPaginas = Model.TotalPaginas;
     int totalTreinadores = Model.TotalTreinadores;
@@ -416,133 +136,417 @@
     int primeiroDaPagina = totalTreinadores == 0 ? 0 : (paginaAtual - 1) * pageSize + 1;
     int ultimoDaPagina = Math.Min(paginaAtual * pageSize, totalTreinadores);
 
-    // Monta a query string preservando os filtros multi-seleção
     var filtrosQs = new System.Text.StringBuilder();
+    if (!string.IsNullOrWhiteSpace(Model.NomeFiltro)) filtrosQs.Append("&nome=").Append(Uri.EscapeDataString(Model.NomeFiltro));
     foreach (var id in compSel) filtrosQs.Append("&competicaoIds=").Append(id);
     foreach (var id in timeSel) filtrosQs.Append("&timeIds=").Append(id);
     foreach (var nn in nacSel) filtrosQs.Append("&nacionalidades=").Append(Uri.EscapeDataString(nn));
     Func<int, string> linkPagina = (p) => $"{Url.Action("Index")}?page={p}{filtrosQs}";
 }
 
-<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:6px 0;color:var(--text-muted);font-size:13px;">
-    <span>Mostrando <strong>@primeiroDaPagina–@ultimoDaPagina</strong> de <strong>@totalTreinadores</strong> treinadores</span>
-    <span>Página @paginaAtual de @totalPaginas</span>
-</div>
+<style>
+    .tr-root, .tr-root *, .tr-root *::before, .tr-root *::after { box-sizing: border-box; }
 
-<div class="player-list">
-    @foreach (var treinador in Model.Itens)
-    {
-        <div class="player-row">
-            <!-- Foto -->
-            <div class="player-photo">
-                @if (!string.IsNullOrEmpty(treinador.FotoUrl))
-                {
-                    <img src="@Url.FotoSrc(treinador.FotoUrl)" alt="@treinador.Nome"
-                         loading="lazy" decoding="async" width="42" height="42"
-                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-                    <span style="display:none; color:var(--text-muted); font-size:18px;">👤</span>
-                }
-                else
-                {
-                    <span style="color:var(--text-muted); font-size:18px;">👤</span>
-                }
-            </div>
-
-            <!-- Nome + meta -->
-            <div class="player-info">
-                <div class="tr-name">@treinador.Nome</div>
-                <div class="player-meta">@treinador.Idade anos • <span title="@treinador.Nacionalidade?.Nome">@FlagHelper.GetFlagEmoji(treinador.Nacionalidade?.Nome)</span></div>
-            </div>
-
-            <!-- Clube -->
-            <div class="player-club">
-                @if (treinador.Time != null)
-                {
-                    @if (!string.IsNullOrEmpty(treinador.Time.EscudoUrl))
-                    {
-                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = treinador.Time.EscudoUrl })" alt="@treinador.Time.Nome"
-                             loading="lazy" decoding="async" width="22" height="22" />
-                    }
-                    <span class="player-club-name">@treinador.Time.Nome</span>
-                }
-                else
-                {
-                    <span class="player-club-name text-muted">—</span>
-                }
-            </div>
-
-            <!-- Ações -->
-            <div class="player-actions">
-                <a asp-action="Details" asp-route-id="@treinador.Id" class="btn btn-outline-primary btn-sm cf-small-btn">Detalhes</a>
-                <a asp-action="Edit" asp-route-id="@treinador.Id" class="btn btn-warning btn-sm cf-small-btn">Editar</a>
-                <a asp-action="Delete" asp-route-id="@treinador.Id" class="btn btn-danger btn-sm cf-small-btn">Excluir</a>
-                <a asp-action="ConsultarHistorico" asp-route-id="@treinador.Id" class="btn btn-outline-info btn-sm cf-small-btn">📊 Histórico</a>
-                <form asp-action="BuscarFoto" asp-route-id="@treinador.Id" method="post" style="display:inline;">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="page" value="@paginaAtual" />
-                    @foreach (var cid in compSel)
-                    {
-                        <input type="hidden" name="competicaoIds" value="@cid" />
-                    }
-                    @foreach (var tid in timeSel)
-                    {
-                        <input type="hidden" name="timeIds" value="@tid" />
-                    }
-                    @foreach (var nn in nacSel)
-                    {
-                        <input type="hidden" name="nacionalidades" value="@nn" />
-                    }
-                    <button type="submit" class="btn btn-outline-success btn-sm cf-small-btn"
-                            title="Atualizar nacionalidade, idade e foto pela API"
-                            onclick="return confirm('Atualizar informações de @treinador.Nome pela API?')">
-                        🔄 Atualizar Informações
-                    </button>
-                </form>
-            </div>
-        </div>
+    .tr-root {
+        margin: 0 -12px;
+        background: #0f0f0f;
+        border-radius: 14px;
+        overflow: hidden;
+        color: #e5e7eb;
+        font-family: 'Barlow', Arial, sans-serif;
     }
+    .tr-root a { text-decoration: none; color: inherit; }
+
+    /* ── Hero ── */
+    .tr-hero {
+        position: relative; overflow: hidden;
+        background: linear-gradient(135deg, #0a1628 0%, #0f2040 55%, #0a1628 100%);
+        padding: 44px 2.5rem 38px;
+    }
+    .tr-hero-pattern { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.05; pointer-events: none; }
+    .tr-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #d4a520; }
+    .tr-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(to top, #0f0f0f, transparent); pointer-events: none; }
+    .tr-hero-inner { position: relative; z-index: 1; }
+    .tr-hero-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .tr-hero-kicker-line { height: 2px; width: 28px; background: #d4a520; }
+    .tr-hero-kicker span { font-size: .68rem; font-weight: 700; letter-spacing: .28em; color: #d4a520; text-transform: uppercase; }
+    .tr-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3.2rem; font-weight: 800; color: #f1f5f9; margin: 0 0 8px; line-height: 1; }
+    .tr-hero p { font-size: .9rem; color: #6b7280; margin: 0; }
+
+    /* ── Barra de filtros ── */
+    .tr-filterbar { background: #141414; border-bottom: 1px solid #222; padding: 14px 2.5rem; }
+    .tr-filterbar form { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; max-width: 1544px; margin: 0 auto; }
+    .tr-field { display: flex; flex-direction: column; gap: 5px; }
+    .tr-field label { font-size: .65rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .08em; }
+
+    .tr-search-box {
+        display: flex; align-items: center; min-width: 200px; max-width: 300px;
+        background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; overflow: hidden;
+    }
+    .tr-search-box:focus-within { border-color: #d4a520; }
+    .tr-search-icon { padding: 0 10px; color: #4b5563; display: flex; align-items: center; flex-shrink: 0; }
+    .tr-search-box input { flex: 1; padding: 9px 4px; background: transparent; border: none; color: #f1f5f9; font-size: .83rem; outline: none; }
+
+    /* ── Tag selector (multi-seleção) restilizado em dark ── */
+    .ms-wrap { position: relative; min-width: 200px; max-width: 260px; flex: 1; }
+    .ms-box {
+        display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
+        min-height: 38px; max-height: 38px; overflow: hidden; padding: 4px 28px 4px 10px; cursor: pointer;
+        border: 1px solid #2a2a2a; border-radius: 8px; background: #1a1a1a; font-size: 13px;
+    }
+    .ms-wrap:focus-within .ms-box, .ms-box:hover { border-color: #d4a520; }
+    .ms-box::after {
+        content: "▾"; position: absolute; right: 10px; top: 19px; transform: translateY(-50%);
+        color: #4b5563; pointer-events: none; font-size: .7rem;
+    }
+    .ms-placeholder { color: #6b7280; font-size: .83rem; }
+    .ms-chip {
+        display: inline-flex; align-items: center; gap: 4px;
+        background: rgba(212,165,32,0.14); color: #d4a520; border: 1px solid rgba(212,165,32,0.3);
+        border-radius: 5px; padding: 2px 6px; font-size: 11px; font-weight: 700;
+    }
+    .ms-chip-x { cursor: pointer; font-weight: 700; line-height: 1; opacity: .7; }
+    .ms-chip-x:hover { opacity: 1; }
+    .ms-panel {
+        position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50;
+        background: #161616; border: 1px solid #262626; border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0,0,0,.4); max-height: 280px; overflow-y: auto;
+        display: none; padding: 4px;
+    }
+    .ms-panel.open { display: block; }
+    .ms-opt {
+        display: flex; align-items: center; gap: 8px; padding: 7px 10px;
+        border-radius: 6px; cursor: pointer; font-size: 13px; color: #e5e7eb;
+    }
+    .ms-opt:hover { background: #1f1f1f; }
+    .ms-opt input { cursor: pointer; }
+    .ms-search {
+        width: 100%; box-sizing: border-box; padding: 7px 10px; margin-bottom: 4px;
+        border: 1px solid #2a2a2a; border-radius: 6px; font-size: 13px; outline: none;
+        position: sticky; top: 0; background: #0f0f0f; color: #e5e7eb;
+    }
+    .ms-search:focus { border-color: #d4a520; }
+
+    .tr-btn-filtrar { padding: 9px 18px; background: #3b82f6; color: #fff; font-size: .83rem; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; }
+    .tr-btn-filtrar:hover { background: #2563eb; }
+    .tr-btn-limpar { padding: 9px 14px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); color: #9ca3af; font-size: .8rem; font-weight: 600; border-radius: 8px; }
+    .tr-btn-limpar:hover { border-color: #d4a520; color: #d4a520; }
+    .tr-btn-novo {
+        display: flex; align-items: center; gap: 6px; padding: 9px 16px;
+        background: #d4a520; color: #141414; font-size: .82rem; font-weight: 800;
+        border: none; border-radius: 8px; cursor: pointer; margin-left: auto;
+    }
+    .tr-btn-novo:hover { background: #c49918; color: #141414; }
+    .tr-total { font-size: .75rem; color: #4b5563; font-weight: 600; }
+
+    /* ── Conteúdo ── */
+    .tr-content { padding: 24px 2.5rem 64px; max-width: 1544px; margin: 0 auto; }
+    .tr-resumo { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; color: #6b7280; font-size: .8rem; }
+    .tr-resumo strong { color: #e5e7eb; }
+
+    .tr-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    @@media (max-width: 1100px) { .tr-grid { grid-template-columns: repeat(2, 1fr); } }
+    @@media (max-width: 700px) { .tr-grid { grid-template-columns: 1fr; } }
+
+    .tr-card { background: #161616; border: 1px solid #262626; border-radius: 12px; padding: 18px; display: flex; gap: 14px; align-items: flex-start; transition: border-color .15s; }
+    .tr-card:hover { border-color: #2a2a2a; }
+
+    .tr-avatar { width: 52px; height: 52px; border-radius: 50%; background: #1e293b; border: 2px solid #2a3a52; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0; overflow: hidden; }
+    .tr-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+    .tr-info { flex: 1; min-width: 0; }
+    .tr-nome { font-size: .95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 2px; overflow-wrap: break-word; }
+    .tr-nac { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .tr-nac span:first-child { font-size: .9rem; }
+    .tr-nac span:last-child { font-size: .72rem; color: #6b7280; }
+
+    .tr-clube { display: flex; align-items: center; gap: 7px; margin-top: 8px; flex-wrap: wrap; }
+    .tr-clube img { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; }
+    .tr-clube-nome { font-size: .82rem; font-weight: 600; color: #e5e7eb; }
+    .tr-clube-desde { font-size: .7rem; color: #4b5563; }
+
+    .tr-stats { display: flex; gap: 12px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #1e1e1e; }
+    .tr-stat { text-align: center; }
+    .tr-stat-num { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.1rem; font-weight: 800; line-height: 1; }
+    .tr-stat-label { font-size: .58rem; color: #4b5563; text-transform: uppercase; letter-spacing: .06em; margin-top: 1px; }
+    .tr-stat-aprov { margin-left: 6px; padding-left: 12px; border-left: 1px solid #222; }
+
+    .tr-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+    .tr-btn-historico { flex: 1; min-width: 90px; text-align: center; font-size: .72rem; padding: 5px 0; background: transparent; border: 1px solid #3b82f6; border-radius: 6px; color: #6ea8fe; font-weight: 700; }
+    .tr-btn-historico:hover { background: rgba(59,130,246,0.1); color: #6ea8fe; }
+    .tr-btn-detalhes { font-size: .72rem; padding: 5px 10px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.14); border-radius: 6px; color: #9ca3af; font-weight: 700; }
+    .tr-btn-detalhes:hover { border-color: #d4a520; color: #d4a520; }
+    .tr-btn-editar { font-size: .72rem; padding: 5px 10px; background: #d97706; border-radius: 6px; color: #fff; font-weight: 700; border: none; }
+    .tr-btn-editar:hover { background: #b45309; color: #fff; }
+    .tr-btn-excluir { font-size: .72rem; padding: 5px 10px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); border-radius: 6px; color: #f87171; font-weight: 700; }
+    .tr-btn-excluir:hover { background: rgba(239,68,68,0.15); color: #f87171; }
+    .tr-btn-atualizar { font-size: .72rem; padding: 5px 10px; background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.22); border-radius: 6px; color: #4ade80; font-weight: 700; cursor: pointer; }
+    .tr-btn-atualizar:hover { background: rgba(34,197,94,0.15); }
+
+    .tr-vazio { text-align: center; color: #6b7280; padding: 3rem 1rem; background: #141414; border: 1px dashed #262626; border-radius: 12px; }
+
+    /* ── Paginação ── */
+    .tr-pagination { margin-top: 18px; }
+    .tr-pagination .pagination { margin: 0; }
+    .tr-pagination .page-link { background: #161616; border-color: #262626; color: #9ca3af; }
+    .tr-pagination .page-link:hover { background: #1f1f1f; color: #d4a520; }
+    .tr-pagination .page-item.active .page-link { background: #d4a520; border-color: #d4a520; color: #141414; font-weight: 700; }
+    .tr-pagination .page-item.disabled .page-link { background: #141414; border-color: #222; color: #4b5563; }
+</style>
+
+<div class="tr-root">
+    <!-- ── Hero ── -->
+    <div class="tr-hero">
+        <img src="~/Images/banner/escudos-pattern.svg" class="tr-hero-pattern" alt="" />
+        <div class="tr-hero-stripe"></div>
+        <div class="tr-hero-fade"></div>
+        <div class="tr-hero-inner">
+            <div class="tr-hero-kicker">
+                <div class="tr-hero-kicker-line"></div>
+                <span>Corpo Técnico</span>
+            </div>
+            <h1>Treinadores</h1>
+            <p>Gerencie o histórico técnico dos clubes e acesse o histórico de cada treinador.</p>
+        </div>
+    </div>
+
+    <!-- ── Barra de filtros ── -->
+    <div class="tr-filterbar">
+        <form asp-action="Index" method="get">
+            <div class="tr-field">
+                <label>Buscar</label>
+                <div class="tr-search-box">
+                    <div class="tr-search-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg></div>
+                    <input type="text" name="nome" value="@Model.NomeFiltro" placeholder="Buscar treinador..." />
+                </div>
+            </div>
+
+            <div class="tr-field">
+                <label>Competições</label>
+                <div class="ms-wrap" id="compMulti">
+                    <div class="ms-box" id="compBox" tabindex="0"></div>
+                    <div class="ms-panel" id="compPanel">
+                        <input type="text" class="ms-search" id="compSearch" placeholder="Buscar competição…" autocomplete="off" />
+                        <div id="compOptions">
+                            @foreach (var c in competicoesLista)
+                            {
+                                <label class="ms-opt">
+                                    <input type="checkbox" name="competicaoIds" value="@c.Id" data-nome="@c.Nome"
+                                           @(compSel.Contains(c.Id) ? "checked" : "") />
+                                    <span>@c.Nome</span>
+                                </label>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tr-field">
+                <label>Times</label>
+                <div class="ms-wrap" id="timeMulti">
+                    <div class="ms-box" id="timeBox" tabindex="0"></div>
+                    <div class="ms-panel" id="timePanel">
+                        <input type="text" class="ms-search" id="timeSearch" placeholder="Buscar time…" autocomplete="off" />
+                        <div id="timeOptions">
+                            @foreach (var t in timesLista)
+                            {
+                                <label class="ms-opt">
+                                    <input type="checkbox" name="timeIds" value="@t.Id" data-nome="@t.Nome"
+                                           @(timeSel.Contains(t.Id) ? "checked" : "") />
+                                    <span>@t.Nome</span>
+                                </label>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tr-field">
+                <label>Nacionalidades</label>
+                <div class="ms-wrap" id="nacMulti">
+                    <div class="ms-box" id="nacBox" tabindex="0"></div>
+                    <div class="ms-panel" id="nacPanel">
+                        <input type="text" class="ms-search" id="nacSearch" placeholder="Buscar nacionalidade…" autocomplete="off" />
+                        <div id="nacOptions">
+                            @foreach (var n in nacLista)
+                            {
+                                <label class="ms-opt">
+                                    <input type="checkbox" name="nacionalidades" value="@n.Nome" data-nome="@n.Nome"
+                                           @(nacSel.Contains(n.Nome) ? "checked" : "") />
+                                    <span>@n.Nome</span>
+                                </label>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="tr-btn-filtrar">Filtrar</button>
+            @if (temFiltro)
+            {
+                <a asp-action="Index" class="tr-btn-limpar">✕ Limpar</a>
+            }
+            <span class="tr-total">@totalTreinadores treinador(es)</span>
+            <a asp-action="Create" class="tr-btn-novo">+ Novo Treinador</a>
+        </form>
+    </div>
+
+    <!-- ── Conteúdo ── -->
+    <div class="tr-content">
+        <div class="tr-resumo">
+            <span>Mostrando <strong>@primeiroDaPagina–@ultimoDaPagina</strong> de <strong>@totalTreinadores</strong> treinadores</span>
+            <span>Página @paginaAtual de @totalPaginas</span>
+        </div>
+
+        @if (!Model.Itens.Any())
+        {
+            <div class="tr-vazio">Nenhum treinador encontrado com os filtros selecionados.</div>
+        }
+        else
+        {
+            <div class="tr-grid">
+                @foreach (var treinador in Model.Itens)
+                {
+                    var stat = Model.Stats.TryGetValue(treinador.Id, out var s) ? s : new ControleFutebolWeb.Models.ViewModels.TreinadorCardStats();
+
+                    <div class="tr-card">
+                        <div class="tr-avatar">
+                            @if (!string.IsNullOrEmpty(treinador.FotoUrl))
+                            {
+                                <img src="@Url.FotoSrc(treinador.FotoUrl)" alt="@treinador.Nome" loading="lazy" decoding="async"
+                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                                <span style="display:none;">🧑‍💼</span>
+                            }
+                            else
+                            {
+                                <span>🧑‍💼</span>
+                            }
+                        </div>
+
+                        <div class="tr-info">
+                            <div class="tr-nome">@treinador.Nome</div>
+                            <div class="tr-nac">
+                                <span>@FlagHelper.GetFlagEmoji(treinador.Nacionalidade?.Nome)</span>
+                                <span>@(treinador.Nacionalidade?.Nome ?? "—")</span>
+                            </div>
+
+                            <div class="tr-clube">
+                                @if (treinador.Time != null)
+                                {
+                                    @if (!string.IsNullOrEmpty(treinador.Time.EscudoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = treinador.Time.EscudoUrl })" alt="@treinador.Time.Nome" loading="lazy" decoding="async" />
+                                    }
+                                    <span class="tr-clube-nome">@treinador.Time.Nome</span>
+                                    @if (stat.Desde.HasValue)
+                                    {
+                                        <span class="tr-clube-desde">desde @stat.Desde.Value.ToString("MMM yyyy", new System.Globalization.CultureInfo("pt-BR"))</span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="tr-clube-nome" style="color:#6b7280;">Sem clube</span>
+                                }
+                            </div>
+
+                            <div class="tr-stats">
+                                <div class="tr-stat">
+                                    <div class="tr-stat-num" style="color:#22c55e;">@stat.Vitorias</div>
+                                    <div class="tr-stat-label">V</div>
+                                </div>
+                                <div class="tr-stat">
+                                    <div class="tr-stat-num" style="color:#f59e0b;">@stat.Empates</div>
+                                    <div class="tr-stat-label">E</div>
+                                </div>
+                                <div class="tr-stat">
+                                    <div class="tr-stat-num" style="color:#ef4444;">@stat.Derrotas</div>
+                                    <div class="tr-stat-label">D</div>
+                                </div>
+                                <div class="tr-stat tr-stat-aprov">
+                                    <div class="tr-stat-num" style="color:#d4a520;">@(stat.TotalJogos > 0 ? stat.PercentualAproveitamento + "%" : "—")</div>
+                                    <div class="tr-stat-label">% Aprov</div>
+                                </div>
+                            </div>
+
+                            <div class="tr-actions">
+                                <a asp-action="ConsultarHistorico" asp-route-id="@treinador.Id" class="tr-btn-historico">📊 Histórico</a>
+                                <a asp-action="Details" asp-route-id="@treinador.Id" class="tr-btn-detalhes">Detalhes</a>
+                                <a asp-action="Edit" asp-route-id="@treinador.Id" class="tr-btn-editar">Editar</a>
+                                <a asp-action="Delete" asp-route-id="@treinador.Id" class="tr-btn-excluir">Excluir</a>
+                                <form asp-action="BuscarFoto" asp-route-id="@treinador.Id" method="post" style="display:inline;">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="page" value="@paginaAtual" />
+                                    @if (!string.IsNullOrWhiteSpace(Model.NomeFiltro))
+                                    {
+                                        <input type="hidden" name="nome" value="@Model.NomeFiltro" />
+                                    }
+                                    @foreach (var cid in compSel)
+                                    {
+                                        <input type="hidden" name="competicaoIds" value="@cid" />
+                                    }
+                                    @foreach (var tid in timeSel)
+                                    {
+                                        <input type="hidden" name="timeIds" value="@tid" />
+                                    }
+                                    @foreach (var nn in nacSel)
+                                    {
+                                        <input type="hidden" name="nacionalidades" value="@nn" />
+                                    }
+                                    <button type="submit" class="tr-btn-atualizar"
+                                            title="Atualizar nacionalidade, idade e foto pela API"
+                                            onclick="return confirm('Atualizar informações de @treinador.Nome pela API?')">
+                                        🔄 Atualizar
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (totalPaginas > 1)
+        {
+            int janela = 2;
+            int inicio = Math.Max(1, paginaAtual - janela);
+            int fim = Math.Min(totalPaginas, paginaAtual + janela);
+
+            <nav aria-label="Paginação de treinadores" class="tr-pagination">
+                <ul class="pagination justify-content-center flex-wrap">
+                    <li class="page-item @(paginaAtual <= 1 ? "disabled" : "")">
+                        <a class="page-link" href="@linkPagina(paginaAtual - 1)">«</a>
+                    </li>
+
+                    @if (inicio > 1)
+                    {
+                        <li class="page-item"><a class="page-link" href="@linkPagina(1)">1</a></li>
+                        @if (inicio > 2)
+                        {
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        }
+                    }
+
+                    @for (int p = inicio; p <= fim; p++)
+                    {
+                        <li class="page-item @(p == paginaAtual ? "active" : "")">
+                            <a class="page-link" href="@linkPagina(p)">@p</a>
+                        </li>
+                    }
+
+                    @if (fim < totalPaginas)
+                    {
+                        @if (fim < totalPaginas - 1)
+                        {
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        }
+                        <li class="page-item"><a class="page-link" href="@linkPagina(totalPaginas)">@totalPaginas</a></li>
+                    }
+
+                    <li class="page-item @(paginaAtual >= totalPaginas ? "disabled" : "")">
+                        <a class="page-link" href="@linkPagina(paginaAtual + 1)">»</a>
+                    </li>
+                </ul>
+            </nav>
+        }
+    </div>
 </div>
-
-@if (totalPaginas > 1)
-{
-    int janela = 2;
-    int inicio = Math.Max(1, paginaAtual - janela);
-    int fim = Math.Min(totalPaginas, paginaAtual + janela);
-
-    <nav aria-label="Paginação de treinadores" style="margin-top:14px;">
-        <ul class="pagination justify-content-center flex-wrap">
-            <li class="page-item @(paginaAtual <= 1 ? "disabled" : "")">
-                <a class="page-link" href="@linkPagina(paginaAtual - 1)">«</a>
-            </li>
-
-            @if (inicio > 1)
-            {
-                <li class="page-item"><a class="page-link" href="@linkPagina(1)">1</a></li>
-                @if (inicio > 2)
-                {
-                    <li class="page-item disabled"><span class="page-link">…</span></li>
-                }
-            }
-
-            @for (int p = inicio; p <= fim; p++)
-            {
-                <li class="page-item @(p == paginaAtual ? "active" : "")">
-                    <a class="page-link" href="@linkPagina(p)">@p</a>
-                </li>
-            }
-
-            @if (fim < totalPaginas)
-            {
-                @if (fim < totalPaginas - 1)
-                {
-                    <li class="page-item disabled"><span class="page-link">…</span></li>
-                }
-                <li class="page-item"><a class="page-link" href="@linkPagina(totalPaginas)">@totalPaginas</a></li>
-            }
-
-            <li class="page-item @(paginaAtual >= totalPaginas ? "disabled" : "")">
-                <a class="page-link" href="@linkPagina(paginaAtual + 1)">»</a>
-            </li>
-        </ul>
-    </nav>
-}

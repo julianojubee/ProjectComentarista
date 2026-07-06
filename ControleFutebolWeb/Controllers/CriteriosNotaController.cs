@@ -35,6 +35,8 @@ namespace ControleFutebolWeb.Controllers
             ViewBag.AcoesPersonalizadas = doUsuario.Select(c => c.AcaoId).ToHashSet();
             // Map acaoid → id do registro do usuário (para editar/resetar)
             ViewBag.OverrideIds = doUsuario.ToDictionary(c => c.AcaoId, c => c.Id);
+            // AcaoIds que existem como padrão compartilhado (para distinguir override de critério 100% próprio)
+            ViewBag.AcaoIdsCompartilhados = compartilhados.Select(c => c.AcaoId).ToHashSet();
 
             return View(merged);
         }

@@ -53,5 +53,9 @@ namespace ControleFutebolWeb.Models.ViewModels
 
         // Jogadores escalados neste jogo (qualquer fase), para o seletor da tag "Jogador".
         public List<Jogador> JogadoresEscalados { get; set; } = new();
+
+        // Jogadores expulsos (cartão vermelho) neste jogo — o botão deles no campo
+        // fica cinza e não pode mais ser arrastado/movimentado.
+        public HashSet<int> JogadoresComCartaoVermelho { get; set; } = new();
     }
 }

@@ -25,7 +25,7 @@ namespace ControleFutebolWeb.Controllers
         }
 
         // GET: Treinadores
-        public async Task<IActionResult> Index(List<int>? competicaoIds, List<int>? timeIds, List<string>? nacionalidades, int page = 1)
+        public async Task<IActionResult> Index(string? nome, List<int>? competicaoIds, List<int>? timeIds, List<string>? nacionalidades, int page = 1)
         {
             const int pageSize = 50;
             competicaoIds ??= new List<int>();
@@ -36,6 +36,9 @@ namespace ControleFutebolWeb.Controllers
                 .Include(t => t.Time)
                 .Include(t => t.Nacionalidade)
                 .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(nome))
+                query = query.Where(t => t.Nome.Contains(nome));
 
             // Filtro por competições: treinadores cujos times jogaram nas competições selecionadas
             if (competicaoIds.Any())
@@ -68,6 +71,8 @@ namespace ControleFutebolWeb.Controllers
                 .Take(pageSize)
                 .ToListAsync();
 
+            var stats = await CalcularStatsCardAsync(treinadoresPagina);
+
             var vm = new TreinadoresIndexViewModel
             {
                 Itens = treinadoresPagina,
@@ -76,9 +81,11 @@ namespace ControleFutebolWeb.Controllers
                 Competicoes = await _context.Competicoes.OrderBy(c => c.Nome).ToListAsync(),
                 Times = await _context.Times.OrderBy(t => t.Nome).ToListAsync(),
                 NacionalidadesLista = await _context.Nacionalidades.OrderBy(n => n.Nome).ToListAsync(),
+                NomeFiltro = nome,
                 CompeticaoIdsFiltro = competicaoIds,
                 TimeIdsFiltro = timeIds,
                 NacionalidadesFiltro = nacionalidades,
+                Stats = stats,
 
                 PaginaAtual = page,
                 TotalPaginas = totalPaginas,
@@ -87,6 +94,58 @@ namespace ControleFutebolWeb.Controllers
             };
 
             return View(vm);
+        }
+
+        // Calcula V/E/D e "desde" de cada treinador da página, com base nos jogos do time
+        // atual desde o início da passagem (histórico aberto) ou, na ausência de histórico
+        // importado, a data de cadastro do treinador. Feito em lote (2 queries) para não gerar
+        // N+1 na listagem paginada.
+        private async Task<Dictionary<int, TreinadorCardStats>> CalcularStatsCardAsync(List<Treinador> treinadores)
+        {
+            var resultado = new Dictionary<int, TreinadorCardStats>();
+            if (!treinadores.Any()) return resultado;
+
+            var idsTreinadores = treinadores.Select(t => t.Id).ToList();
+            var timeIds = treinadores.Select(t => t.TimeId).Distinct().ToList();
+
+            var historicosAbertos = await _context.TreinadoresHistorico
+                .AsNoTracking()
+                .Where(h => idsTreinadores.Contains(h.TreinadorId) && h.DtFim == null)
+                .ToListAsync();
+            var inicioPorTreinador = historicosAbertos
+                .GroupBy(h => h.TreinadorId)
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(h => h.DtInicio).First().DtInicio);
+
+            var jogosTimes = await _context.Jogos
+                .AsNoTracking()
+                .Where(j => (timeIds.Contains(j.TimeCasaId) || timeIds.Contains(j.TimeVisitanteId))
+                            && j.PlacarCasa != null && j.PlacarVisitante != null && j.Data != null)
+                .Select(j => new { j.TimeCasaId, j.TimeVisitanteId, j.PlacarCasa, j.PlacarVisitante, j.Data })
+                .ToListAsync();
+
+            foreach (var t in treinadores)
+            {
+                var desde = inicioPorTreinador.TryGetValue(t.Id, out var dtHistorico) ? dtHistorico : t.DtInc;
+                var stat = new TreinadorCardStats { Desde = desde };
+
+                foreach (var jogo in jogosTimes)
+                {
+                    if (jogo.TimeCasaId != t.TimeId && jogo.TimeVisitanteId != t.TimeId) continue;
+                    if (jogo.Data < desde) continue;
+
+                    bool casa = jogo.TimeCasaId == t.TimeId;
+                    int golsPro = casa ? jogo.PlacarCasa!.Value : jogo.PlacarVisitante!.Value;
+                    int golsContra = casa ? jogo.PlacarVisitante!.Value : jogo.PlacarCasa!.Value;
+
+                    if (golsPro > golsContra) stat.Vitorias++;
+                    else if (golsPro == golsContra) stat.Empates++;
+                    else stat.Derrotas++;
+                }
+
+                resultado[t.Id] = stat;
+            }
+
+            return resultado;
         }
 
         // GET: Treinadores/Details/5

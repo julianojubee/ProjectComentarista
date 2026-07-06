@@ -98,6 +98,21 @@ namespace ControleFutebolWeb.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        // POST: Formacoes/EditarNome/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditarNome(int id, string nome)
+        {
+            var formacao = await _context.Formacoes.FindAsync(id);
+            if (formacao != null && !string.IsNullOrWhiteSpace(nome))
+            {
+                formacao.Nome = nome.Trim();
+                await _context.SaveChangesAsync();
+                TempData["Mensagem"] = $"Formação renomeada para '{formacao.Nome}'.";
+            }
+            return RedirectToAction(nameof(Index));
+        }
+
         // POST: Formacoes/Excluir/5
         [HttpPost]
         [ValidateAntiForgeryToken]

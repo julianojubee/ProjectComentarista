@@ -36,7 +36,7 @@ namespace ControleFutebolWeb.Controllers
             return saldo;
         }
 
-        public IActionResult Brasileirao(int? temporada = null)
+        public IActionResult Brasileirao(int? temporada = null, int? rodada = null)
         {
             // Temporadas disponíveis para o Brasileirão; padrão = a mais recente
             var temporadasDisponiveis = _context.Jogos
@@ -114,6 +114,58 @@ namespace ControleFutebolWeb.Controllers
             ViewBag.CalendarioPorData = calendarioPorData;
             ViewBag.TotalAgendados = proximosJogosAgendados.Count;
 
+            // ── Navegação de rodada (hero) ────────────────────────────────────
+            // "Rodada de referência": a exibida no hero e usada para escolher quais
+            // jogos aparecem em "Próxima Rodada" (agendados) e "Última Rodada" (realizados).
+            // Por padrão é a rodadaAtual (calculada acima); navegável via ?rodada=N.
+            const int totalRodadasBrasileirao = 38;
+            var rodadaMaximaComJogos = todosJogos.Any() ? todosJogos.Max(j => j.Rodada) : totalRodadasBrasileirao;
+            var rodadaRef = rodada ?? rodadaAtual;
+            if (rodadaRef < 1) rodadaRef = 1;
+            if (rodadaRef > rodadaMaximaComJogos) rodadaRef = rodadaMaximaComJogos;
+
+            var proximaRodadaJogos = todosJogos
+                .Where(j => j.Rodada == rodadaRef && (!j.PlacarCasa.HasValue || !j.PlacarVisitante.HasValue))
+                .OrderBy(j => j.Data ?? DateTime.MaxValue)
+                .ToList();
+
+            var ultimaRodadaNum = rodadaRef - 1;
+            var ultimaRodadaJogos = ultimaRodadaNum >= 1
+                ? todosJogos
+                    .Where(j => j.Rodada == ultimaRodadaNum && j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue)
+                    .OrderBy(j => j.Data ?? DateTime.MaxValue)
+                    .ToList()
+                : new List<Jogo>();
+
+            ViewBag.RodadaRef = rodadaRef;
+            ViewBag.RodadaMaxima = rodadaMaximaComJogos;
+            ViewBag.TotalRodadasBrasileirao = totalRodadasBrasileirao;
+            ViewBag.ProximaRodadaJogos = proximaRodadaJogos;
+            ViewBag.UltimaRodadaNum = ultimaRodadaNum;
+            ViewBag.UltimaRodadaJogos = ultimaRodadaJogos;
+
+            // ── Artilheiros (top 5 goleadores da competição/temporada) ────────
+            var topScorers = _context.Gols
+                .Where(g => !g.Contra && g.Jogo.CompeticaoId == 1 && (temporadaSel == null || g.Jogo.Temporada == temporadaSel))
+                .GroupBy(g => g.JogadorId)
+                .Select(gr => new { JogadorId = gr.Key, Gols = gr.Count() })
+                .OrderByDescending(x => x.Gols)
+                .Take(5)
+                .ToList();
+
+            var jogadorIdsArtilheiros = topScorers.Select(t => t.JogadorId).ToList();
+            var jogadoresArtilheiros = _context.Jogadores
+                .Include(j => j.Time)
+                .Where(j => jogadorIdsArtilheiros.Contains(j.Id))
+                .ToDictionary(j => j.Id);
+
+            var artilheiros = topScorers
+                .Where(t => jogadoresArtilheiros.ContainsKey(t.JogadorId))
+                .Select(t => new ArtilheiroViewModel { Jogador = jogadoresArtilheiros[t.JogadorId], Gols = t.Gols })
+                .ToList();
+
+            ViewBag.Artilheiros = artilheiros;
+
             // ── Classificação ────────────────────────────────────────────────
             var tabela = jogos
                 .SelectMany(j => new[]
@@ -150,6 +202,13 @@ namespace ControleFutebolWeb.Controllers
 
             return View(tabela);
         }
+    }
+
+    // DTO para o ranking de artilheiros da tabela
+    public class ArtilheiroViewModel
+    {
+        public Jogador Jogador { get; set; } = null!;
+        public int Gols { get; set; }
     }
 
     // DTO para agrupamento por dia no calendário

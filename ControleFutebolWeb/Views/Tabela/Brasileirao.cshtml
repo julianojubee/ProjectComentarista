@@ -1,776 +1,417 @@
-﻿@model List<ControleFutebolWeb.Models.ViewModels.ClassificacaoViewModel>
+@model List<ControleFutebolWeb.Models.ViewModels.ClassificacaoViewModel>
 @using System.Globalization
 @using ControleFutebolWeb.Helpers
+@using ControleFutebolWeb.Controllers
 @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
 @{
     ViewData["Title"] = "Tabela do Brasileirão";
-    var proximaRodada = ViewBag.ProximaRodada as List<ControleFutebolWeb.Models.Jogo> ?? new();
-    var numeroRodada = (int)(ViewBag.NumeroRodada ?? 0);
-    var calendario = ViewBag.CalendarioPorData as List<ControleFutebolWeb.Controllers.ProximosJogosDia> ?? new();
-    var totalAgendados = (int)(ViewBag.TotalAgendados ?? 0);
-    var ptBR = new CultureInfo("pt-BR");
+
+    var temporadasBr = ViewBag.TemporadasDisponiveis as List<int> ?? new List<int>();
+    var temporadaBrSel = ViewBag.Temporada as int?;
+
+    int rodadaRef = (int)(ViewBag.RodadaRef ?? 0);
+    int rodadaMaxima = (int)(ViewBag.RodadaMaxima ?? 38);
+    int totalRodadas = (int)(ViewBag.TotalRodadasBrasileirao ?? 38);
+    var proximaRodadaJogos = ViewBag.ProximaRodadaJogos as List<ControleFutebolWeb.Models.Jogo> ?? new();
+    int ultimaRodadaNum = (int)(ViewBag.UltimaRodadaNum ?? 0);
+    var ultimaRodadaJogos = ViewBag.UltimaRodadaJogos as List<ControleFutebolWeb.Models.Jogo> ?? new();
+    var artilheiros = ViewBag.Artilheiros as List<ArtilheiroViewModel> ?? new();
+
+    int totalGols = Model.Sum(t => t.GolsPro);
+
+    Func<int, string> linkRodada = (r) =>
+    {
+        var qs = $"?rodada={r}";
+        if (temporadaBrSel.HasValue) qs += $"&temporada={temporadaBrSel}";
+        return Url.Action("Brasileirao") + qs;
+    };
 }
 
 <style>
+    .br-root, .br-root *, .br-root *::before, .br-root *::after { box-sizing: border-box; }
 
-    .cf-comp-hero {
-        position: relative;
+    .br-root {
+        margin: 0 -12px;
+        background: #0f0f0f;
         border-radius: 14px;
-        padding: 1.5rem 1.6rem;
-        margin-bottom: 1rem;
         overflow: hidden;
-        background: linear-gradient(135deg, #0b5f2a 0%, #1f8f45 55%, #0d6d30 100%);
+        color: #e5e7eb;
+        font-family: 'Barlow', Arial, sans-serif;
+    }
+    .br-root a { text-decoration: none; color: inherit; }
+
+    /* ── Hero ── */
+    .br-hero {
+        position: relative; overflow: hidden;
+        background: linear-gradient(135deg, #0a1200 0%, #152000 55%, #0a1200 100%);
+        padding: 38px 2.5rem 32px;
+    }
+    .br-hero-pattern { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.06; pointer-events: none; }
+    .br-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #22c55e; }
+    .br-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(to top, #0f0f0f, transparent); pointer-events: none; }
+    .br-hero-inner { position: relative; z-index: 1; display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+    .br-hero-flag { width: 64px; height: 64px; border-radius: 50%; background: rgba(34,197,94,0.12); border: 2px solid rgba(34,197,94,0.3); display: flex; align-items: center; justify-content: center; font-size: 2rem; flex-shrink: 0; }
+    .br-hero-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .br-hero-kicker-line { height: 2px; width: 24px; background: #22c55e; }
+    .br-hero-kicker span { font-size: .65rem; font-weight: 700; letter-spacing: .24em; color: #22c55e; text-transform: uppercase; }
+    .br-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3rem; font-weight: 800; color: #f1f5f9; margin: 0 0 6px; line-height: 1; }
+    .br-hero p { font-size: .88rem; color: #6b7280; margin: 0; }
+    .br-hero-temporada select {
+        margin-top: 6px; padding: 4px 10px; border-radius: 7px; border: 1px solid #2a2a2a; background: #1a1a1a; color: #e5e7eb; font-size: .8rem; font-weight: 600;
     }
 
-        .cf-comp-hero::before {
-            content: "";
-            position: absolute;
-            inset: 0;
-            opacity: 0.12;
-            background-image: radial-gradient(circle at 50% 50%, transparent 28%, #fff 28.5%, #fff 29.2%, transparent 29.8%), linear-gradient(90deg, transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%), linear-gradient(transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%);
-        }
-
-    .cf-comp-hero-content {
-        position: relative;
-        z-index: 1;
+    .br-rodnav { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .br-rodnav-btn {
+        width: 34px; height: 34px; border-radius: 50%; background: #1a1a1a; border: 1px solid #2a2a2a;
+        color: #9ca3af; cursor: pointer; display: flex; align-items: center; justify-content: center;
     }
+    .br-rodnav-btn:hover { border-color: #22c55e; color: #22c55e; }
+    .br-rodnav-num { text-align: center; min-width: 80px; }
+    .br-rodnav-num .val { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.6rem; font-weight: 800; color: #f1f5f9; line-height: 1; }
+    .br-rodnav-num .lbl { font-size: .62rem; color: #6b7280; text-transform: uppercase; letter-spacing: .1em; margin-top: 2px; }
 
-    .cf-comp-badge {
-        display: inline-block;
-        background: rgba(255, 255, 255, 0.16);
-        color: #e6f7eb;
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 0.8px;
-        text-transform: uppercase;
-        padding: 4px 11px;
-        border-radius: 999px;
-        margin-bottom: 0.55rem;
-    }
+    .br-stats { display: flex; gap: 20px; flex-shrink: 0; padding: 14px 20px; background: rgba(0,0,0,0.3); border: 1px solid rgba(34,197,94,0.15); border-radius: 10px; }
+    .br-stat { text-align: center; }
+    .br-stat .val { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.6rem; font-weight: 800; color: #4ade80; line-height: 1; }
+    .br-stat .lbl { font-size: .58rem; color: #4b5563; text-transform: uppercase; letter-spacing: .08em; margin-top: 2px; }
+    .br-stat-sep { width: 1px; background: rgba(34,197,94,0.15); align-self: stretch; }
 
-    .cf-comp-title-wrap {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 0.2rem;
-    }
-
-    .cf-comp-logo {
-        width: 34px;
-        height: 34px;
-        object-fit: contain;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.12);
-        padding: 2px;
-    }
-
-    .cf-comp-title {
-        color: #fff;
-        font-size: 1.35rem;
-        font-weight: 700;
-        margin: 0 0 0.2rem;
-    }
-
-    .cf-comp-sub {
-        color: rgba(255, 255, 255, 0.85);
-        font-size: 0.92rem;
-        margin: 0;
-    }
-
-    .bra-page {
-        display: grid;
-        grid-template-columns: 1fr 340px;
-        gap: 1.75rem;
-        align-items: start;
-    }
+    /* ── Layout principal ── */
+    .br-layout { padding: 24px 2.5rem 64px; max-width: 1500px; margin: 0 auto; display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: start; }
+    @@media (max-width: 1100px) { .br-layout { grid-template-columns: 1fr; } }
 
     /* ── Tabela ── */
-    .bra-card {
-        background: var(--color-background-primary);
-        border: 0.5px solid var(--color-border-tertiary);
-        border-radius: var(--border-radius-lg);
-        overflow: hidden;
+    .br-tablewrap { background: #161616; border: 1px solid #262626; border-radius: 14px; overflow: hidden; }
+    .br-cols {
+        display: grid; grid-template-columns: 36px 36px 1fr 36px 36px 36px 36px 36px 44px 60px 80px; gap: 4px;
+        padding: 10px 14px; background: #111; border-bottom: 1px solid #1e1e1e; align-items: center;
     }
+    .br-cols span { font-size: .58rem; color: #374151; font-weight: 700; text-transform: uppercase; text-align: center; }
+    .br-cols span.left { text-align: left; }
 
-    .bra-card-header {
-        padding: 1rem 1.25rem 0.875rem;
-        border-bottom: 0.5px solid var(--color-border-tertiary);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
+    .br-row { display: grid; grid-template-columns: 4px 36px 28px 1fr 36px 36px 36px 36px 36px 44px 60px 80px; gap: 4px; padding: 10px 14px; padding-left: 0; border-bottom: 1px solid #111; align-items: center; transition: background .12s; }
+    .br-row:last-child { border-bottom: none; }
+    .br-row:hover { background: #1a1a1a; }
+    .br-row.lider { background: rgba(212,165,32,0.04); }
 
-    .bra-card-title {
-        font-size: 14px;
-        font-weight: 500;
-        color: var(--color-text-primary);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
+    .br-zonebar { width: 4px; height: 100%; align-self: stretch; flex-shrink: 0; }
+    .br-pos { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1rem; font-weight: 700; text-align: center; }
+    .br-escudo { width: 28px; height: 28px; border-radius: 50%; background: #0f0f0f; border: 1px solid #2a2a2a; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; font-size: .6rem; color: #6b7280; }
+    .br-escudo img { width: 90%; height: 90%; object-fit: contain; }
+    .br-nome { font-size: .86rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+    .br-nome:hover { text-decoration: underline; }
+    .br-cell { font-size: .8rem; color: #9ca3af; text-align: center; }
+    .br-cell.v { color: #22c55e; font-weight: 600; }
+    .br-cell.e { color: #f59e0b; }
+    .br-cell.d { color: #ef4444; }
+    .br-sg { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .88rem; font-weight: 700; text-align: center; }
 
-    .bra-badge-rodada {
-        font-size: 11px;
-        font-weight: 500;
-        background: var(--color-background-secondary);
-        color: var(--color-text-secondary);
-        border: 0.5px solid var(--color-border-tertiary);
-        padding: 2px 8px;
-        border-radius: 20px;
-    }
+    .br-aprov { display: flex; flex-direction: column; gap: 2px; align-items: center; }
+    .br-aprov span { font-size: .72rem; color: #9ca3af; font-weight: 600; }
+    .br-aprov-bar { width: 44px; height: 3px; background: #222; border-radius: 2px; overflow: hidden; }
+    .br-aprov-bar div { height: 100%; border-radius: 2px; }
 
-    .bra-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 13px;
-    }
+    .br-pts { display: flex; align-items: center; justify-content: center; }
+    .br-pts span { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.1rem; font-weight: 900; padding: 2px 8px; border-radius: 6px; }
 
-        .bra-table thead th {
-            padding: 0.45rem 0.6rem;
-            font-size: 11px;
-            font-weight: 500;
-            color: var(--color-text-secondary);
-            text-align: center;
-            border-bottom: 0.5px solid var(--color-border-tertiary);
-            background: var(--color-background-secondary);
-            white-space: nowrap;
-        }
-
-            .bra-table thead th:nth-child(2) {
-                text-align: left;
-            }
-
-        .bra-table tbody td {
-            padding: 0.5rem 0.6rem;
-            text-align: center;
-            border-bottom: 0.5px solid var(--color-border-tertiary);
-            color: var(--color-text-primary);
-            vertical-align: middle;
-        }
-
-        .bra-table tbody tr:last-child td {
-            border-bottom: none;
-        }
-
-        .bra-table tbody td:nth-child(2) {
-            text-align: left;
-        }
-
-        .bra-table tbody tr:hover td {
-            background: var(--color-background-secondary);
-        }
-
-        /* Zona de classificação */
-        .bra-table tbody tr.zona-lib td:first-child {
-            border-left: 2.5px solid #22c55e;
-        }
-
-        .bra-table tbody tr.zona-sul td:first-child {
-            border-left: 2.5px solid #3b82f6;
-        }
-
-        .bra-table tbody tr.zona-pre td:first-child {
-            border-left: 2.5px solid #f97316;
-        }
-
-        .bra-table tbody tr.zona-rel td:first-child {
-            border-left: 2.5px solid #ef4444;
-        }
-
-    .bra-pos {
-        font-weight: 500;
-        color: var(--color-text-secondary);
-        min-width: 20px;
-    }
-
-    .bra-team-cell {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        min-width: 140px;
-    }
-
-    .bra-escudo {
-        width: 20px;
-        height: 20px;
-        object-fit: contain;
-        flex-shrink: 0;
-    }
-
-    .bra-escudo-ph {
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        background: var(--color-background-info);
-        color: var(--color-text-info);
-        font-size: 9px;
-        font-weight: 500;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-
-    .bra-team-name {
-        font-weight: 500;
-        color: var(--color-text-primary);
-        text-decoration: none;
-    }
-
-    a.bra-team-name:hover {
-        color: #16a34a;
-        text-decoration: underline;
-    }
-
-    .bra-pts {
-        font-weight: 500;
-        color: var(--color-text-primary);
-    }
-
-    .bra-saldo-pos {
-        color: var(--color-text-success);
-    }
-
-    .bra-saldo-neg {
-        color: var(--color-text-danger);
-    }
-
-    .bra-saldo-zer {
-        color: var(--color-text-secondary);
-    }
-
-    .bra-form-dot {
-        display: inline-block;
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        margin: 0 1px;
-    }
-
-    .bra-form-v {
-        background: #22c55e;
-    }
-
-    .bra-form-e {
-        background: #f59e0b;
-    }
-
-    .bra-form-d {
-        background: #ef4444;
-    }
-
-    /* Legenda */
-    .bra-legenda {
-        display: flex;
-        gap: 1rem;
-        padding: 0.6rem 1.25rem;
-        border-top: 0.5px solid var(--color-border-tertiary);
-        flex-wrap: wrap;
-    }
-
-    .bra-leg-item {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        font-size: 11px;
-        color: var(--color-text-secondary);
-    }
-
-    .bra-leg-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 2px;
-        flex-shrink: 0;
-    }
+    .br-legend { padding: 12px 18px; background: #111; border-top: 1px solid #1e1e1e; display: flex; gap: 16px; flex-wrap: wrap; }
+    .br-legend-item { display: flex; align-items: center; gap: 5px; }
+    .br-legend-dot { width: 10px; height: 3px; border-radius: 2px; }
+    .br-legend-item span { font-size: .62rem; color: #4b5563; font-weight: 600; }
 
     /* ── Sidebar ── */
-    .bra-sidebar {
-        display: flex;
-        flex-direction: column;
-        gap: 1.25rem;
-    }
+    .br-sidebar { display: flex; flex-direction: column; gap: 16px; }
+    .br-side-card { background: #161616; border: 1px solid #262626; border-radius: 12px; overflow: hidden; }
+    .br-side-header { padding: 12px 16px; background: #111; border-bottom: 1px solid #1e1e1e; display: flex; align-items: center; gap: 8px; }
+    .br-side-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .88rem; font-weight: 700; color: #f1f5f9; text-transform: uppercase; letter-spacing: .04em; }
+    .br-side-badge { margin-left: auto; font-size: .65rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+    .br-side-badge.blue { color: #60a5fa; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); }
+    .br-side-badge.green { color: #4ade80; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25); }
 
-    /* ── Calendário ── */
-    .cal-card {
-        background: var(--color-background-primary);
-        border: 0.5px solid var(--color-border-tertiary);
-        border-radius: var(--border-radius-lg);
-        overflow: hidden;
-    }
+    .br-artilheiro { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid #111; transition: background .12s; }
+    .br-artilheiro:last-child { border-bottom: none; }
+    .br-artilheiro:hover { background: #1e1e1e; }
+    .br-art-rank { font-size: .72rem; font-weight: 700; width: 14px; text-align: center; flex-shrink: 0; }
+    .br-art-avatar { width: 30px; height: 30px; border-radius: 50%; background: #1e293b; border: 1px solid #2a3a52; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
+    .br-art-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .br-art-nome { font-size: .82rem; font-weight: 600; color: #e5e7eb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .br-art-clube { display: flex; align-items: center; gap: 4px; margin-top: 1px; }
+    .br-art-clube img { width: 12px; height: 12px; object-fit: contain; }
+    .br-art-clube span { font-size: .64rem; color: #4b5563; }
+    .br-art-gols { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.1rem; font-weight: 800; color: #4ade80; flex-shrink: 0; }
 
-    .cal-header {
-        padding: 0.875rem 1rem 0.75rem;
-        border-bottom: 0.5px solid var(--color-border-tertiary);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
+    .br-jogo { padding: 10px 14px; border-bottom: 1px solid #111; transition: background .12s; }
+    .br-jogo:last-child { border-bottom: none; }
+    .br-jogo:hover { background: #1e1e1e; }
+    .br-jogo-hora { font-size: .62rem; color: #d4a520; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 6px; }
+    .br-jogo-teams { display: flex; align-items: center; gap: 8px; }
+    .br-jogo-lado { flex: 1; display: flex; align-items: center; gap: 6px; min-width: 0; }
+    .br-jogo-lado.casa { justify-content: flex-end; }
+    .br-jogo-lado span { font-size: .82rem; font-weight: 600; color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .br-jogo-lado.casa span { text-align: right; }
+    .br-jogo-lado img { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
+    .br-jogo-x { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .75rem; font-weight: 700; color: #4b5563; flex-shrink: 0; }
 
-    .cal-title {
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--color-text-primary);
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-
-    .cal-count {
-        font-size: 11px;
-        color: var(--color-text-secondary);
-        background: var(--color-background-secondary);
-        border: 0.5px solid var(--color-border-tertiary);
-        padding: 1px 7px;
-        border-radius: 20px;
-    }
-
-    .cal-body {
-        max-height: 520px;
-        overflow-y: auto;
-    }
-
-    .cal-day-group {
-    }
-
-    .cal-day-label {
-        position: sticky;
-        top: 0;
-        z-index: 1;
-        padding: 0.4rem 1rem;
-        font-size: 11px;
-        font-weight: 500;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: var(--color-text-secondary);
-        background: var(--color-background-secondary);
-        border-bottom: 0.5px solid var(--color-border-tertiary);
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-
-    .cal-hoje-pill {
-        background: var(--color-background-success);
-        color: var(--color-text-success);
-        font-size: 10px;
-        padding: 1px 6px;
-        border-radius: 20px;
-        font-weight: 500;
-    }
-
-    .cal-match {
-        padding: 0.55rem 1rem;
-        border-bottom: 0.5px solid var(--color-border-tertiary);
-        display: grid;
-        grid-template-columns: 1fr auto 1fr;
-        align-items: center;
-        gap: 0.5rem;
-        transition: background 0.15s;
-        text-decoration: none;
-        color: inherit;
-    }
-
-        .cal-match:hover {
-            background: var(--color-background-secondary);
-        }
-
-        .cal-match:last-child {
-            border-bottom: none;
-        }
-
-    .cal-team {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        font-size: 12px;
-        font-weight: 500;
-        color: var(--color-text-primary);
-        overflow: hidden;
-    }
-
-        .cal-team.away {
-            flex-direction: row-reverse;
-            text-align: right;
-        }
-
-    .cal-team-name {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .cal-esc {
-        width: 16px;
-        height: 16px;
-        object-fit: contain;
-        flex-shrink: 0;
-    }
-
-    .cal-esc-ph {
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-        background: var(--color-background-info);
-        color: var(--color-text-info);
-        font-size: 8px;
-        font-weight: 500;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-
-    .cal-vs {
-        text-align: center;
-        flex-shrink: 0;
-    }
-
-    .cal-vs-hora {
-        font-size: 11px;
-        font-weight: 500;
-        color: var(--color-text-primary);
-        line-height: 1.2;
-    }
-
-    .cal-vs-rodada {
-        font-size: 10px;
-        color: var(--color-text-secondary);
-    }
-
-    .cal-vs-tag {
-        display: inline-block;
-        font-size: 10px;
-        font-weight: 500;
-        color: var(--color-text-secondary);
-        background: var(--color-background-secondary);
-        border: 0.5px solid var(--color-border-tertiary);
-        padding: 1px 5px;
-        border-radius: 3px;
-    }
-
-    /* Quando não há data definida */
-    .cal-semdata {
-        font-size: 11px;
-        color: var(--color-text-secondary);
-        padding: 0.6rem 1rem;
-        font-style: italic;
-    }
-
-    /* Próxima rodada — título da sidebar */
-    .rodada-sidebar-title {
-        font-size: 14px; font-weight: 700; color: var(--color-text-primary);
-        margin-bottom: .75rem; display: flex; align-items: center; gap: .5rem;
-    }
-    .rodada-sidebar-badge {
-        font-size: 11px; font-weight: 700; background: #16a34a; color: #fff;
-        padding: 2px 10px; border-radius: 999px;
-    }
-    .rodada-sidebar-sub { font-size: 11px; color: var(--color-text-secondary); margin-left: auto; }
-
-    /* Card individual de jogo da próxima rodada */
-    .bra-jogo-card {
-        background: #fff;
-        border: 0.5px solid #e5e7eb;
-        border-radius: 10px;
-        overflow: hidden;
-        margin-bottom: .6rem;
-        transition: box-shadow .15s;
-    }
-    .bra-jogo-card:hover { box-shadow: 0 2px 10px rgba(22,163,74,.15); }
-
-    .bra-jogo-header {
-        background: linear-gradient(90deg, #14532d, #16a34a);
-        color: #bbf7d0;
-        font-size: 10px; font-weight: 600; letter-spacing: .4px;
-        padding: 5px 10px;
-        display: flex; justify-content: space-between; align-items: center;
-    }
-
-    .bra-jogo-body { padding: 10px 12px; }
-
-    .bra-jogo-teams {
-        display: flex; justify-content: space-between; align-items: center; gap: 6px;
-    }
-
-    .bra-jogo-team {
-        display: flex; flex-direction: column; align-items: center; gap: 4px;
-        flex: 1; min-width: 0;
-    }
-    .bra-jogo-team img { width: 32px; height: 32px; object-fit: contain; border-radius: 4px; }
-    .bra-jogo-team span {
-        font-size: 11px; font-weight: 500; color: #374151;
-        text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px;
-    }
-
-    .bra-jogo-vs {
-        font-size: 11px; font-weight: 700; color: #9ca3af; flex-shrink: 0;
-        display: flex; flex-direction: column; align-items: center; gap: 2px;
-    }
-    .bra-jogo-score {
-        background: #111827; color: #f9fafb;
-        font-size: 14px; font-weight: 800;
-        padding: 4px 10px; border-radius: 6px; min-width: 52px; text-align: center;
-    }
-
-    .bra-jogo-footer {
-        display: flex; justify-content: space-between; align-items: center;
-        margin-top: 8px; padding-top: 6px; border-top: 0.5px solid #f3f4f6;
-    }
-    .bra-badge-agendado {
-        font-size: 10px; background: #f3f4f6; color: #6b7280;
-        padding: 2px 8px; border-radius: 999px;
-    }
-    .bra-analisar-btn {
-        font-size: 10px; padding: 3px 10px; border-radius: 6px;
-        background: transparent; color: #16a34a;
-        border: 1px solid #16a34a; text-decoration: none; font-weight: 600;
-        transition: background .15s, color .15s;
-    }
-    .bra-analisar-btn:hover { background: #16a34a; color: #fff; text-decoration: none; }
-
-    @@media (max-width: 900px) {
-        .bra-page {
-            grid-template-columns: 1fr;
-        }
-
-        .bra-sidebar {
-            order: -1;
-        }
-    }
-
-    @@media (max-width: 600px) {
-        .bra-form-dot { display: none; }
-        .bra-table .hide-mob { display: none; }
-        .bra-team-name { max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .cf-comp-hero { padding: 1rem 1.1rem; }
-        .cf-comp-title { font-size: 1.1rem; }
-    }
+    .br-vazio { text-align: center; color: #6b7280; padding: 2rem 1rem; font-size: .82rem; }
 </style>
 
-<div style="padding: 0.5rem 0 2rem">
-
-    <!-- Banner Campeonato Brasileiro -->
-    <div class="cf-comp-hero">
-        <div class="cf-comp-hero-content">
-            <span class="cf-comp-badge">Competição nacional</span>
-            <div class="cf-comp-title-wrap">
-                <img src="~/images/background/campeonatobrasileiro.png"
-                     alt="Escudo Campeonato Brasileiro"
-                     class="cf-comp-logo" />
-                <h2 class="cf-comp-title">Campeonato Brasileiro</h2>
+<div class="br-root">
+    <!-- ── Hero ── -->
+    <div class="br-hero">
+        <img src="~/Images/banner/escudos-pattern.svg" class="br-hero-pattern" alt="" />
+        <div class="br-hero-stripe"></div>
+        <div class="br-hero-fade"></div>
+        <div class="br-hero-inner">
+            <div class="br-hero-flag">🇧🇷</div>
+            <div style="flex:1; min-width:180px;">
+                <div class="br-hero-kicker">
+                    <div class="br-hero-kicker-line"></div>
+                    <span>Série A · Brasil@(temporadaBrSel.HasValue ? " · " + temporadaBrSel : "")</span>
+                </div>
+                <h1>Brasileirão</h1>
+                <p>Classificação atualizada · Rodada @rodadaRef de @totalRodadas</p>
+                @if (temporadasBr.Count > 1)
+                {
+                    <form method="get" class="br-hero-temporada">
+                        <input type="hidden" name="rodada" value="@rodadaRef" />
+                        <select name="temporada" onchange="this.form.submit()">
+                            @foreach (var temp in temporadasBr)
+                            {
+                                <option value="@temp" selected="@(temporadaBrSel == temp)">@temp</option>
+                            }
+                        </select>
+                    </form>
+                }
             </div>
-            <p class="cf-comp-sub">Classificação geral e jogos da rodada atual.</p>
-            @{
-                var temporadasBr = ViewBag.TemporadasDisponiveis as List<int> ?? new List<int>();
-                var temporadaBrSel = ViewBag.Temporada as int?;
-            }
-            @if (temporadasBr.Count > 1)
-            {
-                <form method="get" style="margin-top:8px;">
-                    <label style="color:#fff;font-size:12px;font-weight:600;margin-right:6px;">Temporada:</label>
-                    <select name="temporada" onchange="this.form.submit()"
-                            style="padding:5px 10px;border-radius:7px;border:none;font-size:13px;font-weight:600;">
-                        @foreach (var temp in temporadasBr)
-                        {
-                            <option value="@temp" @(temporadaBrSel == temp ? "selected" : "")>@temp</option>
-                        }
-                    </select>
-                </form>
-            }
+
+            <!-- Navegação de rodada -->
+            <div class="br-rodnav">
+                <a class="br-rodnav-btn" href="@linkRodada(Math.Max(1, rodadaRef - 1))" aria-label="Rodada anterior">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6" /></svg>
+                </a>
+                <div class="br-rodnav-num">
+                    <div class="val">@(rodadaRef)ª</div>
+                    <div class="lbl">Rodada</div>
+                </div>
+                <a class="br-rodnav-btn" href="@linkRodada(Math.Min(rodadaMaxima, rodadaRef + 1))" aria-label="Próxima rodada">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6" /></svg>
+                </a>
+            </div>
+
+            <!-- Stats strip -->
+            <div class="br-stats">
+                <div class="br-stat"><div class="val">@Model.Count</div><div class="lbl">Times</div></div>
+                <div class="br-stat-sep"></div>
+                <div class="br-stat"><div class="val">@rodadaRef</div><div class="lbl">Rodadas</div></div>
+                <div class="br-stat-sep"></div>
+                <div class="br-stat"><div class="val">@totalGols</div><div class="lbl">Gols</div></div>
+            </div>
         </div>
     </div>
 
-    <div class="bra-page">
+    <!-- ── Layout principal ── -->
+    <div class="br-layout">
 
-        <!-- ── TABELA ── -->
+        <!-- ── Tabela ── -->
         <div>
-            <div class="bra-card">
-                <div class="bra-card-header">
-                    <span class="bra-card-title">
-                        <i class="ti ti-list-numbers" aria-hidden="true" style="font-size:16px"></i>
-                        Classificação
-                    </span>
-                    @if (numeroRodada > 0)
-                    {
-                        <span class="bra-badge-rodada">Rodada @numeroRodada</span>
-                    }
+            <div class="br-tablewrap">
+                <div class="br-cols">
+                    <span>#</span>
+                    <span></span>
+                    <span class="left">Clube</span>
+                    <span>J</span>
+                    <span style="color:#22c55e;">V</span>
+                    <span style="color:#f59e0b;">E</span>
+                    <span style="color:#ef4444;">D</span>
+                    <span>GP</span>
+                    <span>SG</span>
+                    <span>%</span>
+                    <span style="color:#d4a520;">Pts</span>
                 </div>
 
-                <table class="bra-table">
-                    <thead>
-                        <tr>
-                            <th style="width:28px">#</th>
-                            <th>Clube</th>
-                            <th>J</th>
-                            <th>Pts</th>
-                            <th class="hide-mob">V</th>
-                            <th class="hide-mob">E</th>
-                            <th class="hide-mob">D</th>
-                            <th class="hide-mob">GP</th>
-                            <th class="hide-mob">GC</th>
-                            <th>SG</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @for (int i = 0; i < Model.Count; i++)
-                        {
-                            var t = Model[i];
-                            var pos = i + 1;
-                            string zonaCls = pos <= 6 ? "zona-lib"
-                            : pos <= 12 ? "zona-pre"
-                            : pos >= 17 ? "zona-rel"
-                            : pos >= 13 ? "zona-sul"
-                            : "";
+                @for (int i = 0; i < Model.Count; i++)
+                {
+                    var t = Model[i];
+                    var pos = i + 1;
+                    bool lider = pos == 1;
+                    var zoneColor = pos <= 6 ? "#3b82f6" : pos <= 12 ? "#f97316" : pos >= 17 ? "#ef4444" : "#374151";
+                    var totalJogados = t.Vitorias + t.Empates + t.Derrotas;
+                    var aprov = totalJogados > 0 ? (int)Math.Round(t.Pontos / (double)(totalJogados * 3) * 100) : 0;
+                    var aprovColor = aprov >= 60 ? "#22c55e" : aprov >= 40 ? "#f59e0b" : "#ef4444";
+                    var sgColor = t.SaldoGols > 0 ? "#4ade80" : t.SaldoGols < 0 ? "#f87171" : "#6b7280";
 
-                            var saldoCls = t.SaldoGols > 0 ? "bra-saldo-pos"
-                            : t.SaldoGols < 0 ? "bra-saldo-neg"
-                            : "bra-saldo-zer";
+                    <div class="br-row @(lider ? "lider" : "")">
+                        <div class="br-zonebar" style="background:@zoneColor;"></div>
+                        <span class="br-pos" style="color:@(pos <= 3 ? "#d4a520" : "#6b7280");">@pos</span>
+                        <div class="br-escudo">
+                            @if (!string.IsNullOrEmpty(t.Time?.EscudoUrl))
+                            {
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.Time.EscudoUrl })" alt="@t.Time.Nome" />
+                            }
+                            else
+                            {
+                                @(t.Time?.Nome?.Substring(0, 1) ?? "?")
+                            }
+                        </div>
+                        <div style="min-width:0;">
+                            @if (t.Time?.Id > 0)
+                            {
+                                <a asp-controller="Times" asp-action="Details" asp-route-id="@t.Time.Id" class="br-nome" style="font-weight:@(lider ? 800 : 600); color:@(lider ? "#f1f5f9" : "#e5e7eb");">@t.Time.Nome</a>
+                            }
+                            else
+                            {
+                                <span class="br-nome" style="color:#e5e7eb;">@(t.Time?.Nome ?? "—")</span>
+                            }
+                        </div>
+                        <span class="br-cell">@totalJogados</span>
+                        <span class="br-cell v">@t.Vitorias</span>
+                        <span class="br-cell e">@t.Empates</span>
+                        <span class="br-cell d">@t.Derrotas</span>
+                        <span class="br-cell">@t.GolsPro</span>
+                        <span class="br-sg" style="color:@sgColor;">@(t.SaldoGols > 0 ? "+" : "")@t.SaldoGols</span>
+                        <div class="br-aprov">
+                            <span>@(aprov)%</span>
+                            <div class="br-aprov-bar"><div style="width:@(aprov)%; background:@aprovColor;"></div></div>
+                        </div>
+                        <div class="br-pts">
+                            <span style="color:@(lider ? "#d4a520" : "#f1f5f9"); background:@(lider ? "rgba(212,165,32,0.12)" : "transparent");">@t.Pontos</span>
+                        </div>
+                    </div>
+                }
 
-                            var totalJogados = t.Vitorias + t.Empates + t.Derrotas;
-                            <tr class="@zonaCls">
-                                <td class="bra-pos">@pos</td>
-                                <td>
-                                    <div class="bra-team-cell">
-                                        @if (!string.IsNullOrEmpty(t.Time?.EscudoUrl))
-                                        {
-                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.Time.EscudoUrl })" alt="@t.Time.Nome" class="bra-escudo" />
-                                        }
-                                        else
-                                        {
-                                            <div class="bra-escudo-ph">@(t.Time?.Nome?.Substring(0, 1) ?? "?")</div>
-                                        }
-                                        @if (t.Time?.Id > 0)
-                                        {
-                                            <a asp-controller="Times" asp-action="Details" asp-route-id="@t.Time.Id" class="bra-team-name">@t.Time.Nome</a>
-                                        }
-                                        else
-                                        {
-                                            <span class="bra-team-name">@(t.Time?.Nome ?? "—")</span>
-                                        }
-                                    </div>
-                                </td>
-                                <td style="color:var(--color-text-secondary)">@totalJogados</td>
-                                <td class="bra-pts">@t.Pontos</td>
-                                <td class="hide-mob" style="color:var(--color-text-success)">@t.Vitorias</td>
-                                <td class="hide-mob" style="color:var(--color-text-secondary)">@t.Empates</td>
-                                <td class="hide-mob" style="color:var(--color-text-danger)">@t.Derrotas</td>
-                                <td class="hide-mob" style="color:var(--color-text-secondary)">@t.GolsPro</td>
-                                <td class="hide-mob" style="color:var(--color-text-secondary)">@t.GolsContra</td>
-                                <td class="@saldoCls">@(t.SaldoGols > 0 ? "+" : "")@t.SaldoGols</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-
-                <div class="bra-legenda">
-                    <div class="bra-leg-item">
-                        <div class="bra-leg-dot" style="background:#22c55e"></div>
-                        Fase de grupos Libertadores
-                    </div>
-                    <div class="bra-leg-item">
-                        <div class="bra-leg-dot" style="background:#3b82f6"></div>
-                        Sul-Americana
-                    </div>
-                    <div class="bra-leg-item">
-                        <div class="bra-leg-dot" style="background:#f97316"></div>
-                        Pré-Libertadores
-                    </div>
-                    <div class="bra-leg-item">
-                        <div class="bra-leg-dot" style="background:#ef4444"></div>
-                        Rebaixamento
-                    </div>
+                <div class="br-legend">
+                    <div class="br-legend-item"><div class="br-legend-dot" style="background:#3b82f6;"></div><span>Libertadores (G6)</span></div>
+                    <div class="br-legend-item"><div class="br-legend-dot" style="background:#f97316;"></div><span>Sul-Americana (G12)</span></div>
+                    <div class="br-legend-item"><div class="br-legend-dot" style="background:#ef4444;"></div><span>Rebaixamento (Z4)</span></div>
                 </div>
             </div>
         </div>
 
-        <!-- ── SIDEBAR ── -->
-        <div class="bra-sidebar">
+        <!-- ── Sidebar ── -->
+        <div class="br-sidebar">
 
-            <!-- Próxima Rodada -->
-            @if (proximaRodada.Any())
-            {
-                <div class="rodada-sidebar-title">
-                    <i class="ti ti-calendar-event" style="font-size:15px"></i>
-                    Rodada @numeroRodada
-                    <span class="rodada-sidebar-badge">@proximaRodada.Count jogos</span>
+            <!-- Artilheiros -->
+            <div class="br-side-card">
+                <div class="br-side-header">
+                    <span style="font-size:1rem;">⚽</span>
+                    <span class="br-side-title">Artilheiros</span>
                 </div>
-
-                @foreach (var j in proximaRodada)
+                @{ var rankColors = new[] { "#f59e0b", "#9ca3af", "#b45309", "#374151", "#374151" }; }
+                @if (!artilheiros.Any())
                 {
-                    bool realizado = j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue;
-                    <div class="bra-jogo-card">
-                        <div class="bra-jogo-header">
-                            <span>@DateHelper.FormatarData(j.Data, "dd/MM/yyyy HH:mm")</span>
-                            <span>R@(j.Rodada)</span>
-                        </div>
-                        <div class="bra-jogo-body">
-                            <div class="bra-jogo-teams">
-                                <div class="bra-jogo-team">
-                                    @if (!string.IsNullOrEmpty(j.TimeCasa?.EscudoUrl))
-                                    {
-                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.TimeCasa.EscudoUrl })" alt="@j.TimeCasa!.Nome" />
-                                    }
-                                    else
-                                    {
-                                        <div class="bra-escudo-ph">@(j.TimeCasa?.Nome?.Substring(0, 1) ?? "?")</div>
-                                    }
-                                    <span>@(j.TimeCasa?.Nome ?? "?")</span>
-                                </div>
-
-                                <div class="bra-jogo-vs">
-                                    @if (realizado)
-                                    {
-                                        <span class="bra-jogo-score">@j.PlacarCasa x @j.PlacarVisitante</span>
-                                        @if (j.PenaltisCasa.HasValue && j.PenaltisVisitante.HasValue)
-                                        {
-                                            <span class="bra-jogo-pen">(@j.PenaltisCasa-@j.PenaltisVisitante pên.)</span>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        <span>vs</span>
-                                    }
-                                </div>
-
-                                <div class="bra-jogo-team">
-                                    @if (!string.IsNullOrEmpty(j.TimeVisitante?.EscudoUrl))
-                                    {
-                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.TimeVisitante.EscudoUrl })" alt="@j.TimeVisitante!.Nome" />
-                                    }
-                                    else
-                                    {
-                                        <div class="bra-escudo-ph">@(j.TimeVisitante?.Nome?.Substring(0, 1) ?? "?")</div>
-                                    }
-                                    <span>@(j.TimeVisitante?.Nome ?? "?")</span>
-                                </div>
-                            </div>
-
-                            <div class="bra-jogo-footer">
-                                @if (realizado)
+                    <div class="br-vazio">Nenhum gol registrado ainda.</div>
+                }
+                else
+                {
+                    for (int i = 0; i < artilheiros.Count; i++)
+                    {
+                        var a = artilheiros[i];
+                        <div class="br-artilheiro">
+                            <span class="br-art-rank" style="color:@rankColors[Math.Min(i, rankColors.Length - 1)];">@(i + 1)</span>
+                            <div class="br-art-avatar">
+                                @if (!string.IsNullOrEmpty(a.Jogador.FotoUrl))
                                 {
-                                    <span style="color:#16a34a;font-weight:600;font-size:10px;">✔ Realizado</span>
+                                    <img src="@Url.FotoSrc(a.Jogador.FotoUrl)" alt="@a.Jogador.NomeExibicao" />
                                 }
                                 else
                                 {
-                                    <span class="bra-badge-agendado">Agendado</span>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
                                 }
-                                <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@j.Id" class="bra-analisar-btn">
-                                    Analisar →
-                                </a>
+                            </div>
+                            <div style="flex:1; min-width:0;">
+                                <div class="br-art-nome">@a.Jogador.NomeExibicao</div>
+                                <div class="br-art-clube">
+                                    @if (!string.IsNullOrEmpty(a.Jogador.Time?.EscudoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = a.Jogador.Time.EscudoUrl })" alt="" />
+                                    }
+                                    <span>@(a.Jogador.Time?.Nome ?? "—")</span>
+                                </div>
+                            </div>
+                            <span class="br-art-gols">@(a.Gols)⚽</span>
+                        </div>
+                    }
+                }
+            </div>
+
+            <!-- Próxima Rodada -->
+            <div class="br-side-card">
+                <div class="br-side-header">
+                    <span style="font-size:1rem;">📅</span>
+                    <span class="br-side-title">Próxima Rodada</span>
+                    <span class="br-side-badge blue">Rod. @rodadaRef</span>
+                </div>
+                @if (!proximaRodadaJogos.Any())
+                {
+                    <div class="br-vazio">Nenhum jogo agendado para esta rodada.</div>
+                }
+                else
+                {
+                    foreach (var jg in proximaRodadaJogos)
+                    {
+                        <div class="br-jogo">
+                            <div class="br-jogo-hora">@DateHelper.FormatarData(jg.Data, "HH:mm") · @DateHelper.FormatarData(jg.Data, "dd/MM")</div>
+                            <div class="br-jogo-teams">
+                                <div class="br-jogo-lado casa">
+                                    <span>@(jg.TimeCasa?.Nome ?? "?")</span>
+                                    @if (!string.IsNullOrEmpty(jg.TimeCasa?.EscudoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jg.TimeCasa.EscudoUrl })" alt="" />
+                                    }
+                                </div>
+                                <span class="br-jogo-x">×</span>
+                                <div class="br-jogo-lado">
+                                    @if (!string.IsNullOrEmpty(jg.TimeVisitante?.EscudoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jg.TimeVisitante.EscudoUrl })" alt="" />
+                                    }
+                                    <span>@(jg.TimeVisitante?.Nome ?? "?")</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    }
                 }
-            }
-            else
-            {
-                <div class="bra-card" style="padding: 1.5rem; text-align:center">
-                    <i class="ti ti-calendar-off" style="font-size:24px; color:var(--color-text-secondary)"></i>
-                    <p style="font-size:13px; color:var(--color-text-secondary); margin: 0.5rem 0 0">
-                        Nenhum jogo agendado encontrado.
-                    </p>
+            </div>
+
+            <!-- Últimos resultados -->
+            <div class="br-side-card">
+                <div class="br-side-header">
+                    <span style="font-size:1rem;">🕘</span>
+                    <span class="br-side-title">Última Rodada</span>
+                    <span class="br-side-badge green">Rod. @ultimaRodadaNum</span>
                 </div>
-            }
+                @if (!ultimaRodadaJogos.Any())
+                {
+                    <div class="br-vazio">Nenhum resultado disponível.</div>
+                }
+                else
+                {
+                    foreach (var ur in ultimaRodadaJogos)
+                    {
+                        bool casaW = ur.PlacarCasa > ur.PlacarVisitante;
+                        bool visW = ur.PlacarVisitante > ur.PlacarCasa;
+                        <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@ur.Id" class="br-jogo" style="display:block;">
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <div class="br-jogo-lado casa" style="flex:1;">
+                                    <span style="font-weight:@(casaW ? 700 : 500); color:@(casaW ? "#f1f5f9" : "#6b7280");">@(ur.TimeCasa?.Nome ?? "?")</span>
+                                    @if (!string.IsNullOrEmpty(ur.TimeCasa?.EscudoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = ur.TimeCasa.EscudoUrl })" alt="" style="width:18px;height:18px;" />
+                                    }
+                                </div>
+                                <span style="font-family:'Barlow Condensed',Arial,sans-serif; font-size:1rem; font-weight:800; color:#f1f5f9; background:#0f0f0f; padding:1px 8px; border-radius:5px; flex-shrink:0;">@ur.PlacarCasa–@ur.PlacarVisitante</span>
+                                <div class="br-jogo-lado" style="flex:1;">
+                                    @if (!string.IsNullOrEmpty(ur.TimeVisitante?.EscudoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = ur.TimeVisitante.EscudoUrl })" alt="" style="width:18px;height:18px;" />
+                                    }
+                                    <span style="font-weight:@(visW ? 700 : 500); color:@(visW ? "#f1f5f9" : "#6b7280");">@(ur.TimeVisitante?.Nome ?? "?")</span>
+                                </div>
+                            </div>
+                        </a>
+                    }
+                }
+            </div>
 
         </div>
     </div>
