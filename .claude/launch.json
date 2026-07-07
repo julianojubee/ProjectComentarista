@@ -4,7 +4,7 @@
     {
       "name": "web",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "ControleFutebolWeb", "--urls", "http://localhost:5057"],
+      "runtimeArgs": ["run", "--project", "ControleFutebolWeb", "--urls", "https://localhost:5057"],
       "port": 5057
     }
   ]
