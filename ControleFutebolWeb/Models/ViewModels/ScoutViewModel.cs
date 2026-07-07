@@ -7,6 +7,11 @@ namespace ControleFutebolWeb.Models.ViewModels
         public List<string> Posicoes { get; set; } = new();
         public int? IdadeMin { get; set; }
         public int? IdadeMax { get; set; }
+        // Altura em centímetros e peso em quilos (Jogador.Altura/Peso)
+        public int? AlturaMin { get; set; }
+        public int? AlturaMax { get; set; }
+        public int? PesoMin { get; set; }
+        public int? PesoMax { get; set; }
         public List<int> TimeIds { get; set; } = new();
         public List<int> CompeticaoIds { get; set; } = new();
         public int? Temporada { get; set; }
@@ -24,6 +29,15 @@ namespace ControleFutebolWeb.Models.ViewModels
         public double? MinNota { get; set; }
         public int? MaxCartaoAmarelo { get; set; }
         public int? MaxCartaoVermelho { get; set; }
+
+        // Médias por jogo (total da estatística / jogos disputados nos jogos filtrados)
+        public double? MediaPassesChave { get; set; }
+        public double? MediaDesarmes { get; set; }
+        public double? MediaBloqueios { get; set; }
+        public double? MediaInterceptacoes { get; set; }
+        public double? MediaDuelosVencidos { get; set; }
+        public double? MediaFinalizacoesNoGol { get; set; }
+        public double? MediaDrilesCertos { get; set; }
     }
 
     public class ScoutResultItem

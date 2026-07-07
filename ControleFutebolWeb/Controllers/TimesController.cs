@@ -17,12 +17,18 @@ namespace ControleFutebolWeb.Controllers
         private readonly FutebolContext _context;
         private readonly ILogger<TimesController> _logger;
         private readonly IWebHostEnvironment _env;
+        private readonly ControleFutebolWeb.Services.ApiFootballService _apiFootballService;
 
-        public TimesController(FutebolContext context, ILogger<TimesController> logger, IWebHostEnvironment env)
+        public TimesController(
+            FutebolContext context,
+            ILogger<TimesController> logger,
+            IWebHostEnvironment env,
+            ControleFutebolWeb.Services.ApiFootballService apiFootballService)
         {
             _context = context;
             _logger = logger;
             _env = env;
+            _apiFootballService = apiFootballService;
         }
 
         // GET: Times
@@ -298,6 +304,77 @@ namespace ControleFutebolWeb.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Mensagem"] = "Link Transfermarkt do time atualizado com sucesso!";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // Busca na api-football idade, altura e peso apenas dos jogadores do elenco
+        // que ainda não têm esses dados — evita gastar requisições à toa.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AtualizarDadosJogadores(int id)
+        {
+            var time = await _context.Times.FindAsync(id);
+            if (time == null) return NotFound();
+
+            var pendentes = await _context.Jogadores
+                .Where(j => (j.TimeId == id || j.SelecaoId == id) &&
+                            j.IdApi != null && j.IdApi > 0 &&
+                            (j.DataNascimento == null || j.Altura == null || j.Peso == null))
+                .ToListAsync();
+
+            if (pendentes.Count == 0)
+            {
+                TempData["Mensagem"] = "Todos os jogadores do elenco já têm idade, altura e peso cadastrados.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            int atualizados = 0, falhas = 0;
+
+            foreach (var jogador in pendentes)
+            {
+                try
+                {
+                    var info = await _apiFootballService.BuscarPerfilJogadorAsync(jogador.IdApi!.Value);
+                    if (info == null) { falhas++; continue; }
+
+                    var alterado = false;
+
+                    if (jogador.DataNascimento == null && info.DataNascimento.HasValue && info.DataNascimento.Value.Year > 1900)
+                    {
+                        jogador.DataNascimento = DateTime.SpecifyKind(info.DataNascimento.Value, DateTimeKind.Unspecified);
+                        alterado = true;
+                    }
+
+                    if (jogador.Altura == null && info.Altura.HasValue)
+                    {
+                        jogador.Altura = info.Altura;
+                        alterado = true;
+                    }
+
+                    if (jogador.Peso == null && info.Peso.HasValue)
+                    {
+                        jogador.Peso = info.Peso;
+                        alterado = true;
+                    }
+
+                    if (alterado)
+                    {
+                        jogador.DtAlt = DateTime.UtcNow;
+                        atualizados++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    falhas++;
+                    _logger.LogWarning(ex, "[AtualizarDadosJogadores] Falha ao buscar dados de {Nome} (IdApi={Id})", jogador.Nome, jogador.IdApi);
+                }
+            }
+
+            if (atualizados > 0) await _context.SaveChangesAsync();
+
+            TempData["Mensagem"] = $"{atualizados} jogador(es) atualizado(s)" +
+                (falhas > 0 ? $", {falhas} falha(s)." : ".");
+
             return RedirectToAction(nameof(Details), new { id });
         }
 

@@ -1113,6 +1113,44 @@ namespace ControleFutebolWeb.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        public async Task<IActionResult> BuscarAlturaPeso(int id)
+        {
+            var jogador = await _context.Jogadores.FindAsync(id);
+            if (jogador == null) return NotFound();
+
+            if (!(jogador.IdApi > 0))
+            {
+                TempData["Erro"] = $"{jogador.Nome} não possui IdApi cadastrado — não é possível buscar altura/peso pela API.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            try
+            {
+                var info = await _transfermarktService.BuscarPerfilJogadorAsync(jogador.IdApi!.Value);
+                if (info == null || (info.Altura == null && info.Peso == null))
+                {
+                    TempData["Erro"] = $"A API não retornou altura/peso para {jogador.Nome}.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
+
+                if (info.Altura.HasValue) jogador.Altura = info.Altura;
+                if (info.Peso.HasValue) jogador.Peso = info.Peso;
+                jogador.DtAlt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+
+                TempData["Sucesso"] = $"{jogador.Nome}: altura/peso atualizados ({jogador.Altura?.ToString() ?? "—"} cm, {jogador.Peso?.ToString() ?? "—"} kg).";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao buscar altura/peso do jogador {Nome} (IdApi={Id})", jogador.Nome, jogador.IdApi);
+                TempData["Erro"] = $"Erro ao buscar altura/peso de {jogador.Nome}: {ex.Message}";
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> AtualizarInfoTodosSemIdade()
         {
             var jogadores = await _context.Jogadores

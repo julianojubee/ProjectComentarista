@@ -31,10 +31,12 @@ namespace ControleFutebolWeb.Controllers
         // GET: /Relatorios/Scout
         [HttpGet]
         public async Task<IActionResult> Scout(
-            string[]? posicoes, int? idadeMin, int? idadeMax, int[]? timeIds,
+            string[]? posicoes, int? idadeMin, int? idadeMax,
+            int? alturaMin, int? alturaMax, int? pesoMin, int? pesoMax, int[]? timeIds,
             int[]? competicaoIds, int? temporada,
             int? minJogos, int? minGols, int? minAssistencias,
             int? minPassesChave, int? minDesarmes, int? minBloqueios, int? minInterceptacoes, int? minDuelosVencidos, int? minFinalizacoesNoGol, int? minDrilesCertos,
+            double? mediaPassesChave, double? mediaDesarmes, double? mediaBloqueios, double? mediaInterceptacoes, double? mediaDuelosVencidos, double? mediaFinalizacoesNoGol, double? mediaDrilesCertos,
             double? minNota,
             int? maxCartaoAmarelo, int? maxCartaoVermelho,
             bool pesquisou = false)
@@ -62,11 +64,15 @@ namespace ControleFutebolWeb.Controllers
                 Filtro = new ScoutFiltro
                 {
                     Posicoes = posicoesSelec, IdadeMin = idadeMin, IdadeMax = idadeMax,
+                    AlturaMin = alturaMin, AlturaMax = alturaMax, PesoMin = pesoMin, PesoMax = pesoMax,
                     TimeIds = timeIdsSelec, CompeticaoIds = compIdsSelec, Temporada = temporada,
                     MinJogos = minJogos, MinGols = minGols, MinAssistencias = minAssistencias,
                     MinPassesChave = minPassesChave, MinDesarmes = minDesarmes,
                     MinBloqueios = minBloqueios, MinInterceptacoes = minInterceptacoes, MinDuelosVencidos = minDuelosVencidos,
                     MinFinalizacoesNoGol = minFinalizacoesNoGol, MinDrilesCertos = minDrilesCertos,
+                    MediaPassesChave = mediaPassesChave, MediaDesarmes = mediaDesarmes,
+                    MediaBloqueios = mediaBloqueios, MediaInterceptacoes = mediaInterceptacoes, MediaDuelosVencidos = mediaDuelosVencidos,
+                    MediaFinalizacoesNoGol = mediaFinalizacoesNoGol, MediaDrilesCertos = mediaDrilesCertos,
                     MinNota = minNota, MaxCartaoAmarelo = maxCartaoAmarelo, MaxCartaoVermelho = maxCartaoVermelho,
                 },
                 Competicoes = (await _context.Competicoes.OrderBy(c => c.Nome).ToListAsync())
@@ -95,6 +101,11 @@ namespace ControleFutebolWeb.Controllers
                 .AsQueryable();
             if (posicoesSelec.Any())  jogadoresQuery = jogadoresQuery.Where(j => posicoesSelec.Contains(j.Posicao));
             if (timeIdsSelec.Any())   jogadoresQuery = jogadoresQuery.Where(j => timeIdsSelec.Contains(j.TimeId));
+            // Altura/peso: quem não tem o dado cadastrado fica fora quando o filtro é usado
+            if (alturaMin.HasValue)   jogadoresQuery = jogadoresQuery.Where(j => j.Altura != null && j.Altura >= alturaMin.Value);
+            if (alturaMax.HasValue)   jogadoresQuery = jogadoresQuery.Where(j => j.Altura != null && j.Altura <= alturaMax.Value);
+            if (pesoMin.HasValue)     jogadoresQuery = jogadoresQuery.Where(j => j.Peso != null && j.Peso >= pesoMin.Value);
+            if (pesoMax.HasValue)     jogadoresQuery = jogadoresQuery.Where(j => j.Peso != null && j.Peso <= pesoMax.Value);
             var todosJogadores = await jogadoresQuery.ToListAsync();
 
             // Filtros de idade (calculados em memória)
@@ -235,6 +246,19 @@ namespace ControleFutebolWeb.Controllers
                 if (minDuelosVencidos.HasValue    && duelosVencidos < minDuelosVencidos.Value) continue;
                 if (minFinalizacoesNoGol.HasValue && finNoGol       < minFinalizacoesNoGol.Value) continue;
                 if (minDrilesCertos.HasValue      && driles         < minDrilesCertos.Value) continue;
+
+                // Médias por jogo: total / jogos disputados (mesmo JG exibido na tabela).
+                // Sem jogos contabilizados não há média — o jogador sai do resultado.
+                bool MediaAbaixo(double? minimo, int total) =>
+                    minimo.HasValue && (jogosCount == 0 || (double)total / jogosCount < minimo.Value);
+                if (MediaAbaixo(mediaPassesChave, passesChave)) continue;
+                if (MediaAbaixo(mediaDesarmes, desarmes)) continue;
+                if (MediaAbaixo(mediaBloqueios, bloqueios)) continue;
+                if (MediaAbaixo(mediaInterceptacoes, interceptacoes)) continue;
+                if (MediaAbaixo(mediaDuelosVencidos, duelosVencidos)) continue;
+                if (MediaAbaixo(mediaFinalizacoesNoGol, finNoGol)) continue;
+                if (MediaAbaixo(mediaDrilesCertos, driles)) continue;
+
                 if (minNota.HasValue             && (!notaMedia.HasValue || notaMedia.Value < minNota.Value)) continue;
 
                 // Jogadores sem nenhum dado nos jogos filtrados são omitidos

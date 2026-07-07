@@ -62,6 +62,11 @@ namespace ControleFutebolWeb.Models
 
         public DateTime DtInc { get; set; }
         public DateTime? DtAlt { get; set; }
+
+        // Altura em centímetros e peso em quilos (buscados via api-football).
+        public int? Altura { get; set; }
+        public int? Peso { get; set; }
+
         public string? FotoUrl { get; set; }
         [Column("linktransfermarket")]
         public string? LinkTransfermarket { get; set; }

@@ -23,9 +23,33 @@
 
     <dt class="col-sm-2">Time</dt>
     <dd class="col-sm-10">@Model.Time?.Nome</dd>
+
+    <dt class="col-sm-2">Altura</dt>
+    <dd class="col-sm-10">@(Model.Altura.HasValue ? $"{Model.Altura} cm" : "—")</dd>
+
+    <dt class="col-sm-2">Peso</dt>
+    <dd class="col-sm-10">@(Model.Peso.HasValue ? $"{Model.Peso} kg" : "—")</dd>
 </dl>
+
+@if (TempData["Sucesso"] != null)
+{
+    <div class="alert alert-success">@TempData["Sucesso"]</div>
+}
+@if (TempData["Erro"] != null)
+{
+    <div class="alert alert-danger">@TempData["Erro"]</div>
+}
 
 <div>
     <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">Editar</a> |
     <a asp-action="Index" class="btn btn-secondary">Voltar</a>
+    @if (Model.IdApi > 0)
+    {
+        <form asp-action="BuscarAlturaPeso" asp-route-id="@Model.Id" method="post" style="display:inline;">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-info" title="Buscar altura e peso na API">
+                📏 Buscar Altura/Peso
+            </button>
+        </form>
+    }
 </div>

@@ -244,6 +244,23 @@
                     <input type="number" name="idadeMax" min="15" max="50" value="@f.IdadeMax" placeholder="ex: 30" />
                 </div>
 
+                <div class="sc-field">
+                    <label>Altura mín. (cm)</label>
+                    <input type="number" name="alturaMin" min="140" max="220" value="@f.AlturaMin" placeholder="ex: 180" />
+                </div>
+                <div class="sc-field">
+                    <label>Altura máx. (cm)</label>
+                    <input type="number" name="alturaMax" min="140" max="220" value="@f.AlturaMax" placeholder="ex: 195" />
+                </div>
+                <div class="sc-field">
+                    <label>Peso mín. (kg)</label>
+                    <input type="number" name="pesoMin" min="50" max="120" value="@f.PesoMin" placeholder="ex: 70" />
+                </div>
+                <div class="sc-field">
+                    <label>Peso máx. (kg)</label>
+                    <input type="number" name="pesoMax" min="50" max="120" value="@f.PesoMax" placeholder="ex: 90" />
+                </div>
+
                 <!-- Competição (tag selector) -->
                 <div class="sc-field" style="grid-column: span 2;">
                     <label>Competição</label>
@@ -333,6 +350,38 @@
                 <div class="sc-field">
                     <label>Máx. cartões vermelhos</label>
                     <input type="number" name="maxCartaoVermelho" min="0" value="@f.MaxCartaoVermelho" placeholder="ex: 1" />
+                </div>
+            </div>
+
+            <div class="sc-panel-title" style="margin-top:1.25rem;">Médias por Jogo (mínimo)</div>
+            <div class="sc-grid">
+                <div class="sc-field">
+                    <label>Méd. passes-chave</label>
+                    <input type="number" name="mediaPassesChave" min="0" step="0.1" value="@f.MediaPassesChave" placeholder="ex: 1.5" />
+                </div>
+                <div class="sc-field">
+                    <label>Méd. desarmes</label>
+                    <input type="number" name="mediaDesarmes" min="0" step="0.1" value="@f.MediaDesarmes" placeholder="ex: 2" />
+                </div>
+                <div class="sc-field">
+                    <label>Méd. bloqueios</label>
+                    <input type="number" name="mediaBloqueios" min="0" step="0.1" value="@f.MediaBloqueios" placeholder="ex: 0.5" />
+                </div>
+                <div class="sc-field">
+                    <label>Méd. interceptações</label>
+                    <input type="number" name="mediaInterceptacoes" min="0" step="0.1" value="@f.MediaInterceptacoes" placeholder="ex: 1" />
+                </div>
+                <div class="sc-field">
+                    <label>Méd. duelos vencidos</label>
+                    <input type="number" name="mediaDuelosVencidos" min="0" step="0.1" value="@f.MediaDuelosVencidos" placeholder="ex: 4" />
+                </div>
+                <div class="sc-field">
+                    <label>Méd. fin. no gol</label>
+                    <input type="number" name="mediaFinalizacoesNoGol" min="0" step="0.1" value="@f.MediaFinalizacoesNoGol" placeholder="ex: 1" />
+                </div>
+                <div class="sc-field">
+                    <label>Méd. dribles certos</label>
+                    <input type="number" name="mediaDrilesCertos" min="0" step="0.1" value="@f.MediaDrilesCertos" placeholder="ex: 1.5" />
                 </div>
             </div>
 

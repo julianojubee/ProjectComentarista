@@ -549,6 +549,12 @@ namespace ControleFutebolWeb.Services
         [JsonPropertyName("nationality")]
         public string? Nationality { get; set; }
 
+        [JsonPropertyName("height")]
+        public string? Height { get; set; }
+
+        [JsonPropertyName("weight")]
+        public string? Weight { get; set; }
+
         [JsonPropertyName("birth")]
         public AfPlayerBirth? Birth { get; set; }
     }
@@ -567,6 +573,8 @@ namespace ControleFutebolWeb.Services
         public string? FotoUrl { get; set; }
         public string? PrimeiroNome { get; set; }
         public string? UltimoNome { get; set; }
+        public int? Altura { get; set; }
+        public int? Peso { get; set; }
     }
 
     // ── /standings?league=X&season=Y ─────────────────────────────────────────

@@ -48,6 +48,18 @@
     </div>
 
     <div class="form-group">
+        <label asp-for="Altura" class="control-label">Altura (cm)</label>
+        <input asp-for="Altura" class="form-control" type="number" min="0" />
+        <span asp-validation-for="Altura" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="Peso" class="control-label">Peso (kg)</label>
+        <input asp-for="Peso" class="form-control" type="number" min="0" />
+        <span asp-validation-for="Peso" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
         <label asp-for="Observacoes" class="control-label">Observações</label>
         <textarea asp-for="Observacoes" class="form-control" rows="4" placeholder="Anotações sobre o jogador (ex: gols na carreira, chegada ao clube...)"></textarea>
     </div>

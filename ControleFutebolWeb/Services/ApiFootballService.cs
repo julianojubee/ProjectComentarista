@@ -297,7 +297,9 @@ namespace ControleFutebolWeb.Services
                 Nacionalidade  = entry.Player.Nationality,
                 FotoUrl        = entry.Player.Photo,
                 PrimeiroNome   = entry.Player.Firstname,
-                UltimoNome     = entry.Player.Lastname
+                UltimoNome     = entry.Player.Lastname,
+                Altura         = ExtrairNumero(entry.Player.Height),
+                Peso           = ExtrairNumero(entry.Player.Weight)
             };
         }
 
@@ -331,8 +333,18 @@ namespace ControleFutebolWeb.Services
                 Nacionalidade  = player.Nationality,
                 FotoUrl        = player.Photo,
                 PrimeiroNome   = player.Firstname,
-                UltimoNome     = player.Lastname
+                UltimoNome     = player.Lastname,
+                Altura         = ExtrairNumero(player.Height),
+                Peso           = ExtrairNumero(player.Weight)
             };
+        }
+
+        // A api-football retorna altura/peso como string (ex.: "181", "72 kg") — extrai só os dígitos.
+        private static int? ExtrairNumero(string? valor)
+        {
+            if (string.IsNullOrWhiteSpace(valor)) return null;
+            var digitos = new string(valor.Where(char.IsDigit).ToArray());
+            return int.TryParse(digitos, out var n) && n > 0 ? n : null;
         }
 
         // Resolve (ou cria) a Nacionalidade a partir do nome retornado pela API.
@@ -368,17 +380,18 @@ namespace ControleFutebolWeb.Services
                 var jogadoresApi = resp?.Response.FirstOrDefault()?.Players ?? new();
 
                 var idsApi = jogadoresApi.Select(p => (long)p.Id).ToList();
-                var idsExistentes = await context.Jogadores
+                var existentes = await context.Jogadores
                     .Where(j => j.IdApi != null && idsApi.Contains(j.IdApi.Value))
-                    .Select(j => j.IdApi!.Value)
                     .ToListAsync(ct);
+                var idsExistentes = existentes.Select(j => j.IdApi!.Value).ToHashSet();
 
                 var criados = 0;
+                var semAlturaPeso = new List<Jogador>();
                 foreach (var p in jogadoresApi)
                 {
                     if (idsExistentes.Contains(p.Id)) continue;
 
-                    context.Jogadores.Add(new Jogador
+                    var jogador = new Jogador
                     {
                         Nome         = p.Name,
                         PrimeiroNome = p.Firstname,
@@ -391,11 +404,39 @@ namespace ControleFutebolWeb.Services
                         IdApi        = p.Id,
                         Atualizado   = true,
                         DtInc        = DateTime.UtcNow
-                    });
+                    };
+                    context.Jogadores.Add(jogador);
+                    semAlturaPeso.Add(jogador);
                     criados++;
                 }
 
                 if (criados > 0) await context.SaveChangesAsync(ct);
+
+                // Jogadores já cadastrados que ainda não têm altura/peso também entram na busca.
+                semAlturaPeso.AddRange(existentes.Where(j => j.Altura == null || j.Peso == null));
+
+                // players/squads não traz altura/peso — busca em players/profiles só para
+                // quem ainda não tem os dados, evitando gastar requisições à toa.
+                var alterados = false;
+                foreach (var jogador in semAlturaPeso)
+                {
+                    try
+                    {
+                        var info = await BuscarPerfilJogadorAsync(jogador.IdApi!.Value, ct);
+                        if (info != null && (info.Altura.HasValue || info.Peso.HasValue))
+                        {
+                            if (info.Altura.HasValue) jogador.Altura = info.Altura;
+                            if (info.Peso.HasValue) jogador.Peso = info.Peso;
+                            alterados = true;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "[ApiFoot] Não foi possível buscar altura/peso do jogador {Nome} (IdApi={Id})", jogador.Nome, jogador.IdApi);
+                    }
+                }
+
+                if (alterados) await context.SaveChangesAsync(ct);
                 return criados;
             }
             catch (Exception ex)
@@ -1316,6 +1357,9 @@ namespace ControleFutebolWeb.Services
                             jogador.PrimeiroNome = info.PrimeiroNome;
                         if (!string.IsNullOrWhiteSpace(info.UltimoNome))
                             jogador.UltimoNome = info.UltimoNome;
+
+                        if (info.Altura.HasValue) jogador.Altura = info.Altura;
+                        if (info.Peso.HasValue) jogador.Peso = info.Peso;
                     }
                     jogador.Atualizado = true;
                     jogador.DtAlt = DateTime.UtcNow;

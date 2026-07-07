@@ -391,6 +391,14 @@
                         <span class="je-meta-item">Nº @Model.Jogador.NumeroCamisa</span>
                     }
                     <span class="je-meta-item">@Model.Jogador.Idade anos</span>
+                    @if (Model.Jogador.Altura.HasValue)
+                    {
+                        <span class="je-meta-item">@Model.Jogador.Altura cm</span>
+                    }
+                    @if (Model.Jogador.Peso.HasValue)
+                    {
+                        <span class="je-meta-item">@Model.Jogador.Peso kg</span>
+                    }
                     @if (Model.Jogador.Time != null)
                     {
                         <span class="je-meta-item je-meta-clube">
