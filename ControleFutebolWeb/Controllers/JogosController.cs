@@ -336,8 +336,13 @@ namespace ControleFutebolWeb.Controllers
         {
             if (id == null) return NotFound();
 
-            var jogo = await _context.Jogos.FindAsync(id);
+            // AsNoTracking: só exibição. jogo.Data é convertida pra Brasília só pra preencher
+            // o campo do formulário — não pode ser uma entidade rastreada, senão essa
+            // conversão "vazaria" pro banco se algo desse SaveChanges depois sem querer.
+            var jogo = await _context.Jogos.AsNoTracking().FirstOrDefaultAsync(j => j.Id == id);
             if (jogo == null) return NotFound();
+
+            jogo.Data = DateHelper.ParaBrasilia(jogo.Data);
 
             ViewBag.TimeCasaId = new SelectList(_context.Times, "Id", "Nome", jogo.TimeCasaId);
             ViewBag.TimeVisitanteId = new SelectList(_context.Times, "Id", "Nome", jogo.TimeVisitanteId);
@@ -353,13 +358,29 @@ namespace ControleFutebolWeb.Controllers
         {
             if (id != jogo.Id) return NotFound();
 
-            jogo.Data = jogo.Data.HasValue ? DateTime.SpecifyKind(jogo.Data.Value, DateTimeKind.Utc) : (DateTime?)null;
+            // O formulário mostra/recebe o horário em Brasília (ver GET acima) — converte
+            // de volta pra UTC antes de salvar, senão o jogo fica com a hora errada (3h a menos).
+            jogo.Data = DateHelper.DeBrasiliaParaUtc(jogo.Data);
 
             if (ModelState.IsValid)
             {
                 try
                 {
-                    _context.Update(jogo);
+                    // O form só edita Data/TimeCasaId/TimeVisitanteId/FormacaoCasaId/
+                    // FormacaoVisitanteId — não tem campo pra CompeticaoId, placar, rodada,
+                    // temporada etc. _context.Update(jogo) sobrescreveria TODAS as colunas
+                    // com os valores default do model binding (ex.: CompeticaoId=0), quebrando
+                    // a FK com competicoes. Por isso carrega a entidade existente e só altera
+                    // os campos que o formulário realmente edita.
+                    var existente = await _context.Jogos.FindAsync(id);
+                    if (existente == null) return NotFound();
+
+                    existente.Data = jogo.Data;
+                    existente.TimeCasaId = jogo.TimeCasaId;
+                    existente.TimeVisitanteId = jogo.TimeVisitanteId;
+                    existente.FormacaoCasaId = jogo.FormacaoCasaId;
+                    existente.FormacaoVisitanteId = jogo.FormacaoVisitanteId;
+
                     await _context.SaveChangesAsync();
                     return RedirectToAction(nameof(Index));
                 }
@@ -1088,6 +1109,39 @@ namespace ControleFutebolWeb.Controllers
             vm.AssistsPorJogador = assistsPorJogador;
 
             return View(vm);
+        }
+
+        // ── Mapa de Calor ───────────────────────────────────────────────────
+        // Pontos (PosicaoX/Y, em % do campo) de todas as escalações salvas pelo
+        // usuário atual nesse jogo — INICIAL, FINAL e cada fase tática intermediária
+        // contam como uma "foto" a mais, dando o histórico de posicionamento usado
+        // pelo mapa de calor. Filtra por jogador OU por lado (casa/visitante).
+        public async Task<IActionResult> MapaCalor(int id, int? jogadorId, int? timeId)
+        {
+            if (jogadorId == null && timeId == null) return BadRequest();
+
+            var usuarioId = _userManager.GetUserId(User);
+
+            var query = _context.Escalacoes.AsNoTracking()
+                .Where(e => e.JogoId == id && e.UsuarioId == usuarioId && e.JogadorId != null);
+
+            if (jogadorId.HasValue)
+            {
+                query = query.Where(e => e.JogadorId == jogadorId.Value);
+            }
+            else
+            {
+                var jogo = await _context.Jogos.AsNoTracking().FirstOrDefaultAsync(j => j.Id == id);
+                if (jogo == null) return NotFound();
+                var isCasa = timeId!.Value == jogo.TimeCasaId;
+                query = query.Where(e => e.IsTimeCasa == isCasa);
+            }
+
+            var pontos = await query
+                .Select(e => new { x = e.PosicaoX, y = e.PosicaoY })
+                .ToListAsync();
+
+            return Json(pontos);
         }
 
         [HttpPost]
@@ -1907,6 +1961,7 @@ namespace ControleFutebolWeb.Controllers
             var jogo = await _context.Jogos
                 .Include(j => j.TimeCasa)
                 .Include(j => j.TimeVisitante)
+                .Include(j => j.Competicao)
                 .FirstOrDefaultAsync(j => j.Id == id);
 
             if (jogo == null) return NotFound();
@@ -1950,9 +2005,11 @@ namespace ControleFutebolWeb.Controllers
             double? NotaDe(int? jogadorId) =>
                 jogadorId.HasValue && notasPorJogador.TryGetValue(jogadorId.Value, out var v) ? v : (double?)null;
 
-            // ── Cartões e substituições (ícones de evento na lista de jogadores) ──
+            // ── Cartões, substituições, gols e assistências (ícones de evento) ──
             var cartoes = await _context.Cartoes.Where(c => c.JogoId == id).ToListAsync();
             var substituicoes = await _context.Substituicoes.Where(s => s.JogoId == id).ToListAsync();
+            var golsJogo = await _context.Gols.Where(g => g.JogoId == id && !g.Contra).ToListAsync();
+            var assistsJogo = await _context.Assistencias.Where(a => a.JogoId == id).ToListAsync();
 
             // ── Escalação inicial — usada tanto na lista (com os eventos ocorridos
             // durante a partida) quanto no campinho, que mostra a formação de quem
@@ -1961,6 +2018,21 @@ namespace ControleFutebolWeb.Controllers
                 .Include(e => e.Jogador)
                 .Where(e => e.JogoId == id && e.UsuarioId == usuarioId && e.FaseEscalacao == "INICIAL")
                 .ToListAsync();
+
+            // Posição granular (ex.: "Lateral Direito") a partir da coordenada do slot
+            // na formação usada nesse jogo — mesma lógica do histórico de jogador em
+            // /Jogadores/Estatisticas. Cai pra categoria ampla (Escalacao.Posicao,
+            // "Goleiro"/"Defensor"/...) quando não dá pra casar com uma formação.
+            var slotsPorFormacao = (await _context.PosicoesFormacao.ToListAsync())
+                .GroupBy(p => p.FormacaoId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+            string? PosicaoGranularDe(Escalacao e)
+            {
+                var formacaoId = e.IsTimeCasa ? jogo.FormacaoCasaId : jogo.FormacaoVisitanteId;
+                if (formacaoId == null || !slotsPorFormacao.TryGetValue(formacaoId.Value, out var slots))
+                    return null;
+                return PosicaoJogadorHelper.PosicaoGranular(slots, e.PosicaoX, e.PosicaoY);
+            }
 
             object MontarJogadorLista(Escalacao e)
             {
@@ -1971,7 +2043,10 @@ namespace ControleFutebolWeb.Controllers
                     nome = j.Nome,
                     numero = j.NumeroCamisa,
                     titular = e.Titular,
+                    posicao = PosicaoGranularDe(e) ?? e.Posicao,
                     nota = NotaDe(j.Id),
+                    gols = golsJogo.Count(g => g.JogadorId == j.Id),
+                    assistencias = assistsJogo.Count(a => a.JogadorId == j.Id),
                     cartoesAmarelos = cartoes.Where(c => c.JogadorId == j.Id && c.Tipo == "Amarelo").Select(c => c.Minuto).OrderBy(m => m).ToList(),
                     cartaoVermelho = cartoes.Where(c => c.JogadorId == j.Id && c.Tipo == "Vermelho").Select(c => (int?)c.Minuto).FirstOrDefault(),
                     saiuMinuto = substituicoes.Where(s => s.JogadorSaiuId == j.Id).Select(s => (int?)s.Minuto).FirstOrDefault(),
@@ -1989,7 +2064,9 @@ namespace ControleFutebolWeb.Controllers
                     numero = j.NumeroCamisa,
                     posicaoX = e.PosicaoX,
                     posicaoY = e.PosicaoY,
-                    nota = NotaDe(j.Id)
+                    nota = NotaDe(j.Id),
+                    gols = golsJogo.Count(g => g.JogadorId == j.Id),
+                    assistencias = assistsJogo.Count(a => a.JogadorId == j.Id)
                 };
             }
 
@@ -2014,6 +2091,44 @@ namespace ControleFutebolWeb.Controllers
                 visReservas = escInicial.Where(e => !e.IsTimeCasa && !e.Titular && e.Jogador != null).OrderBy(OrdemPosicao).ThenBy(Numero).Select(MontarJogadorLista).ToList(),
             };
 
+            // ── Média de nota dos titulares (cabeçalho do modal) ────────────────
+            double? Media(IEnumerable<Escalacao> titulares)
+            {
+                var valores = titulares.Select(e => NotaDe(e.Jogador?.Id)).Where(n => n.HasValue).Select(n => n!.Value).ToList();
+                return valores.Count > 0 ? Math.Round(valores.Average(), 1) : (double?)null;
+            }
+            var mediaCasa = Media(escInicial.Where(e => e.IsTimeCasa && e.Titular && e.Jogador != null));
+            var mediaVisitante = Media(escInicial.Where(e => !e.IsTimeCasa && e.Titular && e.Jogador != null));
+
+            // ── Forma recente (últimos 5 jogos até esta partida, na mesma
+            // competição/temporada) — mesmo padrão do modal Pré-jogo. ────────────
+            async Task<List<string>> FormaRecenteAsync(int timeId)
+            {
+                var jogosTime = await _context.Jogos
+                    .Where(j => j.CompeticaoId == jogo.CompeticaoId
+                             && j.Temporada == jogo.Temporada
+                             && j.Id != id
+                             && (j.TimeCasaId == timeId || j.TimeVisitanteId == timeId)
+                             && j.PlacarCasa != null && j.PlacarVisitante != null
+                             && (jogo.Data == null || j.Data <= jogo.Data))
+                    .OrderByDescending(j => j.Data)
+                    .Take(5)
+                    .Select(j => new { j.TimeCasaId, j.PlacarCasa, j.PlacarVisitante })
+                    .ToListAsync();
+
+                var resultado = jogosTime.Select(j =>
+                {
+                    bool ehCasa = j.TimeCasaId == timeId;
+                    int golsTime = (ehCasa ? j.PlacarCasa : j.PlacarVisitante) ?? 0;
+                    int golsOpp = (ehCasa ? j.PlacarVisitante : j.PlacarCasa) ?? 0;
+                    return golsTime > golsOpp ? "V" : golsTime == golsOpp ? "E" : "D";
+                }).ToList();
+                resultado.Reverse();
+                return resultado;
+            }
+            var formaCasa = await FormaRecenteAsync(jogo.TimeCasaId);
+            var formaVisitante = await FormaRecenteAsync(jogo.TimeVisitanteId);
+
             var campo = new
             {
                 casa = escInicial.Where(e => e.IsTimeCasa && e.Titular && e.Jogador != null).Select(MontarJogadorCampo).ToList(),
@@ -2025,7 +2140,7 @@ namespace ControleFutebolWeb.Controllers
                 .Include(o => o.Jogador)
                 .Where(o => o.JogoId == id && o.UsuarioId == usuarioId)
                 .OrderBy(o => o.Ordem)
-                .Select(o => new { tipo = o.Tipo, jogadorNome = o.Jogador != null ? o.Jogador.Nome : null, texto = o.Texto })
+                .Select(o => new { id = o.Id, tipo = o.Tipo, jogadorNome = o.Jogador != null ? o.Jogador.Nome : null, texto = o.Texto })
                 .ToListAsync();
 
             // ── Estatísticas da partida (mesma fonte usada no painel de Estatísticas) ──
@@ -2154,8 +2269,15 @@ namespace ControleFutebolWeb.Controllers
                 placarVisitante = jogo.PlacarVisitante,
                 penaltisCasa = jogo.PenaltisCasa,
                 penaltisVisitante = jogo.PenaltisVisitante,
+                competicao = jogo.Competicao?.Nome,
+                rodada = jogo.Rodada > 0 ? jogo.Rodada : (int?)null,
+                data = DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy · HH:mm"),
                 casa = new { nome = jogo.TimeCasa?.Nome, escudo = string.IsNullOrEmpty(jogo.TimeCasa?.EscudoUrl) ? null : Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa.EscudoUrl }) },
                 visitante = new { nome = jogo.TimeVisitante?.Nome, escudo = string.IsNullOrEmpty(jogo.TimeVisitante?.EscudoUrl) ? null : Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante.EscudoUrl }) },
+                mediaCasa,
+                mediaVisitante,
+                formaCasa,
+                formaVisitante,
                 resumo,
                 lineup,
                 campo,

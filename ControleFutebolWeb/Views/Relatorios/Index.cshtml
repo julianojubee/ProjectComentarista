@@ -372,7 +372,7 @@
         .ms-chip-x { cursor: pointer; font-weight: 700; line-height: 1; opacity: .7; }
         .ms-chip-x:hover { opacity: 1; }
         .ms-panel {
-            position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50;
+            position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 100;
             background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px;
             box-shadow: 0 8px 24px rgba(0,0,0,.12); max-height: 280px; overflow-y: auto;
             display: none; padding: 4px;
@@ -673,7 +673,7 @@
                                     <th style="padding:8px 16px;text-align:left;width:32px;">#</th>
                                     <th style="padding:8px 8px;text-align:left;">Jogador</th>
                                     <th style="padding:8px;text-align:center;">Nota</th>
-                                    <th style="padding:8px;text-align:center;min-width:120px;">Decomposição</th>
+                                    <th style="padding:8px;text-align:center;min-width:120px;">Barra</th>
                                     <th style="padding:8px;text-align:center;">J</th>
                                     <th style="padding:8px;text-align:center;">V</th>
                                     <th style="padding:8px;text-align:center;">E</th>
@@ -737,10 +737,9 @@
                                             </div>
                                         </td>
                                         <td style="padding:9px 12px;min-width:160px;">
-                                            <div style="font-size:10px;color:var(--text-muted);display:flex;flex-direction:column;gap:2px;">
-                                                <div style="display:flex;justify-content:space-between;font-weight:700;color:inherit;">
-                                                    <span>Nota</span>
-                                                    <span>@item.NotaFinal.ToString("0.00")</span>
+                                            <div class="rpt-bar-wrap">
+                                                <div class="rpt-bar-bg">
+                                                    <div class="rpt-bar-fill" style="width:@(Math.Round(item.NotaFinal / 10.0 * 100, 1))%;background:linear-gradient(90deg,@item.NotaColor,transparent);"></div>
                                                 </div>
                                             </div>
                                         </td>

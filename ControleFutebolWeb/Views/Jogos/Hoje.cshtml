@@ -13,6 +13,22 @@
     var fusoHorarioBrasil = TimeZoneInfo.FindSystemTimeZoneById("America/Sao_Paulo");
     var agoraBrasil = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, fusoHorarioBrasil);
 
+    // Estimativa do minuto ao vivo a partir do horário de início: não há sincronização
+    // em tempo real com a API, então assume 1º tempo de 45min + 15min de intervalo.
+    // É só uma aproximação (não considera acréscimos reais).
+    // IMPORTANTE: jogo.Data fica salvo em UTC — precisa converter pra Brasília antes de
+    // comparar com agoraBrasil, senão a diferença de fuso (3h) derruba a conta toda.
+    string MinutoAoVivo(DateTime kickoffUtc)
+    {
+        var kickoff = DateHelper.ParaBrasilia(kickoffUtc) ?? kickoffUtc;
+        var decorridos = (int)(agoraBrasil - kickoff).TotalMinutes;
+        if (decorridos < 0) return "";
+        if (decorridos <= 45) return $"1T {decorridos}'";
+        if (decorridos <= 60) return "Intervalo";
+        if (decorridos <= 105) return $"2T {decorridos - 60}'";
+        return "2T 45+'";
+    }
+
     Func<int?, (string bg, string border, string text)> corComp = (id) => id switch
     {
         1 => ("rgba(34,197,94,0.12)", "rgba(34,197,94,0.3)", "#4ade80"),
@@ -34,7 +50,8 @@
         {
             encerrados.Add(jogo);
         }
-        else if (jogo.Data.HasValue && jogo.Data.Value <= agoraBrasil && agoraBrasil <= jogo.Data.Value.AddHours(2.5))
+        else if (jogo.Data.HasValue && DateHelper.ParaBrasilia(jogo.Data) is DateTime kickoffBrasil
+                 && kickoffBrasil <= agoraBrasil && agoraBrasil <= kickoffBrasil.AddHours(2.5))
         {
             vivos.Add(jogo);
         }
@@ -218,7 +235,7 @@
                                 <div class="hj-card-top">
                                     <span class="hj-comp-badge" style="background:@cc.bg; border:1px solid @cc.border; color:@cc.text;">@(jogo.Competicao?.Nome ?? "Sem competição")</span>
                                     <span class="hj-status-badge @(live ? "hj-status-live" : realizado ? "hj-status-enc" : "hj-status-ag")">
-                                        @(live ? "🔴 AO VIVO" : realizado ? "✓ Encerrado" : $"⏳ {(jogo.Data.HasValue ? DateHelper.FormatarData(jogo.Data, "HH:mm") : "--:--")}")
+                                        @(live ? $"🔴 {MinutoAoVivo(jogo.Data!.Value)}" : realizado ? "✓ Encerrado" : $"⏳ {(jogo.Data.HasValue ? DateHelper.FormatarData(jogo.Data, "HH:mm") : "--:--")}")
                                     </span>
                                     <span class="hj-hora">@(jogo.Data.HasValue ? DateHelper.FormatarData(jogo.Data, "HH:mm") : "--:--")</span>
                                 </div>

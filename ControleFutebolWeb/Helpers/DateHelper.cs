@@ -31,5 +31,16 @@ namespace ControleFutebolWeb.Helpers
                 : DateTime.SpecifyKind(data.Value, DateTimeKind.Utc);
             return TimeZoneInfo.ConvertTimeFromUtc(utc, _brt);
         }
+
+        /// <summary>
+        /// Converte um horário informado em Brasília (ex.: digitado num formulário) para
+        /// UTC, pra salvar no banco — inverso do <see cref="ParaBrasilia"/>.
+        /// </summary>
+        public static DateTime? DeBrasiliaParaUtc(DateTime? dataBrasilia)
+        {
+            if (!dataBrasilia.HasValue) return null;
+            var local = DateTime.SpecifyKind(dataBrasilia.Value, DateTimeKind.Unspecified);
+            return TimeZoneInfo.ConvertTimeToUtc(local, _brt);
+        }
     }
 }
