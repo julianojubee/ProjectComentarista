@@ -3627,7 +3627,8 @@
     .pgj-jog-row:hover { background:#1e1e1e; }
     .pgj-jog-num { width:28px; height:28px; border-radius:50%; color:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0; }
     .pgj-jog-info { flex:1; min-width:0; }
-    .pgj-jog-nome { font-size:.84rem; font-weight:600; color:#e5e7eb; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .pgj-jog-nome { font-size:.84rem; font-weight:600; color:#e5e7eb; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; text-decoration:none; cursor:pointer; }
+    .pgj-jog-nome:hover { color:#facc15; text-decoration:underline; }
     .pgj-jog-nome.res { font-weight:500; color:#9ca3af; }
     .pgj-jog-meta { display:flex; align-items:center; gap:6px; margin-top:2px; flex-wrap:wrap; }
     .pgj-jog-pos { font-size:.62rem; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:.06em; }
@@ -3646,7 +3647,8 @@
     .pgj-campo-col-label span { font-size:.68rem; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:.14em; }
     .pgjc-jog { position:absolute; transform:translate(-50%,-50%); text-align:center; z-index:2; }
     .pgjc-circle { width:30px; height:30px; border-radius:50%; color:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; border:2px solid rgba(255,255,255,.7); margin:0 auto; box-shadow:0 2px 6px rgba(0,0,0,.6); }
-    .pgjc-nome { font-size:7px; color:#fff; text-shadow:1px 1px 2px rgba(0,0,0,.9); margin-top:2px; white-space:nowrap; max-width:60px; overflow:hidden; text-overflow:ellipsis; text-align:center; line-height:1.2; margin-left:auto; margin-right:auto; }
+    .pgjc-nome { font-size:7px; color:#fff; text-shadow:1px 1px 2px rgba(0,0,0,.9); margin-top:2px; white-space:nowrap; max-width:60px; overflow:hidden; text-overflow:ellipsis; text-align:center; line-height:1.2; margin-left:auto; margin-right:auto; display:block; text-decoration:none; cursor:pointer; }
+    .pgjc-nome:hover { color:#facc15; text-decoration:underline; }
     .pgjc-nota { font-size:8px; font-weight:800; padding:1px 4px; border-radius:4px; display:inline-block; margin-top:2px; color:#fff; white-space:nowrap; }
 
     /* ── Estatísticas ── */
@@ -3776,7 +3778,7 @@
         return '<div class="pgj-jog-row">' +
             '<div class="pgj-jog-num" style="' + numStyle + '">' + (j.numero != null ? j.numero : '') + '</div>' +
             '<div class="pgj-jog-info">' +
-                '<div class="pgj-jog-nome' + (reserva ? ' res' : '') + '">' + escHtml(j.nome) + '</div>' +
+                '<a class="pgj-jog-nome' + (reserva ? ' res' : '') + '" href="/Jogadores/Estatisticas/' + j.jogadorId + '" title="Ver estatísticas de ' + escHtml(j.nome) + '">' + escHtml(j.nome) + '</a>' +
                 '<div class="pgj-jog-meta">' +
                     (j.posicao ? '<span class="pgj-jog-pos">' + abrevPosicao(j.posicao) + '</span>' : '') +
                     iconesEventos(j) +
@@ -3830,7 +3832,7 @@
                 '<div class="pgjc-circle" style="' + circleStyle + '">' + (j.numero != null ? j.numero : '') + '</div>' +
                 eventosHtml +
             '</div>' +
-            '<div class="pgjc-nome">' + escHtml(j.nome) + '</div>' +
+            '<a class="pgjc-nome" href="/Jogadores/Estatisticas/' + j.jogadorId + '" title="Ver estatísticas de ' + escHtml(j.nome) + '">' + escHtml(j.nome) + '</a>' +
             notaHtml +
         '</div>';
     }
