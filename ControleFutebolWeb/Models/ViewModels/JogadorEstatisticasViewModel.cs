@@ -37,6 +37,11 @@ namespace ControleFutebolWeb.Models.ViewModels
     {
         public double X { get; set; }
         public double Y { get; set; }
+
+        // 1.0 = posição titular salva na escalação do jogo; menor (ex.: 0.45) =
+        // destino de seta de movimentação — mesmo critério do mapa de calor de
+        // /Jogos/Analisar, pra pesar menos "lugares por onde passou".
+        public double Peso { get; set; } = 1.0;
     }
 
     // Médias por jogo (estatísticas importadas da api-football). Os pares

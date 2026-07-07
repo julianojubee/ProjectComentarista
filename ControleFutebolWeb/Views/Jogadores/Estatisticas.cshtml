@@ -169,8 +169,8 @@
     .je-perf-fill { height: 100%; border-radius: 999px; transition: width .8s ease; }
     .je-perf-escala { display: flex; justify-content: space-between; margin-top: 6px; font-size: .68rem; color: #374151; }
 
-    .je-perfil-grid { display: grid; grid-template-columns: 320px 1fr; gap: 20px; margin-bottom: 24px; align-items: start; }
-    @@media (max-width: 900px) { .je-perfil-grid { grid-template-columns: 1fr; } }
+    .je-perfil-grid { display: grid; grid-template-columns: 280px 1fr 320px; gap: 16px; margin-bottom: 24px; align-items: start; }
+    @@media (max-width: 1100px) { .je-perfil-grid { grid-template-columns: 1fr; } }
 
     .je-card { background: #161616; border: 1px solid #262626; border-radius: 12px; padding: 20px; }
     .je-card-titulo { font-size: .68rem; font-weight: 700; letter-spacing: .14em; color: #6b7280; text-transform: uppercase; margin-bottom: 16px; }
@@ -199,8 +199,16 @@
     }
     .je-campo-dot-principal { background: #facc15; z-index: 2; }
 
-    .je-heatmap-card { margin-bottom: 24px; }
-    .je-heatmap-campo { width: 260px; margin: 0 auto; }
+    .je-heatmap-badge {
+        font-size: .6rem; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+        background: rgba(212,165,32,.12); color: #d4a520; border: 1px solid rgba(212,165,32,.25);
+        text-transform: none; letter-spacing: 0;
+    }
+    .je-heatmap-body { display: flex; flex-direction: column; align-items: center; }
+    .je-heatmap-pitch { position: relative; width: 100%; max-width: 210px; aspect-ratio: 68/105; border-radius: 6px; overflow: hidden; }
+    .je-heatmap-legend { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; width: 100%; max-width: 210px; }
+    .je-heatmap-legend span { font-size: .6rem; color: #374151; font-weight: 600; }
+    .je-heatmap-legend-bar { flex: 1; margin: 0 10px; height: 5px; border-radius: 3px; background: linear-gradient(90deg, #4ade80, #facc15, #f97316, #ef4444); }
 
     .je-pos-lista { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
     .je-pos-item { display: flex; align-items: center; gap: 8px; }
@@ -212,18 +220,18 @@
     .je-pos-nome { font-size: .82rem; font-weight: 600; color: #e5e7eb; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .je-pos-sub { font-size: .68rem; color: #6b7280; }
 
-    .je-donuts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
-    .je-donut { text-align: center; }
+    .je-donuts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
+    .je-donut { text-align: center; min-width: 0; }
     .je-donut-ring { width: 74px; height: 74px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
     .je-donut-hole { width: 54px; height: 54px; border-radius: 50%; background: #1a1a1a; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: .9rem; color: #f1f5f9; }
     .je-donut-label { font-size: .82rem; font-weight: 600; color: #e5e7eb; margin-top: 6px; }
     .je-donut-sub { font-size: .68rem; color: #6b7280; margin-top: 2px; }
 
-    .je-chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-    @@media (max-width: 560px) { .je-chips { grid-template-columns: repeat(2, 1fr); } }
-    .je-chip { background: rgba(255,255,255,.03); border: 1px solid #222; border-radius: 10px; padding: 10px 8px; text-align: center; }
-    .je-chip-valor { font-size: 1.25rem; font-weight: 800; color: #f1f5f9; line-height: 1; }
-    .je-chip-label { font-size: .62rem; color: #6b7280; text-transform: uppercase; letter-spacing: .06em; margin-top: 3px; }
+    .je-chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    @@media (max-width: 560px) { .je-chips { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .je-chip { background: rgba(255,255,255,.03); border: 1px solid #222; border-radius: 10px; padding: 8px 4px; text-align: center; min-width: 0; }
+    .je-chip-valor { font-size: 1.05rem; font-weight: 800; color: #f1f5f9; line-height: 1; }
+    .je-chip-label { font-size: .56rem; color: #6b7280; text-transform: uppercase; letter-spacing: .04em; margin-top: 3px; overflow-wrap: break-word; }
 
     .je-section { margin-bottom: 24px; }
     .je-section-row { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; cursor: pointer; background: none; border: none; width: 100%; padding: 0 0 16px; border-bottom: 1px solid transparent; }
@@ -488,8 +496,13 @@
             </div>
         }
 
-        <!-- Perfil tático: posições em campo + médias por jogo -->
-        @if (Model.PosicoesJogadas.Any() || Model.Medias != null)
+        <!-- Perfil tático: posições em campo + mapa de calor + médias por jogo -->
+        @{
+            var competicaoNomeAtual = competicaoAtual.HasValue
+                ? competicoes.FirstOrDefault(c => c.Id == competicaoAtual)?.Nome
+                : "Todas as competições";
+        }
+        @if (Model.PosicoesJogadas.Any() || Model.PontosHeatmap.Any() || Model.Medias != null)
         {
             <div class="je-perfil-grid">
                 @if (Model.PosicoesJogadas.Any())
@@ -525,6 +538,49 @@
                                     </div>
                                 }
                             </div>
+                        </div>
+                    </div>
+                }
+
+                @if (Model.PontosHeatmap.Any())
+                {
+                    <div class="je-card">
+                        <div class="je-card-titulo" style="display:flex; align-items:center; justify-content:space-between;">
+                            <span>🔥 Mapa de Calor</span>
+                            <span class="je-heatmap-badge">@competicaoNomeAtual</span>
+                        </div>
+                        <div class="je-heatmap-body">
+                        <div id="jeHeatmapCampo" class="je-heatmap-pitch">
+                            <svg viewBox="0 0 680 1050" xmlns="http://www.w3.org/2000/svg" style="position:absolute; inset:0; width:100%; height:100%;">
+                                <rect width="680" height="1050" fill="#0d3d1f" />
+                                <rect x="0" y="0" width="680" height="75" fill="#0e4221" opacity="0.5" />
+                                <rect x="0" y="150" width="680" height="75" fill="#0e4221" opacity="0.5" />
+                                <rect x="0" y="300" width="680" height="75" fill="#0e4221" opacity="0.5" />
+                                <rect x="0" y="450" width="680" height="75" fill="#0e4221" opacity="0.5" />
+                                <rect x="0" y="600" width="680" height="75" fill="#0e4221" opacity="0.5" />
+                                <rect x="0" y="750" width="680" height="75" fill="#0e4221" opacity="0.5" />
+                                <rect x="0" y="900" width="680" height="75" fill="#0e4221" opacity="0.5" />
+                                <rect x="5" y="5" width="670" height="1040" rx="2" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="3" />
+                                <line x1="5" y1="525" x2="675" y2="525" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                <circle cx="340" cy="525" r="91.5" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                <circle cx="340" cy="525" r="4" fill="rgba(255,255,255,0.5)" />
+                                <rect x="129" y="5" width="422" height="132" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                <rect x="229" y="5" width="222" height="55" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                <circle cx="340" cy="116" r="4" fill="rgba(255,255,255,0.5)" />
+                                <path d="M 245 137 A 91.5 91.5 0 0 1 435 137" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                <rect x="273" y="0" width="134" height="18" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.35)" stroke-width="2" />
+                                <rect x="129" y="913" width="422" height="132" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                <rect x="229" y="990" width="222" height="55" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                <circle cx="340" cy="934" r="4" fill="rgba(255,255,255,0.5)" />
+                                <path d="M 245 913 A 91.5 91.5 0 0 0 435 913" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                <rect x="273" y="1032" width="134" height="18" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.35)" stroke-width="2" />
+                            </svg>
+                        </div>
+                        <div class="je-heatmap-legend">
+                            <span>Baixa</span>
+                            <div class="je-heatmap-legend-bar"></div>
+                            <span>Alta</span>
+                        </div>
                         </div>
                     </div>
                 }
@@ -577,18 +633,6 @@
             </div>
         }
 
-        @if (Model.PontosHeatmap.Any())
-        {
-            <div class="je-card je-heatmap-card">
-                <div class="je-card-titulo">🔥 Mapa de Calor <span style="text-transform:none; letter-spacing:0; font-weight:400; color:#4b5563;">(posições médias em @Model.PontosHeatmap.Count jogo@(Model.PontosHeatmap.Count == 1 ? "" : "s"))</span></div>
-                <div id="jeHeatmapCampo" class="je-campo je-heatmap-campo">
-                    <div class="je-campo-linha"></div>
-                    <div class="je-campo-circulo"></div>
-                    <div class="je-campo-area-sup"></div>
-                    <div class="je-campo-area-inf"></div>
-                </div>
-            </div>
-        }
 
         <!-- Histórico por Temporada -->
         @if (Model.Jogador.IdApi.HasValue)
@@ -845,7 +889,7 @@
         // uma função ainda indefinida.
         window.addEventListener('load', function () {
             desenharMapaCalor('jeHeatmapCampo', @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
-                Model.PontosHeatmap.Select(p => new { x = p.X, y = p.Y }))));
+                Model.PontosHeatmap.Select(p => new { x = p.X, y = p.Y, peso = p.Peso }))));
         });
         </text>
     }

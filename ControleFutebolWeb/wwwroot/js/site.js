@@ -99,12 +99,14 @@
 //// fetch('/Jogos/RegistrarGol', {...})
 
 // ── Mapa de calor ────────────────────────────────────────────────────────
-// Desenha, num canvas inserido como 1º filho do elemento `campoId` (precisa
-// ter position:relative + overflow:hidden), a "densidade" dos pontos
-// (x/y em % do campo) recebidos — cada ponto vira um borrão radial e os
-// borrões se somam (composição 'lighter') antes de virar cor, igual ao
-// algoritmo clássico de heatmap.js, só que sem depender de lib externa.
-// Compartilhada entre /Jogos/Analisar e /Jogadores/Estatisticas.
+// Desenha, num canvas anexado por cima do conteúdo do elemento `campoId`
+// (precisa ter position:relative + overflow:hidden), a "densidade" dos
+// pontos (x/y em % do campo) recebidos — cada ponto vira um borrão radial e
+// os borrões se somam (composição 'lighter') antes de virar cor, igual ao
+// algoritmo clássico de heatmap.js, só que sem depender de lib externa. Fica
+// por cima (não na frente das linhas por baixo) porque fora dos borrões o
+// canvas é 100% transparente. Compartilhada entre /Jogos/Analisar e
+// /Jogadores/Estatisticas.
 function desenharMapaCalor(campoId, pontos) {
     const campo = document.getElementById(campoId);
     if (!campo) return;
@@ -112,7 +114,7 @@ function desenharMapaCalor(campoId, pontos) {
     if (!canvas) {
         canvas = document.createElement('canvas');
         canvas.className = 'heatmap-overlay';
-        campo.insertBefore(canvas, campo.firstChild);
+        campo.appendChild(canvas);
     }
     const w = campo.clientWidth || 300;
     const h = campo.clientHeight || 450;
@@ -133,8 +135,12 @@ function desenharMapaCalor(campoId, pontos) {
     pontos.forEach(p => {
         const px = (p.x / 100) * w;
         const py = (p.y / 100) * h;
+        // peso < 1 (ex.: destino de seta de movimentação) gera um borrão mais
+        // fraco, que fica amarelo/verde em vez de vermelho na escala de cor —
+        // marca "lugar por onde passou", não a posição principal.
+        const peso = p.peso == null ? 1 : p.peso;
         const grad = octx.createRadialGradient(px, py, 0, px, py, raio);
-        grad.addColorStop(0, 'rgba(0,0,0,.55)');
+        grad.addColorStop(0, `rgba(0,0,0,${.55 * peso})`);
         grad.addColorStop(1, 'rgba(0,0,0,0)');
         octx.fillStyle = grad;
         octx.beginPath();
@@ -142,7 +148,7 @@ function desenharMapaCalor(campoId, pontos) {
         octx.fill();
     });
 
-    const stops = [[37, 99, 235], [16, 185, 129], [250, 204, 21], [239, 68, 68]];
+    const stops = [[74, 222, 128], [250, 204, 21], [249, 115, 22], [239, 68, 68]];
     function corPorIntensidade(t) {
         const pos = t * (stops.length - 1);
         const i = Math.min(stops.length - 2, Math.floor(pos));

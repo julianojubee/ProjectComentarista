@@ -454,6 +454,7 @@ namespace ControleFutebolWeb.Controllers
             var escalacoesQuery = _context.Escalacoes
                 .Include(e => e.Jogo).ThenInclude(j => j.TimeCasa)
                 .Include(e => e.Jogo).ThenInclude(j => j.TimeVisitante)
+                .Include(e => e.Setas)
                 .Where(e => e.JogadorId == id && (e.UsuarioId == uid || e.UsuarioId == null));
 
             if (competicaoId.HasValue)
@@ -464,14 +465,17 @@ namespace ControleFutebolWeb.Controllers
             var jogosComNotaManualIds = notas.Select(n => n.JogoId).ToHashSet();
             var jogosComEstatisticaIds = estatisticas.Select(e => e.JogoId).ToHashSet();
 
-            // Escalação titular usada em cada jogo (prefere fase INICIAL; se o jogador só
-            // aparece na FINAL — entrou no decorrer —, usa a FINAL). Reaproveitada tanto
-            // para a posição por jogo (histórico) quanto para o agregado "Posições em campo".
+            // Escalação titular usada em cada jogo — prefere a do próprio usuário
+            // (com as setas/ajustes dele) sobre a compartilhada (importada, UsuarioId
+            // null), e entre as do usuário prefere fase INICIAL (se ele só aparece na
+            // FINAL — entrou no decorrer —, usa a FINAL). Reaproveitada tanto para a
+            // posição por jogo (histórico) quanto para o agregado "Posições em campo".
             var escalacaoSelecionadaPorJogo = escalacoes
                 .Where(e => e.Titular && !string.IsNullOrWhiteSpace(e.Posicao) && e.Posicao != "RES")
                 .GroupBy(e => e.JogoId)
                 .Select(g => g
-                    .OrderBy(e => e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null ? 0 : 1)
+                    .OrderBy(e => e.UsuarioId == uid ? 0 : 1)
+                    .ThenBy(e => e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null ? 0 : 1)
                     .First())
                 .ToList();
 
@@ -651,8 +655,15 @@ namespace ControleFutebolWeb.Controllers
             // acima pra não puxar a média pro canto do ataque com (0,0) inexistente).
             var pontosHeatmap = posicoesPorJogo
                 .Where(e => e.PosicaoX != 0 || e.PosicaoY != 0)
-                .Select(e => new PontoHeatmap { X = e.PosicaoX, Y = e.PosicaoY })
+                .Select(e => new PontoHeatmap { X = e.PosicaoX, Y = e.PosicaoY, Peso = 1.0 })
                 .ToList();
+
+            // Destinos das setas de movimentação daquele jogo — mesmo peso reduzido
+            // usado no mapa de calor de /Jogos/Analisar (indica lugar por onde
+            // passou, não a posição principal).
+            pontosHeatmap.AddRange(posicoesPorJogo
+                .SelectMany(e => e.Setas)
+                .Select(s => new PontoHeatmap { X = s.X, Y = s.Y, Peso = 0.45 }));
 
             // ── Médias por jogo (estatísticas importadas) ─────────────────
             MediasPorJogo? medias = null;

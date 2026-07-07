@@ -1119,6 +1119,8 @@ namespace ControleFutebolWeb.Controllers
         // Some-se o destino de cada seta de movimentação (EscalacaoSeta.X/Y) —
         // a origem da seta já é a própria Escalacao (não duplica), só o destino
         // é um ponto novo, dando mais densidade sem depender só das fases salvas.
+        // Peso menor (mais fraco/amarelado no mapa): a seta indica um lugar por
+        // onde o jogador passou/se movimentou, não a posição principal dele.
         public async Task<IActionResult> MapaCalor(int id, int? jogadorId, int? timeId)
         {
             if (jogadorId == null && timeId == null) return BadRequest();
@@ -1144,12 +1146,12 @@ namespace ControleFutebolWeb.Controllers
             }
 
             var pontos = await query
-                .Select(e => new { x = e.PosicaoX, y = e.PosicaoY })
+                .Select(e => new { x = e.PosicaoX, y = e.PosicaoY, peso = 1.0 })
                 .ToListAsync();
 
             var destinosSetas = await query
                 .SelectMany(e => e.Setas)
-                .Select(s => new { x = s.X, y = s.Y })
+                .Select(s => new { x = s.X, y = s.Y, peso = 0.45 })
                 .ToListAsync();
 
             pontos.AddRange(destinosSetas);
