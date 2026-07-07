@@ -195,18 +195,7 @@
       <p style="font-family:'Barlow',sans-serif; font-size:14px; color:rgba(255,255,255,0.35); margin-top:6px;">Entre na sua conta para continuar a análise.</p>
     </div>
 
-    @{
-        var sessaoEmUso = ViewBag.SessaoEmUso == true;
-    }
-
-    @if (ViewBag.SessaoEncerrada == true)
-    {
-        <div class="login-error" style="background: rgba(234,179,8,0.1); border-color: rgba(234,179,8,0.35); color:#EAB308;">
-            <div>Sua sessão foi encerrada porque este usuário entrou em outro local.</div>
-        </div>
-    }
-
-    @if (!ViewData.ModelState.IsValid && !sessaoEmUso)
+    @if (!ViewData.ModelState.IsValid)
     {
         <div class="login-error">
             @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
@@ -216,18 +205,9 @@
         </div>
     }
 
-    @if (sessaoEmUso)
-    {
-        <div class="login-error">
-            <div>Este usuário já está conectado em outro dispositivo ou navegador.</div>
-            <div>Deseja encerrar o outro acesso e entrar aqui?</div>
-        </div>
-    }
-
     <!-- Form -->
     <form method="post" asp-action="Login" asp-route-returnUrl="@ViewBag.ReturnUrl" style="display:flex; flex-direction:column; gap:18px;">
       @Html.AntiForgeryToken()
-      <input asp-for="ForcarLogin" type="hidden" id="ForcarLogin" value="false" />
       <div>
         <label style="display:block; font-family:'Barlow',sans-serif; font-size:12px; font-weight:500; color:rgba(255,255,255,0.5); letter-spacing:0.8px; margin-bottom:7px;" asp-for="UserName">USUÁRIO</label>
         <input asp-for="UserName" class="login-input" type="text" placeholder="Seu usuário ou e-mail" autocomplete="username" autofocus>
@@ -245,17 +225,7 @@
         <a asp-action="ForgotPassword" style="font-family:'Barlow',sans-serif; font-size:13px; color:rgba(234,179,8,0.7); text-decoration:none;">Esqueci minha senha</a>
       </div>
 
-      @if (sessaoEmUso)
-      {
-          <button type="submit" class="login-btn" style="margin-top:8px; background:#dc2626; color:#fff;"
-                  onclick="document.getElementById('ForcarLogin').value='true';">
-            Encerrar outro acesso e entrar
-          </button>
-      }
-      else
-      {
-          <button type="submit" class="login-btn" style="margin-top:8px;">Entrar em campo ⟶</button>
-      }
+      <button type="submit" class="login-btn" style="margin-top:8px;">Entrar em campo ⟶</button>
     </form>
 
     <!-- Divider -->

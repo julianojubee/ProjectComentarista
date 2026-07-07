@@ -73,16 +73,6 @@
                         }
                     </td>
                     <td style="text-align:right">
-                        @if (!string.IsNullOrEmpty(u.SessionId))
-                        {
-                            <!-- Encerrar sessão ativa -->
-                            <form asp-action="EncerrarSessao" method="post" style="display:inline"
-                                  onsubmit="return confirm('Encerrar a sessão de @u.Nome?')">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="id" value="@u.Id" />
-                                <button class="btn btn-sm btn-outline-secondary">Encerrar sessão</button>
-                            </form>
-                        }
                         <!-- Redefinir senha -->
                         <button class="btn btn-sm btn-outline-warning"
                                 data-bs-toggle="modal"
