@@ -1,8 +1,10 @@
+using System.Security.Claims;
 using System.Text;
 using System.Text.Encodings.Web;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
 using ControleFutebolWeb.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -30,12 +32,13 @@ namespace ControleFutebolWeb.Controllers
         }
 
         [AllowAnonymous]
-        public IActionResult Login(string? returnUrl = null)
+        public IActionResult Login(string? returnUrl = null, bool sessaoEncerrada = false)
         {
             if (User.Identity?.IsAuthenticated == true)
                 return RedirectToAction("Index", "Home");
 
             ViewBag.ReturnUrl = returnUrl;
+            ViewBag.SessaoEncerrada = sessaoEncerrada;
             return View();
         }
 
@@ -44,23 +47,50 @@ namespace ControleFutebolWeb.Controllers
         {
             if (!ModelState.IsValid) return View(model);
 
-            var result = await _signInManager.PasswordSignInAsync(
-                model.UserName, model.Password, model.RememberMe, lockoutOnFailure: true);
-
-            if (result.Succeeded)
+            var usuario = await _userManager.FindByNameAsync(model.UserName);
+            if (usuario == null)
             {
-                if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
-                    return Redirect(returnUrl);
-                return RedirectToAction("Index", "Home");
+                ModelState.AddModelError("", "Usuário ou senha inválidos.");
+                return View(model);
             }
 
-            ModelState.AddModelError("", "Usuário ou senha inválidos.");
-            return View(model);
+            var checagem = await _signInManager.CheckPasswordSignInAsync(usuario, model.Password, lockoutOnFailure: true);
+            if (!checagem.Succeeded)
+            {
+                ModelState.AddModelError("", "Usuário ou senha inválidos.");
+                return View(model);
+            }
+
+            if (!string.IsNullOrEmpty(usuario.SessionId) && !model.ForcarLogin)
+            {
+                ViewBag.SessaoEmUso = true;
+                ModelState.AddModelError("", "Este usuário já está conectado em outro local.");
+                return View(model);
+            }
+
+            var sessionId = Guid.NewGuid().ToString("N");
+            usuario.SessionId = sessionId;
+            await _userManager.UpdateAsync(usuario);
+
+            var claims = new[] { new Claim(ApplicationUser.SessionClaimType, sessionId) };
+            var props = new AuthenticationProperties { IsPersistent = model.RememberMe };
+            await _signInManager.SignInWithClaimsAsync(usuario, props, claims);
+
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+                return Redirect(returnUrl);
+            return RedirectToAction("Index", "Home");
         }
 
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()
         {
+            var usuario = await _userManager.GetUserAsync(User);
+            if (usuario != null)
+            {
+                usuario.SessionId = null;
+                await _userManager.UpdateAsync(usuario);
+            }
+
             await _signInManager.SignOutAsync();
             return RedirectToAction("Login");
         }
@@ -216,6 +246,26 @@ namespace ControleFutebolWeb.Controllers
             if (usuario != null) await _userManager.DeleteAsync(usuario);
 
             TempData["Sucesso"] = "Usuário excluído.";
+            return RedirectToAction("Usuarios");
+        }
+
+        [HttpPost, Authorize, ValidateAntiForgeryToken]
+        public async Task<IActionResult> EncerrarSessao(string id)
+        {
+            var admin = await _userManager.GetUserAsync(User);
+            if (admin == null || !admin.IsAdmin) return Forbid();
+
+            var usuario = await _userManager.FindByIdAsync(id);
+            if (usuario == null)
+            {
+                TempData["Erro"] = "Usuário não encontrado.";
+                return RedirectToAction("Usuarios");
+            }
+
+            usuario.SessionId = null;
+            await _userManager.UpdateAsync(usuario);
+
+            TempData["Sucesso"] = $"Sessão de {usuario.Nome} encerrada.";
             return RedirectToAction("Usuarios");
         }
 
