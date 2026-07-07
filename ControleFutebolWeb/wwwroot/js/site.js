@@ -97,5 +97,75 @@
 
 //// Exemplo de uso: quando registrar um gol via fetch
 //// fetch('/Jogos/RegistrarGol', {...})
+
+// ── Mapa de calor ────────────────────────────────────────────────────────
+// Desenha, num canvas inserido como 1º filho do elemento `campoId` (precisa
+// ter position:relative + overflow:hidden), a "densidade" dos pontos
+// (x/y em % do campo) recebidos — cada ponto vira um borrão radial e os
+// borrões se somam (composição 'lighter') antes de virar cor, igual ao
+// algoritmo clássico de heatmap.js, só que sem depender de lib externa.
+// Compartilhada entre /Jogos/Analisar e /Jogadores/Estatisticas.
+function desenharMapaCalor(campoId, pontos) {
+    const campo = document.getElementById(campoId);
+    if (!campo) return;
+    let canvas = campo.querySelector('.heatmap-overlay');
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.className = 'heatmap-overlay';
+        campo.insertBefore(canvas, campo.firstChild);
+    }
+    const w = campo.clientWidth || 300;
+    const h = campo.clientHeight || 450;
+    canvas.width = w;
+    canvas.height = h;
+    canvas.style.display = 'block';
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, w, h);
+    if (!pontos.length) return;
+
+    const off = document.createElement('canvas');
+    off.width = w;
+    off.height = h;
+    const octx = off.getContext('2d');
+    octx.globalCompositeOperation = 'lighter';
+    const raio = Math.max(w, h) * 0.17;
+    pontos.forEach(p => {
+        const px = (p.x / 100) * w;
+        const py = (p.y / 100) * h;
+        const grad = octx.createRadialGradient(px, py, 0, px, py, raio);
+        grad.addColorStop(0, 'rgba(0,0,0,.55)');
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        octx.fillStyle = grad;
+        octx.beginPath();
+        octx.arc(px, py, raio, 0, Math.PI * 2);
+        octx.fill();
+    });
+
+    const stops = [[37, 99, 235], [16, 185, 129], [250, 204, 21], [239, 68, 68]];
+    function corPorIntensidade(t) {
+        const pos = t * (stops.length - 1);
+        const i = Math.min(stops.length - 2, Math.floor(pos));
+        const frac = pos - i;
+        const c0 = stops[i], c1 = stops[i + 1];
+        return [
+            c0[0] + (c1[0] - c0[0]) * frac,
+            c0[1] + (c1[1] - c0[1]) * frac,
+            c0[2] + (c1[2] - c0[2]) * frac
+        ];
+    }
+
+    const img = octx.getImageData(0, 0, w, h);
+    const data = img.data;
+    for (let i = 0; i < data.length; i += 4) {
+        const a = data[i + 3] / 255;
+        if (a <= 0.03) { data[i + 3] = 0; continue; }
+        const t = Math.min(1, a / 0.55);
+        const [r, g, b] = corPorIntensidade(t);
+        data[i] = r; data[i + 1] = g; data[i + 2] = b;
+        data[i + 3] = Math.min(255, a * 255 * 1.5);
+    }
+    ctx.putImageData(img, 0, 0);
+}
 ////   .then(response => response.json())
 ////   .then(data => atualizarPlacar(data.golsCasa, data.golsVisitante));

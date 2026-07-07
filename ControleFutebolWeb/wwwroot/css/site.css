@@ -103,6 +103,19 @@
     overflow: hidden;
 }
 
+/* ── Mapa de calor: canvas inserido como primeiro filho do elemento-campo alvo,
+   então fica atrás das linhas do campo e dos jogadores (que vêm depois no DOM).
+   Compartilhado entre /Jogos/Analisar e /Jogadores/Estatisticas. ── */
+.heatmap-overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    display: none;
+    opacity: .85;
+}
+
     .campo .jogador {
 
         font-weight: normal !important;

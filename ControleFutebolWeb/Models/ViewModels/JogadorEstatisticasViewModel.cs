@@ -13,6 +13,11 @@ namespace ControleFutebolWeb.Models.ViewModels
         // Posições em que o jogador foi escalado (agregado das escalações do usuário).
         public List<PosicaoJogadaItem> PosicoesJogadas { get; set; } = new();
 
+        // Um ponto (PosicaoX/Y) por jogo em que o jogador foi titular com coordenada
+        // real salva — base do mapa de calor de posições (histórico completo, não só
+        // o agregado por categoria de PosicoesJogadas).
+        public List<PontoHeatmap> PontosHeatmap { get; set; } = new();
+
         // Médias por jogo a partir das estatísticas importadas (null = sem dados).
         public MediasPorJogo? Medias { get; set; }
     }
@@ -24,6 +29,12 @@ namespace ControleFutebolWeb.Models.ViewModels
         public string Posicao { get; set; } = "";
         public int Jogos { get; set; }
         public double Pct { get; set; }
+        public double X { get; set; }
+        public double Y { get; set; }
+    }
+
+    public class PontoHeatmap
+    {
         public double X { get; set; }
         public double Y { get; set; }
     }

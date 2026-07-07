@@ -647,6 +647,13 @@ namespace ControleFutebolWeb.Controllers
 
             AfastarPosicoesSobrepostas(posicoesJogadas);
 
+            // Um ponto por jogo (titular, com coordenada real — mesmo critério usado
+            // acima pra não puxar a média pro canto do ataque com (0,0) inexistente).
+            var pontosHeatmap = posicoesPorJogo
+                .Where(e => e.PosicaoX != 0 || e.PosicaoY != 0)
+                .Select(e => new PontoHeatmap { X = e.PosicaoX, Y = e.PosicaoY })
+                .ToList();
+
             // ── Médias por jogo (estatísticas importadas) ─────────────────
             MediasPorJogo? medias = null;
             if (estatisticas.Count > 0)
@@ -688,6 +695,7 @@ namespace ControleFutebolWeb.Controllers
                 TotalAssistencias = assistencias.Count,
                 NotasPorJogo = notasPorJogo,
                 PosicoesJogadas = posicoesJogadas,
+                PontosHeatmap = pontosHeatmap,
                 Medias = medias
             };
 

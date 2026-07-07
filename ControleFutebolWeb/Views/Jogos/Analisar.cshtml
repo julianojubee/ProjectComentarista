@@ -241,17 +241,7 @@
         cursor: pointer;
     }
 
-    /* ── Mapa de calor: canvas inserido como primeiro filho do .campo, então
-       fica atrás das linhas do campo e dos jogadores (que vêm depois no DOM) ── */
-    .heatmap-overlay {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        display: none;
-        opacity: .85;
-    }
+    /* .heatmap-overlay mora em site.css (compartilhada com Estatisticas.cshtml) */
 
     body.modo-seta .campo { cursor: crosshair; }
     body.modo-seta .posicao-drop { cursor: pointer; }
@@ -1602,28 +1592,10 @@
 </div>
 
 <!-- ── Mapa de calor ───────────────────────────────────────────────── -->
-<div class="d-flex align-items-center gap-2 mb-2 p-2"
-     style="background:#0f172a; border-radius:8px; color:#e2e8f0; flex-wrap:wrap;">
-    <label style="font-size:11px; color:#94a3b8;">🔥 Mapa de calor</label>
-    <select id="heatmapAlvo" class="form-select form-select-sm" style="width:220px;" onchange="mostrarMapaCalor()">
-        <option value="">— selecione —</option>
-        <optgroup label="@Model.Jogo.TimeCasa.Nome">
-            <option value="casa">🔥 Todo o time</option>
-            @foreach (var j in (List<ControleFutebolWeb.Models.Jogador>)Model.JogadoresCasa)
-            {
-                <option value="j-@(j.Id)-casa">@j.Nome</option>
-            }
-        </optgroup>
-        <optgroup label="@Model.Jogo.TimeVisitante.Nome">
-            <option value="visitante">🔥 Todo o time</option>
-            @foreach (var j in (List<ControleFutebolWeb.Models.Jogador>)Model.JogadoresVisitante)
-            {
-                <option value="j-@(j.Id)-vis">@j.Nome</option>
-            }
-        </optgroup>
-    </select>
-    <button type="button" class="btn btn-sm btn-outline-danger" onclick="ocultarMapaCalor()">Ocultar</button>
-    <span style="font-size:11px; color:#64748b;">baseado em todas as escalações salvas neste jogo (inicial, final e fases táticas)</span>
+<div class="mb-2">
+    <button type="button" id="btnMapaCalor" class="btn btn-sm btn-outline-warning" onclick="abrirMapaCalor()">
+        🔥 Mapa de Calor
+    </button>
 </div>
 
 <div class="mb-3">
@@ -3428,6 +3400,57 @@
     </div>
 </div>
 
+<!-- ── Modal: Mapa de Calor ────────────────────────────────────────── -->
+<div id="modal-mapacalor" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:10000; align-items:center; justify-content:center;">
+    <div style="background:#0b0f16; border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:1.2rem 1.4rem; width:900px; max-width:97vw; max-height:93vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,.5); position:relative;">
+        <button onclick="fecharMapaCalor()" style="position:absolute; top:14px; right:16px; z-index:5; background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.15); color:#e2e8f0; font-size:18px; width:30px; height:30px; border-radius:50%; cursor:pointer; line-height:1;">&times;</button>
+        <h5 style="margin:0 0 1rem; color:#e2e8f0; font-size:15px; font-weight:700;">🔥 Mapa de Calor</h5>
+        <div class="mc-grid">
+            <div class="mc-col">
+                <div class="mc-col-head">@Model.Jogo.TimeCasa.Nome</div>
+                <select id="mcSelectCasa" class="form-select form-select-sm" onchange="mcMostrar('casa')">
+                    <option value="">— selecione —</option>
+                    <option value="time">🔥 Todo o time</option>
+                </select>
+                <div id="mcCampoCasa" class="campo mc-campo">
+                    <div class="campo-linha-meio"></div>
+                    <div class="campo-circulo"></div>
+                    <div class="campo-area-sup"></div>
+                    <div class="campo-area-inf"></div>
+                    <div class="campo-gol-sup"></div>
+                    <div class="campo-gol-inf"></div>
+                </div>
+            </div>
+            <div class="mc-col">
+                <div class="mc-col-head">@Model.Jogo.TimeVisitante.Nome</div>
+                <select id="mcSelectVisitante" class="form-select form-select-sm" onchange="mcMostrar('visitante')">
+                    <option value="">— selecione —</option>
+                    <option value="time">🔥 Todo o time</option>
+                </select>
+                <div id="mcCampoVisitante" class="campo mc-campo">
+                    <div class="campo-linha-meio"></div>
+                    <div class="campo-circulo"></div>
+                    <div class="campo-area-sup"></div>
+                    <div class="campo-area-inf"></div>
+                    <div class="campo-gol-sup"></div>
+                    <div class="campo-gol-inf"></div>
+                </div>
+            </div>
+        </div>
+        <div style="font-size:11px; color:#64748b; margin-top:.6rem;">
+            Só aparecem jogadores que entraram em campo. Baseado em todas as escalações salvas neste jogo (inicial, final e fases táticas).
+        </div>
+    </div>
+</div>
+
+<style>
+    .mc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+    .mc-col-head { color:#e2e8f0; font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; margin-bottom:.4rem; }
+    .mc-col select { margin-bottom: .6rem; }
+    .mc-campo { width: 100%; }
+    @@media (max-width: 640px) { .mc-grid { grid-template-columns: 1fr; } }
+</style>
+
 <style>
     .pj-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
     @@media (max-width: 640px) { .pj-grid { grid-template-columns: 1fr; } }
@@ -4080,124 +4103,94 @@
         }
     }
 
-    // ── Mapa de calor ────────────────────────────────────────────────────
-    // Desenha, num canvas inserido como 1º filho do .campo alvo, a "densidade"
-    // dos pontos (PosicaoX/Y, em %) recebidos da API — cada ponto vira um borrão
-    // radial e os borrões se somam (composição 'lighter') antes de virar cor,
-    // igual ao algoritmo clássico de heatmap.js, só que sem depender de lib externa.
-    function desenharMapaCalor(campoId, pontos) {
-        const campo = document.getElementById(campoId);
-        if (!campo) return;
-        let canvas = campo.querySelector('.heatmap-overlay');
-        if (!canvas) {
-            canvas = document.createElement('canvas');
-            canvas.className = 'heatmap-overlay';
-            campo.insertBefore(canvas, campo.firstChild);
+    // desenharMapaCalor(campoId, pontos) mora em site.js (compartilhada com
+    // /Jogadores/Estatisticas).
+
+    const MC_TIME_CASA_ID = @Model.Jogo.TimeCasaId;
+    const MC_TIME_VISITANTE_ID = @Model.Jogo.TimeVisitanteId;
+    let mcAtual = { casa: null, visitante: null }; // params atuais de cada lado, pra redesenhar em resize
+
+    async function abrirMapaCalor() {
+        document.getElementById('modal-mapacalor').style.display = 'flex';
+
+        const selCasa = document.getElementById('mcSelectCasa');
+        const selVis = document.getElementById('mcSelectVisitante');
+        // Reseta pros dois defaults (mantém só "— selecione —" e "Todo o time") enquanto carrega
+        selCasa.querySelectorAll('option[data-jogador]').forEach(o => o.remove());
+        selVis.querySelectorAll('option[data-jogador]').forEach(o => o.remove());
+        selCasa.value = '';
+        selVis.value = '';
+        mcOcultarLado('casa');
+        mcOcultarLado('visitante');
+
+        try {
+            const resp = await fetch(`/Jogos/MapaCalorJogadores?id=${CRONO_JOGO_ID}`);
+            if (!resp.ok) return;
+            const dados = await resp.json();
+            (dados.casa || []).forEach(j => {
+                const opt = document.createElement('option');
+                opt.value = 'j-' + j.jogadorId;
+                opt.dataset.jogador = '1';
+                opt.textContent = j.nome;
+                selCasa.appendChild(opt);
+            });
+            (dados.visitante || []).forEach(j => {
+                const opt = document.createElement('option');
+                opt.value = 'j-' + j.jogadorId;
+                opt.dataset.jogador = '1';
+                opt.textContent = j.nome;
+                selVis.appendChild(opt);
+            });
+        } catch {
+            alert('Erro ao carregar os jogadores do mapa de calor.');
         }
-        const w = campo.clientWidth || 300;
-        const h = campo.clientHeight || 450;
-        canvas.width = w;
-        canvas.height = h;
-        canvas.style.display = 'block';
-
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, w, h);
-        if (!pontos.length) return;
-
-        const off = document.createElement('canvas');
-        off.width = w;
-        off.height = h;
-        const octx = off.getContext('2d');
-        octx.globalCompositeOperation = 'lighter';
-        const raio = Math.max(w, h) * 0.17;
-        pontos.forEach(p => {
-            const px = (p.x / 100) * w;
-            const py = (p.y / 100) * h;
-            const grad = octx.createRadialGradient(px, py, 0, px, py, raio);
-            grad.addColorStop(0, 'rgba(0,0,0,.55)');
-            grad.addColorStop(1, 'rgba(0,0,0,0)');
-            octx.fillStyle = grad;
-            octx.beginPath();
-            octx.arc(px, py, raio, 0, Math.PI * 2);
-            octx.fill();
-        });
-
-        const stops = [[37, 99, 235], [16, 185, 129], [250, 204, 21], [239, 68, 68]];
-        function corPorIntensidade(t) {
-            const pos = t * (stops.length - 1);
-            const i = Math.min(stops.length - 2, Math.floor(pos));
-            const frac = pos - i;
-            const c0 = stops[i], c1 = stops[i + 1];
-            return [
-                c0[0] + (c1[0] - c0[0]) * frac,
-                c0[1] + (c1[1] - c0[1]) * frac,
-                c0[2] + (c1[2] - c0[2]) * frac
-            ];
-        }
-
-        const img = octx.getImageData(0, 0, w, h);
-        const data = img.data;
-        for (let i = 0; i < data.length; i += 4) {
-            const a = data[i + 3] / 255;
-            if (a <= 0.03) { data[i + 3] = 0; continue; }
-            const t = Math.min(1, a / 0.55);
-            const [r, g, b] = corPorIntensidade(t);
-            data[i] = r; data[i + 1] = g; data[i + 2] = b;
-            data[i + 3] = Math.min(255, a * 255 * 1.5);
-        }
-        ctx.putImageData(img, 0, 0);
     }
 
-    let heatmapAtual = null; // { campoId, jogadorId, timeId } — pra redesenhar em resize
+    function fecharMapaCalor() {
+        document.getElementById('modal-mapacalor').style.display = 'none';
+    }
 
-    async function mostrarMapaCalor() {
-        const valor = document.getElementById('heatmapAlvo').value;
-        if (!valor) { ocultarMapaCalor(); return; }
+    async function mcMostrar(lado) {
+        const sel = document.getElementById(lado === 'casa' ? 'mcSelectCasa' : 'mcSelectVisitante');
+        const valor = sel.value;
+        if (!valor) { mcOcultarLado(lado); return; }
 
-        let campoId, params;
-        if (valor === 'casa') {
-            campoId = 'campoCasa';
-            params = `timeId=${@Model.Jogo.TimeCasaId}`;
-        } else if (valor === 'visitante') {
-            campoId = 'campoVisitante';
-            params = `timeId=${@Model.Jogo.TimeVisitanteId}`;
+        const campoId = lado === 'casa' ? 'mcCampoCasa' : 'mcCampoVisitante';
+        let params;
+        if (valor === 'time') {
+            params = `timeId=${lado === 'casa' ? MC_TIME_CASA_ID : MC_TIME_VISITANTE_ID}`;
         } else {
-            const m = /^j-(\d+)-(casa|vis)$/.exec(valor);
-            if (!m) return;
-            campoId = m[2] === 'casa' ? 'campoCasa' : 'campoVisitante';
-            params = `jogadorId=${m[1]}`;
+            params = `jogadorId=${valor.slice(2)}`;
         }
 
-        ocultarMapaCalor();
         try {
             const resp = await fetch(`/Jogos/MapaCalor?id=${CRONO_JOGO_ID}&${params}`);
             if (!resp.ok) { alert('Erro ao carregar o mapa de calor.'); return; }
             const pontos = await resp.json();
-            heatmapAtual = { campoId, params };
+            mcAtual[lado] = params;
             desenharMapaCalor(campoId, pontos);
         } catch {
             alert('Erro de conexão ao carregar o mapa de calor.');
         }
     }
 
-    function ocultarMapaCalor() {
-        ['campoCasa', 'campoVisitante'].forEach(id => {
-            const canvas = document.getElementById(id)?.querySelector('.heatmap-overlay');
-            if (canvas) canvas.style.display = 'none';
-        });
-        heatmapAtual = null;
+    function mcOcultarLado(lado) {
+        const campoId = lado === 'casa' ? 'mcCampoCasa' : 'mcCampoVisitante';
+        const canvas = document.getElementById(campoId)?.querySelector('.heatmap-overlay');
+        if (canvas) canvas.style.display = 'none';
+        mcAtual[lado] = null;
     }
 
     window.addEventListener('resize', () => {
-        if (heatmapAtual) mostrarMapaCalorAtual();
+        ['casa', 'visitante'].forEach(async lado => {
+            if (!mcAtual[lado]) return;
+            const campoId = lado === 'casa' ? 'mcCampoCasa' : 'mcCampoVisitante';
+            try {
+                const resp = await fetch(`/Jogos/MapaCalor?id=${CRONO_JOGO_ID}&${mcAtual[lado]}`);
+                if (resp.ok) desenharMapaCalor(campoId, await resp.json());
+            } catch { /* ignora falha de rede no redesenho por resize */ }
+        });
     });
-    async function mostrarMapaCalorAtual() {
-        if (!heatmapAtual) return;
-        try {
-            const resp = await fetch(`/Jogos/MapaCalor?id=${CRONO_JOGO_ID}&${heatmapAtual.params}`);
-            if (resp.ok) desenharMapaCalor(heatmapAtual.campoId, await resp.json());
-        } catch { /* ignora falha de rede no redesenho por resize */ }
-    }
 
     // ── Tooltip de info do jogador ──────────────────────────────────────────
     function mostrarInfoJogador(btn, dados) {
