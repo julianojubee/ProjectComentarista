@@ -1599,7 +1599,7 @@
 </div>
 
 <div class="mb-3">
-    <ul class="nav nav-tabs">
+    <ul class="nav nav-tabs" id="tabsEscalacao">
         <li class="nav-item">
             <a class="nav-link @(faseAtual == "INICIAL" ? "active" : "")"
                id="tabBtnEscalacaoInicial"
@@ -4043,6 +4043,17 @@
     // ══════════════ FASES TÁTICAS ══════════════
     const CRONO_JOGO_ID = @Model.Jogo.Id;
 
+    // ── Preserva a posição de rolagem ao trocar de aba/fase de escalação ──
+    // (a troca de aba recarrega a página inteira via query string e o navegador
+    // volta pro topo, fazendo o usuário perder de vista a área das escalações)
+    const ESCALACAO_SCROLL_KEY = `analisarScroll_${CRONO_JOGO_ID}`;
+    function salvarScrollEscalacao() {
+        sessionStorage.setItem(ESCALACAO_SCROLL_KEY, String(window.scrollY));
+    }
+    document.querySelectorAll('#tabsEscalacao a.nav-link').forEach(a => {
+        a.addEventListener('click', salvarScrollEscalacao);
+    });
+
     // ── Fases táticas: salvar a escalação atual como uma nova fase ──
     function coletarTitularesFase() {
         const titulares = [];
@@ -4083,6 +4094,7 @@
             });
             if (resp.ok) {
                 const d = await resp.json();
+                salvarScrollEscalacao();
                 window.location = `/Jogos/Analisar/${CRONO_JOGO_ID}?faseEscalacao=${encodeURIComponent(d.chave)}`;
             } else {
                 alert('Erro ao salvar a fase tática.');
@@ -4101,6 +4113,7 @@
                 body: JSON.stringify({ jogoId: CRONO_JOGO_ID, chave })
             });
             if (resp.ok) {
+                salvarScrollEscalacao();
                 window.location = `/Jogos/Analisar/${CRONO_JOGO_ID}?faseEscalacao=INICIAL`;
             } else {
                 alert('Erro ao excluir a fase.');
@@ -4242,5 +4255,27 @@
             tr.style.display = (!t || nome.includes(t) || numero.includes(t)) ? '' : 'none';
         });
     }
+
+    // ── Restaura a rolagem salva ao trocar de aba/fase de escalação ──
+    // (se não houver valor salvo, é um acesso normal à página e ela abre no topo)
+    (function restaurarScrollEscalacao() {
+        const salvo = sessionStorage.getItem(ESCALACAO_SCROLL_KEY);
+        if (salvo === null) return;
+        sessionStorage.removeItem(ESCALACAO_SCROLL_KEY);
+        const alvo = parseInt(salvo, 10) || 0;
+        // behavior: 'instant' ignora o scroll-behavior: smooth do html (sem animação)
+        const aplicar = () => window.scrollTo({ top: alvo, left: 0, behavior: 'instant' });
+        aplicar();
+        // Neste ponto as imagens (fotos de jogadores, campo etc.) ainda não
+        // carregaram e o documento é mais curto — o scrollTo acima pode ser
+        // limitado (clamp) à altura atual. Reaplica quando tudo carregar e mais
+        // uma vez logo depois, caso algo ainda mude o layout.
+        const reaplicar = () => { aplicar(); setTimeout(aplicar, 100); };
+        if (document.readyState === 'complete') {
+            reaplicar();
+        } else {
+            window.addEventListener('load', reaplicar, { once: true });
+        }
+    })();
 </script>
 </div><!-- /.an-root -->
