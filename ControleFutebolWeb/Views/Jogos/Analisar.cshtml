@@ -32,6 +32,15 @@
         jogoDeSelecao && j.Time != null && !j.Time.EhSelecao
             ? j.Time.Nome.Replace("'", "&#39;")
             : "";
+    // Escudo do clube (só quando o clube aparece no tooltip — ver ClubeTooltip).
+    string ClubeEscudoTooltip(ControleFutebolWeb.Models.Jogador j) =>
+        jogoDeSelecao && j.Time != null && !j.Time.EhSelecao && !string.IsNullOrEmpty(j.Time.EscudoUrl)
+            ? Url.Action("Imagem", "MediaProxy", new { url = j.Time.EscudoUrl })!
+            : "";
+    // Imagem da bandeira (flagcdn) em vez do emoji: no Windows os navegadores não
+    // renderizam emoji de bandeira (mostram só as letras do código do país).
+    string BandeiraTooltip(ControleFutebolWeb.Models.Jogador j) =>
+        j.Nacionalidade != null ? (FlagHelper.GetFlagImageUrl(j.Nacionalidade.Nome) ?? "") : "";
 
     // Abrevia pela primeira posição (pode ser composta: "Lateral Direito/Zagueiro")
     // e reconhece os nomes granulares vindos de PosicaoFormacao.
@@ -275,7 +284,7 @@
            :not() elevam a especificidade desta regra acima dos estilos dos
            próprios botões — qualquer novo elemento interativo dentro do slot
            precisa ser adicionado aqui também. */
-        .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in):not(.card-vermelho-badge) {
+        .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in):not(.card-vermelho-badge):not(.card-amarelo-badge) {
             pointer-events: none;
         }
 
@@ -454,6 +463,14 @@
         color: #cbd5e1;
     }
 
+    #jogador-tooltip .tt-icon {
+        width: 14px;
+        height: 14px;
+        object-fit: contain;
+        vertical-align: -2px;
+        border-radius: 2px;
+    }
+
     #jogador-tooltip .tt-stats {
         display: flex;
         gap: 10px;
@@ -510,7 +527,7 @@
         font-size: 9.5px;
     }
 
-    .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in):not(.card-vermelho-badge) {
+    .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in):not(.card-vermelho-badge):not(.card-amarelo-badge) {
         pointer-events: none;
     }
 
@@ -574,6 +591,41 @@
         border: 1.5px solid #fff;
         border-radius: 2px;
         box-shadow: 0 1px 3px rgba(0,0,0,.45);
+        z-index: 3;
+        pointer-events: auto;
+        cursor: help;
+    }
+
+    /* Cartão amarelo no botão do jogador em campo — mesma posição/tamanho do
+       selo de expulso, só que amarelo; só aparece quando ele não foi expulso
+       (o vermelho, mais grave, tem prioridade e ocupa o mesmo lugar). */
+    .card-amarelo-badge {
+        position: absolute;
+        top: -4px;
+        left: 50%;
+        margin-left: 9px;
+        width: 11px;
+        height: 15px;
+        background: #facc15;
+        border: 1.5px solid #fff;
+        border-radius: 2px;
+        box-shadow: 0 1px 3px rgba(0,0,0,.45);
+        z-index: 3;
+        pointer-events: auto;
+        cursor: help;
+    }
+
+    /* Versão menor do cartão amarelo para o círculo de 28px do banco de reservas. */
+    .card-amarelo-badge-mini {
+        position: absolute;
+        top: -2px;
+        left: 12px;
+        width: 8px;
+        height: 11px;
+        background: #facc15;
+        border: 1px solid #fff;
+        border-radius: 1.5px;
+        box-shadow: 0 1px 2px rgba(0,0,0,.45);
         z-index: 3;
         pointer-events: auto;
         cursor: help;
@@ -1825,6 +1877,7 @@
                         @foreach (var esc in (List<ControleFutebolWeb.Models.Escalacao>)Model.EscalacoesCasa)
                         {
                             bool expulsoCasa = esc.Jogador != null && Model.JogadoresComCartaoVermelho.Contains(esc.Jogador.Id);
+                            bool amareloCasa = esc.Jogador != null && Model.JogadoresComCartaoAmarelo.Contains(esc.Jogador.Id);
                             <div class="posicao-drop @(expulsoCasa ? "expulso" : "")"
                                  data-index="casa_@idxCasa"
                                  data-posicao="@esc.Posicao"
@@ -1843,6 +1896,10 @@
                                     {
                                         <span class="card-vermelho-badge" title="Expulso (cartão vermelho)"></span>
                                     }
+                                    else if (amareloCasa)
+                                    {
+                                        <span class="card-amarelo-badge" title="Cartão amarelo"></span>
+                                    }
                                     @* Fora de .player-name: o overflow:hidden dela cortava a seta em nomes longos *@
                                     @if (!faseEhInicial && jogadoresEntraramCasa.Contains(esc.Jogador.Id))
                                     {
@@ -1856,7 +1913,7 @@
                                         +
                                     </button>
                                     <button type="button" class="btn-info-jogador"
-                                            onmouseenter="mostrarInfoJogador(this, {id:@esc.Jogador.Id,nome:'@Html.Raw(esc.Jogador.NomeExibicao.Replace("'","&#39;"))',foto:'@(esc.Jogador.FotoUrl ?? "")',posicao:'@esc.Jogador.Posicao',numero:@(esc.Jogador.NumeroCamisa?.ToString() ?? "null"),idade:@(esc.Jogador.Idade > 0 ? esc.Jogador.Idade.ToString() : "null"),altura:@(esc.Jogador.Altura?.ToString() ?? "null"),peso:@(esc.Jogador.Peso?.ToString() ?? "null"),nac:'@(esc.Jogador.Nacionalidade?.Nome ?? "")',time:'@Html.Raw(ClubeTooltip(esc.Jogador))',gols:@(golsPorJogador.TryGetValue(esc.Jogador.Id, out var _g) ? _g : 0),assists:@(assistsPorJogador.TryGetValue(esc.Jogador.Id, out var _a) ? _a : 0),obs:'@Html.Raw((esc.Jogador.Observacoes ?? "").Replace("'","&#39;").Replace("\n","\\n"))'} )"
+                                            onmouseenter="mostrarInfoJogador(this, {id:@esc.Jogador.Id,nome:'@Html.Raw(esc.Jogador.NomeExibicao.Replace("'","&#39;"))',foto:'@(esc.Jogador.FotoUrl ?? "")',posicao:'@esc.Jogador.Posicao',numero:@(esc.Jogador.NumeroCamisa?.ToString() ?? "null"),idade:@(esc.Jogador.Idade > 0 ? esc.Jogador.Idade.ToString() : "null"),altura:@(esc.Jogador.Altura?.ToString() ?? "null"),peso:@(esc.Jogador.Peso?.ToString() ?? "null"),nac:'@(esc.Jogador.Nacionalidade?.Nome ?? "")',nacFlag:'@Html.Raw(BandeiraTooltip(esc.Jogador))',time:'@Html.Raw(ClubeTooltip(esc.Jogador))',timeEscudo:'@Html.Raw(ClubeEscudoTooltip(esc.Jogador))',gols:@(golsPorJogador.TryGetValue(esc.Jogador.Id, out var _g) ? _g : 0),assists:@(assistsPorJogador.TryGetValue(esc.Jogador.Id, out var _a) ? _a : 0),obs:'@Html.Raw((esc.Jogador.Observacoes ?? "").Replace("'","&#39;").Replace("\n","\\n"))'} )"
                                             onmouseleave="esconderInfoJogador()">
                                         ℹ
                                     </button>
@@ -1887,11 +1944,16 @@
                             }
                             @foreach (var esc in (List<ControleFutebolWeb.Models.Escalacao>)Model.ReservasCasa)
                             {
+                                bool amareloResCasa = esc.Jogador != null && Model.JogadoresComCartaoAmarelo.Contains(esc.Jogador.Id);
                                 <div class="reserva-card" id="reserva-casa-card-@idxResCasa">
                                     <span class="rem-btn" onclick="removerReserva('casa', @idxResCasa)">×</span>
                                     <div class="player-circle player-circle-casa" style="width:28px;height:28px;font-size:11px;">
                                         @(esc.Jogador?.NumeroCamisa?.ToString() ?? "")
                                     </div>
+                                    @if (amareloResCasa)
+                                    {
+                                        <span class="card-amarelo-badge-mini" title="Cartão amarelo"></span>
+                                    }
                                     <div style="max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;">
                                         @esc.Jogador?.Nome
                                     </div>
@@ -1942,6 +2004,7 @@
                         @foreach (var esc in (List<ControleFutebolWeb.Models.Escalacao>)Model.EscalacoesVisitante)
                         {
                             bool expulsoVis = esc.Jogador != null && Model.JogadoresComCartaoVermelho.Contains(esc.Jogador.Id);
+                            bool amareloVis = esc.Jogador != null && Model.JogadoresComCartaoAmarelo.Contains(esc.Jogador.Id);
                             <div class="posicao-drop @(expulsoVis ? "expulso" : "")"
                                  data-index="vis_@idxVis"
                                  data-posicao="@esc.Posicao"
@@ -1960,6 +2023,10 @@
                                     {
                                         <span class="card-vermelho-badge" title="Expulso (cartão vermelho)"></span>
                                     }
+                                    else if (amareloVis)
+                                    {
+                                        <span class="card-amarelo-badge" title="Cartão amarelo"></span>
+                                    }
                                     @if (!faseEhInicial && jogadoresEntraramVisitante.Contains(esc.Jogador.Id))
                                     {
                                         <span class="sub-chip-in" title="@TituloEntrou(esc.Jogador.Id)">↑</span>
@@ -1972,7 +2039,7 @@
                                         +
                                     </button>
                                     <button type="button" class="btn-info-jogador"
-                                            onmouseenter="mostrarInfoJogador(this, {id:@esc.Jogador.Id,nome:'@Html.Raw(esc.Jogador.NomeExibicao.Replace("'","&#39;"))',foto:'@(esc.Jogador.FotoUrl ?? "")',posicao:'@esc.Jogador.Posicao',numero:@(esc.Jogador.NumeroCamisa?.ToString() ?? "null"),idade:@(esc.Jogador.Idade > 0 ? esc.Jogador.Idade.ToString() : "null"),altura:@(esc.Jogador.Altura?.ToString() ?? "null"),peso:@(esc.Jogador.Peso?.ToString() ?? "null"),nac:'@(esc.Jogador.Nacionalidade?.Nome ?? "")',time:'@Html.Raw(ClubeTooltip(esc.Jogador))',gols:@(golsPorJogador.TryGetValue(esc.Jogador.Id, out var _g) ? _g : 0),assists:@(assistsPorJogador.TryGetValue(esc.Jogador.Id, out var _a) ? _a : 0),obs:'@Html.Raw((esc.Jogador.Observacoes ?? "").Replace("'","&#39;").Replace("\n","\\n"))'} )"
+                                            onmouseenter="mostrarInfoJogador(this, {id:@esc.Jogador.Id,nome:'@Html.Raw(esc.Jogador.NomeExibicao.Replace("'","&#39;"))',foto:'@(esc.Jogador.FotoUrl ?? "")',posicao:'@esc.Jogador.Posicao',numero:@(esc.Jogador.NumeroCamisa?.ToString() ?? "null"),idade:@(esc.Jogador.Idade > 0 ? esc.Jogador.Idade.ToString() : "null"),altura:@(esc.Jogador.Altura?.ToString() ?? "null"),peso:@(esc.Jogador.Peso?.ToString() ?? "null"),nac:'@(esc.Jogador.Nacionalidade?.Nome ?? "")',nacFlag:'@Html.Raw(BandeiraTooltip(esc.Jogador))',time:'@Html.Raw(ClubeTooltip(esc.Jogador))',timeEscudo:'@Html.Raw(ClubeEscudoTooltip(esc.Jogador))',gols:@(golsPorJogador.TryGetValue(esc.Jogador.Id, out var _g) ? _g : 0),assists:@(assistsPorJogador.TryGetValue(esc.Jogador.Id, out var _a) ? _a : 0),obs:'@Html.Raw((esc.Jogador.Observacoes ?? "").Replace("'","&#39;").Replace("\n","\\n"))'} )"
                                             onmouseleave="esconderInfoJogador()">
                                         ℹ
                                     </button>
@@ -2003,11 +2070,16 @@
                             }
                             @foreach (var esc in (List<ControleFutebolWeb.Models.Escalacao>)Model.ReservasVisitante)
                             {
+                                bool amareloResVis = esc.Jogador != null && Model.JogadoresComCartaoAmarelo.Contains(esc.Jogador.Id);
                                 <div class="reserva-card" id="reserva-vis-card-@idxResVis">
                                     <span class="rem-btn" onclick="removerReserva('vis', @idxResVis)">×</span>
                                     <div class="player-circle player-circle-vis" style="width:28px;height:28px;font-size:11px;">
                                         @(esc.Jogador?.NumeroCamisa?.ToString() ?? "")
                                     </div>
+                                    @if (amareloResVis)
+                                    {
+                                        <span class="card-amarelo-badge-mini" title="Cartão amarelo"></span>
+                                    }
                                     <div style="max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;">
                                         @esc.Jogador?.Nome
                                     </div>
@@ -4306,8 +4378,13 @@
             dados.idade   ? `<span>📅 ${dados.idade}a</span>`  : '',
             dados.altura  ? `<span>📏 ${(dados.altura / 100).toFixed(2).replace('.', ',')}m</span>` : '',
             dados.peso    ? `<span>⚖️ ${dados.peso}kg</span>`  : '',
-            dados.nac     ? `<span>🌍 ${dados.nac}</span>`     : '',
-            dados.time    ? `<span>🏟️ ${dados.time}</span>`    : '', // clube (só em jogo de seleção)
+            dados.nac ? (dados.nacFlag
+                ? `<span><img class="tt-icon" src="${dados.nacFlag}" /> ${dados.nac}</span>`
+                : `<span>🌍 ${dados.nac}</span>`) : '',
+            // Clube (só em jogo de seleção — ver ClubeTooltip/ClubeEscudoTooltip)
+            dados.time ? (dados.timeEscudo
+                ? `<span><img class="tt-icon" src="${dados.timeEscudo}" /> ${dados.time}</span>`
+                : `<span>🏟️ ${dados.time}</span>`) : '',
         ].filter(Boolean).join('');
         if (meta) html += `<div class="tt-meta">${meta}</div>`;
         const titular = TITULAR_JOGADORES[dados.id];

@@ -65,5 +65,9 @@ namespace ControleFutebolWeb.Models.ViewModels
         // Jogadores expulsos (cartão vermelho) neste jogo — o botão deles no campo
         // fica cinza e não pode mais ser arrastado/movimentado.
         public HashSet<int> JogadoresComCartaoVermelho { get; set; } = new();
+
+        // Jogadores advertidos com cartão amarelo neste jogo (qualquer minuto) —
+        // mostra um ícone de cartão amarelo no botão do jogador em campo/banco.
+        public HashSet<int> JogadoresComCartaoAmarelo { get; set; } = new();
     }
 }

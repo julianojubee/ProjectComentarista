@@ -512,6 +512,14 @@ namespace ControleFutebolWeb.Controllers
                 .ToListAsync())
                 .ToHashSet();
 
+            // Jogadores advertidos com cartão amarelo neste jogo — mostra um ícone no
+            // botão do jogador em campo/banco (independe de fase, o cartão vale pro jogo todo).
+            vm.JogadoresComCartaoAmarelo = (await _context.Cartoes
+                .Where(c => c.JogoId == id && c.Tipo == "Amarelo")
+                .Select(c => c.JogadorId)
+                .ToListAsync())
+                .ToHashSet();
+
             // ── Fase intermediária: renderização própria (somente visual/tática) ──
             if (!string.IsNullOrWhiteSpace(faseEscalacao) &&
                 !string.Equals(faseEscalacao, "FINAL", StringComparison.OrdinalIgnoreCase) &&
