@@ -302,6 +302,11 @@ namespace ControleFutebolWeb.Services
         [JsonPropertyName("photo")]       public string? Photo       { get; set; }
         [JsonPropertyName("birth")]       public AfCoachBirth? Birth { get; set; }
         [JsonPropertyName("team")]        public AfTeamRef?    Team  { get; set; }
+
+        // Histórico de passagens do treinador. O registro "stub" (ver ResolverTreinadorApiAsync
+        // no ApiFootballService) costuma trazer só a passagem atual; o registro completo traz
+        // todas as passagens, mas não necessariamente a mais recente.
+        [JsonPropertyName("career")]      public List<AfCoachCareerItem>? Career { get; set; }
     }
 
     public class AfCoachBirth
@@ -309,6 +314,15 @@ namespace ControleFutebolWeb.Services
         [JsonPropertyName("date")]    public string? Date    { get; set; }
         [JsonPropertyName("place")]   public string? Place   { get; set; }
         [JsonPropertyName("country")] public string? Country { get; set; }
+    }
+
+    // Item de carreira do treinador ("career" em /coachs?search=...).
+    // start/end vêm como string "yyyy-MM-dd"; end nulo = passagem atual.
+    public class AfCoachCareerItem
+    {
+        [JsonPropertyName("team")]  public AfTeamRef? Team  { get; set; }
+        [JsonPropertyName("start")] public string?     Start { get; set; }
+        [JsonPropertyName("end")]   public string?     End   { get; set; }
     }
 
     public class AfLineupPlayer

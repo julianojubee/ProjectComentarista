@@ -1,0 +1,223 @@
+@model ControleFutebolWeb.Models.ViewModels.TreinadorHistoricoApiViewModel
+@{
+    ViewData["Title"] = $"Histórico (API) — {Model.Treinador.Nome}";
+}
+
+<style>
+    /* Reaproveitando o mesmo estilo da tela de jogadores */
+    @@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500&display=swap');
+
+    :root {
+        --cinza1: #0f172a;
+        --cinza2: #1e293b;
+        --cinza3: #334155;
+        --texto: #f1f5f9;
+        --muted: #94a3b8;
+        --verde: #16a34a;
+        --verde2: #22c55e;
+        --amarelo: #eab308;
+    }
+
+    .estat-page {
+        background: var(--cinza1);
+        min-height: 100vh;
+        color: var(--texto);
+        font-family: 'Barlow', sans-serif;
+        padding: 2rem 1rem 4rem;
+    }
+
+    .jogador-header {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--cinza3);
+    }
+
+    .jogador-foto {
+        width: 72px;
+        height: 72px;
+        object-fit: cover;
+        border-radius: 12px;
+        border: 2px solid var(--cinza3);
+        background: var(--cinza2);
+    }
+
+    .jogador-nome {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 2.4rem;
+        font-weight: 800;
+        margin: 0;
+    }
+
+    .jogador-meta {
+        font-size: .85rem;
+        color: var(--muted);
+        margin-top: .3rem;
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .jogos-titulo {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 1.4rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+    }
+
+    .jogo-item {
+        background: var(--cinza2);
+        border: 1px solid var(--cinza3);
+        border-radius: 10px;
+        padding: .9rem 1.1rem;
+        margin-bottom: .6rem;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .jogo-item.nao-cadastrado {
+        opacity: .6;
+        border-style: dashed;
+    }
+
+    .jogo-adversario {
+        font-size: .95rem;
+        font-weight: 500;
+    }
+
+    .jogo-data {
+        font-size: .75rem;
+        color: var(--muted);
+        margin-top: .2rem;
+    }
+
+    .tag-aviso {
+        font-size: .7rem;
+        color: var(--amarelo);
+        border: 1px solid var(--amarelo);
+        border-radius: 6px;
+        padding: .1rem .4rem;
+        margin-left: .5rem;
+        white-space: nowrap;
+    }
+
+    .aviso-box {
+        background: #422006;
+        border: 1px solid var(--amarelo);
+        color: #fde68a;
+        border-radius: 8px;
+        padding: .8rem 1rem;
+        margin-bottom: 1.2rem;
+        font-size: .85rem;
+    }
+
+    .btn-voltar {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        background: var(--cinza2);
+        border: 1px solid var(--cinza3);
+        color: var(--texto);
+        padding: .45rem 1rem;
+        border-radius: 8px;
+        font-size: .85rem;
+        text-decoration: none;
+        margin-bottom: 1.5rem;
+    }
+</style>
+
+<div class="estat-page">
+    <div class="container" style="max-width:860px;">
+
+        <a href="javascript:history.back()" class="btn-voltar">← Voltar</a>
+
+        <!-- Header -->
+        <div class="jogador-header">
+            @if (!string.IsNullOrWhiteSpace(Model.Treinador.FotoUrl))
+            {
+                <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Treinador.FotoUrl })" class="jogador-foto" />
+            }
+            else
+            {
+                <img src="/images/placeholder-treinador.png" class="jogador-foto" />
+            }
+
+            <div>
+                <h1 class="jogador-nome">@Model.Treinador.Nome</h1>
+                <div class="jogador-meta">
+                    @if (Model.Treinador.Time != null)
+                    {
+                        <span>🏟️ @Model.Treinador.Time.Nome</span>
+                    }
+                    <span>🔗 Fonte: api-football</span>
+                </div>
+            </div>
+        </div>
+
+        @if (Model.RegistroCompletoEncontrado)
+        {
+            <div class="aviso-box">
+                ✅ Registro completo do técnico localizado — a API tinha um cadastro parcial
+                vinculado ao time atual, sem idade/nacionalidade confirmadas. O histórico abaixo
+                já une as passagens dos dois registros.
+            </div>
+        }
+
+        @if (Model.Ambiguo)
+        {
+            <div class="aviso-box">
+                ⚠️ A API tem mais de um técnico com nome parecido ao de @Model.Treinador.Nome —
+                só foi encontrado um cadastro parcial (sem idade/nacionalidade confirmadas) e não
+                foi possível confirmar qual é o registro completo. O histórico abaixo pode estar
+                incompleto (só a passagem atual).
+            </div>
+        }
+
+        <!-- Histórico -->
+        <div class="jogos-titulo">Histórico de Trabalhos (api-football)</div>
+
+        @if (!Model.Itens.Any())
+        {
+            <div class="sem-dados">Nenhum histórico encontrado para este treinador na API.</div>
+        }
+        else
+        {
+            foreach (var item in Model.Itens)
+            {
+                <div class="jogo-item @(item.ClubeNaoCadastrado ? "nao-cadastrado" : "")">
+                    <div>
+                        <div class="jogo-adversario">
+                            @(item.TimeLocalNome ?? item.NomeTime)
+                            @if (item.ClubeNaoCadastrado)
+                            {
+                                <span class="tag-aviso">clube não cadastrado — não será salvo</span>
+                            }
+                        </div>
+                        <div class="jogo-data">
+                            @item.DtInicio?.ToString("dd/MM/yyyy")
+                            até @(item.DtFim?.ToString("dd/MM/yyyy") ?? "Atual")
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+
+        <!-- Botão de salvar -->
+        <form asp-action="SalvarHistoricoApi" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="treinadorId" value="@Model.Treinador.Id" />
+            <button type="submit" class="btn btn-success"
+                    disabled="@(Model.Itens.All(i => i.ClubeNaoCadastrado) ? "disabled" : null)">
+                Salvar Histórico
+            </button>
+        </form>
+    </div>
+</div>

@@ -1,4 +1,6 @@
+using System.Text;
 using System.Text.Json;
+using System.Globalization;
 using ControleFutebolWeb.Helpers;
 using System.Text.RegularExpressions;
 using ControleFutebolWeb.Data;
@@ -651,6 +653,149 @@ namespace ControleFutebolWeb.Services
                 if (resultado.Count > 0) return resultado;
             }
             return new();
+        }
+
+        // ── Resolução treinador "stub" → registro completo ───────────────────
+
+        // A api-football às vezes mantém DOIS registros para o mesmo treinador: um completo
+        // (firstname/lastname/age/nationality/birth.date e career com todas as passagens),
+        // vinculado a um clube antigo, e um "stub" criado quando ele assume um clube novo
+        // (só name/photo/team/career com a passagem atual — demais campos null). Um registro
+        // é considerado stub quando não tem nenhum desses três dados pessoais.
+        private static bool EhStubTreinador(AfCoachFull c) =>
+            string.IsNullOrEmpty(c.Birth?.Date) && string.IsNullOrEmpty(c.Nationality) && c.Age == null;
+
+        /// <summary>
+        /// Busca o treinador na api-football e resolve o caso de registro "stub" (ver
+        /// <see cref="EhStubTreinador"/>), tentando localizar o registro completo do mesmo
+        /// técnico via casamento de nome por tokens. Reaproveitado por BuscarFoto e pela
+        /// importação de histórico via API, para os dois nunca travarem no stub por engano.
+        /// </summary>
+        /// <returns>
+        /// Escolhido: registro a usar (completo, se resolvido; senão o melhor encontrado).
+        /// RegistrosDoMesmoTecnico: registros a unir para montar o histórico de carreira
+        /// (completo + stub, quando o stub foi resolvido; só o Escolhido, caso contrário).
+        /// Ambiguo: true quando o escolhido é um stub e há mais de um candidato completo
+        /// compatível pelo nome — nesse caso não arriscamos escolher o técnico errado.
+        /// </returns>
+        public async Task<(AfCoachFull? Escolhido, List<AfCoachFull> RegistrosDoMesmoTecnico, bool Ambiguo)>
+            ResolverTreinadorApiAsync(
+                string nome, long? teamApiId, long? idApiAtual, CancellationToken ct = default)
+        {
+            var resultados = await BuscarTreinadorApiAsync(nome, teamApiId, ct);
+
+            // Fallback: se nada vier com o time, busca só pelo nome.
+            if (!resultados.Any() && teamApiId is long)
+                resultados = await BuscarTreinadorApiAsync(nome, null, ct);
+
+            if (!resultados.Any())
+                return (null, new List<AfCoachFull>(), false);
+
+            // Se o treinador já tem IdApi, trava no técnico com aquele id. Senão, prefere o
+            // resultado cujo time atual bate com o time cadastrado, depois o que tiver mais dados.
+            var melhor = resultados
+                .OrderByDescending(r => (idApiAtual != null && r.Id == idApiAtual) ? 100 : 0)
+                .ThenByDescending(r => r.Team?.Id == teamApiId ? 10 : 0)
+                .ThenByDescending(r => r.Age.HasValue ? 1 : 0)
+                .First();
+
+            if (!EhStubTreinador(melhor))
+                return (melhor, new List<AfCoachFull> { melhor }, false);
+
+            // O escolhido é um stub — mesmo tendo vencido pela trava do IdApi, ela não pode
+            // cimentar um stub. Refaz a busca sem filtro de time e procura, entre os
+            // candidatos NÃO-stub, o(s) que casam pelo nome (por tokens, sem acento).
+            var semTime = await BuscarTreinadorApiAsync(nome, null, ct);
+            var tokensStub = TokensSignificativos(melhor.Name);
+
+            var compativeis = semTime
+                .Where(c => c.Id != melhor.Id && !EhStubTreinador(c))
+                .Where(c => tokensStub.Any(t =>
+                    TokensSignificativos(c.Name, c.Firstname, c.Lastname).Contains(t)))
+                .DistinctBy(c => c.Id)
+                .ToList();
+
+            if (compativeis.Count == 1)
+            {
+                var completo = compativeis[0];
+                return (completo, new List<AfCoachFull> { completo, melhor }, false);
+            }
+
+            if (compativeis.Count > 1)
+            {
+                // Homônimos: não dá para saber qual é o técnico certo — mantém o stub e
+                // sinaliza a ambiguidade para quem chamou decidir a mensagem ao usuário.
+                return (melhor, new List<AfCoachFull> { melhor }, true);
+            }
+
+            // Nenhum candidato completo compatível encontrado — mantém o stub mesmo.
+            return (melhor, new List<AfCoachFull> { melhor }, false);
+        }
+
+        // Tokens "significativos" de um ou mais nomes: minúsculas, sem acento, descartando
+        // iniciais abreviadas (1–2 chars ou terminando em '.'). Usado para casar o nome de um
+        // registro stub (ex.: "Paulo Pezzolano") com o do registro completo (ex.: "P. Pezzolano",
+        // firstname/lastname "Pezzolano Suárez").
+        private static List<string> TokensSignificativos(params string?[] nomes)
+        {
+            var tokens = new List<string>();
+            foreach (var nome in nomes)
+            {
+                if (string.IsNullOrWhiteSpace(nome)) continue;
+                foreach (var parte in nome.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    if (parte.EndsWith(".")) continue; // inicial abreviada, ex.: "P."
+                    var normalizado = RemoverAcentos(parte).ToLowerInvariant();
+                    if (normalizado.Length <= 2) continue; // inicial sem ponto, ex.: "P"
+                    if (!tokens.Contains(normalizado)) tokens.Add(normalizado);
+                }
+            }
+            return tokens;
+        }
+
+        private static string RemoverAcentos(string texto)
+        {
+            var decomposto = texto.Normalize(NormalizationForm.FormD);
+            var sb = new StringBuilder();
+            foreach (var c in decomposto)
+                if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+                    sb.Append(c);
+            return sb.ToString().Normalize(NormalizationForm.FormC);
+        }
+
+        // ── União do histórico de carreira (para importação via API) ─────────
+
+        // Uma única data "yyyy-MM-dd" (ou null = passagem atual).
+        private static DateTime? ParseDataCarreira(string? data) =>
+            DateTime.TryParse(data, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt)
+                ? dt : null;
+
+        /// <summary>
+        /// Une o career de todos os registros do mesmo técnico (ver ResolverTreinadorApiAsync),
+        /// deduplicando por time + mês/ano de início (o stub costuma repetir, com o mesmo mês,
+        /// a passagem atual que às vezes falta no career do registro completo) e ordenando da
+        /// passagem mais recente para a mais antiga.
+        /// </summary>
+        public static List<AfCoachCareerItem> UnirCarreiras(IEnumerable<AfCoachFull> registros)
+        {
+            var vistos = new HashSet<(int TeamId, int Ano, int Mes)>();
+            var unidas = new List<AfCoachCareerItem>();
+
+            foreach (var registro in registros)
+            {
+                foreach (var item in registro.Career ?? new List<AfCoachCareerItem>())
+                {
+                    if (item.Team == null) continue;
+                    var inicio = ParseDataCarreira(item.Start);
+                    var chave = (item.Team.Id, inicio?.Year ?? 0, inicio?.Month ?? 0);
+                    if (!vistos.Add(chave)) continue;
+                    unidas.Add(item);
+                }
+            }
+
+            return unidas
+                .OrderByDescending(i => ParseDataCarreira(i.Start) ?? DateTime.MinValue)
+                .ToList();
         }
 
         public async Task<AfTeamSeasonStats?> BuscarEstatisticasTimeAsync(

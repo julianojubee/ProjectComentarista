@@ -73,6 +73,11 @@
                 📊 Importar Histórico (nome + time)
             </a>
 
+            <a asp-action="PreVisualizarHistoricoApi" asp-route-id="@Model.Id"
+               class="btn btn-primary btn-sm cf-small-btn">
+                📊 Importar Histórico (API)
+            </a>
+
             <form asp-action="PreVisualizarHistoricoUrl" method="get" style="display:inline;">
                 <input type="hidden" name="id" value="@Model.Id" />
                 <input type="text" name="url" placeholder="URL Transfermarkt" style="width:280px;" />
