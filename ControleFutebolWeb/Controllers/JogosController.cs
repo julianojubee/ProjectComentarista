@@ -522,6 +522,7 @@ namespace ControleFutebolWeb.Controllers
                 {
                     var escFase = await _context.Escalacoes
                         .Include(e => e.Jogador).ThenInclude(j => j!.Nacionalidade)
+                        .Include(e => e.Jogador).ThenInclude(j => j!.Time)
                         .Include(e => e.Setas)
                         .Where(e => e.JogoId == id && e.UsuarioId == usuarioId && e.FaseEscalacao == faseInter.Chave)
                         .ToListAsync();
@@ -628,6 +629,7 @@ namespace ControleFutebolWeb.Controllers
             // Escalações do usuário para esta fase
             var escalacoes = await _context.Escalacoes
                 .Include(e => e.Jogador).ThenInclude(j => j!.Nacionalidade)
+                .Include(e => e.Jogador).ThenInclude(j => j!.Time)
                 .Where(e => e.JogoId == id
                          && (e.FaseEscalacao == faseAtual || (faseAtual == "INICIAL" && e.FaseEscalacao == null))
                          && e.UsuarioId == usuarioId)
@@ -660,6 +662,7 @@ namespace ControleFutebolWeb.Controllers
                     await _context.SaveChangesAsync();
                     escalacoes = await _context.Escalacoes
                         .Include(e => e.Jogador).ThenInclude(j => j!.Nacionalidade)
+                        .Include(e => e.Jogador).ThenInclude(j => j!.Time)
                         .Where(e => e.JogoId == id
                                  && (e.FaseEscalacao == faseAtual || (faseAtual == "INICIAL" && e.FaseEscalacao == null))
                                  && e.UsuarioId == usuarioId)
@@ -900,6 +903,7 @@ namespace ControleFutebolWeb.Controllers
             // Recarrega escalações finais do usuário
             escalacoes = await _context.Escalacoes
                 .Include(e => e.Jogador).ThenInclude(j => j!.Nacionalidade)
+                .Include(e => e.Jogador).ThenInclude(j => j!.Time)
                 .Include(e => e.Setas)
                 .Where(e => e.JogoId == id
                          && (e.FaseEscalacao == faseAtual || (faseAtual == "INICIAL" && e.FaseEscalacao == null))

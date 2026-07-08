@@ -25,6 +25,14 @@
     var golsPorJogador = (Model.GolsPorJogador as Dictionary<int, int>) ?? new Dictionary<int, int>();
     var assistsPorJogador = (Model.AssistsPorJogador as Dictionary<int, int>) ?? new Dictionary<int, int>();
 
+    // Em jogo de seleção o tooltip do jogador mostra também o clube dele
+    // (Jogador.Time é o clube; a seleção fica em Jogador.SelecaoId).
+    var jogoDeSelecao = Model.Jogo.TimeCasa?.EhSelecao == true || Model.Jogo.TimeVisitante?.EhSelecao == true;
+    string ClubeTooltip(ControleFutebolWeb.Models.Jogador j) =>
+        jogoDeSelecao && j.Time != null && !j.Time.EhSelecao
+            ? j.Time.Nome.Replace("'", "&#39;")
+            : "";
+
     // Abrevia pela primeira posição (pode ser composta: "Lateral Direito/Zagueiro")
     // e reconhece os nomes granulares vindos de PosicaoFormacao.
     string AbreviarPosicao(string? pos)
@@ -1782,7 +1790,7 @@
                                         +
                                     </button>
                                     <button type="button" class="btn-info-jogador"
-                                            onmouseenter="mostrarInfoJogador(this, {nome:'@Html.Raw(esc.Jogador.NomeExibicao.Replace("'","&#39;"))',foto:'@(esc.Jogador.FotoUrl ?? "")',posicao:'@esc.Jogador.Posicao',numero:@(esc.Jogador.NumeroCamisa?.ToString() ?? "null"),idade:@(esc.Jogador.Idade > 0 ? esc.Jogador.Idade.ToString() : "null"),nac:'@(esc.Jogador.Nacionalidade?.Nome ?? "")',gols:@(golsPorJogador.TryGetValue(esc.Jogador.Id, out var _g) ? _g : 0),assists:@(assistsPorJogador.TryGetValue(esc.Jogador.Id, out var _a) ? _a : 0),obs:'@Html.Raw((esc.Jogador.Observacoes ?? "").Replace("'","&#39;").Replace("\n","\\n"))'} )"
+                                            onmouseenter="mostrarInfoJogador(this, {nome:'@Html.Raw(esc.Jogador.NomeExibicao.Replace("'","&#39;"))',foto:'@(esc.Jogador.FotoUrl ?? "")',posicao:'@esc.Jogador.Posicao',numero:@(esc.Jogador.NumeroCamisa?.ToString() ?? "null"),idade:@(esc.Jogador.Idade > 0 ? esc.Jogador.Idade.ToString() : "null"),nac:'@(esc.Jogador.Nacionalidade?.Nome ?? "")',time:'@Html.Raw(ClubeTooltip(esc.Jogador))',gols:@(golsPorJogador.TryGetValue(esc.Jogador.Id, out var _g) ? _g : 0),assists:@(assistsPorJogador.TryGetValue(esc.Jogador.Id, out var _a) ? _a : 0),obs:'@Html.Raw((esc.Jogador.Observacoes ?? "").Replace("'","&#39;").Replace("\n","\\n"))'} )"
                                             onmouseleave="esconderInfoJogador()">
                                         ℹ
                                     </button>
@@ -1898,7 +1906,7 @@
                                         +
                                     </button>
                                     <button type="button" class="btn-info-jogador"
-                                            onmouseenter="mostrarInfoJogador(this, {nome:'@Html.Raw(esc.Jogador.NomeExibicao.Replace("'","&#39;"))',foto:'@(esc.Jogador.FotoUrl ?? "")',posicao:'@esc.Jogador.Posicao',numero:@(esc.Jogador.NumeroCamisa?.ToString() ?? "null"),idade:@(esc.Jogador.Idade > 0 ? esc.Jogador.Idade.ToString() : "null"),nac:'@(esc.Jogador.Nacionalidade?.Nome ?? "")',gols:@(golsPorJogador.TryGetValue(esc.Jogador.Id, out var _g) ? _g : 0),assists:@(assistsPorJogador.TryGetValue(esc.Jogador.Id, out var _a) ? _a : 0),obs:'@Html.Raw((esc.Jogador.Observacoes ?? "").Replace("'","&#39;").Replace("\n","\\n"))'} )"
+                                            onmouseenter="mostrarInfoJogador(this, {nome:'@Html.Raw(esc.Jogador.NomeExibicao.Replace("'","&#39;"))',foto:'@(esc.Jogador.FotoUrl ?? "")',posicao:'@esc.Jogador.Posicao',numero:@(esc.Jogador.NumeroCamisa?.ToString() ?? "null"),idade:@(esc.Jogador.Idade > 0 ? esc.Jogador.Idade.ToString() : "null"),nac:'@(esc.Jogador.Nacionalidade?.Nome ?? "")',time:'@Html.Raw(ClubeTooltip(esc.Jogador))',gols:@(golsPorJogador.TryGetValue(esc.Jogador.Id, out var _g) ? _g : 0),assists:@(assistsPorJogador.TryGetValue(esc.Jogador.Id, out var _a) ? _a : 0),obs:'@Html.Raw((esc.Jogador.Observacoes ?? "").Replace("'","&#39;").Replace("\n","\\n"))'} )"
                                             onmouseleave="esconderInfoJogador()">
                                         ℹ
                                     </button>
@@ -4223,6 +4231,7 @@
             dados.numero  ? `<span># ${dados.numero}</span>`   : '',
             dados.idade   ? `<span>📅 ${dados.idade}a</span>`  : '',
             dados.nac     ? `<span>🌍 ${dados.nac}</span>`     : '',
+            dados.time    ? `<span>🏟️ ${dados.time}</span>`    : '', // clube (só em jogo de seleção)
         ].filter(Boolean).join('');
         if (meta) html += `<div class="tt-meta">${meta}</div>`;
         if (dados.gols > 0 || dados.assists > 0)
