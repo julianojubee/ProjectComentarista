@@ -787,7 +787,9 @@ namespace ControleFutebolWeb.Services
                 {
                     if (item.Team == null) continue;
                     var inicio = ParseDataCarreira(item.Start);
-                    var chave = (item.Team.Id, inicio?.Year ?? 0, inicio?.Month ?? 0);
+                    // Team.Id pode vir null (seleções/clubes fora da base da API) —
+                    // esses itens são só exibidos na pré-visualização, nunca salvos.
+                    var chave = (item.Team.Id ?? 0, inicio?.Year ?? 0, inicio?.Month ?? 0);
                     if (!vistos.Add(chave)) continue;
                     unidas.Add(item);
                 }

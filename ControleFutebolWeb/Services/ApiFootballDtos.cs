@@ -320,9 +320,18 @@ namespace ControleFutebolWeb.Services
     // start/end vêm como string "yyyy-MM-dd"; end nulo = passagem atual.
     public class AfCoachCareerItem
     {
-        [JsonPropertyName("team")]  public AfTeamRef? Team  { get; set; }
-        [JsonPropertyName("start")] public string?     Start { get; set; }
-        [JsonPropertyName("end")]   public string?     End   { get; set; }
+        [JsonPropertyName("team")]  public AfCoachCareerTeam? Team  { get; set; }
+        [JsonPropertyName("start")] public string?            Start { get; set; }
+        [JsonPropertyName("end")]   public string?            End   { get; set; }
+    }
+
+    // Time de uma passagem do career. Não reutiliza AfTeamRef porque aqui a API
+    // às vezes manda id null (ex.: seleções ou clubes fora da base dela).
+    public class AfCoachCareerTeam
+    {
+        [JsonPropertyName("id")]   public int?    Id   { get; set; }
+        [JsonPropertyName("name")] public string? Name { get; set; }
+        [JsonPropertyName("logo")] public string? Logo { get; set; }
     }
 
     public class AfLineupPlayer

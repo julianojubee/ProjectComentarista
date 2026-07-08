@@ -578,8 +578,8 @@ namespace ControleFutebolWeb.Controllers
             // Resolve os times locais em lote (por Time.IdApi) para marcar na tela quais
             // passagens têm clube cadastrado no banco.
             var timesApiIds = carreira
-                .Where(c => c.Team != null)
-                .Select(c => c.Team!.Id)
+                .Where(c => c.Team?.Id != null)
+                .Select(c => c.Team!.Id!.Value)
                 .Distinct()
                 .ToList();
             var timesLocais = await _context.Times
@@ -593,9 +593,9 @@ namespace ControleFutebolWeb.Controllers
                 RegistroCompletoEncontrado = registros.Count > 1,
                 Itens = carreira.Select(c =>
                 {
-                    var timeLocal = c.Team == null
-                        ? null
-                        : timesLocais.FirstOrDefault(t => t.IdApi == c.Team.Id);
+                    var timeLocal = c.Team?.Id is int apiId
+                        ? timesLocais.FirstOrDefault(t => t.IdApi == apiId)
+                        : null;
                     return new HistoricoApiItemViewModel
                     {
                         TeamApiId = c.Team?.Id,
@@ -642,11 +642,12 @@ namespace ControleFutebolWeb.Controllers
 
             foreach (var item in carreira)
             {
-                if (item.Team == null) { ignorados++; continue; }
+                // Team.Id null = seleção/clube fora da base da API — sem como casar com um time local.
+                if (item.Team?.Id is not int teamApiId) { ignorados++; continue; }
 
                 // Clube não cadastrado no banco: só é exibido na pré-visualização, nunca
                 // criado automaticamente (diferente do fluxo do Transfermarkt).
-                var timeLocal = await _context.Times.FirstOrDefaultAsync(t => t.IdApi == item.Team.Id);
+                var timeLocal = await _context.Times.FirstOrDefaultAsync(t => t.IdApi == teamApiId);
                 if (timeLocal == null) { ignorados++; continue; }
 
                 var inicio = ParseDataCarreiraApi(item.Start);
