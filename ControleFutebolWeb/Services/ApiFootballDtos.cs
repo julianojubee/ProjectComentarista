@@ -301,7 +301,7 @@ namespace ControleFutebolWeb.Services
         [JsonPropertyName("weight")]      public string? Weight      { get; set; }
         [JsonPropertyName("photo")]       public string? Photo       { get; set; }
         [JsonPropertyName("birth")]       public AfCoachBirth? Birth { get; set; }
-        [JsonPropertyName("team")]        public AfTeamRef?    Team  { get; set; }
+        [JsonPropertyName("team")]        public AfCoachTeam?  Team  { get; set; }
 
         // Histórico de passagens do treinador. O registro "stub" (ver ResolverTreinadorApiAsync
         // no ApiFootballService) costuma trazer só a passagem atual; o registro completo traz
@@ -320,14 +320,15 @@ namespace ControleFutebolWeb.Services
     // start/end vêm como string "yyyy-MM-dd"; end nulo = passagem atual.
     public class AfCoachCareerItem
     {
-        [JsonPropertyName("team")]  public AfCoachCareerTeam? Team  { get; set; }
-        [JsonPropertyName("start")] public string?            Start { get; set; }
-        [JsonPropertyName("end")]   public string?            End   { get; set; }
+        [JsonPropertyName("team")]  public AfCoachTeam? Team  { get; set; }
+        [JsonPropertyName("start")] public string?      Start { get; set; }
+        [JsonPropertyName("end")]   public string?      End   { get; set; }
     }
 
-    // Time de uma passagem do career. Não reutiliza AfTeamRef porque aqui a API
-    // às vezes manda id null (ex.: seleções ou clubes fora da base dela).
-    public class AfCoachCareerTeam
+    // Time atual ou de passagem do career de um treinador. Não reutiliza AfTeamRef
+    // porque em /coachs a API às vezes manda id null (técnico sem clube, seleções
+    // ou clubes fora da base dela).
+    public class AfCoachTeam
     {
         [JsonPropertyName("id")]   public int?    Id   { get; set; }
         [JsonPropertyName("name")] public string? Name { get; set; }
