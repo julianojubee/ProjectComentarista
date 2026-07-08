@@ -49,6 +49,10 @@ namespace ControleFutebolWeb.Models.ViewModels
         // /Jogadores/Estatisticas), por jogador — exibidas no tooltip de info.
         public Dictionary<int, MediasPorJogo> MediasPorJogador { get; set; } = new();
 
+        // Total de jogos em que o jogador começou como titular (contagem de carreira,
+        // não só desta partida) — exibido no tooltip de info.
+        public Dictionary<int, int> TitularPorJogador { get; set; } = new();
+
         // Jogo analisado pelo usuário atual (existência de JogoAnalisadoUsuario).
         public bool Analisado { get; set; }
 

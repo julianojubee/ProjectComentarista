@@ -557,6 +557,7 @@ namespace ControleFutebolWeb.Controllers
                         .Where(t => t.TimeId == jogo.TimeVisitanteId).OrderByDescending(t => t.DtInc).FirstOrDefaultAsync();
 
                     vm.MediasPorJogador = await CalcularMediasPorJogadorAsync(escFase);
+                    vm.TitularPorJogador = await CalcularTitularesPorJogadorAsync(escFase, usuarioId);
 
                     return View(vm);
                 }
@@ -1115,6 +1116,7 @@ namespace ControleFutebolWeb.Controllers
             vm.AssistsPorJogador = assistsPorJogador;
 
             vm.MediasPorJogador = await CalcularMediasPorJogadorAsync(escalacoes);
+            vm.TitularPorJogador = await CalcularTitularesPorJogadorAsync(escalacoes, usuarioId);
 
             return View(vm);
         }
@@ -1181,6 +1183,36 @@ namespace ControleFutebolWeb.Controllers
                 FaltasSofridas = Math.Round(a.FaltasSofridas, 1),
                 FaltasCometidas = Math.Round(a.FaltasCometidas, 1),
             });
+        }
+
+        // Total de jogos como titular (carreira), por jogador — mesmo critério de
+        // dedupe usado em /Jogadores/Estatisticas: por jogo, prefere a escalação do
+        // próprio usuário sobre a compartilhada (importada, UsuarioId null), e conta
+        // só a fase INICIAL (a FINAL é a mesma partida, não um jogo a mais).
+        private async Task<Dictionary<int, int>> CalcularTitularesPorJogadorAsync(
+            IEnumerable<Escalacao> escalacoes, string usuarioId)
+        {
+            var ids = escalacoes
+                .Where(e => e.JogadorId != null)
+                .Select(e => e.JogadorId!.Value)
+                .Distinct()
+                .ToList();
+            if (ids.Count == 0) return new();
+
+            var candidatas = await _context.Escalacoes
+                .Where(e => e.JogadorId != null && ids.Contains(e.JogadorId!.Value)
+                         && e.Titular && e.Posicao != null && e.Posicao != "RES"
+                         && (e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null)
+                         && (e.UsuarioId == usuarioId || e.UsuarioId == null))
+                .Select(e => new { e.JogadorId, e.JogoId, e.UsuarioId })
+                .ToListAsync();
+
+            return candidatas
+                .GroupBy(e => e.JogadorId!.Value)
+                .ToDictionary(g => g.Key, g => g
+                    .GroupBy(e => e.JogoId)
+                    .Select(gj => gj.OrderBy(e => e.UsuarioId == usuarioId ? 0 : 1).First())
+                    .Count());
         }
 
         // ── Mapa de Calor ───────────────────────────────────────────────────

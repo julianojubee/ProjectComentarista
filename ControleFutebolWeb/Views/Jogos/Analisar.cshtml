@@ -464,6 +464,7 @@
 
     #jogador-tooltip .tt-stat-gol  { color: #4ade80; font-weight: 600; }
     #jogador-tooltip .tt-stat-ast  { color: #fb923c; font-weight: 600; }
+    #jogador-tooltip .tt-stat-tit  { color: #94a3b8; font-weight: 600; }
 
     #jogador-tooltip .tt-obs {
         margin-top: 6px;
@@ -4262,6 +4263,8 @@
     const MEDIAS_JOGADORES = @Html.Raw(JsonSerializer.Serialize(
         Model.MediasPorJogador,
         new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+    // Total de jogos como titular (carreira), por id de jogador.
+    const TITULAR_JOGADORES = @Html.Raw(JsonSerializer.Serialize(Model.TitularPorJogador));
 
     function mostrarInfoJogador(btn, dados) {
         const tt = document.getElementById('jogador-tooltip');
@@ -4278,8 +4281,13 @@
             dados.time    ? `<span>🏟️ ${dados.time}</span>`    : '', // clube (só em jogo de seleção)
         ].filter(Boolean).join('');
         if (meta) html += `<div class="tt-meta">${meta}</div>`;
-        if (dados.gols > 0 || dados.assists > 0)
-            html += `<div class="tt-stats"><span class="tt-stat-gol">⚽ ${dados.gols} gols</span><span class="tt-stat-ast">🅰️ ${dados.assists} assists</span></div>`;
+        const titular = TITULAR_JOGADORES[dados.id];
+        const statsLinha = [
+            (dados.gols > 0)    ? `<span class="tt-stat-gol">⚽ ${dados.gols} gols</span>` : '',
+            (dados.assists > 0) ? `<span class="tt-stat-ast">🅰️ ${dados.assists} assists</span>` : '',
+            titular ? `<span class="tt-stat-tit">🏁 ${titular} jogo${titular > 1 ? 's' : ''} titular</span>` : '',
+        ].filter(Boolean).join('');
+        if (statsLinha) html += `<div class="tt-stats">${statsLinha}</div>`;
         const md = MEDIAS_JOGADORES[dados.id];
         if (md) {
             const celulas = [
