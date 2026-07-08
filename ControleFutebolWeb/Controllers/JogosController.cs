@@ -556,6 +556,8 @@ namespace ControleFutebolWeb.Controllers
                     vm.TreinadorVisitante = await _context.Treinadores.Include(t => t.Nacionalidade)
                         .Where(t => t.TimeId == jogo.TimeVisitanteId).OrderByDescending(t => t.DtInc).FirstOrDefaultAsync();
 
+                    vm.MediasPorJogador = await CalcularMediasPorJogadorAsync(escFase);
+
                     return View(vm);
                 }
             }
@@ -1112,7 +1114,73 @@ namespace ControleFutebolWeb.Controllers
             vm.GolsPorJogador = golsPorJogador;
             vm.AssistsPorJogador = assistsPorJogador;
 
+            vm.MediasPorJogador = await CalcularMediasPorJogadorAsync(escalacoes);
+
             return View(vm);
+        }
+
+        // Médias por jogo das estatísticas importadas, em lote, para todos os
+        // jogadores escalados — mesmas fórmulas de /Jogadores/Estatisticas (inclusive
+        // o filtro Minutos > 0, que exclui reservas não utilizados). Alimenta o
+        // tooltip de info do jogador em /Jogos/Analisar.
+        private async Task<Dictionary<int, MediasPorJogo>> CalcularMediasPorJogadorAsync(
+            IEnumerable<Escalacao> escalacoes)
+        {
+            var ids = escalacoes
+                .Where(e => e.JogadorId != null)
+                .Select(e => e.JogadorId!.Value)
+                .Distinct()
+                .ToList();
+            if (ids.Count == 0) return new();
+
+            var agregados = await _context.EstatisticasJogador
+                .Where(e => ids.Contains(e.JogadorId) && e.Minutos != null && e.Minutos > 0)
+                .GroupBy(e => e.JogadorId)
+                .Select(g => new
+                {
+                    JogadorId = g.Key,
+                    Jogos = g.Count(),
+                    Passes = g.Average(e => (double)e.PassesTotal),
+                    PassesChave = g.Average(e => (double)e.PassesChave),
+                    Finalizacoes = g.Average(e => (double)e.FinalizacoesTotal),
+                    FinalizacoesNoGolSum = g.Sum(e => e.FinalizacoesNoGol),
+                    FinalizacoesSum = g.Sum(e => e.FinalizacoesTotal),
+                    Dribles = g.Average(e => (double)e.DriblesTentados),
+                    DriblesCertosSum = g.Sum(e => e.DriblesCertos),
+                    DriblesSum = g.Sum(e => e.DriblesTentados),
+                    Duelos = g.Average(e => (double)e.DuelosTotal),
+                    DuelosVencidosSum = g.Sum(e => e.DuelosVencidos),
+                    DuelosSum = g.Sum(e => e.DuelosTotal),
+                    Desarmes = g.Average(e => (double)e.Desarmes),
+                    Interceptacoes = g.Average(e => (double)e.Interceptacoes),
+                    Bloqueios = g.Average(e => (double)e.Bloqueios),
+                    Defesas = g.Average(e => (double)e.Defesas),
+                    FaltasSofridas = g.Average(e => (double)e.FaltasSofridas),
+                    FaltasCometidas = g.Average(e => (double)e.FaltasCometidas),
+                })
+                .ToListAsync();
+
+            static int Pct(int certos, int total) =>
+                total > 0 ? (int)Math.Round(100.0 * certos / total) : 0;
+
+            return agregados.ToDictionary(a => a.JogadorId, a => new MediasPorJogo
+            {
+                Jogos = a.Jogos,
+                Passes = Math.Round(a.Passes, 1),
+                PassesChave = Math.Round(a.PassesChave, 1),
+                Finalizacoes = Math.Round(a.Finalizacoes, 1),
+                FinalizacoesPct = Pct(a.FinalizacoesNoGolSum, a.FinalizacoesSum),
+                Dribles = Math.Round(a.Dribles, 1),
+                DriblesPct = Pct(a.DriblesCertosSum, a.DriblesSum),
+                Duelos = Math.Round(a.Duelos, 1),
+                DuelosPct = Pct(a.DuelosVencidosSum, a.DuelosSum),
+                Desarmes = Math.Round(a.Desarmes, 1),
+                Interceptacoes = Math.Round(a.Interceptacoes, 1),
+                Bloqueios = Math.Round(a.Bloqueios, 1),
+                Defesas = Math.Round(a.Defesas, 1),
+                FaltasSofridas = Math.Round(a.FaltasSofridas, 1),
+                FaltasCometidas = Math.Round(a.FaltasCometidas, 1),
+            });
         }
 
         // ── Mapa de Calor ───────────────────────────────────────────────────

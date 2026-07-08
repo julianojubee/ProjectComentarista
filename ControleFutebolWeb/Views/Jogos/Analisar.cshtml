@@ -473,6 +473,42 @@
         white-space: pre-wrap;
     }
 
+    #jogador-tooltip .tt-medias-titulo {
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px solid #334155;
+        color: #94a3b8;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    #jogador-tooltip .tt-medias {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 4px;
+        margin-top: 4px;
+    }
+
+    #jogador-tooltip .tt-media-cel {
+        background: #1e293b;
+        border-radius: 6px;
+        padding: 4px 6px;
+        display: flex;
+        flex-direction: column;
+        line-height: 1.25;
+    }
+
+    #jogador-tooltip .tt-media-cel b {
+        color: #f1f5f9;
+        font-size: 12px;
+    }
+
+    #jogador-tooltip .tt-media-cel span {
+        color: #94a3b8;
+        font-size: 9.5px;
+    }
+
     .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in):not(.card-vermelho-badge) {
         pointer-events: none;
     }
@@ -1790,7 +1826,7 @@
                                         +
                                     </button>
                                     <button type="button" class="btn-info-jogador"
-                                            onmouseenter="mostrarInfoJogador(this, {nome:'@Html.Raw(esc.Jogador.NomeExibicao.Replace("'","&#39;"))',foto:'@(esc.Jogador.FotoUrl ?? "")',posicao:'@esc.Jogador.Posicao',numero:@(esc.Jogador.NumeroCamisa?.ToString() ?? "null"),idade:@(esc.Jogador.Idade > 0 ? esc.Jogador.Idade.ToString() : "null"),nac:'@(esc.Jogador.Nacionalidade?.Nome ?? "")',time:'@Html.Raw(ClubeTooltip(esc.Jogador))',gols:@(golsPorJogador.TryGetValue(esc.Jogador.Id, out var _g) ? _g : 0),assists:@(assistsPorJogador.TryGetValue(esc.Jogador.Id, out var _a) ? _a : 0),obs:'@Html.Raw((esc.Jogador.Observacoes ?? "").Replace("'","&#39;").Replace("\n","\\n"))'} )"
+                                            onmouseenter="mostrarInfoJogador(this, {id:@esc.Jogador.Id,nome:'@Html.Raw(esc.Jogador.NomeExibicao.Replace("'","&#39;"))',foto:'@(esc.Jogador.FotoUrl ?? "")',posicao:'@esc.Jogador.Posicao',numero:@(esc.Jogador.NumeroCamisa?.ToString() ?? "null"),idade:@(esc.Jogador.Idade > 0 ? esc.Jogador.Idade.ToString() : "null"),nac:'@(esc.Jogador.Nacionalidade?.Nome ?? "")',time:'@Html.Raw(ClubeTooltip(esc.Jogador))',gols:@(golsPorJogador.TryGetValue(esc.Jogador.Id, out var _g) ? _g : 0),assists:@(assistsPorJogador.TryGetValue(esc.Jogador.Id, out var _a) ? _a : 0),obs:'@Html.Raw((esc.Jogador.Observacoes ?? "").Replace("'","&#39;").Replace("\n","\\n"))'} )"
                                             onmouseleave="esconderInfoJogador()">
                                         ℹ
                                     </button>
@@ -1906,7 +1942,7 @@
                                         +
                                     </button>
                                     <button type="button" class="btn-info-jogador"
-                                            onmouseenter="mostrarInfoJogador(this, {nome:'@Html.Raw(esc.Jogador.NomeExibicao.Replace("'","&#39;"))',foto:'@(esc.Jogador.FotoUrl ?? "")',posicao:'@esc.Jogador.Posicao',numero:@(esc.Jogador.NumeroCamisa?.ToString() ?? "null"),idade:@(esc.Jogador.Idade > 0 ? esc.Jogador.Idade.ToString() : "null"),nac:'@(esc.Jogador.Nacionalidade?.Nome ?? "")',time:'@Html.Raw(ClubeTooltip(esc.Jogador))',gols:@(golsPorJogador.TryGetValue(esc.Jogador.Id, out var _g) ? _g : 0),assists:@(assistsPorJogador.TryGetValue(esc.Jogador.Id, out var _a) ? _a : 0),obs:'@Html.Raw((esc.Jogador.Observacoes ?? "").Replace("'","&#39;").Replace("\n","\\n"))'} )"
+                                            onmouseenter="mostrarInfoJogador(this, {id:@esc.Jogador.Id,nome:'@Html.Raw(esc.Jogador.NomeExibicao.Replace("'","&#39;"))',foto:'@(esc.Jogador.FotoUrl ?? "")',posicao:'@esc.Jogador.Posicao',numero:@(esc.Jogador.NumeroCamisa?.ToString() ?? "null"),idade:@(esc.Jogador.Idade > 0 ? esc.Jogador.Idade.ToString() : "null"),nac:'@(esc.Jogador.Nacionalidade?.Nome ?? "")',time:'@Html.Raw(ClubeTooltip(esc.Jogador))',gols:@(golsPorJogador.TryGetValue(esc.Jogador.Id, out var _g) ? _g : 0),assists:@(assistsPorJogador.TryGetValue(esc.Jogador.Id, out var _a) ? _a : 0),obs:'@Html.Raw((esc.Jogador.Observacoes ?? "").Replace("'","&#39;").Replace("\n","\\n"))'} )"
                                             onmouseleave="esconderInfoJogador()">
                                         ℹ
                                     </button>
@@ -4221,6 +4257,12 @@
     });
 
     // ── Tooltip de info do jogador ──────────────────────────────────────────
+    // Médias por jogo das estatísticas importadas, por jogador (id → médias),
+    // com as mesmas fórmulas de /Jogadores/Estatisticas.
+    const MEDIAS_JOGADORES = @Html.Raw(JsonSerializer.Serialize(
+        Model.MediasPorJogador,
+        new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+
     function mostrarInfoJogador(btn, dados) {
         const tt = document.getElementById('jogador-tooltip');
         if (!tt) return;
@@ -4236,6 +4278,26 @@
         if (meta) html += `<div class="tt-meta">${meta}</div>`;
         if (dados.gols > 0 || dados.assists > 0)
             html += `<div class="tt-stats"><span class="tt-stat-gol">⚽ ${dados.gols} gols</span><span class="tt-stat-ast">🅰️ ${dados.assists} assists</span></div>`;
+        const md = MEDIAS_JOGADORES[dados.id];
+        if (md) {
+            const celulas = [
+                [`${md.finalizacoes}`, `Finaliz. · ${md.finalizacoesPct}% gol`],
+                [`${md.dribles}`, `Dribles · ${md.driblesPct}% certos`],
+                [`${md.duelos}`, `Duelos · ${md.duelosPct}% venc.`],
+                [`${md.passes}`, 'Passes'],
+                [`${md.passesChave}`, 'Passes-chave'],
+                [`${md.desarmes}`, 'Desarmes'],
+                [`${md.interceptacoes}`, 'Intercept.'],
+                [`${md.bloqueios}`, 'Bloqueios'],
+                [`${md.faltasSofridas}`, 'Faltas sofr.'],
+                [`${md.faltasCometidas}`, 'Faltas com.'],
+            ];
+            if (md.defesas > 0) celulas.unshift([`${md.defesas}`, 'Defesas']);
+            html += `<div class="tt-medias-titulo">Médias por jogo · ${md.jogos} jogo${md.jogos > 1 ? 's' : ''}</div>` +
+                `<div class="tt-medias">` +
+                celulas.map(([v, l]) => `<div class="tt-media-cel"><b>${v}</b><span>${l}</span></div>`).join('') +
+                `</div>`;
+        }
         if (dados.obs)     html += `<div class="tt-obs">${dados.obs}</div>`;
         tt.innerHTML = html;
         tt.style.display = 'block';

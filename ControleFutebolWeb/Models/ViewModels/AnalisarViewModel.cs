@@ -45,6 +45,10 @@ namespace ControleFutebolWeb.Models.ViewModels
         public Dictionary<int, int> GolsPorJogador { get; set; } = new();
         public Dictionary<int, int> AssistsPorJogador { get; set; } = new();
 
+        // Médias por jogo das estatísticas importadas (mesmas fórmulas de
+        // /Jogadores/Estatisticas), por jogador — exibidas no tooltip de info.
+        public Dictionary<int, MediasPorJogo> MediasPorJogador { get; set; } = new();
+
         // Jogo analisado pelo usuário atual (existência de JogoAnalisadoUsuario).
         public bool Analisado { get; set; }
 
