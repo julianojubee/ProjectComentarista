@@ -1826,7 +1826,7 @@
                                         +
                                     </button>
                                     <button type="button" class="btn-info-jogador"
-                                            onmouseenter="mostrarInfoJogador(this, {id:@esc.Jogador.Id,nome:'@Html.Raw(esc.Jogador.NomeExibicao.Replace("'","&#39;"))',foto:'@(esc.Jogador.FotoUrl ?? "")',posicao:'@esc.Jogador.Posicao',numero:@(esc.Jogador.NumeroCamisa?.ToString() ?? "null"),idade:@(esc.Jogador.Idade > 0 ? esc.Jogador.Idade.ToString() : "null"),nac:'@(esc.Jogador.Nacionalidade?.Nome ?? "")',time:'@Html.Raw(ClubeTooltip(esc.Jogador))',gols:@(golsPorJogador.TryGetValue(esc.Jogador.Id, out var _g) ? _g : 0),assists:@(assistsPorJogador.TryGetValue(esc.Jogador.Id, out var _a) ? _a : 0),obs:'@Html.Raw((esc.Jogador.Observacoes ?? "").Replace("'","&#39;").Replace("\n","\\n"))'} )"
+                                            onmouseenter="mostrarInfoJogador(this, {id:@esc.Jogador.Id,nome:'@Html.Raw(esc.Jogador.NomeExibicao.Replace("'","&#39;"))',foto:'@(esc.Jogador.FotoUrl ?? "")',posicao:'@esc.Jogador.Posicao',numero:@(esc.Jogador.NumeroCamisa?.ToString() ?? "null"),idade:@(esc.Jogador.Idade > 0 ? esc.Jogador.Idade.ToString() : "null"),altura:@(esc.Jogador.Altura?.ToString() ?? "null"),peso:@(esc.Jogador.Peso?.ToString() ?? "null"),nac:'@(esc.Jogador.Nacionalidade?.Nome ?? "")',time:'@Html.Raw(ClubeTooltip(esc.Jogador))',gols:@(golsPorJogador.TryGetValue(esc.Jogador.Id, out var _g) ? _g : 0),assists:@(assistsPorJogador.TryGetValue(esc.Jogador.Id, out var _a) ? _a : 0),obs:'@Html.Raw((esc.Jogador.Observacoes ?? "").Replace("'","&#39;").Replace("\n","\\n"))'} )"
                                             onmouseleave="esconderInfoJogador()">
                                         ℹ
                                     </button>
@@ -1942,7 +1942,7 @@
                                         +
                                     </button>
                                     <button type="button" class="btn-info-jogador"
-                                            onmouseenter="mostrarInfoJogador(this, {id:@esc.Jogador.Id,nome:'@Html.Raw(esc.Jogador.NomeExibicao.Replace("'","&#39;"))',foto:'@(esc.Jogador.FotoUrl ?? "")',posicao:'@esc.Jogador.Posicao',numero:@(esc.Jogador.NumeroCamisa?.ToString() ?? "null"),idade:@(esc.Jogador.Idade > 0 ? esc.Jogador.Idade.ToString() : "null"),nac:'@(esc.Jogador.Nacionalidade?.Nome ?? "")',time:'@Html.Raw(ClubeTooltip(esc.Jogador))',gols:@(golsPorJogador.TryGetValue(esc.Jogador.Id, out var _g) ? _g : 0),assists:@(assistsPorJogador.TryGetValue(esc.Jogador.Id, out var _a) ? _a : 0),obs:'@Html.Raw((esc.Jogador.Observacoes ?? "").Replace("'","&#39;").Replace("\n","\\n"))'} )"
+                                            onmouseenter="mostrarInfoJogador(this, {id:@esc.Jogador.Id,nome:'@Html.Raw(esc.Jogador.NomeExibicao.Replace("'","&#39;"))',foto:'@(esc.Jogador.FotoUrl ?? "")',posicao:'@esc.Jogador.Posicao',numero:@(esc.Jogador.NumeroCamisa?.ToString() ?? "null"),idade:@(esc.Jogador.Idade > 0 ? esc.Jogador.Idade.ToString() : "null"),altura:@(esc.Jogador.Altura?.ToString() ?? "null"),peso:@(esc.Jogador.Peso?.ToString() ?? "null"),nac:'@(esc.Jogador.Nacionalidade?.Nome ?? "")',time:'@Html.Raw(ClubeTooltip(esc.Jogador))',gols:@(golsPorJogador.TryGetValue(esc.Jogador.Id, out var _g) ? _g : 0),assists:@(assistsPorJogador.TryGetValue(esc.Jogador.Id, out var _a) ? _a : 0),obs:'@Html.Raw((esc.Jogador.Observacoes ?? "").Replace("'","&#39;").Replace("\n","\\n"))'} )"
                                             onmouseleave="esconderInfoJogador()">
                                         ℹ
                                     </button>
@@ -4272,6 +4272,8 @@
             dados.posicao ? `<span>🎽 ${dados.posicao}</span>` : '',
             dados.numero  ? `<span># ${dados.numero}</span>`   : '',
             dados.idade   ? `<span>📅 ${dados.idade}a</span>`  : '',
+            dados.altura  ? `<span>📏 ${(dados.altura / 100).toFixed(2).replace('.', ',')}m</span>` : '',
+            dados.peso    ? `<span>⚖️ ${dados.peso}kg</span>`  : '',
             dados.nac     ? `<span>🌍 ${dados.nac}</span>`     : '',
             dados.time    ? `<span>🏟️ ${dados.time}</span>`    : '', // clube (só em jogo de seleção)
         ].filter(Boolean).join('');
