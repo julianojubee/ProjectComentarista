@@ -8,6 +8,28 @@
 
         <a href="javascript:history.back()" class="btn-voltar">← Voltar</a>
 
+        @if (TempData["Sucesso"] != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                @TempData["Sucesso"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+        @if (TempData["Erro"] != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                @TempData["Erro"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+        @if (TempData["Info"] != null)
+        {
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                @TempData["Info"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+
         <!-- Header -->
         <div class="jogador-header">
             @if (!string.IsNullOrWhiteSpace(Model.FotoUrl))
@@ -61,6 +83,7 @@
         <div class="cf-card-actions" style="margin-top:1rem;">
             <form asp-action="BuscarFoto" asp-route-id="@Model.Id" method="post" style="display:inline;">
                 @Html.AntiForgeryToken()
+                <input type="hidden" name="voltarParaDetalhes" value="true" />
                 <button type="submit" class="btn btn-outline-secondary btn-sm cf-small-btn"
                         title="Buscar foto"
                         onclick="return confirm('Buscar foto de @Model.Nome ?')">

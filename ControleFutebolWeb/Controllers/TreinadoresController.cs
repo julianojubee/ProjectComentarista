@@ -293,8 +293,15 @@ namespace ControleFutebolWeb.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> BuscarFoto(int id,
-            List<int>? competicaoIds, List<int>? timeIds, List<string>? nacionalidades, int page = 1)
+            List<int>? competicaoIds, List<int>? timeIds, List<string>? nacionalidades, int page = 1,
+            bool voltarParaDetalhes = false)
         {
+            // O botão existe no Index (volta pra listagem preservando filtros/página) e na
+            // tela de detalhes (volta pra própria tela de detalhes).
+            IActionResult Voltar() => voltarParaDetalhes
+                ? RedirectToAction(nameof(Details), new { id })
+                : RedirectIndexComFiltros(competicaoIds, timeIds, nacionalidades, page);
+
             var treinador = await _context.Treinadores
                 .Include(t => t.Time)
                 .Include(t => t.Nacionalidade)
@@ -319,7 +326,7 @@ namespace ControleFutebolWeb.Controllers
                 if (melhor == null)
                 {
                     TempData["Erro"] = $"❌ Nenhum treinador encontrado na API para '{termoBusca}'.";
-                    return RedirectIndexComFiltros(competicaoIds, timeIds, nacionalidades, page);
+                    return Voltar();
                 }
 
                 var alteracoes = new List<string>();
@@ -366,7 +373,11 @@ namespace ControleFutebolWeb.Controllers
 
                 if (novaData.HasValue && novaData.Value.Year > 1900)
                 {
-                    var data = DateTime.SpecifyKind(novaData.Value, DateTimeKind.Unspecified);
+                    // Data de nascimento é data pura: ancora ao meio-dia UTC para que nenhuma
+                    // conversão de fuso (converter do EF ou coerção do Postgres) mude o DIA —
+                    // meia-noite deslocada em -3h vira o dia anterior, o que fazia a data ser
+                    // regravada (e exibida errada) a cada clique em Buscar dados.
+                    var data = DateTime.SpecifyKind(novaData.Value.Date.AddHours(12), DateTimeKind.Utc);
                     if (treinador.DataNascimento?.Date != data.Date)
                     {
                         treinador.DataNascimento = data;
@@ -423,7 +434,7 @@ namespace ControleFutebolWeb.Controllers
                 TempData["Erro"] = $"❌ Erro ao buscar dados: {ex.Message}";
             }
 
-            return RedirectIndexComFiltros(competicaoIds, timeIds, nacionalidades, page);
+            return Voltar();
         }
 
         // ── Importar histórico pelo nome (busca automática) ──────────────────
