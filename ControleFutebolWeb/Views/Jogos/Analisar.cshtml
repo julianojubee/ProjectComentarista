@@ -809,6 +809,31 @@
             flex-shrink: 0;
         }
 
+    .mb-team-link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        color: inherit;
+        border-radius: 8px;
+        padding: 4px 6px;
+        margin: -4px -6px;
+        transition: background-color .15s;
+    }
+
+        .mb-team-link:hover {
+            background-color: rgba(255,255,255,.06);
+        }
+
+        .mb-team-link:hover .mb-team-name {
+            color: #fff;
+            text-decoration: underline;
+        }
+
+        .mb-team.away .mb-team-link {
+            flex-direction: row-reverse;
+        }
+
     .mb-team-name {
         font-size: .9rem;
         font-weight: 600;
@@ -1249,11 +1274,13 @@
     <div class="mb-scoreline">
         <!-- Time Casa -->
         <div class="mb-team home">
-            @if (!string.IsNullOrEmpty(Model.Jogo.TimeCasa?.EscudoUrl))
-            {
-                <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeCasa.EscudoUrl })" alt="@Model.Jogo.TimeCasa.Nome" />
-            }
-            <span class="mb-team-name">@Model.Jogo.TimeCasa?.Nome</span>
+            <a class="mb-team-link" href="@Url.Action("Details", "Times", new { id = Model.Jogo.TimeCasaId })" title="Ver perfil de @Model.Jogo.TimeCasa?.Nome">
+                @if (!string.IsNullOrEmpty(Model.Jogo.TimeCasa?.EscudoUrl))
+                {
+                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeCasa.EscudoUrl })" alt="@Model.Jogo.TimeCasa.Nome" />
+                }
+                <span class="mb-team-name">@Model.Jogo.TimeCasa?.Nome</span>
+            </a>
         </div>
 
         <!-- Placar -->
@@ -1273,11 +1300,13 @@
 
         <!-- Time Visitante -->
         <div class="mb-team away">
-            @if (!string.IsNullOrEmpty(Model.Jogo.TimeVisitante?.EscudoUrl))
-            {
-                <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeVisitante.EscudoUrl })" alt="@Model.Jogo.TimeVisitante.Nome" />
-            }
-            <span class="mb-team-name">@Model.Jogo.TimeVisitante?.Nome</span>
+            <a class="mb-team-link" href="@Url.Action("Details", "Times", new { id = Model.Jogo.TimeVisitanteId })" title="Ver perfil de @Model.Jogo.TimeVisitante?.Nome">
+                @if (!string.IsNullOrEmpty(Model.Jogo.TimeVisitante?.EscudoUrl))
+                {
+                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeVisitante.EscudoUrl })" alt="@Model.Jogo.TimeVisitante.Nome" />
+                }
+                <span class="mb-team-name">@Model.Jogo.TimeVisitante?.Nome</span>
+            </a>
         </div>
     </div>
 
