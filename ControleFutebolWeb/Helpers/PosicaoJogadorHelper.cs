@@ -95,6 +95,13 @@ namespace ControleFutebolWeb.Helpers
         public static string? PosicaoGranular(List<PosicaoFormacao> slots, double x, double y)
         {
             if (slots.Count == 0) return null;
+            // (0,0) não é uma posição real em nenhuma formação (todo slot cadastrado
+            // fica afastado dos cantos) — indica escalação salva sem coordenada, ex.:
+            // formação que na época não tinha posições configuradas. Casar com o slot
+            // mais próximo inventaria uma posição no canto do ataque (um goleiro
+            // apareceria como "Ponta Esquerda"); quem chama decide o fallback
+            // (Escalacao.Posicao, o texto herdado da API).
+            if (x == 0 && y == 0) return null;
             var slot = slots.MinBy(s => Math.Pow(s.PosicaoX - x, 2) + Math.Pow(s.PosicaoY - y, 2))!;
             return NormalizarNomePosicao(slot.NomePosicao);
         }
