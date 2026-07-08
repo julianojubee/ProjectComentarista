@@ -336,6 +336,19 @@ namespace ControleFutebolWeb.Controllers
                     treinador.IdApi = coachId;
                 }
 
+                // Corrige o nome pelo canônico da API só quando o nome local é uma variação
+                // dos mesmos tokens (ex.: "Ceni Rogerio", invertido, herdado de um stub →
+                // "Rogério Ceni") ou veio literalmente do stub resolvido — nunca sobrescreve
+                // um nome escolhido à mão pelo usuário.
+                var stub = resolveuStub ? registros.FirstOrDefault(r => r.Id != melhor.Id) : null;
+                if (!string.IsNullOrWhiteSpace(melhor.Name) && treinador.Nome != melhor.Name &&
+                    (ApiFootballService.NomesEquivalentes(treinador.Nome, melhor.Name) ||
+                     (stub != null && ApiFootballService.NomesEquivalentes(treinador.Nome, stub.Name))))
+                {
+                    treinador.Nome = melhor.Name;
+                    alteracoes.Add($"nome ({melhor.Name})");
+                }
+
                 // Idade / data de nascimento
                 DateTime? novaData = null;
                 if (!string.IsNullOrEmpty(melhor.Birth?.Date) &&

@@ -705,14 +705,34 @@ namespace ControleFutebolWeb.Services
             // O escolhido é um stub — mesmo tendo vencido pela trava do IdApi, ela não pode
             // cimentar um stub. Refaz a busca sem filtro de time e procura, entre os
             // candidatos NÃO-stub, o(s) que casam pelo nome (por tokens, sem acento).
-            var semTime = await BuscarTreinadorApiAsync(nome, null, ct);
-            var tokensStub = TokensSignificativos(melhor.Name);
+            // A API casa o termo pelos campos name/lastname, então o nome do stub inteiro
+            // às vezes não acha o registro completo (ex.: stub "Ceni Rogerio" — o completo
+            // "Rogério Ceni" só aparece buscando "ceni"). Busca o nome inteiro e também
+            // cada token significativo, unindo os resultados por id.
+            var tokensBusca = TokensSignificativos(melhor.Name, nome);
+            var candidatos = new Dictionary<int, AfCoachFull>();
+            foreach (var termo in new[] { nome.Trim() }.Concat(tokensBusca)
+                         .Where(t => t.Length >= 3)
+                         .Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                foreach (var c in await BuscarTreinadorApiAsync(termo, null, ct))
+                    if (c.Id is int cid) candidatos[cid] = c;
+            }
 
-            var compativeis = semTime
+            // Compatível = candidato que contém TODOS os tokens do nome do stub. Exigir todos
+            // (e não qualquer um) evita que a busca por um token de primeiro nome (ex.: "rogerio")
+            // marque como compatível cada "Rogério" da API — {ceni, rogerio} casa com
+            // "Rogério Mücke Ceni", mas não com "Rogério Micale".
+            var tokensStub = TokensSignificativos(melhor.Name);
+            if (tokensStub.Count == 0) tokensStub = TokensSignificativos(nome);
+
+            var compativeis = candidatos.Values
                 .Where(c => c.Id != melhor.Id && !EhStubTreinador(c))
-                .Where(c => tokensStub.Any(t =>
-                    TokensSignificativos(c.Name, c.Firstname, c.Lastname).Contains(t)))
-                .DistinctBy(c => c.Id)
+                .Where(c =>
+                {
+                    var tokensCandidato = TokensSignificativos(c.Name, c.Firstname, c.Lastname);
+                    return tokensStub.All(tokensCandidato.Contains);
+                })
                 .ToList();
 
             if (compativeis.Count == 1)
@@ -730,6 +750,20 @@ namespace ControleFutebolWeb.Services
 
             // Nenhum candidato completo compatível encontrado — mantém o stub mesmo.
             return (melhor, new List<AfCoachFull> { melhor }, false);
+        }
+
+        /// <summary>
+        /// True quando dois nomes têm exatamente os mesmos tokens significativos, em qualquer
+        /// ordem e ignorando acentos — ex.: "Ceni Rogerio" (nome invertido herdado de um stub
+        /// da api-football) equivale a "Rogério Ceni". Usado para decidir se o nome local pode
+        /// ser corrigido pelo nome canônico da API sem sobrescrever um nome escolhido à mão.
+        /// </summary>
+        public static bool NomesEquivalentes(string? a, string? b)
+        {
+            var tokensA = TokensSignificativos(a);
+            var tokensB = TokensSignificativos(b);
+            return tokensA.Count > 0 && tokensA.Count == tokensB.Count &&
+                   tokensA.All(tokensB.Contains);
         }
 
         // Tokens "significativos" de um ou mais nomes: minúsculas, sem acento, descartando
