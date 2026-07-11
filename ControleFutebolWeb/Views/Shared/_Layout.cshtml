@@ -125,6 +125,8 @@
                                 <a class="dropdown-item" asp-controller="Jogos" asp-action="Index">
                                     <span class="gold-ico">📅</span> Jogos
                                 </a>
+                                @if (_layoutIsAdmin)
+                                {
                                 <div class="dropdown-divider"></div>
                                 <a class="dropdown-item" asp-controller="Formacoes" asp-action="Index">
                                     <span class="gold-ico">⚽</span> Formações
@@ -132,6 +134,7 @@
                                 <a class="dropdown-item" asp-controller="Formacoes" asp-action="Posicoes">
                                     <span class="gold-ico">🗺</span> Posições de Formação
                                 </a>
+                                }
                                 <div class="dropdown-divider"></div>
                                 <a class="dropdown-item" asp-controller="CriteriosNota" asp-action="Index">
                                     <span class="gold-ico">📋</span> Critérios de Nota
