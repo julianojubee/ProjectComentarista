@@ -487,8 +487,9 @@ namespace ControleFutebolWeb.Controllers
                     if (posicao == null) continue;
 
                     posicao.FormacaoId = time.FormacaoPadraoId;
-                    posicao.PosicaoX = e.PosicaoX;
-                    posicao.PosicaoY = e.PosicaoY;
+                    // TimeEscalacaoPadrao guarda coordenadas como int (arredonda o input double)
+                    posicao.PosicaoX = (int)Math.Round(e.PosicaoX);
+                    posicao.PosicaoY = (int)Math.Round(e.PosicaoY);
                     posicao.Titular = true;  // ← CORRIGIDO: nunca era setado (ficava false)
 
                     if (e.JogadorId > 0)
