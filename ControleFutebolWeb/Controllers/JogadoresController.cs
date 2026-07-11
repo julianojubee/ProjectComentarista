@@ -825,20 +825,6 @@ namespace ControleFutebolWeb.Controllers
                 };
             }
 
-            // Grupo de posição → define quais métricas comparar.
-            // Usa a mesma convenção dos rankings de /Relatorios (posições amplas
-            // vindas da api-football: Goleiro/Defensor/Meia/Atacante), por Contains
-            // para também cobrir variações detalhadas (Zagueiro, Lateral, Ponta...).
-            static string GrupoPosicao(string? pos)
-            {
-                if (string.IsNullOrEmpty(pos)) return "ATA";
-                bool C(string s) => pos.Contains(s, StringComparison.OrdinalIgnoreCase);
-                if (C("Goleiro")) return "GOL";
-                if (C("Defensor") || C("Zagueiro") || C("Lateral") || C("Ala")) return "DEF";
-                if (C("Meia") || C("Meio") || C("Volante")) return "MEI";
-                return "ATA"; // Atacante, Ponta, Centroavante e demais
-            }
-
             string grupo = GrupoPosicao(alvo.Posicao);
 
             // Métricas usadas como critério (limiar = 70% do valor do alvo).
@@ -951,6 +937,568 @@ namespace ControleFutebolWeb.Controllers
                 colunas = colunasDef.Select(c => c.label).ToArray(),
                 jogadores = top,
             });
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // "Comparar com" (/Jogadores/Estatisticas): filtros em cascata
+        // liga → time → jogador + comparação lado a lado de dois jogadores.
+        // ─────────────────────────────────────────────────────────────────
+
+        // GET: /Jogadores/CompararLigas — competições para o filtro (TopTier primeiro)
+        [HttpGet]
+        public async Task<IActionResult> CompararLigas()
+        {
+            var ligas = await _context.Competicoes
+                .AsNoTracking()
+                .OrderByDescending(c => c.TopTier)
+                .ThenBy(c => c.Nome)
+                .Select(c => new { id = c.Id, nome = c.Nome })
+                .ToListAsync();
+            return Json(ligas);
+        }
+
+        // GET: /Jogadores/CompararTimes?competicaoId=X
+        // Não há vínculo direto time↔competição no modelo: os times de uma liga
+        // são derivados dos jogos cadastrados nela (mandante ou visitante).
+        [HttpGet]
+        public async Task<IActionResult> CompararTimes(int? competicaoId)
+        {
+            IQueryable<Time> query = _context.Times.AsNoTracking();
+
+            if (competicaoId.HasValue)
+            {
+                var ids = _context.Jogos
+                    .Where(j => j.CompeticaoId == competicaoId.Value)
+                    .Select(j => j.TimeCasaId)
+                    .Union(_context.Jogos
+                        .Where(j => j.CompeticaoId == competicaoId.Value)
+                        .Select(j => j.TimeVisitanteId));
+                query = query.Where(t => ids.Contains(t.Id));
+            }
+
+            var times = await query
+                .OrderBy(t => t.Nome)
+                .Select(t => new { id = t.Id, nome = t.Nome, escudoUrl = t.EscudoUrl })
+                .ToListAsync();
+            return Json(times);
+        }
+
+        // GET: /Jogadores/CompararJogadoresLista?timeId=X&nome=Y
+        // Jogadores de um time e/ou busca por nome (autocomplete do modal).
+        [HttpGet]
+        public async Task<IActionResult> CompararJogadoresLista(int? timeId, string? nome)
+        {
+            if (!timeId.HasValue && string.IsNullOrWhiteSpace(nome))
+                return Json(Array.Empty<object>());
+
+            var query = _context.Jogadores
+                .AsNoTracking()
+                .Include(j => j.Time)
+                .AsQueryable();
+
+            if (timeId.HasValue)
+                query = query.Where(j => j.TimeId == timeId.Value);
+
+            if (!string.IsNullOrWhiteSpace(nome))
+            {
+                var termo = nome.Trim().ToLower();
+                query = query.Where(j =>
+                    j.Nome.ToLower().Contains(termo) ||
+                    ((j.PrimeiroNome ?? "") + " " + (j.UltimoNome ?? "")).ToLower().Contains(termo));
+            }
+
+            var jogadores = (await query.OrderBy(j => j.Nome).Take(40).ToListAsync())
+                .Select(j => new
+                {
+                    id = j.Id,
+                    // Nome curto da API (ex.: "K. De Bruyne") — o mesmo exibido nos
+                    // campos da análise do jogo, para as listas ficarem compactas.
+                    nome = j.Nome,
+                    posicao = j.Posicao,
+                    clube = j.Time?.Nome,
+                    escudoUrl = j.Time?.EscudoUrl,
+                    fotoUrl = j.FotoUrl,
+                    idade = j.Idade,
+                });
+            return Json(jogadores);
+        }
+
+        // GET: /Jogadores/CompararDados?id=X&comId=Y
+        // Payload completo da comparação: cabeçalho dos dois jogadores, métricas
+        // agrupadas com destaque de quem vence cada uma e o resumo textual
+        // (quem é melhor em quê, e em qual função cada um renderia mais).
+        [HttpGet]
+        public async Task<IActionResult> CompararDados(int id, int comId)
+        {
+            if (id == comId)
+                return Json(new { error = "Escolha um jogador diferente para comparar." });
+
+            var uid = _userManager.GetUserId(User);
+
+            var criteriosCompartilhados = await _context.CriteriosNota
+                .Where(c => c.UsuarioId == null).ToListAsync();
+            var criteriosUsuario = await _context.CriteriosNota
+                .Where(c => c.UsuarioId == uid).ToListAsync();
+            var criterios = CriteriosNotaHelper.MergeCriterios(criteriosCompartilhados, criteriosUsuario);
+
+            var a = await MontarPerfilComparacaoAsync(id, uid, criterios);
+            var b = await MontarPerfilComparacaoAsync(comId, uid, criterios);
+            if (a == null || b == null) return NotFound();
+
+            var ptBr = System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
+            string F(double v, string fmt = "0.##") => v.ToString(fmt, ptBr);
+
+            object Cabecalho(PerfilComparacao p) => new
+            {
+                id = p.J.Id,
+                nome = p.J.NomeExibicao,
+                fotoUrl = p.J.FotoUrl,
+                posicao = p.J.Posicao,
+                idade = p.J.Idade,
+                clube = p.J.Time?.Nome,
+                escudoUrl = p.J.Time?.EscudoUrl,
+                pais = p.J.Nacionalidade?.Nome,
+                jogos = p.JogosTotal,
+                notaMedia = p.NotaMedia,
+                rating = p.Rating,
+                gols = p.Gols,
+                assistencias = p.Assistencias,
+            };
+
+            // ── Métricas agrupadas (linhas com barra proporcional) ────────
+            var grupos = new List<object>();
+            var linhas = new List<object>();
+
+            // menorMelhor: vence quem tem o valor MENOR (faltas, cartões, gols sofridos)
+            void Linha(string label, double va, double vb, string sufixo = "", bool menorMelhor = false, string fmt = "0.##")
+            {
+                if (va == 0 && vb == 0) return;
+                string? vencedor = Math.Abs(va - vb) < 0.005 ? null
+                    : ((va > vb) != menorMelhor ? "a" : "b");
+                double soma = va + vb;
+                linhas.Add(new
+                {
+                    label,
+                    fa = F(va, fmt) + sufixo,
+                    fb = F(vb, fmt) + sufixo,
+                    pctA = soma > 0 ? Math.Round(va / soma * 100, 1) : 50,
+                    vencedor,
+                });
+            }
+
+            void FecharGrupo(string titulo)
+            {
+                if (linhas.Count > 0) grupos.Add(new { titulo, metricas = linhas.ToArray() });
+                linhas.Clear();
+            }
+
+            bool temGoleiro = a.Grupo == "GOL" || b.Grupo == "GOL" || a.Defesas > 0 || b.Defesas > 0;
+            bool ambosGoleiros = a.Grupo == "GOL" && b.Grupo == "GOL";
+
+            // União das funções que os dois exercem — define quais métricas mostrar
+            // e em que ordem (dupla defensiva vê a defesa primeiro; ofensiva, o ataque).
+            var rolesPar = OrdemRoles.Where(r => a.Roles.Contains(r) || b.Roles.Contains(r)).ToList();
+            bool parDefensivo = !ambosGoleiros && rolesPar.All(r => r is "GOL" or "ZAG" or "LAT" or "VOL");
+            bool temDefensivo = temGoleiro || rolesPar.Any(r => r is "ZAG" or "LAT" or "VOL");
+
+            Linha("Jogos", a.JogosTotal, b.JogosTotal, fmt: "0");
+            Linha("Nota média", a.NotaMedia ?? 0, b.NotaMedia ?? 0, fmt: "0.00");
+            Linha("Rating médio (api)", a.Rating ?? 0, b.Rating ?? 0, fmt: "0.00");
+            Linha("Minutos por jogo", a.MinutosMedio, b.MinutosMedio, fmt: "0");
+            FecharGrupo("Visão geral");
+
+            void LinhasCleanSheet()
+            {
+                Linha("Jogos sem sofrer gols (titular)", a.JogosSemSofrerGols, b.JogosSemSofrerGols, fmt: "0");
+                Linha("% de jogos sem sofrer gols", a.PctCleanSheets, b.PctCleanSheets, "%", fmt: "0");
+            }
+
+            if (ambosGoleiros)
+            {
+                Linha("Defesas por jogo", a.PJ(a.Defesas), b.PJ(b.Defesas));
+                Linha("Gols sofridos por jogo", a.PJ(a.GolsSofridos), b.PJ(b.GolsSofridos), menorMelhor: true);
+                LinhasCleanSheet();
+                FecharGrupo("Defesa");
+            }
+            else if (parDefensivo)
+            {
+                // Zagueiros/laterais/volantes: a defesa vem primeiro e concentra o
+                // que importa para a função (incluindo duelos e jogos sem sofrer
+                // gols); o lado ofensivo vira um grupo único de contribuição.
+                Linha("Desarmes por jogo", a.PJ(a.Desarmes), b.PJ(b.Desarmes));
+                Linha("Interceptações por jogo", a.PJ(a.Interceptacoes), b.PJ(b.Interceptacoes));
+                Linha("Bloqueios por jogo", a.PJ(a.Bloqueios), b.PJ(b.Bloqueios));
+                Linha("Duelos vencidos por jogo", a.PJ(a.DuelosVencidos), b.PJ(b.DuelosVencidos));
+                Linha("% de duelos vencidos", a.Pct(a.DuelosVencidos, a.DuelosTotal), b.Pct(b.DuelosVencidos, b.DuelosTotal), "%", fmt: "0");
+                if (temGoleiro)
+                {
+                    Linha("Defesas por jogo", a.PJ(a.Defesas), b.PJ(b.Defesas));
+                    Linha("Gols sofridos por jogo", a.PJ(a.GolsSofridos), b.PJ(b.GolsSofridos), menorMelhor: true);
+                }
+                LinhasCleanSheet();
+                FecharGrupo("Defesa");
+
+                Linha("Gols", a.Gols, b.Gols, fmt: "0");
+                Linha("Assistências", a.Assistencias, b.Assistencias, fmt: "0");
+                Linha("Participações em gol por jogo", a.PJTotal(a.Gols + a.Assistencias), b.PJTotal(b.Gols + b.Assistencias));
+                Linha("Passes por jogo", a.PJ(a.Passes), b.PJ(b.Passes), fmt: "0.#");
+                Linha("Passes-chave por jogo", a.PJ(a.PassesChave), b.PJ(b.PassesChave));
+                Linha("Dribles certos por jogo", a.PJ(a.DriblesCertos), b.PJ(b.DriblesCertos));
+                Linha("% de dribles certos", a.Pct(a.DriblesCertos, a.DriblesTentados), b.Pct(b.DriblesCertos, b.DriblesTentados), "%", fmt: "0");
+                FecharGrupo("Contribuição ofensiva");
+            }
+            else
+            {
+                Linha("Gols", a.Gols, b.Gols, fmt: "0");
+                Linha("Gols por jogo", a.PJTotal(a.Gols), b.PJTotal(b.Gols));
+                Linha("Finalizações por jogo", a.PJ(a.Finalizacoes), b.PJ(b.Finalizacoes));
+                Linha("Finalizações no alvo por jogo", a.PJ(a.FinNoGol), b.PJ(b.FinNoGol));
+                Linha("% de finalizações no alvo", a.Pct(a.FinNoGol, a.Finalizacoes), b.Pct(b.FinNoGol, b.Finalizacoes), "%", fmt: "0");
+                FecharGrupo("Ataque");
+
+                Linha("Assistências", a.Assistencias, b.Assistencias, fmt: "0");
+                Linha("Assistências por jogo", a.PJTotal(a.Assistencias), b.PJTotal(b.Assistencias));
+                Linha("Passes por jogo", a.PJ(a.Passes), b.PJ(b.Passes), fmt: "0.#");
+                Linha("Passes-chave por jogo", a.PJ(a.PassesChave), b.PJ(b.PassesChave));
+                FecharGrupo("Criação");
+
+                Linha("Dribles certos por jogo", a.PJ(a.DriblesCertos), b.PJ(b.DriblesCertos));
+                Linha("% de dribles certos", a.Pct(a.DriblesCertos, a.DriblesTentados), b.Pct(b.DriblesCertos, b.DriblesTentados), "%", fmt: "0");
+                Linha("Duelos vencidos por jogo", a.PJ(a.DuelosVencidos), b.PJ(b.DuelosVencidos));
+                Linha("% de duelos vencidos", a.Pct(a.DuelosVencidos, a.DuelosTotal), b.Pct(b.DuelosVencidos, b.DuelosTotal), "%", fmt: "0");
+                FecharGrupo("Drible e duelos");
+
+                Linha("Desarmes por jogo", a.PJ(a.Desarmes), b.PJ(b.Desarmes));
+                Linha("Interceptações por jogo", a.PJ(a.Interceptacoes), b.PJ(b.Interceptacoes));
+                Linha("Bloqueios por jogo", a.PJ(a.Bloqueios), b.PJ(b.Bloqueios));
+                if (temGoleiro)
+                {
+                    Linha("Defesas por jogo", a.PJ(a.Defesas), b.PJ(b.Defesas));
+                    Linha("Gols sofridos por jogo", a.PJ(a.GolsSofridos), b.PJ(b.GolsSofridos), menorMelhor: true);
+                }
+                if (temDefensivo) LinhasCleanSheet();
+                FecharGrupo("Defesa");
+            }
+
+            Linha("Faltas sofridas por jogo", a.PJ(a.FaltasSofridas), b.PJ(b.FaltasSofridas));
+            Linha("Faltas cometidas por jogo", a.PJ(a.FaltasCometidas), b.PJ(b.FaltasCometidas), menorMelhor: true);
+            Linha("Cartões", a.Cartoes, b.Cartoes, menorMelhor: true, fmt: "0");
+            FecharGrupo("Disciplina");
+
+            // ── Resumo do confronto (insights) ────────────────────────────
+            var insights = new List<object>();
+            int vitoriasA = 0, vitoriasB = 0, aspectos = 0;
+
+            // Diferença relativa precisa passar de ~12% para declarar vencedor;
+            // abaixo disso o aspecto conta como equilibrado ('=').
+            char? Vence(double sa, double sb)
+            {
+                if (sa <= 0.0001 && sb <= 0.0001) return null;
+                if (sa > sb * 1.12) return 'a';
+                if (sb > sa * 1.12) return 'b';
+                return '=';
+            }
+
+            void AddInsight(string emoji, char vencedor, string html)
+            {
+                aspectos++;
+                if (vencedor == 'a') vitoriasA++;
+                else if (vencedor == 'b') vitoriasB++;
+                insights.Add(new { emoji, html, vencedor = vencedor == '=' ? null : vencedor.ToString() });
+            }
+
+            bool ambosComJogos = a.JogosTotal > 0 && b.JogosTotal > 0;
+            bool ambosComStats = a.JogosStats > 0 && b.JogosStats > 0;
+
+            // ── Contexto de posições (não conta como aspecto) ─────────────
+            {
+                string PosTexto(PerfilComparacao p) =>
+                    string.IsNullOrWhiteSpace(p.J.Posicao) ? "posição não registrada" : $"<strong>{p.J.Posicao}</strong>";
+                var compartilhadas = OrdemRoles
+                    .Where(r => a.Roles.Contains(r) && b.Roles.Contains(r))
+                    .Select(r => RoleInfo(r).Nome).ToList();
+                string extra = compartilhadas.Count > 0
+                    ? $" Os dois podem exercer a função de {string.Join(" e ", compartilhadas)}."
+                    : " Eles atuam em funções diferentes — cada aspecto abaixo mostra quem renderia mais em cada posição.";
+                insights.Add(new
+                {
+                    emoji = "🎽",
+                    html = $"{a.J.NomeExibicao} atua como {PosTexto(a)}; {b.J.NomeExibicao}, como {PosTexto(b)}.{extra}",
+                    vencedor = (string?)null,
+                });
+            }
+
+            // Aptidão de cada jogador para uma função — usada para apontar quem
+            // renderia mais em cada posição que o par cobre.
+            double ScoreRole(PerfilComparacao p, string role) => role switch
+            {
+                "ZAG" => p.AcoesDefensivasPJ * 1.5 + p.PJ(p.DuelosVencidos) + p.Pct(p.DuelosVencidos, p.DuelosTotal) / 50.0 + p.PctCleanSheets / 25.0,
+                "LAT" => p.AcoesDefensivasPJ + p.PJTotal(p.Assistencias) * 2 + p.PJ(p.PassesChave) + p.PJ(p.DriblesCertos) + p.PctCleanSheets / 50.0,
+                "VOL" => p.AcoesDefensivasPJ * 1.5 + p.PJ(p.Passes) / 25.0 + p.Pct(p.DuelosVencidos, p.DuelosTotal) / 50.0,
+                "MEI" => p.PJTotal(p.Assistencias) * 2.5 + p.PJ(p.PassesChave) + p.PJ(p.Passes) / 40.0,
+                "PON" => p.PJ(p.DriblesCertos) + p.Pct(p.DriblesCertos, p.DriblesTentados) / 100.0 + p.PJTotal(p.Gols) * 1.5 + p.PJTotal(p.Assistencias),
+                _ => p.PJTotal(p.Gols) * 3 + p.PJ(p.FinNoGol) + p.Pct(p.FinNoGol, p.Finalizacoes) / 100.0,
+            };
+
+            // Números que justificam a aptidão na função (citados no insight).
+            string DescRole(PerfilComparacao p, string role) => role switch
+            {
+                "ZAG" => $"{F(p.AcoesDefensivasPJ)} ações defensivas por jogo, {p.Pct(p.DuelosVencidos, p.DuelosTotal)}% dos duelos ganhos" +
+                         (p.JogosTitular > 0 ? $" e {p.PctCleanSheets}% dos jogos sem sofrer gols" : ""),
+                "LAT" => $"{F(p.AcoesDefensivasPJ)} ações defensivas, {F(p.PJ(p.PassesChave))} passes-chave e {F(p.PJ(p.DriblesCertos))} dribles certos por jogo",
+                "VOL" => $"{F(p.AcoesDefensivasPJ)} ações defensivas e {F(p.PJ(p.Passes), "0.#")} passes por jogo",
+                "MEI" => $"{F(p.PJTotal(p.Assistencias))} assistência(s) e {F(p.PJ(p.PassesChave))} passes-chave por jogo",
+                "PON" => $"{F(p.PJ(p.DriblesCertos))} dribles certos por jogo ({p.Pct(p.DriblesCertos, p.DriblesTentados)}% de aproveitamento) e {F(p.PJTotal(p.Gols + p.Assistencias))} participação(ões) em gol por jogo",
+                _ => $"{F(p.PJTotal(p.Gols))} gol(s) por jogo e {p.Pct(p.FinNoGol, p.Finalizacoes)}% das finalizações no alvo",
+            };
+
+            if (ambosGoleiros)
+            {
+                if (ambosComStats)
+                {
+                    var v = Vence(a.PJ(a.Defesas) / Math.Max(0.1, a.PJ(a.GolsSofridos)) + a.PctCleanSheets / 25.0,
+                                  b.PJ(b.Defesas) / Math.Max(0.1, b.PJ(b.GolsSofridos)) + b.PctCleanSheets / 25.0);
+                    if (v is 'a' or 'b')
+                    {
+                        var (w, l) = v == 'a' ? (a, b) : (b, a);
+                        AddInsight("🧤", v.Value,
+                            $"<strong>{w.J.NomeExibicao}</strong> tem números melhores debaixo das traves — " +
+                            $"{F(w.PJ(w.Defesas))} defesas, {F(w.PJ(w.GolsSofridos))} gol(s) sofrido(s) por jogo e {w.PctCleanSheets}% dos jogos sem sofrer gols, " +
+                            $"contra {F(l.PJ(l.Defesas))}, {F(l.PJ(l.GolsSofridos))} e {l.PctCleanSheets}% do outro.");
+                    }
+                    else if (v == '=')
+                        AddInsight("🧤", '=', $"Debaixo das traves os dois estão equilibrados ({F(a.PJ(a.Defesas))} vs {F(b.PJ(b.Defesas))} defesas por jogo).");
+                }
+            }
+            else
+            {
+                // ── Um aspecto por função que o par cobre ─────────────────
+                // Só compara funções que ao menos um dos dois exerce (inclui a
+                // segunda posição, ex.: lateral que também joga de zagueiro).
+                foreach (var role in rolesPar)
+                {
+                    if (role == "GOL") continue; // par misto com goleiro: sem comparação de trave
+                    bool precisaStats = role is "ZAG" or "LAT" or "VOL" or "PON";
+                    if (precisaStats ? !ambosComStats : !ambosComJogos) continue;
+
+                    var (nomeRole, emoji) = RoleInfo(role);
+                    var v = Vence(ScoreRole(a, role), ScoreRole(b, role));
+                    if (v == null) continue;
+
+                    if (v == '=')
+                    {
+                        AddInsight(emoji, '=', $"Para a função de {nomeRole}, os dois estão em pé de igualdade nos números.");
+                        continue;
+                    }
+
+                    var (w, l) = v == 'a' ? (a, b) : (b, a);
+                    bool wNatural = w.Roles.Contains(role), lNatural = l.Roles.Contains(role);
+                    string clausula = wNatural && lNatural ? " (função que os dois exercem)"
+                        : wNatural ? " (a posição de origem dele)"
+                        : $", mesmo sendo a posição de origem de {l.J.NomeExibicao}";
+                    AddInsight(emoji, v.Value,
+                        $"Como {nomeRole}{clausula}, <strong>{w.J.NomeExibicao}</strong> leva vantagem — " +
+                        $"{DescRole(w, role)}, contra {DescRole(l, role)} de {l.J.NomeExibicao}.");
+                }
+
+                // Jogo físico (duelos) — transversal a qualquer posição de linha
+                if (ambosComStats && (a.DuelosTotal > 0 || b.DuelosTotal > 0))
+                {
+                    var v = Vence(
+                        a.PJ(a.DuelosVencidos) + a.Pct(a.DuelosVencidos, a.DuelosTotal) / 50.0,
+                        b.PJ(b.DuelosVencidos) + b.Pct(b.DuelosVencidos, b.DuelosTotal) / 50.0);
+                    if (v is 'a' or 'b')
+                    {
+                        var (w, _) = v == 'a' ? (a, b) : (b, a);
+                        AddInsight("💪", v.Value,
+                            $"<strong>{w.J.NomeExibicao}</strong> domina o jogo físico — vence {w.Pct(w.DuelosVencidos, w.DuelosTotal)}% dos duelos " +
+                            $"({F(w.PJ(w.DuelosVencidos))} duelos ganhos por jogo).");
+                    }
+                }
+            }
+
+            // Disciplina (menos faltas e cartões = melhor)
+            if (ambosComStats)
+            {
+                var v = Vence(
+                    b.PJ(b.FaltasCometidas) + b.PJ(b.Cartoes) * 2,
+                    a.PJ(a.FaltasCometidas) + a.PJ(a.Cartoes) * 2);
+                if (v is 'a' or 'b')
+                {
+                    var (w, l) = v == 'a' ? (a, b) : (b, a);
+                    AddInsight("🟨", v.Value,
+                        $"<strong>{w.J.NomeExibicao}</strong> é mais disciplinado — {F(w.PJ(w.FaltasCometidas))} faltas por jogo e {w.Cartoes} cartão(ões) no período, " +
+                        $"contra {F(l.PJ(l.FaltasCometidas))} e {l.Cartoes} do outro.");
+                }
+            }
+
+            // Regularidade — só compara valores na mesma régua: nota média do site
+            // quando os dois têm, senão rating da api quando os dois têm.
+            {
+                double? ra = null, rb = null;
+                bool usaNota = a.NotaMedia.HasValue && b.NotaMedia.HasValue;
+                if (usaNota) { ra = a.NotaMedia; rb = b.NotaMedia; }
+                else if (a.Rating.HasValue && b.Rating.HasValue) { ra = a.Rating; rb = b.Rating; }
+                if (ra.HasValue && rb.HasValue)
+                {
+                    var v = Vence(ra.Value, rb.Value);
+                    if (v is 'a' or 'b')
+                    {
+                        var (w, wl, ll) = v == 'a' ? (a, ra.Value, rb.Value) : (b, rb.Value, ra.Value);
+                        AddInsight("📈", v.Value,
+                            $"<strong>{w.J.NomeExibicao}</strong> apresenta desempenho mais constante — " +
+                            $"{(usaNota ? "nota média" : "rating médio")} {F(wl, "0.00")} contra {F(ll, "0.00")}.");
+                    }
+                    else if (v == '=')
+                        AddInsight("📈", '=', $"Em regularidade os dois andam juntos ({(usaNota ? "nota média" : "rating médio")} {F(ra.Value, "0.00")} vs {F(rb.Value, "0.00")}).");
+                }
+            }
+
+            string veredito;
+            if (vitoriasA == 0 && vitoriasB == 0)
+                veredito = aspectos > 0
+                    ? "No conjunto, os dois aparecem muito equilibrados — a escolha depende mais da função que o time precisa."
+                    : "Ainda não há dados suficientes na base para apontar um vencedor.";
+            else if (vitoriasA == vitoriasB)
+                veredito = $"No conjunto é um confronto parelho: cada um leva vantagem em {vitoriasA} de {aspectos} aspectos avaliados.";
+            else
+            {
+                var (w, wins) = vitoriasA > vitoriasB ? (a, vitoriasA) : (b, vitoriasB);
+                veredito = $"No conjunto, <strong>{w.J.NomeExibicao}</strong> leva vantagem em {wins} de {aspectos} aspectos avaliados.";
+            }
+
+            var avisos = new List<string>();
+            if (a.JogosStats == 0)
+                avisos.Add($"{a.J.NomeExibicao} não tem estatísticas importadas na base — médias por jogo indisponíveis para ele.");
+            if (b.JogosStats == 0)
+                avisos.Add($"{b.J.NomeExibicao} não tem estatísticas importadas na base — médias por jogo indisponíveis para ele.");
+
+            return Json(new
+            {
+                a = Cabecalho(a),
+                b = Cabecalho(b),
+                grupos,
+                insights,
+                veredito,
+                avisos,
+            });
+        }
+
+        // Números agregados de um jogador usados na comparação lado a lado.
+        private sealed class PerfilComparacao
+        {
+            public Jogador J = null!;
+            public string Grupo = "ATA";
+            public List<string> Roles = new(); // funções de Jogador.Posicao ("Lateral Direito/Zagueiro" → LAT, ZAG)
+            public int JogosTotal;     // escalações distintas ou jogos com estatística (o maior)
+            public int JogosStats;     // jogos com estatística importada (denominador das médias)
+            public int JogosTitular;   // titular com placar definido (denominador dos jogos sem sofrer gols)
+            public int JogosSemSofrerGols;
+            public int Gols;
+            public int Assistencias;
+            public double? NotaMedia;  // mesma régua da tela (nota manual ou base + ações)
+            public double? Rating;     // média do rating api-football
+            public double MinutosMedio;
+
+            // Somatórios das estatísticas importadas (Minutos > 0)
+            public int Finalizacoes, FinNoGol, Passes, PassesChave;
+            public int DriblesTentados, DriblesCertos, DuelosTotal, DuelosVencidos;
+            public int Desarmes, Interceptacoes, Bloqueios, Defesas, GolsSofridos;
+            public int FaltasSofridas, FaltasCometidas, Cartoes;
+
+            public double PJ(int total) => JogosStats > 0 ? (double)total / JogosStats : 0;
+            public double PJTotal(int total) => JogosTotal > 0 ? (double)total / JogosTotal : 0;
+            public int Pct(int certos, int total) => total > 0 ? (int)Math.Round(100.0 * certos / total) : 0;
+            public double AcoesDefensivasPJ => PJ(Desarmes + Interceptacoes + Bloqueios);
+            public int PctCleanSheets => Pct(JogosSemSofrerGols, JogosTitular);
+        }
+
+        private async Task<PerfilComparacao?> MontarPerfilComparacaoAsync(int jogadorId, string? uid, List<CriterioNota> criterios)
+        {
+            var j = await _context.Jogadores
+                .AsNoTracking()
+                .Include(x => x.Time)
+                .Include(x => x.Nacionalidade)
+                .FirstOrDefaultAsync(x => x.Id == jogadorId);
+            if (j == null) return null;
+
+            // Exclui reservas não utilizados (Minutos 0/null), mesmo critério da tela.
+            var estatisticas = await _context.EstatisticasJogador
+                .AsNoTracking()
+                .Where(e => e.JogadorId == jogadorId && e.Minutos != null && e.Minutos > 0)
+                .ToListAsync();
+
+            var jogosEscalado = await _context.Escalacoes
+                .Where(e => e.JogadorId == jogadorId && (e.UsuarioId == uid || e.UsuarioId == null))
+                .Select(e => e.JogoId)
+                .Distinct()
+                .CountAsync();
+
+            var gols = await _context.Gols.CountAsync(g => g.JogadorId == jogadorId && !g.Contra);
+            var assistencias = await _context.Assistencias.CountAsync(x => x.JogadorId == jogadorId);
+
+            // Jogos como titular com placar definido → "jogos sem sofrer gols"
+            // (o time não levou gol com ele em campo desde o início). Métrica
+            // central para comparar defensores, laterais e goleiros.
+            var titularidades = await _context.Escalacoes
+                .AsNoTracking()
+                .Where(e => e.JogadorId == jogadorId && e.Titular
+                         && (e.UsuarioId == uid || e.UsuarioId == null)
+                         && e.Jogo.PlacarCasa != null && e.Jogo.PlacarVisitante != null)
+                .Select(e => new { e.JogoId, e.IsTimeCasa, e.Jogo.PlacarCasa, e.Jogo.PlacarVisitante })
+                .Distinct()
+                .ToListAsync();
+
+            // Nota média com a mesma régua de /Jogadores/Estatisticas: nota manual
+            // quando existe; senão base fixa + ações calculadas sobre a estatística.
+            var notas = await _context.Notas
+                .AsNoTracking()
+                .Where(n => n.JogadorId == jogadorId && n.UsuarioId == uid)
+                .ToListAsync();
+
+            var jogosComNotaManual = notas.Select(n => n.JogoId).ToHashSet();
+            var notasFinais = notas
+                .Select(n => n.NotaManual.HasValue
+                    ? Math.Round(Math.Max(0, Math.Min(10, n.NotaManual.Value)), 2)
+                    : Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima, Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + n.Valor)), 2))
+                .Concat(estatisticas
+                    .Where(e => !jogosComNotaManual.Contains(e.JogoId))
+                    .Select(e => Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima, Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + CriteriosNotaHelper.CalcularPontuacao(e, criterios))), 2)))
+                .ToList();
+
+            var ratings = estatisticas.Where(e => e.Rating.HasValue).Select(e => e.Rating!.Value).ToList();
+
+            return new PerfilComparacao
+            {
+                J = j,
+                Grupo = GrupoPosicao(j.Posicao),
+                Roles = RolesJogador(j.Posicao),
+                JogosTotal = Math.Max(jogosEscalado, estatisticas.Count),
+                JogosStats = estatisticas.Count,
+                JogosTitular = titularidades.Count,
+                JogosSemSofrerGols = titularidades.Count(t => (t.IsTimeCasa ? t.PlacarVisitante : t.PlacarCasa) == 0),
+                Gols = gols,
+                Assistencias = assistencias,
+                NotaMedia = notasFinais.Count > 0 ? Math.Round(notasFinais.Average(), 2) : null,
+                Rating = ratings.Count > 0 ? Math.Round(ratings.Average(), 2) : null,
+                MinutosMedio = estatisticas.Count > 0 ? Math.Round(estatisticas.Average(e => (double)e.Minutos!.Value)) : 0,
+                Finalizacoes = estatisticas.Sum(e => e.FinalizacoesTotal),
+                FinNoGol = estatisticas.Sum(e => e.FinalizacoesNoGol),
+                Passes = estatisticas.Sum(e => e.PassesTotal),
+                PassesChave = estatisticas.Sum(e => e.PassesChave),
+                DriblesTentados = estatisticas.Sum(e => e.DriblesTentados),
+                DriblesCertos = estatisticas.Sum(e => e.DriblesCertos),
+                DuelosTotal = estatisticas.Sum(e => e.DuelosTotal),
+                DuelosVencidos = estatisticas.Sum(e => e.DuelosVencidos),
+                Desarmes = estatisticas.Sum(e => e.Desarmes),
+                Interceptacoes = estatisticas.Sum(e => e.Interceptacoes),
+                Bloqueios = estatisticas.Sum(e => e.Bloqueios),
+                Defesas = estatisticas.Sum(e => e.Defesas),
+                GolsSofridos = estatisticas.Sum(e => e.GolsSofridos),
+                FaltasSofridas = estatisticas.Sum(e => e.FaltasSofridas),
+                FaltasCometidas = estatisticas.Sum(e => e.FaltasCometidas),
+                Cartoes = estatisticas.Sum(e => e.CartoesAmarelos + e.CartoesVermelhos),
+            };
         }
 
         [HttpGet]
@@ -1309,6 +1857,63 @@ namespace ControleFutebolWeb.Controllers
                 $"(total verificado: {jogadores.Count})";
 
             return RedirectToAction(nameof(Index));
+        }
+
+        // Grupo de posição → define quais métricas comparar (Semelhantes/Comparar).
+        // Usa a mesma convenção dos rankings de /Relatorios (posições amplas
+        // vindas da api-football: Goleiro/Defensor/Meia/Atacante), por Contains
+        // para também cobrir variações detalhadas (Zagueiro, Lateral, Ponta...).
+        private static string GrupoPosicao(string? pos)
+        {
+            if (string.IsNullOrEmpty(pos)) return "ATA";
+            bool C(string s) => pos.Contains(s, StringComparison.OrdinalIgnoreCase);
+            if (C("Goleiro")) return "GOL";
+            if (C("Defensor") || C("Zagueiro") || C("Lateral") || C("Ala")) return "DEF";
+            if (C("Meia") || C("Meio") || C("Volante")) return "MEI";
+            return "ATA"; // Atacante, Ponta, Centroavante e demais
+        }
+
+        // ── Funções (roles) para a comparação por posição ─────────────────────
+        // Jogador.Posicao guarda até duas posições granulares separadas por "/"
+        // (ex.: "Lateral Direito/Zagueiro", ver PosicaoJogadorHelper). Cada parte
+        // vira uma função, e a comparação avalia quem renderia mais em cada
+        // função que ao menos um dos dois exerce.
+        private static readonly string[] OrdemRoles = { "GOL", "ZAG", "LAT", "VOL", "MEI", "PON", "ATA" };
+
+        private static (string Nome, string Emoji) RoleInfo(string role) => role switch
+        {
+            "GOL" => ("goleiro", "🧤"),
+            "ZAG" => ("zagueiro", "🛡️"),
+            "LAT" => ("lateral/ala", "🏃"),
+            "VOL" => ("volante", "⚙️"),
+            "MEI" => ("meia armador", "🎯"),
+            "PON" => ("ponta", "🌀"),
+            _ => ("centroavante", "⚽"),
+        };
+
+        private static string? RolePosicao(string parte)
+        {
+            bool C(string s) => parte.Contains(s, StringComparison.OrdinalIgnoreCase);
+            if (C("Goleiro")) return "GOL";
+            if (C("Zagueiro") || C("Defensor")) return "ZAG";
+            if (C("Lateral") || C("Ala")) return "LAT";
+            if (C("Volante")) return "VOL";
+            if (C("Ponta")) return "PON";
+            if (C("Meia") || C("Meio")) return "MEI";
+            if (C("Centroavante") || C("Atacante")) return "ATA";
+            return null;
+        }
+
+        private static List<string> RolesJogador(string? posicao)
+        {
+            var roles = (posicao ?? "").Split('/')
+                .Select(RolePosicao)
+                .Where(r => r != null)
+                .Select(r => r!)
+                .Distinct()
+                .ToList();
+            if (roles.Count == 0) roles.Add("ATA"); // mesmo fallback do GrupoPosicao
+            return roles;
         }
 
         // Âncora genérica no mini-campo para os rótulos crus vindos da API (usados
