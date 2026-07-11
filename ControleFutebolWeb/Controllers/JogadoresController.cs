@@ -658,10 +658,18 @@ namespace ControleFutebolWeb.Controllers
                 .Select(e => new PontoHeatmap { X = e.PosicaoX, Y = e.PosicaoY, Peso = 1.0 })
                 .ToList();
 
-            // Destinos das setas de movimentação daquele jogo — mesmo peso reduzido
-            // usado no mapa de calor de /Jogos/Analisar (indica lugar por onde
-            // passou, não a posição principal).
-            pontosHeatmap.AddRange(posicoesPorJogo
+            // Destinos das setas de movimentação — mesmo peso reduzido usado no
+            // mapa de calor de /Jogos/Analisar (indica lugar por onde passou, não
+            // a posição principal). Considera TODAS as fases salvas do jogador
+            // (INICIAL, FINAL e fases táticas criadas pelo usuário), não só a
+            // escalação selecionada acima: setas desenhadas na FINAL ou numa fase
+            // do usuário também contam, como no mapa de calor do Analisar.
+            // Havendo a mesma fase duplicada (linha global importada + cópia do
+            // usuário), valem as setas da cópia do usuário.
+            pontosHeatmap.AddRange(escalacoes
+                .Where(e => e.Titular)
+                .GroupBy(e => new { e.JogoId, Fase = e.FaseEscalacao ?? "INICIAL" })
+                .Select(g => g.OrderBy(e => e.UsuarioId == uid ? 0 : 1).First())
                 .SelectMany(e => e.Setas)
                 .Select(s => new PontoHeatmap { X = s.X, Y = s.Y, Peso = 0.45 }));
 
