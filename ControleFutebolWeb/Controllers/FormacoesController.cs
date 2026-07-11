@@ -1,10 +1,12 @@
 using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace ControleFutebolWeb.Controllers
 {
+    [Authorize(Policy = "Admin")]
     public class FormacoesController : Controller
     {
         private readonly FutebolContext _context;
@@ -73,8 +75,10 @@ namespace ControleFutebolWeb.Controllers
                 {
                     FormacaoId = request.FormacaoId,
                     NomePosicao = string.IsNullOrWhiteSpace(p.NomePosicao) ? $"P{i + 1}" : p.NomePosicao,
-                    PosicaoX = Math.Round(p.PosicaoX, 2),
-                    PosicaoY = Math.Round(p.PosicaoY, 2),
+                    // Clamp 0-100: coordenada é % do campo — valor fora disso
+                    // deixaria o slot fora do mapa em todas as telas.
+                    PosicaoX = Math.Clamp(Math.Round(p.PosicaoX, 2), 0, 100),
+                    PosicaoY = Math.Clamp(Math.Round(p.PosicaoY, 2), 0, 100),
                     Ordem = p.Ordem > 0 ? p.Ordem : i + 1,
                     PosicaoId = p.PosicaoId
                 });
@@ -82,6 +86,26 @@ namespace ControleFutebolWeb.Controllers
 
             await _context.SaveChangesAsync();
             return Ok(new { success = true, total = request.Posicoes.Count });
+        }
+
+        // GET: Formacoes/ObterPosicoes?id=5  (JSON — usado pelo "Replicar posições")
+        [HttpGet]
+        public async Task<IActionResult> ObterPosicoes(int id)
+        {
+            var posicoes = await _context.PosicoesFormacao
+                .Where(p => p.FormacaoId == id)
+                .OrderBy(p => p.Ordem)
+                .Select(p => new
+                {
+                    nomePosicao = p.NomePosicao,
+                    posicaoX = p.PosicaoX,
+                    posicaoY = p.PosicaoY,
+                    ordem = p.Ordem,
+                    posicaoId = p.PosicaoId
+                })
+                .ToListAsync();
+
+            return Json(posicoes);
         }
 
         // POST: Formacoes/Criar

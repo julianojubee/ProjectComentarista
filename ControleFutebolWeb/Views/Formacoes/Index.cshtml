@@ -162,7 +162,7 @@
                             <div class="fm-preview-circulo"></div>
                             @foreach (var p in posicoes)
                             {
-                                <div class="fm-preview-dot" style="left:@(p.PosicaoX)%; top:@(p.PosicaoY)%;"></div>
+                                <div class="fm-preview-dot" style="left:@(p.PosicaoX.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%; top:@(p.PosicaoY.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%;"></div>
                             }
                             <div class="fm-preview-label"><span>@f.Nome</span></div>
                         </div>

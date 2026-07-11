@@ -143,6 +143,29 @@
             ＋ Adicionar no Centro
         </button>
 
+        <!-- Replicar posições de outra formação -->
+        @if (formacoes.Count > 1)
+        {
+            <div class="mt-3 p-2 bg-light rounded">
+                <small class="fw-semibold">Replicar posições de outra formação:</small>
+                <div class="d-flex gap-2 mt-1">
+                    <select id="selectReplicar" class="form-select form-select-sm">
+                        <option value="">Escolha a formação de origem…</option>
+                        @foreach (var f in formacoes.Where(f => f.Id != formacaoId))
+                        {
+                            <option value="@f.Id">@f.Nome</option>
+                        }
+                    </select>
+                    <button class="btn btn-outline-primary btn-sm text-nowrap" onclick="replicarPosicoes()">
+                        ⧉ Replicar
+                    </button>
+                </div>
+                <small class="text-muted d-block mt-1">
+                    Carrega os slots da formação escolhida — ajuste o que quiser e clique em 💾 Salvar.
+                </small>
+            </div>
+        }
+
         <!-- Coordenadas do slot selecionado -->
         <div id="painelCoords" class="mt-3 p-2 bg-light rounded d-none">
             <small class="fw-semibold">Slot selecionado:</small>
@@ -213,11 +236,46 @@ campo.addEventListener('mousedown', function (e) {
 // Atualizar coordenada no painel lateral
 function atualizarCoord(eixo, val) {
     if (selectedIdx < 0 || selectedIdx >= posicoes.length) return;
-    const v = parseFloat(parseFloat(val).toFixed(1));
+    let v = parseFloat(parseFloat(val).toFixed(1));
     if (isNaN(v)) return;
+    v = Math.max(0, Math.min(100, v)); // % do campo — fora disso o slot some do mapa
     if (eixo === 'x') posicoes[selectedIdx].posicaoX = v;
     else posicoes[selectedIdx].posicaoY = v;
     renderCampo();
+}
+
+// ── Replicar posições de outra formação ────────────────────────────────
+function replicarPosicoes() {
+    const sel = document.getElementById('selectReplicar');
+    const origemId = parseInt(sel.value);
+    if (!origemId) {
+        showToast('Escolha a formação de origem para replicar.', 'warning');
+        return;
+    }
+    if (posicoes.length > 0 &&
+        !confirm('Substituir as posições atuais pelas da formação selecionada?\n(Nada é gravado até clicar em 💾 Salvar.)')) {
+        return;
+    }
+
+    fetch('/Formacoes/ObterPosicoes?id=' + origemId)
+        .then(r => r.json())
+        .then(data => {
+            if (!Array.isArray(data) || data.length === 0) {
+                showToast('A formação escolhida não tem posições cadastradas.', 'warning');
+                return;
+            }
+            posicoes = data.map((p, i) => ({
+                nomePosicao: p.nomePosicao || ('P' + (i + 1)),
+                posicaoX: p.posicaoX,
+                posicaoY: p.posicaoY,
+                ordem: p.ordem || (i + 1),
+                posicaoId: p.posicaoId || 0
+            }));
+            selectedIdx = -1;
+            render();
+            showToast(`✅ ${posicoes.length} posições replicadas — ajuste e clique em Salvar.`, 'success');
+        })
+        .catch(() => showToast('❌ Erro ao carregar posições da formação.', 'danger'));
 }
 
 // ── Adicionar posição ───────────────────────────────────────────────────
