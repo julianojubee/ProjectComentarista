@@ -71,6 +71,38 @@ namespace ControleFutebolWeb.Models.ViewModels
 
         // Estatísticas por competição
         public List<EstatisticaCompeticao> EstatisticasCompeticoes { get; set; } = new();
+
+        // Match Up: só preenchido quando exatamente 2 times estão no filtro (TimeIdsFiltro.Count == 2).
+        // MatchUpTime1 é o 1º time do filtro (fica na metade esquerda do campo), MatchUpTime2 o 2º (direita).
+        public MatchUpTimeViewModel? MatchUpTime1 { get; set; }
+        public MatchUpTimeViewModel? MatchUpTime2 { get; set; }
+    }
+
+    // ── Match Up: última escalação titular de um time, já com as coordenadas
+    // transformadas para o campo único e compartilhado (dois times de frente
+    // um para o outro, como numa escalação de transmissão de TV) ────────────
+    public class MatchUpTimeViewModel
+    {
+        public Time Time { get; set; } = null!;
+        // Jogo de onde a escalação foi extraída (o mais recente com titulares registrados)
+        public Jogo? JogoOrigem { get; set; }
+        // true = o time jogou em casa naquele jogo; false = jogou como visitante
+        public bool JogoOrigemEhCasa { get; set; }
+        public List<MatchUpJogadorViewModel> Escalacao { get; set; } = new();
+        // Demais jogadores do elenco (fora da escalação titular exibida) — banco
+        // lateral de onde dá para arrastar substituições na simulação.
+        public List<Jogador> Elenco { get; set; } = new();
+    }
+
+    public class MatchUpJogadorViewModel
+    {
+        public Jogador Jogador { get; set; } = null!;
+        // Coordenadas (% do campo do Match Up, 0-100) já transformadas para a
+        // metade correta (esquerda/direita) e espelhadas quando necessário.
+        public double PosicaoX { get; set; }
+        public double PosicaoY { get; set; }
+        // Texto original da posição (Escalacao.Posicao) — usado com PosicaoJogadorHelper.Sigla.
+        public string? Posicao { get; set; }
     }
 
     // ── Item do ranking de notas (com métrica base-5 + resultado) ────────────

@@ -42,16 +42,23 @@ namespace ControleFutebolWeb.Models.ViewModels
         // Tooltip da seta verde: id de quem entrou → "nome de quem saiu (minuto')".
         public Dictionary<int, string> EntrouNoLugarDe { get; set; } = new();
 
+        // Gols/assistências na competição deste jogo — linha "Competição" do tooltip.
         public Dictionary<int, int> GolsPorJogador { get; set; } = new();
         public Dictionary<int, int> AssistsPorJogador { get; set; } = new();
+
+        // Gols/assistências na temporada deste jogo (todas as competições do mesmo
+        // ano) — linha "Temporada" do tooltip de info.
+        public Dictionary<int, int> GolsTemporadaPorJogador { get; set; } = new();
+        public Dictionary<int, int> AssistsTemporadaPorJogador { get; set; } = new();
 
         // Médias por jogo das estatísticas importadas (mesmas fórmulas de
         // /Jogadores/Estatisticas), por jogador — exibidas no tooltip de info.
         public Dictionary<int, MediasPorJogo> MediasPorJogador { get; set; } = new();
 
-        // Total de jogos em que o jogador começou como titular (contagem de carreira,
-        // não só desta partida) — exibido no tooltip de info.
+        // Jogos como titular na competição deste jogo (linha "Competição" do
+        // tooltip) e na temporada (linha "Temporada").
         public Dictionary<int, int> TitularPorJogador { get; set; } = new();
+        public Dictionary<int, int> TitularTemporadaPorJogador { get; set; } = new();
 
         // Jogo analisado pelo usuário atual (existência de JogoAnalisadoUsuario).
         public bool Analisado { get; set; }

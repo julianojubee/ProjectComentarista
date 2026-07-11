@@ -42,24 +42,14 @@
     string BandeiraTooltip(ControleFutebolWeb.Models.Jogador j) =>
         j.Nacionalidade != null ? (FlagHelper.GetFlagImageUrl(j.Nacionalidade.Nome) ?? "") : "";
 
-    // Abrevia pela primeira posição (pode ser composta: "Lateral Direito/Zagueiro")
+    // Abrevia a posição (pode ser composta: "Lateral Direito/Zagueiro" → "LD/ZAG")
     // e reconhece os nomes granulares vindos de PosicaoFormacao.
-    string AbreviarPosicao(string? pos)
-    {
-        var p = (pos ?? "").Split('/')[0].Trim().ToLowerInvariant();
-        if (p.Length == 0) return "";
-        if (p.Contains("gol"))        return "GL";
-        if (p.StartsWith("zag"))      return "ZG";
-        if (p.StartsWith("lateral"))  return p.Contains("esq") ? "LE" : "LD";
-        if (p.StartsWith("ala"))      return "AL";
-        if (p.StartsWith("volante"))  return "VL";
-        if (p.StartsWith("meia"))     return p.Contains("ofensiv") ? "MO" : "ME";
-        if (p.StartsWith("ponta"))    return p.Contains("esq") ? "PE" : "PD";
-        if (p.StartsWith("centro"))   return "CA";
-        if (p.StartsWith("ata"))      return "AT";
-        if (p.StartsWith("def"))      return "DF";
-        return p.Length > 2 ? p[..2].ToUpperInvariant() : p.ToUpperInvariant();
-    }
+    string AbreviarPosicao(string? pos) => PosicaoJogadorHelper.Sigla(pos);
+
+    // Coordenada em % para CSS/inputs: sempre com ponto decimal. Com a cultura
+    // pt-BR do servidor, @esc.PosicaoX renderizava "10,5" — CSS inválido
+    // (boneco fora do campo) e valor ambíguo no round-trip do form.
+    string Coord(double v) => v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
 
     // Estatísticas da partida (posse, finalizações, etc.) — ver Jogo.EstatisticasJson
     Dictionary<string, string> statsCasa = new();
@@ -425,7 +415,7 @@
         font-size: 12px;
         color: #e2e8f0;
         min-width: 170px;
-        max-width: 240px;
+        max-width: 250px;
         pointer-events: none;
         box-shadow: 0 4px 16px rgba(0,0,0,0.5);
         line-height: 1.6;
@@ -472,11 +462,33 @@
     }
 
     #jogador-tooltip .tt-stats {
-        display: flex;
-        gap: 10px;
         margin-top: 6px;
         padding-top: 6px;
         border-top: 1px solid #334155;
+    }
+
+    /* Blocos consecutivos (Competição + Temporada) formam um bloco só */
+    #jogador-tooltip .tt-stats + .tt-stats {
+        margin-top: 4px;
+        padding-top: 0;
+        border-top: none;
+    }
+
+    /* Rótulo do escopo (COMPETIÇÃO / TEMPORADA) em linha própria, stats abaixo */
+    #jogador-tooltip .tt-stat-rotulo {
+        font-size: 10px;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        margin-bottom: 3px;
+    }
+
+    #jogador-tooltip .tt-stat-valores {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
     }
 
     #jogador-tooltip .tt-stat-gol  { color: #4ade80; font-weight: 600; }
@@ -596,14 +608,15 @@
         cursor: help;
     }
 
-    /* Cartão amarelo no botão do jogador em campo — mesma posição/tamanho do
-       selo de expulso, só que amarelo; só aparece quando ele não foi expulso
-       (o vermelho, mais grave, tem prioridade e ocupa o mesmo lugar). */
+    /* Cartão amarelo no botão do jogador em campo — mesmo tamanho do selo de
+       expulso, mas do lado esquerdo, logo abaixo do botão azul de info (que
+       ocupa top:-6/left:-6), para não disputar espaço com o botão amarelo de
+       avaliação à direita; só aparece quando ele não foi expulso
+       (o vermelho, mais grave, tem prioridade). */
     .card-amarelo-badge {
         position: absolute;
-        top: -4px;
-        left: 50%;
-        margin-left: 9px;
+        top: 13px;
+        left: -5px;
         width: 11px;
         height: 15px;
         background: #facc15;
@@ -733,7 +746,7 @@
     .obs-tag-texto {
         flex: 1;
         min-width: 0;
-        color: #9ca3af;
+        color: #fff;
         white-space: pre-wrap;
         word-break: break-word;
     }
@@ -1880,7 +1893,7 @@
                             bool amareloCasa = esc.Jogador != null && Model.JogadoresComCartaoAmarelo.Contains(esc.Jogador.Id);
                             <div class="posicao-drop @(expulsoCasa ? "expulso" : "")"
                                  data-index="casa_@idxCasa"
-                                 data-posicao="@esc.Posicao"
+                                 data-posicao="@AbreviarPosicao(esc.Posicao)"
                                  data-campo="casa"
                                  data-escid="@esc.Id"
                                  data-temjogador="@(esc.Jogador != null ? "1" : "0")"
@@ -1888,7 +1901,7 @@
                                  ondragstart="dragPosicao(event, 'casa_@idxCasa')"
                                  ondrop="dropEscalacao(event, 'casa_@idxCasa')"
                                  ondragover="allowDrop(event)"
-                                 style="left:@esc.PosicaoX%; top:@esc.PosicaoY%;">
+                                 style="left:@Coord(esc.PosicaoX)%; top:@Coord(esc.PosicaoY)%;">
                                 @if (esc.Jogador != null)
                                 {
                                     <div class="player-circle player-circle-casa">@(esc.Jogador.NumeroCamisa?.ToString() ?? "")</div>
@@ -1926,8 +1939,8 @@
                             <input type="hidden" name="escalacaoCasa[@idxCasa].Id" value="@esc.Id" />
                             <input type="hidden" name="escalacaoCasa[@idxCasa].PosicaoId" value="@esc.Id" />
                             <input type="hidden" id="escalacaoCasa_@(idxCasa)__JogadorId" name="escalacaoCasa[@idxCasa].JogadorId" value="@esc.JogadorId" />
-                            <input type="hidden" id="escalacaoCasa_@(idxCasa)__PosicaoX" name="escalacaoCasa[@idxCasa].PosicaoX" value="@esc.PosicaoX" />
-                            <input type="hidden" id="escalacaoCasa_@(idxCasa)__PosicaoY" name="escalacaoCasa[@idxCasa].PosicaoY" value="@esc.PosicaoY" />
+                            <input type="hidden" id="escalacaoCasa_@(idxCasa)__PosicaoX" name="escalacaoCasa[@idxCasa].PosicaoX" value="@Coord(esc.PosicaoX)" />
+                            <input type="hidden" id="escalacaoCasa_@(idxCasa)__PosicaoY" name="escalacaoCasa[@idxCasa].PosicaoY" value="@Coord(esc.PosicaoY)" />
                             idxCasa++;
                         }
                     </div>
@@ -2007,7 +2020,7 @@
                             bool amareloVis = esc.Jogador != null && Model.JogadoresComCartaoAmarelo.Contains(esc.Jogador.Id);
                             <div class="posicao-drop @(expulsoVis ? "expulso" : "")"
                                  data-index="vis_@idxVis"
-                                 data-posicao="@esc.Posicao"
+                                 data-posicao="@AbreviarPosicao(esc.Posicao)"
                                  data-campo="vis"
                                  data-escid="@esc.Id"
                                  data-temjogador="@(esc.Jogador != null ? "1" : "0")"
@@ -2015,7 +2028,7 @@
                                  ondragstart="dragPosicao(event, 'vis_@idxVis')"
                                  ondrop="dropEscalacao(event, 'vis_@idxVis')"
                                  ondragover="allowDrop(event)"
-                                 style="left:@esc.PosicaoX%; top:@esc.PosicaoY%;">
+                                 style="left:@Coord(esc.PosicaoX)%; top:@Coord(esc.PosicaoY)%;">
                                 @if (esc.Jogador != null)
                                 {
                                     <div class="player-circle player-circle-vis">@(esc.Jogador.NumeroCamisa?.ToString() ?? "")</div>
@@ -2052,8 +2065,8 @@
                             <input type="hidden" name="escalacaoVisitante[@idxVis].Id" value="@esc.Id" />
                             <input type="hidden" name="escalacaoVisitante[@idxVis].PosicaoId" value="@esc.Id" />
                             <input type="hidden" id="escalacaoVisitante_@(idxVis)__JogadorId" name="escalacaoVisitante[@idxVis].JogadorId" value="@esc.JogadorId" />
-                            <input type="hidden" id="escalacaoVisitante_@(idxVis)__PosicaoX" name="escalacaoVisitante[@idxVis].PosicaoX" value="@esc.PosicaoX" />
-                            <input type="hidden" id="escalacaoVisitante_@(idxVis)__PosicaoY" name="escalacaoVisitante[@idxVis].PosicaoY" value="@esc.PosicaoY" />
+                            <input type="hidden" id="escalacaoVisitante_@(idxVis)__PosicaoX" name="escalacaoVisitante[@idxVis].PosicaoX" value="@Coord(esc.PosicaoX)" />
+                            <input type="hidden" id="escalacaoVisitante_@(idxVis)__PosicaoY" name="escalacaoVisitante[@idxVis].PosicaoY" value="@Coord(esc.PosicaoY)" />
                             idxVis++;
                         }
                     </div>
@@ -2247,7 +2260,7 @@
                          alt="@Model.Jogo.TimeCasa?.Nome" style="width:28px;height:28px;object-fit:contain;" />
                     <span style="font-weight:700;color:#f1f5f9;">@Model.Jogo.TimeCasa?.Nome</span>
                 </div>
-                <div style="font-size:12px;color:#6b7280;text-transform:uppercase;font-weight:600;">Posse de bola</div>
+                <div style="font-size:12px;color:#9ca3af;text-transform:uppercase;font-weight:600;">Posse de bola</div>
                 <div style="display:flex;align-items:center;gap:8px;">
                     <span style="font-weight:700;color:#f1f5f9;">@Model.Jogo.TimeVisitante?.Nome</span>
                     <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeVisitante?.EscudoUrl })"
@@ -2261,7 +2274,7 @@
             </div>
             <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:#f1f5f9;margin-bottom:1.5rem;">
                 <span>@(possCasa)%</span>
-                <span style="color:#6b7280;">@(possVis)%</span>
+                <span>@(possVis)%</span>
             </div>
 
             @foreach (var (label, chave) in metricasEstatisticas)
@@ -2277,7 +2290,7 @@
                 <div style="margin-bottom:1rem;">
                     <div style="display:flex;justify-content:space-between;font-size:13px;color:#e5e7eb;margin-bottom:4px;">
                         <span style="font-weight:700;">@valCasaStr</span>
-                        <span style="color:#6b7280;">@label</span>
+                        <span style="color:#9ca3af;">@label</span>
                         <span style="font-weight:700;">@valVisStr</span>
                     </div>
                     <div style="display:flex;align-items:center;height:8px;border-radius:5px;overflow:hidden;background:#222;">
@@ -2884,7 +2897,7 @@
         if (!avaliacoes[jogadorId]) avaliacoes[jogadorId] = { obs: '' };
 
         document.getElementById('av-nome').textContent = nome;
-        document.getElementById('av-pos').textContent  = posicao + ' · Avaliação da partida';
+        document.getElementById('av-pos').textContent  = abrevPosicao(posicao) + ' · Avaliação da partida';
         document.getElementById('av-obs').value        = avaliacoes[jogadorId].obs || '';
         const nmAtual = avaliacoes[jogadorId].notaManual;
         document.getElementById('av-nota-manual').value = (nmAtual === null || nmAtual === undefined) ? '' : nmAtual;
@@ -3535,12 +3548,19 @@
 
 <!-- ── Modal Pré-jogo ─────────────────────────────────────────────────── -->
 <div id="modal-prejogo" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:10000; align-items:center; justify-content:center;">
-    <div style="background:#0f1b2d; border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:1.4rem; width:780px; max-width:96vw; max-height:90vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,.5);">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+    <div id="prejogo-box" style="background:#0f1b2d; border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:1.4rem; width:780px; max-width:96vw; max-height:90vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,.5); transition:width .2s;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem;">
             <h5 style="margin:0; color:#e2e8f0; font-size:15px; font-weight:700;">🔍 Pré-jogo</h5>
             <button onclick="fecharPreJogo()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1;">&times;</button>
         </div>
+        <div class="pj-tabs">
+            <button type="button" id="pj-tab-resumo" class="pj-tab active" onclick="mostrarAbaPreJogo('resumo')">📋 Resumo</button>
+            <button type="button" id="pj-tab-matchup" class="pj-tab" onclick="mostrarAbaPreJogo('matchup')">⚔️ Match-up</button>
+        </div>
         <div id="prejogo-corpo">
+            <div style="text-align:center; color:#94a3b8; padding:2rem 0;">Carregando...</div>
+        </div>
+        <div id="prejogo-matchup" style="display:none;">
             <div style="text-align:center; color:#94a3b8; padding:2rem 0;">Carregando...</div>
         </div>
     </div>
@@ -3638,6 +3658,103 @@
     .pj-obs { padding-left: 1.1rem; margin: 0; font-size: 12px; color: #cbd5e1; line-height: 1.5; }
     .pj-obs li { margin-bottom: .3rem; }
     .pj-vazio { font-size: 12px; color: #64748b; }
+
+    /* ── Abas do modal Pré-jogo ── */
+    .pj-tabs { display: flex; gap: 6px; margin-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,.08); }
+    .pj-tab {
+        background: none; border: none; border-bottom: 2px solid transparent;
+        color: #94a3b8; font-size: 12px; font-weight: 700; padding: 6px 12px 8px;
+        cursor: pointer; text-transform: uppercase; letter-spacing: .04em;
+    }
+    .pj-tab:hover { color: #e2e8f0; }
+    .pj-tab.active { color: #d4a520; border-bottom-color: #d4a520; }
+
+    /* ── Aba Match-up: mesmo campo horizontal da tela de Relatórios, com os
+       dois times frente a frente (estilo escalação de transmissão de TV). ── */
+    .mu-header {
+        display: flex; align-items: center; justify-content: center; gap: 1.5rem;
+        margin-bottom: 1rem; flex-wrap: wrap;
+    }
+    .mu-time-info { display: flex; align-items: center; gap: 10px; text-align: left; }
+    .mu-time-info.mu-dir { text-align: right; flex-direction: row-reverse; }
+    .mu-time-info img { width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; }
+    .mu-time-nome { font-size: 16px; font-weight: 800; color: #e2e8f0; }
+    .mu-time-jogo { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+    .mu-vs { font-size: 20px; font-weight: 900; color: #d4a520; }
+
+    .mu-campo {
+        position: relative; width: 100%; aspect-ratio: 1.8 / 1;
+        background: linear-gradient(90deg, #14532d 0%, #166534 50%, #14532d 100%);
+        border: 2px solid rgba(255,255,255,.15); border-radius: 10px; overflow: hidden;
+    }
+    .mu-linha-meio { position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: rgba(255,255,255,.22); }
+    .mu-circulo {
+        position: absolute; left: 50%; top: 50%; height: 46%; aspect-ratio: 1;
+        border: 1.5px solid rgba(255,255,255,.2); border-radius: 50%; transform: translate(-50%,-50%);
+    }
+    .mu-area-esq, .mu-area-dir { position: absolute; top: 18%; bottom: 18%; width: 11%; border: 1.5px solid rgba(255,255,255,.2); }
+    .mu-area-esq { left: -1px; border-left: none; }
+    .mu-area-dir { right: -1px; border-right: none; }
+    .mu-gol-esq, .mu-gol-dir { position: absolute; top: 32%; bottom: 32%; width: 4.5%; border: 1.5px solid rgba(255,255,255,.2); background: rgba(255,255,255,.04); }
+    .mu-gol-esq { left: -1px; border-left: none; }
+    .mu-gol-dir { right: -1px; border-right: none; }
+
+    .mu-slot {
+        position: absolute; text-align: center; cursor: grab; color: #fff;
+        font-size: 11px; text-shadow: 1px 1px 2px #000; transform: translate(-50%,-50%);
+        width: 62px; user-select: none;
+        /* pointer events cuidam do arrasto no campo; sem isto o navegador
+           tentaria rolar/gesticular em touch em vez de mover o jogador */
+        touch-action: none;
+    }
+    .mu-slot:active { cursor: grabbing; }
+    /* Slot sendo arrastado: acima dos demais (o elementsFromPoint do soltar
+       pula o próprio arrastado no JS para achar o alvo por baixo) */
+    .mu-slot.mu-arrastando { z-index: 20; cursor: grabbing; opacity: .85; }
+    /* Sem isto o dragover/drop (banco→campo) dispararia nos filhos (círculo/
+       nome) e o slot nunca receberia o drop — mesmo truque do campo principal. */
+    .mu-slot * { pointer-events: none; }
+    /* Marcações do campo nunca participam de hit-test */
+    .mu-linha-meio, .mu-circulo, .mu-area-esq, .mu-area-dir, .mu-gol-esq, .mu-gol-dir { pointer-events: none; }
+    .mu-slot-sigla {
+        font-size: 9px; font-weight: 700; color: #d4a520;
+        text-shadow: 1px 1px 2px #000; display: block; margin-bottom: 1px;
+    }
+    /* O .player-name global limita largura a 64px; dentro do slot já cabe */
+    .mu-slot .player-circle { width: 30px; height: 30px; font-size: 12px; }
+
+    /* Layout: banco do time 1 | campo | banco do time 2 */
+    .mu-layout { display: grid; grid-template-columns: 185px 1fr 185px; gap: 12px; align-items: start; }
+    @@media (max-width: 900px) { .mu-layout { grid-template-columns: 1fr; } }
+
+    .mu-banco {
+        background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 10px;
+        overflow: hidden;
+    }
+    .mu-banco-header {
+        display: flex; align-items: center; gap: 6px; padding: 8px 10px;
+        background: rgba(0,0,0,.3); border-bottom: 1px solid rgba(255,255,255,.06);
+        font-size: .68rem; font-weight: 700; color: #94a3b8;
+        text-transform: uppercase; letter-spacing: .1em;
+    }
+    .mu-banco-lista { max-height: 430px; overflow-y: auto; }
+    .mu-banco-lista::-webkit-scrollbar { width: 5px; }
+    .mu-banco-lista::-webkit-scrollbar-track { background: rgba(0,0,0,.3); }
+    .mu-banco-lista::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    .mu-banco-item {
+        display: flex; align-items: center; gap: 8px; padding: 5px 10px;
+        font-size: 12px; color: #cbd5e1; cursor: grab; user-select: none;
+        border-bottom: 1px solid rgba(255,255,255,.05);
+    }
+    .mu-banco-item:hover { background: rgba(255,255,255,.07); }
+    .mu-banco-item:active { cursor: grabbing; }
+    .mu-banco-item * { pointer-events: none; }
+    .mu-banco-num {
+        flex: 0 0 24px; text-align: center; font-weight: 700; color: #d4a520;
+    }
+    .mu-banco-nome { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mu-banco-pos { flex: 0 0 auto; font-size: 10px; font-weight: 700; color: #94a3b8; }
+    .mu-dica { text-align: center; color: #64748b; font-size: 11px; margin-top: 8px; }
 </style>
 
 <script>
@@ -3717,6 +3834,255 @@
     document.getElementById('modal-prejogo').addEventListener('click', function (e) {
         if (e.target === this) fecharPreJogo();
     });
+
+    // ── Abas do modal Pré-jogo (Resumo | Match-up) ─────────────────────────
+    let muPreJogoCarregado = false;
+
+    function mostrarAbaPreJogo(aba) {
+        document.getElementById('pj-tab-resumo').classList.toggle('active', aba === 'resumo');
+        document.getElementById('pj-tab-matchup').classList.toggle('active', aba === 'matchup');
+        document.getElementById('prejogo-corpo').style.display = aba === 'resumo' ? '' : 'none';
+        document.getElementById('prejogo-matchup').style.display = aba === 'matchup' ? '' : 'none';
+        // O match-up precisa de largura extra: campo horizontal + dois bancos
+        document.getElementById('prejogo-box').style.width = aba === 'matchup' ? '1140px' : '780px';
+        if (aba === 'matchup' && !muPreJogoCarregado) {
+            muPreJogoCarregado = true;
+            carregarMatchUpPreJogo();
+        }
+    }
+
+    // escHtml não cobre aspas — aqui o texto vai dentro de atributos (data-nome etc.)
+    function muEsc(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    async function carregarMatchUpPreJogo() {
+        var cont = document.getElementById('prejogo-matchup');
+        cont.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:2rem 0;">Carregando...</div>';
+        try {
+            var resp = await fetch('/Jogos/MatchUpPreJogo/@Model.Jogo.Id');
+            if (!resp.ok) throw new Error();
+            renderMatchUpPreJogo(await resp.json(), cont);
+        } catch (e) {
+            muPreJogoCarregado = false; // permite tentar de novo ao reabrir a aba
+            cont.innerHTML = '<div style="color:#f87171;text-align:center;padding:1rem;">Erro ao carregar o match-up.</div>';
+        }
+    }
+
+    function muSlotHtml(time, idx, e) {
+        var circle = time === 1 ? 'player-circle-casa' : 'player-circle-vis';
+        return '<div id="mu-slot-' + time + '-' + idx + '" class="mu-slot"' +
+            ' data-jogadorid="' + e.id + '"' +
+            ' data-numero="' + muEsc(e.numero) + '"' +
+            ' data-nome="' + muEsc(e.nome) + '"' +
+            ' data-sigla="' + muEsc(e.sigla) + '"' +
+            ' style="left:' + e.x + '%; top:' + e.y + '%;"' +
+            ' onpointerdown="muPointerDown(event, ' + time + ')"' +
+            ' ondragover="event.preventDefault()"' +
+            ' ondrop="muDropSlot(event, ' + time + ')">' +
+            '<span class="mu-slot-sigla">' + muEsc(e.sigla) + '</span>' +
+            '<div class="player-circle ' + circle + '">' + muEsc(e.numero) + '</div>' +
+            '<div class="player-name">' + muEsc(e.nome) + '</div>' +
+            '</div>';
+    }
+
+    function muBancoItemHtml(time, j) {
+        return '<div class="mu-banco-item" draggable="true"' +
+            ' data-jogadorid="' + j.id + '"' +
+            ' data-numero="' + muEsc(j.numero) + '"' +
+            ' data-nome="' + muEsc(j.nome) + '"' +
+            ' data-sigla="' + muEsc(j.sigla) + '"' +
+            ' ondragstart="muDragStart(event, ' + time + ')">' +
+            '<span class="mu-banco-num">' + (muEsc(j.numero) || '–') + '</span>' +
+            '<span class="mu-banco-nome">' + muEsc(j.nome) + '</span>' +
+            '<span class="mu-banco-pos">' + muEsc(j.sigla) + '</span>' +
+            '</div>';
+    }
+
+    function renderMatchUpPreJogo(d, cont) {
+        if (!d.casa || !d.visitante) {
+            var faltam = [];
+            if (!d.casa) faltam.push(d.nomeCasa || 'time da casa');
+            if (!d.visitante) faltam.push(d.nomeVisitante || 'time visitante');
+            cont.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:2rem 0;">Sem escalação titular registrada para: ' + muEsc(faltam.join(' e ')) + '.</div>';
+            return;
+        }
+        var t1 = d.casa, t2 = d.visitante;
+        var escudo1 = t1.escudo ? '<img src="' + t1.escudo + '" alt="">' : '';
+        var escudo2 = t2.escudo ? '<img src="' + t2.escudo + '" alt="">' : '';
+        var jogo1 = 'Última escalação: vs ' + muEsc(t1.adversario || '?') + ' — ' + muEsc(t1.data || 'data desconhecida');
+        var jogo2 = 'Última escalação: vs ' + muEsc(t2.adversario || '?') + ' — ' + muEsc(t2.data || 'data desconhecida');
+
+        cont.innerHTML =
+            '<div class="mu-header">' +
+                '<div class="mu-time-info">' + escudo1 + '<div><div class="mu-time-nome">' + muEsc(t1.nome) + '</div><div class="mu-time-jogo">' + jogo1 + '</div></div></div>' +
+                '<div class="mu-vs">×</div>' +
+                '<div class="mu-time-info mu-dir">' + escudo2 + '<div><div class="mu-time-nome">' + muEsc(t2.nome) + '</div><div class="mu-time-jogo">' + jogo2 + '</div></div></div>' +
+            '</div>' +
+            '<div class="mu-layout">' +
+                '<div class="mu-banco"><div class="mu-banco-header">' + muEsc(t1.nome) + ' — elenco</div><div id="muBanco1" class="mu-banco-lista">' +
+                    t1.elenco.map(function (j) { return muBancoItemHtml(1, j); }).join('') + '</div></div>' +
+                '<div id="muCampo" class="mu-campo">' +
+                    '<div class="mu-linha-meio"></div><div class="mu-circulo"></div>' +
+                    '<div class="mu-area-esq"></div><div class="mu-area-dir"></div>' +
+                    '<div class="mu-gol-esq"></div><div class="mu-gol-dir"></div>' +
+                    t1.escalacao.map(function (e, i) { return muSlotHtml(1, i, e); }).join('') +
+                    t2.escalacao.map(function (e, i) { return muSlotHtml(2, i, e); }).join('') +
+                '</div>' +
+                '<div class="mu-banco"><div class="mu-banco-header">' + muEsc(t2.nome) + ' — elenco</div><div id="muBanco2" class="mu-banco-lista">' +
+                    t2.elenco.map(function (j) { return muBancoItemHtml(2, j); }).join('') + '</div></div>' +
+            '</div>' +
+            '<p class="mu-dica">Arraste um jogador para qualquer ponto do campo, solte sobre um companheiro para trocar as posições, ou arraste alguém do elenco sobre um titular para substituí-lo (simulação de pré-jogo — nada é salvo).</p>';
+    }
+
+    // ── Match-up: arrasto 100% client-side, só para simulação visual.
+    // Mesma mecânica da aba Match Up de /Relatorios:
+    //   campo → outro jogador: troca a posição (left/top) dos dois (swap);
+    //   campo → área vazia:    reposiciona o jogador ali;
+    //   banco → campo:         o jogador do elenco substitui o titular, que
+    //                          volta pro banco.
+    // O arrasto no campo usa POINTER EVENTS (não HTML5 drag-and-drop): o círculo
+    // segue o cursor de verdade, sem depender do dragstart nativo — o DnD do
+    // HTML5 fica só no banco→campo, onde funciona bem.
+    // Nada é enviado ao servidor: sem persistência.
+
+    // ── Campo: arrasto por pointer events ─────────────────────────────────
+    let muPtr = null; // { el, time, pointerId, startX, startY, origLeft, origTop, moved }
+
+    function muPointerDown(ev, time) {
+        if (ev.button !== 0 && ev.pointerType === 'mouse') return; // só botão esquerdo
+        const el = ev.target.closest('.mu-slot');
+        if (!el) return;
+        ev.preventDefault(); // evita seleção de texto/drag nativo
+        // Captura o ponteiro (mantém o fluxo de eventos em touch mesmo saindo do
+        // elemento); os listeners de move/up ficam no document, então falhar aqui
+        // não quebra o arrasto com mouse.
+        try { el.setPointerCapture(ev.pointerId); } catch { }
+        muPtr = { el, time, pointerId: ev.pointerId, startX: ev.clientX, startY: ev.clientY,
+                  origLeft: el.style.left, origTop: el.style.top, moved: false };
+    }
+
+    // Converte a posição do cursor para % do campo, preso apenas às bordas —
+    // qualquer jogador pode ser movido por todo o campo, inclusive no lado adversário.
+    function muPosNoCampo(clientX, clientY) {
+        const rect = document.getElementById('muCampo').getBoundingClientRect();
+        let x = (clientX - rect.left) / rect.width * 100;
+        let y = (clientY - rect.top) / rect.height * 100;
+        // Faixa vertical 10-90%: mesmo limite da renderização inicial, para o
+        // círculo/nome do jogador não serem cortados pelo overflow do campo.
+        return { x: Math.min(Math.max(x, 2), 98), y: Math.min(Math.max(y, 10), 90) };
+    }
+
+    document.addEventListener('pointermove', ev => {
+        if (!muPtr || ev.pointerId !== muPtr.pointerId) return;
+        // pequeno limiar para diferenciar clique de arrasto
+        if (!muPtr.moved && Math.hypot(ev.clientX - muPtr.startX, ev.clientY - muPtr.startY) < 4) return;
+        muPtr.moved = true;
+        muPtr.el.classList.add('mu-arrastando');
+        const pos = muPosNoCampo(ev.clientX, ev.clientY);
+        muPtr.el.style.left = pos.x + '%';
+        muPtr.el.style.top = pos.y + '%';
+    });
+
+    document.addEventListener('pointerup', ev => {
+        if (!muPtr || ev.pointerId !== muPtr.pointerId) return;
+        const drag = muPtr;
+        muPtr = null;
+        drag.el.classList.remove('mu-arrastando');
+        if (!drag.moved) return; // foi só um clique
+
+        // Soltou sobre outro jogador DO MESMO TIME? → swap: o arrastado assume a
+        // posição do alvo e o alvo vai para a posição ORIGINAL do arrastado.
+        // (elementsFromPoint ignora o próprio arrastado, que está sob o cursor)
+        const alvo = document.elementsFromPoint(ev.clientX, ev.clientY)
+            .find(e => e !== drag.el && e.classList && e.classList.contains('mu-slot'));
+        if (alvo && alvo.id.startsWith(`mu-slot-${drag.time}-`)) {
+            drag.el.style.left = alvo.style.left;
+            drag.el.style.top = alvo.style.top;
+            alvo.style.left = drag.origLeft;
+            alvo.style.top = drag.origTop;
+        }
+        // Área vazia (ou adversário): fica onde soltou — o left/top já foi
+        // aplicado no pointermove.
+    });
+
+    document.addEventListener('pointercancel', ev => {
+        if (!muPtr || ev.pointerId !== muPtr.pointerId) return;
+        // arrasto abortado (ex.: gesto do sistema): volta pra posição original
+        muPtr.el.classList.remove('mu-arrastando');
+        muPtr.el.style.left = muPtr.origLeft;
+        muPtr.el.style.top = muPtr.origTop;
+        muPtr = null;
+    });
+
+    // ── Banco → campo: HTML5 drag-and-drop ────────────────────────────────
+    let muDrag = null; // { time, el } — item do banco sendo arrastado
+
+    function muDragStart(ev, time) {
+        // closest: garante o container certo mesmo se o dragstart nascer num filho
+        const el = ev.target.closest('.mu-banco-item');
+        if (!el) return;
+        muDrag = { time, el };
+        ev.dataTransfer.setData('text/plain', 'matchup'); // exigido por alguns navegadores p/ permitir o drag
+        ev.dataTransfer.effectAllowed = 'move';
+    }
+
+    function muDropSlot(ev, time) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const alvo = ev.target.closest('.mu-slot');
+        const drag = muDrag;
+        muDrag = null;
+        if (!drag || !alvo || drag.time !== time) return;
+
+        // Substituição: guarda os dados do titular que sai, aplica o novo
+        // jogador no slot e devolve o removido pro banco.
+        const removido = { ...alvo.dataset };
+        muAplicarNoSlot(alvo, drag.el.dataset);
+        muCriarItemBanco(time, removido);
+        drag.el.remove();
+    }
+
+    // Atualiza data-attributes e o visual (número/nome/sigla) de um slot do campo
+    function muAplicarNoSlot(slot, d) {
+        slot.dataset.jogadorid = d.jogadorid;
+        slot.dataset.numero = d.numero;
+        slot.dataset.nome = d.nome;
+        slot.dataset.sigla = d.sigla;
+        slot.querySelector('.mu-slot-sigla').textContent = d.sigla;
+        slot.querySelector('.player-circle').textContent = d.numero;
+        slot.querySelector('.player-name').textContent = d.nome;
+    }
+
+    // Recria a linha do banco para o titular que saiu do campo (textContent, não
+    // innerHTML: nome de jogador nunca deve virar markup)
+    function muCriarItemBanco(time, d) {
+        const item = document.createElement('div');
+        item.className = 'mu-banco-item';
+        item.draggable = true;
+        item.dataset.jogadorid = d.jogadorid;
+        item.dataset.numero = d.numero;
+        item.dataset.nome = d.nome;
+        item.dataset.sigla = d.sigla;
+
+        const num = document.createElement('span');
+        num.className = 'mu-banco-num';
+        num.textContent = d.numero || '–';
+        const nome = document.createElement('span');
+        nome.className = 'mu-banco-nome';
+        nome.textContent = d.nome;
+        const pos = document.createElement('span');
+        pos.className = 'mu-banco-pos';
+        pos.textContent = d.sigla;
+        item.append(num, nome, pos);
+
+        item.addEventListener('dragstart', ev => muDragStart(ev, time));
+
+        const banco = document.getElementById('muBanco' + time);
+        banco.prepend(item); // no topo: é o jogador que o usuário acabou de tirar
+    }
 </script>
 
 <!-- ── Modal Pós-jogo ─────────────────────────────────────────────────── -->
@@ -3752,7 +4118,7 @@
 
     /* ── Tabs ── */
     .pgj-tabs { background:#111; border-bottom:1px solid #1e1e1e; padding:0 40px; display:flex; gap:0; overflow-x:auto; }
-    .pgj-tab { padding:13px 16px; background:transparent; border:none; cursor:pointer; font-size:.8rem; font-weight:600; color:#6b7280; border-bottom:2px solid transparent; white-space:nowrap; font-family:inherit; }
+    .pgj-tab { padding:13px 16px; background:transparent; border:none; cursor:pointer; font-size:.8rem; font-weight:600; color:#9ca3af; border-bottom:2px solid transparent; white-space:nowrap; font-family:inherit; }
     .pgj-tab.active { font-weight:700; color:#d4a520; border-bottom-color:#d4a520; }
     .pgj-content { padding:22px 40px 40px; }
     .pgj-panel { display:none; }
@@ -3873,19 +4239,24 @@
         return '#ef4444';
     }
 
-    function abrevPosicao(pos) {
-        var p = (pos || '').split('/')[0].trim().toLowerCase();
+    function abrevPosicaoParte(p) {
+        p = (p || '').trim().toLowerCase();
         if (!p) return '';
         if (p.indexOf('gol') === 0) return 'GOL';
         if (p.indexOf('zag') === 0 || p === 'defensor') return 'ZAG';
         if (p.indexOf('lateral') === 0) return p.indexOf('esq') >= 0 ? 'LE' : 'LD';
-        if (p.indexOf('ala') === 0) return 'AL';
+        if (p.indexOf('ala') === 0) return p.indexOf('esq') >= 0 ? 'AE' : 'AD';
         if (p.indexOf('volante') === 0) return 'VOL';
         if (p.indexOf('meia') === 0 || p === 'meia') return p.indexOf('ofensiv') >= 0 ? 'MEO' : 'MEI';
         if (p.indexOf('ponta') === 0) return p.indexOf('esq') >= 0 ? 'PE' : 'PD';
         if (p.indexOf('centro') === 0) return 'CA';
         if (p.indexOf('ata') === 0) return 'ATA';
         return p.slice(0, 3).toUpperCase();
+    }
+
+    // Abrevia todas as posições (ex.: "Lateral Esquerdo/Ala Esquerdo" → "LE/AE").
+    function abrevPosicao(pos) {
+        return (pos || '').split('/').map(abrevPosicaoParte).filter(Boolean).join('/');
     }
 
     function iconesEventos(j) {
@@ -4364,8 +4735,28 @@
     const MEDIAS_JOGADORES = @Html.Raw(JsonSerializer.Serialize(
         Model.MediasPorJogador,
         new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
-    // Total de jogos como titular (carreira), por id de jogador.
+    // Jogos como titular por id de jogador, na competição deste jogo.
     const TITULAR_JOGADORES = @Html.Raw(JsonSerializer.Serialize(Model.TitularPorJogador));
+    // Dados da temporada deste jogo (todas as competições do mesmo ano) — linha
+    // "Temporada" do tooltip. TEMPORADA_JOGO 0 = sem temporada definida (oculta a linha).
+    const TEMPORADA_JOGO = @Model.Jogo.Temporada;
+    const GOLS_TEMPORADA = @Html.Raw(JsonSerializer.Serialize(Model.GolsTemporadaPorJogador));
+    const ASSISTS_TEMPORADA = @Html.Raw(JsonSerializer.Serialize(Model.AssistsTemporadaPorJogador));
+    const TITULAR_TEMPORADA = @Html.Raw(JsonSerializer.Serialize(Model.TitularTemporadaPorJogador));
+
+    // Um bloco de stats do tooltip (Competição/Temporada): rótulo em cima e,
+    // logo abaixo, jogos como titular, gols e assists no escopo — vazio se
+    // não houver nada a mostrar.
+    function ttLinhaStats(rotulo, gols, assists, titular) {
+        const partes = [
+            titular ? `<span class="tt-stat-tit">🏁 ${titular} titular</span>` : '',
+            (gols > 0)    ? `<span class="tt-stat-gol">⚽ ${gols} gol${gols > 1 ? 's' : ''}</span>` : '',
+            (assists > 0) ? `<span class="tt-stat-ast">🅰️ ${assists} assist${assists > 1 ? 's' : ''}</span>` : '',
+        ].filter(Boolean).join('');
+        return partes
+            ? `<div class="tt-stats"><div class="tt-stat-rotulo">${rotulo}</div><div class="tt-stat-valores">${partes}</div></div>`
+            : '';
+    }
 
     function mostrarInfoJogador(btn, dados) {
         const tt = document.getElementById('jogador-tooltip');
@@ -4373,7 +4764,7 @@
         const fotoSrc = dados.foto ? `/MediaProxy/Imagem?url=${encodeURIComponent(dados.foto)}` : '/images/placeholder-jogador.png';
         let html = `<div class="tt-header"><img class="tt-foto" src="${fotoSrc}" /><div class="tt-nome">${dados.nome}</div></div>`;
         const meta = [
-            dados.posicao ? `<span>🎽 ${dados.posicao}</span>` : '',
+            dados.posicao ? `<span>🎽 ${abrevPosicao(dados.posicao)}</span>` : '',
             dados.numero  ? `<span># ${dados.numero}</span>`   : '',
             dados.idade   ? `<span>📅 ${dados.idade}a</span>`  : '',
             dados.altura  ? `<span>📏 ${(dados.altura / 100).toFixed(2).replace('.', ',')}m</span>` : '',
@@ -4387,13 +4778,12 @@
                 : `<span>🏟️ ${dados.time}</span>`) : '',
         ].filter(Boolean).join('');
         if (meta) html += `<div class="tt-meta">${meta}</div>`;
-        const titular = TITULAR_JOGADORES[dados.id];
-        const statsLinha = [
-            (dados.gols > 0)    ? `<span class="tt-stat-gol">⚽ ${dados.gols} gols</span>` : '',
-            (dados.assists > 0) ? `<span class="tt-stat-ast">🅰️ ${dados.assists} assists</span>` : '',
-            titular ? `<span class="tt-stat-tit">🏁 ${titular} jogo${titular > 1 ? 's' : ''} titular</span>` : '',
-        ].filter(Boolean).join('');
-        if (statsLinha) html += `<div class="tt-stats">${statsLinha}</div>`;
+        // Stats separadas por escopo: competição do jogo e temporada (todas as
+        // competições do mesmo ano). dados.gols/assists vêm da competição.
+        html += ttLinhaStats('Competição', dados.gols, dados.assists, TITULAR_JOGADORES[dados.id]);
+        if (TEMPORADA_JOGO > 0)
+            html += ttLinhaStats(`Temporada ${TEMPORADA_JOGO}`,
+                GOLS_TEMPORADA[dados.id] || 0, ASSISTS_TEMPORADA[dados.id] || 0, TITULAR_TEMPORADA[dados.id]);
         const md = MEDIAS_JOGADORES[dados.id];
         if (md) {
             const celulas = [

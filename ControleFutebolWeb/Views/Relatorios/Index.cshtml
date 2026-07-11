@@ -1,5 +1,6 @@
 ﻿@* ControleFutebolWeb/Views/Relatorios/Index.cshtml *@
 @model ControleFutebolWeb.Models.ViewModels.RelatoriosViewModel
+@using ControleFutebolWeb.Helpers
 @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
 @{
     ViewData["Title"] = "Relatórios";
@@ -164,6 +165,11 @@
         background: transparent; color: var(--amber-text); font-weight: 700;
         border-bottom-color: var(--amber-text); box-shadow: none;
     }
+    /* Aba desabilitada (ex.: Match Up sem exatamente 2 times no filtro) — sem
+       onclick no elemento, só o estilo apagado; o title continua funcionando
+       porque não usamos pointer-events:none. */
+    .rpt-tab.disabled { opacity: .35; cursor: not-allowed; }
+    .rpt-tab.disabled:hover { color: var(--text-muted); }
 
     /* ── Conteúdo ────────────────────────────────────────────────────────── */
     .rpt-main { padding: 24px 2.5rem 48px; max-width: 1544px; margin: 0 auto; }
@@ -319,6 +325,91 @@
         .nota-circle { width: 36px; height: 36px; }
         .nota-num { font-size: 13px; }
     }
+
+    /* ── Match Up: campo único na horizontal com os dois times frente a
+       frente (estilo escalação de transmissão de TV). ──────────────────── */
+    .mu-header {
+        display: flex; align-items: center; justify-content: center; gap: 1.5rem;
+        margin-bottom: 1rem; flex-wrap: wrap;
+    }
+    .mu-time-info { display: flex; align-items: center; gap: 10px; text-align: left; }
+    .mu-time-info.mu-dir { text-align: right; flex-direction: row-reverse; }
+    .mu-time-info img { width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; }
+    .mu-time-nome { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 800; color: var(--text); }
+    .mu-time-jogo { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .mu-vs { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 900; color: var(--amber-text); }
+
+    .mu-campo {
+        position: relative; width: 100%; aspect-ratio: 1.8 / 1;
+        background: linear-gradient(90deg, #14532d 0%, #166534 50%, #14532d 100%);
+        border: 2px solid rgba(255,255,255,.15); border-radius: 10px; overflow: hidden;
+    }
+    .mu-linha-meio { position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: rgba(255,255,255,.22); }
+    .mu-circulo {
+        position: absolute; left: 50%; top: 50%; height: 46%; aspect-ratio: 1;
+        border: 1.5px solid rgba(255,255,255,.2); border-radius: 50%; transform: translate(-50%,-50%);
+    }
+    .mu-area-esq, .mu-area-dir { position: absolute; top: 18%; bottom: 18%; width: 11%; border: 1.5px solid rgba(255,255,255,.2); }
+    .mu-area-esq { left: -1px; border-left: none; }
+    .mu-area-dir { right: -1px; border-right: none; }
+    .mu-gol-esq, .mu-gol-dir { position: absolute; top: 32%; bottom: 32%; width: 4.5%; border: 1.5px solid rgba(255,255,255,.2); background: rgba(255,255,255,.04); }
+    .mu-gol-esq { left: -1px; border-left: none; }
+    .mu-gol-dir { right: -1px; border-right: none; }
+
+    .mu-slot {
+        position: absolute; text-align: center; cursor: grab; color: #fff;
+        font-size: 11px; text-shadow: 1px 1px 2px #000; transform: translate(-50%,-50%);
+        width: 62px; user-select: none;
+        /* pointer events cuidam do arrasto no campo; sem isto o navegador
+           tentaria rolar/gesticular em touch em vez de mover o jogador */
+        touch-action: none;
+    }
+    .mu-slot:active { cursor: grabbing; }
+    /* Slot sendo arrastado: acima dos demais (o elementsFromPoint do soltar
+       pula o próprio arrastado no JS para achar o alvo por baixo) */
+    .mu-slot.mu-arrastando { z-index: 20; cursor: grabbing; opacity: .85; }
+    /* Sem isto o dragover/drop (banco→campo) dispararia nos filhos (círculo/
+       nome) e o slot nunca receberia o drop — mesmo truque do Analisar. */
+    .mu-slot * { pointer-events: none; }
+    /* Marcações do campo nunca participam de hit-test */
+    .mu-linha-meio, .mu-circulo, .mu-area-esq, .mu-area-dir, .mu-gol-esq, .mu-gol-dir { pointer-events: none; }
+    .mu-slot-sigla {
+        font-size: 9px; font-weight: 700; color: var(--amber-text);
+        text-shadow: 1px 1px 2px #000; display: block; margin-bottom: 1px;
+    }
+
+    /* Layout: banco do time 1 | campo | banco do time 2 */
+    .mu-layout { display: grid; grid-template-columns: 200px 1fr 200px; gap: 12px; align-items: start; }
+    @@media (max-width: 900px) { .mu-layout { grid-template-columns: 1fr; } }
+
+    .mu-banco {
+        background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+        overflow: hidden;
+    }
+    .mu-banco-header {
+        display: flex; align-items: center; gap: 6px; padding: 8px 10px;
+        background: #111; border-bottom: 1px solid var(--border-subtle);
+        font-size: .68rem; font-weight: 700; color: var(--text-muted);
+        text-transform: uppercase; letter-spacing: .1em;
+    }
+    .mu-banco-lista { max-height: 520px; overflow-y: auto; }
+    .mu-banco-lista::-webkit-scrollbar { width: 5px; }
+    .mu-banco-lista::-webkit-scrollbar-track { background: #111; }
+    .mu-banco-lista::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    .mu-banco-item {
+        display: flex; align-items: center; gap: 8px; padding: 5px 10px;
+        font-size: 12px; color: var(--text-2); cursor: grab; user-select: none;
+        border-bottom: 1px solid var(--border-subtle);
+    }
+    .mu-banco-item:hover { background: var(--surface-3); }
+    .mu-banco-item:active { cursor: grabbing; }
+    .mu-banco-item * { pointer-events: none; }
+    .mu-banco-num {
+        flex: 0 0 24px; text-align: center; font-weight: 700;
+        font-family: 'Barlow Condensed', sans-serif; color: var(--amber-text);
+    }
+    .mu-banco-nome { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mu-banco-pos { flex: 0 0 auto; font-size: 10px; font-weight: 700; color: var(--text-muted); }
 </style>
 
 <div class="rpt-root">
@@ -623,6 +714,14 @@
             <div class="rpt-tab" onclick="showSection('rodadas')">📈 Rodadas</div>
             <div class="rpt-tab" onclick="showSection('estat-jogadores')">📊 Estatísticas Jogadores</div>
             <div class="rpt-tab" onclick="showSection('estat-competicoes')">🏆 Estatísticas Competições</div>
+            @if (Model.TimeIdsFiltro.Count == 2)
+            {
+                <div class="rpt-tab" onclick="showSection('matchup')">⚔️ Match Up</div>
+            }
+            else
+            {
+                <div class="rpt-tab disabled" title="Selecione exatamente 2 times no filtro para usar o Match Up">⚔️ Match Up</div>
+            }
         </div>
     </div>
 
@@ -714,7 +813,7 @@
                                                     <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@item.Jogador.Id"
                                                        style="font-weight:600;color:inherit;text-decoration:none;">@item.Jogador.Nome</a>
                                                     <div style="display:flex;gap:4px;margin-top:2px;">
-                                                        <span class="pos-badge @posCls">@(string.IsNullOrEmpty(pos) ? "—" : pos)</span>
+                                                        <span class="pos-badge @posCls">@(string.IsNullOrEmpty(pos) ? "—" : PosicaoJogadorHelper.Sigla(pos))</span>
                                                         @{ var teRank = TimeExibicao(item.Jogador); }
                                                         @if (!string.IsNullOrEmpty(teRank.Nome))
                                                         {
@@ -880,7 +979,7 @@
                             <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@a.Jogador.Id"
                                style="color:inherit;text-decoration:none;font-weight:500;">@a.Jogador.Nome</a>
                             <small>
-                                @a.Jogador.Posicao ·
+                                @PosicaoJogadorHelper.Sigla(a.Jogador.Posicao) ·
                                 @{ var teA = TimeExibicao(a.Jogador); }
                                 @if (!string.IsNullOrEmpty(teA.Escudo))
                                 {
@@ -930,7 +1029,7 @@
                             <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@a.Jogador.Id"
                                style="color:inherit;text-decoration:none;font-weight:500;">@a.Jogador.Nome</a>
                             <small>
-                                @a.Jogador.Posicao ·
+                                @PosicaoJogadorHelper.Sigla(a.Jogador.Posicao) ·
                                 @{ var teA = TimeExibicao(a.Jogador); }
                                 @if (!string.IsNullOrEmpty(teA.Escudo))
                                 {
@@ -973,7 +1072,7 @@
                             <div class="rpt-name">
                                 @a.Jogador.Nome
                                 <small>
-                                @a.Jogador.Posicao ·
+                                @PosicaoJogadorHelper.Sigla(a.Jogador.Posicao) ·
                                 @{ var teA = TimeExibicao(a.Jogador); }
                                 @if (!string.IsNullOrEmpty(teA.Escudo))
                                 {
@@ -1024,7 +1123,7 @@
                             <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@a.Jogador.Id"
                                style="color:inherit;text-decoration:none;font-weight:500;">@a.Jogador.Nome</a>
                             <small>
-                                @a.Jogador.Posicao ·
+                                @PosicaoJogadorHelper.Sigla(a.Jogador.Posicao) ·
                                 @{ var teA = TimeExibicao(a.Jogador); }
                                 @if (!string.IsNullOrEmpty(teA.Escudo))
                                 {
@@ -1070,7 +1169,7 @@
                         <div class="rpt-name">
                             @c.Jogador.Nome
                             <small>
-                                @c.Jogador.Posicao ·
+                                @PosicaoJogadorHelper.Sigla(c.Jogador.Posicao) ·
                                 @{ var teC = TimeExibicao(c.Jogador); }
                                 @if (!string.IsNullOrEmpty(teC.Escudo))
                                 {
@@ -1109,7 +1208,7 @@
                         <div class="rpt-name">
                             @c.Jogador.Nome
                             <small>
-                                @c.Jogador.Posicao ·
+                                @PosicaoJogadorHelper.Sigla(c.Jogador.Posicao) ·
                                 @{ var teC = TimeExibicao(c.Jogador); }
                                 @if (!string.IsNullOrEmpty(teC.Escudo))
                                 {
@@ -1689,6 +1788,125 @@
         }
     </div>
 
+    <!-- ══ SEÇÃO: MATCH UP ═══════════════════════════════════════════════════ -->
+    <div id="sec-matchup" class="rpt-section">
+        @if (Model.TimeIdsFiltro.Count != 2)
+        {
+            <p style="text-align:center;color:var(--text-muted);padding:2rem;">Selecione exatamente 2 times no filtro para usar o Match Up.</p>
+        }
+        else if (Model.MatchUpTime1 == null || Model.MatchUpTime2 == null)
+        {
+            var nomesSemEscalacao = new List<string>();
+            if (Model.MatchUpTime1 == null) nomesSemEscalacao.Add(Model.Times.FirstOrDefault(t => t.Id == Model.TimeIdsFiltro[0])?.Nome ?? "1º time");
+            if (Model.MatchUpTime2 == null) nomesSemEscalacao.Add(Model.Times.FirstOrDefault(t => t.Id == Model.TimeIdsFiltro[1])?.Nome ?? "2º time");
+            <p style="text-align:center;color:var(--text-muted);padding:2rem;">Sem escalação titular registrada para: @string.Join(" e ", nomesSemEscalacao).</p>
+        }
+        else
+        {
+            var t1 = Model.MatchUpTime1;
+            var t2 = Model.MatchUpTime2;
+            var adv1 = t1.JogoOrigemEhCasa ? t1.JogoOrigem?.TimeVisitante?.Nome : t1.JogoOrigem?.TimeCasa?.Nome;
+            var adv2 = t2.JogoOrigemEhCasa ? t2.JogoOrigem?.TimeVisitante?.Nome : t2.JogoOrigem?.TimeCasa?.Nome;
+            var data1 = t1.JogoOrigem?.Data?.ToString("dd/MM/yyyy") ?? "data desconhecida";
+            var data2 = t2.JogoOrigem?.Data?.ToString("dd/MM/yyyy") ?? "data desconhecida";
+
+            <div class="mu-header">
+                <div class="mu-time-info">
+                    @if (!string.IsNullOrEmpty(t1.Time.EscudoUrl))
+                    {
+                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = t1.Time.EscudoUrl })" alt="" />
+                    }
+                    <div>
+                        <div class="mu-time-nome">@t1.Time.Nome</div>
+                        <div class="mu-time-jogo">Última escalação: vs @adv1 — @data1</div>
+                    </div>
+                </div>
+                <div class="mu-vs">×</div>
+                <div class="mu-time-info mu-dir">
+                    @if (!string.IsNullOrEmpty(t2.Time.EscudoUrl))
+                    {
+                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = t2.Time.EscudoUrl })" alt="" />
+                    }
+                    <div>
+                        <div class="mu-time-nome">@t2.Time.Nome</div>
+                        <div class="mu-time-jogo">Última escalação: vs @adv2 — @data2</div>
+                    </div>
+                </div>
+            </div>
+
+            // Renderiza um slot de titular no campo. Os dados do jogador ficam em
+            // data-attributes: a substituição via banco troca só esses dados + o
+            // conteúdo visual, mantendo o slot (e a posição) no lugar.
+            void MuSlot(int time, int idx, ControleFutebolWeb.Models.ViewModels.MatchUpJogadorViewModel esc)
+                {
+                    var circle = time == 1 ? "player-circle-casa" : "player-circle-vis";
+                    <div id="mu-slot-@time-@idx" class="mu-slot"
+                         data-jogadorid="@esc.Jogador.Id"
+                         data-numero="@(esc.Jogador.NumeroCamisa?.ToString() ?? "")"
+                         data-nome="@esc.Jogador.Nome"
+                         data-sigla="@PosicaoJogadorHelper.Sigla(esc.Posicao)"
+                         style="left:@(esc.PosicaoX.ToString("F2", System.Globalization.CultureInfo.InvariantCulture))%; top:@(esc.PosicaoY.ToString("F2", System.Globalization.CultureInfo.InvariantCulture))%;"
+                         onpointerdown="muPointerDown(event, @time)"
+                         ondragover="event.preventDefault()"
+                         ondrop="muDropSlot(event, @time)">
+                        <span class="mu-slot-sigla">@PosicaoJogadorHelper.Sigla(esc.Posicao)</span>
+                        <div class="player-circle @circle">@(esc.Jogador.NumeroCamisa?.ToString() ?? "")</div>
+                        <div class="player-name">@esc.Jogador.Nome</div>
+                    </div>
+                }
+
+                // Item do banco (demais jogadores do elenco), arrastável para os slots.
+                void MuBancoItem(int time, ControleFutebolWeb.Models.Jogador j)
+                {
+                    <div class="mu-banco-item" draggable="true"
+                         data-jogadorid="@j.Id"
+                         data-numero="@(j.NumeroCamisa?.ToString() ?? "")"
+                         data-nome="@j.Nome"
+                         data-sigla="@PosicaoJogadorHelper.Sigla(j.Posicao)"
+                         ondragstart="muDragStart(event, @time, 'banco')">
+                        <span class="mu-banco-num">@(j.NumeroCamisa?.ToString() ?? "–")</span>
+                        <span class="mu-banco-nome">@j.Nome</span>
+                        <span class="mu-banco-pos">@PosicaoJogadorHelper.Sigla(j.Posicao)</span>
+                    </div>
+                }
+
+            <div class="mu-layout">
+                <div class="mu-banco">
+                    <div class="mu-banco-header">@t1.Time.Nome — elenco</div>
+                    <div id="muBanco1" class="mu-banco-lista">
+                        @foreach (var j in t1.Elenco) { MuBancoItem(1, j); }
+                    </div>
+                </div>
+
+                <div id="muCampo" class="mu-campo">
+                    <div class="mu-linha-meio"></div>
+                    <div class="mu-circulo"></div>
+                    <div class="mu-area-esq"></div>
+                    <div class="mu-area-dir"></div>
+                    <div class="mu-gol-esq"></div>
+                    <div class="mu-gol-dir"></div>
+
+                    @{
+                        int idxMu1 = 0;
+                        foreach (var esc in t1.Escalacao) { MuSlot(1, idxMu1, esc); idxMu1++; }
+                        int idxMu2 = 0;
+                        foreach (var esc in t2.Escalacao) { MuSlot(2, idxMu2, esc); idxMu2++; }
+                    }
+                </div>
+
+                <div class="mu-banco">
+                    <div class="mu-banco-header">@t2.Time.Nome — elenco</div>
+                    <div id="muBanco2" class="mu-banco-lista">
+                        @foreach (var j in t2.Elenco) { MuBancoItem(2, j); }
+                    </div>
+                </div>
+            </div>
+            <p style="text-align:center;color:var(--text-muted);font-size:11px;margin-top:8px;">
+                Arraste um jogador para qualquer ponto do campo, solte sobre um companheiro para trocar as posições, ou arraste alguém do elenco sobre um titular para substituí-lo (simulação de pré-jogo — nada é salvo).
+            </p>
+        }
+    </div>
+
     </div><!-- /.rpt-main -->
 </div><!-- /.rpt-root -->
 
@@ -1698,5 +1916,153 @@
         document.querySelectorAll('.rpt-tab').forEach(t => t.classList.remove('active'));
         document.getElementById('sec-' + name)?.classList.add('visible');
         event.currentTarget.classList.add('active');
+    }
+
+    // ── Match Up: arrasto 100% client-side, só para simulação visual.
+    // Três gestos, sempre dentro do mesmo time (mesmo espírito do Analisar):
+    //   campo → outro jogador: troca a posição (left/top) dos dois (swap);
+    //   campo → área vazia:    reposiciona o jogador ali (limitado à metade do
+    //                          campo do time dele);
+    //   banco → campo:         o jogador do elenco substitui o titular, que
+    //                          volta pro banco.
+    // O arrasto no campo usa POINTER EVENTS (não HTML5 drag-and-drop): o círculo
+    // segue o cursor de verdade, sem depender do dragstart nativo — o DnD do
+    // HTML5 fica só no banco→campo, onde funciona bem.
+    // Nada é enviado ao servidor: sem persistência, sem endpoint novo.
+
+    // ── Campo: arrasto por pointer events ─────────────────────────────────
+    let muPtr = null; // { el, time, pointerId, startX, startY, origLeft, origTop, moved }
+
+    function muPointerDown(ev, time) {
+        if (ev.button !== 0 && ev.pointerType === 'mouse') return; // só botão esquerdo
+        const el = ev.target.closest('.mu-slot');
+        if (!el) return;
+        ev.preventDefault(); // evita seleção de texto/drag nativo
+        // Captura o ponteiro (mantém o fluxo de eventos em touch mesmo saindo do
+        // elemento); os listeners de move/up ficam no document, então falhar aqui
+        // não quebra o arrasto com mouse.
+        try { el.setPointerCapture(ev.pointerId); } catch { }
+        muPtr = { el, time, pointerId: ev.pointerId, startX: ev.clientX, startY: ev.clientY,
+                  origLeft: el.style.left, origTop: el.style.top, moved: false };
+    }
+
+    // Converte a posição do cursor para % do campo, preso apenas às bordas —
+    // qualquer jogador pode ser movido por todo o campo, inclusive no lado adversário.
+    function muPosNoCampo(time, clientX, clientY) {
+        const rect = document.getElementById('muCampo').getBoundingClientRect();
+        let x = (clientX - rect.left) / rect.width * 100;
+        let y = (clientY - rect.top) / rect.height * 100;
+        // Faixa vertical 10-90%: mesmo limite da renderização inicial, para o
+        // círculo/nome do jogador não serem cortados pelo overflow do campo.
+        return { x: Math.min(Math.max(x, 2), 98), y: Math.min(Math.max(y, 10), 90) };
+    }
+
+    document.addEventListener('pointermove', ev => {
+        if (!muPtr || ev.pointerId !== muPtr.pointerId) return;
+        // pequeno limiar para diferenciar clique de arrasto
+        if (!muPtr.moved && Math.hypot(ev.clientX - muPtr.startX, ev.clientY - muPtr.startY) < 4) return;
+        muPtr.moved = true;
+        muPtr.el.classList.add('mu-arrastando');
+        const pos = muPosNoCampo(muPtr.time, ev.clientX, ev.clientY);
+        muPtr.el.style.left = pos.x + '%';
+        muPtr.el.style.top = pos.y + '%';
+    });
+
+    document.addEventListener('pointerup', ev => {
+        if (!muPtr || ev.pointerId !== muPtr.pointerId) return;
+        const drag = muPtr;
+        muPtr = null;
+        drag.el.classList.remove('mu-arrastando');
+        if (!drag.moved) return; // foi só um clique
+
+        // Soltou sobre outro jogador DO MESMO TIME? → swap: o arrastado assume a
+        // posição do alvo e o alvo vai para a posição ORIGINAL do arrastado.
+        // (elementsFromPoint ignora o próprio arrastado, que está sob o cursor)
+        const alvo = document.elementsFromPoint(ev.clientX, ev.clientY)
+            .find(e => e !== drag.el && e.classList && e.classList.contains('mu-slot'));
+        if (alvo && alvo.id.startsWith(`mu-slot-${drag.time}-`)) {
+            drag.el.style.left = alvo.style.left;
+            drag.el.style.top = alvo.style.top;
+            alvo.style.left = drag.origLeft;
+            alvo.style.top = drag.origTop;
+        }
+        // Área vazia (ou adversário): fica onde soltou — o left/top já foi
+        // aplicado no pointermove, com o clamp da metade do time.
+    });
+
+    document.addEventListener('pointercancel', ev => {
+        if (!muPtr || ev.pointerId !== muPtr.pointerId) return;
+        // arrasto abortado (ex.: gesto do sistema): volta pra posição original
+        muPtr.el.classList.remove('mu-arrastando');
+        muPtr.el.style.left = muPtr.origLeft;
+        muPtr.el.style.top = muPtr.origTop;
+        muPtr = null;
+    });
+
+    // ── Banco → campo: HTML5 drag-and-drop ────────────────────────────────
+    let muDrag = null; // { time, el } — item do banco sendo arrastado
+
+    function muDragStart(ev, time, tipo) {
+        // closest: garante o container certo mesmo se o dragstart nascer num filho
+        const el = ev.target.closest('.mu-banco-item');
+        if (!el) return;
+        muDrag = { time, el };
+        ev.dataTransfer.setData('text/plain', 'matchup'); // exigido por alguns navegadores p/ permitir o drag
+        ev.dataTransfer.effectAllowed = 'move';
+    }
+
+    function muDropSlot(ev, time) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const alvo = ev.target.closest('.mu-slot');
+        const drag = muDrag;
+        muDrag = null;
+        if (!drag || !alvo || drag.time !== time) return;
+
+        // Substituição: guarda os dados do titular que sai, aplica o novo
+        // jogador no slot e devolve o removido pro banco.
+        const removido = { ...alvo.dataset };
+        muAplicarNoSlot(alvo, drag.el.dataset);
+        muCriarItemBanco(time, removido);
+        drag.el.remove();
+    }
+
+    // Atualiza data-attributes e o visual (número/nome/sigla) de um slot do campo
+    function muAplicarNoSlot(slot, d) {
+        slot.dataset.jogadorid = d.jogadorid;
+        slot.dataset.numero = d.numero;
+        slot.dataset.nome = d.nome;
+        slot.dataset.sigla = d.sigla;
+        slot.querySelector('.mu-slot-sigla').textContent = d.sigla;
+        slot.querySelector('.player-circle').textContent = d.numero;
+        slot.querySelector('.player-name').textContent = d.nome;
+    }
+
+    // Recria a linha do banco para o titular que saiu do campo (textContent, não
+    // innerHTML: nome de jogador nunca deve virar markup)
+    function muCriarItemBanco(time, d) {
+        const item = document.createElement('div');
+        item.className = 'mu-banco-item';
+        item.draggable = true;
+        item.dataset.jogadorid = d.jogadorid;
+        item.dataset.numero = d.numero;
+        item.dataset.nome = d.nome;
+        item.dataset.sigla = d.sigla;
+
+        const num = document.createElement('span');
+        num.className = 'mu-banco-num';
+        num.textContent = d.numero || '–';
+        const nome = document.createElement('span');
+        nome.className = 'mu-banco-nome';
+        nome.textContent = d.nome;
+        const pos = document.createElement('span');
+        pos.className = 'mu-banco-pos';
+        pos.textContent = d.sigla;
+        item.append(num, nome, pos);
+
+        item.addEventListener('dragstart', ev => muDragStart(ev, time, 'banco'));
+
+        const banco = document.getElementById('muBanco' + time);
+        banco.prepend(item); // no topo: é o jogador que o usuário acabou de tirar
     }
 </script>

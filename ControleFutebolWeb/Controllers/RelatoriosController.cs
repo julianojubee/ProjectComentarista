@@ -599,6 +599,14 @@ namespace ControleFutebolWeb.Controllers
 
             vm.EstatisticasCompeticoes = await CalcularEstatisticasCompeticoesAsync();
 
+            // Match Up: só carrega (custa 2 consultas extras) quando o usuário filtrou
+            // exatamente 2 times — nos demais casos a aba fica desabilitada na view.
+            if (timeIdsFiltro.Count == 2)
+            {
+                vm.MatchUpTime1 = await MatchUpHelper.MontarTimeAsync(_context, timeIdsFiltro[0], esquerda: true, usuarioId);
+                vm.MatchUpTime2 = await MatchUpHelper.MontarTimeAsync(_context, timeIdsFiltro[1], esquerda: false, usuarioId);
+            }
+
             return vm;
         }
 

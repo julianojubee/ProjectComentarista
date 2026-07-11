@@ -564,8 +564,7 @@ namespace ControleFutebolWeb.Controllers
                     vm.TreinadorVisitante = await _context.Treinadores.Include(t => t.Nacionalidade)
                         .Where(t => t.TimeId == jogo.TimeVisitanteId).OrderByDescending(t => t.DtInc).FirstOrDefaultAsync();
 
-                    vm.MediasPorJogador = await CalcularMediasPorJogadorAsync(escFase);
-                    vm.TitularPorJogador = await CalcularTitularesPorJogadorAsync(escFase, usuarioId);
+                    await PreencherDadosTooltipAsync(vm, jogo, escFase, usuarioId);
 
                     return View(vm);
                 }
@@ -1107,26 +1106,83 @@ namespace ControleFutebolWeb.Controllers
                 .OrderByDescending(t => t.DtInc)
                 .FirstOrDefaultAsync();
 
-            // Gols e assistências por jogador na mesma competição
-            var golsPorJogador = await _context.Gols
+            await PreencherDadosTooltipAsync(vm, jogo, escalacoes, usuarioId);
+
+            return View(vm);
+        }
+
+        // Preenche os dados do tooltip de info do jogador, separados por escopo:
+        // linha "Competição" (gols/assists/titular na competição deste jogo) e
+        // linha "Temporada" (mesmos números na temporada, todas as competições),
+        // além das médias por jogo. Usado pelos dois caminhos do Analisar.
+        private async Task PreencherDadosTooltipAsync(
+            AnalisarViewModel vm, Jogo jogo, IEnumerable<Escalacao> escalacoes, string usuarioId)
+        {
+            vm.GolsPorJogador = await _context.Gols
                 .Where(g => g.Jogo.CompeticaoId == jogo.CompeticaoId && !g.Contra)
                 .GroupBy(g => g.JogadorId)
                 .Select(g => new { JogadorId = g.Key, Total = g.Count() })
                 .ToDictionaryAsync(x => x.JogadorId, x => x.Total);
 
-            var assistsPorJogador = await _context.Assistencias
+            vm.AssistsPorJogador = await _context.Assistencias
                 .Where(a => a.Jogo.CompeticaoId == jogo.CompeticaoId)
                 .GroupBy(a => a.JogadorId)
                 .Select(a => new { JogadorId = a.Key, Total = a.Count() })
                 .ToDictionaryAsync(x => x.JogadorId, x => x.Total);
 
-            vm.GolsPorJogador = golsPorJogador;
-            vm.AssistsPorJogador = assistsPorJogador;
+            // Temporada 0 = jogo sem temporada definida; a linha "Temporada" do
+            // tooltip fica oculta nesse caso (ver TEMPORADA_JOGO na view).
+            if (jogo.Temporada > 0)
+            {
+                // O rótulo Temporada segue a api-football: ligas européias usam o ano de
+                // INÍCIO (2025 = 2025/26) e competições de ano civil (Brasileirão, Copa do
+                // Mundo) o próprio ano. Comparar o int direto deixava de fora os jogos de
+                // clube do jogador (Bayern Temporada 2025 vs Copa Temporada 2026) e a linha
+                // "Temporada" ficava igual à "Competição". Normaliza pelo ANO DE TÉRMINO:
+                // uma (competição, temporada) "cruza o ano" quando tem jogos em ano civil
+                // maior que o rótulo — nesse caso termina em Temporada+1. Dois jogos são da
+                // mesma temporada quando terminam no mesmo ano.
+                var refCruzaAno = await _context.Jogos.AnyAsync(j =>
+                    j.CompeticaoId == jogo.CompeticaoId && j.Temporada == jogo.Temporada &&
+                    j.Data != null && j.Data.Value.Year > j.Temporada);
+                var anoTermino = jogo.Temporada + (refCruzaAno ? 1 : 0);
+
+                // Competições cujo rótulo (anoTermino-1) cruza o ano → terminam em anoTermino (entram)
+                var compsCruzadasAnterior = await _context.Jogos
+                    .Where(j => j.Temporada == anoTermino - 1 && j.Data != null && j.Data.Value.Year > j.Temporada)
+                    .Select(j => j.CompeticaoId).Distinct().ToListAsync();
+
+                // Competições cujo rótulo anoTermino cruza o ano → terminam em anoTermino+1 (saem)
+                var compsCruzadasAtual = await _context.Jogos
+                    .Where(j => j.Temporada == anoTermino && j.Data != null && j.Data.Value.Year > j.Temporada)
+                    .Select(j => j.CompeticaoId).Distinct().ToListAsync();
+
+                vm.GolsTemporadaPorJogador = await _context.Gols
+                    .Where(g => !g.Contra &&
+                        ((g.Jogo.Temporada == anoTermino && !compsCruzadasAtual.Contains(g.Jogo.CompeticaoId)) ||
+                         (g.Jogo.Temporada == anoTermino - 1 && compsCruzadasAnterior.Contains(g.Jogo.CompeticaoId))))
+                    .GroupBy(g => g.JogadorId)
+                    .Select(g => new { JogadorId = g.Key, Total = g.Count() })
+                    .ToDictionaryAsync(x => x.JogadorId, x => x.Total);
+
+                vm.AssistsTemporadaPorJogador = await _context.Assistencias
+                    .Where(a =>
+                        (a.Jogo.Temporada == anoTermino && !compsCruzadasAtual.Contains(a.Jogo.CompeticaoId)) ||
+                        (a.Jogo.Temporada == anoTermino - 1 && compsCruzadasAnterior.Contains(a.Jogo.CompeticaoId)))
+                    .GroupBy(a => a.JogadorId)
+                    .Select(a => new { JogadorId = a.Key, Total = a.Count() })
+                    .ToDictionaryAsync(x => x.JogadorId, x => x.Total);
+
+                vm.TitularTemporadaPorJogador = await CalcularTitularesPorJogadorAsync(
+                    escalacoes, usuarioId,
+                    temporadaAnoTermino: anoTermino,
+                    compsCruzadasAnterior: compsCruzadasAnterior,
+                    compsCruzadasAtual: compsCruzadasAtual);
+            }
 
             vm.MediasPorJogador = await CalcularMediasPorJogadorAsync(escalacoes);
-            vm.TitularPorJogador = await CalcularTitularesPorJogadorAsync(escalacoes, usuarioId);
-
-            return View(vm);
+            vm.TitularPorJogador = await CalcularTitularesPorJogadorAsync(
+                escalacoes, usuarioId, competicaoId: jogo.CompeticaoId);
         }
 
         // Médias por jogo das estatísticas importadas, em lote, para todos os
@@ -1193,12 +1249,16 @@ namespace ControleFutebolWeb.Controllers
             });
         }
 
-        // Total de jogos como titular (carreira), por jogador — mesmo critério de
-        // dedupe usado em /Jogadores/Estatisticas: por jogo, prefere a escalação do
-        // próprio usuário sobre a compartilhada (importada, UsuarioId null), e conta
-        // só a fase INICIAL (a FINAL é a mesma partida, não um jogo a mais).
+        // Total de jogos como titular por jogador — mesmo critério de dedupe usado
+        // em /Jogadores/Estatisticas: por jogo, prefere a escalação do próprio
+        // usuário sobre a compartilhada (importada, UsuarioId null), e conta só a
+        // fase INICIAL (a FINAL é a mesma partida, não um jogo a mais).
+        // competicaoId/temporada limitam o escopo (linhas Competição/Temporada do
+        // tooltip); sem filtro, conta a carreira toda.
         private async Task<Dictionary<int, int>> CalcularTitularesPorJogadorAsync(
-            IEnumerable<Escalacao> escalacoes, string usuarioId)
+            IEnumerable<Escalacao> escalacoes, string usuarioId, int? competicaoId = null,
+            int? temporadaAnoTermino = null,
+            List<int>? compsCruzadasAnterior = null, List<int>? compsCruzadasAtual = null)
         {
             var ids = escalacoes
                 .Where(e => e.JogadorId != null)
@@ -1207,11 +1267,23 @@ namespace ControleFutebolWeb.Controllers
                 .ToList();
             if (ids.Count == 0) return new();
 
-            var candidatas = await _context.Escalacoes
+            var query = _context.Escalacoes
                 .Where(e => e.JogadorId != null && ids.Contains(e.JogadorId!.Value)
                          && e.Titular && e.Posicao != null && e.Posicao != "RES"
                          && (e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null)
-                         && (e.UsuarioId == usuarioId || e.UsuarioId == null))
+                         && (e.UsuarioId == usuarioId || e.UsuarioId == null));
+            if (competicaoId != null) query = query.Where(e => e.Jogo.CompeticaoId == competicaoId);
+            if (temporadaAnoTermino != null)
+            {
+                // Mesma normalização por ano de término usada em PreencherDadosTooltipAsync.
+                var cruzAnt = compsCruzadasAnterior ?? new List<int>();
+                var cruzAtu = compsCruzadasAtual ?? new List<int>();
+                query = query.Where(e =>
+                    (e.Jogo.Temporada == temporadaAnoTermino && !cruzAtu.Contains(e.Jogo.CompeticaoId)) ||
+                    (e.Jogo.Temporada == temporadaAnoTermino - 1 && cruzAnt.Contains(e.Jogo.CompeticaoId)));
+            }
+
+            var candidatas = await query
                 .Select(e => new { e.JogadorId, e.JogoId, e.UsuarioId })
                 .ToListAsync();
 
@@ -2112,6 +2184,63 @@ namespace ControleFutebolWeb.Controllers
             var visitante = await MontarResumoPreJogoAsync(jogo, jogo.TimeVisitanteId, jogo.TimeVisitante);
 
             return Json(new { casa, visitante });
+        }
+
+        // GET: Jogos/MatchUpPreJogo/5 — aba Match-up do modal Pré-jogo.
+        // Mesmo esquema da aba Match Up de /Relatorios (via MatchUpHelper): última
+        // escalação titular registrada de cada time no campo horizontal compartilhado,
+        // com o restante do elenco no banco. Somente visual — nada é salvo.
+        [HttpGet]
+        public async Task<IActionResult> MatchUpPreJogo(int id)
+        {
+            var uid = _userManager.GetUserId(User);
+
+            var jogo = await _context.Jogos
+                .AsNoTracking()
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .FirstOrDefaultAsync(j => j.Id == id);
+
+            if (jogo == null) return NotFound();
+
+            var t1 = await MatchUpHelper.MontarTimeAsync(_context, jogo.TimeCasaId, esquerda: true, uid);
+            var t2 = await MatchUpHelper.MontarTimeAsync(_context, jogo.TimeVisitanteId, esquerda: false, uid);
+
+            var inv = CultureInfo.InvariantCulture;
+
+            object? Map(MatchUpTimeViewModel? t) => t == null ? null : new
+            {
+                nome = t.Time.Nome,
+                escudo = string.IsNullOrEmpty(t.Time.EscudoUrl)
+                    ? null
+                    : Url.Action("Imagem", "MediaProxy", new { url = t.Time.EscudoUrl }),
+                adversario = t.JogoOrigemEhCasa ? t.JogoOrigem?.TimeVisitante?.Nome : t.JogoOrigem?.TimeCasa?.Nome,
+                data = t.JogoOrigem?.Data?.ToString("dd/MM/yyyy"),
+                escalacao = t.Escalacao.Select(e => new
+                {
+                    id = e.Jogador.Id,
+                    numero = e.Jogador.NumeroCamisa?.ToString() ?? "",
+                    nome = e.Jogador.Nome,
+                    sigla = PosicaoJogadorHelper.Sigla(e.Posicao),
+                    x = Math.Round(e.PosicaoX, 2),
+                    y = Math.Round(e.PosicaoY, 2),
+                }),
+                elenco = t.Elenco.Select(j => new
+                {
+                    id = j.Id,
+                    numero = j.NumeroCamisa?.ToString() ?? "",
+                    nome = j.Nome,
+                    sigla = PosicaoJogadorHelper.Sigla(j.Posicao),
+                }),
+            };
+
+            return Json(new
+            {
+                casa = Map(t1),
+                visitante = Map(t2),
+                nomeCasa = jogo.TimeCasa?.Nome,
+                nomeVisitante = jogo.TimeVisitante?.Nome,
+            });
         }
 
         // GET: Jogos/PosJogo/5 — resumo pós-jogo (placar, notas dos jogadores,
