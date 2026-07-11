@@ -1,578 +1,569 @@
 @using ControleFutebolWeb.Models
-@model ControleFutebolWeb.Models.ViewModels.ChampionsLeagueIndexViewModel
 @using ControleFutebolWeb.Models.ViewModels
+@using ControleFutebolWeb.Controllers
+@model ControleFutebolWeb.Models.ViewModels.ChampionsLeagueIndexViewModel
 @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
 
 @{
     ViewData["Title"] = "Champions League";
-    var ranking      = Model.Ranking as List<Classificacao> ?? new List<Classificacao>();
-    var proximosJogos = Model.ProximosJogos as List<Jogo> ?? new List<Jogo>();
-    var jogosMata    = Model.JogosMata as List<Jogo> ?? new List<Jogo>();
-    var fasesMata    = Model.FasesMata as List<string> ?? new List<string>();
-    int totalJogos   = Model.TotalJogos;
-    int realizados   = Model.JogosRealizados;
+    var ranking       = Model.Ranking ?? new List<Classificacao>();
+    var proximosJogos = Model.ProximosJogos ?? new List<Jogo>();
+    var fasesMata     = Model.FasesMataMata ?? new List<FaseMataUclViewModel>();
+    var temporadas    = Model.TemporadasDisponiveis ?? new List<int>();
+    int totalJogos    = Model.TotalJogos;
+    int realizados    = Model.JogosRealizados;
+
+    string DataJogo(Jogo j, string fmt) => ControleFutebolWeb.Helpers.DateHelper.FormatarData(j.Data, fmt);
+
+    // Vencedor do confronto considerando pênaltis (agregado empatado → decisão na volta;
+    // Final em jogo único → placar/pênaltis do próprio jogo).
+    Time? Vencedor(ConfrontoMataMata c, bool jogoUnico)
+    {
+        if (jogoUnico)
+        {
+            var f = c.JogoIda;
+            if (f == null || !f.PlacarCasa.HasValue || !f.PlacarVisitante.HasValue) return null;
+            if (f.PlacarCasa > f.PlacarVisitante) return c.TimeA;
+            if (f.PlacarVisitante > f.PlacarCasa) return c.TimeB;
+            if (f.PenaltisCasa.HasValue && f.PenaltisVisitante.HasValue)
+                return f.PenaltisCasa > f.PenaltisVisitante ? c.TimeA : c.TimeB;
+            return null;
+        }
+
+        var direto = c.Classificado;
+        if (direto != null) return direto;
+
+        // agregado empatado: pênaltis do jogo de volta (TimeB manda na volta)
+        var v = c.JogoVolta;
+        if (c.JogoIda?.PlacarCasa.HasValue == true && v?.PlacarCasa.HasValue == true &&
+            c.GolsTimeA == c.GolsTimeB && v.PenaltisCasa.HasValue && v.PenaltisVisitante.HasValue)
+            return v.PenaltisCasa > v.PenaltisVisitante ? c.TimeB : c.TimeA;
+
+        return null;
+    }
 }
 
 <style>
-    /* ── Banner UCL ─────────────────────────────────────────────── */
-    .ucl-hero {
-        position: relative;
-        border-radius: 14px;
-        padding: 1.5rem 1.6rem;
-        margin-bottom: 1.4rem;
-        overflow: hidden;
-        background: linear-gradient(135deg, #00003d 0%, #001489 55%, #00003d 100%);
-    }
-    .ucl-hero::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: radial-gradient(ellipse at 70% 50%, rgba(255,255,255,0.05) 0%, transparent 65%);
-        pointer-events: none;
-    }
-    /* estrelas decorativas */
-    .ucl-stars {
-        position: absolute;
-        top: 10px; right: 20px;
-        font-size: 22px;
-        opacity: 0.25;
-        letter-spacing: 2px;
-    }
-    .ucl-hero-content { position: relative; z-index: 1; }
-    .ucl-badge {
-        display: inline-block;
-        background: rgba(255,255,255,0.12);
-        color: #c7d2fe;
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        padding: 4px 12px;
-        border-radius: 999px;
-        border: 1px solid rgba(255,255,255,0.2);
-        margin-bottom: 0.55rem;
-    }
-    .ucl-title-wrap {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 0.3rem;
-    }
-    .ucl-logo {
-        width: 42px; height: 42px;
-        object-fit: contain;
-        filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5)) brightness(1.1);
-    }
-    .ucl-title { color: #fff; font-size: 1.5rem; font-weight: 700; margin: 0; }
-    .ucl-sub { color: rgba(255,255,255,0.65); font-size: 0.88rem; margin: 0; }
-    .ucl-stats {
-        display: flex; gap: 16px; margin-top: 10px;
-    }
-    .ucl-stat {
-        background: rgba(255,255,255,0.1);
-        border: 1px solid rgba(255,255,255,0.15);
-        border-radius: 8px;
-        padding: 5px 14px;
-        font-size: 11px;
-        color: rgba(255,255,255,0.8);
-    }
-    .ucl-stat strong { color: #fff; font-size: 14px; display: block; }
+    /* Mesmo padrão visual das demais telas de competição (Copa do Brasil,
+       Competições): tema escuro, acento dourado, fontes Barlow. */
+    .ucl-root, .ucl-root *, .ucl-root *::before, .ucl-root *::after { box-sizing: border-box; }
+    .ucl-root { margin: 0 -12px; background: #0f0f0f; border-radius: 14px; overflow: hidden; color: #e5e7eb; font-family: 'Barlow', Arial, sans-serif; }
+    .ucl-root a { text-decoration: none; color: inherit; }
 
-    /* ── Layout ─────────────────────────────────────────────────── */
-    .ucl-layout {
-        display: grid;
-        grid-template-columns: 1fr 340px;
-        gap: 16px;
-        align-items: start;
-    }
-    @@media (max-width: 900px) {
-        .ucl-layout { grid-template-columns: 1fr; }
-    }
+    /* ── Hero ── */
+    .ucl-hero { position: relative; overflow: hidden; background: linear-gradient(135deg, #1a1200 0%, #2a1e00 55%, #1a1200 100%); padding: 38px 2.5rem 32px; }
+    .ucl-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #d4a520; }
+    .ucl-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(to top, #0f0f0f, transparent); pointer-events: none; }
+    .ucl-hero-inner { position: relative; z-index: 1; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+    .ucl-hero-icon { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,.08); border: 2px solid #d4a52048; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+    .ucl-hero-icon img { width: 78%; height: 78%; object-fit: contain; }
+    .ucl-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .ucl-kicker-line { height: 2px; width: 24px; background: #d4a520; }
+    .ucl-kicker span { font-size: .65rem; font-weight: 700; letter-spacing: .24em; color: #d4a520; text-transform: uppercase; }
+    .ucl-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3rem; font-weight: 800; color: #f1f5f9; margin: 0 0 6px; line-height: 1; }
+    .ucl-hero-sub { color: #9ca3af; font-size: .85rem; margin: 0; }
+    .ucl-hero-right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; margin-left: auto; }
+    .ucl-hero-temporada { display: flex; align-items: center; gap: 6px; }
+    .ucl-hero-temporada label { color: #9ca3af; font-size: .75rem; font-weight: 600; }
+    .ucl-hero-temporada select { appearance: none; padding: 5px 10px; border-radius: 7px; border: 1px solid #2a2a2a; background: #1a1a1a; color: #9ca3af; font-size: .8rem; font-weight: 600; cursor: pointer; }
+    .ucl-hero-stats { display: flex; gap: 8px; flex-wrap: wrap; }
+    .ucl-hero-stat { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 8px; padding: 4px 12px; font-size: .62rem; color: #9ca3af; text-align: center; }
+    .ucl-hero-stat strong { display: block; color: #f1f5f9; font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.05rem; font-weight: 800; line-height: 1.1; }
 
-    /* ── Tabela de classificação ─────────────────────────────────── */
-    .ucl-ranking-card {
-        background: #fff;
-        border: 0.5px solid #e5e7eb;
-        border-radius: 12px;
-        overflow: hidden;
-    }
-    .ucl-ranking-header {
-        background: linear-gradient(90deg, #00003d, #001489);
-        color: #fff;
-        padding: 10px 14px;
-        font-size: 13px;
-        font-weight: 700;
-        letter-spacing: 0.3px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-    .ucl-ranking-header span { font-size: 11px; opacity: 0.7; font-weight: 400; }
-    .ucl-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 12px;
-    }
-    .ucl-table thead tr { background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
-    .ucl-table th {
-        padding: 7px 8px;
-        color: #6b7280;
-        font-weight: 600;
-        text-transform: uppercase;
-        font-size: 10px;
-        letter-spacing: 0.5px;
-        text-align: center;
-    }
+    /* ── Conteúdo ── */
+    .ucl-content { padding: 24px 2.5rem 64px; max-width: 1500px; margin: 0 auto; }
+    .ucl-layout { display: grid; grid-template-columns: 1fr 330px; gap: 18px; align-items: start; }
+    @@media (max-width: 992px) { .ucl-layout { grid-template-columns: 1fr; } }
+
+    .ucl-section-header { display: flex; align-items: center; gap: 10px; margin: 0 0 1rem; }
+    .ucl-section-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.5rem; font-weight: 800; color: #f1f5f9; text-transform: uppercase; letter-spacing: .04em; margin: 0; }
+    .ucl-section-badge { background: #d4a5201a; border: 1px solid #d4a52048; color: #d4a520; font-size: .68rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+
+    /* ── Legenda ── */
+    .ucl-legenda { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 10px; font-size: .68rem; color: #9ca3af; }
+    .ucl-leg-dot { width: 9px; height: 9px; border-radius: 2px; display: inline-block; margin-right: 5px; }
+
+    /* ── Tabela de classificação ── */
+    .ucl-ranking-card { background: #161616; border: 1px solid #262626; border-radius: 14px; overflow: hidden; }
+    .ucl-ranking-header { background: #111; border-bottom: 1px solid #1e1e1e; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; }
+    .ucl-ranking-header b { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .95rem; font-weight: 700; color: #d4a520; letter-spacing: .06em; text-transform: uppercase; }
+    .ucl-ranking-header span { font-size: .64rem; color: #6b7280; }
+    .ucl-table { width: 100%; border-collapse: collapse; font-size: .75rem; }
+    .ucl-table thead tr { background: #111; border-bottom: 1px solid #1e1e1e; }
+    .ucl-table th { padding: 7px 8px; color: #6b7280; font-weight: 600; text-transform: uppercase; font-size: .6rem; letter-spacing: .5px; text-align: center; }
     .ucl-table th:nth-child(2) { text-align: left; padding-left: 10px; }
-    .ucl-table td {
-        padding: 7px 8px;
-        border-bottom: 0.5px solid #f3f4f6;
-        text-align: center;
-        vertical-align: middle;
-        color: #111827;
-    }
+    .ucl-table td { padding: 6px 8px; border-bottom: 1px solid #1e1e1e; text-align: center; vertical-align: middle; color: #e5e7eb; }
     .ucl-table td:nth-child(2) { text-align: left; padding-left: 10px; }
     .ucl-table tbody tr:last-child td { border-bottom: none; }
-    .ucl-table tbody tr:hover { background: #f8faff; }
+    .ucl-table tbody tr:hover { background: #1a1a1a; }
 
     /* Faixas de posição */
-    .ucl-row-r16 { border-left: 3px solid #001489; }
-    .ucl-row-playoff { border-left: 3px solid #f59e0b; }
-    .ucl-row-out { border-left: 3px solid #e5e7eb; }
+    .ucl-row-r16 { border-left: 3px solid #d4a520; }
+    .ucl-row-playoff { border-left: 3px solid #60a5fa; }
+    .ucl-row-out { border-left: 3px solid #262626; }
+    .ucl-sep-r16 td { border-bottom: 2px solid #d4a52080 !important; }
+    .ucl-sep-playoff td { border-bottom: 2px solid #60a5fa66 !important; }
 
-    /* separadores de zona */
-    .ucl-sep-r16 td { border-bottom: 2px solid #001489 !important; }
-    .ucl-sep-playoff td { border-bottom: 2px solid #f59e0b !important; }
+    .ucl-pos { width: 20px; height: 20px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: .62rem; font-weight: 700; }
+    .ucl-pos-r16 { background: #d4a520; color: #141414; }
+    .ucl-pos-playoff { background: rgba(96,165,250,.18); border: 1px solid rgba(96,165,250,.4); color: #93c5fd; }
+    .ucl-pos-out { background: #262626; color: #6b7280; }
 
-    .ucl-pos {
-        width: 20px; height: 20px;
-        border-radius: 4px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        font-weight: 700;
-        color: #fff;
-    }
-    .ucl-pos-r16 { background: #001489; }
-    .ucl-pos-playoff { background: #f59e0b; color: #fff; }
-    .ucl-pos-out { background: #d1d5db; color: #6b7280; }
+    .ucl-team-cell { display: flex; align-items: center; gap: 7px; min-width: 140px; }
+    .ucl-team-cell img { width: 20px; height: 20px; object-fit: contain; border-radius: 50%; border: 1px solid #2a2a2a; background: #0f0f0f; flex-shrink: 0; }
+    .ucl-team-cell a { font-size: .75rem; font-weight: 600; color: #e5e7eb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
+    .ucl-team-cell a:hover { text-decoration: underline; }
+    .ucl-pts { font-family: 'Barlow Condensed', Arial, sans-serif; font-weight: 800; font-size: .9rem; color: #d4a520; }
 
-    .ucl-team-cell {
-        display: flex; align-items: center; gap: 7px; min-width: 140px;
-    }
-    .ucl-team-cell img {
-        width: 20px; height: 20px;
-        object-fit: contain;
-        border-radius: 50%;
-        border: 0.5px solid #e5e7eb;
-        background: #f9f9f9;
-        flex-shrink: 0;
-    }
-    .ucl-team-cell span {
-        font-size: 12px; font-weight: 500; color: #111827;
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        max-width: 150px;
-    }
-    .ucl-pts { font-weight: 700; color: #001489; }
+    /* ── Mata-mata ── */
+    .ucl-mata-section { margin-top: 28px; }
+    .ucl-fase { margin-bottom: 22px; }
+    .ucl-fase-header { display: flex; align-items: center; gap: 10px; margin-bottom: .8rem; }
+    .ucl-fase-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.15rem; font-weight: 800; color: #f1f5f9; text-transform: uppercase; letter-spacing: .04em; margin: 0; }
+    .ucl-fase-badge { background: #d4a5201a; border: 1px solid #d4a52048; color: #d4a520; font-size: .62rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; }
+    .ucl-confrontos { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
 
-    /* ── Legenda ─────────────────────────────────────────────────── */
-    .ucl-legenda {
-        display: flex; gap: 14px; flex-wrap: wrap;
-        margin: 0 0 12px;
-        font-size: 11px; color: #6b7280;
-    }
-    .ucl-leg-dot {
-        width: 10px; height: 10px;
-        border-radius: 2px;
-        display: inline-block;
-        margin-right: 4px;
-    }
+    /* Card de confronto */
+    .ucl-card { background: #161616; border: 1px solid #262626; border-radius: 14px; overflow: hidden; transition: border-color .15s; }
+    .ucl-card:hover { border-color: #3a3a3a; }
+    .ucl-card-header { background: #111; border-bottom: 1px solid #1e1e1e; padding: 7px 14px; display: flex; justify-content: space-between; align-items: center; }
+    .ucl-card-header-left { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .8rem; font-weight: 700; color: #d4a520; letter-spacing: .06em; text-transform: uppercase; }
+    .ucl-card-header-right { font-size: .62rem; color: #6b7280; }
+    .ucl-card-header-right .ok { color: #22c55e; }
 
-    /* ── Fase eliminatória ───────────────────────────────────────── */
-    .ucl-mata-section { margin-top: 20px; }
-    .ucl-mata-title {
-        font-size: 13px; font-weight: 700; color: #111827;
-        margin-bottom: 10px;
-        display: flex; align-items: center; gap: 8px;
-    }
-    .ucl-fase-block {
-        background: #fff;
-        border: 0.5px solid #e5e7eb;
-        border-radius: 12px;
-        overflow: hidden;
-        margin-bottom: 14px;
-    }
-    .ucl-fase-header {
-        background: linear-gradient(90deg, #00003d, #001489);
-        color: #fff; padding: 8px 14px;
-        font-size: 12px; font-weight: 700;
-    }
-    .ucl-mata-jogo {
-        display: flex; align-items: center;
-        justify-content: space-between;
-        padding: 9px 12px;
-        border-bottom: 0.5px solid #f3f4f6;
-        font-size: 12px;
-    }
-    .ucl-mata-jogo:last-child { border-bottom: none; }
-    .ucl-mata-team {
-        display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;
-    }
-    .ucl-mata-team img {
-        width: 18px; height: 18px;
-        object-fit: contain; border-radius: 50%;
-        border: 0.5px solid #e5e7eb; background: #f9f9f9;
-        flex-shrink: 0;
-    }
-    .ucl-mata-team span {
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        max-width: 110px; font-weight: 500;
-    }
-    .ucl-mata-score {
-        background: #001489; color: #fff;
-        font-weight: 700; font-size: 12px;
-        padding: 2px 10px; border-radius: 6px;
-        min-width: 52px; text-align: center;
-        flex-shrink: 0; margin: 0 8px;
-    }
-    .ucl-mata-pending {
-        background: #f3f4f6; color: #6b7280;
-        font-size: 10px; padding: 2px 8px; border-radius: 6px;
-        flex-shrink: 0; margin: 0 8px; text-align: center; min-width: 52px;
-    }
+    .ucl-agregado { padding: 11px 14px; display: flex; justify-content: center; align-items: center; gap: 12px; border-bottom: 1px solid #1e1e1e; }
+    .ucl-agg-time { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 0; }
+    .ucl-agg-time.right { justify-content: flex-end; flex-direction: row-reverse; }
+    .ucl-agg-time img { width: 26px; height: 26px; object-fit: contain; border-radius: 50%; border: 1px solid #2a2a2a; background: #0f0f0f; flex-shrink: 0; }
+    .ucl-agg-name { font-size: .78rem; font-weight: 600; color: #e5e7eb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ucl-agg-name:hover { text-decoration: underline; }
+    .ucl-agg-score { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .ucl-agg-num { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.6rem; font-weight: 800; line-height: 1; color: #f1f5f9; min-width: 20px; text-align: center; }
+    .ucl-agg-num.leader { color: #22c55e; }
+    .ucl-agg-num.loser { color: #4b5563; }
+    .ucl-agg-sep { font-size: 17px; color: #374151; font-weight: 300; line-height: 1; }
+    .ucl-agg-vs { font-size: .72rem; color: #6b7280; font-weight: 600; }
 
-    /* ── Sidebar jogos ───────────────────────────────────────────── */
+    .ucl-classificado-wrap { padding: 6px 14px; text-align: center; border-bottom: 1px solid #1e1e1e; }
+    .ucl-classificado { font-size: .64rem; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: #d4a5201a; border: 1px solid #d4a52048; color: #d4a520; white-space: nowrap; }
+    .ucl-classificado.pendente { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.12); color: #9ca3af; }
+
+    .ucl-jogos { padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
+    .ucl-jogo-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; background: #111; border: 1px solid #1e1e1e; font-size: .72rem; transition: border-color .15s; }
+    .ucl-jogo-row:hover { border-color: #3a3a3a; }
+    .ucl-jogo-label { font-size: .58rem; font-weight: 700; color: #0f0f0f; background: #d4a520; padding: 2px 7px; border-radius: 4px; flex-shrink: 0; }
+    .ucl-jogo-label.volta { background: #374151; color: #e5e7eb; }
+    .ucl-jogo-date { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .66rem; font-weight: 700; color: #4b5563; flex-shrink: 0; }
+    .ucl-jogo-times { display: flex; align-items: center; gap: 5px; flex: 1; justify-content: center; color: #9ca3af; min-width: 0; }
+    .ucl-jogo-times .nome { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ucl-jogo-result { font-family: 'Barlow Condensed', Arial, sans-serif; font-weight: 700; font-size: .82rem; background: #262626; color: #f1f5f9; padding: 1px 8px; border-radius: 5px; flex-shrink: 0; }
+    .ucl-jogo-pen { font-size: .6rem; color: #9ca3af; font-weight: 500; }
+    .ucl-jogo-pending { font-size: .6rem; color: #6b7280; background: #1a1a1a; padding: 2px 8px; border-radius: 5px; flex-shrink: 0; }
+    .ucl-jogo-analisar { font-size: .66rem; color: #d4a520; font-weight: 700; flex-shrink: 0; border: 1px solid #d4a52048; padding: 2px 9px; border-radius: 5px; transition: background .15s, color .15s; }
+    .ucl-jogo-analisar:hover { background: #d4a520; color: #0f0f0f; }
+    .ucl-jogo-vazio { justify-content: flex-start; color: #6b7280; }
+    .ucl-jogo-vazio span.txt { font-size: .66rem; margin-left: 4px; }
+
+    /* ── Sidebar de jogos ── */
     .ucl-sidebar { position: sticky; top: 16px; }
-    .ucl-sidebar-title {
-        font-size: 13px; font-weight: 700; color: #111827;
-        margin-bottom: 10px;
-        display: flex; align-items: center; gap: 8px;
-    }
-    .ucl-jogo-card {
-        background: #fff;
-        border: 0.5px solid #e5e7eb;
-        border-radius: 10px;
-        margin-bottom: 10px;
-        overflow: hidden;
-        transition: box-shadow 0.15s;
-    }
-    .ucl-jogo-card:hover { box-shadow: 0 2px 10px rgba(0,20,137,0.1); }
-    .ucl-jogo-header {
-        background: linear-gradient(90deg, #00003d, #001489);
-        color: #c7d2fe;
-        font-size: 10px; font-weight: 600;
-        padding: 5px 10px;
-        display: flex; justify-content: space-between; align-items: center;
-    }
-    .ucl-fase-tag {
-        background: rgba(255,255,255,0.15);
-        color: #e0e7ff;
-        font-size: 9px; padding: 1px 6px;
-        border-radius: 999px; font-weight: 600;
-    }
+    .ucl-sidebar-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.15rem; font-weight: 800; color: #f1f5f9; text-transform: uppercase; letter-spacing: .04em; margin: 0 0 10px; }
+    .ucl-jogo-card { background: #161616; border: 1px solid #262626; border-radius: 12px; margin-bottom: 10px; overflow: hidden; transition: border-color .15s; }
+    .ucl-jogo-card:hover { border-color: #3a3a3a; }
+    .ucl-jogo-card-header { background: #111; border-bottom: 1px solid #1e1e1e; color: #6b7280; font-size: .6rem; font-weight: 600; padding: 5px 10px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+    .ucl-fase-tag { background: #d4a5201a; border: 1px solid #d4a52048; color: #d4a520; font-size: .56rem; padding: 1px 7px; border-radius: 999px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
     .ucl-jogo-body { padding: 10px 12px; }
-    .ucl-jogo-teams {
-        display: flex; justify-content: space-between;
-        align-items: center; gap: 6px;
-    }
-    .ucl-jogo-team {
-        display: flex; flex-direction: column;
-        align-items: center; gap: 4px;
-        flex: 1; min-width: 0;
-    }
-    .ucl-jogo-team img {
-        width: 32px; height: 32px;
-        object-fit: contain; border-radius: 50%;
-        border: 0.5px solid #e5e7eb; background: #f9f9f9;
-    }
-    .ucl-jogo-team span {
-        font-size: 11px; font-weight: 500; color: #374151;
-        text-align: center;
-        white-space: nowrap; overflow: hidden;
-        text-overflow: ellipsis; max-width: 90px;
-    }
-    .ucl-vs { font-size: 11px; font-weight: 700; color: #9ca3af; flex-shrink: 0; }
-    .ucl-score {
-        display: inline-flex; align-items: center; justify-content: center;
-        background: #001489; color: #fff;
-        font-weight: 700; font-size: 13px;
-        padding: 2px 10px; border-radius: 6px;
-        min-width: 52px;
-    }
-    .ucl-badge-agendado {
-        font-size: 10px; background: #f3f4f6; color: #6b7280;
-        padding: 2px 8px; border-radius: 6px; font-weight: 500;
-    }
-    .ucl-jogo-footer {
-        display: flex; justify-content: space-between; align-items: center;
-        margin-top: 8px; padding-top: 6px;
-        border-top: 0.5px solid #f3f4f6;
-        font-size: 10px; color: #9ca3af;
-    }
-    .ucl-analisar-btn {
-        font-size: 10px; padding: 3px 10px; border-radius: 6px;
-        border: 1px solid #001489; color: #001489;
-        background: transparent; text-decoration: none; font-weight: 600;
-        transition: background 0.15s, color 0.15s;
-    }
-    .ucl-analisar-btn:hover { background: #001489; color: #fff; text-decoration: none; }
+    .ucl-jogo-teams { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+    .ucl-jogo-team { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 0; }
+    .ucl-jogo-team img { width: 30px; height: 30px; object-fit: contain; border-radius: 50%; border: 1px solid #2a2a2a; background: #0f0f0f; }
+    .ucl-jogo-team span { font-size: .66rem; font-weight: 500; color: #9ca3af; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 92px; }
+    .ucl-vs { font-size: .66rem; font-weight: 700; color: #4b5563; flex-shrink: 0; }
+    .ucl-score { display: inline-flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', Arial, sans-serif; background: #262626; color: #f1f5f9; font-weight: 800; font-size: .85rem; padding: 2px 10px; border-radius: 6px; min-width: 48px; }
+    .ucl-badge-agendado { font-size: .58rem; background: #1a1a1a; color: #6b7280; padding: 2px 8px; border-radius: 6px; font-weight: 500; }
+    .ucl-jogo-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding-top: 6px; border-top: 1px solid #1e1e1e; font-size: .58rem; color: #6b7280; }
+    .ucl-realizado { color: #22c55e; font-weight: 600; }
 
-    /* ── Sem dados ───────────────────────────────────────────────── */
-    .ucl-empty {
-        text-align: center; padding: 3rem 1rem;
-        color: #9ca3af; font-size: 13px;
-        background: #fff; border: 0.5px solid #e5e7eb; border-radius: 12px;
-    }
+    /* ── Sem dados ── */
+    .ucl-empty { text-align: center; padding: 3.5rem 1rem; color: #6b7280; font-size: .8rem; background: #161616; border: 1px solid #262626; border-radius: 14px; }
+    .ucl-empty-icon { font-size: 2.5rem; margin-bottom: 10px; }
 </style>
 
-<!-- Banner -->
-<div class="ucl-hero">
-    <div class="ucl-stars">★ ★ ★ ★ ★ ★ ★ ★</div>
-    <div class="ucl-hero-content">
-        <span class="ucl-badge">Competição Europeia</span>
-        <div class="ucl-title-wrap">
-            <h2 class="ucl-title">⭐ UEFA Champions League</h2>
+<div class="ucl-root">
+
+    <!-- ── Hero ── -->
+    <div class="ucl-hero">
+        <div class="ucl-hero-stripe"></div>
+        <div class="ucl-hero-fade"></div>
+        <div class="ucl-hero-inner">
+            <div class="ucl-hero-icon">
+                <img src="~/images/background/championsleague.png" alt="Champions League"
+                     onerror="this.parentElement.style.display='none'" />
+            </div>
+            <div>
+                <div class="ucl-kicker">
+                    <div class="ucl-kicker-line"></div>
+                    <span>Competição Europeia · Liga + Mata-Mata</span>
+                </div>
+                <h1>Champions League</h1>
+                <p class="ucl-hero-sub">Fase de Liga · Fase Eliminatória</p>
+            </div>
+            <div class="ucl-hero-right">
+                @if (temporadas.Count > 1)
+                {
+                    <form method="get" class="ucl-hero-temporada">
+                        <label>Temporada</label>
+                        <select name="temporada" onchange="this.form.submit()">
+                            @foreach (var temp in temporadas)
+                            {
+                                <option value="@temp" @(Model.Temporada == temp ? "selected" : "")>@temp</option>
+                            }
+                        </select>
+                    </form>
+                }
+                @if (totalJogos > 0)
+                {
+                    <div class="ucl-hero-stats">
+                        <div class="ucl-hero-stat"><strong>@totalJogos</strong>jogos</div>
+                        <div class="ucl-hero-stat"><strong>@realizados</strong>realizados</div>
+                        <div class="ucl-hero-stat"><strong>@ranking.Count</strong>times na liga</div>
+                    </div>
+                }
+            </div>
         </div>
-        <p class="ucl-sub">Fase de Liga · Mata-Mata</p>
-        @{
-            var temporadasUcl = Model.TemporadasDisponiveis as List<int> ?? new List<int>();
-            var temporadaUclSel = Model.Temporada as int?;
-        }
-        @if (temporadasUcl.Count > 1)
+    </div>
+
+    <div class="ucl-content">
+
+        @if (totalJogos == 0)
         {
-            <form method="get" style="margin-top:8px;margin-bottom:4px;">
-                <label style="color:#fff;font-size:12px;font-weight:600;margin-right:6px;">Temporada:</label>
-                <select name="temporada" onchange="this.form.submit()"
-                        style="padding:5px 10px;border-radius:7px;border:none;font-size:13px;font-weight:600;">
-                    @foreach (var temp in temporadasUcl)
+            <div class="ucl-empty">
+                <div class="ucl-empty-icon">⭐</div>
+                Nenhum jogo da Champions League encontrado.<br />
+                <small>Importe os jogos com <strong>CompeticaoId = 6</strong> para ver a tabela.</small>
+            </div>
+        }
+        else
+        {
+            <div class="ucl-layout">
+
+                <!-- ── Coluna principal ── -->
+                <div>
+                    @if (ranking.Any())
                     {
-                        <option value="@temp" @(temporadaUclSel == temp ? "selected" : "")>@temp</option>
+                        <div class="ucl-legenda">
+                            <span><span class="ucl-leg-dot" style="background:#d4a520;"></span>Oitavas de Final (1º–8º)</span>
+                            <span><span class="ucl-leg-dot" style="background:#60a5fa;"></span>Playoff do Mata-Mata (9º–24º)</span>
+                            <span><span class="ucl-leg-dot" style="background:#4b5563;"></span>Eliminado (25º–36º)</span>
+                        </div>
+
+                        <div class="ucl-ranking-card">
+                            <div class="ucl-ranking-header">
+                                <b>🏆 Fase de Liga — Classificação</b>
+                                <span>@ranking.Count time(s) · jogos realizados</span>
+                            </div>
+                            <table class="ucl-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width:26px;">#</th>
+                                        <th>Time</th>
+                                        <th title="Jogos">J</th>
+                                        <th title="Vitórias">V</th>
+                                        <th title="Empates">E</th>
+                                        <th title="Derrotas">D</th>
+                                        <th title="Gols Pró">GP</th>
+                                        <th title="Gols Contra">GC</th>
+                                        <th title="Saldo de Gols">SG</th>
+                                        <th title="Pontos">Pts</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var time in ranking)
+                                    {
+                                        string posClass = time.Posicao <= 8 ? "ucl-pos-r16"
+                                                       : time.Posicao <= 24 ? "ucl-pos-playoff"
+                                                       : "ucl-pos-out";
+                                        string rowClass = time.Posicao <= 8 ? "ucl-row-r16"
+                                                       : time.Posicao <= 24 ? "ucl-row-playoff"
+                                                       : "ucl-row-out";
+                                        string trExtra = time.Posicao == 8 ? "ucl-sep-r16"
+                                                       : time.Posicao == 24 ? "ucl-sep-playoff" : "";
+
+                                        <tr class="@rowClass @trExtra">
+                                            <td><span class="ucl-pos @posClass">@time.Posicao</span></td>
+                                            <td>
+                                                <div class="ucl-team-cell">
+                                                    @if (!string.IsNullOrEmpty(time.Time?.EscudoUrl))
+                                                    {
+                                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = time.Time.EscudoUrl })" alt="@time.Time.Nome" />
+                                                    }
+                                                    <a href="@Url.Action("Details", "Times", new { id = time.Time?.Id })" title="@time.Time?.Nome">@time.Time?.Nome</a>
+                                                </div>
+                                            </td>
+                                            <td>@time.Jogos</td>
+                                            <td>@time.Vitorias</td>
+                                            <td>@time.Empates</td>
+                                            <td>@time.Derrotas</td>
+                                            <td>@time.GolsPro</td>
+                                            <td>@time.GolsContra</td>
+                                            <td>@time.SaldoGols</td>
+                                            <td class="ucl-pts">@time.Pontos</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
                     }
-                </select>
-            </form>
-        }
-        @if (totalJogos > 0)
-        {
-            <div class="ucl-stats">
-                <div class="ucl-stat"><strong>@totalJogos</strong>jogos cadastrados</div>
-                <div class="ucl-stat"><strong>@realizados</strong>realizados</div>
-                <div class="ucl-stat"><strong>@ranking.Count</strong>times no ranking</div>
+                    else
+                    {
+                        <div class="ucl-empty" style="padding:1.8rem;">
+                            <div style="font-size:1.5rem;margin-bottom:6px;">📋</div>
+                            Nenhum jogo da fase de liga realizado ainda.
+                        </div>
+                    }
+
+                    <!-- ── Fase eliminatória ── -->
+                    @if (fasesMata.Any())
+                    {
+                        <div class="ucl-mata-section">
+                            <div class="ucl-section-header">
+                                <h3 class="ucl-section-title">⚡ Fase Eliminatória</h3>
+                                <span class="ucl-section-badge">@fasesMata.Sum(f => f.Confrontos.Count) confronto(s)</span>
+                            </div>
+
+                            @foreach (var fase in fasesMata)
+                            {
+                                <div class="ucl-fase">
+                                    <div class="ucl-fase-header">
+                                        <h4 class="ucl-fase-title">@fase.Nome</h4>
+                                        <span class="ucl-fase-badge">
+                                            @fase.Confrontos.Count confronto(s)@(fase.JogoUnico ? " · jogo único" : "")
+                                        </span>
+                                    </div>
+
+                                    <div class="ucl-confrontos">
+                                        @foreach (var c in fase.Confrontos)
+                                        {
+                                            bool idaRealizada   = c.JogoIda?.PlacarCasa.HasValue == true;
+                                            bool voltaRealizada = c.JogoVolta?.PlacarCasa.HasValue == true;
+                                            bool encerrado      = fase.JogoUnico ? idaRealizada : (idaRealizada && voltaRealizada);
+                                            var vencedor        = Vencedor(c, fase.JogoUnico);
+
+                                            int golsA = fase.JogoUnico ? (c.JogoIda?.PlacarCasa ?? 0) : c.GolsTimeA;
+                                            int golsB = fase.JogoUnico ? (c.JogoIda?.PlacarVisitante ?? 0) : c.GolsTimeB;
+                                            bool aLidera = golsA > golsB;
+                                            bool bLidera = golsB > golsA;
+
+                                            <div class="ucl-card">
+                                                <div class="ucl-card-header">
+                                                    <span class="ucl-card-header-left">@fase.Nome</span>
+                                                    <span class="ucl-card-header-right">
+                                                        @if (encerrado)
+                                                        {
+                                                            <span class="ok">✔ Encerrado</span>
+                                                        }
+                                                        else if (idaRealizada)
+                                                        {
+                                                            <span>Aguardando volta</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span>A realizar</span>
+                                                        }
+                                                    </span>
+                                                </div>
+
+                                                <!-- Placar agregado -->
+                                                <div class="ucl-agregado">
+                                                    <div class="ucl-agg-time">
+                                                        @if (!string.IsNullOrEmpty(c.TimeA.EscudoUrl))
+                                                        {
+                                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.TimeA.EscudoUrl })" alt="@c.TimeA.Nome" />
+                                                        }
+                                                        <a class="ucl-agg-name" title="@c.TimeA.Nome"
+                                                           href="@Url.Action("Details", "Times", new { id = c.TimeA.Id })">@c.TimeA.Nome</a>
+                                                    </div>
+
+                                                    <div class="ucl-agg-score">
+                                                        @if (idaRealizada)
+                                                        {
+                                                            <span class="ucl-agg-num @(aLidera ? "leader" : (bLidera ? "loser" : ""))">@golsA</span>
+                                                            <span class="ucl-agg-sep">–</span>
+                                                            <span class="ucl-agg-num @(bLidera ? "leader" : (aLidera ? "loser" : ""))">@golsB</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="ucl-agg-vs">vs</span>
+                                                        }
+                                                    </div>
+
+                                                    <div class="ucl-agg-time right">
+                                                        @if (!string.IsNullOrEmpty(c.TimeB.EscudoUrl))
+                                                        {
+                                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.TimeB.EscudoUrl })" alt="@c.TimeB.Nome" />
+                                                        }
+                                                        <a class="ucl-agg-name" title="@c.TimeB.Nome"
+                                                           href="@Url.Action("Details", "Times", new { id = c.TimeB.Id })">@c.TimeB.Nome</a>
+                                                    </div>
+                                                </div>
+
+                                                @if (vencedor != null)
+                                                {
+                                                    <div class="ucl-classificado-wrap">
+                                                        <span class="ucl-classificado">
+                                                            🏆 @vencedor.Nome @(fase.Nome == "Final" ? "campeão" : "classificado")
+                                                        </span>
+                                                    </div>
+                                                }
+                                                else if (encerrado && golsA == golsB)
+                                                {
+                                                    <div class="ucl-classificado-wrap">
+                                                        <span class="ucl-classificado pendente">⚽ Pênaltis / definição pendente</span>
+                                                    </div>
+                                                }
+
+                                                <!-- Jogos -->
+                                                <div class="ucl-jogos">
+                                                    @if (c.JogoIda != null)
+                                                    {
+                                                        <div class="ucl-jogo-row">
+                                                            <span class="ucl-jogo-label">@(fase.JogoUnico ? "JOGO" : "IDA")</span>
+                                                            <span class="ucl-jogo-date">@DataJogo(c.JogoIda, "dd/MM HH:mm")</span>
+                                                            <div class="ucl-jogo-times">
+                                                                <span class="nome">@c.JogoIda.TimeCasa?.Nome</span>
+                                                                @if (c.JogoIda.PlacarCasa.HasValue)
+                                                                {
+                                                                    <span class="ucl-jogo-result">
+                                                                        @c.JogoIda.PlacarCasa x @c.JogoIda.PlacarVisitante
+                                                                        @if (c.JogoIda.PenaltisCasa.HasValue && c.JogoIda.PenaltisVisitante.HasValue)
+                                                                        {
+                                                                            <span class="ucl-jogo-pen">(@c.JogoIda.PenaltisCasa-@c.JogoIda.PenaltisVisitante pên.)</span>
+                                                                        }
+                                                                    </span>
+                                                                }
+                                                                else
+                                                                {
+                                                                    <span class="ucl-jogo-pending">vs</span>
+                                                                }
+                                                                <span class="nome">@c.JogoIda.TimeVisitante?.Nome</span>
+                                                            </div>
+                                                            <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@c.JogoIda.Id"
+                                                               class="ucl-jogo-analisar">→</a>
+                                                        </div>
+                                                    }
+
+                                                    @if (!fase.JogoUnico)
+                                                    {
+                                                        @if (c.JogoVolta != null)
+                                                        {
+                                                            <div class="ucl-jogo-row">
+                                                                <span class="ucl-jogo-label volta">VOLTA</span>
+                                                                <span class="ucl-jogo-date">@DataJogo(c.JogoVolta, "dd/MM HH:mm")</span>
+                                                                <div class="ucl-jogo-times">
+                                                                    <span class="nome">@c.JogoVolta.TimeCasa?.Nome</span>
+                                                                    @if (c.JogoVolta.PlacarCasa.HasValue)
+                                                                    {
+                                                                        <span class="ucl-jogo-result">
+                                                                            @c.JogoVolta.PlacarCasa x @c.JogoVolta.PlacarVisitante
+                                                                            @if (c.JogoVolta.PenaltisCasa.HasValue && c.JogoVolta.PenaltisVisitante.HasValue)
+                                                                            {
+                                                                                <span class="ucl-jogo-pen">(@c.JogoVolta.PenaltisCasa-@c.JogoVolta.PenaltisVisitante pên.)</span>
+                                                                            }
+                                                                        </span>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        <span class="ucl-jogo-pending">A jogar</span>
+                                                                    }
+                                                                    <span class="nome">@c.JogoVolta.TimeVisitante?.Nome</span>
+                                                                </div>
+                                                                <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@c.JogoVolta.Id"
+                                                                   class="ucl-jogo-analisar">→</a>
+                                                            </div>
+                                                        }
+                                                        else
+                                                        {
+                                                            <div class="ucl-jogo-row ucl-jogo-vazio">
+                                                                <span class="ucl-jogo-label volta">VOLTA</span>
+                                                                <span class="txt">Jogo de volta ainda não cadastrado</span>
+                                                            </div>
+                                                        }
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <!-- ── Sidebar: jogos ── -->
+                <div class="ucl-sidebar">
+                    <div class="ucl-sidebar-title">Jogos</div>
+
+                    @if (!proximosJogos.Any())
+                    {
+                        <div class="ucl-empty" style="padding:1.5rem;">Nenhum jogo encontrado.</div>
+                    }
+                    else
+                    {
+                        @foreach (var jogo in proximosJogos)
+                        {
+                            bool realizado = jogo.PlacarCasa.HasValue && jogo.PlacarVisitante.HasValue;
+                            <div class="ucl-jogo-card">
+                                <div class="ucl-jogo-card-header">
+                                    <span>@DataJogo(jogo, "dd/MM/yyyy HH:mm")</span>
+                                    @if (!string.IsNullOrEmpty(jogo.Grupo))
+                                    {
+                                        <span class="ucl-fase-tag" title="@jogo.Grupo">@jogo.Grupo</span>
+                                    }
+                                </div>
+                                <div class="ucl-jogo-body">
+                                    <div class="ucl-jogo-teams">
+                                        <div class="ucl-jogo-team">
+                                            @if (!string.IsNullOrEmpty(jogo.TimeCasa?.EscudoUrl))
+                                            {
+                                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa.EscudoUrl })" alt="@jogo.TimeCasa.Nome" />
+                                            }
+                                            <span>@jogo.TimeCasa?.Nome</span>
+                                        </div>
+                                        <div class="ucl-vs">
+                                            @if (realizado)
+                                            {
+                                                <span class="ucl-score">@jogo.PlacarCasa x @jogo.PlacarVisitante</span>
+                                            }
+                                            else
+                                            {
+                                                <span>vs</span>
+                                            }
+                                        </div>
+                                        <div class="ucl-jogo-team">
+                                            @if (!string.IsNullOrEmpty(jogo.TimeVisitante?.EscudoUrl))
+                                            {
+                                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante.EscudoUrl })" alt="@jogo.TimeVisitante.Nome" />
+                                            }
+                                            <span>@jogo.TimeVisitante?.Nome</span>
+                                        </div>
+                                    </div>
+                                    <div class="ucl-jogo-footer">
+                                        @if (realizado)
+                                        {
+                                            <span class="ucl-realizado">✔ Realizado</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="ucl-badge-agendado">Agendado</span>
+                                        }
+                                        <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id"
+                                           class="ucl-jogo-analisar">Analisar →</a>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+
             </div>
         }
     </div>
 </div>
-
-@if (totalJogos == 0)
-{
-    <div class="ucl-empty">
-        <div style="font-size:2.5rem;margin-bottom:8px;">⭐</div>
-        Nenhum jogo da Champions League encontrado.<br>
-        <small>Importe os jogos com o <strong>CompeticaoId = 6</strong> para ver a tabela.</small>
-    </div>
-}
-else
-{
-    <div class="ucl-layout">
-
-        <!-- Coluna esquerda -->
-        <div>
-            @if (ranking.Any())
-            {
-                <!-- Legenda -->
-                <div class="ucl-legenda">
-                    <span><span class="ucl-leg-dot" style="background:#001489;"></span>Oitavas de Final (1º–8º)</span>
-                    <span><span class="ucl-leg-dot" style="background:#f59e0b;"></span>Playoff de Acesso (9º–24º)</span>
-                    <span><span class="ucl-leg-dot" style="background:#d1d5db;"></span>Eliminado (25º–36º)</span>
-                </div>
-
-                <div class="ucl-ranking-card">
-                    <div class="ucl-ranking-header">
-                        🏆 Fase de Liga — Classificação
-                        <span>@ranking.Count time(s) · baseado em jogos realizados</span>
-                    </div>
-                    <table class="ucl-table">
-                        <thead>
-                            <tr>
-                                <th style="width:22px;">#</th>
-                                <th>Time</th>
-                                <th title="Jogos">J</th>
-                                <th title="Vitórias">V</th>
-                                <th title="Empates">E</th>
-                                <th title="Derrotas">D</th>
-                                <th title="Gols Pró">GP</th>
-                                <th title="Gols Contra">GC</th>
-                                <th title="Saldo de Gols">SG</th>
-                                <th title="Pontos">Pts</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var time in ranking)
-                            {
-                                string posClass = time.Posicao <= 8 ? "ucl-pos-r16"
-                                               : time.Posicao <= 24 ? "ucl-pos-playoff"
-                                               : "ucl-pos-out";
-                                string rowClass = time.Posicao <= 8 ? "ucl-row-r16"
-                                               : time.Posicao <= 24 ? "ucl-row-playoff"
-                                               : "ucl-row-out";
-
-                                // separadores de zona
-                                bool sepR16 = time.Posicao == 8;
-                                bool sepPlayoff = time.Posicao == 24;
-                                string trExtra = sepR16 ? "ucl-sep-r16" : (sepPlayoff ? "ucl-sep-playoff" : "");
-
-                                <tr class="@rowClass @trExtra">
-                                    <td><span class="ucl-pos @posClass">@time.Posicao</span></td>
-                                    <td>
-                                        <div class="ucl-team-cell">
-                                            @if (!string.IsNullOrEmpty(time.Time?.EscudoUrl))
-                                            {
-                                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = time.Time.EscudoUrl })" alt="@time.Time.Nome" />
-                                            }
-                                            <span>@time.Time?.Nome</span>
-                                        </div>
-                                    </td>
-                                    <td>@time.Jogos</td>
-                                    <td>@time.Vitorias</td>
-                                    <td>@time.Empates</td>
-                                    <td>@time.Derrotas</td>
-                                    <td>@time.GolsPro</td>
-                                    <td>@time.GolsContra</td>
-                                    <td>@time.SaldoGols</td>
-                                    <td class="ucl-pts">@time.Pontos</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            }
-            else
-            {
-                <div class="ucl-empty" style="padding:1.5rem;">
-                    <div style="font-size:1.5rem;margin-bottom:6px;">📋</div>
-                    Nenhum jogo da fase de liga realizado ainda.
-                </div>
-            }
-
-            <!-- Fase eliminatória -->
-            @if (jogosMata.Any())
-            {
-                <div class="ucl-mata-section">
-                    <div class="ucl-mata-title">⚡ Fase Eliminatória</div>
-                    @foreach (var fase in fasesMata)
-                    {
-                        var jogosF = jogosMata.Where(j => j.Grupo == fase).OrderBy(j => j.Data).ToList();
-                        <div class="ucl-fase-block">
-                            <div class="ucl-fase-header">@fase</div>
-                            @foreach (var jogo in jogosF)
-                            {
-                                bool realizado = jogo.PlacarCasa.HasValue;
-                                <div class="ucl-mata-jogo">
-                                    <div class="ucl-mata-team">
-                                        @if (!string.IsNullOrEmpty(jogo.TimeCasa?.EscudoUrl))
-                                        {
-                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa.EscudoUrl })" alt="@jogo.TimeCasa.Nome" />
-                                        }
-                                        <span>@jogo.TimeCasa?.Nome</span>
-                                    </div>
-                                    @if (realizado)
-                                    {
-                                        <span class="ucl-mata-score">@jogo.PlacarCasa × @jogo.PlacarVisitante</span>
-                                        @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
-                                        {
-                                            <span class="ucl-pen">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</span>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        <span class="ucl-mata-pending">@ControleFutebolWeb.Helpers.DateHelper.FormatarData(jogo.Data, "dd/MM")</span>
-                                    }
-                                    <div class="ucl-mata-team" style="justify-content:flex-end;">
-                                        <span style="text-align:right;">@jogo.TimeVisitante?.Nome</span>
-                                        @if (!string.IsNullOrEmpty(jogo.TimeVisitante?.EscudoUrl))
-                                        {
-                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante.EscudoUrl })" alt="@jogo.TimeVisitante.Nome" />
-                                        }
-                                    </div>
-                                </div>
-                            }
-                        </div>
-                    }
-                </div>
-            }
-        </div>
-
-        <!-- Coluna direita: próximos/recentes jogos -->
-        <div class="ucl-sidebar">
-            <div class="ucl-sidebar-title">Jogos</div>
-
-            @if (!proximosJogos.Any())
-            {
-                <div class="ucl-empty" style="padding:1.5rem;">
-                    Nenhum jogo encontrado.
-                </div>
-            }
-            else
-            {
-                @foreach (var jogo in proximosJogos)
-                {
-                    bool realizado = jogo.PlacarCasa.HasValue && jogo.PlacarVisitante.HasValue;
-                    <div class="ucl-jogo-card">
-                        <div class="ucl-jogo-header">
-                            <span>@ControleFutebolWeb.Helpers.DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy HH:mm")</span>
-                            @if (!string.IsNullOrEmpty(jogo.Grupo))
-                            {
-                                <span class="ucl-fase-tag">@jogo.Grupo</span>
-                            }
-                        </div>
-                        <div class="ucl-jogo-body">
-                            <div class="ucl-jogo-teams">
-                                <div class="ucl-jogo-team">
-                                    @if (!string.IsNullOrEmpty(jogo.TimeCasa?.EscudoUrl))
-                                    {
-                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa.EscudoUrl })" alt="@jogo.TimeCasa.Nome" />
-                                    }
-                                    <span>@jogo.TimeCasa?.Nome</span>
-                                </div>
-                                <div class="ucl-vs">
-                                    @if (realizado)
-                                    {
-                                        <span class="ucl-score">@jogo.PlacarCasa x @jogo.PlacarVisitante</span>
-                                        @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
-                                        {
-                                            <span class="ucl-pen">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</span>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        <span>vs</span>
-                                    }
-                                </div>
-                                <div class="ucl-jogo-team">
-                                    @if (!string.IsNullOrEmpty(jogo.TimeVisitante?.EscudoUrl))
-                                    {
-                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante.EscudoUrl })" alt="@jogo.TimeVisitante.Nome" />
-                                    }
-                                    <span>@jogo.TimeVisitante?.Nome</span>
-                                </div>
-                            </div>
-                            <div class="ucl-jogo-footer">
-                                @if (realizado)
-                                {
-                                    <span style="color:#22c55e;font-weight:600;">✔ Realizado</span>
-                                }
-                                else
-                                {
-                                    <span class="ucl-badge-agendado">Agendado</span>
-                                }
-                                <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id"
-                                   class="ucl-analisar-btn">Analisar →</a>
-                            </div>
-                        </div>
-                    </div>
-                }
-            }
-        </div>
-
-    </div>
-}
