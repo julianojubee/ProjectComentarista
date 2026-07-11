@@ -234,7 +234,7 @@ namespace ControleFutebolWeb.Controllers
         // POST: Competicoes/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Nome,Regiao,Tipo,EhSelecaoNacional,linktransfermarket")] Competicao competicao)
+        public async Task<IActionResult> Create([Bind("Nome,Regiao,Tipo,EhSelecaoNacional,LinkTransfermarket")] Competicao competicao)
         {
             _logger.LogInformation("POST Create chamado: Nome={Nome}, Regiao={Regiao}, Tipo={Tipo}",
                 competicao.Nome, competicao.Regiao, competicao.Tipo);
@@ -268,13 +268,24 @@ namespace ControleFutebolWeb.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id,
-            [Bind("Id,Nome,Regiao,Tipo,EhSelecaoNacional,linktransfermarket")] Competicao competicao)
+            [Bind("Id,Nome,Regiao,Tipo,EhSelecaoNacional,LinkTransfermarket,IdApi")] Competicao competicao)
         {
             if (id != competicao.Id) return NotFound();
 
             if (!ModelState.IsValid) return View(competicao);
 
-            _context.Update(competicao);
+            // Atualiza só os campos do formulário para não apagar
+            // TopTier, LogoUrl e demais colunas que não estão na tela.
+            var existente = await _context.Competicoes.FindAsync(id);
+            if (existente == null) return NotFound();
+
+            existente.Nome = competicao.Nome;
+            existente.Regiao = competicao.Regiao;
+            existente.Tipo = competicao.Tipo;
+            existente.EhSelecaoNacional = competicao.EhSelecaoNacional;
+            existente.LinkTransfermarket = competicao.LinkTransfermarket;
+            existente.IdApi = competicao.IdApi;
+
             await _context.SaveChangesAsync();
 
             return RedirectToAction(nameof(Index));
@@ -473,6 +484,51 @@ namespace ControleFutebolWeb.Controllers
 
             TempData["Sucesso"] = "Escudo da competição atualizado.";
             return RedirectToAction(nameof(Index));
+        }
+
+        // Catálogo das ligas disponíveis na api-football para a temporada 2026
+        // (dump estático em wwwroot/data/competicoes-api-2026.json), agrupadas
+        // por país. Mostra nome + código (id da liga na API) para o usuário
+        // registrar a competição (campo IdApi) e poder buscar os jogos.
+        [HttpGet]
+        public async Task<IActionResult> CompeticoesApi()
+        {
+            var env = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>();
+            var caminho = Path.Combine(env.WebRootPath, "data", "competicoes-api-2026.json");
+            if (!System.IO.File.Exists(caminho))
+                return NotFound("Arquivo de competições da API não encontrado.");
+
+            var json = await System.IO.File.ReadAllTextAsync(caminho);
+            var itens = System.Text.Json.JsonSerializer.Deserialize<List<CompeticaoApiLiga>>(json,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
+
+            // Marca as ligas que já têm competição cadastrada apontando pra elas
+            var idsRegistrados = (await _context.Competicoes
+                .Where(c => c.IdApi != null)
+                .Select(c => c.IdApi!.Value)
+                .ToListAsync()).ToHashSet();
+            foreach (var item in itens)
+                item.Registrada = idsRegistrados.Contains(item.Id);
+
+            var vm = new CompeticoesApiViewModel
+            {
+                Total = itens.Count,
+                TotalRegistradas = itens.Count(i => i.Registrada),
+                Paises = itens
+                    .GroupBy(i => i.Pais)
+                    .Select(g => new CompeticoesApiPais
+                    {
+                        Nome = g.Key,
+                        Bandeira = g.First().Bandeira,
+                        Competicoes = g.OrderBy(i => i.Nome).ToList()
+                    })
+                    // "World" (internacionais) primeiro, depois países em ordem alfabética
+                    .OrderBy(p => p.Nome == "World" ? 0 : 1)
+                    .ThenBy(p => p.Nome)
+                    .ToList()
+            };
+
+            return View(vm);
         }
     }
 }

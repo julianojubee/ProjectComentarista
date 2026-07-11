@@ -1,0 +1,4098 @@
+[
+ {
+  "id": 34,
+  "nome": "World Cup - Qualification South America",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/34.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 30,
+  "nome": "World Cup - Qualification Asia",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/30.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 31,
+  "nome": "World Cup - Qualification CONCACAF",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/31.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 33,
+  "nome": "World Cup - Qualification Oceania",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/33.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 893,
+  "nome": "UEFA U19 Championship - Qualification",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/893.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 894,
+  "nome": "Asian Cup Women - Qualification",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/894.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 952,
+  "nome": "AFC U23 Asian Cup - Qualification",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/952.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 826,
+  "nome": "Super Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/826.png",
+  "pais": "Saudi-Arabia",
+  "bandeira": "https://media.api-sports.io/flags/sa.svg"
+ },
+ {
+  "id": 504,
+  "nome": "King's Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/504.png",
+  "pais": "Saudi-Arabia",
+  "bandeira": "https://media.api-sports.io/flags/sa.svg"
+ },
+ {
+  "id": 340,
+  "nome": "V.League 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/340.png",
+  "pais": "Vietnam",
+  "bandeira": "https://media.api-sports.io/flags/vn.svg"
+ },
+ {
+  "id": 831,
+  "nome": "Super Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/831.png",
+  "pais": "Vietnam",
+  "bandeira": "https://media.api-sports.io/flags/vn.svg"
+ },
+ {
+  "id": 1147,
+  "nome": "Capixaba B",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1147.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 399,
+  "nome": "NPFL",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/399.png",
+  "pais": "Nigeria",
+  "bandeira": "https://media.api-sports.io/flags/ng.svg"
+ },
+ {
+  "id": 105,
+  "nome": "NM Cupen",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/105.png",
+  "pais": "Norway",
+  "bandeira": "https://media.api-sports.io/flags/no.svg"
+ },
+ {
+  "id": 765,
+  "nome": "PFL",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/765.png",
+  "pais": "Philippines",
+  "bandeira": "https://media.api-sports.io/flags/ph.svg"
+ },
+ {
+  "id": 869,
+  "nome": "CECAFA Club Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/869.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 341,
+  "nome": "Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/341.png",
+  "pais": "Vietnam",
+  "bandeira": "https://media.api-sports.io/flags/vn.svg"
+ },
+ {
+  "id": 637,
+  "nome": "V.League 2",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/637.png",
+  "pais": "Vietnam",
+  "bandeira": "https://media.api-sports.io/flags/vn.svg"
+ },
+ {
+  "id": 764,
+  "nome": "Premier League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/764.png",
+  "pais": "Mongolia",
+  "bandeira": "https://media.api-sports.io/flags/mn.svg"
+ },
+ {
+  "id": 886,
+  "nome": "UEFA U17 Championship - Qualification",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/886.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 398,
+  "nome": "Premier League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/398.png",
+  "pais": "Bangladesh",
+  "bandeira": "https://media.api-sports.io/flags/bd.svg"
+ },
+ {
+  "id": 539,
+  "nome": "Super Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/539.png",
+  "pais": "Egypt",
+  "bandeira": "https://media.api-sports.io/flags/eg.svg"
+ },
+ {
+  "id": 591,
+  "nome": "Pro League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/591.png",
+  "pais": "Trinidad-And-Tobago",
+  "bandeira": "https://media.api-sports.io/flags/tt.svg"
+ },
+ {
+  "id": 545,
+  "nome": "AIFF Super Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/545.png",
+  "pais": "India",
+  "bandeira": "https://media.api-sports.io/flags/in.svg"
+ },
+ {
+  "id": 1207,
+  "nome": "CONCACAF Series",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1207.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 1012,
+  "nome": "AFC U17 Asian Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1012.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 927,
+  "nome": "World Cup - Women - Qualification Concacaf",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/927.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 1208,
+  "nome": "Arabian Gulf Cup U23",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1208.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 250,
+  "nome": "Division Profesional - Apertura",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/250.png",
+  "pais": "Paraguay",
+  "bandeira": "https://media.api-sports.io/flags/py.svg"
+ },
+ {
+  "id": 252,
+  "nome": "Division Profesional - Clausura",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/252.png",
+  "pais": "Paraguay",
+  "bandeira": "https://media.api-sports.io/flags/py.svg"
+ },
+ {
+  "id": 1,
+  "nome": "World Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 253,
+  "nome": "Major League Soccer",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/253.png",
+  "pais": "USA",
+  "bandeira": "https://media.api-sports.io/flags/us.svg"
+ },
+ {
+  "id": 814,
+  "nome": "Reykjavik Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/814.png",
+  "pais": "Iceland",
+  "bandeira": "https://media.api-sports.io/flags/is.svg"
+ },
+ {
+  "id": 489,
+  "nome": "USL League One",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/489.png",
+  "pais": "USA",
+  "bandeira": "https://media.api-sports.io/flags/us.svg"
+ },
+ {
+  "id": 255,
+  "nome": "USL Championship",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/255.png",
+  "pais": "USA",
+  "bandeira": "https://media.api-sports.io/flags/us.svg"
+ },
+ {
+  "id": 128,
+  "nome": "Liga Profesional Argentina",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/128.png",
+  "pais": "Argentina",
+  "bandeira": "https://media.api-sports.io/flags/ar.svg"
+ },
+ {
+  "id": 71,
+  "nome": "Serie A",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/71.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 357,
+  "nome": "Premier Division",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/357.png",
+  "pais": "Ireland",
+  "bandeira": "https://media.api-sports.io/flags/ie.svg"
+ },
+ {
+  "id": 517,
+  "nome": "Trofeo de Campeones de la Superliga",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/517.png",
+  "pais": "Argentina",
+  "bandeira": "https://media.api-sports.io/flags/ar.svg"
+ },
+ {
+  "id": 358,
+  "nome": "First Division",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/358.png",
+  "pais": "Ireland",
+  "bandeira": "https://media.api-sports.io/flags/ie.svg"
+ },
+ {
+  "id": 113,
+  "nome": "Allsvenskan",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/113.png",
+  "pais": "Sweden",
+  "bandeira": "https://media.api-sports.io/flags/se.svg"
+ },
+ {
+  "id": 544,
+  "nome": "FA Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/544.png",
+  "pais": "Hong-Kong",
+  "bandeira": "https://media.api-sports.io/flags/hk.svg"
+ },
+ {
+  "id": 13,
+  "nome": "CONMEBOL Libertadores",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/13.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 103,
+  "nome": "Eliteserien",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/103.png",
+  "pais": "Norway",
+  "bandeira": "https://media.api-sports.io/flags/no.svg"
+ },
+ {
+  "id": 906,
+  "nome": "Reserve League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/906.png",
+  "pais": "Argentina",
+  "bandeira": "https://media.api-sports.io/flags/ar.svg"
+ },
+ {
+  "id": 401,
+  "nome": "Premier Soccer League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/401.png",
+  "pais": "Zimbabwe",
+  "bandeira": "https://media.api-sports.io/flags/zw.svg"
+ },
+ {
+  "id": 725,
+  "nome": "Toppserien",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/725.png",
+  "pais": "Norway",
+  "bandeira": "https://media.api-sports.io/flags/no.svg"
+ },
+ {
+  "id": 549,
+  "nome": "Damallsvenskan",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/549.png",
+  "pais": "Sweden",
+  "bandeira": "https://media.api-sports.io/flags/se.svg"
+ },
+ {
+  "id": 244,
+  "nome": "Veikkausliiga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/244.png",
+  "pais": "Finland",
+  "bandeira": "https://media.api-sports.io/flags/fi.svg"
+ },
+ {
+  "id": 104,
+  "nome": "1. Division",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/104.png",
+  "pais": "Norway",
+  "bandeira": "https://media.api-sports.io/flags/no.svg"
+ },
+ {
+  "id": 473,
+  "nome": "2. Division - Group 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/473.png",
+  "pais": "Norway",
+  "bandeira": "https://media.api-sports.io/flags/no.svg"
+ },
+ {
+  "id": 474,
+  "nome": "2. Division - Group 2",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/474.png",
+  "pais": "Norway",
+  "bandeira": "https://media.api-sports.io/flags/no.svg"
+ },
+ {
+  "id": 774,
+  "nome": "3. Division - Girone 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/774.png",
+  "pais": "Norway",
+  "bandeira": "https://media.api-sports.io/flags/no.svg"
+ },
+ {
+  "id": 775,
+  "nome": "3. Division - Girone 2",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/775.png",
+  "pais": "Norway",
+  "bandeira": "https://media.api-sports.io/flags/no.svg"
+ },
+ {
+  "id": 776,
+  "nome": "3. Division - Girone 3",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/776.png",
+  "pais": "Norway",
+  "bandeira": "https://media.api-sports.io/flags/no.svg"
+ },
+ {
+  "id": 777,
+  "nome": "3. Division - Girone 4",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/777.png",
+  "pais": "Norway",
+  "bandeira": "https://media.api-sports.io/flags/no.svg"
+ },
+ {
+  "id": 778,
+  "nome": "3. Division - Girone 5",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/778.png",
+  "pais": "Norway",
+  "bandeira": "https://media.api-sports.io/flags/no.svg"
+ },
+ {
+  "id": 779,
+  "nome": "3. Division - Girone 6",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/779.png",
+  "pais": "Norway",
+  "bandeira": "https://media.api-sports.io/flags/no.svg"
+ },
+ {
+  "id": 114,
+  "nome": "Superettan",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/114.png",
+  "pais": "Sweden",
+  "bandeira": "https://media.api-sports.io/flags/se.svg"
+ },
+ {
+  "id": 239,
+  "nome": "Primera A",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/239.png",
+  "pais": "Colombia",
+  "bandeira": "https://media.api-sports.io/flags/co.svg"
+ },
+ {
+  "id": 129,
+  "nome": "Primera Nacional",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/129.png",
+  "pais": "Argentina",
+  "bandeira": "https://media.api-sports.io/flags/ar.svg"
+ },
+ {
+  "id": 131,
+  "nome": "Primera B Metropolitana",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/131.png",
+  "pais": "Argentina",
+  "bandeira": "https://media.api-sports.io/flags/ar.svg"
+ },
+ {
+  "id": 132,
+  "nome": "Primera C",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/132.png",
+  "pais": "Argentina",
+  "bandeira": "https://media.api-sports.io/flags/ar.svg"
+ },
+ {
+  "id": 609,
+  "nome": "Cearense - 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/609.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 604,
+  "nome": "Catarinense - 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/604.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 606,
+  "nome": "Paranaense - 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/606.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 622,
+  "nome": "Pernambucano - 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/622.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 616,
+  "nome": "Potiguar",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/616.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 475,
+  "nome": "Paulista - A1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/475.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 628,
+  "nome": "Goiano - 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/628.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 77,
+  "nome": "Alagoano",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/77.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 602,
+  "nome": "Baiano - 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/602.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 629,
+  "nome": "Mineiro - 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/629.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 477,
+  "nome": "Gaúcho - 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/477.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 522,
+  "nome": "Amazonense",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/522.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 630,
+  "nome": "Matogrossense",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/630.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 624,
+  "nome": "Carioca - 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/624.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 603,
+  "nome": "Paraibano",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/603.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 627,
+  "nome": "Paraense",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/627.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 621,
+  "nome": "Piauiense",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/621.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 626,
+  "nome": "Sergipano",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/626.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 608,
+  "nome": "Maranhense",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/608.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 520,
+  "nome": "Acreano",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/520.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 611,
+  "nome": "Capixaba",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/611.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 631,
+  "nome": "Tocantinense",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/631.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 615,
+  "nome": "Rondoniense",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/615.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 623,
+  "nome": "Sul-Matogrossense",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/623.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 521,
+  "nome": "Amapaense",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/521.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 1209,
+  "nome": "Guangdong - Hong Kong Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1209.png",
+  "pais": "Hong-Kong",
+  "bandeira": "https://media.api-sports.io/flags/hk.svg"
+ },
+ {
+  "id": 1210,
+  "nome": "Super Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1210.png",
+  "pais": "Greece",
+  "bandeira": "https://media.api-sports.io/flags/gr.svg"
+ },
+ {
+  "id": 11,
+  "nome": "CONMEBOL Sudamericana",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/11.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 98,
+  "nome": "J1 League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/98.png",
+  "pais": "Japan",
+  "bandeira": "https://media.api-sports.io/flags/jp.svg"
+ },
+ {
+  "id": 736,
+  "nome": "Elitettan",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/736.png",
+  "pais": "Sweden",
+  "bandeira": "https://media.api-sports.io/flags/se.svg"
+ },
+ {
+  "id": 618,
+  "nome": "São Paulo Youth Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/618.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 10,
+  "nome": "Friendlies",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/10.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 666,
+  "nome": "Friendlies Women",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/666.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 667,
+  "nome": "Friendlies Clubs",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/667.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 1211,
+  "nome": "Tipsport Liga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1211.png",
+  "pais": "Czech-Republic",
+  "bandeira": "https://media.api-sports.io/flags/cz.svg"
+ },
+ {
+  "id": 130,
+  "nome": "Copa Argentina",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/130.png",
+  "pais": "Argentina",
+  "bandeira": "https://media.api-sports.io/flags/ar.svg"
+ },
+ {
+  "id": 476,
+  "nome": "Paulista - A2",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/476.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 605,
+  "nome": "Paulista - A3",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/605.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 1062,
+  "nome": "Paulista - A4",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1062.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 402,
+  "nome": "Sudani Premier League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/402.png",
+  "pais": "Sudan",
+  "bandeira": "https://media.api-sports.io/flags/sd.svg"
+ },
+ {
+  "id": 824,
+  "nome": "Emir Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/824.png",
+  "pais": "Qatar",
+  "bandeira": "https://media.api-sports.io/flags/qa.svg"
+ },
+ {
+  "id": 610,
+  "nome": "Brasiliense",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/610.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 1087,
+  "nome": "Ykkösliiga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1087.png",
+  "pais": "Finland",
+  "bandeira": "https://media.api-sports.io/flags/fi.svg"
+ },
+ {
+  "id": 299,
+  "nome": "Primera División",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/299.png",
+  "pais": "Venezuela",
+  "bandeira": "https://media.api-sports.io/flags/ve.svg"
+ },
+ {
+  "id": 564,
+  "nome": "Ettan - Södra",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/564.png",
+  "pais": "Sweden",
+  "bandeira": "https://media.api-sports.io/flags/se.svg"
+ },
+ {
+  "id": 563,
+  "nome": "Ettan - Norra",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/563.png",
+  "pais": "Sweden",
+  "bandeira": "https://media.api-sports.io/flags/se.svg"
+ },
+ {
+  "id": 1212,
+  "nome": "Copa De La Liga Auf",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1212.png",
+  "pais": "Uruguay",
+  "bandeira": "https://media.api-sports.io/flags/uy.svg"
+ },
+ {
+  "id": 265,
+  "nome": "Primera División",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/265.png",
+  "pais": "Chile",
+  "bandeira": "https://media.api-sports.io/flags/cl.svg"
+ },
+ {
+  "id": 1213,
+  "nome": "Kings World Cup Nations",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1213.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 304,
+  "nome": "Liga Panameña de Fútbol",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/304.png",
+  "pais": "Panama",
+  "bandeira": "https://media.api-sports.io/flags/pa.svg"
+ },
+ {
+  "id": 281,
+  "nome": "Primera División",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/281.png",
+  "pais": "Peru",
+  "bandeira": "https://media.api-sports.io/flags/pe.svg"
+ },
+ {
+  "id": 367,
+  "nome": "Meistaradeildin",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/367.png",
+  "pais": "Faroe-Islands",
+  "bandeira": "https://media.api-sports.io/flags/fo.svg"
+ },
+ {
+  "id": 366,
+  "nome": "1. Deild",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/366.png",
+  "pais": "Faroe-Islands",
+  "bandeira": "https://media.api-sports.io/flags/fo.svg"
+ },
+ {
+  "id": 292,
+  "nome": "K League 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/292.png",
+  "pais": "South-Korea",
+  "bandeira": "https://media.api-sports.io/flags/kr.svg"
+ },
+ {
+  "id": 326,
+  "nome": "Erovnuli Liga 2",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/326.png",
+  "pais": "Georgia",
+  "bandeira": "https://media.api-sports.io/flags/ge.svg"
+ },
+ {
+  "id": 1104,
+  "nome": "Liga 3",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1104.png",
+  "pais": "Georgia",
+  "bandeira": "https://media.api-sports.io/flags/ge.svg"
+ },
+ {
+  "id": 713,
+  "nome": "Superliga",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/713.png",
+  "pais": "Colombia",
+  "bandeira": "https://media.api-sports.io/flags/co.svg"
+ },
+ {
+  "id": 527,
+  "nome": "Super Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/527.png",
+  "pais": "Chile",
+  "bandeira": "https://media.api-sports.io/flags/cl.svg"
+ },
+ {
+  "id": 899,
+  "nome": "League Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/899.png",
+  "pais": "Finland",
+  "bandeira": "https://media.api-sports.io/flags/fi.svg"
+ },
+ {
+  "id": 969,
+  "nome": "Primeira Divisão",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/969.png",
+  "pais": "Macao",
+  "bandeira": "https://media.api-sports.io/flags/mo.svg"
+ },
+ {
+  "id": 254,
+  "nome": "NWSL Women",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/254.png",
+  "pais": "USA",
+  "bandeira": "https://media.api-sports.io/flags/us.svg"
+ },
+ {
+  "id": 164,
+  "nome": "Úrvalsdeild",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/164.png",
+  "pais": "Iceland",
+  "bandeira": "https://media.api-sports.io/flags/is.svg"
+ },
+ {
+  "id": 1214,
+  "nome": "OFC Pro League",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1214.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 327,
+  "nome": "Erovnuli Liga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/327.png",
+  "pais": "Georgia",
+  "bandeira": "https://media.api-sports.io/flags/ge.svg"
+ },
+ {
+  "id": 903,
+  "nome": "The Atlantic Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/903.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 1123,
+  "nome": "UAE-Qatar - Super Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1123.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 293,
+  "nome": "K League 2",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/293.png",
+  "pais": "South-Korea",
+  "bandeira": "https://media.api-sports.io/flags/kr.svg"
+ },
+ {
+  "id": 592,
+  "nome": "Division 2 - Norra Götaland",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/592.png",
+  "pais": "Sweden",
+  "bandeira": "https://media.api-sports.io/flags/se.svg"
+ },
+ {
+  "id": 593,
+  "nome": "Division 2 - Norra Svealand",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/593.png",
+  "pais": "Sweden",
+  "bandeira": "https://media.api-sports.io/flags/se.svg"
+ },
+ {
+  "id": 597,
+  "nome": "Division 2 - Södra Götaland",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/597.png",
+  "pais": "Sweden",
+  "bandeira": "https://media.api-sports.io/flags/se.svg"
+ },
+ {
+  "id": 595,
+  "nome": "Division 2 - Södra Svealand",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/595.png",
+  "pais": "Sweden",
+  "bandeira": "https://media.api-sports.io/flags/se.svg"
+ },
+ {
+  "id": 596,
+  "nome": "Division 2 - Västra Götaland",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/596.png",
+  "pais": "Sweden",
+  "bandeira": "https://media.api-sports.io/flags/se.svg"
+ },
+ {
+  "id": 266,
+  "nome": "Primera B",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/266.png",
+  "pais": "Chile",
+  "bandeira": "https://media.api-sports.io/flags/cl.svg"
+ },
+ {
+  "id": 632,
+  "nome": "Supercopa do Brasil",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/632.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 1215,
+  "nome": "Obos Supercup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1215.png",
+  "pais": "Norway",
+  "bandeira": "https://media.api-sports.io/flags/no.svg"
+ },
+ {
+  "id": 1216,
+  "nome": "Serie Rio De La Plata",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1216.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 240,
+  "nome": "Primera B",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/240.png",
+  "pais": "Colombia",
+  "bandeira": "https://media.api-sports.io/flags/co.svg"
+ },
+ {
+  "id": 607,
+  "nome": "Roraimense",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/607.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 267,
+  "nome": "Copa Chile",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/267.png",
+  "pais": "Chile",
+  "bandeira": "https://media.api-sports.io/flags/cl.svg"
+ },
+ {
+  "id": 823,
+  "nome": "Nasjonal U19 Champions League",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/823.png",
+  "pais": "Norway",
+  "bandeira": "https://media.api-sports.io/flags/no.svg"
+ },
+ {
+  "id": 411,
+  "nome": "Elite One",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/411.png",
+  "pais": "Cameroon",
+  "bandeira": "https://media.api-sports.io/flags/cm.svg"
+ },
+ {
+  "id": 909,
+  "nome": "MLS Next Pro",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/909.png",
+  "pais": "USA",
+  "bandeira": "https://media.api-sports.io/flags/us.svg"
+ },
+ {
+  "id": 329,
+  "nome": "Meistriliiga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/329.png",
+  "pais": "Estonia",
+  "bandeira": "https://media.api-sports.io/flags/ee.svg"
+ },
+ {
+  "id": 912,
+  "nome": "CONCACAF Women U17",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/912.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 16,
+  "nome": "CONCACAF Champions League",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/16.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 165,
+  "nome": "1. Deild",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/165.png",
+  "pais": "Iceland",
+  "bandeira": "https://media.api-sports.io/flags/is.svg"
+ },
+ {
+  "id": 1063,
+  "nome": "Copa Alagoas",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1063.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 1217,
+  "nome": "FIFA Women Champions Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1217.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 422,
+  "nome": "Premier League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/422.png",
+  "pais": "Barbados",
+  "bandeira": "https://media.api-sports.io/flags/bb.svg"
+ },
+ {
+  "id": 168,
+  "nome": "League Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/168.png",
+  "pais": "Iceland",
+  "bandeira": "https://media.api-sports.io/flags/is.svg"
+ },
+ {
+  "id": 1172,
+  "nome": "Torneo Amistoso de Verano",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1172.png",
+  "pais": "Bolivia",
+  "bandeira": "https://media.api-sports.io/flags/bo.svg"
+ },
+ {
+  "id": 268,
+  "nome": "Primera División - Apertura",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/268.png",
+  "pais": "Uruguay",
+  "bandeira": "https://media.api-sports.io/flags/uy.svg"
+ },
+ {
+  "id": 257,
+  "nome": "US Open Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/257.png",
+  "pais": "USA",
+  "bandeira": "https://media.api-sports.io/flags/us.svg"
+ },
+ {
+  "id": 913,
+  "nome": "CONMEBOL - UEFA Finalissima",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/913.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 27,
+  "nome": "OFC Champions League",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/27.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 837,
+  "nome": "Rock Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/837.png",
+  "pais": "Gibraltar",
+  "bandeira": "https://media.api-sports.io/flags/gi.svg"
+ },
+ {
+  "id": 73,
+  "nome": "Copa Do Brasil",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/73.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 813,
+  "nome": "Elite Two",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/813.png",
+  "pais": "Cameroon",
+  "bandeira": "https://media.api-sports.io/flags/cm.svg"
+ },
+ {
+  "id": 901,
+  "nome": "Ykköscup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/901.png",
+  "pais": "Finland",
+  "bandeira": "https://media.api-sports.io/flags/fi.svg"
+ },
+ {
+  "id": 842,
+  "nome": "Super Copa",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/842.png",
+  "pais": "Uruguay",
+  "bandeira": "https://media.api-sports.io/flags/uy.svg"
+ },
+ {
+  "id": 594,
+  "nome": "Division 2 - Norrland",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/594.png",
+  "pais": "Sweden",
+  "bandeira": "https://media.api-sports.io/flags/se.svg"
+ },
+ {
+  "id": 365,
+  "nome": "Virsliga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/365.png",
+  "pais": "Latvia",
+  "bandeira": "https://media.api-sports.io/flags/lv.svg"
+ },
+ {
+  "id": 369,
+  "nome": "Super League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/369.png",
+  "pais": "Uzbekistan",
+  "bandeira": "https://media.api-sports.io/flags/uz.svg"
+ },
+ {
+  "id": 897,
+  "nome": "Asian Cup Women",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/897.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 1085,
+  "nome": "CONMEBOL U20 Femenino",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1085.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 1235,
+  "nome": "J2/J3 League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1235.png",
+  "pais": "Japan",
+  "bandeira": "https://media.api-sports.io/flags/jp.svg"
+ },
+ {
+  "id": 245,
+  "nome": "Ykkönen",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/245.png",
+  "pais": "Finland",
+  "bandeira": "https://media.api-sports.io/flags/fi.svg"
+ },
+ {
+  "id": 479,
+  "nome": "Canadian Premier League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/479.png",
+  "pais": "Canada",
+  "bandeira": "https://media.api-sports.io/flags/ca.svg"
+ },
+ {
+  "id": 192,
+  "nome": "New South Wales NPL",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/192.png",
+  "pais": "Australia",
+  "bandeira": "https://media.api-sports.io/flags/au.svg"
+ },
+ {
+  "id": 835,
+  "nome": "New South Wales NPL 2",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/835.png",
+  "pais": "Australia",
+  "bandeira": "https://media.api-sports.io/flags/au.svg"
+ },
+ {
+  "id": 541,
+  "nome": "CONMEBOL Recopa",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/541.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 712,
+  "nome": "Liga Femenina",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/712.png",
+  "pais": "Colombia",
+  "bandeira": "https://media.api-sports.io/flags/co.svg"
+ },
+ {
+  "id": 904,
+  "nome": "SheBelieves Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/904.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 238,
+  "nome": "Youth Championship",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/238.png",
+  "pais": "Russia",
+  "bandeira": "https://media.api-sports.io/flags/ru.svg"
+ },
+ {
+  "id": 242,
+  "nome": "Liga Pro",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/242.png",
+  "pais": "Ecuador",
+  "bandeira": "https://media.api-sports.io/flags/ec.svg"
+ },
+ {
+  "id": 328,
+  "nome": "Esiliiga A",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/328.png",
+  "pais": "Estonia",
+  "bandeira": "https://media.api-sports.io/flags/ee.svg"
+ },
+ {
+  "id": 1170,
+  "nome": "MFL Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1170.png",
+  "pais": "Malaysia",
+  "bandeira": "https://media.api-sports.io/flags/my.svg"
+ },
+ {
+  "id": 295,
+  "nome": "K3 League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/295.png",
+  "pais": "South-Korea",
+  "bandeira": "https://media.api-sports.io/flags/kr.svg"
+ },
+ {
+  "id": 72,
+  "nome": "Serie B",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/72.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 537,
+  "nome": "CONCACAF U20",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/537.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 1219,
+  "nome": "Copa Presidente",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1219.png",
+  "pais": "El-Salvador",
+  "bandeira": "https://media.api-sports.io/flags/sv.svg"
+ },
+ {
+  "id": 720,
+  "nome": "Emir Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/720.png",
+  "pais": "Kuwait",
+  "bandeira": "https://media.api-sports.io/flags/kw.svg"
+ },
+ {
+  "id": 1126,
+  "nome": "Esiliiga B",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1126.png",
+  "pais": "Estonia",
+  "bandeira": "https://media.api-sports.io/flags/ee.svg"
+ },
+ {
+  "id": 195,
+  "nome": "Victoria NPL",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/195.png",
+  "pais": "Australia",
+  "bandeira": "https://media.api-sports.io/flags/au.svg"
+ },
+ {
+  "id": 836,
+  "nome": "Victoria NPL 2",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/836.png",
+  "pais": "Australia",
+  "bandeira": "https://media.api-sports.io/flags/au.svg"
+ },
+ {
+  "id": 74,
+  "nome": "Brasileiro Women",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/74.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 362,
+  "nome": "A Lyga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/362.png",
+  "pais": "Lithuania",
+  "bandeira": "https://media.api-sports.io/flags/lt.svg"
+ },
+ {
+  "id": 839,
+  "nome": "Super Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/839.png",
+  "pais": "Lithuania",
+  "bandeira": "https://media.api-sports.io/flags/lt.svg"
+ },
+ {
+  "id": 1176,
+  "nome": "Super Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1176.png",
+  "pais": "Latvia",
+  "bandeira": "https://media.api-sports.io/flags/lv.svg"
+ },
+ {
+  "id": 169,
+  "nome": "Super League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/169.png",
+  "pais": "China",
+  "bandeira": "https://media.api-sports.io/flags/cn.svg"
+ },
+ {
+  "id": 481,
+  "nome": "Northern NSW NPL",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/481.png",
+  "pais": "Australia",
+  "bandeira": "https://media.api-sports.io/flags/au.svg"
+ },
+ {
+  "id": 482,
+  "nome": "Queensland NPL",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/482.png",
+  "pais": "Australia",
+  "bandeira": "https://media.api-sports.io/flags/au.svg"
+ },
+ {
+  "id": 833,
+  "nome": "Queensland Premier League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/833.png",
+  "pais": "Australia",
+  "bandeira": "https://media.api-sports.io/flags/au.svg"
+ },
+ {
+  "id": 740,
+  "nome": "Brasileiro U20 A",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/740.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 256,
+  "nome": "USL League Two",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/256.png",
+  "pais": "USA",
+  "bandeira": "https://media.api-sports.io/flags/us.svg"
+ },
+ {
+  "id": 300,
+  "nome": "Segunda División",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/300.png",
+  "pais": "Venezuela",
+  "bandeira": "https://media.api-sports.io/flags/ve.svg"
+ },
+ {
+  "id": 116,
+  "nome": "Premier League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/116.png",
+  "pais": "Belarus",
+  "bandeira": "https://media.api-sports.io/flags/by.svg"
+ },
+ {
+  "id": 1179,
+  "nome": "Copa do Brasil U17",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1179.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 243,
+  "nome": "Liga Pro Serie B",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/243.png",
+  "pais": "Ecuador",
+  "bandeira": "https://media.api-sports.io/flags/ec.svg"
+ },
+ {
+  "id": 75,
+  "nome": "Serie C",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/75.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 194,
+  "nome": "South Australia NPL",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/194.png",
+  "pais": "Australia",
+  "bandeira": "https://media.api-sports.io/flags/au.svg"
+ },
+ {
+  "id": 196,
+  "nome": "Western Australia NPL",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/196.png",
+  "pais": "Australia",
+  "bandeira": "https://media.api-sports.io/flags/au.svg"
+ },
+ {
+  "id": 834,
+  "nome": "South Australia State League 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/834.png",
+  "pais": "Australia",
+  "bandeira": "https://media.api-sports.io/flags/au.svg"
+ },
+ {
+  "id": 614,
+  "nome": "Paranaense - 2",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/614.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 569,
+  "nome": "Premier League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/569.png",
+  "pais": "Kyrgyzstan",
+  "bandeira": "https://media.api-sports.io/flags/kg.svg"
+ },
+ {
+  "id": 571,
+  "nome": "Vysshaya Liga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/571.png",
+  "pais": "Tajikistan",
+  "bandeira": "https://media.api-sports.io/flags/tj.svg"
+ },
+ {
+  "id": 389,
+  "nome": "Premier League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/389.png",
+  "pais": "Kazakhstan",
+  "bandeira": "https://media.api-sports.io/flags/kz.svg"
+ },
+ {
+  "id": 1071,
+  "nome": "Paranaense U20",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1071.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 1184,
+  "nome": "Copa Grão Pará",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1184.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 972,
+  "nome": "Super Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/972.png",
+  "pais": "China",
+  "bandeira": "https://media.api-sports.io/flags/cn.svg"
+ },
+ {
+  "id": 1177,
+  "nome": "Super Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1177.png",
+  "pais": "Faroe-Islands",
+  "bandeira": "https://media.api-sports.io/flags/fo.svg"
+ },
+ {
+  "id": 812,
+  "nome": "Super Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/812.png",
+  "pais": "Belarus",
+  "bandeira": "https://media.api-sports.io/flags/by.svg"
+ },
+ {
+  "id": 818,
+  "nome": "Super Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/818.png",
+  "pais": "Kazakhstan",
+  "bandeira": "https://media.api-sports.io/flags/kz.svg"
+ },
+ {
+  "id": 269,
+  "nome": "Segunda División",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/269.png",
+  "pais": "Uruguay",
+  "bandeira": "https://media.api-sports.io/flags/uy.svg"
+ },
+ {
+  "id": 170,
+  "nome": "League One",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/170.png",
+  "pais": "China",
+  "bandeira": "https://media.api-sports.io/flags/cn.svg"
+ },
+ {
+  "id": 5,
+  "nome": "UEFA Nations League",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/5.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 711,
+  "nome": "Segunda División",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/711.png",
+  "pais": "Chile",
+  "bandeira": "https://media.api-sports.io/flags/cl.svg"
+ },
+ {
+  "id": 361,
+  "nome": "1 Lyga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/361.png",
+  "pais": "Lithuania",
+  "bandeira": "https://media.api-sports.io/flags/lt.svg"
+ },
+ {
+  "id": 498,
+  "nome": "Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/498.png",
+  "pais": "Kazakhstan",
+  "bandeira": "https://media.api-sports.io/flags/kz.svg"
+ },
+ {
+  "id": 648,
+  "nome": "Tasmania NPL",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/648.png",
+  "pais": "Australia",
+  "bandeira": "https://media.api-sports.io/flags/au.svg"
+ },
+ {
+  "id": 364,
+  "nome": "1. Liga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/364.png",
+  "pais": "Latvia",
+  "bandeira": "https://media.api-sports.io/flags/lv.svg"
+ },
+ {
+  "id": 649,
+  "nome": "Supreme Division Women",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/649.png",
+  "pais": "Russia",
+  "bandeira": "https://media.api-sports.io/flags/ru.svg"
+ },
+ {
+  "id": 1175,
+  "nome": "Women's President's Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1175.png",
+  "pais": "Ireland",
+  "bandeira": "https://media.api-sports.io/flags/ie.svg"
+ },
+ {
+  "id": 772,
+  "nome": "Leagues Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/772.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 540,
+  "nome": "CONMEBOL Libertadores U20",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/540.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 134,
+  "nome": "Torneo Federal A",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/134.png",
+  "pais": "Argentina",
+  "bandeira": "https://media.api-sports.io/flags/ar.svg"
+ },
+ {
+  "id": 37,
+  "nome": "World Cup - Qualification Intercontinental Play-offs",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/37.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 1069,
+  "nome": "Goiano U20",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1069.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 1082,
+  "nome": "Copa Rio U20",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1082.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 1073,
+  "nome": "Baiano U20",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1073.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 1075,
+  "nome": "Pro League A",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1075.png",
+  "pais": "Uzbekistan",
+  "bandeira": "https://media.api-sports.io/flags/uz.svg"
+ },
+ {
+  "id": 910,
+  "nome": "Youth Viareggio Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/910.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 1095,
+  "nome": "USL League One Cup",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1095.png",
+  "pais": "USA",
+  "bandeira": "https://media.api-sports.io/flags/us.svg"
+ },
+ {
+  "id": 1146,
+  "nome": "Alagoano - 2",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1146.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 167,
+  "nome": "Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/167.png",
+  "pais": "Iceland",
+  "bandeira": "https://media.api-sports.io/flags/is.svg"
+ },
+ {
+  "id": 282,
+  "nome": "Segunda División",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/282.png",
+  "pais": "Peru",
+  "bandeira": "https://media.api-sports.io/flags/pe.svg"
+ },
+ {
+  "id": 1117,
+  "nome": "USL W League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1117.png",
+  "pais": "USA",
+  "bandeira": "https://media.api-sports.io/flags/us.svg"
+ },
+ {
+  "id": 636,
+  "nome": "Ýokary Liga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/636.png",
+  "pais": "Turkmenistan",
+  "bandeira": "https://media.api-sports.io/flags/tm.svg"
+ },
+ {
+  "id": 1090,
+  "nome": "NNSW League 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1090.png",
+  "pais": "Australia",
+  "bandeira": "https://media.api-sports.io/flags/au.svg"
+ },
+ {
+  "id": 929,
+  "nome": "League Two",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/929.png",
+  "pais": "China",
+  "bandeira": "https://media.api-sports.io/flags/cn.svg"
+ },
+ {
+  "id": 1093,
+  "nome": "Tasmania Southern Championship",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1093.png",
+  "pais": "Australia",
+  "bandeira": "https://media.api-sports.io/flags/au.svg"
+ },
+ {
+  "id": 1091,
+  "nome": "Tasmania Northern Championship",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1091.png",
+  "pais": "Australia",
+  "bandeira": "https://media.api-sports.io/flags/au.svg"
+ },
+ {
+  "id": 620,
+  "nome": "Cearense - 2",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/620.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 1059,
+  "nome": "Recopa Catarinense",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1059.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 660,
+  "nome": "WK-League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/660.png",
+  "pais": "South-Korea",
+  "bandeira": "https://media.api-sports.io/flags/kr.svg"
+ },
+ {
+  "id": 251,
+  "nome": "Division Intermedia",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/251.png",
+  "pais": "Paraguay",
+  "bandeira": "https://media.api-sports.io/flags/py.svg"
+ },
+ {
+  "id": 1182,
+  "nome": "Northern Super League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1182.png",
+  "pais": "Canada",
+  "bandeira": "https://media.api-sports.io/flags/ca.svg"
+ },
+ {
+  "id": 612,
+  "nome": "Copa do Nordeste",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/612.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 117,
+  "nome": "1. Division",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/117.png",
+  "pais": "Belarus",
+  "bandeira": "https://media.api-sports.io/flags/by.svg"
+ },
+ {
+  "id": 388,
+  "nome": "1. Division",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/388.png",
+  "pais": "Kazakhstan",
+  "bandeira": "https://media.api-sports.io/flags/kz.svg"
+ },
+ {
+  "id": 1103,
+  "nome": "Premiership Women",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1103.png",
+  "pais": "Northern-Ireland",
+  "bandeira": "https://media.api-sports.io/flags/gb-nir.svg"
+ },
+ {
+  "id": 1094,
+  "nome": "Western Australia State League 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1094.png",
+  "pais": "Australia",
+  "bandeira": "https://media.api-sports.io/flags/au.svg"
+ },
+ {
+  "id": 1220,
+  "nome": "Copa De La Liga",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1220.png",
+  "pais": "Chile",
+  "bandeira": "https://media.api-sports.io/flags/cl.svg"
+ },
+ {
+  "id": 915,
+  "nome": "1. Division Women",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/915.png",
+  "pais": "Norway",
+  "bandeira": "https://media.api-sports.io/flags/no.svg"
+ },
+ {
+  "id": 1143,
+  "nome": "Estadual Junior U20",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1143.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 651,
+  "nome": "Second League - Group 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/651.png",
+  "pais": "Russia",
+  "bandeira": "https://media.api-sports.io/flags/ru.svg"
+ },
+ {
+  "id": 1107,
+  "nome": "Mineiro U20",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1107.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 652,
+  "nome": "Second League - Group 2",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/652.png",
+  "pais": "Russia",
+  "bandeira": "https://media.api-sports.io/flags/ru.svg"
+ },
+ {
+  "id": 650,
+  "nome": "Second League - Group 3",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/650.png",
+  "pais": "Russia",
+  "bandeira": "https://media.api-sports.io/flags/ru.svg"
+ },
+ {
+  "id": 653,
+  "nome": "Second League - Group 4",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/653.png",
+  "pais": "Russia",
+  "bandeira": "https://media.api-sports.io/flags/ru.svg"
+ },
+ {
+  "id": 1222,
+  "nome": "FIFA Series",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1222.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 1223,
+  "nome": "Copa Norte",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1223.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 1224,
+  "nome": "Copa Sul-Sudeste",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1224.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 1225,
+  "nome": "Copa Centro-Oeste",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1225.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 189,
+  "nome": "Capital Territory NPL",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/189.png",
+  "pais": "Australia",
+  "bandeira": "https://media.api-sports.io/flags/au.svg"
+ },
+ {
+  "id": 76,
+  "nome": "Serie D",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/76.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 717,
+  "nome": "I-League - 2nd Division",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/717.png",
+  "pais": "India",
+  "bandeira": "https://media.api-sports.io/flags/in.svg"
+ },
+ {
+  "id": 639,
+  "nome": "Super Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/639.png",
+  "pais": "Iceland",
+  "bandeira": "https://media.api-sports.io/flags/is.svg"
+ },
+ {
+  "id": 344,
+  "nome": "Primera División",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/344.png",
+  "pais": "Bolivia",
+  "bandeira": "https://media.api-sports.io/flags/bo.svg"
+ },
+ {
+  "id": 1183,
+  "nome": "Brasileiro U20 B",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1183.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 391,
+  "nome": "Super League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/391.png",
+  "pais": "Malawi",
+  "bandeira": "https://media.api-sports.io/flags/mw.svg"
+ },
+ {
+  "id": 640,
+  "nome": "Kansallinen Liiga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/640.png",
+  "pais": "Finland",
+  "bandeira": "https://media.api-sports.io/flags/fi.svg"
+ },
+ {
+  "id": 970,
+  "nome": "CONMEBOL - U17",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/970.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 1013,
+  "nome": "All-Island Cup - Women",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1013.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 359,
+  "nome": "FAI Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/359.png",
+  "pais": "Ireland",
+  "bandeira": "https://media.api-sports.io/flags/ie.svg"
+ },
+ {
+  "id": 246,
+  "nome": "Suomen Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/246.png",
+  "pais": "Finland",
+  "bandeira": "https://media.api-sports.io/flags/fi.svg"
+ },
+ {
+  "id": 1076,
+  "nome": "Catarinense U20",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1076.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 1112,
+  "nome": "Cearense U20",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1112.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 491,
+  "nome": "Løgmanssteypid",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/491.png",
+  "pais": "Faroe-Islands",
+  "bandeira": "https://media.api-sports.io/flags/fo.svg"
+ },
+ {
+  "id": 171,
+  "nome": "FA Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/171.png",
+  "pais": "China",
+  "bandeira": "https://media.api-sports.io/flags/cn.svg"
+ },
+ {
+  "id": 247,
+  "nome": "Kakkonen - Lohko A",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/247.png",
+  "pais": "Finland",
+  "bandeira": "https://media.api-sports.io/flags/fi.svg"
+ },
+ {
+  "id": 248,
+  "nome": "Kakkonen - Lohko B",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/248.png",
+  "pais": "Finland",
+  "bandeira": "https://media.api-sports.io/flags/fi.svg"
+ },
+ {
+  "id": 249,
+  "nome": "Kakkonen - Lohko C",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/249.png",
+  "pais": "Finland",
+  "bandeira": "https://media.api-sports.io/flags/fi.svg"
+ },
+ {
+  "id": 1098,
+  "nome": "Paulista Série B",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1098.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 1096,
+  "nome": "Matogrossense 2",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1096.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 1226,
+  "nome": "Victoria Premier League 2",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1226.png",
+  "pais": "Australia",
+  "bandeira": "https://media.api-sports.io/flags/au.svg"
+ },
+ {
+  "id": 661,
+  "nome": "Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/661.png",
+  "pais": "Lithuania",
+  "bandeira": "https://media.api-sports.io/flags/lt.svg"
+ },
+ {
+  "id": 936,
+  "nome": "Catarinense - 2",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/936.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 1097,
+  "nome": "Copa Espírito Santo",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1097.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 1227,
+  "nome": "Premier League Women",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1227.png",
+  "pais": "Saudi-Arabia",
+  "bandeira": "https://media.api-sports.io/flags/sa.svg"
+ },
+ {
+  "id": 990,
+  "nome": "Gamma Ethniki - Promotion Group",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/990.png",
+  "pais": "Greece",
+  "bandeira": "https://media.api-sports.io/flags/gr.svg"
+ },
+ {
+  "id": 1228,
+  "nome": "Ethiopia Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1228.png",
+  "pais": "Ethiopia",
+  "bandeira": "https://media.api-sports.io/flags/et.svg"
+ },
+ {
+  "id": 259,
+  "nome": "Canadian Championship",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/259.png",
+  "pais": "Canada",
+  "bandeira": "https://media.api-sports.io/flags/ca.svg"
+ },
+ {
+  "id": 851,
+  "nome": "Carioca A2",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/851.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 1102,
+  "nome": "UEFA U17 Championship - Women",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1102.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 493,
+  "nome": "UEFA U19 Championship",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/493.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 166,
+  "nome": "2. Deild",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/166.png",
+  "pais": "Iceland",
+  "bandeira": "https://media.api-sports.io/flags/is.svg"
+ },
+ {
+  "id": 1031,
+  "nome": "Premier League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1031.png",
+  "pais": "Bhutan",
+  "bandeira": "https://media.api-sports.io/flags/bt.svg"
+ },
+ {
+  "id": 613,
+  "nome": "Baiano - 2",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/613.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 971,
+  "nome": "Shield Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/971.png",
+  "pais": "Kenya",
+  "bandeira": "https://media.api-sports.io/flags/ke.svg"
+ },
+ {
+  "id": 1128,
+  "nome": "Brasileiro U17",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1128.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 840,
+  "nome": "Taça Revelação U23",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/840.png",
+  "pais": "Portugal",
+  "bandeira": "https://media.api-sports.io/flags/pt.svg"
+ },
+ {
+  "id": 241,
+  "nome": "Copa Colombia",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/241.png",
+  "pais": "Colombia",
+  "bandeira": "https://media.api-sports.io/flags/co.svg"
+ },
+ {
+  "id": 1158,
+  "nome": "Copa Gaúcha",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1158.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 1148,
+  "nome": "Maranhense - 2",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1148.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 973,
+  "nome": "CAF Cup of Nations - U17",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/973.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 853,
+  "nome": "Supercopa de Ecuador",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/853.png",
+  "pais": "Ecuador",
+  "bandeira": "https://media.api-sports.io/flags/ec.svg"
+ },
+ {
+  "id": 1100,
+  "nome": "Brasiliense U20",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1100.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 914,
+  "nome": "Tournoi Maurice Revello",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/914.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 115,
+  "nome": "Svenska Cupen",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/115.png",
+  "pais": "Sweden",
+  "bandeira": "https://media.api-sports.io/flags/se.svg"
+ },
+ {
+  "id": 486,
+  "nome": "Coppa",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/486.png",
+  "pais": "Belarus",
+  "bandeira": "https://media.api-sports.io/flags/by.svg"
+ },
+ {
+  "id": 658,
+  "nome": "Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/658.png",
+  "pais": "Latvia",
+  "bandeira": "https://media.api-sports.io/flags/lv.svg"
+ },
+ {
+  "id": 1229,
+  "nome": "Liga Women",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1229.png",
+  "pais": "Peru",
+  "bandeira": "https://media.api-sports.io/flags/pe.svg"
+ },
+ {
+  "id": 742,
+  "nome": "Copa Paulista",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/742.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 950,
+  "nome": "World Cup - U17 - Women",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/950.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 587,
+  "nome": "World Cup - U17",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/587.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 1067,
+  "nome": "Torneo Promocional Amateur",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1067.png",
+  "pais": "Argentina",
+  "bandeira": "https://media.api-sports.io/flags/ar.svg"
+ },
+ {
+  "id": 921,
+  "nome": "UEFA U17 Championship",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/921.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 526,
+  "nome": "Trophée des Champions",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/526.png",
+  "pais": "France",
+  "bandeira": "https://media.api-sports.io/flags/fr.svg"
+ },
+ {
+  "id": 672,
+  "nome": "David Kipiani Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/672.png",
+  "pais": "Georgia",
+  "bandeira": "https://media.api-sports.io/flags/ge.svg"
+ },
+ {
+  "id": 1086,
+  "nome": "Paulista - U20",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1086.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 730,
+  "nome": "Football League - Highland League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/730.png",
+  "pais": "Scotland",
+  "bandeira": "https://media.api-sports.io/flags/gb-sct.svg"
+ },
+ {
+  "id": 108,
+  "nome": "Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/108.png",
+  "pais": "Poland",
+  "bandeira": "https://media.api-sports.io/flags/pl.svg"
+ },
+ {
+  "id": 619,
+  "nome": "Mineiro - 2",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/619.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 185,
+  "nome": "League Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/185.png",
+  "pais": "Scotland",
+  "bandeira": "https://media.api-sports.io/flags/gb-sct.svg"
+ },
+ {
+  "id": 1028,
+  "nome": "CONCACAF Central American Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1028.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 802,
+  "nome": "Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/802.png",
+  "pais": "Uzbekistan",
+  "bandeira": "https://media.api-sports.io/flags/uz.svg"
+ },
+ {
+  "id": 210,
+  "nome": "HNL",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/210.png",
+  "pais": "Croatia",
+  "bandeira": "https://media.api-sports.io/flags/hr.svg"
+ },
+ {
+  "id": 119,
+  "nome": "Superliga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/119.png",
+  "pais": "Denmark",
+  "bandeira": "https://media.api-sports.io/flags/dk.svg"
+ },
+ {
+  "id": 856,
+  "nome": "CONCACAF Caribbean Club Championship",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/856.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 1230,
+  "nome": "Npl Nsw U20",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1230.png",
+  "pais": "Australia",
+  "bandeira": "https://media.api-sports.io/flags/au.svg"
+ },
+ {
+  "id": 1132,
+  "nome": "AFC Challenge League",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1132.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 1120,
+  "nome": "Paraibano U20",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1120.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 135,
+  "nome": "Serie A",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/135.png",
+  "pais": "Italy",
+  "bandeira": "https://media.api-sports.io/flags/it.svg"
+ },
+ {
+  "id": 81,
+  "nome": "DFB Pokal",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/81.png",
+  "pais": "Germany",
+  "bandeira": "https://media.api-sports.io/flags/de.svg"
+ },
+ {
+  "id": 1129,
+  "nome": "ASEAN Club Championship",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1129.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 1106,
+  "nome": "Carioca C",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1106.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 1231,
+  "nome": "Federation Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1231.png",
+  "pais": "Nigeria",
+  "bandeira": "https://media.api-sports.io/flags/ng.svg"
+ },
+ {
+  "id": 262,
+  "nome": "Liga MX",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/262.png",
+  "pais": "Mexico",
+  "bandeira": "https://media.api-sports.io/flags/mx.svg"
+ },
+ {
+  "id": 172,
+  "nome": "First League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/172.png",
+  "pais": "Bulgaria",
+  "bandeira": "https://media.api-sports.io/flags/bg.svg"
+ },
+ {
+  "id": 657,
+  "nome": "Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/657.png",
+  "pais": "Estonia",
+  "bandeira": "https://media.api-sports.io/flags/ee.svg"
+ },
+ {
+  "id": 120,
+  "nome": "1. Division",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/120.png",
+  "pais": "Denmark",
+  "bandeira": "https://media.api-sports.io/flags/dk.svg"
+ },
+ {
+  "id": 371,
+  "nome": "First League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/371.png",
+  "pais": "Macedonia",
+  "bandeira": "https://media.api-sports.io/flags/mk.svg"
+ },
+ {
+  "id": 332,
+  "nome": "Super Liga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/332.png",
+  "pais": "Slovakia",
+  "bandeira": "https://media.api-sports.io/flags/sk.svg"
+ },
+ {
+  "id": 162,
+  "nome": "Primera División",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/162.png",
+  "pais": "Costa-Rica",
+  "bandeira": "https://media.api-sports.io/flags/cr.svg"
+ },
+ {
+  "id": 89,
+  "nome": "Eerste Divisie",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/89.png",
+  "pais": "Netherlands",
+  "bandeira": "https://media.api-sports.io/flags/nl.svg"
+ },
+ {
+  "id": 88,
+  "nome": "Eredivisie",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/88.png",
+  "pais": "Netherlands",
+  "bandeira": "https://media.api-sports.io/flags/nl.svg"
+ },
+ {
+  "id": 62,
+  "nome": "Ligue 2",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/62.png",
+  "pais": "France",
+  "bandeira": "https://media.api-sports.io/flags/fr.svg"
+ },
+ {
+  "id": 61,
+  "nome": "Ligue 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/61.png",
+  "pais": "France",
+  "bandeira": "https://media.api-sports.io/flags/fr.svg"
+ },
+ {
+  "id": 1232,
+  "nome": "Copa De La Liga",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1232.png",
+  "pais": "Peru",
+  "bandeira": "https://media.api-sports.io/flags/pe.svg"
+ },
+ {
+  "id": 656,
+  "nome": "Super Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/656.png",
+  "pais": "Bulgaria",
+  "bandeira": "https://media.api-sports.io/flags/bg.svg"
+ },
+ {
+  "id": 106,
+  "nome": "Ekstraklasa",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/106.png",
+  "pais": "Poland",
+  "bandeira": "https://media.api-sports.io/flags/pl.svg"
+ },
+ {
+  "id": 372,
+  "nome": "Second League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/372.png",
+  "pais": "Macedonia",
+  "bandeira": "https://media.api-sports.io/flags/mk.svg"
+ },
+ {
+  "id": 394,
+  "nome": "Super Liga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/394.png",
+  "pais": "Moldova",
+  "bandeira": "https://media.api-sports.io/flags/md.svg"
+ },
+ {
+  "id": 1233,
+  "nome": "Super Cup Women",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1233.png",
+  "pais": "Russia",
+  "bandeira": "https://media.api-sports.io/flags/ru.svg"
+ },
+ {
+  "id": 286,
+  "nome": "Super Liga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/286.png",
+  "pais": "Serbia",
+  "bandeira": "https://media.api-sports.io/flags/rs.svg"
+ },
+ {
+  "id": 48,
+  "nome": "League Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/48.png",
+  "pais": "England",
+  "bandeira": "https://media.api-sports.io/flags/gb-eng.svg"
+ },
+ {
+  "id": 287,
+  "nome": "Prva Liga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/287.png",
+  "pais": "Serbia",
+  "bandeira": "https://media.api-sports.io/flags/rs.svg"
+ },
+ {
+  "id": 100,
+  "nome": "J3 League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/100.png",
+  "pais": "Japan",
+  "bandeira": "https://media.api-sports.io/flags/jp.svg"
+ },
+ {
+  "id": 2,
+  "nome": "UEFA Champions League",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/2.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 848,
+  "nome": "UEFA Europa Conference League",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/848.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 3,
+  "nome": "UEFA Europa League",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/3.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 208,
+  "nome": "Challenge League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/208.png",
+  "pais": "Switzerland",
+  "bandeira": "https://media.api-sports.io/flags/ch.svg"
+ },
+ {
+  "id": 382,
+  "nome": "Liga Leumit",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/382.png",
+  "pais": "Israel",
+  "bandeira": "https://media.api-sports.io/flags/il.svg"
+ },
+ {
+  "id": 207,
+  "nome": "Super League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/207.png",
+  "pais": "Switzerland",
+  "bandeira": "https://media.api-sports.io/flags/ch.svg"
+ },
+ {
+  "id": 383,
+  "nome": "Ligat Ha'al",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/383.png",
+  "pais": "Israel",
+  "bandeira": "https://media.api-sports.io/flags/il.svg"
+ },
+ {
+  "id": 211,
+  "nome": "First NL",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/211.png",
+  "pais": "Croatia",
+  "bandeira": "https://media.api-sports.io/flags/hr.svg"
+ },
+ {
+  "id": 1138,
+  "nome": "Paranaense - 3",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1138.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 946,
+  "nome": "Second NL",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/946.png",
+  "pais": "Croatia",
+  "bandeira": "https://media.api-sports.io/flags/hr.svg"
+ },
+ {
+  "id": 179,
+  "nome": "Premiership",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/179.png",
+  "pais": "Scotland",
+  "bandeira": "https://media.api-sports.io/flags/gb-sct.svg"
+ },
+ {
+  "id": 180,
+  "nome": "Championship",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/180.png",
+  "pais": "Scotland",
+  "bandeira": "https://media.api-sports.io/flags/gb-sct.svg"
+ },
+ {
+  "id": 183,
+  "nome": "League One",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/183.png",
+  "pais": "Scotland",
+  "bandeira": "https://media.api-sports.io/flags/gb-sct.svg"
+ },
+ {
+  "id": 1130,
+  "nome": "USL Super League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1130.png",
+  "pais": "USA",
+  "bandeira": "https://media.api-sports.io/flags/us.svg"
+ },
+ {
+  "id": 146,
+  "nome": "Super League Women",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/146.png",
+  "pais": "Belgium",
+  "bandeira": "https://media.api-sports.io/flags/be.svg"
+ },
+ {
+  "id": 39,
+  "nome": "Premier League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/39.png",
+  "pais": "England",
+  "bandeira": "https://media.api-sports.io/flags/gb-eng.svg"
+ },
+ {
+  "id": 184,
+  "nome": "League Two",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/184.png",
+  "pais": "Scotland",
+  "bandeira": "https://media.api-sports.io/flags/gb-sct.svg"
+ },
+ {
+  "id": 659,
+  "nome": "Super Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/659.png",
+  "pais": "Israel",
+  "bandeira": "https://media.api-sports.io/flags/il.svg"
+ },
+ {
+  "id": 385,
+  "nome": "Toto Cup Ligat Al",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/385.png",
+  "pais": "Israel",
+  "bandeira": "https://media.api-sports.io/flags/il.svg"
+ },
+ {
+  "id": 294,
+  "nome": "FA Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/294.png",
+  "pais": "South-Korea",
+  "bandeira": "https://media.api-sports.io/flags/kr.svg"
+ },
+ {
+  "id": 373,
+  "nome": "1. SNL",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/373.png",
+  "pais": "Slovenia",
+  "bandeira": "https://media.api-sports.io/flags/si.svg"
+ },
+ {
+  "id": 107,
+  "nome": "I Liga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/107.png",
+  "pais": "Poland",
+  "bandeira": "https://media.api-sports.io/flags/pl.svg"
+ },
+ {
+  "id": 525,
+  "nome": "UEFA Champions League Women",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/525.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 355,
+  "nome": "First League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/355.png",
+  "pais": "Montenegro",
+  "bandeira": "https://media.api-sports.io/flags/me.svg"
+ },
+ {
+  "id": 144,
+  "nome": "Jupiler Pro League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/144.png",
+  "pais": "Belgium",
+  "bandeira": "https://media.api-sports.io/flags/be.svg"
+ },
+ {
+  "id": 374,
+  "nome": "2. SNL",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/374.png",
+  "pais": "Slovenia",
+  "bandeira": "https://media.api-sports.io/flags/si.svg"
+ },
+ {
+  "id": 145,
+  "nome": "Challenger Pro League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/145.png",
+  "pais": "Belgium",
+  "bandeira": "https://media.api-sports.io/flags/be.svg"
+ },
+ {
+  "id": 356,
+  "nome": "Second League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/356.png",
+  "pais": "Montenegro",
+  "bandeira": "https://media.api-sports.io/flags/me.svg"
+ },
+ {
+  "id": 237,
+  "nome": "Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/237.png",
+  "pais": "Russia",
+  "bandeira": "https://media.api-sports.io/flags/ru.svg"
+ },
+ {
+  "id": 339,
+  "nome": "Liga Nacional",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/339.png",
+  "pais": "Guatemala",
+  "bandeira": "https://media.api-sports.io/flags/gt.svg"
+ },
+ {
+  "id": 346,
+  "nome": "FNL",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/346.png",
+  "pais": "Czech-Republic",
+  "bandeira": "https://media.api-sports.io/flags/cz.svg"
+ },
+ {
+  "id": 345,
+  "nome": "Czech Liga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/345.png",
+  "pais": "Czech-Republic",
+  "bandeira": "https://media.api-sports.io/flags/cz.svg"
+ },
+ {
+  "id": 271,
+  "nome": "NB I",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/271.png",
+  "pais": "Hungary",
+  "bandeira": "https://media.api-sports.io/flags/hu.svg"
+ },
+ {
+  "id": 1035,
+  "nome": "Copa Rio",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1035.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 1113,
+  "nome": "Copa Venezuela",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1113.png",
+  "pais": "Venezuela",
+  "bandeira": "https://media.api-sports.io/flags/ve.svg"
+ },
+ {
+  "id": 874,
+  "nome": "Australia Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/874.png",
+  "pais": "Australia",
+  "bandeira": "https://media.api-sports.io/flags/au.svg"
+ },
+ {
+  "id": 220,
+  "nome": "Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/220.png",
+  "pais": "Austria",
+  "bandeira": "https://media.api-sports.io/flags/at.svg"
+ },
+ {
+  "id": 854,
+  "nome": "WE League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/854.png",
+  "pais": "Japan",
+  "bandeira": "https://media.api-sports.io/flags/jp.svg"
+ },
+ {
+  "id": 918,
+  "nome": "UEFA U19 Championship - Women",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/918.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 506,
+  "nome": "2. liga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/506.png",
+  "pais": "Slovakia",
+  "bandeira": "https://media.api-sports.io/flags/sk.svg"
+ },
+ {
+  "id": 235,
+  "nome": "Premier League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/235.png",
+  "pais": "Russia",
+  "bandeira": "https://media.api-sports.io/flags/ru.svg"
+ },
+ {
+  "id": 109,
+  "nome": "II Liga - East",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/109.png",
+  "pais": "Poland",
+  "bandeira": "https://media.api-sports.io/flags/pl.svg"
+ },
+ {
+  "id": 218,
+  "nome": "Bundesliga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/218.png",
+  "pais": "Austria",
+  "bandeira": "https://media.api-sports.io/flags/at.svg"
+ },
+ {
+  "id": 408,
+  "nome": "Premiership",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/408.png",
+  "pais": "Northern-Ireland",
+  "bandeira": "https://media.api-sports.io/flags/gb-nir.svg"
+ },
+ {
+  "id": 350,
+  "nome": "4. liga - Divizie A",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/350.png",
+  "pais": "Czech-Republic",
+  "bandeira": "https://media.api-sports.io/flags/cz.svg"
+ },
+ {
+  "id": 351,
+  "nome": "4. liga - Divizie B",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/351.png",
+  "pais": "Czech-Republic",
+  "bandeira": "https://media.api-sports.io/flags/cz.svg"
+ },
+ {
+  "id": 352,
+  "nome": "4. liga - Divizie C",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/352.png",
+  "pais": "Czech-Republic",
+  "bandeira": "https://media.api-sports.io/flags/cz.svg"
+ },
+ {
+  "id": 348,
+  "nome": "3. liga - CFL A",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/348.png",
+  "pais": "Czech-Republic",
+  "bandeira": "https://media.api-sports.io/flags/cz.svg"
+ },
+ {
+  "id": 685,
+  "nome": "3. liga - CFL B",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/685.png",
+  "pais": "Czech-Republic",
+  "bandeira": "https://media.api-sports.io/flags/cz.svg"
+ },
+ {
+  "id": 641,
+  "nome": "NWSL Women - Challenge Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/641.png",
+  "pais": "USA",
+  "bandeira": "https://media.api-sports.io/flags/us.svg"
+ },
+ {
+  "id": 236,
+  "nome": "First League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/236.png",
+  "pais": "Russia",
+  "bandeira": "https://media.api-sports.io/flags/ru.svg"
+ },
+ {
+  "id": 40,
+  "nome": "Championship",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/40.png",
+  "pais": "England",
+  "bandeira": "https://media.api-sports.io/flags/gb-eng.svg"
+ },
+ {
+  "id": 42,
+  "nome": "League Two",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/42.png",
+  "pais": "England",
+  "bandeira": "https://media.api-sports.io/flags/gb-eng.svg"
+ },
+ {
+  "id": 41,
+  "nome": "League One",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/41.png",
+  "pais": "England",
+  "bandeira": "https://media.api-sports.io/flags/gb-eng.svg"
+ },
+ {
+  "id": 137,
+  "nome": "Coppa Italia",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/137.png",
+  "pais": "Italy",
+  "bandeira": "https://media.api-sports.io/flags/it.svg"
+ },
+ {
+  "id": 407,
+  "nome": "Championship",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/407.png",
+  "pais": "Northern-Ireland",
+  "bandeira": "https://media.api-sports.io/flags/gb-nir.svg"
+ },
+ {
+  "id": 1026,
+  "nome": "Second League A - Division A Silver",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1026.png",
+  "pais": "Russia",
+  "bandeira": "https://media.api-sports.io/flags/ru.svg"
+ },
+ {
+  "id": 668,
+  "nome": "1. Liga U19",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/668.png",
+  "pais": "Czech-Republic",
+  "bandeira": "https://media.api-sports.io/flags/cz.svg"
+ },
+ {
+  "id": 283,
+  "nome": "Liga I",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/283.png",
+  "pais": "Romania",
+  "bandeira": "https://media.api-sports.io/flags/ro.svg"
+ },
+ {
+  "id": 1025,
+  "nome": "Second League A - Division A Gold",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1025.png",
+  "pais": "Russia",
+  "bandeira": "https://media.api-sports.io/flags/ru.svg"
+ },
+ {
+  "id": 333,
+  "nome": "Premier League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/333.png",
+  "pais": "Ukraine",
+  "bandeira": "https://media.api-sports.io/flags/ua.svg"
+ },
+ {
+  "id": 18,
+  "nome": "AFC Champions League Two",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/18.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 646,
+  "nome": "3. liga - Center",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/646.png",
+  "pais": "Slovakia",
+  "bandeira": "https://media.api-sports.io/flags/sk.svg"
+ },
+ {
+  "id": 645,
+  "nome": "3. liga - East",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/645.png",
+  "pais": "Slovakia",
+  "bandeira": "https://media.api-sports.io/flags/sk.svg"
+ },
+ {
+  "id": 644,
+  "nome": "3. liga - West",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/644.png",
+  "pais": "Slovakia",
+  "bandeira": "https://media.api-sports.io/flags/sk.svg"
+ },
+ {
+  "id": 745,
+  "nome": "Oberliga - Hamburg",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/745.png",
+  "pais": "Germany",
+  "bandeira": "https://media.api-sports.io/flags/de.svg"
+ },
+ {
+  "id": 733,
+  "nome": "I Liga - Women",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/733.png",
+  "pais": "Slovakia",
+  "bandeira": "https://media.api-sports.io/flags/sk.svg"
+ },
+ {
+  "id": 947,
+  "nome": "DFB Pokal - Women",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/947.png",
+  "pais": "Germany",
+  "bandeira": "https://media.api-sports.io/flags/de.svg"
+ },
+ {
+  "id": 938,
+  "nome": "Oberliga - Bayern Nord",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/938.png",
+  "pais": "Germany",
+  "bandeira": "https://media.api-sports.io/flags/de.svg"
+ },
+ {
+  "id": 939,
+  "nome": "Oberliga - Bayern Süd",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/939.png",
+  "pais": "Germany",
+  "bandeira": "https://media.api-sports.io/flags/de.svg"
+ },
+ {
+  "id": 530,
+  "nome": "Super Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/530.png",
+  "pais": "Georgia",
+  "bandeira": "https://media.api-sports.io/flags/ge.svg"
+ },
+ {
+  "id": 17,
+  "nome": "AFC Champions League Elite",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/17.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 393,
+  "nome": "Premier League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/393.png",
+  "pais": "Malta",
+  "bandeira": "https://media.api-sports.io/flags/mt.svg"
+ },
+ {
+  "id": 101,
+  "nome": "J-League Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/101.png",
+  "pais": "Japan",
+  "bandeira": "https://media.api-sports.io/flags/jp.svg"
+ },
+ {
+  "id": 866,
+  "nome": "MLS All-Star",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/866.png",
+  "pais": "USA",
+  "bandeira": "https://media.api-sports.io/flags/us.svg"
+ },
+ {
+  "id": 219,
+  "nome": "2. Liga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/219.png",
+  "pais": "Austria",
+  "bandeira": "https://media.api-sports.io/flags/at.svg"
+ },
+ {
+  "id": 783,
+  "nome": "III Liga - Group 4",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/783.png",
+  "pais": "Poland",
+  "bandeira": "https://media.api-sports.io/flags/pl.svg"
+ },
+ {
+  "id": 782,
+  "nome": "III Liga - Group 3",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/782.png",
+  "pais": "Poland",
+  "bandeira": "https://media.api-sports.io/flags/pl.svg"
+ },
+ {
+  "id": 781,
+  "nome": "III Liga - Group 2",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/781.png",
+  "pais": "Poland",
+  "bandeira": "https://media.api-sports.io/flags/pl.svg"
+ },
+ {
+  "id": 780,
+  "nome": "III Liga - Group 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/780.png",
+  "pais": "Poland",
+  "bandeira": "https://media.api-sports.io/flags/pl.svg"
+ },
+ {
+  "id": 705,
+  "nome": "Campionato Primavera - 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/705.png",
+  "pais": "Italy",
+  "bandeira": "https://media.api-sports.io/flags/it.svg"
+ },
+ {
+  "id": 1234,
+  "nome": "K4 League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1234.png",
+  "pais": "South-Korea",
+  "bandeira": "https://media.api-sports.io/flags/kr.svg"
+ },
+ {
+  "id": 141,
+  "nome": "Segunda División",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/141.png",
+  "pais": "Spain",
+  "bandeira": "https://media.api-sports.io/flags/es.svg"
+ },
+ {
+  "id": 140,
+  "nome": "La Liga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/140.png",
+  "pais": "Spain",
+  "bandeira": "https://media.api-sports.io/flags/es.svg"
+ },
+ {
+  "id": 435,
+  "nome": "Primera División RFEF - Group 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/435.png",
+  "pais": "Spain",
+  "bandeira": "https://media.api-sports.io/flags/es.svg"
+ },
+ {
+  "id": 436,
+  "nome": "Primera División RFEF - Group 2",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/436.png",
+  "pais": "Spain",
+  "bandeira": "https://media.api-sports.io/flags/es.svg"
+ },
+ {
+  "id": 173,
+  "nome": "Second League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/173.png",
+  "pais": "Bulgaria",
+  "bandeira": "https://media.api-sports.io/flags/bg.svg"
+ },
+ {
+  "id": 272,
+  "nome": "NB II",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/272.png",
+  "pais": "Hungary",
+  "bandeira": "https://media.api-sports.io/flags/hu.svg"
+ },
+ {
+  "id": 875,
+  "nome": "Segunda División RFEF - Group 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/875.png",
+  "pais": "Spain",
+  "bandeira": "https://media.api-sports.io/flags/es.svg"
+ },
+ {
+  "id": 876,
+  "nome": "Segunda División RFEF - Group 2",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/876.png",
+  "pais": "Spain",
+  "bandeira": "https://media.api-sports.io/flags/es.svg"
+ },
+ {
+  "id": 877,
+  "nome": "Segunda División RFEF - Group 3",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/877.png",
+  "pais": "Spain",
+  "bandeira": "https://media.api-sports.io/flags/es.svg"
+ },
+ {
+  "id": 878,
+  "nome": "Segunda División RFEF - Group 4",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/878.png",
+  "pais": "Spain",
+  "bandeira": "https://media.api-sports.io/flags/es.svg"
+ },
+ {
+  "id": 879,
+  "nome": "Segunda División RFEF - Group 5",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/879.png",
+  "pais": "Spain",
+  "bandeira": "https://media.api-sports.io/flags/es.svg"
+ },
+ {
+  "id": 142,
+  "nome": "Primera División Femenina",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/142.png",
+  "pais": "Spain",
+  "bandeira": "https://media.api-sports.io/flags/es.svg"
+ },
+ {
+  "id": 223,
+  "nome": "Regionalliga - West",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/223.png",
+  "pais": "Austria",
+  "bandeira": "https://media.api-sports.io/flags/at.svg"
+ },
+ {
+  "id": 221,
+  "nome": "Regionalliga - Ost",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/221.png",
+  "pais": "Austria",
+  "bandeira": "https://media.api-sports.io/flags/at.svg"
+ },
+ {
+  "id": 510,
+  "nome": "1. Liga Promotion",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/510.png",
+  "pais": "Switzerland",
+  "bandeira": "https://media.api-sports.io/flags/ch.svg"
+ },
+ {
+  "id": 484,
+  "nome": "Frauenliga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/484.png",
+  "pais": "Austria",
+  "bandeira": "https://media.api-sports.io/flags/at.svg"
+ },
+ {
+  "id": 63,
+  "nome": "National 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/63.png",
+  "pais": "France",
+  "bandeira": "https://media.api-sports.io/flags/fr.svg"
+ },
+ {
+  "id": 1114,
+  "nome": "Carioca U20",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1114.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 91,
+  "nome": "Eredivisie Women",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/91.png",
+  "pais": "Netherlands",
+  "bandeira": "https://media.api-sports.io/flags/nl.svg"
+ },
+ {
+  "id": 78,
+  "nome": "Bundesliga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/78.png",
+  "pais": "Germany",
+  "bandeira": "https://media.api-sports.io/flags/de.svg"
+ },
+ {
+  "id": 94,
+  "nome": "Primeira Liga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/94.png",
+  "pais": "Portugal",
+  "bandeira": "https://media.api-sports.io/flags/pt.svg"
+ },
+ {
+  "id": 122,
+  "nome": "2. Division",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/122.png",
+  "pais": "Denmark",
+  "bandeira": "https://media.api-sports.io/flags/dk.svg"
+ },
+ {
+  "id": 110,
+  "nome": "Premier League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/110.png",
+  "pais": "Wales",
+  "bandeira": "https://media.api-sports.io/flags/gb-wls.svg"
+ },
+ {
+  "id": 79,
+  "nome": "2. Bundesliga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/79.png",
+  "pais": "Germany",
+  "bandeira": "https://media.api-sports.io/flags/de.svg"
+ },
+ {
+  "id": 95,
+  "nome": "Segunda Liga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/95.png",
+  "pais": "Portugal",
+  "bandeira": "https://media.api-sports.io/flags/pt.svg"
+ },
+ {
+  "id": 1187,
+  "nome": "Copa Nicaragua",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1187.png",
+  "pais": "Nicaragua",
+  "bandeira": "https://media.api-sports.io/flags/ni.svg"
+ },
+ {
+  "id": 1127,
+  "nome": "Chatham Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1127.png",
+  "pais": "New-Zealand",
+  "bandeira": "https://media.api-sports.io/flags/nz.svg"
+ },
+ {
+  "id": 395,
+  "nome": "Liga 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/395.png",
+  "pais": "Moldova",
+  "bandeira": "https://media.api-sports.io/flags/md.svg"
+ },
+ {
+  "id": 754,
+  "nome": "Oberliga - Nordost-Nord",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/754.png",
+  "pais": "Germany",
+  "bandeira": "https://media.api-sports.io/flags/de.svg"
+ },
+ {
+  "id": 755,
+  "nome": "Oberliga - Nordost-Süd",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/755.png",
+  "pais": "Germany",
+  "bandeira": "https://media.api-sports.io/flags/de.svg"
+ },
+ {
+  "id": 862,
+  "nome": "3. Division",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/862.png",
+  "pais": "Denmark",
+  "bandeira": "https://media.api-sports.io/flags/dk.svg"
+ },
+ {
+  "id": 349,
+  "nome": "3. liga - MSFL",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/349.png",
+  "pais": "Czech-Republic",
+  "bandeira": "https://media.api-sports.io/flags/cz.svg"
+ },
+ {
+  "id": 1140,
+  "nome": "AFC Women's Champions League",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1140.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 149,
+  "nome": "Second Amateur Division - VFV A",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/149.png",
+  "pais": "Belgium",
+  "bandeira": "https://media.api-sports.io/flags/be.svg"
+ },
+ {
+  "id": 150,
+  "nome": "Second Amateur Division - VFV B",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/150.png",
+  "pais": "Belgium",
+  "bandeira": "https://media.api-sports.io/flags/be.svg"
+ },
+ {
+  "id": 731,
+  "nome": "Football League - Lowland League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/731.png",
+  "pais": "Scotland",
+  "bandeira": "https://media.api-sports.io/flags/gb-sct.svg"
+ },
+ {
+  "id": 353,
+  "nome": "4. liga - Divizie D",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/353.png",
+  "pais": "Czech-Republic",
+  "bandeira": "https://media.api-sports.io/flags/cz.svg"
+ },
+ {
+  "id": 354,
+  "nome": "4. liga - Divizie E",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/354.png",
+  "pais": "Czech-Republic",
+  "bandeira": "https://media.api-sports.io/flags/cz.svg"
+ },
+ {
+  "id": 686,
+  "nome": "4. liga - Divizie F",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/686.png",
+  "pais": "Czech-Republic",
+  "bandeira": "https://media.api-sports.io/flags/cz.svg"
+ },
+ {
+  "id": 492,
+  "nome": "Tweede Divisie",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/492.png",
+  "pais": "Netherlands",
+  "bandeira": "https://media.api-sports.io/flags/nl.svg"
+ },
+ {
+  "id": 47,
+  "nome": "FA Trophy",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/47.png",
+  "pais": "England",
+  "bandeira": "https://media.api-sports.io/flags/gb-eng.svg"
+ },
+ {
+  "id": 487,
+  "nome": "First Amateur Division",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/487.png",
+  "pais": "Belgium",
+  "bandeira": "https://media.api-sports.io/flags/be.svg"
+ },
+ {
+  "id": 744,
+  "nome": "Oberliga - Schleswig-Holstein",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/744.png",
+  "pais": "Germany",
+  "bandeira": "https://media.api-sports.io/flags/de.svg"
+ },
+ {
+  "id": 111,
+  "nome": "FAW Championship",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/111.png",
+  "pais": "Wales",
+  "bandeira": "https://media.api-sports.io/flags/gb-wls.svg"
+ },
+ {
+  "id": 64,
+  "nome": "Feminine Division 1",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/64.png",
+  "pais": "France",
+  "bandeira": "https://media.api-sports.io/flags/fr.svg"
+ },
+ {
+  "id": 750,
+  "nome": "Oberliga - Hessen",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/750.png",
+  "pais": "Germany",
+  "bandeira": "https://media.api-sports.io/flags/de.svg"
+ },
+ {
+  "id": 263,
+  "nome": "Liga de Expansión MX",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/263.png",
+  "pais": "Mexico",
+  "bandeira": "https://media.api-sports.io/flags/mx.svg"
+ },
+ {
+  "id": 342,
+  "nome": "Premier League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/342.png",
+  "pais": "Armenia",
+  "bandeira": "https://media.api-sports.io/flags/am.svg"
+ },
+ {
+  "id": 1033,
+  "nome": "Ekstraliga Women",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1033.png",
+  "pais": "Poland",
+  "bandeira": "https://media.api-sports.io/flags/pl.svg"
+ },
+ {
+  "id": 739,
+  "nome": "AXA Women’s Super League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/739.png",
+  "pais": "Switzerland",
+  "bandeira": "https://media.api-sports.io/flags/ch.svg"
+ },
+ {
+  "id": 301,
+  "nome": "Pro League",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/301.png",
+  "pais": "United-Arab-Emirates",
+  "bandeira": "https://media.api-sports.io/flags/ae.svg"
+ },
+ {
+  "id": 334,
+  "nome": "Persha Liga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/334.png",
+  "pais": "Ukraine",
+  "bandeira": "https://media.api-sports.io/flags/ua.svg"
+ },
+ {
+  "id": 638,
+  "nome": "Kvindeliga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/638.png",
+  "pais": "Denmark",
+  "bandeira": "https://media.api-sports.io/flags/dk.svg"
+ },
+ {
+  "id": 715,
+  "nome": "DFB Junioren Pokal",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/715.png",
+  "pais": "Germany",
+  "bandeira": "https://media.api-sports.io/flags/de.svg"
+ },
+ {
+  "id": 209,
+  "nome": "Schweizer Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/209.png",
+  "pais": "Switzerland",
+  "bandeira": "https://media.api-sports.io/flags/ch.svg"
+ },
+ {
+  "id": 1198,
+  "nome": "Serie A Cup Women",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/1198.png",
+  "pais": "Italy",
+  "bandeira": "https://media.api-sports.io/flags/it.svg"
+ },
+ {
+  "id": 1142,
+  "nome": "Mineiro - 3",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/1142.png",
+  "pais": "Brazil",
+  "bandeira": "https://media.api-sports.io/flags/br.svg"
+ },
+ {
+  "id": 529,
+  "nome": "Super Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/529.png",
+  "pais": "Germany",
+  "bandeira": "https://media.api-sports.io/flags/de.svg"
+ },
+ {
+  "id": 550,
+  "nome": "Super Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/550.png",
+  "pais": "Portugal",
+  "bandeira": "https://media.api-sports.io/flags/pt.svg"
+ },
+ {
+  "id": 528,
+  "nome": "Community Shield",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/528.png",
+  "pais": "England",
+  "bandeira": "https://media.api-sports.io/flags/gb-eng.svg"
+ },
+ {
+  "id": 555,
+  "nome": "Supercupa",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/555.png",
+  "pais": "Romania",
+  "bandeira": "https://media.api-sports.io/flags/ro.svg"
+ },
+ {
+  "id": 753,
+  "nome": "Oberliga - Baden-Württemberg",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/753.png",
+  "pais": "Germany",
+  "bandeira": "https://media.api-sports.io/flags/de.svg"
+ },
+ {
+  "id": 347,
+  "nome": "Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/347.png",
+  "pais": "Czech-Republic",
+  "bandeira": "https://media.api-sports.io/flags/cz.svg"
+ },
+ {
+  "id": 315,
+  "nome": "Premijer Liga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/315.png",
+  "pais": "Bosnia",
+  "bandeira": "https://media.api-sports.io/flags/ba.svg"
+ },
+ {
+  "id": 148,
+  "nome": "Second Amateur Division - ACFF",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/148.png",
+  "pais": "Belgium",
+  "bandeira": "https://media.api-sports.io/flags/be.svg"
+ },
+ {
+  "id": 531,
+  "nome": "UEFA Super Cup",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/531.png",
+  "pais": "World",
+  "bandeira": ""
+ },
+ {
+  "id": 121,
+  "nome": "DBU Pokalen",
+  "tipo": "Cup",
+  "logo": "https://media.api-sports.io/football/leagues/121.png",
+  "pais": "Denmark",
+  "bandeira": "https://media.api-sports.io/flags/dk.svg"
+ },
+ {
+  "id": 80,
+  "nome": "3. Liga",
+  "tipo": "League",
+  "logo": "https://media.api-sports.io/football/leagues/80.png",
+  "pais": "Germany",
+  "bandeira": "https://media.api-sports.io/flags/de.svg"
+ }
+]

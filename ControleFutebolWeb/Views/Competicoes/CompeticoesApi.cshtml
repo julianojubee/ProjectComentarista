@@ -1,0 +1,168 @@
+@model ControleFutebolWeb.Models.ViewModels.CompeticoesApiViewModel
+@{
+    ViewData["Title"] = "Competições API";
+}
+
+<style>
+    .capi { color: #e5e7eb; }
+    .capi-main { padding: 24px 2.5rem 64px; max-width: 1200px; margin: 0 auto; }
+
+    .capi-hero {
+        display: flex; align-items: center; justify-content: space-between; gap: 16px;
+        flex-wrap: wrap; padding: 28px 2.5rem 0;
+        max-width: 1200px; margin: 0 auto;
+    }
+    .capi-hero h1 { font-family: 'Barlow Condensed', sans-serif; font-size: 2rem; font-weight: 800; margin: 0; color: #f1f5f9; }
+    .capi-hero p { font-size: .85rem; color: #6b7280; margin: 4px 0 0; }
+    .capi-voltar {
+        display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
+        background: transparent; color: #d4a520; border: 1px solid #d4a52055;
+        font-size: .82rem; font-weight: 700; border-radius: 8px; text-decoration: none;
+    }
+    .capi-voltar:hover { background: #d4a52015; color: #d4a520; }
+
+    .capi-toolbar {
+        display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+        margin: 20px 0 24px;
+    }
+    .capi-busca {
+        flex: 1 1 280px; max-width: 420px; padding: 9px 14px;
+        background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px;
+        color: #e5e7eb; font-size: .85rem; outline: none;
+    }
+    .capi-busca:focus { border-color: #d4a520; }
+    .capi-resumo { font-size: .78rem; color: #6b7280; }
+    .capi-resumo b { color: #d4a520; }
+
+    .capi-pais { margin-bottom: 10px; background: #161616; border: 1px solid #262626; border-radius: 10px; overflow: hidden; }
+    .capi-pais-header {
+        display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+        cursor: pointer; user-select: none;
+    }
+    .capi-pais-header:hover { background: #1c1c1c; }
+    .capi-pais-header img { width: 22px; height: 16px; object-fit: cover; border-radius: 2px; }
+    .capi-pais-header .nome { font-weight: 700; font-size: .92rem; color: #f1f5f9; flex: 1; }
+    .capi-pais-header .qtd { font-size: .72rem; color: #6b7280; }
+    .capi-pais-header .seta { font-size: .7rem; color: #6b7280; transition: transform .15s; }
+    .capi-pais.aberto .capi-pais-header .seta { transform: rotate(90deg); }
+
+    .capi-lista { display: none; border-top: 1px solid #262626; }
+    .capi-pais.aberto .capi-lista { display: block; }
+
+    .capi-item {
+        display: flex; align-items: center; gap: 12px; padding: 8px 16px;
+        border-bottom: 1px solid #1f1f1f; font-size: .85rem;
+    }
+    .capi-item:last-child { border-bottom: none; }
+    .capi-item img { width: 26px; height: 26px; object-fit: contain; flex-shrink: 0; }
+    .capi-item .nome { flex: 1 1 auto; color: #e5e7eb; min-width: 0; }
+    .capi-item .tipo {
+        flex: 0 0 auto; font-size: .68rem; font-weight: 700; padding: 2px 8px;
+        border-radius: 5px; text-transform: uppercase; letter-spacing: .04em;
+    }
+    .capi-item .tipo.league { background: rgba(59,130,246,.15); color: #60a5fa; }
+    .capi-item .tipo.cup { background: rgba(168,85,247,.15); color: #c084fc; }
+    .capi-item .registrada {
+        flex: 0 0 auto; font-size: .68rem; font-weight: 700; padding: 2px 8px;
+        border-radius: 5px; background: rgba(34,197,94,.15); color: #4ade80;
+    }
+    .capi-item .codigo {
+        flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+        font-family: 'Consolas', monospace; font-size: .82rem; font-weight: 700;
+        color: #d4a520; background: #d4a52012; border: 1px solid #d4a52033;
+        padding: 3px 10px; border-radius: 6px; cursor: pointer;
+    }
+    .capi-item .codigo:hover { background: #d4a52025; }
+    .capi-item .codigo.copiado { color: #4ade80; border-color: #4ade8055; }
+
+    .capi-vazio { text-align: center; color: #6b7280; font-size: .85rem; padding: 2rem 0; display: none; }
+</style>
+
+<div class="capi">
+    <div class="capi-hero">
+        <div>
+            <h1>Competições da API</h1>
+            <p>Todas as ligas disponíveis na api-football para a temporada 2026, agrupadas por país. Clique no código para copiá-lo e use-o ao registrar a competição para buscar os jogos.</p>
+        </div>
+        <a class="capi-voltar" asp-action="Index" asp-controller="Competicoes">← Voltar às Competições</a>
+    </div>
+
+    <div class="capi-main">
+        <div class="capi-toolbar">
+            <input type="text" id="capiBusca" class="capi-busca"
+                   placeholder="Buscar competição ou país…" autocomplete="off"
+                   oninput="capiFiltrar(this.value)" />
+            <span class="capi-resumo">
+                <b>@Model.Total</b> competições em <b>@Model.Paises.Count</b> países ·
+                <b>@Model.TotalRegistradas</b> já registrada@(Model.TotalRegistradas == 1 ? "" : "s")
+            </span>
+        </div>
+
+        @foreach (var pais in Model.Paises)
+        {
+            <div class="capi-pais" data-pais="@pais.Nome.ToLowerInvariant()">
+                <div class="capi-pais-header" onclick="this.parentElement.classList.toggle('aberto')">
+                    @if (!string.IsNullOrEmpty(pais.Bandeira))
+                    {
+                        <img src="@pais.Bandeira" alt="" loading="lazy" />
+                    }
+                    else
+                    {
+                        <span>🌍</span>
+                    }
+                    <span class="nome">@(pais.Nome == "World" ? "Internacionais (World)" : pais.Nome)</span>
+                    <span class="qtd">@pais.Competicoes.Count competiç@(pais.Competicoes.Count == 1 ? "ão" : "ões")</span>
+                    <span class="seta">▶</span>
+                </div>
+                <div class="capi-lista">
+                    @foreach (var c in pais.Competicoes)
+                    {
+                        <div class="capi-item" data-busca="@(c.Nome.ToLowerInvariant()) @(pais.Nome.ToLowerInvariant()) @c.Id">
+                            <img src="@c.Logo" alt="" loading="lazy" onerror="this.style.visibility='hidden'" />
+                            <span class="nome">@c.Nome</span>
+                            @if (c.Registrada)
+                            {
+                                <span class="registrada" title="Já existe uma competição cadastrada com este código">✓ registrada</span>
+                            }
+                            <span class="tipo @(c.Tipo.ToLowerInvariant())">@(c.Tipo == "League" ? "Liga" : "Copa")</span>
+                            <span class="codigo" title="Clique para copiar o código" onclick="capiCopiar(this, @c.Id)">@c.Id ⧉</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <div id="capiVazio" class="capi-vazio">Nenhuma competição encontrada para essa busca.</div>
+    </div>
+</div>
+
+<script>
+    function capiCopiar(el, codigo) {
+        navigator.clipboard.writeText(String(codigo)).then(() => {
+            el.classList.add('copiado');
+            const original = el.textContent;
+            el.textContent = codigo + ' ✓';
+            setTimeout(() => { el.classList.remove('copiado'); el.textContent = original; }, 1200);
+        });
+    }
+
+    // Filtro por nome da competição, país ou código. Com busca ativa, os países
+    // com resultado abrem sozinhos; ao limpar, tudo recolhe de novo.
+    function capiFiltrar(termo) {
+        const t = termo.toLowerCase().trim();
+        let algum = false;
+        document.querySelectorAll('.capi-pais').forEach(pais => {
+            let visiveis = 0;
+            pais.querySelectorAll('.capi-item').forEach(item => {
+                const mostra = !t || item.dataset.busca.includes(t);
+                item.style.display = mostra ? '' : 'none';
+                if (mostra) visiveis++;
+            });
+            const mostraPais = visiveis > 0;
+            pais.style.display = mostraPais ? '' : 'none';
+            pais.classList.toggle('aberto', mostraPais && !!t);
+            if (mostraPais) algum = true;
+        });
+        document.getElementById('capiVazio').style.display = algum ? 'none' : 'block';
+    }
+</script>
