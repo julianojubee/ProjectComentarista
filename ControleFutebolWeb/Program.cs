@@ -127,6 +127,11 @@ internal class Program
             // ~128 MB de imagens em cache (Size = bytes da imagem)
             o.SizeLimit = 128L * 1024 * 1024;
         });
+        // Health check em /health — usado pelo deploy.ps1 (verificação pós-deploy)
+        // e disponível para monitoramento externo (nginx/uptime).
+        builder.Services.AddHealthChecks()
+            .AddCheck<BancoDadosHealthCheck>("banco_de_dados");
+
         builder.Services.AddSingleton<ServicoMonitor>();
         builder.Services.AddSingleton<AtualizarJogadoresSemDataService>();
         builder.Services.AddHostedService(sp =>
@@ -270,6 +275,10 @@ internal class Program
         app.MapControllerRoute(
             name: "default",
             pattern: "{controller=Home}/{action=Index}/{id?}");
+
+        // Endpoint anônimo por design: devolve só 200/503 sem dados sensíveis,
+        // para que deploy e monitoramento consigam consultar sem autenticar.
+        app.MapHealthChecks("/health");
 
         app.Run();
     }

@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace ControleFutebolWeb.Services
 {
@@ -17,6 +18,7 @@ namespace ControleFutebolWeb.Services
     {
         private readonly HttpClient _http;
         private readonly ILogger<ApiFootballService> _logger;
+        private readonly IMemoryCache _cache;
         private readonly JsonSerializerOptions _json = new() { PropertyNameCaseInsensitive = true };
 
         // Legado — entradas extras não cobertas pelo CountryHelper centralizado.
@@ -122,10 +124,11 @@ namespace ControleFutebolWeb.Services
             new(StringComparer.OrdinalIgnoreCase) { "FT", "AET", "PEN" };
 
         public ApiFootballService(HttpClient http, IConfiguration config,
-            ILogger<ApiFootballService> logger)
+            ILogger<ApiFootballService> logger, IMemoryCache cache)
         {
             _http = http;
             _logger = logger;
+            _cache = cache;
 
             _http.BaseAddress = new Uri("https://v3.football.api-sports.io/");
             _http.DefaultRequestHeaders.Add("x-apisports-key",
@@ -267,6 +270,29 @@ namespace ControleFutebolWeb.Services
             return (jogosProcessados, timesCreados, erros, avisos);
         }
 
+        // ── Cache de respostas da API ─────────────────────────────────────────
+        // Usado só nos endpoints "read-mostly" (dados de jogador/treinador/
+        // estatísticas), consultados a cada carga de tela — economiza a cota
+        // diária do plano e acelera as páginas. Os endpoints do fluxo de
+        // sincronização (fixtures, standings, detalhes de fixture) NÃO passam
+        // por aqui: lá o dado precisa estar fresco.
+        private async Task<string> GetStringCachedAsync(string url, TimeSpan ttl, CancellationToken ct)
+        {
+            var chave = "apifoot:" + url;
+            if (_cache.TryGetValue(chave, out string? emCache) && emCache != null)
+                return emCache;
+
+            var json = await _http.GetStringAsync(url, ct);
+            _cache.Set(chave, json, new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = ttl,
+                // O MemoryCache global tem SizeLimit em bytes (ver Program.cs),
+                // então toda entrada precisa declarar Size: ~2 bytes por char.
+                Size = json.Length * 2L
+            });
+            return json;
+        }
+
         // ── Busca de info de jogador por IdApi ───────────────────────────────
 
         public async Task<AfPlayerInfoResult?> BuscarInfoJogadorAsync(
@@ -278,7 +304,7 @@ namespace ControleFutebolWeb.Services
             // Tenta temporada atual e anterior
             foreach (var s in new[] { season, season - 1 })
             {
-                var json = await _http.GetStringAsync($"players?id={idApi}&season={s}", ct);
+                var json = await GetStringCachedAsync($"players?id={idApi}&season={s}", TimeSpan.FromHours(6), ct);
                 var resp = JsonSerializer.Deserialize<ApiFootballResponse<AfPlayerProfileEntry>>(json, _json);
                 entry = resp?.Response.FirstOrDefault();
                 if (entry != null) break;
@@ -310,7 +336,7 @@ namespace ControleFutebolWeb.Services
         public async Task<AfPlayerInfoResult?> BuscarPerfilJogadorAsync(
             long idApi, CancellationToken ct = default)
         {
-            var json = await _http.GetStringAsync($"players/profiles?player={idApi}", ct);
+            var json = await GetStringCachedAsync($"players/profiles?player={idApi}", TimeSpan.FromHours(24), ct);
             var resp = JsonSerializer.Deserialize<ApiFootballResponse<AfPlayerProfileEntry>>(json, _json);
             var player = resp?.Response.FirstOrDefault()?.Player;
             if (player == null) return null;
@@ -357,7 +383,7 @@ namespace ControleFutebolWeb.Services
         public async Task<List<AfPlayerSeasonStats>> BuscarEstatisticasTemporadaAsync(
             long idApi, int season, CancellationToken ct = default)
         {
-            var json = await _http.GetStringAsync($"players?id={idApi}&season={season}", ct);
+            var json = await GetStringCachedAsync($"players?id={idApi}&season={season}", TimeSpan.FromHours(6), ct);
             var resp = JsonSerializer.Deserialize<ApiFootballResponse<AfPlayerSeasonEntry>>(json, _json);
             return resp?.Response.FirstOrDefault()?.Statistics ?? new();
         }
@@ -377,7 +403,9 @@ namespace ControleFutebolWeb.Services
 
             try
             {
-                var json = await _http.GetStringAsync($"players/squads?team={time.IdApi}", ct);
+                // TTL curto: importar elenco é ação explícita do usuário — o cache
+                // aqui só deduplica cliques repetidos, sem esconder mudança de elenco.
+                var json = await GetStringCachedAsync($"players/squads?team={time.IdApi}", TimeSpan.FromMinutes(15), ct);
                 var resp = JsonSerializer.Deserialize<ApiFootballResponse<AfSquadEntry>>(json, _json);
                 var jogadoresApi = resp?.Response.FirstOrDefault()?.Players ?? new();
 
@@ -627,7 +655,7 @@ namespace ControleFutebolWeb.Services
             {
                 var url = $"coachs?search={Uri.EscapeDataString(termo)}";
                 if (team is long tt) url += $"&team={tt}";
-                var json = await _http.GetStringAsync(url, ct);
+                var json = await GetStringCachedAsync(url, TimeSpan.FromHours(6), ct);
                 var resp = JsonSerializer.Deserialize<ApiFootballResponse<AfCoachFull>>(json, _json);
                 return resp?.Response ?? new();
             }
@@ -838,7 +866,7 @@ namespace ControleFutebolWeb.Services
             int teamId, int leagueId, int season, CancellationToken ct = default)
         {
             var url = $"teams/statistics?league={leagueId}&season={season}&team={teamId}";
-            var json = await _http.GetStringAsync(url, ct);
+            var json = await GetStringCachedAsync(url, TimeSpan.FromHours(1), ct);
             var resp = JsonSerializer.Deserialize<ApiFootballSingleResponse<AfTeamSeasonStats>>(json, _json);
             return resp?.Response;
         }
@@ -847,7 +875,7 @@ namespace ControleFutebolWeb.Services
             int teamId1, int teamId2, int last = 5, CancellationToken ct = default)
         {
             var url = $"fixtures/headtohead?h2h={teamId1}-{teamId2}&last={last}";
-            var json = await _http.GetStringAsync(url, ct);
+            var json = await GetStringCachedAsync(url, TimeSpan.FromHours(1), ct);
             var resp = JsonSerializer.Deserialize<ApiFootballResponse<AfFixture>>(json, _json);
             return resp?.Response ?? new();
         }
