@@ -1176,6 +1176,29 @@ namespace ControleFutebolWeb.Services
                         .FirstOrDefaultAsync(f => f.Nome == lineup.Formation, ct)
                     : null;
 
+                // API sem formação: cai para a 4-3-3 padrão, senão os titulares ficam
+                // todos sem posição em campo (X/Y = 0).
+                if (formacao == null && string.IsNullOrWhiteSpace(lineup.Formation))
+                {
+                    formacao = await context.Formacoes
+                        .Include(f => f.Posicoes)
+                        .FirstOrDefaultAsync(f => f.Nome == "4-3-3", ct);
+                    if (formacao != null)
+                        Log(context, cicloId, "Formação", "Padrão",
+                            jogoDescricao: $"{fx.Teams.Home.Name} × {fx.Teams.Away.Name}",
+                            timeNome: lineup.Team.Name,
+                            detalhes: "Formação não informada pela API — usando 4-3-3 padrão");
+                }
+
+                // Preenche a formação do jogo (selects Inicial/Final) se ainda estiver vazia.
+                if (formacao != null)
+                {
+                    if (isTimeCasa && jogo.FormacaoCasaId == null)
+                        jogo.FormacaoCasaId = formacao.Id;
+                    else if (!isTimeCasa && jogo.FormacaoVisitanteId == null)
+                        jogo.FormacaoVisitanteId = formacao.Id;
+                }
+
                 var posicoes = formacao?.Posicoes?
                     .OrderBy(p => p.Ordem)
                     .ToList() ?? new();
@@ -1202,10 +1225,21 @@ namespace ControleFutebolWeb.Services
                     .GroupBy(g => g.linha)
                     .ToDictionary(g => g.Key, g => g.Max(x => x.coluna));
 
+                // Sem nenhum grid válido (a API costuma omitir grid junto com a formação):
+                // distribui os titulares na ordem da lineup (goleiro → defesa → ataque)
+                // pelas posições da formação, da mais recuada (maior Y) para a frente.
+                var posicoesSequenciais = gridsValidos.Count == 0 && posicoes.Count > 0
+                    ? posicoes.OrderByDescending(p => p.PosicaoY).ThenBy(p => p.PosicaoX).ToList()
+                    : null;
+
+                var idxTitular = 0;
                 foreach (var lp in lineup.StartXI)
                 {
-                    var posFormacao = ResolverPosicaoFormacao(
-                        lp.Player.Grid, posicoes, totalLinhasGrid, colunasPorLinhaGrid);
+                    var posFormacao = posicoesSequenciais != null
+                        ? (idxTitular < posicoesSequenciais.Count ? posicoesSequenciais[idxTitular] : null)
+                        : ResolverPosicaoFormacao(
+                            lp.Player.Grid, posicoes, totalLinhasGrid, colunasPorLinhaGrid);
+                    idxTitular++;
                     await AdicionarEscalacaoJogador(context, jogo, lp.Player, time,
                         isTimeCasa, true, "INICIAL", jogadorMap, posFormacao, ct);
                 }
