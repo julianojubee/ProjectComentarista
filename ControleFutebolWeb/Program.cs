@@ -112,6 +112,9 @@ internal class Program
             options.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute());
             // Registra o último acesso do usuário autenticado (painel de "usuários online").
             options.Filters.Add(typeof(AtividadeUsuarioFilter));
+            // Binding de double/float/decimal aceita "10,5" e "10.5" como decimal,
+            // independente da cultura do servidor (ver NumeroFlexivelModelBinder).
+            options.ModelBinderProviders.Insert(0, new ControleFutebolWeb.ModelBinders.NumeroFlexivelModelBinderProvider());
         })
             .AddJsonOptions(options =>
             {
