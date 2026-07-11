@@ -131,7 +131,9 @@ function desenharMapaCalor(campoId, pontos) {
     off.height = h;
     const octx = off.getContext('2d');
     octx.globalCompositeOperation = 'lighter';
-    const raio = Math.max(w, h) * 0.17;
+    // 0.12 da maior dimensão: borrão mais contido — com 0.17 a mancha de um
+    // ponto único ficava larga demais no mini-campo e "vazava" pra fora do campo.
+    const raio = Math.max(w, h) * 0.12;
     pontos.forEach(p => {
         const px = (p.x / 100) * w;
         const py = (p.y / 100) * h;
