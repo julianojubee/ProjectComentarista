@@ -154,7 +154,8 @@
     .hj-estadio { font-size: .68rem; color: #4b5563; }
     .hj-btn-analisar { font-size: .72rem; padding: 4px 12px; background: rgba(212,165,32,0.1); border: 1px solid rgba(212,165,32,0.28); border-radius: 6px; color: #d4a520; font-weight: 700; }
     .hj-btn-analisar:hover { background: rgba(212,165,32,0.2); color: #d4a520; }
-    .hj-status-analisado { font-size: .72rem; font-weight: 700; color: #4ade80; display: flex; align-items: center; gap: 4px; }
+    .hj-status-analisado { font-size: .72rem; font-weight: 700; color: #4ade80; display: flex; align-items: center; gap: 4px; text-decoration: none; }
+    .hj-status-analisado:hover { color: #22c55e; text-decoration: underline; }
 
     .hj-empty { text-align: center; color: #6b7280; padding: 3rem 1rem; background: #141414; border: 1px dashed #262626; border-radius: 12px; }
 </style>
@@ -278,7 +279,7 @@
                                     <span class="hj-estadio">🏟️ @(string.IsNullOrWhiteSpace(jogo.Estadio) ? "Local não informado" : jogo.Estadio)</span>
                                     @if (analisado)
                                     {
-                                        <span class="hj-status-analisado">✓ Analisado</span>
+                                        <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id" class="hj-status-analisado">✓ Analisado</a>
                                     }
                                     else
                                     {
