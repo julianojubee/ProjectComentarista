@@ -336,7 +336,7 @@
                         <div class="jg-meta">
                             @if (!string.IsNullOrEmpty(jogador.Posicao))
                             {
-                                <span class="jg-pos-badge" style="background:@cor.bg;border:1px solid @cor.border;color:@cor.text;">@jogador.Posicao</span>
+                                <span class="jg-pos-badge" style="background:@cor.bg;border:1px solid @cor.border;color:@cor.text;">@PosicaoJogadorHelper.Sigla(jogador.Posicao)</span>
                             }
                             <span class="idade">@jogador.Idade anos</span>
                             <span class="flag" title="@jogador.Nacionalidade?.Nome">@FlagHelper.GetFlagEmoji(jogador.Nacionalidade?.Nome)</span>
@@ -434,7 +434,7 @@
                     <td>
                         <a href="/Jogadores/Estatisticas/@jogador.Id" class="link-normal">@jogador.NomeExibicao</a>
                     </td>
-                    <td>@jogador.Posicao</td>
+                    <td>@PosicaoJogadorHelper.Sigla(jogador.Posicao)</td>
                     <td>@jogador.Idade</td>
                     <td><span title="@jogador.Nacionalidade?.Nome">@ControleFutebolWeb.Helpers.FlagHelper.GetFlagEmoji(jogador.Nacionalidade?.Nome)</span></td>
                     <td>

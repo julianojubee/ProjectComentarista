@@ -409,7 +409,7 @@
                         <div class="ctd-jog-info">
                             <div class="ctd-jog-nome">@jogador.Nome</div>
                             <div class="ctd-jog-pos">
-                                @jogador.Posicao
+                                @PosicaoJogadorHelper.Sigla(jogador.Posicao)
                                 @if (ehConvocado && jogador.Time != null)
                                 {
                                     <span class="ctd-jog-clube">
@@ -462,14 +462,14 @@
                         {
                             <div class="posicao-drop"
                                  data-index="@index"
-                                 data-posicao="@esc.Posicao"
+                                 data-posicao="@PosicaoJogadorHelper.Sigla(esc.Posicao)"
                                  draggable="true"
                                  ondragstart="dragPosicao(event, @index)"
                                  ondrop="dropEscalacao(event, @index)"
                                  ondragover="allowDrop(event)"
                                  style="left:@esc.PosicaoX%; top:@esc.PosicaoY%;">
 
-                                <span>@esc.Posicao</span>
+                                <span>@PosicaoJogadorHelper.Sigla(esc.Posicao)</span>
 
                                 @if (esc.Jogador != null)
                                 {

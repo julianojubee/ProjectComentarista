@@ -1,4 +1,5 @@
-﻿@model ControleFutebolWeb.Models.TimeDetalhesViewModel
+﻿@using ControleFutebolWeb.Helpers
+@model ControleFutebolWeb.Models.TimeDetalhesViewModel
 
 
 <h2>@Model.Time.Nome</h2>
@@ -18,7 +19,7 @@
         {
             <tr>
                 <td>@jogador.Nome</td>
-                <td>@jogador.Posicao</td>
+                <td>@PosicaoJogadorHelper.Sigla(jogador.Posicao)</td>
                 <td>@jogador.Nacionalidade?.Nome</td>
             </tr>
         }

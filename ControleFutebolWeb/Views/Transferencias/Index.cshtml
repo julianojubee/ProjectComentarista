@@ -245,7 +245,7 @@
                                 <div class="tf-jogador-nome">
                                     <a href="@Url.Action("Estatisticas", "Jogadores", new { id = t.JogadorId })">@t.Jogador.NomeExibicao</a>
                                 </div>
-                                <div class="tf-jogador-pos">@t.Jogador.Posicao</div>
+                                <div class="tf-jogador-pos">@PosicaoJogadorHelper.Sigla(t.Jogador.Posicao)</div>
                             </div>
                         </div>
 

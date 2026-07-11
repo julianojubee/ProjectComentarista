@@ -1,4 +1,5 @@
 @model ControleFutebolWeb.Models.ViewModels.ScoutViewModel
+@using ControleFutebolWeb.Helpers
 @{
     ViewData["Title"] = "Scout de Jogadores";
     var f = Model.Filtro;
@@ -469,7 +470,7 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td><span class="sc-tag-pos">@j.Posicao</span></td>
+                                <td><span class="sc-tag-pos">@PosicaoJogadorHelper.Sigla(j.Posicao)</span></td>
                                 <td>@(j.Idade > 0 ? j.Idade.ToString() : "—")</td>
                                 <td>
                                     @if (j.Time != null)

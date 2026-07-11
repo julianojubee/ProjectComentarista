@@ -125,5 +125,31 @@ namespace ControleFutebolWeb.Helpers
             };
             return $"{partes[0]} {lado}";
         }
+
+        // Sigla de exibição (ex.: "Lateral Esquerdo/Ala Esquerdo" → "LE/AE").
+        // Usado onde a posição hoje aparece por extenso (cards, badges, tooltips).
+        public static string Sigla(string? posicao)
+        {
+            if (string.IsNullOrWhiteSpace(posicao)) return "";
+            // Distinct: "Zagueiro/Zagueiro Central" abreviaria para "ZAG/ZAG"
+            return string.Join("/", posicao.Split('/').Select(SiglaParte).Where(s => s.Length > 0).Distinct());
+        }
+
+        private static string SiglaParte(string parte)
+        {
+            var p = parte.Trim().ToLowerInvariant();
+            if (p.Length == 0) return "";
+            if (p.Contains("gol")) return "GOL";
+            if (p.StartsWith("zag") || p == "defensor") return "ZAG";
+            if (p.StartsWith("lateral")) return p.Contains("esq") ? "LE" : "LD";
+            if (p.StartsWith("ala")) return p.Contains("esq") ? "AE" : "AD";
+            if (p.StartsWith("volante")) return "VOL";
+            if (p.StartsWith("meia")) return p.Contains("ofensiv") ? "MEO" : "MEI";
+            if (p.StartsWith("ponta")) return p.Contains("esq") ? "PE" : "PD";
+            if (p.StartsWith("centro")) return "CA";
+            if (p.StartsWith("ata")) return "ATA";
+            var t = parte.Trim();
+            return t.Length > 3 ? t[..3].ToUpperInvariant() : t.ToUpperInvariant();
+        }
     }
 }

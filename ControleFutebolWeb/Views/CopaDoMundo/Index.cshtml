@@ -1,4 +1,5 @@
 ﻿@using ControleFutebolWeb.Models
+@using ControleFutebolWeb.Helpers
 @model ControleFutebolWeb.Models.ViewModels.CopaDoMundoIndexViewModel
 @using ControleFutebolWeb.Models.ViewModels
 @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
@@ -1341,7 +1342,7 @@ else
                                     </div>
                                     <div class="sel-pick-info">
                                         <span class="sel-pick-nome">@j.Nome</span>
-                                        <span class="sel-pick-meta">@j.Posicao@(string.IsNullOrEmpty(timeNome) ? "" : " · " + timeNome)@(Model.NotaMediaPorJogador.TryGetValue(j.Id, out var notaMed) ? " · ⭐ " + notaMed.ToString("0.0", inv) : "")</span>
+                                        <span class="sel-pick-meta">@PosicaoJogadorHelper.Sigla(j.Posicao)@(string.IsNullOrEmpty(timeNome) ? "" : " · " + timeNome)@(Model.NotaMediaPorJogador.TryGetValue(j.Id, out var notaMed) ? " · ⭐ " + notaMed.ToString("0.0", inv) : "")</span>
                                     </div>
                                 </div>
                             }
