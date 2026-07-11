@@ -189,7 +189,8 @@ namespace ControleFutebolWeb.Controllers
             var novoUsuario = new ApplicationUser
             {
                 UserName = model.UserName,
-                Email = model.Email,
+                // Campo vazio vira null (não string vazia) — e-mail é opcional aqui.
+                Email = string.IsNullOrWhiteSpace(model.Email) ? null : model.Email,
                 Nome = model.Nome,
                 IsAdmin = model.IsAdmin,
                 EmailConfirmed = true

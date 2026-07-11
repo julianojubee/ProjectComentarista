@@ -43,11 +43,15 @@ internal class Program
             options.Lockout.MaxFailedAccessAttempts = 5;
             options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(10);
             options.Lockout.AllowedForNewUsers = true;
-            // Evita enumeração de usuários e exige confirmação coerente.
-            options.User.RequireUniqueEmail = true;
+            // false porque o UserValidator padrão, com RequireUniqueEmail=true, também
+            // rejeita e-mail vazio (não dá pra tornar o e-mail opcional só com essa
+            // flag) — a checagem de formato/unicidade quando o e-mail É informado fica
+            // por conta do EmailOpcionalValidator abaixo.
+            options.User.RequireUniqueEmail = false;
         })
         .AddEntityFrameworkStores<FutebolContext>()
-        .AddDefaultTokenProviders();
+        .AddDefaultTokenProviders()
+        .AddUserValidator<EmailOpcionalValidator>();
 
         // Autenticação por token (JWT), usada pela API (Controllers/Api) que o app
         // Android consome. Convive com o cookie da Identity, que continua sendo o
