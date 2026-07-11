@@ -2881,12 +2881,13 @@ namespace ControleFutebolWeb.Controllers
         public async Task<IActionResult> RemoverObservacaoTag([FromBody] RemoverObservacaoTagRequest req)
         {
             var usuarioId = _userManager.GetUserId(User)!;
-            var obs = await _context.ObservacoesJogoTag
-                .FirstOrDefaultAsync(o => o.Id == req.Id && o.UsuarioId == usuarioId);
-            if (obs == null) return NotFound();
-
-            _context.ObservacoesJogoTag.Remove(obs);
-            await _context.SaveChangesAsync();
+            // Delete atômico: com carregar-e-remover, um clique duplo fazia a 2ª
+            // requisição deletar uma linha já apagada e o EF estourava
+            // DbUpdateConcurrencyException (500 em produção, 11/07/2026).
+            var removidos = await _context.ObservacoesJogoTag
+                .Where(o => o.Id == req.Id && o.UsuarioId == usuarioId)
+                .ExecuteDeleteAsync();
+            if (removidos == 0) return NotFound();
             return Ok(new { sucesso = true });
         }
     }
