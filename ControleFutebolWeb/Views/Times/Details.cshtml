@@ -800,6 +800,12 @@ async function buscarEstatisticasApi() {
             return;
         }
 
+        try {
+            const resIntervalo = await fetch(`/Times/GolsPorIntervaloApi?timeId=${timeId}&leagueId=${leagueId}&season=${season}`);
+            const intervaloLocal = await resIntervalo.json();
+            if (intervaloLocal.disponivel) data.golsIntervaloLocal = intervaloLocal;
+        } catch (e) { /* usa o dado bruto da API como fallback */ }
+
         renderEstatisticas(data);
         document.getElementById('estat-result').style.display = 'block';
     } catch(e) {
@@ -848,10 +854,13 @@ function renderEstatisticas(d) {
         </div>`;
     }).join('');
 
-    // Gols por minuto (pró)
+    // Gols por minuto (pró). Usa o recalculo local (gol contra atribuído ao time
+    // certo) quando disponível; a API-Football soma o gol contra no intervalo
+    // do time do autor, o que confunde marcados x sofridos.
     const minuteKeys = ['0-15','16-30','31-45','46-60','61-75','76-90','91-105'];
-    const goalsForMinute  = g.for.minute  || {};
-    const goalsAgMinute   = g.against.minute || {};
+    const intervaloLocal = d.golsIntervaloLocal;
+    const goalsForMinute  = intervaloLocal ? intervaloLocal.for     : (g.for.minute  || {});
+    const goalsAgMinute   = intervaloLocal ? intervaloLocal.against : (g.against.minute || {});
     const maxFor = Math.max(1, ...minuteKeys.map(k => goalsForMinute[k]?.total || 0));
     const maxAg  = Math.max(1, ...minuteKeys.map(k => goalsAgMinute[k]?.total  || 0));
 
@@ -931,7 +940,9 @@ function renderEstatisticas(d) {
         </div>
         <div style="display:flex;gap:.5rem;align-items:flex-end;">${minuteHtml}</div>
         <div style="font-size:10px;color:#64748b;margin-top:.5rem;">
-            * A API contabiliza gol contra no intervalo pelo time do autor do gol — um gol contra a favor pode aparecer como "sofrido" (e vice-versa).
+            ${intervaloLocal
+                ? '* Gol contra já é contado a favor do time que se beneficiou, com base nos jogos cadastrados.'
+                : '* Sem jogos cadastrados localmente para recalcular — dado bruto da API: gol contra aparece no intervalo pelo time do autor do gol (pode aparecer como "sofrido" quando foi a favor, e vice-versa).'}
         </div>
     </div>
 

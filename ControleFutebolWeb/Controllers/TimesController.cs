@@ -543,5 +543,66 @@ namespace ControleFutebolWeb.Controllers
                 cards    = stats.Cards,
             });
         }
+
+        // GET: Times/GolsPorIntervaloApi?timeId=1&leagueId=71&season=2026
+        // Recalcula "gols por intervalo" a partir dos gols cadastrados localmente,
+        // atribuindo corretamente o gol contra ao time que se beneficiou dele —
+        // diferente da API-Football, que soma o gol contra no intervalo do time do autor.
+        [HttpGet]
+        public async Task<IActionResult> GolsPorIntervaloApi(int timeId, int leagueId, int season)
+        {
+            string[] buckets = { "0-15", "16-30", "31-45", "46-60", "61-75", "76-90", "91-105" };
+            string Bucket(int minuto) => minuto switch
+            {
+                <= 15 => "0-15",
+                <= 30 => "16-30",
+                <= 45 => "31-45",
+                <= 60 => "46-60",
+                <= 75 => "61-75",
+                <= 90 => "76-90",
+                _ => "91-105"
+            };
+
+            // O leagueId da API-Football fica guardado em Competicao.LinkTransfermarket
+            // no formato "apifoot:{leagueId}:{season}" (ver TimesController.Details/CompeticoesApi).
+            var prefixoLiga = $"apifoot:{leagueId}:";
+            var jogos = await _context.Jogos
+                .Where(j => (j.TimeCasaId == timeId || j.TimeVisitanteId == timeId)
+                    && j.Temporada == season
+                    && j.Competicao.LinkTransfermarket != null
+                    && j.Competicao.LinkTransfermarket.StartsWith(prefixoLiga))
+                .Select(j => j.Id)
+                .ToListAsync();
+
+            if (jogos.Count == 0)
+                return Json(new { disponivel = false });
+
+            var gols = await _context.Gols
+                .Include(g => g.Jogador)
+                .Where(g => jogos.Contains(g.JogoId))
+                .ToListAsync();
+
+            var golsFor = buckets.ToDictionary(b => b, _ => 0);
+            var golsAgainst = buckets.ToDictionary(b => b, _ => 0);
+
+            foreach (var g in gols)
+            {
+                if (g.Jogador == null) continue;
+                var autorENosso = g.Jogador.TimeId == timeId || g.Jogador.SelecaoId == timeId;
+                var bucket = Bucket(g.Minuto);
+                bool marcadoPorNos = g.Contra ? !autorENosso : autorENosso;
+                if (marcadoPorNos)
+                    golsFor[bucket]++;
+                else
+                    golsAgainst[bucket]++;
+            }
+
+            return Json(new
+            {
+                disponivel = true,
+                @for = golsFor.ToDictionary(kv => kv.Key, kv => new { total = kv.Value }),
+                against = golsAgainst.ToDictionary(kv => kv.Key, kv => new { total = kv.Value }),
+            });
+        }
     }
 }
