@@ -3004,6 +3004,26 @@ namespace ControleFutebolWeb.Controllers
             return Ok(new { obs.Id, obs.Tipo, obs.JogadorId, jogadorNome, obs.Texto });
         }
 
+        public class EditarObservacaoTagRequest
+        {
+            public int Id { get; set; }
+            public string Texto { get; set; } = "";
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> EditarObservacaoTag([FromBody] EditarObservacaoTagRequest req)
+        {
+            if (req == null || req.Id <= 0 || string.IsNullOrWhiteSpace(req.Texto))
+                return BadRequest("Dados inválidos.");
+
+            var usuarioId = _userManager.GetUserId(User)!;
+            var atualizados = await _context.ObservacoesJogoTag
+                .Where(o => o.Id == req.Id && o.UsuarioId == usuarioId)
+                .ExecuteUpdateAsync(s => s.SetProperty(o => o.Texto, req.Texto.Trim()));
+            if (atualizados == 0) return NotFound();
+            return Ok(new { sucesso = true });
+        }
+
         public class RemoverObservacaoTagRequest { public int Id { get; set; } }
 
         [HttpPost]

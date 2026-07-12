@@ -758,6 +758,13 @@
         line-height: 1.35;
         min-height: 32px;
     }
+    .obs-tag-editar {
+        flex: 0 0 auto;
+        cursor: pointer;
+        color: #9ca3af;
+        padding: 0 4px;
+    }
+    .obs-tag-editar:hover { color: #d4a520; }
     .obs-tag-remover {
         flex: 0 0 auto;
         cursor: pointer;
@@ -2196,6 +2203,7 @@
                         <span class="obs-tag-jogador-nome">@o.Jogador.NomeExibicao</span>
                     }
                     <span class="obs-tag-texto">@o.Texto</span>
+                    <span class="obs-tag-editar" onclick="editarObservacaoTag(@o.Id, this)" title="Editar">&#9998;</span>
                     <span class="obs-tag-remover" onclick="removerObservacaoTag(@o.Id, this)" title="Remover">&times;</span>
                 </div>
             }
@@ -2414,11 +2422,40 @@
             <span class="obs-tag-badge obs-tag-badge-${obs.tipo.toLowerCase()}">${rotulosObsTag[obs.tipo] || obs.tipo}</span>
             ${nomeJogadorHtml}
             <span class="obs-tag-texto"></span>
+            <span class="obs-tag-editar" title="Editar">&#9998;</span>
             <span class="obs-tag-remover" title="Remover">&times;</span>
         `;
         row.querySelector('.obs-tag-texto').textContent = obs.texto;
+        row.querySelector('.obs-tag-editar').addEventListener('click', () => editarObservacaoTag(obs.id, row.querySelector('.obs-tag-editar')));
         row.querySelector('.obs-tag-remover').addEventListener('click', () => removerObservacaoTag(obs.id, row.querySelector('.obs-tag-remover')));
         container.appendChild(row);
+    }
+
+    async function editarObservacaoTag(id, btn) {
+        const row = btn.closest('.obs-tag-row');
+        const textoEl = row.querySelector('.obs-tag-texto');
+        const textoAtual = textoEl.textContent;
+
+        const novoTexto = prompt('Editar observação:', textoAtual);
+        if (novoTexto === null) return;
+        const textoTrim = novoTexto.trim();
+        if (!textoTrim) { alert('O texto da observação não pode ficar vazio.'); return; }
+        if (textoTrim === textoAtual) return;
+
+        try {
+            const resp = await fetch('/Jogos/EditarObservacaoTag', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, texto: textoTrim })
+            });
+            if (resp.ok) {
+                textoEl.textContent = textoTrim;
+            } else {
+                alert('Erro ao editar a observação.');
+            }
+        } catch (e) {
+            alert('Erro de conexão ao editar a observação.');
+        }
     }
 
     async function adicionarObservacaoTag() {
@@ -4196,6 +4233,8 @@
     .pgj-obs-badge.MARCO { background:#d97706; }
     .pgj-obs-jogador { font-size:.8rem; font-weight:700; color:#f1f5f9; flex-shrink:0; }
     .pgj-obs-texto { font-size:.84rem; color:#9ca3af; margin:0; line-height:1.65; flex:1; }
+    .pgj-obs-editar { color:#4b5563; background:transparent; border:none; cursor:pointer; font-size:.9rem; flex-shrink:0; }
+    .pgj-obs-editar:hover { color:#d4a520; }
     .pgj-obs-remover { color:#4b5563; background:transparent; border:none; cursor:pointer; font-size:.9rem; flex-shrink:0; }
     .pgj-obs-remover:hover { color:#f87171; }
     .pgj-obs-form { background:#161616; border:1px solid #262626; border-radius:12px; padding:16px; }
@@ -4473,6 +4512,7 @@
                     '<span class="pgj-obs-badge ' + o.tipo + '">' + rotuloTipoObs(o.tipo) + '</span>' +
                     jogadorHtml +
                     '<p class="pgj-obs-texto">' + escHtml(o.texto) + '</p>' +
+                    '<button type="button" class="pgj-obs-editar" onclick="editarObsPosJogo(' + o.id + ')" title="Editar">&#9998;</button>' +
                     '<button type="button" class="pgj-obs-remover" onclick="removerObsPosJogo(' + o.id + ')">✕</button>' +
                 '</div>';
             }).join('')
@@ -4519,6 +4559,29 @@
             if (!resp.ok) return;
             await recarregarPosJogo(jogoId, 'obs');
         } catch (e) { /* silencioso */ }
+    }
+
+    async function editarObsPosJogo(id) {
+        var row = document.querySelector('.pgj-obs-row[data-obs-id="' + id + '"]');
+        var textoEl = row ? row.querySelector('.pgj-obs-texto') : null;
+        var textoAtual = textoEl ? textoEl.textContent : '';
+
+        var novoTexto = prompt('Editar observação:', textoAtual);
+        if (novoTexto === null) return;
+        var textoTrim = novoTexto.trim();
+        if (!textoTrim) { alert('O texto da observação não pode ficar vazio.'); return; }
+        if (textoTrim === textoAtual) return;
+
+        var jogoId = document.getElementById('modal-posjogo').dataset.jogoId;
+        try {
+            var resp = await fetch('/Jogos/EditarObservacaoTag', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ Id: id, Texto: textoTrim })
+            });
+            if (!resp.ok) { alert('Erro ao editar a observação.'); return; }
+            await recarregarPosJogo(jogoId, 'obs');
+        } catch (e) { alert('Erro de conexão ao editar a observação.'); }
     }
 
     async function removerObsPosJogo(id) {
