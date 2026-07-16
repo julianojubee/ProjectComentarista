@@ -181,6 +181,15 @@ namespace ControleFutebolWeb.Controllers
                 .OrderByDescending(t => t.DtInc)
                 .FirstOrDefaultAsync();
 
+            var todosTreinadores = await _context.Treinadores
+                .Include(t => t.Time)
+                .OrderBy(t => t.Nome)
+                .ToListAsync();
+
+            var nacionalidades = await _context.Nacionalidades
+                .OrderBy(n => n.Nome)
+                .ToListAsync();
+
             // Competições com link apifoot: (usadas no painel de estatísticas da API)
             var competicaoIdsDoTime = jogos.Select(j => j.CompeticaoId).Distinct().ToList();
             var todasCompeticoesDoTime = await _context.Competicoes
@@ -214,7 +223,9 @@ namespace ControleFutebolWeb.Controllers
                 TimeEscalacaoPadrao = escalacao,
                 Formacoes = formacoes,
                 Treinador = treinador,
-                CompeticoesApi = competicoesApi
+                CompeticoesApi = competicoesApi,
+                TodosTreinadores = todosTreinadores,
+                Nacionalidades = nacionalidades
             };
 
             return View(viewModel);
@@ -304,6 +315,59 @@ namespace ControleFutebolWeb.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Mensagem"] = "Link Transfermarkt do time atualizado com sucesso!";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // POST: Times/VincularTreinador — vincula um treinador já cadastrado (de qualquer
+        // time) como o treinador atual deste time, corrigindo TimeId dele.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> VincularTreinador(int id, int treinadorId)
+        {
+            var time = await _context.Times.FindAsync(id);
+            if (time == null) return NotFound();
+
+            var treinador = await _context.Treinadores.FindAsync(treinadorId);
+            if (treinador == null) return NotFound();
+
+            treinador.TimeId = id;
+            treinador.DtAlt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            TempData["Mensagem"] = $"{treinador.Nome} vinculado como treinador de {time.Nome}.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // POST: Times/CriarTreinador — cadastra um treinador novo já vinculado a este time.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CriarTreinador(int id, string nome, int? nacionalidadeId, DateTime? dataNascimento)
+        {
+            var time = await _context.Times.FindAsync(id);
+            if (time == null) return NotFound();
+
+            if (string.IsNullOrWhiteSpace(nome))
+            {
+                TempData["Mensagem"] = "Informe o nome do treinador.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            var treinador = new Treinador
+            {
+                Nome = nome.Trim(),
+                NacionalidadeId = nacionalidadeId,
+                // Data pura: ancora ao meio-dia UTC para o fuso -3 não deslocar o dia.
+                DataNascimento = dataNascimento.HasValue
+                    ? DateTime.SpecifyKind(dataNascimento.Value.Date.AddHours(12), DateTimeKind.Utc)
+                    : null,
+                TimeId = id,
+                DtInc = DateTime.UtcNow
+            };
+
+            _context.Treinadores.Add(treinador);
+            await _context.SaveChangesAsync();
+
+            TempData["Mensagem"] = $"{treinador.Nome} cadastrado como treinador de {time.Nome}.";
             return RedirectToAction(nameof(Details), new { id });
         }
 

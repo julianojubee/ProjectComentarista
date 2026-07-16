@@ -522,6 +522,10 @@ namespace ControleFutebolWeb.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("bloqueios");
 
+                    b.Property<bool>("Capitao")
+                        .HasColumnType("boolean")
+                        .HasColumnName("capitao");
+
                     b.Property<int>("CartoesAmarelos")
                         .HasColumnType("integer")
                         .HasColumnName("cartoesamarelos");

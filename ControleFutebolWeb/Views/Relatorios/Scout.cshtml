@@ -236,6 +236,27 @@
                     </div>
                 </div>
 
+                <!-- Nacionalidade (tag selector) -->
+                <div class="sc-field" style="grid-column: span 2;">
+                    <label>Nacionalidade</label>
+                    <div class="ms-wrap" id="nacWrap">
+                        <div class="ms-box" id="nacBox" tabindex="0"></div>
+                        <span class="ms-arrow">▼</span>
+                        <div class="ms-panel" id="nacPanel">
+                            <input type="text" class="ms-search" id="nacSearch" placeholder="Buscar nacionalidade…" autocomplete="off" />
+                            @foreach (var n in Model.Nacionalidades)
+                            {
+                                <label class="ms-opt">
+                                    <input type="checkbox" name="nacionalidadeIds" value="@n.Id"
+                                           data-nome="@n.Nome"
+                                           @(f.NacionalidadeIds.Contains(n.Id) ? "checked" : "") />
+                                    <span>@n.Nome</span>
+                                </label>
+                            }
+                        </div>
+                    </div>
+                </div>
+
                 <div class="sc-field">
                     <label>Idade mínima</label>
                     <input type="number" name="idadeMin" min="15" max="50" value="@f.IdadeMin" placeholder="ex: 18" />
@@ -577,6 +598,7 @@
     initMulti('posWrap',  'posBox',  'posPanel',  'Todas as posições');
     initMulti('timeWrap', 'timeBox', 'timePanel', 'Todos os times');
     initMulti('compWrap', 'compBox', 'compPanel', 'Todas as competições');
+    initMulti('nacWrap',  'nacBox',  'nacPanel',  'Todas as nacionalidades');
 
     function bindSearch(inputId, panelSelector) {
         var el = document.getElementById(inputId);
@@ -593,6 +615,7 @@
 
     bindSearch('timeSearch', '#timePanel');
     bindSearch('compSearch', '#compPanel');
+    bindSearch('nacSearch', '#nacPanel');
 })();
 </script>
 

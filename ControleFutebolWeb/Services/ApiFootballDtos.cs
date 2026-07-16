@@ -437,6 +437,9 @@ namespace ControleFutebolWeb.Services
         [JsonPropertyName("rating")]
         public string? Rating { get; set; }
 
+        [JsonPropertyName("captain")]
+        public bool Captain { get; set; }
+
         [JsonPropertyName("substitute")]
         public bool Substitute { get; set; }
     }

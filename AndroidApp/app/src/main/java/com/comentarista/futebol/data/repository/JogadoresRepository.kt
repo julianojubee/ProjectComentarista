@@ -2,6 +2,7 @@ package com.comentarista.futebol.data.repository
 
 import com.comentarista.futebol.data.remote.ApiService
 import com.comentarista.futebol.data.remote.dto.JogadorDetalheDto
+import com.comentarista.futebol.data.remote.dto.JogadorEstatisticasDto
 import com.comentarista.futebol.data.remote.dto.JogadorResumoDto
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -16,5 +17,9 @@ class JogadoresRepository @Inject constructor(
 
     suspend fun detalheJogador(id: Int): Result<JogadorDetalheDto> = runCatching {
         apiService.detalheJogador(id)
+    }
+
+    suspend fun estatisticasJogador(id: Int, competicaoId: Int? = null): Result<JogadorEstatisticasDto> = runCatching {
+        apiService.estatisticasJogador(id, competicaoId)
     }
 }

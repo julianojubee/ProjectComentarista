@@ -76,5 +76,9 @@ namespace ControleFutebolWeb.Models.ViewModels
         // Jogadores advertidos com cartão amarelo neste jogo (qualquer minuto) —
         // mostra um ícone de cartão amarelo no botão do jogador em campo/banco.
         public HashSet<int> JogadoresComCartaoAmarelo { get; set; } = new();
+
+        // Jogadores marcados como capitão nas estatísticas importadas deste jogo —
+        // mostra a braçadeira "C" no botão do jogador em campo/banco.
+        public HashSet<int> JogadoresCapitao { get; set; } = new();
     }
 }

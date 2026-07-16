@@ -35,6 +35,11 @@ namespace ControleFutebolWeb.Helpers
                 uri.Host.EndsWith("api-sports.io", StringComparison.OrdinalIgnoreCase))
                 return url.Action("Imagem", "MediaProxy", new { url = foto }, request.Scheme);
 
+            // Caminho relativo (ex.: /Images/escudos/x.png, servido do wwwroot):
+            // o app não tem página atual para resolver contra — vira absoluto aqui.
+            if (foto.StartsWith('/'))
+                return $"{request.Scheme}://{request.Host}{foto}";
+
             return foto;
         }
     }

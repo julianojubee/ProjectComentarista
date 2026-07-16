@@ -520,6 +520,13 @@ namespace ControleFutebolWeb.Controllers
                 .ToListAsync())
                 .ToHashSet();
 
+            // Capitão de cada time neste jogo, vindo das estatísticas importadas da api-football.
+            vm.JogadoresCapitao = (await _context.EstatisticasJogador
+                .Where(e => e.JogoId == id && e.Capitao)
+                .Select(e => e.JogadorId)
+                .ToListAsync())
+                .ToHashSet();
+
             // ── Fase intermediária: renderização própria (somente visual/tática) ──
             if (!string.IsNullOrWhiteSpace(faseEscalacao) &&
                 !string.Equals(faseEscalacao, "FINAL", StringComparison.OrdinalIgnoreCase) &&

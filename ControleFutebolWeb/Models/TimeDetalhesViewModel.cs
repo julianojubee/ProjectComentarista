@@ -13,6 +13,9 @@
         public Treinador? Treinador { get; set; }
         // Competições com link apifoot: configurado (para o painel de estatísticas da temporada)
         public List<CompeticaoApiItem> CompeticoesApi { get; set; } = new();
+        // Listas para o modal de vincular/cadastrar treinador
+        public List<Treinador> TodosTreinadores { get; set; } = new();
+        public List<Nacionalidade> Nacionalidades { get; set; } = new();
     }
 
     public class CompeticaoApiItem

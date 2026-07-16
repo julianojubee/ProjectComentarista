@@ -500,6 +500,16 @@
                             @Model.Jogador.Nacionalidade.Nome
                         </span>
                     }
+                    @if (Model.Jogador.Selecao != null)
+                    {
+                        <span class="je-meta-item je-meta-clube">
+                            @if (!string.IsNullOrEmpty(Model.Jogador.Selecao.EscudoUrl))
+                            {
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogador.Selecao.EscudoUrl })" alt="" />
+                            }
+                            @Model.Jogador.Selecao.Nome
+                        </span>
+                    }
                 </div>
             </div>
 

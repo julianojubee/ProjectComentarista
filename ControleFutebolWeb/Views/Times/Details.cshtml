@@ -131,6 +131,36 @@
     }
     .ctd-treinador-nome { font-size: 0.86rem; font-weight: 700; color: #f1f5f9; }
     .ctd-treinador-nac { font-size: 0.7rem; color: #9ca3af; }
+    .ctd-treinador-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .ctd-treinador-edit-btn {
+        background: none; border: none; color: #6b7280; cursor: pointer; font-size: 0.8rem;
+        padding: 0; line-height: 1;
+    }
+    .ctd-treinador-edit-btn:hover { color: #d4a520; }
+    .ctd-treinador-editar-link {
+        display: block; margin-top: 6px; font-size: 0.66rem; color: #6b7280; font-weight: 700;
+    }
+    .ctd-treinador-editar-link:hover { color: #d4a520; }
+    .ctd-treinador-vazio { font-size: 0.78rem; color: #6b7280; padding: 4px 0 2px; }
+    .ctd-treinador-vincular-btn {
+        display: inline-block; margin-top: 6px; font-size: 0.7rem; font-weight: 700; color: #d4a520;
+        background: none; border: none; padding: 0; cursor: pointer;
+    }
+    .ctd-treinador-vincular-btn:hover { color: #f0c040; }
+
+    /* ── Modal treinador (sobrescreve tema claro do Bootstrap) ─── */
+    #treinadorModal .modal-content { background: #161616; color: #e5e7eb; border: 1px solid #262626; }
+    #treinadorModal .modal-header, #treinadorModal .modal-footer { border-color: #262626; }
+    #treinadorModal .nav-tabs { border-color: #262626; }
+    #treinadorModal .nav-tabs .nav-link { color: #9ca3af; border: none; }
+    #treinadorModal .nav-tabs .nav-link.active { color: #d4a520; background: transparent; border-bottom: 2px solid #d4a520; }
+    #treinadorModal .form-label { font-size: 0.78rem; color: #9ca3af; font-weight: 700; }
+    #treinadorModal .form-control, #treinadorModal .form-select {
+        background: #0f0f0f; border: 1px solid #333; color: #e5e7eb;
+    }
+    #treinadorModal .form-control:focus, #treinadorModal .form-select:focus {
+        background: #0f0f0f; color: #e5e7eb; border-color: #d4a520; box-shadow: none;
+    }
 
     .ctd-actions { display: flex; flex-direction: column; gap: 7px; flex-shrink: 0; }
     .ctd-action-btn {
@@ -338,11 +368,14 @@
                 </div>
             </div>
 
-            @if (Model.Treinador != null)
-            {
-                <div class="ctd-treinador">
-                    <div class="ctd-treinador-label">Treinador</div>
-                    <div class="ctd-treinador-row">
+            <div class="ctd-treinador">
+                <div class="ctd-treinador-head">
+                    <div class="ctd-treinador-label" style="margin-bottom:0;">Treinador</div>
+                    <button type="button" class="ctd-treinador-edit-btn" data-bs-toggle="modal" data-bs-target="#treinadorModal" title="Vincular, cadastrar ou trocar treinador">✏️</button>
+                </div>
+                @if (Model.Treinador != null)
+                {
+                    <div class="ctd-treinador-row" style="margin-top:8px;">
                         @if (!string.IsNullOrWhiteSpace(Model.Treinador.FotoUrl))
                         {
                             <img class="ctd-treinador-foto" src="@Url.FotoSrc(Model.Treinador.FotoUrl)" alt="@Model.Treinador.Nome" />
@@ -359,8 +392,13 @@
                             }
                         </div>
                     </div>
-                </div>
-            }
+                    <a asp-controller="Treinadores" asp-action="Edit" asp-route-id="@Model.Treinador.Id" class="ctd-treinador-editar-link">Editar dados do treinador →</a>
+                }
+                else
+                {
+                    <div class="ctd-treinador-vazio">Nenhum treinador vinculado.</div>
+                }
+            </div>
 
             <div class="ctd-actions">
                 <a asp-controller="Relatorios" asp-action="Index" asp-route-timeId="@Model.Time.Id" class="ctd-action-btn primary">
@@ -383,6 +421,75 @@
                         Atualizar dados jogadores
                     </button>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: vincular / cadastrar treinador -->
+    <div class="modal fade" id="treinadorModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Treinador de @Model.Time.Nome</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="nav nav-tabs mb-3" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="tab-vincular-btn" data-bs-toggle="tab" data-bs-target="#tab-vincular" type="button" role="tab">Vincular existente</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="tab-criar-btn" data-bs-toggle="tab" data-bs-target="#tab-criar" type="button" role="tab">Cadastrar novo</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="tab-vincular" role="tabpanel">
+                            <form method="post" asp-action="VincularTreinador" asp-controller="Times">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@Model.Time.Id" />
+                                <div class="mb-2">
+                                    <label class="form-label">Treinador</label>
+                                    <select name="treinadorId" class="form-select" required>
+                                        <option value="">Selecione...</option>
+                                        @foreach (var t in Model.TodosTreinadores)
+                                        {
+                                            <option value="@t.Id" selected="@(Model.Treinador != null && t.Id == Model.Treinador.Id)">
+                                                @t.Nome @(t.Time != null ? $"({t.Time.Nome})" : "")
+                                            </option>
+                                        }
+                                    </select>
+                                    <div class="form-text" style="color:#6b7280;">O time atual de cada treinador aparece entre parênteses — ao vincular, ele deixa de ser o treinador do time anterior.</div>
+                                </div>
+                                <button type="submit" class="ctd-btn ctd-btn-gold">Vincular a @Model.Time.Nome</button>
+                            </form>
+                        </div>
+                        <div class="tab-pane fade" id="tab-criar" role="tabpanel">
+                            <form method="post" asp-action="CriarTreinador" asp-controller="Times">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@Model.Time.Id" />
+                                <div class="mb-2">
+                                    <label class="form-label">Nome</label>
+                                    <input type="text" name="nome" class="form-control" required />
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">Nacionalidade</label>
+                                    <select name="nacionalidadeId" class="form-select">
+                                        <option value="">(não informado)</option>
+                                        @foreach (var n in Model.Nacionalidades)
+                                        {
+                                            <option value="@n.Id">@n.Nome</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">Data de nascimento</label>
+                                    <input type="date" name="dataNascimento" class="form-control" />
+                                </div>
+                                <button type="submit" class="ctd-btn ctd-btn-green">Cadastrar e vincular</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

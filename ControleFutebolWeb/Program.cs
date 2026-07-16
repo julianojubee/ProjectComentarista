@@ -85,6 +85,7 @@ internal class Program
         });
         builder.Services.AddScoped<IAuthorizationHandler, AdminHandler>();
         builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+        builder.Services.AddScoped<RelatoriosService>();
 
         builder.Services.ConfigureApplicationCookie(options =>
         {

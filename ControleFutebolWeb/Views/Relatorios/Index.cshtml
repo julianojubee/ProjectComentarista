@@ -15,6 +15,10 @@
             return (j.Selecao.Nome, j.Selecao.EscudoUrl);
         return (j.Time?.Nome ?? "", j.Time?.EscudoUrl);
     }
+
+    // Percentual em % para width de CSS: sempre com ponto decimal. Com a cultura
+    // pt-BR do servidor, @w% renderizava "45,3" — CSS inválido (barra some).
+    string Coord(double v) => v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
 }
 
 <style>
@@ -120,6 +124,17 @@
     .rpt-check-wrap:hover { border-color: #f59e0b; background: var(--hover-warm); }
     .rpt-check-wrap input[type=checkbox] { accent-color: #f59e0b; width: 15px; height: 15px; cursor: pointer; }
     .rpt-check-wrap span { font-size: 12px; font-weight: 600; color: var(--text-2); }
+    .rpt-num-wrap {
+        display: flex; align-items: center; gap: 7px;
+        padding: 6px 12px; border-radius: 8px;
+        border: 1px solid var(--border); background: var(--surface-2);
+    }
+    .rpt-num-wrap:focus-within { border-color: #f59e0b; background: var(--hover-warm); }
+    .rpt-num-wrap span { font-size: 12px; font-weight: 600; color: var(--text-2); white-space: nowrap; }
+    .rpt-num-wrap input[type=number] {
+        width: 54px; border: 1px solid var(--border-strong); border-radius: 6px;
+        padding: 4px 6px; font-size: 13px; color: var(--text); background: var(--input-bg);
+    }
 
     /* ── Toolbar (alertas, scout, filtros) ───────────────────────────────── */
     .rpt-toolbar { padding: 20px 2.5rem 0; }
@@ -536,14 +551,13 @@
             <span>Incluir não analisados</span>
         </label>
 
-        <label class="rpt-check-wrap" title="Na aba Estatísticas Jogadores, só lista quem tem 10 jogos ou mais">
-            <input type="checkbox" name="apenas10Jogos" value="true"
-                   @(Model.Apenas10Jogos ? "checked" : "") />
-            <span>Apenas com 10+ jogos</span>
+        <label class="rpt-num-wrap" title="Na aba Estatísticas Jogadores, só lista quem tem pelo menos esse número de jogos. 1 = sem filtro.">
+            <span>Mín. de jogos:</span>
+            <input type="number" name="minJogos" min="1" max="500" value="@Model.MinJogos" />
         </label>
 
         <button type="submit">Filtrar</button>
-        @if (Model.CompeticaoIdsFiltro.Any() || Model.TimeIdsFiltro.Any() || Model.IncluirNaoAnalisados)
+        @if (Model.CompeticaoIdsFiltro.Any() || Model.TimeIdsFiltro.Any() || Model.IncluirNaoAnalisados || Model.MinJogos > 1)
         {
             <a asp-action="Index" asp-controller="Relatorios" class="rpt-filter rpt-clear"
                style="text-decoration:none; padding:8px 16px; border-radius:8px; font-size:13px;">✕ Limpar filtro</a>
@@ -838,7 +852,7 @@
                                         <td style="padding:9px 12px;min-width:160px;">
                                             <div class="rpt-bar-wrap">
                                                 <div class="rpt-bar-bg">
-                                                    <div class="rpt-bar-fill" style="width:@(Math.Round(item.NotaFinal / 10.0 * 100, 1))%;background:linear-gradient(90deg,@item.NotaColor,transparent);"></div>
+                                                    <div class="rpt-bar-fill" style="width:@(Coord(Math.Round(item.NotaFinal / 10.0 * 100, 1)))%;background:linear-gradient(90deg,@item.NotaColor,transparent);"></div>
                                                 </div>
                                             </div>
                                         </td>
@@ -932,7 +946,7 @@
                             <div style="width:90px;font-size:12px;font-weight:600;color:var(--text-2);">@mp.Posicao</div>
                             <div class="rpt-bar-wrap">
                                 <div class="rpt-bar-bg">
-                                    <div class="rpt-bar-fill" style="width:@barWidth%;background:linear-gradient(90deg,#f59e0b,#fbbf24);"></div>
+                                    <div class="rpt-bar-fill" style="width:@(Coord(barWidth))%;background:linear-gradient(90deg,#f59e0b,#fbbf24);"></div>
                                 </div>
                             </div>
                             <div style="font-size:13px;font-weight:700;color:inherit;min-width:36px;text-align:right;">@mp.Media</div>
@@ -990,7 +1004,7 @@
                         </div>
                         <div class="rpt-bar-wrap" style="max-width:80px;">
                             <div class="rpt-bar-bg">
-                                <div class="rpt-bar-fill" style="width:@w%;background:#22c55e;"></div>
+                                <div class="rpt-bar-fill" style="width:@(Coord(w))%;background:#22c55e;"></div>
                             </div>
                         </div>
                         <span class="rpt-badge-value" style="background:#dcfce7;color:#15803d;">@a.Valor ⚽</span>
@@ -1040,7 +1054,7 @@
                         </div>
                         <div class="rpt-bar-wrap" style="max-width:80px;">
                             <div class="rpt-bar-bg">
-                                <div class="rpt-bar-fill" style="width:@w%;background:#3b82f6;"></div>
+                                <div class="rpt-bar-fill" style="width:@(Coord(w))%;background:#3b82f6;"></div>
                             </div>
                         </div>
                         <span class="rpt-badge-value" style="background:#dbeafe;color:#1d4ed8;">@a.Valor 🎯</span>
@@ -1134,7 +1148,7 @@
                         </div>
                         <div class="rpt-bar-wrap" style="max-width:100px;">
                             <div class="rpt-bar-bg">
-                                <div class="rpt-bar-fill" style="width:@w%;background:#3b82f6;"></div>
+                                <div class="rpt-bar-fill" style="width:@(Coord(w))%;background:#3b82f6;"></div>
                             </div>
                         </div>
                         <span class="rpt-badge-value" style="background:#eff6ff;color:#1d4ed8;">@a.Valor</span>
@@ -1259,7 +1273,7 @@
                         </div>
                         <div class="rpt-bar-wrap" style="max-width:70px;">
                             <div class="rpt-bar-bg">
-                                <div class="rpt-bar-fill" style="width:@w%;background:#f59e0b;"></div>
+                                <div class="rpt-bar-fill" style="width:@(Coord(w))%;background:#f59e0b;"></div>
                             </div>
                         </div>
                         <span class="rpt-badge-value" style="background:#fffbeb;color:#d97706;">@t.Pontos pts</span>
@@ -1293,7 +1307,7 @@
                         </div>
                         <div class="rpt-bar-wrap" style="max-width:70px;">
                             <div class="rpt-bar-bg">
-                                <div class="rpt-bar-fill" style="width:@w%;background:#22c55e;"></div>
+                                <div class="rpt-bar-fill" style="width:@(Coord(w))%;background:#22c55e;"></div>
                             </div>
                         </div>
                         <span class="rpt-badge-value" style="background:#dcfce7;color:#15803d;">@t.GolsPro ⚽</span>
@@ -1327,7 +1341,7 @@
                         </div>
                         <div class="rpt-bar-wrap" style="max-width:70px;">
                             <div class="rpt-bar-bg">
-                                <div class="rpt-bar-fill" style="width:@w%;background:#3b82f6;"></div>
+                                <div class="rpt-bar-fill" style="width:@(Coord(w))%;background:#3b82f6;"></div>
                             </div>
                         </div>
                         <span class="rpt-badge-value" style="background:#eff6ff;color:#1d4ed8;">@t.Vitorias V</span>
@@ -1386,7 +1400,7 @@
                         </div>
                         <div class="rpt-bar-wrap" style="max-width:80px;">
                             <div class="rpt-bar-bg">
-                                <div class="rpt-bar-fill" style="width:@t.Aproveitamento%;background:linear-gradient(90deg,#f97316,#fbbf24);"></div>
+                                <div class="rpt-bar-fill" style="width:@(Coord(t.Aproveitamento))%;background:linear-gradient(90deg,#f97316,#fbbf24);"></div>
                             </div>
                         </div>
                         <span class="rpt-badge-value" style="background:#fff7ed;color:#c2410c;">@t.Aproveitamento%</span>
@@ -1420,7 +1434,7 @@
                         </div>
                         <div class="rpt-bar-wrap">
                             <div class="rpt-bar-bg">
-                                <div class="rpt-bar-fill" style="width:@w%;background:linear-gradient(90deg,#16a34a,#4ade80);"></div>
+                                <div class="rpt-bar-fill" style="width:@(Coord(w))%;background:linear-gradient(90deg,#16a34a,#4ade80);"></div>
                             </div>
                         </div>
                         <span class="rpt-badge-value" style="background:#dcfce7;color:#15803d;">@t.VitoriasCasa</span>
@@ -1454,7 +1468,7 @@
                         </div>
                         <div class="rpt-bar-wrap">
                             <div class="rpt-bar-bg">
-                                <div class="rpt-bar-fill" style="width:@w%;background:linear-gradient(90deg,#7c3aed,#a78bfa);"></div>
+                                <div class="rpt-bar-fill" style="width:@(Coord(w))%;background:linear-gradient(90deg,#7c3aed,#a78bfa);"></div>
                             </div>
                         </div>
                         <span class="rpt-badge-value" style="background:#ede9fe;color:#6d28d9;">@t.VitoriasVisitante</span>
@@ -1470,6 +1484,8 @@
                     (icone:"🏳️", titulo:"Mais Escanteios/Jogo",      sub:"Média de escanteios por partida",          cor:"#eff6ff", barCor:"#3b82f6", bgVal:"#eff6ff", fgVal:"#1d4ed8", sufixo:"esc/j",   lista:Model.TimesEscanteios),
                     (icone:"🎮", titulo:"Mais Passes Certos/Jogo",   sub:"Média de passes precisos por partida",     cor:"#fdf4ff", barCor:"#a855f7", bgVal:"#fdf4ff", fgVal:"#7e22ce", sufixo:"passes",  lista:Model.TimesPassesCertos),
                     (icone:"⚽", titulo:"Maior Posse de Bola",        sub:"Média de posse de bola por partida",       cor:"#fff1f2", barCor:"#f43f5e", bgVal:"#fff1f2", fgVal:"#be123c", sufixo:"%",       lista:Model.TimesPosseBola),
+                    (icone:"📈", titulo:"Maior xG (Gols Esperados)",  sub:"Média de gols esperados (xG) por partida", cor:"#ecfdf5", barCor:"#10b981", bgVal:"#ecfdf5", fgVal:"#047857", sufixo:"xG/j",    lista:Model.TimesExpectedGoals),
+                    (icone:"🧤", titulo:"Mais Gols Evitados",        sub:"Média de gols evitados pelo goleiro (xG concedido − gols sofridos) por partida", cor:"#eef2ff", barCor:"#6366f1", bgVal:"#eef2ff", fgVal:"#4338ca", sufixo:"/j", lista:Model.TimesGolsEvitados),
                 };
             }
             @foreach (var sc in statsCards)
@@ -1500,7 +1516,7 @@
                             </div>
                             <div class="rpt-bar-wrap" style="max-width:70px;">
                                 <div class="rpt-bar-bg">
-                                    <div class="rpt-bar-fill" style="width:@w%;background:@sc.barCor;"></div>
+                                    <div class="rpt-bar-fill" style="width:@(Coord(w))%;background:@sc.barCor;"></div>
                                 </div>
                             </div>
                             <span class="rpt-badge-value" style="background:@sc.bgVal;color:@sc.fgVal;">@s.Valor @sc.sufixo</span>
@@ -1588,6 +1604,7 @@
                 ("Média de Dribles Certos",        "Dribles bem-sucedidos por partida",             "💨", "#f97316", "/jogo", Model.RankDrilesCertos),
                 ("Média de Impedimentos",          "Posições irregulares registradas por partida",  "🚩", "#ef4444", "/jogo", Model.RankImpedimentos),
                 ("Pênaltis Defendidos",            "Total de pênaltis defendidos",                  "🧤", "#6366f1", "total", Model.RankPenaltisDefendidos),
+                ("Mais Vezes Capitão",              "Partidas em que foi capitão do time",           "🎖️", "#eab308", "total", Model.RankVezesCapitao),
             };
         }
 

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Person
@@ -25,22 +26,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.comentarista.futebol.ui.competicoes.CompeticoesListScreen
+import com.comentarista.futebol.ui.competicoes.CompeticoesSection
 import com.comentarista.futebol.ui.jogadores.JogadoresSection
 import com.comentarista.futebol.ui.jogos.JogosSection
+import com.comentarista.futebol.ui.relatorios.RelatoriosScreen
 import com.comentarista.futebol.ui.times.TimesSection
 
 private enum class Destino(val rotulo: String) {
     JOGOS("Jogos"),
     JOGADORES("Jogadores"),
     TIMES("Times"),
-    COMPETICOES("Competições")
+    COMPETICOES("Competições"),
+    RELATORIOS("Relatórios")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScaffold(
     onDeslogado: () -> Unit,
+    onAbrirAnalise: (Int) -> Unit,
     viewModel: MainViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -76,6 +80,12 @@ fun MainScaffold(
                 icon = { Icon(Icons.Filled.EmojiEvents, contentDescription = null) },
                 label = { Text(Destino.COMPETICOES.rotulo) }
             )
+            item(
+                selected = destino == Destino.RELATORIOS,
+                onClick = { destino = Destino.RELATORIOS },
+                icon = { Icon(Icons.Filled.BarChart, contentDescription = null) },
+                label = { Text(Destino.RELATORIOS.rotulo) }
+            )
         }
     ) {
         Scaffold(
@@ -90,10 +100,11 @@ fun MainScaffold(
         ) { padding ->
             Box(modifier = Modifier.fillMaxSize().padding(padding)) {
                 when (destino) {
-                    Destino.JOGOS -> JogosSection()
+                    Destino.JOGOS -> JogosSection(onAbrirAnalise = onAbrirAnalise)
                     Destino.JOGADORES -> JogadoresSection()
                     Destino.TIMES -> TimesSection()
-                    Destino.COMPETICOES -> CompeticoesListScreen()
+                    Destino.COMPETICOES -> CompeticoesSection()
+                    Destino.RELATORIOS -> RelatoriosScreen()
                 }
             }
         }

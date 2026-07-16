@@ -1,5 +1,6 @@
 package com.comentarista.futebol.ui.competicoes
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,7 +22,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.comentarista.futebol.data.remote.dto.CompeticaoDto
 
 @Composable
-fun CompeticoesListScreen(viewModel: CompeticoesViewModel = hiltViewModel()) {
+fun CompeticoesListScreen(
+    onCompeticaoClick: (Int, String) -> Unit,
+    viewModel: CompeticoesViewModel = hiltViewModel()
+) {
     val uiState by viewModel.uiState.collectAsState()
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -41,7 +45,10 @@ fun CompeticoesListScreen(viewModel: CompeticoesViewModel = hiltViewModel()) {
 
             else -> LazyColumn(contentPadding = PaddingValues(16.dp)) {
                 items(uiState.competicoes, key = { it.id }) { competicao ->
-                    CompeticaoCard(competicao)
+                    CompeticaoCard(
+                        competicao = competicao,
+                        onClick = { onCompeticaoClick(competicao.id, competicao.nome) }
+                    )
                 }
             }
         }
@@ -49,8 +56,8 @@ fun CompeticoesListScreen(viewModel: CompeticoesViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun CompeticaoCard(competicao: CompeticaoDto) {
-    Card(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+private fun CompeticaoCard(competicao: CompeticaoDto, onClick: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).clickable(onClick = onClick)) {
         Text(text = competicao.nome, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(16.dp))
         Text(
             text = competicao.regiao,

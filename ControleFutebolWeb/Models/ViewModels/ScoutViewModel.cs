@@ -14,6 +14,7 @@ namespace ControleFutebolWeb.Models.ViewModels
         public int? PesoMax { get; set; }
         public List<int> TimeIds { get; set; } = new();
         public List<int> CompeticaoIds { get; set; } = new();
+        public List<int> NacionalidadeIds { get; set; } = new();
         public int? Temporada { get; set; }
 
         public int? MinJogos { get; set; }
@@ -64,6 +65,7 @@ namespace ControleFutebolWeb.Models.ViewModels
         public List<ScoutResultItem> Resultados { get; set; } = new();
         public List<Competicao> Competicoes { get; set; } = new();
         public List<Time> Times { get; set; } = new();
+        public List<Nacionalidade> Nacionalidades { get; set; } = new();
         public List<string> Posicoes { get; set; } = new();
         public List<int> Temporadas { get; set; } = new();
         public bool Pesquisou { get; set; }

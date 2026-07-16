@@ -142,13 +142,27 @@ function desenharMapaCalor(campoId, pontos) {
         // marca "lugar por onde passou", não a posição principal.
         const peso = p.peso == null ? 1 : p.peso;
         const grad = octx.createRadialGradient(px, py, 0, px, py, raio);
-        grad.addColorStop(0, `rgba(0,0,0,${.55 * peso})`);
-        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        // Vários estágios em vez de 2 pontas (centro → transparente) aproximam
+        // uma curva gaussiana: cada borrão individual já sai com uma transição
+        // suave, em vez de parecer um "disco" com borda visível.
+        grad.addColorStop(0,    `rgba(0,0,0,${.5  * peso})`);
+        grad.addColorStop(0.35, `rgba(0,0,0,${.32 * peso})`);
+        grad.addColorStop(0.7,  `rgba(0,0,0,${.12 * peso})`);
+        grad.addColorStop(1,    'rgba(0,0,0,0)');
         octx.fillStyle = grad;
         octx.beginPath();
         octx.arc(px, py, raio, 0, Math.PI * 2);
         octx.fill();
     });
+
+    // Funde os borrões individuais (já somados por 'lighter') numa nuvem
+    // contínua — sem isso, pontos próximos (ex.: a mesma posição inicial
+    // repetida em quase todo jogo) ficam saturados num círculo sólido em vez
+    // de uma mancha com textura, que é o efeito "suave" pedido.
+    const blurPx = Math.max(w, h) * 0.03;
+    ctx.filter = `blur(${blurPx}px)`;
+    ctx.drawImage(off, 0, 0);
+    ctx.filter = 'none';
 
     const stops = [[74, 222, 128], [250, 204, 21], [249, 115, 22], [239, 68, 68]];
     function corPorIntensidade(t) {
@@ -163,15 +177,24 @@ function desenharMapaCalor(campoId, pontos) {
         ];
     }
 
-    const img = octx.getImageData(0, 0, w, h);
+    const img = ctx.getImageData(0, 0, w, h);
     const data = img.data;
+
+    // Normaliza pela intensidade máxima realmente atingida (em vez de um
+    // limiar fixo) — assim a escala de cor sempre usa a faixa toda e não
+    // satura num platô vermelho sólido quando muitos pontos caem perto um do
+    // outro; era isso que fazia o mapa virar "um círculo muito grande".
+    let maxA = 0;
+    for (let i = 3; i < data.length; i += 4) if (data[i] > maxA) maxA = data[i];
+    if (maxA === 0) return;
+
     for (let i = 0; i < data.length; i += 4) {
-        const a = data[i + 3] / 255;
-        if (a <= 0.03) { data[i + 3] = 0; continue; }
-        const t = Math.min(1, a / 0.55);
+        const a = data[i + 3];
+        if (a <= 6) { data[i + 3] = 0; continue; }
+        const t = Math.min(1, a / maxA);
         const [r, g, b] = corPorIntensidade(t);
         data[i] = r; data[i + 1] = g; data[i + 2] = b;
-        data[i + 3] = Math.min(255, a * 255 * 1.5);
+        data[i + 3] = Math.min(255, a * 1.4);
     }
     ctx.putImageData(img, 0, 0);
 }

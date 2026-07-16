@@ -34,7 +34,12 @@ namespace ControleFutebolWeb.Controllers
         }
 
         // GET /MediaProxy/Imagem?url=https://media.api-sports.io/football/players/50077.png
+        // AllowAnonymous: o app Android carrega imagens pelo Coil, que não envia
+        // cookie nem JWT — com o AuthorizeFilter global a resposta virava redirect
+        // de login e nenhuma foto/escudo aparecia. Baixo risco: allowlist estrita
+        // de hosts (api-sports/flagcdn), só imagens, com cache.
         [HttpGet]
+        [Microsoft.AspNetCore.Authorization.AllowAnonymous]
         [ResponseCache(Duration = 86400, Location = ResponseCacheLocation.Any)]
         public async Task<IActionResult> Imagem([FromQuery] string url, CancellationToken ct)
         {

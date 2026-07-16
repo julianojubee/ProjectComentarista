@@ -6,13 +6,21 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,12 +29,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.comentarista.futebol.R
 import com.comentarista.futebol.data.remote.dto.JogoResumoDto
 import com.comentarista.futebol.ui.common.NetworkImage
+import java.time.format.DateTimeFormatter
 
 // Pane de lista (usado dentro de JogosSection.kt). Sem Scaffold/TopBar próprios —
 // isso já vem do MainScaffold que envolve todas as seções.
@@ -37,25 +47,76 @@ fun JogosListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        when {
-            uiState.carregando -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+    Column(modifier = Modifier.fillMaxSize()) {
+        FiltroDiaRow(
+            uiState = uiState,
+            onTodos = viewModel::mostrarTodos,
+            onHoje = viewModel::mostrarHoje,
+            onMudarDia = viewModel::mudarDia
+        )
 
-            uiState.erro != null -> Text(
-                text = uiState.erro.orEmpty(),
-                modifier = Modifier.align(Alignment.Center).padding(24.dp),
-                color = MaterialTheme.colorScheme.error
-            )
+        Box(modifier = Modifier.fillMaxSize()) {
+            when {
+                uiState.carregando -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
 
-            uiState.jogos.isEmpty() -> Text(
-                text = stringResource(R.string.jogos_empty),
-                modifier = Modifier.align(Alignment.Center).padding(24.dp)
-            )
+                uiState.erro != null -> Text(
+                    text = uiState.erro.orEmpty(),
+                    modifier = Modifier.align(Alignment.Center).padding(24.dp),
+                    color = MaterialTheme.colorScheme.error
+                )
 
-            else -> LazyColumn(contentPadding = PaddingValues(16.dp)) {
-                items(uiState.jogos, key = { it.id }) { jogo ->
-                    JogoCard(jogo, onClick = { onJogoClick(jogo.id) })
+                uiState.jogos.isEmpty() -> Text(
+                    text = if (uiState.dia != null) "Nenhum jogo neste dia." else stringResource(R.string.jogos_empty),
+                    modifier = Modifier.align(Alignment.Center).padding(24.dp)
+                )
+
+                else -> LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
+                    items(uiState.jogos, key = { it.id }) { jogo ->
+                        JogoCard(jogo, onClick = { onJogoClick(jogo.id) })
+                    }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FiltroDiaRow(
+    uiState: JogosListUiState,
+    onTodos: () -> Unit,
+    onHoje: () -> Unit,
+    onMudarDia: (Long) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        FilterChip(
+            selected = uiState.dia != null,
+            onClick = onHoje,
+            label = { Text("Hoje") }
+        )
+        Spacer(modifier = Modifier.padding(start = 8.dp))
+        FilterChip(
+            selected = uiState.dia == null,
+            onClick = onTodos,
+            label = { Text("Todos") }
+        )
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        if (uiState.dia != null) {
+            IconButton(onClick = { onMudarDia(-1) }) {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Dia anterior")
+            }
+            Text(
+                text = if (uiState.ehHoje) "Hoje"
+                       else uiState.dia.format(DateTimeFormatter.ofPattern("dd/MM")),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold
+            )
+            IconButton(onClick = { onMudarDia(1) }) {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Dia seguinte")
             }
         }
     }
@@ -65,8 +126,25 @@ fun JogosListScreen(
 private fun JogoCard(jogo: JogoResumoDto, onClick: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).clickable(onClick = onClick)) {
         Column(modifier = Modifier.padding(16.dp)) {
-            jogo.competicaoNome?.let {
-                Text(text = it, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                jogo.competicaoNome?.let {
+                    Text(text = it, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                if (jogo.analisadoPorMim) {
+                    // Mesma informação do painel /Jogos/Hoje da web
+                    Icon(
+                        Icons.Filled.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.padding(end = 4.dp)
+                    )
+                    Text(
+                        text = "Analisado",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
             }
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),

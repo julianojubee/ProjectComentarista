@@ -10,8 +10,13 @@ import javax.inject.Singleton
 class JogosRepository @Inject constructor(
     private val apiService: ApiService
 ) {
-    suspend fun listarJogos(page: Int = 1): Result<List<JogoResumoDto>> = runCatching {
-        apiService.listarJogos(page = page)
+    // data (yyyy-MM-dd): jogos daquele dia no fuso do Brasil; null = listagem geral
+    suspend fun listarJogos(
+        data: String? = null,
+        competicaoId: Int? = null,
+        page: Int = 1
+    ): Result<List<JogoResumoDto>> = runCatching {
+        apiService.listarJogos(competicaoId = competicaoId, data = data, page = page)
     }
 
     suspend fun detalheJogo(id: Int): Result<JogoDetalheDto> = runCatching {

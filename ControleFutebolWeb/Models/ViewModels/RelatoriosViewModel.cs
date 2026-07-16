@@ -12,8 +12,9 @@ namespace ControleFutebolWeb.Models.ViewModels
         public int? TemporadaFiltro { get; set; }
         public List<int> TemporadasDisponiveis { get; set; } = new();
         public bool IncluirNaoAnalisados { get; set; }
-        // Aba "Estatísticas Jogadores": só lista jogadores com 10+ jogos quando marcado.
-        public bool Apenas10Jogos { get; set; }
+        // Aba "Estatísticas Jogadores": só lista jogadores com pelo menos esse número de jogos.
+        // 1 = sem filtro (todo jogador com estatística já tem >= 1 jogo).
+        public int MinJogos { get; set; } = 1;
         // true quando a competição filtrada é de seleções → exibe a seleção no lugar do clube
         public bool ExibirSelecao { get; set; }
         public List<Competicao> Competicoes { get; set; } = new();
@@ -54,6 +55,8 @@ namespace ControleFutebolWeb.Models.ViewModels
         public List<TimeStatJogo> TimesEscanteios { get; set; } = new();
         public List<TimeStatJogo> TimesPassesCertos { get; set; } = new();
         public List<TimeStatJogo> TimesPosseBola { get; set; } = new();
+        public List<TimeStatJogo> TimesExpectedGoals { get; set; } = new();
+        public List<TimeStatJogo> TimesGolsEvitados { get; set; } = new();
 
         // Rankings de estatísticas individuais de jogadores
         public List<RankingEstatJogador> RankImpedimentos { get; set; } = new();
@@ -64,6 +67,7 @@ namespace ControleFutebolWeb.Models.ViewModels
         public List<RankingEstatJogador> RankInterceptacoes { get; set; } = new();
         public List<RankingEstatJogador> RankDrilesCertos { get; set; } = new();
         public List<RankingEstatJogador> RankPenaltisDefendidos { get; set; } = new();
+        public List<RankingEstatJogador> RankVezesCapitao { get; set; } = new();
 
         // Extras
         public List<GolsPorRodada> GolsPorRodada { get; set; } = new();

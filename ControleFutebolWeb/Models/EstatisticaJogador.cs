@@ -15,6 +15,7 @@ namespace ControleFutebolWeb.Models
 
         public int? Minutos { get; set; }
         public double? Rating { get; set; }
+        public bool Capitao { get; set; }
 
         public int Offsides { get; set; }
 

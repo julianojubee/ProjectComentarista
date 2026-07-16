@@ -1868,6 +1868,7 @@ namespace ControleFutebolWeb.Services
                         JogadorId         = jogador.Id,
                         Minutos           = s.Games?.Minutes,
                         Rating            = rating > 0 ? rating : null,
+                        Capitao           = s.Games?.Captain ?? false,
                         Offsides          = s.Offsides ?? 0,
                         FinalizacoesTotal = s.Shots?.Total ?? 0,
                         FinalizacoesNoGol = s.Shots?.On ?? 0,

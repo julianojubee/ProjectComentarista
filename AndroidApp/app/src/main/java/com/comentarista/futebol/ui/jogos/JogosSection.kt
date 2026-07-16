@@ -17,7 +17,7 @@ import androidx.compose.ui.Modifier
 // próprio ListDetailPaneScaffold colapsa para uma tela por vez com transição.
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
-fun JogosSection() {
+fun JogosSection(onAbrirAnalise: (Int) -> Unit) {
     val navigator = rememberListDetailPaneScaffoldNavigator<Int>()
 
     BackHandler(navigator.canNavigateBack()) {
@@ -38,7 +38,7 @@ fun JogosSection() {
             AnimatedPane {
                 val jogoId = navigator.currentDestination?.content as? Int
                 if (jogoId != null) {
-                    JogoDetailScreen(jogoId = jogoId)
+                    JogoDetailScreen(jogoId = jogoId, onAnalisarClick = { onAbrirAnalise(jogoId) })
                 } else {
                     Box(modifier = Modifier.fillMaxSize()) {
                         Text(

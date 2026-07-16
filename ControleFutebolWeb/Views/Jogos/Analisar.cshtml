@@ -88,6 +88,7 @@
 
     var metricasEstatisticas = new List<(string label, string chave)>
     {
+        ("xG (Gols Esperados)", "expected_goals"),
         ("Finalizações totais", "Total Shots"),
         ("Finalizações no gol", "Shots on Goal"),
         ("Finalizações para fora", "Shots off Goal"),
@@ -274,7 +275,7 @@
            :not() elevam a especificidade desta regra acima dos estilos dos
            próprios botões — qualquer novo elemento interativo dentro do slot
            precisa ser adicionado aqui também. */
-        .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in):not(.card-vermelho-badge):not(.card-amarelo-badge) {
+        .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in):not(.card-vermelho-badge):not(.card-amarelo-badge):not(.capitao-badge) {
             pointer-events: none;
         }
 
@@ -539,7 +540,7 @@
         font-size: 9.5px;
     }
 
-    .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in):not(.card-vermelho-badge):not(.card-amarelo-badge) {
+    .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in):not(.card-vermelho-badge):not(.card-amarelo-badge):not(.capitao-badge) {
         pointer-events: none;
     }
 
@@ -638,6 +639,54 @@
         background: #facc15;
         border: 1px solid #fff;
         border-radius: 1.5px;
+        box-shadow: 0 1px 2px rgba(0,0,0,.45);
+        z-index: 3;
+        pointer-events: auto;
+        cursor: help;
+    }
+
+    /* Braçadeira de capitão: espelha a posição do .sub-chip-in (borda inferior
+       do círculo de 36px) só que do lado esquerdo, pra não disputar espaço com
+       nenhum outro selo (cartões ficam no topo/lado esquerdo, seta de entrada
+       fica embaixo à direita). */
+    .capitao-badge {
+        position: absolute;
+        top: 24px;
+        left: 50%;
+        margin-left: -25px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #f5c400;
+        color: #111;
+        font-size: 10px;
+        font-weight: 800;
+        border: 1.5px solid #fff;
+        box-shadow: 0 1px 3px rgba(0,0,0,.45);
+        z-index: 3;
+        pointer-events: auto;
+        cursor: help;
+    }
+
+    /* Versão menor pro círculo de 28px do banco de reservas. */
+    .capitao-badge-mini {
+        position: absolute;
+        top: -2px;
+        left: 2px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #f5c400;
+        color: #111;
+        font-size: 7px;
+        font-weight: 800;
+        border: 1px solid #fff;
         box-shadow: 0 1px 2px rgba(0,0,0,.45);
         z-index: 3;
         pointer-events: auto;
@@ -1898,6 +1947,7 @@
                         {
                             bool expulsoCasa = esc.Jogador != null && Model.JogadoresComCartaoVermelho.Contains(esc.Jogador.Id);
                             bool amareloCasa = esc.Jogador != null && Model.JogadoresComCartaoAmarelo.Contains(esc.Jogador.Id);
+                            bool capitaoCasa = esc.Jogador != null && Model.JogadoresCapitao.Contains(esc.Jogador.Id);
                             <div class="posicao-drop @(expulsoCasa ? "expulso" : "")"
                                  data-index="casa_@idxCasa"
                                  data-posicao="@AbreviarPosicao(esc.Posicao)"
@@ -1919,6 +1969,10 @@
                                     else if (amareloCasa)
                                     {
                                         <span class="card-amarelo-badge" title="Cartão amarelo"></span>
+                                    }
+                                    @if (capitaoCasa)
+                                    {
+                                        <span class="capitao-badge" title="Capitão">C</span>
                                     }
                                     @* Fora de .player-name: o overflow:hidden dela cortava a seta em nomes longos *@
                                     @if (!faseEhInicial && jogadoresEntraramCasa.Contains(esc.Jogador.Id))
@@ -1965,6 +2019,7 @@
                             @foreach (var esc in (List<ControleFutebolWeb.Models.Escalacao>)Model.ReservasCasa)
                             {
                                 bool amareloResCasa = esc.Jogador != null && Model.JogadoresComCartaoAmarelo.Contains(esc.Jogador.Id);
+                                bool capitaoResCasa = esc.Jogador != null && Model.JogadoresCapitao.Contains(esc.Jogador.Id);
                                 <div class="reserva-card" id="reserva-casa-card-@idxResCasa">
                                     <span class="rem-btn" onclick="removerReserva('casa', @idxResCasa)">×</span>
                                     <div class="player-circle player-circle-casa" style="width:28px;height:28px;font-size:11px;">
@@ -1973,6 +2028,10 @@
                                     @if (amareloResCasa)
                                     {
                                         <span class="card-amarelo-badge-mini" title="Cartão amarelo"></span>
+                                    }
+                                    @if (capitaoResCasa)
+                                    {
+                                        <span class="capitao-badge-mini" title="Capitão">C</span>
                                     }
                                     <div style="max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;">
                                         @esc.Jogador?.Nome
@@ -2025,6 +2084,7 @@
                         {
                             bool expulsoVis = esc.Jogador != null && Model.JogadoresComCartaoVermelho.Contains(esc.Jogador.Id);
                             bool amareloVis = esc.Jogador != null && Model.JogadoresComCartaoAmarelo.Contains(esc.Jogador.Id);
+                            bool capitaoVis = esc.Jogador != null && Model.JogadoresCapitao.Contains(esc.Jogador.Id);
                             <div class="posicao-drop @(expulsoVis ? "expulso" : "")"
                                  data-index="vis_@idxVis"
                                  data-posicao="@AbreviarPosicao(esc.Posicao)"
@@ -2046,6 +2106,10 @@
                                     else if (amareloVis)
                                     {
                                         <span class="card-amarelo-badge" title="Cartão amarelo"></span>
+                                    }
+                                    @if (capitaoVis)
+                                    {
+                                        <span class="capitao-badge" title="Capitão">C</span>
                                     }
                                     @if (!faseEhInicial && jogadoresEntraramVisitante.Contains(esc.Jogador.Id))
                                     {
@@ -2091,6 +2155,7 @@
                             @foreach (var esc in (List<ControleFutebolWeb.Models.Escalacao>)Model.ReservasVisitante)
                             {
                                 bool amareloResVis = esc.Jogador != null && Model.JogadoresComCartaoAmarelo.Contains(esc.Jogador.Id);
+                                bool capitaoResVis = esc.Jogador != null && Model.JogadoresCapitao.Contains(esc.Jogador.Id);
                                 <div class="reserva-card" id="reserva-vis-card-@idxResVis">
                                     <span class="rem-btn" onclick="removerReserva('vis', @idxResVis)">×</span>
                                     <div class="player-circle player-circle-vis" style="width:28px;height:28px;font-size:11px;">
@@ -2099,6 +2164,10 @@
                                     @if (amareloResVis)
                                     {
                                         <span class="card-amarelo-badge-mini" title="Cartão amarelo"></span>
+                                    }
+                                    @if (capitaoResVis)
+                                    {
+                                        <span class="capitao-badge-mini" title="Capitão">C</span>
                                     }
                                     <div style="max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;">
                                         @esc.Jogador?.Nome
@@ -2277,8 +2346,8 @@
             </div>
 
             <div style="display:flex;align-items:center;height:10px;border-radius:6px;overflow:hidden;margin-bottom:0.25rem;background:#222;">
-                <div style="height:100%;background:#dc2626;width:@(possCasa)%;"></div>
-                <div style="height:100%;background:#2563eb;width:@(possVis)%;"></div>
+                <div style="height:100%;background:#dc2626;width:@(Coord(possCasa))%;"></div>
+                <div style="height:100%;background:#2563eb;width:@(Coord(possVis))%;"></div>
             </div>
             <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:#f1f5f9;margin-bottom:1.5rem;">
                 <span>@(possCasa)%</span>
@@ -2302,8 +2371,8 @@
                         <span style="font-weight:700;">@valVisStr</span>
                     </div>
                     <div style="display:flex;align-items:center;height:8px;border-radius:5px;overflow:hidden;background:#222;">
-                        <div style="height:100%;background:#dc2626;width:@(pctCasa)%;"></div>
-                        <div style="height:100%;background:#2563eb;width:@(pctVis)%;"></div>
+                        <div style="height:100%;background:#dc2626;width:@(Coord(pctCasa))%;"></div>
+                        <div style="height:100%;background:#2563eb;width:@(Coord(pctVis))%;"></div>
                     </div>
                 </div>
             }

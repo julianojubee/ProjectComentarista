@@ -382,6 +382,7 @@ namespace ControleFutebolWeb.Controllers
             var jogador = await _context.Jogadores
                 .Include(j => j.Time)
                 .Include(j => j.Nacionalidade)
+                .Include(j => j.Selecao)
                 .FirstOrDefaultAsync(j => j.Id == id);
 
             if (jogador == null) return NotFound();
