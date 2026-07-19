@@ -42,6 +42,7 @@ namespace ControleFutebolWeb.Data
         public DbSet<CuriosidadeTime> CuriosidadesTime { get; set; }
         public DbSet<SelecaoCopaUsuario> SelecoesCopaUsuario { get; set; }
         public DbSet<Transferencia> Transferencias { get; set; }
+        public DbSet<CompeticaoFase> CompeticaoFases { get; set; }
 
         public override int SaveChanges()
         {
@@ -288,6 +289,14 @@ namespace ControleFutebolWeb.Data
                 entity.HasOne(t => t.Usuario).WithMany().HasForeignKey(t => t.UsuarioId)
                     .OnDelete(DeleteBehavior.SetNull);
                 entity.HasIndex(t => t.Data);
+            });
+
+            // Fases declaradas de uma competição — apagar a competição apaga as fases.
+            modelBuilder.Entity<CompeticaoFase>(entity =>
+            {
+                entity.HasOne(f => f.Competicao).WithMany(c => c.Fases)
+                    .HasForeignKey(f => f.CompeticaoId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             // 🔹 Converte nomes de tabelas e colunas para minúsculas

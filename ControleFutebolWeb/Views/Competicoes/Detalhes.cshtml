@@ -1,4 +1,4 @@
-@model ControleFutebolWeb.Models.ViewModels.CompeticaoDetalhesViewModel
+﻿@model ControleFutebolWeb.Models.ViewModels.CompeticaoDetalhesViewModel
 @using ControleFutebolWeb.Helpers
 @using ControleFutebolWeb.Controllers
 @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
@@ -22,36 +22,26 @@
     var totalGolsComp = (int)(ViewBag.TotalGols ?? 0);
     var artilheiros = ViewBag.Artilheiros as List<ArtilheiroViewModel> ?? new();
 
-    // Aba inicial por tipo de competição
-    string tabInicial = tipoNorm switch
+    // Fases declaradas na competição (grupos + mata-mata, liga + playoffs...):
+    // quando existem, cada fase vira uma aba própria e os painéis por Tipo não são usados.
+    var temFases = Model.Fases.Any();
+
+    // Aba inicial: primeira fase declarada, ou o painel do tipo da competição
+    string tabInicial = temFases
+        ? $"fase-{Model.Fases[0].Fase.Id}"
+        : tipoNorm switch
+        {
+            "GRUPOS"    => "grupos",
+            "MATA_MATA" => "bracket",
+            _           => "classif",
+        };
+
+    string IconeFase(string tipoFase) => tipoFase switch
     {
-        "GRUPOS"    => "grupos",
-        "MATA_MATA" => "bracket",
-        _           => "classif",
+        "GRUPOS"    => "🔢",
+        "MATA_MATA" => "⚔️",
+        _           => "📊",
     };
-
-    string ZonaCor(int pos, int total)
-    {
-        if (pos == 1) return "#3b82f6";
-        if (pos <= 4) return "#22c55e";
-        if (total > 4 && pos > total - 4) return "#ef4444";
-        return "#374151";
-    }
-
-    // Nomes de grupo podem vir como só a letra ("A") ou já completos da API ("Group E") —
-    // normaliza para não duplicar "Grupo Grupo E" nem estourar o selo circular.
-    string GrupoLetra(string? nome)
-    {
-        var partes = (nome ?? "?").Trim().Split(' ');
-        return partes.Length > 0 ? partes[^1] : (nome ?? "?");
-    }
-    string GrupoTitulo(string? nome)
-    {
-        var n = (nome ?? "").Trim();
-        return n.StartsWith("Group", StringComparison.OrdinalIgnoreCase) || n.StartsWith("Grupo", StringComparison.OrdinalIgnoreCase)
-            ? n
-            : "Grupo " + n;
-    }
 }
 
 <style>
@@ -86,8 +76,8 @@
     .cd-stat-sep { width: 1px; background: @(accent)4d; align-self: stretch; }
 
     /* ── Tabs ── */
-    .cd-tabs { background: #111; border-bottom: 1px solid #1e1e1e; padding: 0 2.5rem; position: sticky; top: 0; z-index: 50; display: flex; }
-    .cd-tab-btn { padding: 14px 18px; background: transparent; border: none; cursor: pointer; font-size: .82rem; font-weight: 600; color: #6b7280; border-bottom: 2px solid transparent; white-space: nowrap; transition: color .15s, border-color .15s; font-family: inherit; }
+    .cd-tabs { background: #111; border-bottom: 1px solid #1e1e1e; padding: 0 2.5rem; position: sticky; top: 0; z-index: 50; display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .cd-tab-btn { padding: 14px 18px; background: transparent; border: none; cursor: pointer; font-size: .82rem; font-weight: 600; color: #6b7280; border-bottom: 2px solid transparent; white-space: nowrap; transition: color .15s, border-color .15s; font-family: inherit; flex-shrink: 0; }
     .cd-tab-btn.active { font-weight: 700; color: @accent; border-bottom-color: @accent; }
 
     /* ── Conteúdo ── */
@@ -212,6 +202,29 @@
     .cd-sem-dados p { font-size: .9rem; margin: 0; }
 
     .cd-alert { border-radius: 10px; padding: .8rem 1.1rem; margin: 0 2.5rem 1rem; font-size: .88rem; background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); color: #4ade80; }
+
+    /* ── Responsivo ── */
+    @@media (max-width: 768px) {
+        .cd-hero { padding: 26px 1.1rem 22px; }
+        .cd-hero h1 { font-size: 1.9rem; }
+        .cd-hero-inner { gap: 14px; }
+        .cd-stats { margin-left: 0; padding: 10px 14px; gap: 14px; }
+        .cd-tabs { padding: 0 1.1rem; }
+        .cd-content { padding: 18px 1.1rem 40px; }
+        .cd-alert { margin: 0 1.1rem 1rem; }
+
+        /* Tabelas em grid (colunas fixas): a área rolável fica dentro do card
+           arredondado em vez de estourar/clipar contra o overflow:hidden do -root. */
+        .cd-tablewrap, .cd-jogos-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .cd-cols, .cd-row { min-width: 620px; }
+        .cd-jogos-cols, .cd-jogo-row { min-width: 620px; }
+
+        .cd-grupos-grid { gap: 14px; }
+        .cd-grupo-card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .cd-grupo-cols, .cd-grupo-row { min-width: 320px; }
+
+        .cd-mm-fase-wrap { width: 210px; }
+    }
 </style>
 
 <div class="cd-root">
@@ -289,7 +302,14 @@
     {
         <!-- ── Tabs ── -->
         <div class="cd-tabs">
-            @if (tipoNorm == "GRUPOS")
+            @if (temFases)
+            {
+                foreach (var f in Model.Fases)
+                {
+                    <button type="button" class="cd-tab-btn @(tabInicial == $"fase-{f.Fase.Id}" ? "active" : "")" data-tab="fase-@f.Fase.Id">@IconeFase(f.Fase.Tipo) @f.Fase.Nome</button>
+                }
+            }
+            else if (tipoNorm == "GRUPOS")
             {
                 <button type="button" class="cd-tab-btn @(tabInicial == "grupos" ? "active" : "")" data-tab="grupos">🔢 Grupos</button>
                 @if (Model.FasesMataMata.Any())
@@ -304,6 +324,10 @@
             else
             {
                 <button type="button" class="cd-tab-btn @(tabInicial == "classif" ? "active" : "")" data-tab="classif">📊 Classificação</button>
+                @if (Model.FasesMataMata.Any())
+                {
+                    <button type="button" class="cd-tab-btn" data-tab="bracket">⚔️ Playoffs</button>
+                }
             }
             <button type="button" class="cd-tab-btn" data-tab="jogos">📋 Jogos Realizados</button>
             <button type="button" class="cd-tab-btn" data-tab="proximos">📅 Próximos</button>
@@ -311,263 +335,58 @@
 
         <div class="cd-content">
 
+            <!-- ══════ PAINÉIS POR FASE DECLARADA ══════ -->
+            @if (temFases)
+            {
+                foreach (var f in Model.Fases)
+                {
+                    <div class="cd-panel" id="cd-panel-fase-@f.Fase.Id" style="@(tabInicial == $"fase-{f.Fase.Id}" ? "" : "display:none;")">
+                        @if (f.Fase.Tipo == "GRUPOS")
+                        {
+                            @await Html.PartialAsync("_PainelGrupos", f.Grupos)
+                        }
+                        else if (f.Fase.Tipo == "MATA_MATA")
+                        {
+                            @await Html.PartialAsync("_PainelChaveamento", f.FasesMataMata)
+                        }
+                        else
+                        {
+                            <div class="cd-layout">
+                                @await Html.PartialAsync("_PainelClassificacao", f.Classificacao)
+                                @await Html.PartialAsync("_DetalhesSidebar", Model.ProximosJogos)
+                            </div>
+                        }
+                    </div>
+                }
+            }
+
             <!-- ══════ CLASSIFICAÇÃO (PONTOS CORRIDOS) ══════ -->
-            @if (tipoNorm != "GRUPOS" && tipoNorm != "MATA_MATA")
+            @if (!temFases && tipoNorm != "GRUPOS" && tipoNorm != "MATA_MATA")
             {
                 <div class="cd-panel" id="cd-panel-classif" style="@(tabInicial == "classif" ? "" : "display:none;")">
                     <div class="cd-layout">
-                        <div class="cd-tablewrap">
-                            <div class="cd-cols">
-                                <span></span>
-                                <span>#</span>
-                                <span></span>
-                                <span class="left">Clube</span>
-                                <span>J</span>
-                                <span style="color:#22c55e;">V</span>
-                                <span style="color:#f59e0b;">E</span>
-                                <span style="color:#ef4444;">D</span>
-                                <span>GP</span>
-                                <span>SG</span>
-                                <span>%</span>
-                                <span style="color:#d4a520;">Pts</span>
-                            </div>
-                            @{ var total = Model.Classificacao.Count; }
-                            @foreach (var c in Model.Classificacao)
-                            {
-                                var zc = ZonaCor(c.Posicao, total);
-                                var aprov = c.Jogos > 0 ? (int)Math.Round(c.Pontos / (double)(c.Jogos * 3) * 100) : 0;
-                                var aprovColor = aprov >= 60 ? "#22c55e" : aprov >= 40 ? "#f59e0b" : "#ef4444";
-                                <div class="cd-row">
-                                    <div class="cd-zonebar" style="background:@zc;"></div>
-                                    <span class="cd-pos" style="color:@(c.Posicao <= 3 ? "#d4a520" : "#6b7280");">@c.Posicao</span>
-                                    <div class="cd-escudo">
-                                        @if (!string.IsNullOrEmpty(c.Time?.EscudoUrl))
-                                        {
-                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.Time.EscudoUrl })" alt="" />
-                                        }
-                                    </div>
-                                    <div style="min-width:0;">
-                                        <a asp-controller="Times" asp-action="Details" asp-route-id="@c.Time?.Id" class="cd-nome">@c.Time?.Nome</a>
-                                    </div>
-                                    <span class="cd-cell">@c.Jogos</span>
-                                    <span class="cd-cell v">@c.Vitorias</span>
-                                    <span class="cd-cell e">@c.Empates</span>
-                                    <span class="cd-cell d">@c.Derrotas</span>
-                                    <span class="cd-cell">@c.GolsPro</span>
-                                    <span class="cd-sg" style="color:@(c.SaldoGols > 0 ? "#4ade80" : c.SaldoGols < 0 ? "#f87171" : "#6b7280");">@(c.SaldoGols > 0 ? "+" : "")@c.SaldoGols</span>
-                                    <div class="cd-aprov">
-                                        <span>@(aprov)%</span>
-                                        <div class="cd-aprov-bar"><div style="width:@(aprov)%; background:@aprovColor;"></div></div>
-                                    </div>
-                                    <div class="cd-pts">
-                                        <span style="color:@(c.Posicao == 1 ? "#d4a520" : "#f1f5f9"); background:@(c.Posicao == 1 ? "rgba(212,165,32,0.12)" : "transparent");">@c.Pontos</span>
-                                    </div>
-                                </div>
-                            }
-                            <div class="cd-legend">
-                                <div class="cd-legend-item"><div class="cd-legend-dot" style="background:#3b82f6;"></div><span>Líder</span></div>
-                                <div class="cd-legend-item"><div class="cd-legend-dot" style="background:#22c55e;"></div><span>Classificação</span></div>
-                                <div class="cd-legend-item"><div class="cd-legend-dot" style="background:#ef4444;"></div><span>Zona de risco</span></div>
-                            </div>
-                        </div>
-
-                        <!-- Sidebar -->
-                        <div class="cd-sidebar">
-                            <div class="cd-side-card">
-                                <div class="cd-side-header"><span class="cd-side-title">📅 Próximos</span></div>
-                                @if (!Model.ProximosJogos.Any())
-                                {
-                                    <div class="cd-vazio">Nenhum jogo agendado.</div>
-                                }
-                                else
-                                {
-                                    foreach (var j in Model.ProximosJogos.Take(4))
-                                    {
-                                        <div class="cd-mini-jogo">
-                                            <div class="cd-mini-lado casa">
-                                                <span>@j.TimeCasa?.Nome</span>
-                                                @if (!string.IsNullOrEmpty(j.TimeCasa?.EscudoUrl))
-                                                {
-                                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.TimeCasa.EscudoUrl })" alt="" />
-                                                }
-                                            </div>
-                                            <span class="cd-mini-hora">@DateHelper.FormatarData(j.Data, "dd/MM")</span>
-                                            <div class="cd-mini-lado">
-                                                @if (!string.IsNullOrEmpty(j.TimeVisitante?.EscudoUrl))
-                                                {
-                                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.TimeVisitante.EscudoUrl })" alt="" />
-                                                }
-                                                <span>@j.TimeVisitante?.Nome</span>
-                                            </div>
-                                        </div>
-                                    }
-                                }
-                            </div>
-
-                            <div class="cd-side-card">
-                                <div class="cd-side-header"><span class="cd-side-title">⚽ Artilheiros</span></div>
-                                @if (!artilheiros.Any())
-                                {
-                                    <div class="cd-vazio">Nenhum gol registrado ainda.</div>
-                                }
-                                else
-                                {
-                                    var rankColors = new[] { "#f59e0b", "#9ca3af", "#b45309", "#374151", "#374151" };
-                                    for (int i = 0; i < artilheiros.Count; i++)
-                                    {
-                                        var a = artilheiros[i];
-                                        <div class="cd-artilheiro">
-                                            <span class="cd-art-rank" style="color:@rankColors[Math.Min(i, rankColors.Length - 1)];">@(i + 1)</span>
-                                            <div class="cd-art-avatar">
-                                                @if (!string.IsNullOrEmpty(a.Jogador.FotoUrl))
-                                                {
-                                                    <img src="@Url.FotoSrc(a.Jogador.FotoUrl)" alt="" />
-                                                }
-                                            </div>
-                                            <div style="flex:1; min-width:0;">
-                                                <div class="cd-art-nome">@a.Jogador.NomeExibicao</div>
-                                                <div class="cd-art-clube">
-                                                    @if (!string.IsNullOrEmpty(a.Jogador.Time?.EscudoUrl))
-                                                    {
-                                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = a.Jogador.Time.EscudoUrl })" alt="" />
-                                                    }
-                                                    <span>@(a.Jogador.Time?.Nome ?? "—")</span>
-                                                </div>
-                                            </div>
-                                            <span class="cd-art-gols">@(a.Gols)⚽</span>
-                                        </div>
-                                    }
-                                }
-                            </div>
-                        </div>
+                        @await Html.PartialAsync("_PainelClassificacao", Model.Classificacao)
+                        @await Html.PartialAsync("_DetalhesSidebar", Model.ProximosJogos)
                     </div>
                 </div>
             }
 
             <!-- ══════ GRUPOS ══════ -->
-            @if (tipoNorm == "GRUPOS")
+            @if (!temFases && tipoNorm == "GRUPOS")
             {
                 <div class="cd-panel" id="cd-panel-grupos" style="@(tabInicial == "grupos" ? "" : "display:none;")">
-                    @if (!Model.Grupos.Any())
-                    {
-                        <div class="cd-sem-dados cd-jogos-wrap"><div class="icon">📊</div><p>Sem dados de grupos ainda.</p></div>
-                    }
-                    else
-                    {
-                        <div class="cd-grupos-grid">
-                            @foreach (var grupo in Model.Grupos)
-                            {
-                                <div class="cd-grupo-card">
-                                    <div class="cd-grupo-header">
-                                        <div class="cd-grupo-letra">@GrupoLetra(grupo.Nome)</div>
-                                        <span class="cd-grupo-nome">@GrupoTitulo(grupo.Nome)</span>
-                                    </div>
-                                    <div class="cd-grupo-cols">
-                                        <span>#</span><span></span><span class="left" style="text-align:left;">Time</span>
-                                        <span>J</span><span style="color:#22c55e;">V</span><span style="color:#f59e0b;">E</span><span style="color:#ef4444;">D</span><span style="color:#d4a520;">Pts</span>
-                                    </div>
-                                    @foreach (var t in grupo.Times)
-                                    {
-                                        var isQ = t.Posicao <= 2;
-                                        <div class="cd-grupo-row">
-                                            <span class="cd-pos" style="font-size:.75rem; color:@(isQ ? "#3b82f6" : "#6b7280");">@t.Posicao</span>
-                                            <div class="cd-grupo-escudo">
-                                                @if (!string.IsNullOrEmpty(t.Time?.EscudoUrl))
-                                                {
-                                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.Time.EscudoUrl })" alt="" />
-                                                }
-                                            </div>
-                                            <a asp-controller="Times" asp-action="Details" asp-route-id="@t.Time?.Id" class="cd-nome" style="font-size:.82rem;">@t.Time?.Nome</a>
-                                            <span class="cd-cell">@t.Jogos</span>
-                                            <span class="cd-cell v">@t.Vitorias</span>
-                                            <span class="cd-cell e">@t.Empates</span>
-                                            <span class="cd-cell d">@t.Derrotas</span>
-                                            <div class="cd-pts">
-                                                <span style="font-size:1rem; color:@(isQ ? "#3b82f6" : "#f1f5f9"); background:@(isQ ? "rgba(59,130,246,0.1)" : "transparent"); padding:1px 6px; border-radius:5px;">@t.Pontos</span>
-                                            </div>
-                                        </div>
-                                    }
-                                </div>
-                            }
-                        </div>
-                    }
+                    @await Html.PartialAsync("_PainelGrupos", Model.Grupos)
                 </div>
             }
 
-            <!-- ══════ MATA-MATA (chaveamento próprio, ou fase eliminatória de uma competição de grupos) ══════ -->
-            @if (tipoNorm == "MATA_MATA" || Model.FasesMataMata.Any())
+            <!-- ══════ MATA-MATA (chaveamento próprio, ou fase eliminatória detectada nos jogos) ══════ -->
+            @if (!temFases && (tipoNorm == "MATA_MATA" || Model.FasesMataMata.Any()))
             {
                 <div class="cd-panel" id="cd-panel-bracket" style="@(tabInicial == "bracket" ? "" : "display:none;")">
-                    @if (!Model.FasesMataMata.Any())
-                    {
-                        <div class="cd-sem-dados cd-jogos-wrap"><div class="icon">🏆</div><p>Chaveamento ainda não disponível.</p></div>
-                    }
-                    else
-                    {
-                        var fasesOrdenadas = Model.FasesMataMata.OrderBy(f => f.Ordem).ToList();
-                        <div class="cd-mm-scroll">
-                            <div class="cd-mm-inner">
-                                @for (int fi = 0; fi < fasesOrdenadas.Count; fi++)
-                                {
-                                    var fase = fasesOrdenadas[fi];
-                                    <div class="cd-mm-fase-col">
-                                        <div class="cd-mm-fase-wrap">
-                                            <div class="cd-mm-fase-nome">@fase.Nome</div>
-                                            <div class="cd-mm-confrontos">
-                                                @foreach (var cf in fase.Confrontos)
-                                                {
-                                                    bool aVence = cf.Completo && cf.TotalA > cf.TotalB;
-                                                    bool bVence = cf.Completo && cf.TotalB > cf.TotalA;
-                                                    <div class="cd-mm-confronto">
-                                                        <div class="cd-mm-time-row top">
-                                                            <div class="cd-mm-time-lado">
-                                                                @if (!string.IsNullOrEmpty(cf.TimeA?.EscudoUrl))
-                                                                {
-                                                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = cf.TimeA.EscudoUrl })" alt="" />
-                                                                }
-                                                                <span style="font-weight:@(aVence ? 700 : 500); color:@(aVence ? "#f1f5f9" : "#9ca3af");">@cf.TimeA?.Nome</span>
-                                                            </div>
-                                                            <span class="cd-mm-placar" style="color:@(aVence ? "#4ade80" : "#f1f5f9");">@(cf.SoIda ? cf.GolsAIda.ToString() : cf.TotalA.ToString())</span>
-                                                        </div>
-                                                        <div class="cd-mm-time-row">
-                                                            <div class="cd-mm-time-lado">
-                                                                @if (!string.IsNullOrEmpty(cf.TimeB?.EscudoUrl))
-                                                                {
-                                                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = cf.TimeB.EscudoUrl })" alt="" />
-                                                                }
-                                                                <span style="font-weight:@(bVence ? 700 : 500); color:@(bVence ? "#f1f5f9" : "#9ca3af");">@cf.TimeB?.Nome</span>
-                                                            </div>
-                                                            <span class="cd-mm-placar" style="color:@(bVence ? "#4ade80" : "#f1f5f9");">@(cf.SoIda ? cf.GolsBIda.ToString() : cf.TotalB.ToString())</span>
-                                                        </div>
-                                                        @if (cf.JogoIda != null || cf.JogoVolta != null)
-                                                        {
-                                                            <div class="cd-mm-datas">
-                                                                @if (cf.JogoIda != null) { <span>Ida: @DateHelper.FormatarData(cf.JogoIda.Data, "dd/MM")</span> }
-                                                                @if (cf.JogoVolta != null) { <span>Volta: @DateHelper.FormatarData(cf.JogoVolta.Data, "dd/MM")</span> }
-                                                            </div>
-                                                        }
-                                                        @if (cf.Completo)
-                                                        {
-                                                            <div class="cd-mm-classificado">
-                                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                                                                <span>@((aVence ? cf.TimeA?.Nome : cf.TimeB?.Nome) ?? "") classificado</span>
-                                                            </div>
-                                                        }
-                                                    </div>
-                                                }
-                                            </div>
-                                        </div>
-                                        @if (fi < fasesOrdenadas.Count - 1)
-                                        {
-                                            <div class="cd-mm-connector"><div class="cd-mm-connector-arrow">›</div></div>
-                                        }
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                    }
+                    @await Html.PartialAsync("_PainelChaveamento", Model.FasesMataMata)
                 </div>
             }
+
 
             <!-- ══════ JOGOS REALIZADOS (compartilhado) ══════ -->
             <div class="cd-panel" id="cd-panel-jogos" style="display:none;">

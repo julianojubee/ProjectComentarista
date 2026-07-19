@@ -78,6 +78,10 @@
 
     /* ── Layout principal ── */
     .br-layout { padding: 24px 2.5rem 64px; max-width: 1500px; margin: 0 auto; display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: start; }
+    /* min-width:0 nos itens do grid: sem isso, o item cujo conteúdo (.br-tablewrap
+       rolável) pede 620px de min-content faz a própria trilha do grid crescer em
+       vez de deixar só o wrapper interno rolar — estourando a página no mobile. */
+    .br-layout > div { min-width: 0; }
     @@media (max-width: 1100px) { .br-layout { grid-template-columns: 1fr; } }
 
     /* ── Tabela ── */
@@ -153,6 +157,15 @@
     .br-jogo-x { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .75rem; font-weight: 700; color: #4b5563; flex-shrink: 0; }
 
     .br-vazio { text-align: center; color: #6b7280; padding: 2rem 1rem; font-size: .82rem; }
+
+    /* ── Responsivo ── */
+    @@media (max-width: 768px) {
+        .br-hero { padding: 26px 1.1rem 22px; }
+        .br-hero h1 { font-size: 2.2rem; }
+        .br-layout { padding: 18px 1.1rem 40px; }
+        .br-tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .br-cols, .br-row { min-width: 620px; }
+    }
 </style>
 
 <div class="br-root">

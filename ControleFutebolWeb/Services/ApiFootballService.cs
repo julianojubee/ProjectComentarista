@@ -409,17 +409,46 @@ namespace ControleFutebolWeb.Services
                 var resp = JsonSerializer.Deserialize<ApiFootballResponse<AfSquadEntry>>(json, _json);
                 var jogadoresApi = resp?.Response.FirstOrDefault()?.Players ?? new();
 
-                var idsApi = jogadoresApi.Select(p => (long)p.Id).ToList();
+                var idsApi = jogadoresApi.Where(p => p.Id > 0).Select(p => (long)p.Id).ToList();
                 var existentes = await context.Jogadores
                     .Where(j => j.IdApi != null && idsApi.Contains(j.IdApi.Value))
                     .ToListAsync(ct);
                 var idsExistentes = existentes.Select(j => j.IdApi!.Value).ToHashSet();
 
+                // Jogadores do time salvos sem IdApi (estreantes importados da lineup
+                // antes de a API atribuir o id): casa por nome para vincular em vez de duplicar.
+                var pendentes = await context.Jogadores
+                    .Where(j => (j.IdApi == null || j.IdApi == 0) &&
+                                (j.TimeId == time.Id || j.SelecaoId == time.Id))
+                    .ToListAsync(ct);
+
                 var criados = 0;
+                var vinculados = 0;
                 var semAlturaPeso = new List<Jogador>();
                 foreach (var p in jogadoresApi)
                 {
+                    if (p.Id <= 0) continue;
                     if (idsExistentes.Contains(p.Id)) continue;
+
+                    var pendente = pendentes.FirstOrDefault(j => NomesCorrespondem(j.Nome, p.Name));
+                    if (pendente != null)
+                    {
+                        pendente.IdApi = p.Id;
+                        if (string.IsNullOrWhiteSpace(pendente.PrimeiroNome)) pendente.PrimeiroNome = p.Firstname;
+                        if (string.IsNullOrWhiteSpace(pendente.UltimoNome))   pendente.UltimoNome   = p.Lastname;
+                        if (string.IsNullOrWhiteSpace(pendente.FotoUrl))      pendente.FotoUrl      = p.Photo;
+                        if (pendente.NumeroCamisa == null)                    pendente.NumeroCamisa = p.Number;
+                        pendente.Atualizado = true;
+                        pendente.DtAlt = DateTime.UtcNow;
+                        pendentes.Remove(pendente);
+                        if (pendente.Altura == null || pendente.Peso == null)
+                            semAlturaPeso.Add(pendente);
+                        vinculados++;
+                        _logger.LogInformation(
+                            "[ApiFoot] Jogador {Nome} vinculado ao id {Id} da API via elenco do time {Time}",
+                            pendente.Nome, p.Id, time.Nome);
+                        continue;
+                    }
 
                     var jogador = new Jogador
                     {
@@ -440,7 +469,7 @@ namespace ControleFutebolWeb.Services
                     criados++;
                 }
 
-                if (criados > 0) await context.SaveChangesAsync(ct);
+                if (criados > 0 || vinculados > 0) await context.SaveChangesAsync(ct);
 
                 // Jogadores já cadastrados que ainda não têm altura/peso também entram na busca.
                 semAlturaPeso.AddRange(existentes.Where(j => j.Altura == null || j.Peso == null));
@@ -517,9 +546,40 @@ namespace ControleFutebolWeb.Services
             if (fx.Statistics.Any())
                 jogo.EstatisticasJson = MontarEstatisticasJson(fx);
 
+            // Atualiza placar/status quando a partida já terminou na API — antes a
+            // reimportação gravava gols/eventos sem atualizar o placar (ver comentário
+            // em RelatoriosService.CalcularEstatisticasCompeticoesAsync). Jogo ainda em
+            // andamento NÃO recebe placar: PlacarCasa preenchido é o que o resto do
+            // sistema (classificação, chaveamentos, relatórios) trata como "jogo
+            // realizado", e gravar um placar parcial contaria o jogo como terminado.
+            var placarAtualizado = false;
+            var finalizado = StatusFinalizados.Contains(fx.Fixture.Status.Short);
+            if (finalizado && fx.Goals.Home.HasValue)
+            {
+                if (jogo.PlacarCasa != fx.Goals.Home || jogo.PlacarVisitante != fx.Goals.Away)
+                {
+                    jogo.PlacarCasa = fx.Goals.Home;
+                    jogo.PlacarVisitante = fx.Goals.Away;
+                    jogo.Atualizado = 1;
+                    placarAtualizado = true;
+                }
+
+                // Placar oficial da disputa de pênaltis; quando a API não o informa,
+                // preserva o que ImportarLineupEEventos derivou dos eventos de cobrança.
+                if (fx.Score.Penalty.Home.HasValue)
+                {
+                    jogo.PenaltisCasa = fx.Score.Penalty.Home;
+                    jogo.PenaltisVisitante = fx.Score.Penalty.Away;
+                }
+
+                jogo.Status = "Finalizado";
+            }
+
             await context.SaveChangesAsync(ct);
 
-            return (true, "Escalação reimportada com sucesso.");
+            return (true, placarAtualizado
+                ? $"Escalação reimportada com sucesso. Placar atualizado: {jogo.PlacarCasa}×{jogo.PlacarVisitante}."
+                : "Escalação reimportada com sucesso.");
         }
 
         // ── Busca grupo de um jogo ────────────────────────────────────────────
@@ -1130,6 +1190,10 @@ namespace ControleFutebolWeb.Services
             // Mapa: IdApi → Jogador local (para vincular eventos)
             var jogadorMap = new Dictionary<int, Jogador>();
 
+            // Jogadores sem id na API (estreantes), chaveados por time+nome normalizado —
+            // permite que eventos com nome abreviado achem o jogador criado pela lineup.
+            var jogadorSemIdMap = new Dictionary<string, Jogador>();
+
             // Salva as cores dos uniformes vindas da lineup
             foreach (var lineup in fx.Lineups)
             {
@@ -1241,12 +1305,12 @@ namespace ControleFutebolWeb.Services
                             lp.Player.Grid, posicoes, totalLinhasGrid, colunasPorLinhaGrid);
                     idxTitular++;
                     await AdicionarEscalacaoJogador(context, jogo, lp.Player, time,
-                        isTimeCasa, true, "INICIAL", jogadorMap, posFormacao, ct);
+                        isTimeCasa, true, "INICIAL", jogadorMap, jogadorSemIdMap, posFormacao, ct);
                 }
 
                 foreach (var lp in lineup.Substitutes)
                     await AdicionarEscalacaoJogador(context, jogo, lp.Player, time,
-                        isTimeCasa, false, "INICIAL", jogadorMap, null, ct);
+                        isTimeCasa, false, "INICIAL", jogadorMap, jogadorSemIdMap, null, ct);
             }
 
             await context.SaveChangesAsync(ct);
@@ -1263,9 +1327,9 @@ namespace ControleFutebolWeb.Services
                 {
                     case "goal":
                     {
-                        if (ev.Player.Id == null) break;
-                        var jogador = await ResolverJogador(context, ev.Player.Id.Value,
-                            ev.Player.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct, jogo: jogo);
+                        var jogador = await ResolverJogador(context, ev.Player.Id ?? 0,
+                            ev.Player.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct,
+                            jogo: jogo, mapSemId: jogadorSemIdMap);
                         if (jogador == null) break;
 
                         // Disputa de pênaltis (mata-mata): a api-football marca cada cobrança
@@ -1306,10 +1370,11 @@ namespace ControleFutebolWeb.Services
                             Minuto = minuto, Contra = contra
                         });
 
-                        if (!contra && ev.Assist?.Id != null)
+                        if (!contra && ev.Assist != null)
                         {
-                            var assist = await ResolverJogador(context, ev.Assist.Id.Value,
-                                ev.Assist.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct, jogo: jogo);
+                            var assist = await ResolverJogador(context, ev.Assist.Id ?? 0,
+                                ev.Assist.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct,
+                                jogo: jogo, mapSemId: jogadorSemIdMap);
                             if (assist != null)
                                 context.Assistencias.Add(new Assistencia
                                 {
@@ -1321,9 +1386,9 @@ namespace ControleFutebolWeb.Services
 
                     case "card":
                     {
-                        if (ev.Player.Id == null) break;
-                        var jogador = await ResolverJogador(context, ev.Player.Id.Value,
-                            ev.Player.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct, jogo: jogo);
+                        var jogador = await ResolverJogador(context, ev.Player.Id ?? 0,
+                            ev.Player.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct,
+                            jogo: jogo, mapSemId: jogadorSemIdMap);
                         if (jogador == null) break;
 
                         var tipo = ev.Detail?.Contains("Yellow", StringComparison.OrdinalIgnoreCase) == true
@@ -1339,15 +1404,16 @@ namespace ControleFutebolWeb.Services
                     case "subst":
                     {
                         // Convenção da api-football: player = quem SAIU, assist = quem ENTROU
-                        if (ev.Player.Id == null) break;
-                        var saiu = await ResolverJogador(context, ev.Player.Id.Value,
-                            ev.Player.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct, jogo: jogo);
+                        var saiu = await ResolverJogador(context, ev.Player.Id ?? 0,
+                            ev.Player.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct,
+                            jogo: jogo, mapSemId: jogadorSemIdMap);
                         if (saiu == null) break;
 
                         Jogador? entrou = null;
-                        if (ev.Assist?.Id != null)
-                            entrou = await ResolverJogador(context, ev.Assist.Id.Value,
-                                ev.Assist.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct, jogo: jogo);
+                        if (ev.Assist != null)
+                            entrou = await ResolverJogador(context, ev.Assist.Id ?? 0,
+                                ev.Assist.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct,
+                                jogo: jogo, mapSemId: jogadorSemIdMap);
 
                         // Se quem entrou não foi resolvido, fica null — jamais usar o
                         // jogador que saiu como fallback: isso registrava "fulano entrou
@@ -1444,14 +1510,15 @@ namespace ControleFutebolWeb.Services
             bool titular,
             string fase,
             Dictionary<int, Jogador> map,
+            Dictionary<string, Jogador> mapSemId,
             PosicaoFormacao? posFormacao,
             CancellationToken ct)
         {
-            if (info.Id == null) return;
-
             var posicao = MapearPosicao(info.Pos);
 
-            var jogador = await ResolverJogador(context, info.Id.Value, info.Name, time, map, ct, info.Number, posicao, jogo);
+            // info.Id null = jogador ainda sem id na api-football (estreante):
+            // ResolverJogador cria/casa por nome e vincula o id quando ele existir.
+            var jogador = await ResolverJogador(context, info.Id ?? 0, info.Name, time, map, ct, info.Number, posicao, jogo, mapSemId);
             if (jogador == null) return;
 
             context.Escalacoes.Add(new Escalacao
@@ -1546,14 +1613,38 @@ namespace ControleFutebolWeb.Services
             CancellationToken ct,
             int? numeroCamisa = null,
             string? posicao = null,
-            Jogo? jogo = null)
+            Jogo? jogo = null,
+            Dictionary<string, Jogador>? mapSemId = null)
         {
-            if (map.TryGetValue(idApi, out var cached)) return cached;
+            // A api-football manda jogadores estreantes sem id (id null na lineup,
+            // 0 nas estatísticas) até cadastrá-los na base dela. Eles são salvos com
+            // IdApi = null e vinculados ao id real depois (backfill mais abaixo).
+            var semIdApi = idApi <= 0;
+            if (semIdApi && string.IsNullOrWhiteSpace(nome)) return null;
+
+            if (!semIdApi && map.TryGetValue(idApi, out var cached)) return cached;
+
+            Jogador? jogador = null;
+
+            if (semIdApi && mapSemId != null)
+            {
+                if (mapSemId.TryGetValue(ChaveSemId(time.Id, nome), out var pendente))
+                    return pendente;
+
+                // O feed de eventos abrevia o nome ("L. E. Jales do Nascimento")
+                // enquanto a lineup usa o apelido ("Lucas Emanuel") — casa por
+                // tolerância a abreviação entre os sem-id já vistos neste import.
+                jogador = mapSemId.Values.FirstOrDefault(j =>
+                    (j.TimeId == time.Id || j.SelecaoId == time.Id) &&
+                    NomesCorrespondem(j.Nome, nome));
+                if (jogador != null) return jogador;
+            }
 
             // Por IdApi
-            var jogador = await context.Jogadores
-                .Include(j => j.Time)
-                .FirstOrDefaultAsync(j => j.IdApi == idApi, ct);
+            if (!semIdApi)
+                jogador = await context.Jogadores
+                    .Include(j => j.Time)
+                    .FirstOrDefaultAsync(j => j.IdApi == idApi, ct);
 
             // Por nome no time
             if (jogador == null && !string.IsNullOrWhiteSpace(nome))
@@ -1571,57 +1662,35 @@ namespace ControleFutebolWeb.Services
                     Posicao      = posicao ?? "",
                     TimeId       = time.Id,
                     SelecaoId    = time.EhSelecao ? time.Id : null,
-                    IdApi        = idApi,
+                    IdApi        = semIdApi ? null : idApi,
                     NumeroCamisa = numeroCamisa,
                     DtInc        = DateTime.UtcNow
                 };
                 context.Jogadores.Add(jogador);
                 await context.SaveChangesAsync(ct);
 
-                // Busca foto, data de nascimento e nacionalidade na API no momento da importação
-                try
-                {
-                    var info = await BuscarInfoJogadorAsync(idApi, ct);
-                    if (info != null)
-                    {
-                        if (!string.IsNullOrEmpty(info.FotoUrl))
-                            jogador.FotoUrl = info.FotoUrl;
-
-                        if (info.DataNascimento.HasValue && info.DataNascimento.Value.Year > 1900)
-                            jogador.DataNascimento = DateTime.SpecifyKind(info.DataNascimento.Value, DateTimeKind.Unspecified);
-
-                        if (!string.IsNullOrWhiteSpace(info.Nacionalidade))
-                        {
-                            var nac = await ResolverOuCriarNacionalidade(context, info.Nacionalidade, ct);
-                            if (nac != null) jogador.NacionalidadeId = nac.Id;
-                        }
-
-                        if (!string.IsNullOrWhiteSpace(info.PrimeiroNome))
-                            jogador.PrimeiroNome = info.PrimeiroNome;
-                        if (!string.IsNullOrWhiteSpace(info.UltimoNome))
-                            jogador.UltimoNome = info.UltimoNome;
-
-                        if (info.Altura.HasValue) jogador.Altura = info.Altura;
-                        if (info.Peso.HasValue) jogador.Peso = info.Peso;
-                    }
-                    jogador.Atualizado = true;
-                    jogador.DtAlt = DateTime.UtcNow;
-                    await context.SaveChangesAsync(ct);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "[ApiFoot] Não foi possível buscar dados extras do jogador {Nome} (IdApi={Id})", nome, idApi);
-                }
+                // Busca foto, data de nascimento e nacionalidade na API no momento da importação.
+                // Sem id não há o que buscar — fica Atualizado=false até o vínculo acontecer.
+                if (!semIdApi)
+                    await PreencherDadosApiJogadorAsync(context, jogador, idApi, ct);
+                else
+                    _logger.LogInformation(
+                        "[ApiFoot] Jogador {Nome} ({Time}) criado sem id da API — será vinculado quando a API atribuir o id",
+                        nome, time.Nome);
             }
 
             if (jogador != null)
             {
                 var alterado = false;
 
-                if (jogador.IdApi == 0 && idApi > 0)
+                if ((jogador.IdApi == null || jogador.IdApi == 0) && idApi > 0)
                 {
+                    // A API atribuiu id a um jogador salvo sem vínculo: vincula e
+                    // completa os dados que ficaram pendentes (foto, nascimento, etc.).
                     jogador.IdApi = idApi;
                     alterado = true;
+                    if (!jogador.Atualizado)
+                        await PreencherDadosApiJogadorAsync(context, jogador, idApi, ct);
                 }
 
                 if (numeroCamisa.HasValue && jogador.NumeroCamisa != numeroCamisa)
@@ -1685,10 +1754,99 @@ namespace ControleFutebolWeb.Services
                 if (alterado)
                     await context.SaveChangesAsync(ct);
 
-                map[idApi] = jogador;
+                if (idApi > 0)
+                    map[idApi] = jogador;
+                else if (mapSemId != null)
+                    mapSemId[ChaveSemId(time.Id, nome)] = jogador;
             }
 
             return jogador;
+        }
+
+        // Busca foto, data de nascimento, nacionalidade, altura e peso na API e
+        // marca o jogador como Atualizado. Usado na criação (com id) e no backfill
+        // de jogadores criados sem id.
+        private async Task PreencherDadosApiJogadorAsync(
+            FutebolContext context, Jogador jogador, int idApi, CancellationToken ct)
+        {
+            try
+            {
+                var info = await BuscarInfoJogadorAsync(idApi, ct);
+                if (info != null)
+                {
+                    if (!string.IsNullOrEmpty(info.FotoUrl))
+                        jogador.FotoUrl = info.FotoUrl;
+
+                    if (info.DataNascimento.HasValue && info.DataNascimento.Value.Year > 1900)
+                        jogador.DataNascimento = DateTime.SpecifyKind(info.DataNascimento.Value, DateTimeKind.Unspecified);
+
+                    if (!string.IsNullOrWhiteSpace(info.Nacionalidade))
+                    {
+                        var nac = await ResolverOuCriarNacionalidade(context, info.Nacionalidade, ct);
+                        if (nac != null) jogador.NacionalidadeId = nac.Id;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(info.PrimeiroNome))
+                        jogador.PrimeiroNome = info.PrimeiroNome;
+                    if (!string.IsNullOrWhiteSpace(info.UltimoNome))
+                        jogador.UltimoNome = info.UltimoNome;
+
+                    if (info.Altura.HasValue) jogador.Altura = info.Altura;
+                    if (info.Peso.HasValue) jogador.Peso = info.Peso;
+                }
+                jogador.Atualizado = true;
+                jogador.DtAlt = DateTime.UtcNow;
+                await context.SaveChangesAsync(ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[ApiFoot] Não foi possível buscar dados extras do jogador {Nome} (IdApi={Id})", jogador.Nome, idApi);
+            }
+        }
+
+        // ── Jogadores sem id da API ──────────────────────────────────────────
+
+        private static string ChaveSemId(int timeId, string nome) =>
+            $"{timeId}|{NormalizarNome(nome)}";
+
+        // Minúsculas, sem acentos e com espaços colapsados, para comparação de nomes.
+        private static string NormalizarNome(string nome)
+        {
+            var decomposto = nome.Trim().ToLowerInvariant().Normalize(NormalizationForm.FormD);
+            var sb = new StringBuilder(decomposto.Length);
+            foreach (var c in decomposto)
+                if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+                    sb.Append(c);
+            return string.Join(' ', sb.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+        }
+
+        // Compara nomes tolerando abreviação por iniciais: "L. E. Jales do Nascimento"
+        // ↔ "Lucas Emanuel". Cada token é comparado na ordem por igualdade ou por
+        // inicial ("l." ↔ "lucas"); sobrenomes excedentes do nome mais longo são
+        // ignorados. Usado só entre candidatos restritos (jogadores sem IdApi do
+        // mesmo time), nunca como busca geral.
+        private static bool NomesCorrespondem(string a, string b)
+        {
+            var ta = NormalizarNome(a).Split(' ');
+            var tb = NormalizarNome(b).Split(' ');
+            if (ta.Length == 0 || tb.Length == 0) return false;
+
+            var n = Math.Min(ta.Length, tb.Length);
+            var exatos = 0;
+            for (var i = 0; i < n; i++)
+            {
+                var x = ta[i].TrimEnd('.');
+                var y = tb[i].TrimEnd('.');
+                if (x.Length == 0 || y.Length == 0) return false;
+                if (x == y) { exatos++; continue; }
+                if (x.Length == 1 && y[0] == x[0]) continue;
+                if (y.Length == 1 && x[0] == y[0]) continue;
+                return false;
+            }
+
+            // Exige dois tokens casando (ou um token exato razoável) para não
+            // vincular por coincidência de uma única inicial.
+            return n >= 2 || (exatos == 1 && ta[0].Length >= 4);
         }
 
         private static async Task<Nacionalidade?> ResolverOuCriarNacionalidade(
@@ -1846,14 +2004,54 @@ namespace ControleFutebolWeb.Services
                 var todosJogadoresApi = fx.Players.SelectMany(t => t.Players).ToList();
                 if (todosJogadoresApi.Count == 0) return;
 
-                var idsApi = todosJogadoresApi.Select(p => (long)p.Player.Id).ToList();
+                // id 0 = jogador ainda sem id na api-football (estreante); não entra na
+                // busca por IdApi para não casar por engano com cadastros manuais.
+                var idsApi = todosJogadoresApi
+                    .Where(p => p.Player.Id > 0)
+                    .Select(p => (long)p.Player.Id)
+                    .ToList();
                 var jogadoresLocais = await context.Jogadores
                     .Where(j => j.IdApi != null && idsApi.Contains(j.IdApi.Value))
                     .ToListAsync(ct);
 
+                // Escalados do jogo carregados sob demanda — usados para casar por nome
+                // os jogadores sem IdApi (salvos a partir da lineup sem id).
+                List<Jogador>? escalados = null;
+
                 foreach (var p in todosJogadoresApi)
                 {
-                    var jogador = jogadoresLocais.FirstOrDefault(j => j.IdApi == p.Player.Id);
+                    var jogador = p.Player.Id > 0
+                        ? jogadoresLocais.FirstOrDefault(j => j.IdApi == p.Player.Id)
+                        : null;
+
+                    if (jogador == null && !string.IsNullOrWhiteSpace(p.Player.Name))
+                    {
+                        escalados ??= await context.Escalacoes
+                            .Where(e => e.JogoId == jogo.Id && e.JogadorId != null)
+                            .Select(e => e.Jogador!)
+                            .Distinct()
+                            .ToListAsync(ct);
+
+                        var candidatos = escalados
+                            .Where(j => (j.IdApi == null || j.IdApi == 0) &&
+                                        NomesCorrespondem(j.Nome, p.Player.Name))
+                            .ToList();
+                        if (candidatos.Count == 1)
+                        {
+                            jogador = candidatos[0];
+                            if (p.Player.Id > 0)
+                            {
+                                // A API atribuiu id a um jogador salvo sem vínculo — vincula.
+                                jogador.IdApi = p.Player.Id;
+                                if (string.IsNullOrWhiteSpace(jogador.FotoUrl))
+                                    jogador.FotoUrl = p.Player.Photo;
+                                _logger.LogInformation(
+                                    "[ApiFoot] Jogador {Nome} vinculado ao id {Id} da API via estatísticas do jogo {Jogo}",
+                                    jogador.Nome, p.Player.Id, jogo.Id);
+                            }
+                        }
+                    }
+
                     if (jogador == null) continue;
 
                     var s = p.Statistics.FirstOrDefault();

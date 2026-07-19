@@ -1,4 +1,4 @@
-@model ControleFutebolWeb.Models.ViewModels.JogadoresIndexViewModel
+﻿@model ControleFutebolWeb.Models.ViewModels.JogadoresIndexViewModel
 @using ControleFutebolWeb.Helpers
 @{
     ViewData["Title"] = "Jogadores";
@@ -73,9 +73,13 @@
     .jg-hero-fade { position: absolute; inset: 0; background: linear-gradient(90deg, #060d1a 35%, rgba(6,13,26,0.6) 58%, rgba(6,13,26,0.1) 78%, transparent 100%); pointer-events: none; z-index: 1; }
     .jg-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #d4a520; z-index: 3; }
 
-    .jg-hero-montage { position: absolute; right: 0; bottom: 0; display: flex; align-items: flex-end; z-index: 1; height: 112%; }
-    .jg-hero-montage img { height: 100%; object-fit: contain; object-position: bottom; margin-left: -30px; filter: drop-shadow(0 4px 16px rgba(0,0,0,0.5)); opacity: 0.95; }
-    .jg-hero-montage img:first-child { margin-left: 0; }
+    /* ── Silhuetas: comemorações ─────────────────── */
+    .jg-hero-scene { position: absolute; right: 2rem; top: 50%; transform: translateY(-50%); width: 390px; z-index: 1; }
+    .jg-hero-scene img {
+        display: block; width: 100%; height: auto; mix-blend-mode: screen;
+        -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 22%, #000 80%, transparent 100%);
+        mask-image: linear-gradient(90deg, transparent 0, #000 22%, #000 80%, transparent 100%);
+    }
 
     .jg-hero-content { position: relative; z-index: 3; padding: 2rem 2.5rem; }
     .jg-hero-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
@@ -181,6 +185,7 @@
     .jg-empty { text-align: center; color: #6b7280; padding: 3rem 1rem; font-size: 0.9rem; background: #161616; border: 1px solid #262626; border-radius: 12px; }
 
     @@media (max-width: 900px) {
+        .jg-hero-scene { display: none; }
         .jg-row { grid-template-columns: 36px 1fr; grid-template-areas: "photo info" "club club" "actions actions"; }
         .jg-club { grid-area: club; margin-top: 4px; }
         .jg-actions { grid-area: actions; justify-content: flex-start; margin-top: 6px; }
@@ -188,7 +193,6 @@
     @@media (max-width: 640px) {
         .jg-hero-content, .jg-filters, .jg-list-wrap { padding-left: 1.2rem; padding-right: 1.2rem; }
         .jg-hero h1 { font-size: 2rem; }
-        .jg-hero-montage { display: none; }
     }
 </style>
 
@@ -214,10 +218,8 @@
         <img class="jg-hero-pattern" src="~/Images/banner/escudos-pattern.svg" alt="" />
         <div class="jg-hero-fade"></div>
         <div class="jg-hero-stripe"></div>
-        <div class="jg-hero-montage">
-            <img src="~/Images/banner/mbappe.png" alt="" />
-            <img src="~/Images/banner/haaland.png" alt="" />
-            <img src="~/Images/banner/vinicius.png" alt="" />
+        <div class="jg-hero-scene" aria-hidden="true">
+            <img src="~/Images/banner/comemoracao-silhuetas.png" alt="" />
         </div>
         <div class="jg-hero-content">
             <div class="jg-hero-kicker">

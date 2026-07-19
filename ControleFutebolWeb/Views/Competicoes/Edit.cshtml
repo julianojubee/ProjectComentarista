@@ -2,9 +2,15 @@
 
 @{
     ViewData["Title"] = "Editar Competição";
+    var fases = ViewBag.Fases as List<CompeticaoFase> ?? new List<CompeticaoFase>();
 }
 
 <h2>Editar Competição</h2>
+
+@if (TempData["Sucesso"] != null)
+{
+    <div class="alert alert-success">@TempData["Sucesso"]</div>
+}
 
 <form asp-action="Edit" asp-controller="Competicoes" asp-route-id="@Model.Id" method="post">
     <input type="hidden" asp-for="Id" />
@@ -46,6 +52,102 @@
     </div>
     <button type="submit" class="btn btn-primary">Salvar</button>
 </form>
+
+<hr class="my-4" />
+
+<h4>Fases da competição</h4>
+<p class="text-muted" style="font-size:.9rem;">
+    Cadastre fases quando a competição mistura formatos (ex.: <strong>Fase de Grupos</strong> + <strong>Mata-Mata</strong>,
+    ou <strong>Pontos Corridos</strong> + <strong>Playoffs</strong>). Os jogos são distribuídos automaticamente entre as
+    fases pelo nome da rodada vinda da API. Deixe vazio se a competição tem uma fase só (usa o Tipo acima).
+</p>
+
+<form asp-action="SalvarFases" asp-controller="Competicoes" asp-route-id="@Model.Id" method="post" id="form-fases">
+    @Html.AntiForgeryToken()
+    <div id="fases-lista">
+        @for (int i = 0; i < fases.Count; i++)
+        {
+            <div class="fase-row d-flex align-items-start mb-2" style="gap:8px;">
+                <span class="fase-ordem badge bg-secondary mt-2">@(i + 1)</span>
+                <input name="fases[@i].Nome" value="@fases[i].Nome" class="form-control" placeholder="Nome da fase (ex.: Fase de Grupos)" style="max-width:260px;" />
+                <select name="fases[@i].Tipo" class="form-control" style="max-width:180px;">
+                    <option value="PONTOS_CORRIDOS" selected="@(fases[i].Tipo == "PONTOS_CORRIDOS")">Pontos Corridos</option>
+                    <option value="GRUPOS" selected="@(fases[i].Tipo == "GRUPOS")">Grupos</option>
+                    <option value="MATA_MATA" selected="@(fases[i].Tipo == "MATA_MATA")">Mata-Mata</option>
+                </select>
+                <input name="fases[@i].RoundsPattern" value="@fases[i].RoundsPattern" class="form-control" placeholder="Rounds (opcional, ex.: Quarter;Semi;Final)" title="Padrões separados por ';' para forçar jogos nesta fase quando a detecção automática não bastar (ex.: Apertura / Clausura)." />
+                <button type="button" class="btn btn-outline-secondary btn-sm fase-subir mt-1" title="Subir">↑</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm fase-descer mt-1" title="Descer">↓</button>
+                <button type="button" class="btn btn-outline-danger btn-sm fase-remover mt-1" title="Remover">✕</button>
+            </div>
+        }
+    </div>
+
+    <template id="fase-template">
+        <div class="fase-row d-flex align-items-start mb-2" style="gap:8px;">
+            <span class="fase-ordem badge bg-secondary mt-2"></span>
+            <input data-campo="Nome" class="form-control" placeholder="Nome da fase (ex.: Playoffs)" style="max-width:260px;" />
+            <select data-campo="Tipo" class="form-control" style="max-width:180px;">
+                <option value="PONTOS_CORRIDOS">Pontos Corridos</option>
+                <option value="GRUPOS">Grupos</option>
+                <option value="MATA_MATA">Mata-Mata</option>
+            </select>
+            <input data-campo="RoundsPattern" class="form-control" placeholder="Rounds (opcional, ex.: Quarter;Semi;Final)" title="Padrões separados por ';' para forçar jogos nesta fase quando a detecção automática não bastar (ex.: Apertura / Clausura)." />
+            <button type="button" class="btn btn-outline-secondary btn-sm fase-subir mt-1" title="Subir">↑</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm fase-descer mt-1" title="Descer">↓</button>
+            <button type="button" class="btn btn-outline-danger btn-sm fase-remover mt-1" title="Remover">✕</button>
+        </div>
+    </template>
+
+    <div class="d-flex" style="gap:8px;">
+        <button type="button" id="fase-adicionar" class="btn btn-outline-primary btn-sm">+ Adicionar fase</button>
+        <button type="submit" class="btn btn-primary btn-sm">Salvar fases</button>
+    </div>
+</form>
+
+<script>
+    (function () {
+        var lista = document.getElementById('fases-lista');
+        var template = document.getElementById('fase-template');
+        var form = document.getElementById('form-fases');
+
+        // Reindexa os names (fases[i].Campo) e o número da ordem após qualquer mudança.
+        function reindexar() {
+            lista.querySelectorAll('.fase-row').forEach(function (row, i) {
+                row.querySelector('.fase-ordem').textContent = i + 1;
+                row.querySelectorAll('input, select').forEach(function (campo) {
+                    var nome = campo.dataset.campo ||
+                        (campo.name ? campo.name.replace(/^fases\[\d+\]\./, '') : null);
+                    if (!nome) return;
+                    campo.name = 'fases[' + i + '].' + nome;
+                });
+            });
+        }
+
+        document.getElementById('fase-adicionar').addEventListener('click', function () {
+            lista.appendChild(template.content.cloneNode(true));
+            reindexar();
+        });
+
+        lista.addEventListener('click', function (e) {
+            var row = e.target.closest('.fase-row');
+            if (!row) return;
+            if (e.target.classList.contains('fase-remover')) {
+                row.remove();
+            } else if (e.target.classList.contains('fase-subir') && row.previousElementSibling) {
+                lista.insertBefore(row, row.previousElementSibling);
+            } else if (e.target.classList.contains('fase-descer') && row.nextElementSibling) {
+                lista.insertBefore(row.nextElementSibling, row);
+            } else {
+                return;
+            }
+            reindexar();
+        });
+
+        form.addEventListener('submit', reindexar);
+        reindexar();
+    })();
+</script>
 
 @section Scripts {
     @{

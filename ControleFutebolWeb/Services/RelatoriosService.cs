@@ -302,6 +302,8 @@ namespace ControleFutebolWeb.Services
                 vm.MatchUpTime2 = await MatchUpHelper.MontarTimeAsync(_context, timeIdsFiltro[1], esquerda: false, usuarioId);
             }
 
+            vm.Selecao = await MontarSelecaoAsync(jogos, escalacoes, timeIdsFiltro, rankingCompleto);
+
             return vm;
         }
 
@@ -323,9 +325,10 @@ namespace ControleFutebolWeb.Services
 
                 // Gols/cartões/assistências são contados por TODOS os jogos da competição,
                 // não só os com placar definido: a reimportação de escalação/eventos
-                // (ForcarReimportarEscalacaoAsync) grava gols do jogo sem atualizar o placar,
-                // então um jogo pode ter gols registrados mesmo com PlacarCasa/PlacarVisitante
-                // nulos — restringir ao placar sub-contava o total.
+                // (ForcarReimportarEscalacaoAsync) grava gols de jogo ainda em andamento
+                // sem preencher o placar (o placar só é gravado quando a API dá a partida
+                // como encerrada), então um jogo pode ter gols registrados mesmo com
+                // PlacarCasa/PlacarVisitante nulos — restringir ao placar sub-contava o total.
                 var todosJogoIdsComp = await _context.Jogos
                     .Where(j => j.CompeticaoId == comp.Id)
                     .Select(j => j.Id)
@@ -427,6 +430,133 @@ namespace ControleFutebolWeb.Services
             return resultado;
         }
 
+        // ── Seleção (melhor XI) ──────────────────────────────────────────────────
+        // Formação mais usada pelo filtro atual (por time filtrado, ou por qualquer
+        // dos dois lados quando não há filtro de time) + melhor jogador do ranking
+        // de notas para cada slot da formação.
+        private async Task<SelecaoViewModel?> MontarSelecaoAsync(
+            List<Jogo> jogos, List<Escalacao> escalacoes, List<int> timeIdsFiltro, List<RankingNotaItem> rankingCompleto)
+        {
+            var contagemFormacoes = new Dictionary<int, int>();
+            void Conta(int? formacaoId)
+            {
+                if (!formacaoId.HasValue) return;
+                contagemFormacoes[formacaoId.Value] = contagemFormacoes.GetValueOrDefault(formacaoId.Value) + 1;
+            }
+
+            foreach (var j in jogos)
+            {
+                if (timeIdsFiltro.Any())
+                {
+                    if (timeIdsFiltro.Contains(j.TimeCasaId)) Conta(j.FormacaoCasaId);
+                    if (timeIdsFiltro.Contains(j.TimeVisitanteId)) Conta(j.FormacaoVisitanteId);
+                }
+                else
+                {
+                    Conta(j.FormacaoCasaId);
+                    Conta(j.FormacaoVisitanteId);
+                }
+            }
+
+            if (!contagemFormacoes.Any()) return null;
+            int formacaoId = contagemFormacoes.OrderByDescending(kv => kv.Value).First().Key;
+
+            var formacao = await _context.Formacoes
+                .AsNoTracking()
+                .Include(f => f.Posicoes)
+                .FirstOrDefaultAsync(f => f.Id == formacaoId);
+            if (formacao == null || !formacao.Posicoes.Any()) return null;
+
+            // Posição granular jogada por cada jogador DENTRO do filtro atual (não a
+            // agregada de toda a carreira em Jogador.Posicao) — um jogador pode ter
+            // sido zagueiro em outra competição/temporada e lateral nesta; casar pelo
+            // campo global colocaria gente na posição errada da Seleção deste filtro.
+            var slotsPorFormacao = (await _context.PosicoesFormacao.AsNoTracking().ToListAsync())
+                .GroupBy(p => p.FormacaoId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+            var jogoPorId = jogos.ToDictionary(j => j.Id);
+
+            // Só considera a fase INICIAL de cada (jogador, jogo): quem só aparece na
+            // FINAL entrou como substituto e herdou o slot de quem saiu (visual da
+            // troca), não a posição real dele — mesmo critério do
+            // PosicaoJogadorHelper.RecalcularAsync.
+            var escalacoesTitulares = escalacoes
+                .Where(e => e.JogadorId.HasValue)
+                .GroupBy(e => (e.JogadorId!.Value, e.JogoId))
+                .Where(g => g.Any(e => e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null))
+                .Select(g => g.First(e => e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null));
+
+            var posicoesPorJogador = new Dictionary<int, List<string>>();
+            foreach (var e in escalacoesTitulares)
+            {
+                if (!jogoPorId.TryGetValue(e.JogoId, out var jogo)) continue;
+                var formacaoIdLado = e.IsTimeCasa ? jogo.FormacaoCasaId : jogo.FormacaoVisitanteId;
+                if (formacaoIdLado == null || !slotsPorFormacao.TryGetValue(formacaoIdLado.Value, out var slotsLado)) continue;
+
+                var nome = PosicaoJogadorHelper.PosicaoGranular(slotsLado, e.PosicaoX, e.PosicaoY);
+                if (string.IsNullOrWhiteSpace(nome)) continue;
+
+                if (!posicoesPorJogador.TryGetValue(e.JogadorId!.Value, out var lista))
+                    posicoesPorJogador[e.JogadorId.Value] = lista = new List<string>();
+                lista.Add(nome);
+            }
+            var posicoesJogadasSet = posicoesPorJogador.ToDictionary(kv => kv.Key, kv => kv.Value.ToHashSet());
+
+            // Só cai pro Jogador.Posicao (agregado global) quando não há nenhuma
+            // escalação com coordenada dentro do filtro atual (ex.: jogador cuja nota
+            // veio de EstatisticaJogador sem escalação salva).
+            bool JogouNaPosicao(Jogador jogador, string nomeSlotNormalizado) =>
+                posicoesJogadasSet.TryGetValue(jogador.Id, out var posSet)
+                    ? posSet.Contains(nomeSlotNormalizado)
+                    : !string.IsNullOrEmpty(jogador.Posicao)
+                        && jogador.Posicao.Split('/').Any(p => PosicaoJogadorHelper.NormalizarNomePosicao(p.Trim()) == nomeSlotNormalizado);
+
+            string GrupoDoJogador(Jogador jogador) =>
+                posicoesPorJogador.TryGetValue(jogador.Id, out var lista) && lista.Any()
+                    ? NormalizarPosicao(lista.GroupBy(n => n).OrderByDescending(g => g.Count()).First().Key)
+                    : NormalizarPosicao(jogador.Posicao ?? "");
+
+            var disponiveis = rankingCompleto.OrderByDescending(r => r.NotaFinal).ToList();
+            var usados = new HashSet<int>();
+            var slots = formacao.Posicoes.OrderBy(p => p.Ordem).ToList();
+            var resultado = slots.Select(s => new SelecaoSlotViewModel
+            {
+                NomePosicao = s.NomePosicao,
+                PosicaoX = s.PosicaoX,
+                PosicaoY = s.PosicaoY
+            }).ToList();
+
+            // 1ª passada: casamento exato pela posição granular (ex.: slot "Lateral
+            // Direito" com jogador que atuou como Lateral Direito neste filtro).
+            for (int i = 0; i < slots.Count; i++)
+            {
+                var nomeSlot = PosicaoJogadorHelper.NormalizarNomePosicao(slots[i].NomePosicao);
+                var melhor = disponiveis.FirstOrDefault(r => !usados.Contains(r.Jogador.Id) && JogouNaPosicao(r.Jogador, nomeSlot));
+                if (melhor != null)
+                {
+                    resultado[i].Jogador = melhor;
+                    usados.Add(melhor.Jogador.Id);
+                }
+            }
+
+            // 2ª passada: slots ainda vazios casam por grupo (Goleiro/Defensor/
+            // Meio-campo/Atacante) — evita deixar posição sem jogador só porque o
+            // texto granular não bateu.
+            for (int i = 0; i < slots.Count; i++)
+            {
+                if (resultado[i].Jogador != null) continue;
+                var grupoSlot = NormalizarPosicao(slots[i].NomePosicao);
+                var melhor = disponiveis.FirstOrDefault(r => !usados.Contains(r.Jogador.Id) && GrupoDoJogador(r.Jogador) == grupoSlot);
+                if (melhor != null)
+                {
+                    resultado[i].Jogador = melhor;
+                    usados.Add(melhor.Jogador.Id);
+                }
+            }
+
+            return new SelecaoViewModel { Formacao = formacao, Slots = resultado };
+        }
+
         private static List<RankingNotaItem> FiltrarRankingPorPosicao(List<RankingNotaItem> ranking, string grupo)
         {
             bool Match(string? posicao) => grupo switch
@@ -446,8 +576,14 @@ namespace ControleFutebolWeb.Services
                 _ => false
             };
 
+            // Jogador.Posicao pode ser composto ("Centroavante/Ala Esquerda" — as duas
+            // posições mais frequentes dele, na ordem). Só considera a PRIMEIRA (a
+            // dominante): senão um atacante que jogou algumas vezes de ala aparece
+            // também em "Melhores Meias" só por casar com a posição secundária.
+            string? Principal(string? posicao) => posicao?.Split('/', 2)[0];
+
             return ranking
-                .Where(r => Match(r.Jogador.Posicao))
+                .Where(r => Match(Principal(r.Jogador.Posicao)))
                 .Take(10)
                 .ToList();
         }

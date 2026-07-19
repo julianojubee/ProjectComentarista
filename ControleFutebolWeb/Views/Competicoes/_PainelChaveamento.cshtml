@@ -1,0 +1,71 @@
+@using ControleFutebolWeb.Models.ViewModels
+@model List<FaseMataMataViewModel>
+
+@if (!Model.Any())
+{
+    <div class="cd-sem-dados cd-jogos-wrap"><div class="icon">🏆</div><p>Chaveamento ainda não disponível.</p></div>
+}
+else
+{
+    var fasesOrdenadas = Model.OrderBy(f => f.Ordem).ToList();
+    <div class="cd-mm-scroll">
+        <div class="cd-mm-inner">
+            @for (int fi = 0; fi < fasesOrdenadas.Count; fi++)
+            {
+                var fase = fasesOrdenadas[fi];
+                <div class="cd-mm-fase-col">
+                    <div class="cd-mm-fase-wrap">
+                        <div class="cd-mm-fase-nome">@fase.Nome</div>
+                        <div class="cd-mm-confrontos">
+                            @foreach (var cf in fase.Confrontos)
+                            {
+                                bool aVence = cf.Completo && cf.TotalA > cf.TotalB;
+                                bool bVence = cf.Completo && cf.TotalB > cf.TotalA;
+                                <div class="cd-mm-confronto">
+                                    <div class="cd-mm-time-row top">
+                                        <div class="cd-mm-time-lado">
+                                            @if (!string.IsNullOrEmpty(cf.TimeA?.EscudoUrl))
+                                            {
+                                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = cf.TimeA.EscudoUrl })" alt="" />
+                                            }
+                                            <span style="font-weight:@(aVence ? 700 : 500); color:@(aVence ? "#f1f5f9" : "#9ca3af");">@cf.TimeA?.Nome</span>
+                                        </div>
+                                        <span class="cd-mm-placar" style="color:@(aVence ? "#4ade80" : "#f1f5f9");">@(cf.SoIda ? cf.GolsAIda.ToString() : cf.TotalA.ToString())</span>
+                                    </div>
+                                    <div class="cd-mm-time-row">
+                                        <div class="cd-mm-time-lado">
+                                            @if (!string.IsNullOrEmpty(cf.TimeB?.EscudoUrl))
+                                            {
+                                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = cf.TimeB.EscudoUrl })" alt="" />
+                                            }
+                                            <span style="font-weight:@(bVence ? 700 : 500); color:@(bVence ? "#f1f5f9" : "#9ca3af");">@cf.TimeB?.Nome</span>
+                                        </div>
+                                        <span class="cd-mm-placar" style="color:@(bVence ? "#4ade80" : "#f1f5f9");">@(cf.SoIda ? cf.GolsBIda.ToString() : cf.TotalB.ToString())</span>
+                                    </div>
+                                    @if (cf.JogoIda != null || cf.JogoVolta != null)
+                                    {
+                                        <div class="cd-mm-datas">
+                                            @if (cf.JogoIda != null) { <span>Ida: @DateHelper.FormatarData(cf.JogoIda.Data, "dd/MM")</span> }
+                                            @if (cf.JogoVolta != null) { <span>Volta: @DateHelper.FormatarData(cf.JogoVolta.Data, "dd/MM")</span> }
+                                        </div>
+                                    }
+                                    @if (cf.Completo)
+                                    {
+                                        <div class="cd-mm-classificado">
+                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                                            <span>@((aVence ? cf.TimeA?.Nome : cf.TimeB?.Nome) ?? "") classificado</span>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    @if (fi < fasesOrdenadas.Count - 1)
+                    {
+                        <div class="cd-mm-connector"><div class="cd-mm-connector-arrow">›</div></div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}

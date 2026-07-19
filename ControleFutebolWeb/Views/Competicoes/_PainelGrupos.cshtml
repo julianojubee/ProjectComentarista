@@ -1,0 +1,63 @@
+@using ControleFutebolWeb.Models.ViewModels
+@model List<GrupoViewModel>
+
+@{
+    // Nomes de grupo podem vir como só a letra ("A") ou já completos da API ("Group E") —
+    // normaliza para não duplicar "Grupo Grupo E" nem estourar o selo circular.
+    string GrupoLetra(string? nome)
+    {
+        var partes = (nome ?? "?").Trim().Split(' ');
+        return partes.Length > 0 ? partes[^1] : (nome ?? "?");
+    }
+    string GrupoTitulo(string? nome)
+    {
+        var n = (nome ?? "").Trim();
+        return n.StartsWith("Group", StringComparison.OrdinalIgnoreCase) || n.StartsWith("Grupo", StringComparison.OrdinalIgnoreCase)
+            ? n
+            : "Grupo " + n;
+    }
+}
+
+@if (!Model.Any())
+{
+    <div class="cd-sem-dados cd-jogos-wrap"><div class="icon">📊</div><p>Sem dados de grupos ainda.</p></div>
+}
+else
+{
+    <div class="cd-grupos-grid">
+        @foreach (var grupo in Model)
+        {
+            <div class="cd-grupo-card">
+                <div class="cd-grupo-header">
+                    <div class="cd-grupo-letra">@GrupoLetra(grupo.Nome)</div>
+                    <span class="cd-grupo-nome">@GrupoTitulo(grupo.Nome)</span>
+                </div>
+                <div class="cd-grupo-cols">
+                    <span>#</span><span></span><span class="left" style="text-align:left;">Time</span>
+                    <span>J</span><span style="color:#22c55e;">V</span><span style="color:#f59e0b;">E</span><span style="color:#ef4444;">D</span><span style="color:#d4a520;">Pts</span>
+                </div>
+                @foreach (var t in grupo.Times)
+                {
+                    var isQ = t.Posicao <= 2;
+                    <div class="cd-grupo-row">
+                        <span class="cd-pos" style="font-size:.75rem; color:@(isQ ? "#3b82f6" : "#6b7280");">@t.Posicao</span>
+                        <div class="cd-grupo-escudo">
+                            @if (!string.IsNullOrEmpty(t.Time?.EscudoUrl))
+                            {
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.Time.EscudoUrl })" alt="" />
+                            }
+                        </div>
+                        <a asp-controller="Times" asp-action="Details" asp-route-id="@t.Time?.Id" class="cd-nome" style="font-size:.82rem;">@t.Time?.Nome</a>
+                        <span class="cd-cell">@t.Jogos</span>
+                        <span class="cd-cell v">@t.Vitorias</span>
+                        <span class="cd-cell e">@t.Empates</span>
+                        <span class="cd-cell d">@t.Derrotas</span>
+                        <div class="cd-pts">
+                            <span style="font-size:1rem; color:@(isQ ? "#3b82f6" : "#f1f5f9"); background:@(isQ ? "rgba(59,130,246,0.1)" : "transparent"); padding:1px 6px; border-radius:5px;">@t.Pontos</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+}

@@ -79,7 +79,10 @@
 </head>
 <body>
     <header>
-        <nav class="navbar brand-nav navbar-expand-md navbar-toggleable-md navbar-light bg-white border-bottom box-shadow mb-3">
+        @* expand-lg (e não -md): com todos os itens do menu, a navbar expandida
+           não cabe entre 768–991px (tablet/celular deitado) e estourava a
+           largura da página — nessa faixa fica o menu hambúrguer. *@
+        <nav class="navbar brand-nav navbar-expand-lg navbar-light bg-white border-bottom box-shadow mb-3">
             <div class="container-fluid">
                 <a class="navbar-brand brand-logo text-dark p-0" asp-controller="Home" asp-action="Index" aria-label="Análise de Craque — início">
                     <svg class="brand-mark" width="27" height="40" viewBox="0 0 80 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
@@ -100,7 +103,7 @@
                         aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="navbar-collapse collapse d-md-inline-flex justify-content-between">
+                <div class="navbar-collapse collapse d-lg-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>

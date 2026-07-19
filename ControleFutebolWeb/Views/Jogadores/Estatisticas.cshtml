@@ -492,7 +492,7 @@
                     @if (Model.Jogador.Nacionalidade != null)
                     {
                         var bandeiraUrl = FlagHelper.GetFlagImageUrl(Model.Jogador.Nacionalidade.Nome);
-                        <span class="je-meta-item">
+                        <span class="je-meta-item" title="País de nascimento: @Model.Jogador.Nacionalidade.Nome">
                             @if (bandeiraUrl != null)
                             {
                                 <img src="@Url.Action("Imagem", "MediaProxy", new { url = bandeiraUrl })" alt="" />
@@ -502,7 +502,7 @@
                     }
                     @if (Model.Jogador.Selecao != null)
                     {
-                        <span class="je-meta-item je-meta-clube">
+                        <span class="je-meta-item je-meta-clube" title="Seleção que defende: @Model.Jogador.Selecao.Nome">
                             @if (!string.IsNullOrEmpty(Model.Jogador.Selecao.EscudoUrl))
                             {
                                 <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogador.Selecao.EscudoUrl })" alt="" />
@@ -669,12 +669,12 @@
                                 <rect x="129" y="5" width="422" height="132" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
                                 <rect x="229" y="5" width="222" height="55" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
                                 <circle cx="340" cy="116" r="4" fill="rgba(255,255,255,0.5)" />
-                                <path d="M 245 137 A 91.5 91.5 0 0 1 435 137" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                <path d="M 251 137 A 91.5 91.5 0 0 0 429 137" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
                                 <rect x="273" y="0" width="134" height="18" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.35)" stroke-width="2" />
                                 <rect x="129" y="913" width="422" height="132" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
                                 <rect x="229" y="990" width="222" height="55" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
                                 <circle cx="340" cy="934" r="4" fill="rgba(255,255,255,0.5)" />
-                                <path d="M 245 913 A 91.5 91.5 0 0 0 435 913" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                <path d="M 251 913 A 91.5 91.5 0 0 1 429 913" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
                                 <rect x="273" y="1032" width="134" height="18" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.35)" stroke-width="2" />
                             </svg>
                         </div>
@@ -877,6 +877,9 @@
                             {
                                 <button type="button" class="je-ver-analise" onclick="event.stopPropagation(); toggleAnalise(this, 'analise-@idx')">Ver análise</button>
                             }
+                            <a class="je-ver-analise" style="text-decoration:none; text-align:center;"
+                               href="@Url.Action("EstatisticasJogo", "Jogadores", new { id = Model.Jogador.Id, jogoId = item.Jogo.Id })"
+                               onclick="event.stopPropagation();" title="Todas as ações e estatísticas deste jogador nesta partida">Estatísticas</a>
                         </div>
 
                         <!-- Stats resumidos -->

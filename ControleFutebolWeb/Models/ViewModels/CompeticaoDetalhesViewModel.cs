@@ -9,6 +9,19 @@ namespace ControleFutebolWeb.Models.ViewModels
         public List<FaseMataMataViewModel> FasesMataMata { get; set; } = new();
         public List<Jogo> ProximosJogos { get; set; } = new();
         public List<Jogo> JogosRealizados { get; set; } = new();
+
+        // Preenchido quando a competição tem fases declaradas (CompeticaoFase);
+        // vazio = comportamento de fase única guiado por Tipo.
+        public List<FaseDetalheViewModel> Fases { get; set; } = new();
+    }
+
+    // Conteúdo de uma fase declarada — só a coleção do Tipo da fase é preenchida.
+    public class FaseDetalheViewModel
+    {
+        public CompeticaoFase Fase { get; set; } = null!;
+        public List<Classificacao> Classificacao { get; set; } = new();       // PONTOS_CORRIDOS
+        public List<GrupoViewModel> Grupos { get; set; } = new();             // GRUPOS
+        public List<FaseMataMataViewModel> FasesMataMata { get; set; } = new(); // MATA_MATA
     }
 
     public class GrupoViewModel

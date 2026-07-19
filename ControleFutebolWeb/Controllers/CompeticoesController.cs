@@ -1,4 +1,5 @@
 ﻿using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
 using ControleFutebolWeb.Services;
@@ -163,37 +164,73 @@ namespace ControleFutebolWeb.Controllers
                 .Take(20)
                 .ToList();
 
-            // Competições "GRUPOS" às vezes têm, na mesma temporada, uma fase eliminatória
-            // depois da fase de grupos (ex.: Sul-Americana → grupos + oitavas/quartas/semi/final).
-            // A api-football rotula essas fases com nomes que não começam com "Group"/"Grupo"
-            // (ex.: "Round of 16", "Quarterfinals", "Qualification Round 1"), então separamos
-            // esses jogos para montar o chaveamento em vez de tratá-los como um "grupo" de pontos corridos.
-            var jogosFaseGrupos = jogosDaTemporada.Where(j => EhNomeDeGrupo(j.Grupo)).ToList();
-            var jogosFaseEliminatoria = jogosDaTemporada
-                .Where(j => !string.IsNullOrEmpty(j.Grupo) && !EhNomeDeGrupo(j.Grupo))
-                .ToList();
-            var jogosFaseGruposRealizados = jogosFaseGrupos
-                .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue)
-                .ToList();
-
             var vm = new CompeticaoDetalhesViewModel
             {
                 Competicao = competicao,
                 Tipo = competicao.Tipo,
                 ProximosJogos = proximosJogos,
                 JogosRealizados = jogosRealizados,
-                Classificacao = competicao.Tipo != "MATA_MATA"
-                    ? CalcularTabela(jogosRealizados)
-                    : new(),
-                Grupos = competicao.Tipo == "GRUPOS"
-                    ? MontarGrupos(jogosFaseGruposRealizados)
-                    : new(),
-                FasesMataMata = competicao.Tipo == "MATA_MATA"
-                    ? MontarMataMata(jogosDaTemporada)
-                    : competicao.Tipo == "GRUPOS"
-                        ? MontarMataMata(jogosFaseEliminatoria)
-                        : new(),
             };
+
+            var fasesDeclaradas = _context.CompeticaoFases
+                .Where(f => f.CompeticaoId == id)
+                .OrderBy(f => f.Ordem).ThenBy(f => f.Id)
+                .ToList();
+
+            if (fasesDeclaradas.Any())
+            {
+                // Fases declaradas pelo usuário (ex.: pontos corridos + playoffs):
+                // distribui os jogos entre elas e monta a visualização do tipo de cada uma.
+                var jogosPorFase = FaseJogoClassifier.DistribuirPorFases(fasesDeclaradas, jogosDaTemporada);
+
+                vm.Fases = fasesDeclaradas.Select(fase =>
+                {
+                    var jogosFase = jogosPorFase[fase.Id];
+                    var realizadosFase = jogosFase
+                        .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue)
+                        .ToList();
+
+                    return new FaseDetalheViewModel
+                    {
+                        Fase = fase,
+                        Classificacao = fase.Tipo == "PONTOS_CORRIDOS" ? CalcularTabela(realizadosFase) : new(),
+                        Grupos = fase.Tipo == "GRUPOS" ? MontarGrupos(realizadosFase) : new(),
+                        FasesMataMata = fase.Tipo == "MATA_MATA" ? MontarMataMata(jogosFase) : new(),
+                    };
+                }).ToList();
+            }
+            else if (competicao.Tipo == "MATA_MATA")
+            {
+                vm.FasesMataMata = MontarMataMata(jogosDaTemporada);
+            }
+            else if (competicao.Tipo == "GRUPOS")
+            {
+                // Competições "GRUPOS" às vezes têm, na mesma temporada, uma fase eliminatória
+                // depois da fase de grupos (ex.: Sul-Americana → grupos + oitavas/quartas/semi/final).
+                // A api-football rotula essas fases com nomes que não começam com "Group"/"Grupo"
+                // (ex.: "Round of 16", "Quarterfinals", "Qualification Round 1"), então separamos
+                // esses jogos para montar o chaveamento em vez de tratá-los como um "grupo" de pontos corridos.
+                var jogosFaseGruposRealizados = jogosRealizados.Where(j => EhNomeDeGrupo(j.Grupo)).ToList();
+                var jogosFaseEliminatoria = jogosDaTemporada
+                    .Where(j => !string.IsNullOrEmpty(j.Grupo) && !EhNomeDeGrupo(j.Grupo))
+                    .ToList();
+
+                vm.Grupos = MontarGrupos(jogosFaseGruposRealizados);
+                vm.FasesMataMata = MontarMataMata(jogosFaseEliminatoria);
+            }
+            else
+            {
+                // Pontos corridos: jogos de playoff/eliminatória (round tipo "Quarterfinals")
+                // não entram na tabela — viram um chaveamento à parte, como já ocorre em GRUPOS.
+                var jogosEliminatorios = jogosDaTemporada
+                    .Where(j => FaseJogoClassifier.Classificar(j.Grupo) == FaseCategoria.MataMata)
+                    .ToList();
+
+                vm.Classificacao = CalcularTabela(jogosRealizados
+                    .Where(j => FaseJogoClassifier.Classificar(j.Grupo) != FaseCategoria.MataMata)
+                    .ToList());
+                vm.FasesMataMata = jogosEliminatorios.Any() ? MontarMataMata(jogosEliminatorios) : new();
+            }
 
             // ── Stats do hero (times, jogos, gols) ────────────────────────────
             ViewBag.TotalTimes = jogosDaTemporada
@@ -261,6 +298,12 @@ namespace ControleFutebolWeb.Controllers
         {
             var competicao = await _context.Competicoes.FindAsync(id);
             if (competicao == null) return NotFound();
+
+            ViewBag.Fases = await _context.CompeticaoFases
+                .Where(f => f.CompeticaoId == id)
+                .OrderBy(f => f.Ordem).ThenBy(f => f.Id)
+                .ToListAsync();
+
             return View(competicao);
         }
 
@@ -289,6 +332,53 @@ namespace ControleFutebolWeb.Controllers
             await _context.SaveChangesAsync();
 
             return RedirectToAction(nameof(Index));
+        }
+
+        // Linha do formulário de fases (Edit) — não é entidade, só transporte do POST.
+        public class CompeticaoFaseInput
+        {
+            public string? Nome { get; set; }
+            public string? Tipo { get; set; }
+            public string? RoundsPattern { get; set; }
+        }
+
+        // POST: Competicoes/SalvarFases/5 — substitui todas as fases declaradas da
+        // competição pelas recebidas (replace-all: nada mais referencia a fase, os jogos
+        // são associados em tempo de leitura pelo FaseJogoClassifier).
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SalvarFases(int id, List<CompeticaoFaseInput> fases)
+        {
+            var competicao = await _context.Competicoes.FindAsync(id);
+            if (competicao == null) return NotFound();
+
+            var atuais = _context.CompeticaoFases.Where(f => f.CompeticaoId == id);
+            _context.CompeticaoFases.RemoveRange(atuais);
+
+            var validas = (fases ?? new())
+                .Where(f => !string.IsNullOrWhiteSpace(f.Nome) && !string.IsNullOrWhiteSpace(f.Tipo))
+                .ToList();
+
+            for (int i = 0; i < validas.Count; i++)
+            {
+                _context.CompeticaoFases.Add(new CompeticaoFase
+                {
+                    CompeticaoId = id,
+                    Nome = validas[i].Nome!.Trim(),
+                    Tipo = validas[i].Tipo!.Trim(),
+                    Ordem = i + 1,
+                    RoundsPattern = string.IsNullOrWhiteSpace(validas[i].RoundsPattern)
+                        ? null
+                        : validas[i].RoundsPattern!.Trim(),
+                });
+            }
+
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = validas.Count > 0
+                ? $"Fases da competição salvas ({validas.Count})."
+                : "Fases removidas — a competição volta a usar apenas o Tipo.";
+            return RedirectToAction(nameof(Edit), new { id });
         }
         // Ação Index e Detalhes...
 
@@ -360,11 +450,7 @@ namespace ControleFutebolWeb.Controllers
         // — a api-football nomeia fases eliminatórias como "Round of 16", "Quarterfinals",
         // "Qualification Round 1" etc., que não devem virar uma tabela de pontos corridos.
         private static bool EhNomeDeGrupo(string? nomeGrupo)
-        {
-            var nome = (nomeGrupo ?? "").Trim();
-            return nome.StartsWith("Group", StringComparison.OrdinalIgnoreCase)
-                || nome.StartsWith("Grupo", StringComparison.OrdinalIgnoreCase);
-        }
+            => FaseJogoClassifier.Classificar(nomeGrupo) == FaseCategoria.Grupos;
 
         private List<GrupoViewModel> MontarGrupos(ICollection<Jogo> jogos)
         {

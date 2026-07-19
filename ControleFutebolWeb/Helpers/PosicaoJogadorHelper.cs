@@ -42,13 +42,17 @@ namespace ControleFutebolWeb.Helpers
                 })
                 .ToListAsync(ct);
 
-            // Por (jogador, jogo): vale a posição da fase INICIAL; se o jogador só
-            // aparece na FINAL (entrou no decorrer), vale a FINAL.
+            // Por (jogador, jogo): só conta quem tem registro na fase INICIAL. Quem só
+            // aparece na FINAL entrou como substituto — a coordenada ali é o slot de
+            // quem ele substituiu (visual da simulação de troca), não a posição real
+            // do jogador; um atacante que entra na vaga do lateral não pode "virar"
+            // lateral nas estatísticas. Sem INICIAL, esse jogo simplesmente não conta
+            // pra posição (o jogador mantém a posição já cadastrada/derivada de onde
+            // ele de fato começou jogos).
             var porJogo = escalacoes
                 .GroupBy(e => new { e.JogadorId, e.JogoId })
-                .Select(g => g
-                    .OrderBy(e => e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null ? 0 : 1)
-                    .First());
+                .Where(g => g.Any(e => e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null))
+                .Select(g => g.First(e => e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null));
 
             var nomesPorJogador = new Dictionary<int, List<string>>();
             foreach (var e in porJogo)

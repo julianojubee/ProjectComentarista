@@ -1,0 +1,76 @@
+@using ControleFutebolWeb.Controllers
+@model List<ControleFutebolWeb.Models.Jogo>
+
+@{
+    // Próximos jogos vêm no Model; artilheiros via ViewBag (compartilhado com a view pai).
+    var artilheiros = ViewBag.Artilheiros as List<ArtilheiroViewModel> ?? new();
+}
+
+<div class="cd-sidebar">
+    <div class="cd-side-card">
+        <div class="cd-side-header"><span class="cd-side-title">📅 Próximos</span></div>
+        @if (!Model.Any())
+        {
+            <div class="cd-vazio">Nenhum jogo agendado.</div>
+        }
+        else
+        {
+            foreach (var j in Model.Take(4))
+            {
+                <div class="cd-mini-jogo">
+                    <div class="cd-mini-lado casa">
+                        <span>@j.TimeCasa?.Nome</span>
+                        @if (!string.IsNullOrEmpty(j.TimeCasa?.EscudoUrl))
+                        {
+                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.TimeCasa.EscudoUrl })" alt="" />
+                        }
+                    </div>
+                    <span class="cd-mini-hora">@DateHelper.FormatarData(j.Data, "dd/MM")</span>
+                    <div class="cd-mini-lado">
+                        @if (!string.IsNullOrEmpty(j.TimeVisitante?.EscudoUrl))
+                        {
+                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.TimeVisitante.EscudoUrl })" alt="" />
+                        }
+                        <span>@j.TimeVisitante?.Nome</span>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+
+    <div class="cd-side-card">
+        <div class="cd-side-header"><span class="cd-side-title">⚽ Artilheiros</span></div>
+        @if (!artilheiros.Any())
+        {
+            <div class="cd-vazio">Nenhum gol registrado ainda.</div>
+        }
+        else
+        {
+            var rankColors = new[] { "#f59e0b", "#9ca3af", "#b45309", "#374151", "#374151" };
+            for (int i = 0; i < artilheiros.Count; i++)
+            {
+                var a = artilheiros[i];
+                <div class="cd-artilheiro">
+                    <span class="cd-art-rank" style="color:@rankColors[Math.Min(i, rankColors.Length - 1)];">@(i + 1)</span>
+                    <div class="cd-art-avatar">
+                        @if (!string.IsNullOrEmpty(a.Jogador.FotoUrl))
+                        {
+                            <img src="@Url.FotoSrc(a.Jogador.FotoUrl)" alt="" />
+                        }
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                        <div class="cd-art-nome">@a.Jogador.NomeExibicao</div>
+                        <div class="cd-art-clube">
+                            @if (!string.IsNullOrEmpty(a.Jogador.Time?.EscudoUrl))
+                            {
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = a.Jogador.Time.EscudoUrl })" alt="" />
+                            }
+                            <span>@(a.Jogador.Time?.Nome ?? "—")</span>
+                        </div>
+                    </div>
+                    <span class="cd-art-gols">@(a.Gols)⚽</span>
+                </div>
+            }
+        }
+    </div>
+</div>

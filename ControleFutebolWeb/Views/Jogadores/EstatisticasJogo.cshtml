@@ -1,0 +1,340 @@
+@model ControleFutebolWeb.Models.ViewModels.JogadorEstatisticasJogoViewModel
+@using ControleFutebolWeb.Helpers
+@using ControleFutebolWeb.Models
+@{
+    ViewData["Title"] = $"{Model.Jogador.NomeExibicao} — estatísticas do jogo";
+
+    var jogo = Model.Jogo;
+    var e = Model.Estatistica;
+
+    var adversario = Model.IsCasa ? jogo.TimeVisitante?.Nome : jogo.TimeCasa?.Nome;
+    var adversarioEscudo = Model.IsCasa ? jogo.TimeVisitante?.EscudoUrl : jogo.TimeCasa?.EscudoUrl;
+
+    var temPlacar = jogo.PlacarCasa.HasValue && jogo.PlacarVisitante.HasValue;
+    var golsPro = Model.IsCasa ? jogo.PlacarCasa : jogo.PlacarVisitante;
+    var golsContra = Model.IsCasa ? jogo.PlacarVisitante : jogo.PlacarCasa;
+    var placar = temPlacar ? $"{golsPro} x {golsContra}" : "–";
+
+    var resultado = !temPlacar ? "?"
+        : golsPro > golsContra ? "V"
+        : golsPro < golsContra ? "D" : "E";
+    var resBg = resultado switch
+    {
+        "V" => "#16a34a",
+        "E" => "#b45309",
+        "D" => "#dc2626",
+        _   => "#334155"
+    };
+
+    string Pct(int certos, int total) =>
+        total > 0 ? $"{(int)Math.Round(100.0 * certos / total)}%" : "—";
+
+    var ehGoleiro = (Model.Posicao ?? Model.Jogador.Posicao ?? "")
+        .Contains("gol", StringComparison.OrdinalIgnoreCase);
+}
+
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+<style>
+    .ej-page, .ej-page *, .ej-page *::before, .ej-page *::after { box-sizing: border-box; }
+    .ej-page {
+        background: #0f0f0f; margin: 0 -12px; padding: 24px 16px 48px; color: #e2e8f0;
+        font-family: 'Barlow', Arial, sans-serif; border-radius: 14px; overflow: hidden;
+    }
+    .ej-wrap { max-width: 900px; margin: 0 auto; }
+
+    .ej-voltar {
+        display: inline-flex; align-items: center; gap: 8px; margin-bottom: 18px;
+        font-size: .78rem; font-weight: 600; color: #9ca3af; background: #1a1a1a;
+        border: 1px solid #2a2a2a; border-radius: 8px; padding: 8px 14px; cursor: pointer;
+    }
+    .ej-voltar:hover { border-color: #d4a520; color: #d4a520; }
+
+    .ej-header {
+        background: linear-gradient(135deg, #090909 0%, #141414 100%);
+        border: 1px solid #262626; border-radius: 12px; padding: 18px 20px; margin-bottom: 18px;
+        display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    }
+    .ej-res-badge {
+        width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center;
+        justify-content: center; font-weight: 800; font-size: 1.1rem; color: #fff; flex-shrink: 0;
+    }
+    .ej-header-info { flex: 1; min-width: 220px; }
+    .ej-header-jogador { font-size: 1.05rem; font-weight: 700; color: #f8fafc; }
+    .ej-header-jogo { font-size: .82rem; color: #d4a520; font-weight: 600; margin-top: 2px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .ej-header-jogo img { width: 16px; height: 16px; object-fit: contain; }
+    .ej-header-placar { color: #94a3b8; font-weight: 500; }
+    .ej-header-meta { font-size: .7rem; color: #6b7280; margin-top: 3px; }
+    .ej-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+    .ej-badge {
+        font-size: .65rem; font-weight: 700; padding: 4px 10px; border-radius: 999px;
+        background: #1e293b; border: 1px solid #2a3a52; color: #cbd5e1;
+    }
+
+    .ej-card { background: #161616; border: 1px solid #262626; border-radius: 12px; padding: 18px 20px; margin-bottom: 18px; }
+    .ej-card-titulo {
+        font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
+        color: #9ca3af; margin-bottom: 14px;
+    }
+
+    .ej-evento { display: flex; align-items: baseline; gap: 10px; padding: 7px 0; border-bottom: 1px solid #1e1e1e; }
+    .ej-evento:last-child { border-bottom: none; }
+    .ej-evento-min { min-width: 40px; text-align: right; font-weight: 700; font-size: .8rem; color: #94a3b8; }
+    .ej-evento-txt { font-size: .85rem; font-weight: 600; }
+    .ej-evento-det { font-size: .75rem; color: #6b7280; font-weight: 400; }
+
+    .ej-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+    .ej-stat { background: #111; border: 1px solid #1e1e1e; border-radius: 10px; padding: 10px 12px; }
+    .ej-stat-val { font-size: 1.05rem; font-weight: 800; color: #f8fafc; }
+    .ej-stat-val small { font-size: .68rem; font-weight: 600; color: #6b7280; }
+    .ej-stat-lbl { font-size: .62rem; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; margin-top: 2px; }
+    .ej-grupo { margin-bottom: 16px; }
+    .ej-grupo:last-child { margin-bottom: 0; }
+    .ej-grupo-titulo { font-size: .68rem; font-weight: 700; color: #d4a520; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .06em; }
+
+    .ej-heatmap-body { display: flex; flex-direction: column; align-items: center; }
+    .ej-heatmap-pitch { position: relative; width: 100%; max-width: 260px; aspect-ratio: 68/105; border-radius: 6px; overflow: hidden; }
+    .ej-heatmap-legend { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; width: 100%; max-width: 260px; }
+    .ej-heatmap-legend span { font-size: .6rem; color: #374151; font-weight: 600; }
+    .ej-heatmap-legend-bar { flex: 1; margin: 0 10px; height: 5px; border-radius: 3px; background: linear-gradient(90deg, #4ade80, #facc15, #f97316, #ef4444); }
+
+    .ej-sem-dados { font-size: .8rem; color: #6b7280; padding: 6px 0; }
+    .ej-duas-colunas { display: grid; grid-template-columns: 1fr 320px; gap: 18px; align-items: start; }
+    @@media (max-width: 760px) { .ej-duas-colunas { grid-template-columns: 1fr; } }
+</style>
+
+<div class="ej-page">
+    <div class="ej-wrap">
+
+        <button type="button" class="ej-voltar" onclick="ejVoltar()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6" /></svg>
+            Voltar
+        </button>
+
+        <!-- Cabeçalho: jogador + jogo -->
+        <div class="ej-header">
+            <div class="ej-res-badge" style="background:@resBg;">@resultado</div>
+            <div class="ej-header-info">
+                <div class="ej-header-jogador">@Model.Jogador.NomeExibicao</div>
+                <div class="ej-header-jogo">
+                    @if (!string.IsNullOrEmpty(adversarioEscudo))
+                    {
+                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = adversarioEscudo })" alt="" />
+                    }
+                    <span>vs @adversario</span>
+                    <span class="ej-header-placar">@placar</span>
+                    @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
+                    {
+                        <span class="ej-header-placar">(@(Model.IsCasa ? $"{jogo.PenaltisCasa}-{jogo.PenaltisVisitante}" : $"{jogo.PenaltisVisitante}-{jogo.PenaltisCasa}") pên.)</span>
+                    }
+                </div>
+                <div class="ej-header-meta">
+                    @DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy")
+                    @if (jogo.Rodada > 0) { <text> — Rodada @jogo.Rodada</text> }
+                    @if (jogo.Competicao != null) { <text> — @jogo.Competicao.Nome</text> }
+                </div>
+            </div>
+            <div class="ej-badges">
+                @if (!string.IsNullOrWhiteSpace(Model.Posicao))
+                {
+                    <span class="ej-badge">@PosicaoJogadorHelper.Sigla(Model.Posicao)</span>
+                }
+                @if (Model.TemEscalacao)
+                {
+                    <span class="ej-badge">@(Model.Titular ? "Titular" : "Reserva")</span>
+                }
+                @if (e?.Minutos != null)
+                {
+                    <span class="ej-badge">@(e.Minutos)' em campo</span>
+                }
+                @if (e?.Capitao == true)
+                {
+                    <span class="ej-badge" style="border-color:#d4a520; color:#d4a520;">©️ Capitão</span>
+                }
+            </div>
+        </div>
+
+        <div class="ej-duas-colunas">
+            <div>
+                <!-- Ações no jogo -->
+                <div class="ej-card">
+                    <div class="ej-card-titulo">⚡ Ações no jogo</div>
+                    @if (!Model.Eventos.Any())
+                    {
+                        <div class="ej-sem-dados">Nenhum evento registrado para este jogador nesta partida (gol, assistência, cartão, substituição ou pênalti).</div>
+                    }
+                    else
+                    {
+                        foreach (var ev in Model.Eventos)
+                        {
+                            <div class="ej-evento">
+                                <div class="ej-evento-min">@(ev.Minuto.HasValue ? $"{ev.Minuto}'" : "—")</div>
+                                <div class="ej-evento-txt" style="color:@ev.Cor;">
+                                    @ev.Icone @ev.Titulo
+                                    @if (!string.IsNullOrEmpty(ev.Detalhe))
+                                    {
+                                        <span class="ej-evento-det"> — @ev.Detalhe</span>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+
+                <!-- Estatísticas importadas -->
+                <div class="ej-card">
+                    <div class="ej-card-titulo">📊 Estatísticas importadas da partida</div>
+                    @if (e == null)
+                    {
+                        <div class="ej-sem-dados">Sem estatísticas importadas da api-football para este jogador nesta partida.</div>
+                    }
+                    else
+                    {
+                        <div class="ej-grupo">
+                            <div class="ej-grupo-titulo">Ataque</div>
+                            <div class="ej-grid">
+                                <div class="ej-stat"><div class="ej-stat-val">@e.Gols</div><div class="ej-stat-lbl">Gols</div></div>
+                                <div class="ej-stat"><div class="ej-stat-val">@e.Assistencias</div><div class="ej-stat-lbl">Assistências</div></div>
+                                <div class="ej-stat"><div class="ej-stat-val">@e.FinalizacoesTotal <small>(@e.FinalizacoesNoGol no gol)</small></div><div class="ej-stat-lbl">Finalizações</div></div>
+                                <div class="ej-stat"><div class="ej-stat-val">@Pct(e.FinalizacoesNoGol, e.FinalizacoesTotal)</div><div class="ej-stat-lbl">Precisão finalizações</div></div>
+                                <div class="ej-stat"><div class="ej-stat-val">@e.Offsides</div><div class="ej-stat-lbl">Impedimentos</div></div>
+                            </div>
+                        </div>
+
+                        <div class="ej-grupo">
+                            <div class="ej-grupo-titulo">Passes e criação</div>
+                            <div class="ej-grid">
+                                <div class="ej-stat"><div class="ej-stat-val">@e.PassesTotal</div><div class="ej-stat-lbl">Passes</div></div>
+                                <div class="ej-stat"><div class="ej-stat-val">@e.PassesChave</div><div class="ej-stat-lbl">Passes-chave</div></div>
+                                <div class="ej-stat"><div class="ej-stat-val">@e.DriblesTentados <small>(@e.DriblesCertos certos)</small></div><div class="ej-stat-lbl">Dribles</div></div>
+                                <div class="ej-stat"><div class="ej-stat-val">@Pct(e.DriblesCertos, e.DriblesTentados)</div><div class="ej-stat-lbl">Sucesso dribles</div></div>
+                            </div>
+                        </div>
+
+                        <div class="ej-grupo">
+                            <div class="ej-grupo-titulo">Duelos e defesa</div>
+                            <div class="ej-grid">
+                                <div class="ej-stat"><div class="ej-stat-val">@e.DuelosTotal <small>(@e.DuelosVencidos vencidos)</small></div><div class="ej-stat-lbl">Duelos</div></div>
+                                <div class="ej-stat"><div class="ej-stat-val">@Pct(e.DuelosVencidos, e.DuelosTotal)</div><div class="ej-stat-lbl">Duelos vencidos</div></div>
+                                <div class="ej-stat"><div class="ej-stat-val">@e.Desarmes</div><div class="ej-stat-lbl">Desarmes</div></div>
+                                <div class="ej-stat"><div class="ej-stat-val">@e.Interceptacoes</div><div class="ej-stat-lbl">Interceptações</div></div>
+                                <div class="ej-stat"><div class="ej-stat-val">@e.Bloqueios</div><div class="ej-stat-lbl">Bloqueios</div></div>
+                                <div class="ej-stat"><div class="ej-stat-val">@e.DriblesSofridos</div><div class="ej-stat-lbl">Dribles sofridos</div></div>
+                            </div>
+                        </div>
+
+                        @if (ehGoleiro || e.Defesas > 0 || e.GolsSofridos > 0)
+                        {
+                            <div class="ej-grupo">
+                                <div class="ej-grupo-titulo">Goleiro</div>
+                                <div class="ej-grid">
+                                    <div class="ej-stat"><div class="ej-stat-val">@e.Defesas</div><div class="ej-stat-lbl">Defesas</div></div>
+                                    <div class="ej-stat"><div class="ej-stat-val">@e.GolsSofridos</div><div class="ej-stat-lbl">Gols sofridos</div></div>
+                                    <div class="ej-stat"><div class="ej-stat-val">@e.PenaltiDefendido</div><div class="ej-stat-lbl">Pênaltis defendidos</div></div>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="ej-grupo">
+                            <div class="ej-grupo-titulo">Disciplina</div>
+                            <div class="ej-grid">
+                                <div class="ej-stat"><div class="ej-stat-val">@e.FaltasSofridas</div><div class="ej-stat-lbl">Faltas sofridas</div></div>
+                                <div class="ej-stat"><div class="ej-stat-val">@e.FaltasCometidas</div><div class="ej-stat-lbl">Faltas cometidas</div></div>
+                                <div class="ej-stat"><div class="ej-stat-val">@e.CartoesAmarelos</div><div class="ej-stat-lbl">Cartões amarelos</div></div>
+                                <div class="ej-stat"><div class="ej-stat-val">@e.CartoesVermelhos</div><div class="ej-stat-lbl">Cartões vermelhos</div></div>
+                            </div>
+                        </div>
+
+                        @if (e.PenaltiSofrido > 0 || e.PenaltiCometido > 0 || e.PenaltiPerdido > 0)
+                        {
+                            <div class="ej-grupo">
+                                <div class="ej-grupo-titulo">Pênaltis</div>
+                                <div class="ej-grid">
+                                    <div class="ej-stat"><div class="ej-stat-val">@e.PenaltiSofrido</div><div class="ej-stat-lbl">Sofridos</div></div>
+                                    <div class="ej-stat"><div class="ej-stat-val">@e.PenaltiCometido</div><div class="ej-stat-lbl">Cometidos</div></div>
+                                    <div class="ej-stat"><div class="ej-stat-val">@e.PenaltiPerdido</div><div class="ej-stat-lbl">Perdidos</div></div>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+            <!-- Mapa de calor do jogo -->
+            <div class="ej-card">
+                <div class="ej-card-titulo">🔥 Mapa de calor desta partida</div>
+                @if (!Model.PontosHeatmap.Any())
+                {
+                    <div class="ej-sem-dados">Sem dados de posicionamento salvos para este jogador nesta partida.</div>
+                }
+                else
+                {
+                    <div class="ej-heatmap-body">
+                        <div id="ejHeatmapCampo" class="ej-heatmap-pitch">
+                            <svg viewBox="0 0 680 1050" xmlns="http://www.w3.org/2000/svg" style="position:absolute; inset:0; width:100%; height:100%;">
+                                <rect width="680" height="1050" fill="#0d3d1f" />
+                                <rect x="0" y="0" width="680" height="75" fill="#0e4221" opacity="0.5" />
+                                <rect x="0" y="150" width="680" height="75" fill="#0e4221" opacity="0.5" />
+                                <rect x="0" y="300" width="680" height="75" fill="#0e4221" opacity="0.5" />
+                                <rect x="0" y="450" width="680" height="75" fill="#0e4221" opacity="0.5" />
+                                <rect x="0" y="600" width="680" height="75" fill="#0e4221" opacity="0.5" />
+                                <rect x="0" y="750" width="680" height="75" fill="#0e4221" opacity="0.5" />
+                                <rect x="0" y="900" width="680" height="75" fill="#0e4221" opacity="0.5" />
+                                <rect x="5" y="5" width="670" height="1040" rx="2" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="3" />
+                                <line x1="5" y1="525" x2="675" y2="525" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                <circle cx="340" cy="525" r="91.5" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                <circle cx="340" cy="525" r="4" fill="rgba(255,255,255,0.5)" />
+                                <rect x="129" y="5" width="422" height="132" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                <rect x="229" y="5" width="222" height="55" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                <circle cx="340" cy="116" r="4" fill="rgba(255,255,255,0.5)" />
+                                <path d="M 251 137 A 91.5 91.5 0 0 0 429 137" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                <rect x="273" y="0" width="134" height="18" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.35)" stroke-width="2" />
+                                <rect x="129" y="913" width="422" height="132" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                <rect x="229" y="990" width="222" height="55" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                <circle cx="340" cy="934" r="4" fill="rgba(255,255,255,0.5)" />
+                                <path d="M 251 913 A 91.5 91.5 0 0 1 429 913" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                <rect x="273" y="1032" width="134" height="18" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.35)" stroke-width="2" />
+                            </svg>
+                        </div>
+                        <div class="ej-heatmap-legend">
+                            <span>Baixa</span>
+                            <div class="ej-heatmap-legend-bar"></div>
+                            <span>Alta</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Volta pro mesmo lugar de onde o usuário veio (o histórico preserva a
+        // rolagem da lista); sem histórico (link direto), cai na página de
+        // estatísticas do jogador.
+        function ejVoltar() {
+            if (window.history.length > 1 && document.referrer) {
+                window.history.back();
+            } else {
+                window.location.href = '@Url.Action("Estatisticas", "Jogadores", new { id = Model.Jogador.Id })';
+            }
+        }
+
+        @if (Model.PontosHeatmap.Any())
+        {
+            <text>
+        document.addEventListener('DOMContentLoaded', () => {
+            const pontos = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                Model.PontosHeatmap.Select(p => new { x = p.X, y = p.Y, peso = p.Peso })));
+            desenharMapaCalor('ejHeatmapCampo', pontos);
+            let t;
+            window.addEventListener('resize', () => {
+                clearTimeout(t);
+                t = setTimeout(() => desenharMapaCalor('ejHeatmapCampo', pontos), 150);
+            });
+        });
+            </text>
+        }
+    </script>
+}

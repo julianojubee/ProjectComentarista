@@ -80,6 +80,26 @@ namespace ControleFutebolWeb.Models.ViewModels
         // MatchUpTime1 é o 1º time do filtro (fica na metade esquerda do campo), MatchUpTime2 o 2º (direita).
         public MatchUpTimeViewModel? MatchUpTime1 { get; set; }
         public MatchUpTimeViewModel? MatchUpTime2 { get; set; }
+
+        // Seleção (melhor time): formação mais usada pelo filtro atual, com o
+        // jogador de melhor nota em cada posição da formação.
+        public SelecaoViewModel? Selecao { get; set; }
+    }
+
+    // ── Seleção: melhor XI conforme o filtro atual (competição/time/temporada) ──
+    public class SelecaoViewModel
+    {
+        public Formacao Formacao { get; set; } = null!;
+        public List<SelecaoSlotViewModel> Slots { get; set; } = new();
+    }
+
+    public class SelecaoSlotViewModel
+    {
+        public string NomePosicao { get; set; } = "";
+        public double PosicaoX { get; set; }
+        public double PosicaoY { get; set; }
+        // null quando não há jogador (ranking) que case com a posição do slot
+        public RankingNotaItem? Jogador { get; set; }
     }
 
     // ── Match Up: última escalação titular de um time, já com as coordenadas

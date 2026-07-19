@@ -341,6 +341,48 @@
         .nota-num { font-size: 13px; }
     }
 
+    /* ── Seleção: campinho vertical único (mesmo estilo do campo de
+       /Jogos/Analisar), com o jogador de melhor nota em cada posição. ──── */
+    .sel-header { text-align: center; margin-bottom: 1rem; }
+    .sel-formacao-nome { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 900; color: var(--amber-text); }
+    .sel-formacao-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .sel-campo-wrap { max-width: 420px; margin: 0 auto; }
+    .sel-campo {
+        position: relative; width: 100%; aspect-ratio: 2 / 3;
+        background: linear-gradient(180deg, #14532d 0%, #166534 100%);
+        border: 2px solid rgba(255,255,255,.15); border-radius: 10px; overflow: hidden;
+    }
+    .sel-linha-meio { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(255,255,255,.22); pointer-events: none; }
+    .sel-circulo { position: absolute; left: 50%; top: 50%; width: 22%; aspect-ratio: 1; border: 1.5px solid rgba(255,255,255,.2); border-radius: 50%; transform: translate(-50%,-50%); pointer-events: none; }
+    .sel-area-sup, .sel-area-inf { position: absolute; left: 20%; right: 20%; height: 14%; border: 1.5px solid rgba(255,255,255,.2); pointer-events: none; }
+    .sel-area-sup { top: -1px; border-top: none; }
+    .sel-area-inf { bottom: -1px; border-bottom: none; }
+    .sel-gol-sup, .sel-gol-inf { position: absolute; left: 30%; right: 30%; height: 6%; border: 1.5px solid rgba(255,255,255,.2); background: rgba(255,255,255,.04); pointer-events: none; }
+    .sel-gol-sup { top: -1px; border-top: none; }
+    .sel-gol-inf { bottom: -1px; border-bottom: none; }
+    .sel-slot {
+        position: absolute; text-align: center; color: #fff; width: 70px;
+        font-size: 11px; text-shadow: 1px 1px 2px #000; transform: translate(-50%,-50%);
+    }
+    .sel-slot-sigla {
+        font-size: 9px; font-weight: 700; color: var(--amber-text);
+        text-shadow: 1px 1px 2px #000; display: block; margin-bottom: 1px;
+    }
+    .sel-slot-nota {
+        font-size: 10px; font-weight: 700; margin-top: 1px;
+    }
+    .player-circle-sel { background: #f59e0b; color: #111; }
+    .sel-slot.sel-vazio .player-circle { background: rgba(255,255,255,.08); border: 2px dashed rgba(255,255,255,.3); }
+    .sel-slot.sel-vazio .player-name { color: var(--text-muted); }
+    .sel-lista { max-width: 640px; margin: 1.5rem auto 0; }
+    .sel-lista-item {
+        display: flex; align-items: center; gap: 10px; padding: 6px 10px;
+        border-bottom: 1px solid var(--border-subtle); font-size: 13px;
+    }
+    .sel-lista-slot { flex: 0 0 130px; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+    .sel-lista-nome { flex: 1 1 auto; font-weight: 600; color: var(--text); }
+    .sel-lista-nota { flex: 0 0 auto; font-weight: 800; font-family: 'Barlow Condensed', sans-serif; }
+
     /* ── Match Up: campo único na horizontal com os dois times frente a
        frente (estilo escalação de transmissão de TV). ──────────────────── */
     .mu-header {
@@ -728,6 +770,7 @@
             <div class="rpt-tab" onclick="showSection('rodadas')">📈 Rodadas</div>
             <div class="rpt-tab" onclick="showSection('estat-jogadores')">📊 Estatísticas Jogadores</div>
             <div class="rpt-tab" onclick="showSection('estat-competicoes')">🏆 Estatísticas Competições</div>
+            <div class="rpt-tab" onclick="showSection('selecao')">🏅 Seleção</div>
             @if (Model.TimeIdsFiltro.Count == 2)
             {
                 <div class="rpt-tab" onclick="showSection('matchup')">⚔️ Match Up</div>
@@ -1802,6 +1845,77 @@
                     </div>
                 </div>
             }
+        }
+    </div>
+
+    <!-- ══ SEÇÃO: SELEÇÃO ════════════════════════════════════════════════════ -->
+    <div id="sec-selecao" class="rpt-section">
+        @if (Model.Selecao == null)
+        {
+            <p style="text-align:center;color:var(--text-muted);padding:2rem;">Sem dados suficientes (nenhum jogo do filtro atual tem formação registrada).</p>
+        }
+        else
+        {
+            var sel = Model.Selecao;
+
+            void SelSlot(ControleFutebolWeb.Models.ViewModels.SelecaoSlotViewModel slot)
+            {
+                var vazio = slot.Jogador == null;
+                <div class="sel-slot @(vazio ? "sel-vazio" : "")"
+                     style="left:@Coord(slot.PosicaoX)%; top:@Coord(slot.PosicaoY)%;">
+                    <span class="sel-slot-sigla">@PosicaoJogadorHelper.Sigla(slot.NomePosicao)</span>
+                    @if (slot.Jogador != null)
+                    {
+                        <a href="@Url.Action("Estatisticas", "Jogadores", new { id = slot.Jogador.Jogador.Id })"
+                           style="text-decoration:none;color:inherit;display:block;">
+                            <div class="player-circle player-circle-sel">@(slot.Jogador.Jogador.NumeroCamisa?.ToString() ?? "")</div>
+                            <div class="player-name">@slot.Jogador.Jogador.Nome</div>
+                            <div class="sel-slot-nota" style="color:@slot.Jogador.NotaColor;">@slot.Jogador.NotaFinal.ToString("0.0")</div>
+                        </a>
+                    }
+                    else
+                    {
+                        <div class="player-circle player-circle-empty"></div>
+                        <div class="player-name">—</div>
+                    }
+                </div>
+            }
+
+            <div class="sel-header">
+                <div class="sel-formacao-nome">@sel.Formacao.Nome</div>
+                <div class="sel-formacao-sub">Formação mais usada pelo filtro atual · melhor nota em cada posição</div>
+            </div>
+
+            <div class="sel-campo-wrap">
+                <div class="sel-campo">
+                    <div class="sel-linha-meio"></div>
+                    <div class="sel-circulo"></div>
+                    <div class="sel-area-sup"></div>
+                    <div class="sel-area-inf"></div>
+                    <div class="sel-gol-sup"></div>
+                    <div class="sel-gol-inf"></div>
+
+                    @foreach (var slot in sel.Slots) { SelSlot(slot); }
+                </div>
+            </div>
+
+            <div class="sel-lista">
+                @foreach (var slot in sel.Slots)
+                {
+                    <div class="sel-lista-item">
+                        <div class="sel-lista-slot">@slot.NomePosicao</div>
+                        @if (slot.Jogador != null)
+                        {
+                            <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@slot.Jogador.Jogador.Id" class="sel-lista-nome" style="text-decoration:none;">@slot.Jogador.Jogador.Nome</a>
+                            <div class="sel-lista-nota" style="color:@slot.Jogador.NotaColor;">@slot.Jogador.NotaFinal.ToString("0.0")</div>
+                        }
+                        else
+                        {
+                            <div class="sel-lista-nome">— sem jogador elegível</div>
+                        }
+                    </div>
+                }
+            </div>
         }
     </div>
 

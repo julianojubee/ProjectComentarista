@@ -6,6 +6,7 @@
 <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Time.EscudoUrl })" alt="@Model.Time.Nome" width="100" />
 
 <h3>Elenco Atual</h3>
+<div class="table-responsive">
 <table class="table table-striped">
     <thead>
         <tr>
@@ -25,8 +26,10 @@
         }
     </tbody>
 </table>
+</div>
 
 <h3>Jogos do Time</h3>
+<div class="table-responsive">
 <table class="table table-bordered">
     <thead>
         <tr>
@@ -63,3 +66,4 @@
         }
     </tbody>
 </table>
+</div>

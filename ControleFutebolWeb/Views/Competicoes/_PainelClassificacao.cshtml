@@ -1,0 +1,66 @@
+@model List<ControleFutebolWeb.Models.Classificacao>
+
+@{
+    string ZonaCor(int pos, int total)
+    {
+        if (pos == 1) return "#3b82f6";
+        if (pos <= 4) return "#22c55e";
+        if (total > 4 && pos > total - 4) return "#ef4444";
+        return "#374151";
+    }
+}
+
+<div class="cd-tablewrap">
+    <div class="cd-cols">
+        <span></span>
+        <span>#</span>
+        <span></span>
+        <span class="left">Clube</span>
+        <span>J</span>
+        <span style="color:#22c55e;">V</span>
+        <span style="color:#f59e0b;">E</span>
+        <span style="color:#ef4444;">D</span>
+        <span>GP</span>
+        <span>SG</span>
+        <span>%</span>
+        <span style="color:#d4a520;">Pts</span>
+    </div>
+    @{ var total = Model.Count; }
+    @foreach (var c in Model)
+    {
+        var zc = ZonaCor(c.Posicao, total);
+        var aprov = c.Jogos > 0 ? (int)Math.Round(c.Pontos / (double)(c.Jogos * 3) * 100) : 0;
+        var aprovColor = aprov >= 60 ? "#22c55e" : aprov >= 40 ? "#f59e0b" : "#ef4444";
+        <div class="cd-row">
+            <div class="cd-zonebar" style="background:@zc;"></div>
+            <span class="cd-pos" style="color:@(c.Posicao <= 3 ? "#d4a520" : "#6b7280");">@c.Posicao</span>
+            <div class="cd-escudo">
+                @if (!string.IsNullOrEmpty(c.Time?.EscudoUrl))
+                {
+                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.Time.EscudoUrl })" alt="" />
+                }
+            </div>
+            <div style="min-width:0;">
+                <a asp-controller="Times" asp-action="Details" asp-route-id="@c.Time?.Id" class="cd-nome">@c.Time?.Nome</a>
+            </div>
+            <span class="cd-cell">@c.Jogos</span>
+            <span class="cd-cell v">@c.Vitorias</span>
+            <span class="cd-cell e">@c.Empates</span>
+            <span class="cd-cell d">@c.Derrotas</span>
+            <span class="cd-cell">@c.GolsPro</span>
+            <span class="cd-sg" style="color:@(c.SaldoGols > 0 ? "#4ade80" : c.SaldoGols < 0 ? "#f87171" : "#6b7280");">@(c.SaldoGols > 0 ? "+" : "")@c.SaldoGols</span>
+            <div class="cd-aprov">
+                <span>@(aprov)%</span>
+                <div class="cd-aprov-bar"><div style="width:@(aprov)%; background:@aprovColor;"></div></div>
+            </div>
+            <div class="cd-pts">
+                <span style="color:@(c.Posicao == 1 ? "#d4a520" : "#f1f5f9"); background:@(c.Posicao == 1 ? "rgba(212,165,32,0.12)" : "transparent");">@c.Pontos</span>
+            </div>
+        </div>
+    }
+    <div class="cd-legend">
+        <div class="cd-legend-item"><div class="cd-legend-dot" style="background:#3b82f6;"></div><span>Líder</span></div>
+        <div class="cd-legend-item"><div class="cd-legend-dot" style="background:#22c55e;"></div><span>Classificação</span></div>
+        <div class="cd-legend-item"><div class="cd-legend-dot" style="background:#ef4444;"></div><span>Zona de risco</span></div>
+    </div>
+</div>

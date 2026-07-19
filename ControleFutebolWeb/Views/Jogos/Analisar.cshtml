@@ -1373,6 +1373,69 @@
         font-weight: 600;
         margin-bottom: .8rem;
     }
+
+    /* ══ Responsivo (celular/tablet) ═══════════════════════════════════════
+       Prioridade é a VISUALIZAÇÃO do jogo: abaixo de 992px cada time vira
+       "campo em cima, lista de jogadores embaixo". No celular em pé os dois
+       times empilham (col-md-6); deitado (≥768px) ficam lado a lado — por
+       isso a orientação paisagem é a recomendada no celular. A edição por
+       arrastar-e-soltar segue sendo tarefa de desktop (HTML5 DnD não
+       funciona por toque no iOS). ── */
+    @@media (max-width: 991.98px) {
+        /* Campo primeiro (largura total), lista depois — vale para os dois
+           times: os seletores pegam as duas linhas internas do painel. */
+        .an-root #painelEscalacao .col-7 {
+            flex: 0 0 100%;
+            max-width: 100%;
+            order: 1;
+        }
+        .an-root #painelEscalacao .col-5.scroll-panel {
+            flex: 0 0 100%;
+            max-width: 100%;
+            width: 100%;
+            order: 2;
+            height: auto;
+            max-height: 300px;
+            margin-top: 10px;
+        }
+        /* Campo centralizado e com teto de largura pra não ficar alto demais
+           em tela cheia (proporção 2/3 vem do site.css). */
+        .an-root #painelEscalacao .campo {
+            max-width: 430px;
+            margin: 0 auto;
+        }
+        .an-root #painelEscalacao .banco {
+            max-width: 430px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+    }
+
+    @@media (max-width: 767.98px) {
+        .an-root { padding: 16px 12px 32px; }
+
+        /* Abas de escalação viram trilho horizontal rolável */
+        .an-root #tabsEscalacao {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .an-root #tabsEscalacao .nav-link { white-space: nowrap; }
+
+        /* Placar mais compacto */
+        .match-board { padding: .9rem .8rem .8rem; }
+        .mb-scoreline { gap: .5rem; }
+        .mb-team { gap: 6px; }
+        .mb-team-link { gap: 6px; }
+        .mb-team img { width: 30px; height: 30px; }
+        .mb-team-name { font-size: .78rem; }
+        .mb-score { gap: 6px; }
+        .mb-score-box { min-width: 40px; height: 40px; font-size: 1.5rem; }
+
+        /* Observações: rótulo do time em cima, textarea embaixo */
+        .obs-row { grid-template-columns: 1fr; }
+        .obs-tag-input { min-width: 0; }
+    }
 </style>
 
 @if (Model.Jogo.CompeticaoId == 1)
@@ -1568,7 +1631,7 @@
 </div>
 
 <!-- ── Status de Análise ───────────────────────────────────────────── -->
-<div style="display:flex; align-items:center; gap:12px; margin-bottom:1rem;
+<div style="display:flex; align-items:center; gap:12px; margin-bottom:1rem; flex-wrap:wrap;
             padding:.85rem 1.2rem; background:#161616; border:1px solid #262626;
             border-radius:12px;">
     <div style="display:flex; align-items:center; gap:10px; flex:1;">
@@ -1773,7 +1836,7 @@
     <span id="modoSetaHint" style="font-size:11px; color:#facc15; display:none;">
         clique no jogador e depois no destino · duplo clique na seta remove · Esc sai
     </span>
-    <div class="ms-auto d-flex align-items-center gap-1">
+    <div class="ms-auto d-flex align-items-center gap-1" style="flex-wrap:wrap;">
         <label style="font-size:11px; color:#94a3b8;">nome</label>
         <input type="text" id="faseNome" maxlength="60" placeholder="ex: Fase de ataque"
                class="form-control form-control-sm" style="width:180px;" />
@@ -2331,7 +2394,7 @@
         }
         else
         {
-            <div style="display:flex;align-items:center;justify-content:center;gap:1.5rem;margin-bottom:1.5rem;">
+            <div style="display:flex;align-items:center;justify-content:center;gap:1.5rem;margin-bottom:1.5rem;flex-wrap:wrap;">
                 <div style="display:flex;align-items:center;gap:8px;">
                     <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeCasa?.EscudoUrl })"
                          alt="@Model.Jogo.TimeCasa?.Nome" style="width:28px;height:28px;object-fit:contain;" />
@@ -3861,6 +3924,58 @@
     .mu-banco-nome { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .mu-banco-pos { flex: 0 0 auto; font-size: 10px; font-weight: 700; color: #94a3b8; }
     .mu-dica { text-align: center; color: #64748b; font-size: 11px; margin-top: 8px; }
+
+    /* ── Match-up: modo seta (mesmo visual das setas da análise) ── */
+    .mu-toolbar { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+    #muBtnSeta.ativo { background: #facc15; border-color: #facc15; color: #111; font-weight: 700; }
+    .mu-campo.mu-modo-seta { cursor: crosshair; }
+    .mu-campo.mu-modo-seta .mu-slot { cursor: pointer; }
+    .mu-campo.mu-modo-seta .setas-svg line { pointer-events: stroke; cursor: pointer; }
+    .mu-slot.mu-seta-origem .player-circle { outline: 3px solid #facc15; outline-offset: 2px; }
+
+    /* ── Match-up: modo formas (áreas anotadas sobre o campo) ── */
+    #muBtnForma.ativo { background: #ef4444; border-color: #ef4444; color: #fff; font-weight: 700; }
+    .mu-forma-tipo {
+        background: none; border: 1px solid rgba(239,68,68,.4); color: #f87171; border-radius: 6px;
+        width: 26px; height: 25px; padding: 0; font-size: 13px; line-height: 1; cursor: pointer;
+    }
+    .mu-forma-tipo.ativo { background: #ef4444; border-color: #ef4444; color: #fff; }
+    .mu-campo.mu-modo-forma { cursor: crosshair; }
+    .mu-forma { stroke: #ef4444; stroke-width: 2.5; fill: rgba(239,68,68,.07); pointer-events: none; }
+    polyline.mu-forma { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .mu-forma-texto {
+        fill: #f87171; font-size: 13px; font-weight: 700; pointer-events: none;
+        paint-order: stroke; stroke: rgba(0,0,0,.65); stroke-width: 3px;
+    }
+    .mu-campo.mu-modo-forma .mu-forma { pointer-events: all; cursor: pointer; }
+    .mu-campo.mu-modo-forma .mu-forma-texto { pointer-events: all; cursor: move; }
+    .mu-forma-input {
+        position: absolute; transform: translate(-50%,-50%); z-index: 30; width: 180px;
+        background: rgba(0,0,0,.78); border: 1px solid #ef4444; border-radius: 6px;
+        color: #fff; font-size: 12px; padding: 4px 8px; text-align: center;
+    }
+
+    /* ── Match-up: jogador avulso (fora da API) ── */
+    .mu-btn-add {
+        margin-left: auto; flex: 0 0 auto; width: 20px; height: 20px; padding: 0; line-height: 1;
+        background: rgba(212,165,32,.15); border: 1px solid rgba(212,165,32,.4); border-radius: 6px;
+        color: #d4a520; font-size: 14px; font-weight: 700; cursor: pointer;
+    }
+    .mu-btn-add:hover { background: rgba(212,165,32,.3); }
+    .mu-form-ficticio {
+        display: flex; gap: 6px; padding: 8px 10px;
+        background: rgba(0,0,0,.25); border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .mu-form-ficticio input {
+        background: #0b1526; border: 1px solid rgba(255,255,255,.15); border-radius: 6px;
+        color: #e2e8f0; font-size: 12px; padding: 4px 6px; min-width: 0;
+    }
+    .mu-form-ficticio .mu-fic-num { flex: 0 0 40px; }
+    .mu-form-ficticio .mu-fic-nome { flex: 1 1 auto; }
+    .mu-form-ficticio button {
+        background: #d4a520; border: none; border-radius: 6px; color: #111;
+        font-size: 11px; font-weight: 700; padding: 4px 8px; cursor: pointer;
+    }
 </style>
 
 <script>
@@ -4015,6 +4130,14 @@
             cont.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:2rem 0;">Sem escalação titular registrada para: ' + muEsc(faltam.join(' e ')) + '.</div>';
             return;
         }
+        // Estado visual do match-up recomeça do zero a cada render
+        muModoSeta = false;
+        muSetaOrigem = null;
+        muSetas = {};
+        muModoForma = false;
+        muFormaDraw = null;
+        muFormas = [];
+
         var t1 = d.casa, t2 = d.visitante;
         var escudo1 = t1.escudo ? '<img src="' + t1.escudo + '" alt="">' : '';
         var escudo2 = t2.escudo ? '<img src="' + t2.escudo + '" alt="">' : '';
@@ -4027,20 +4150,53 @@
                 '<div class="mu-vs">×</div>' +
                 '<div class="mu-time-info mu-dir">' + escudo2 + '<div><div class="mu-time-nome">' + muEsc(t2.nome) + '</div><div class="mu-time-jogo">' + jogo2 + '</div></div></div>' +
             '</div>' +
+            '<div class="mu-toolbar">' +
+                '<button type="button" id="muBtnSeta" class="btn btn-sm btn-outline-warning" onclick="muToggleModoSeta()"' +
+                    ' title="Ligue, clique num jogador e depois no ponto do campo para onde ele se movimenta. Clique duplo numa seta para removê-la.">➹ Setas</button>' +
+                '<span id="muSetaHint" style="font-size:11px; color:#facc15; display:none;">clique no jogador e depois no destino · duplo clique na seta remove · Esc sai</span>' +
+                '<button type="button" id="muBtnForma" class="btn btn-sm btn-outline-danger" onclick="muToggleModoForma()"' +
+                    ' title="Ligue e arraste no campo para desenhar uma área; ao soltar dá para digitar um texto. Clique duplo numa forma para removê-la.">▱ Formas</button>' +
+                '<span id="muFormaTipos" style="display:none; gap:4px;">' +
+                    '<button type="button" class="mu-forma-tipo" data-tipo="rect" onclick="muSetFormaTipo(\'rect\')" title="Retângulo">▭</button>' +
+                    '<button type="button" class="mu-forma-tipo" data-tipo="elipse" onclick="muSetFormaTipo(\'elipse\')" title="Elipse">◯</button>' +
+                    '<button type="button" class="mu-forma-tipo" data-tipo="livre" onclick="muSetFormaTipo(\'livre\')" title="Traço livre">✎</button>' +
+                '</span>' +
+                '<span id="muFormaHint" style="font-size:11px; color:#f87171; display:none;">arraste no campo para desenhar · Enter confirma o texto · arraste o texto para reposicionar · duplo clique na forma remove · Esc sai</span>' +
+            '</div>' +
             '<div class="mu-layout">' +
-                '<div class="mu-banco"><div class="mu-banco-header">' + muEsc(t1.nome) + ' — elenco</div><div id="muBanco1" class="mu-banco-lista">' +
-                    t1.elenco.map(function (j) { return muBancoItemHtml(1, j); }).join('') + '</div></div>' +
-                '<div id="muCampo" class="mu-campo">' +
+                muBancoHtml(1, t1.nome, t1.elenco) +
+                '<div id="muCampo" class="mu-campo" onclick="muCampoClick(event)" onpointerdown="muFormaPointerDown(event)" ondragover="event.preventDefault()" ondrop="muDropCampo(event)">' +
                     '<div class="mu-linha-meio"></div><div class="mu-circulo"></div>' +
                     '<div class="mu-area-esq"></div><div class="mu-area-dir"></div>' +
                     '<div class="mu-gol-esq"></div><div class="mu-gol-dir"></div>' +
+                    '<svg id="muSetasSvg" class="setas-svg"><defs>' +
+                        '<marker id="muSetaHead" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="userSpaceOnUse">' +
+                            '<path d="M0,0 L12,5 L0,10 z" fill="#facc15"></path>' +
+                        '</marker>' +
+                    '</defs><g id="muFormasG"></g></svg>' +
                     t1.escalacao.map(function (e, i) { return muSlotHtml(1, i, e); }).join('') +
                     t2.escalacao.map(function (e, i) { return muSlotHtml(2, i, e); }).join('') +
                 '</div>' +
-                '<div class="mu-banco"><div class="mu-banco-header">' + muEsc(t2.nome) + ' — elenco</div><div id="muBanco2" class="mu-banco-lista">' +
-                    t2.elenco.map(function (j) { return muBancoItemHtml(2, j); }).join('') + '</div></div>' +
+                muBancoHtml(2, t2.nome, t2.elenco) +
             '</div>' +
-            '<p class="mu-dica">Arraste um jogador para qualquer ponto do campo, solte sobre um companheiro para trocar as posições, ou arraste alguém do elenco sobre um titular para substituí-lo (simulação de pré-jogo — nada é salvo).</p>';
+            '<p class="mu-dica">Arraste um jogador para qualquer ponto do campo, solte sobre um companheiro para trocar as posições, arraste alguém do elenco sobre um titular para substituí-lo ou sobre uma área vazia para incluí-lo no campo. O botão + do elenco cria um jogador avulso (ex.: garoto da base ainda fora da API). Simulação de pré-jogo — nada é salvo.</p>';
+
+        // Setas e formas guardam % do campo: redesenha quando o campo muda de tamanho
+        new ResizeObserver(function () { muDesenharSetas(); muDesenharFormas(); }).observe(document.getElementById('muCampo'));
+    }
+
+    function muBancoHtml(time, nome, elenco) {
+        return '<div class="mu-banco">' +
+            '<div class="mu-banco-header"><span style="flex:1 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + muEsc(nome) + ' — elenco</span>' +
+                '<button type="button" class="mu-btn-add" title="Adicionar jogador avulso (ainda fora da API)" onclick="muToggleFormFicticio(' + time + ')">+</button></div>' +
+            '<div id="muFormFic' + time + '" class="mu-form-ficticio" style="display:none;">' +
+                '<input id="muFicNum' + time + '" class="mu-fic-num" maxlength="3" placeholder="Nº">' +
+                '<input id="muFicNome' + time + '" class="mu-fic-nome" placeholder="Nome do jogador" onkeydown="if (event.key === \'Enter\') muCriarFicticio(' + time + ')">' +
+                '<button type="button" onclick="muCriarFicticio(' + time + ')">OK</button>' +
+            '</div>' +
+            '<div id="muBanco' + time + '" class="mu-banco-lista">' +
+                elenco.map(function (j) { return muBancoItemHtml(time, j); }).join('') +
+            '</div></div>';
     }
 
     // ── Match-up: arrasto 100% client-side, só para simulação visual.
@@ -4058,6 +4214,8 @@
     let muPtr = null; // { el, time, pointerId, startX, startY, origLeft, origTop, moved }
 
     function muPointerDown(ev, time) {
+        if (muModoSeta) return; // no modo seta o clique seleciona/traça, não arrasta
+        if (muModoForma) return; // no modo forma o arrasto desenha (tratado no campo)
         if (ev.button !== 0 && ev.pointerType === 'mouse') return; // só botão esquerdo
         const el = ev.target.closest('.mu-slot');
         if (!el) return;
@@ -4090,6 +4248,7 @@
         const pos = muPosNoCampo(ev.clientX, ev.clientY);
         muPtr.el.style.left = pos.x + '%';
         muPtr.el.style.top = pos.y + '%';
+        muDesenharSetas(); // a origem das setas acompanha o jogador
     });
 
     document.addEventListener('pointerup', ev => {
@@ -4112,6 +4271,7 @@
         }
         // Área vazia (ou adversário): fica onde soltou — o left/top já foi
         // aplicado no pointermove.
+        muDesenharSetas();
     });
 
     document.addEventListener('pointercancel', ev => {
@@ -4121,6 +4281,7 @@
         muPtr.el.style.left = muPtr.origLeft;
         muPtr.el.style.top = muPtr.origTop;
         muPtr = null;
+        muDesenharSetas();
     });
 
     // ── Banco → campo: HTML5 drag-and-drop ────────────────────────────────
@@ -4189,6 +4350,368 @@
         const banco = document.getElementById('muBanco' + time);
         banco.prepend(item); // no topo: é o jogador que o usuário acabou de tirar
     }
+
+    // ── Elenco → área vazia do campo: inclui o jogador sem tirar ninguém ──
+    // (caso típico: campo com menos de 11 porque um jogador não estava na API)
+    let muExtraSeq = 0;
+
+    function muDropCampo(ev) {
+        ev.preventDefault();
+        const drag = muDrag;
+        muDrag = null;
+        if (!drag) return;
+        const pos = muPosNoCampo(ev.clientX, ev.clientY);
+        const d = drag.el.dataset;
+        document.getElementById('muCampo').insertAdjacentHTML('beforeend',
+            muSlotHtml(drag.time, 'x' + (++muExtraSeq),
+                { id: d.jogadorid, numero: d.numero, nome: d.nome, sigla: d.sigla, x: pos.x, y: pos.y }));
+        drag.el.remove();
+    }
+
+    // ── Jogador avulso (ainda fora da API): entra no elenco e daí pro campo ──
+    let muFicSeq = 0;
+
+    function muToggleFormFicticio(time) {
+        const form = document.getElementById('muFormFic' + time);
+        const abrir = form.style.display === 'none';
+        form.style.display = abrir ? 'flex' : 'none';
+        if (abrir) document.getElementById('muFicNome' + time).focus();
+    }
+
+    function muCriarFicticio(time) {
+        const numEl = document.getElementById('muFicNum' + time);
+        const nomeEl = document.getElementById('muFicNome' + time);
+        const nome = nomeEl.value.trim();
+        if (!nome) { nomeEl.focus(); return; }
+        muCriarItemBanco(time, { jogadorid: 'fic-' + (++muFicSeq), numero: numEl.value.trim(), nome: nome, sigla: '?' });
+        numEl.value = '';
+        nomeEl.value = '';
+        muToggleFormFicticio(time);
+    }
+
+    // ── Setas de movimentação: mesma mecânica da tela de análise, mas 100%
+    // client-side (nada é salvo). Ligue o modo, clique num jogador (origem) e
+    // depois no destino; duplo clique na seta remove; Esc limpa/sai.
+    let muModoSeta = false;
+    let muSetaOrigem = null;  // elemento .mu-slot selecionado como origem
+    let muSetas = {};         // id do slot -> [{x, y}] em % do campo
+
+    function muToggleModoSeta() {
+        muModoSeta = !muModoSeta;
+        if (muModoSeta && muModoForma) muToggleModoForma(); // modos são excludentes
+        document.getElementById('muCampo')?.classList.toggle('mu-modo-seta', muModoSeta);
+        document.getElementById('muBtnSeta')?.classList.toggle('ativo', muModoSeta);
+        const hint = document.getElementById('muSetaHint');
+        if (hint) hint.style.display = muModoSeta ? '' : 'none';
+        muLimparOrigemSeta();
+    }
+
+    function muLimparOrigemSeta() {
+        muSetaOrigem?.classList.remove('mu-seta-origem');
+        muSetaOrigem = null;
+    }
+
+    function muCampoClick(ev) {
+        if (!muModoSeta) return;
+        if (ev.target.tagName === 'line') return; // interação com a própria seta (dblclick remove)
+
+        const slot = ev.target.closest('.mu-slot');
+        if (slot) {
+            muLimparOrigemSeta();
+            muSetaOrigem = slot;
+            slot.classList.add('mu-seta-origem');
+            return;
+        }
+
+        if (!muSetaOrigem) return;
+        const rect = document.getElementById('muCampo').getBoundingClientRect();
+        const x = Math.max(0, Math.min(100, (ev.clientX - rect.left) / rect.width * 100));
+        const y = Math.max(0, Math.min(100, (ev.clientY - rect.top) / rect.height * 100));
+        (muSetas[muSetaOrigem.id] = muSetas[muSetaOrigem.id] || []).push({ x, y });
+        muDesenharSetas();
+        // Mantém a origem selecionada: permite adicionar várias setas ao mesmo jogador
+    }
+
+    function muDesenharSetas() {
+        const campo = document.getElementById('muCampo');
+        const svg = document.getElementById('muSetasSvg');
+        if (!campo || !svg) return;
+
+        svg.querySelectorAll('line').forEach(l => l.remove());
+        const w = campo.clientWidth, h = campo.clientHeight;
+
+        Object.keys(muSetas).forEach(slotId => {
+            const slot = document.getElementById(slotId);
+            const setas = muSetas[slotId];
+            if (!slot || !setas.length) return;
+
+            const x1 = parseFloat(slot.style.left) / 100 * w;
+            const y1 = parseFloat(slot.style.top)  / 100 * h;
+
+            setas.forEach(s => {
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', x1);
+                line.setAttribute('y1', y1);
+                line.setAttribute('x2', s.x / 100 * w);
+                line.setAttribute('y2', s.y / 100 * h);
+                line.setAttribute('marker-end', 'url(#muSetaHead)');
+                line.addEventListener('dblclick', ev => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    muSetas[slotId] = muSetas[slotId].filter(o => o !== s);
+                    muDesenharSetas();
+                });
+                svg.appendChild(line);
+            });
+        });
+    }
+
+    // ── Formas anotadas (retângulo/elipse/traço livre + texto): arraste para
+    // desenhar a área, solte e digite o texto (Enter confirma, Esc pula).
+    // Igual às setas: 100% client-side, nada é salvo.
+    let muModoForma = false;
+    let muFormaTipo = 'rect';  // 'rect' | 'elipse' | 'livre'
+    let muFormas = [];         // { tipo, x1, y1, x2, y2, pontos, texto } em % do campo
+    let muFormaDraw = null;    // forma em desenho (arrasto em andamento)
+
+    function muToggleModoForma() {
+        muModoForma = !muModoForma;
+        if (muModoForma && muModoSeta) muToggleModoSeta(); // modos são excludentes
+        document.getElementById('muCampo')?.classList.toggle('mu-modo-forma', muModoForma);
+        document.getElementById('muBtnForma')?.classList.toggle('ativo', muModoForma);
+        const tipos = document.getElementById('muFormaTipos');
+        if (tipos) tipos.style.display = muModoForma ? 'inline-flex' : 'none';
+        const hint = document.getElementById('muFormaHint');
+        if (hint) hint.style.display = muModoForma ? '' : 'none';
+        if (muModoForma) muSetFormaTipo(muFormaTipo);
+        else {
+            muFormaDraw = null;
+            document.querySelector('.mu-forma-input')?.remove();
+            muDesenharFormas();
+        }
+    }
+
+    function muSetFormaTipo(tipo) {
+        muFormaTipo = tipo;
+        document.querySelectorAll('.mu-forma-tipo').forEach(b =>
+            b.classList.toggle('ativo', b.dataset.tipo === tipo));
+    }
+
+    // Posição do cursor em % do campo, presa às bordas
+    function muPctCampo(clientX, clientY) {
+        const rect = document.getElementById('muCampo').getBoundingClientRect();
+        return { x: Math.max(0, Math.min(100, (clientX - rect.left) / rect.width * 100)),
+                 y: Math.max(0, Math.min(100, (clientY - rect.top) / rect.height * 100)) };
+    }
+
+    // O preventDefault do pointerdown (necessário pro desenho) suprime o
+    // click/dblclick nativo — o "duplo clique remove" é detectado na mão:
+    // dois pointerdowns na mesma forma em até 400ms. A comparação é pelo
+    // OBJETO da forma (__muForma), não pelo elemento: o redesenho após o
+    // primeiro clique recria os nós SVG.
+    let muFormaUltimoTap = { forma: null, t: 0 };
+
+    function muFormaPointerDown(ev) {
+        if (!muModoForma) return;
+        if (ev.button !== 0 && ev.pointerType === 'mouse') return;
+        if (ev.target.closest && ev.target.closest('.mu-forma-input')) return;
+        ev.preventDefault();
+
+        const alvo = ev.target.closest && ev.target.closest('.mu-forma, .mu-forma-texto');
+        if (alvo && alvo.__muForma) {
+            const agora = Date.now();
+            if (muFormaUltimoTap.forma === alvo.__muForma && agora - muFormaUltimoTap.t < 400) {
+                muFormaUltimoTap = { forma: null, t: 0 };
+                alvo.__muRemover();
+                return;
+            }
+            muFormaUltimoTap = { forma: alvo.__muForma, t: agora };
+            // No texto, o arrasto reposiciona o rótulo em vez de desenhar por cima
+            if (alvo.classList.contains('mu-forma-texto')) {
+                muTextoDrag = { forma: alvo.__muForma, moved: false, startX: ev.clientX, startY: ev.clientY };
+                return;
+            }
+        } else {
+            muFormaUltimoTap = { forma: null, t: 0 };
+        }
+
+        const p = muPctCampo(ev.clientX, ev.clientY);
+        muFormaDraw = { tipo: muFormaTipo, x1: p.x, y1: p.y, x2: p.x, y2: p.y, pontos: [p] };
+    }
+
+    // Arrasto do rótulo de texto de uma forma (reposicionamento)
+    let muTextoDrag = null; // { forma, moved, startX, startY }
+
+    document.addEventListener('pointermove', ev => {
+        if (muTextoDrag) {
+            // pequeno limiar: sem ele o tap de remoção viraria um micro-arrasto
+            if (!muTextoDrag.moved && Math.hypot(ev.clientX - muTextoDrag.startX, ev.clientY - muTextoDrag.startY) < 4) return;
+            muTextoDrag.moved = true;
+            const p = muPctCampo(ev.clientX, ev.clientY);
+            muTextoDrag.forma.tx = p.x;
+            muTextoDrag.forma.ty = p.y;
+            muDesenharFormas();
+            return;
+        }
+        if (!muFormaDraw) return;
+        const p = muPctCampo(ev.clientX, ev.clientY);
+        muFormaDraw.x2 = p.x;
+        muFormaDraw.y2 = p.y;
+        if (muFormaDraw.tipo === 'livre') {
+            const ult = muFormaDraw.pontos[muFormaDraw.pontos.length - 1];
+            if (Math.hypot(p.x - ult.x, p.y - ult.y) > 0.7) muFormaDraw.pontos.push(p);
+        }
+        muDesenharFormas();
+    });
+
+    document.addEventListener('pointerup', () => {
+        if (muTextoDrag) {
+            // arrasto de verdade não conta como 1º clique da remoção
+            if (muTextoDrag.moved) muFormaUltimoTap = { forma: null, t: 0 };
+            muTextoDrag = null;
+            return;
+        }
+        if (!muFormaDraw) return;
+        const f = muFormaDraw;
+        muFormaDraw = null;
+        const c = muFormaBBox(f);
+        // Extensão mínima: descarta o "desenho" de um clique parado (inclusive
+        // os dois pointerdowns do duplo clique que remove uma forma)
+        if (c.w < 2 && c.h < 2) { muDesenharFormas(); return; }
+        muFormaUltimoTap = { forma: null, t: 0 }; // desenho concluído não conta como 1º clique da remoção
+        muFormas.push(f);
+        muDesenharFormas();
+        muPedirTextoForma(f);
+    });
+
+    document.addEventListener('pointercancel', () => {
+        muTextoDrag = null;
+        if (!muFormaDraw) return;
+        muFormaDraw = null;
+        muDesenharFormas();
+    });
+
+    function muFormaBBox(f) {
+        let minX, maxX, minY, maxY;
+        if (f.tipo === 'livre') {
+            const xs = f.pontos.map(p => p.x), ys = f.pontos.map(p => p.y);
+            minX = Math.min.apply(null, xs); maxX = Math.max.apply(null, xs);
+            minY = Math.min.apply(null, ys); maxY = Math.max.apply(null, ys);
+        } else {
+            minX = Math.min(f.x1, f.x2); maxX = Math.max(f.x1, f.x2);
+            minY = Math.min(f.y1, f.y2); maxY = Math.max(f.y1, f.y2);
+        }
+        return { x: minX, y: minY, w: maxX - minX, h: maxY - minY,
+                 cx: (minX + maxX) / 2, cy: (minY + maxY) / 2 };
+    }
+
+    function muFormaEl(f, w, h) {
+        const ns = 'http://www.w3.org/2000/svg';
+        if (f.tipo === 'livre') {
+            const el = document.createElementNS(ns, 'polyline');
+            el.setAttribute('points', f.pontos.map(p =>
+                (p.x / 100 * w).toFixed(1) + ',' + (p.y / 100 * h).toFixed(1)).join(' '));
+            return el;
+        }
+        const b = muFormaBBox(f);
+        const x = b.x / 100 * w, y = b.y / 100 * h, lw = b.w / 100 * w, lh = b.h / 100 * h;
+        if (f.tipo === 'elipse') {
+            const el = document.createElementNS(ns, 'ellipse');
+            el.setAttribute('cx', x + lw / 2);
+            el.setAttribute('cy', y + lh / 2);
+            el.setAttribute('rx', lw / 2);
+            el.setAttribute('ry', lh / 2);
+            return el;
+        }
+        const el = document.createElementNS(ns, 'rect');
+        el.setAttribute('x', x);
+        el.setAttribute('y', y);
+        el.setAttribute('width', lw);
+        el.setAttribute('height', lh);
+        el.setAttribute('rx', 6);
+        return el;
+    }
+
+    function muDesenharFormas() {
+        const campo = document.getElementById('muCampo');
+        const g = document.getElementById('muFormasG');
+        if (!campo || !g) return;
+
+        while (g.firstChild) g.removeChild(g.firstChild);
+        const w = campo.clientWidth, h = campo.clientHeight;
+        const todas = muFormaDraw ? muFormas.concat([muFormaDraw]) : muFormas;
+
+        todas.forEach(f => {
+            const remover = () => {
+                muFormas = muFormas.filter(o => o !== f);
+                muDesenharFormas();
+            };
+            const el = muFormaEl(f, w, h);
+            el.classList.add('mu-forma');
+            if (f !== muFormaDraw) { el.__muForma = f; el.__muRemover = remover; }
+            g.appendChild(el);
+
+            if (f.texto) {
+                const b = muFormaBBox(f);
+                const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                t.classList.add('mu-forma-texto');
+                // tx/ty: posição escolhida arrastando o rótulo; sem eles, centro da forma
+                t.setAttribute('x', (f.tx != null ? f.tx : b.cx) / 100 * w);
+                t.setAttribute('y', (f.ty != null ? f.ty : b.cy) / 100 * h);
+                t.setAttribute('text-anchor', 'middle');
+                t.setAttribute('dominant-baseline', 'middle');
+                t.textContent = f.texto;
+                t.__muForma = f;
+                t.__muRemover = remover;
+                g.appendChild(t);
+            }
+        });
+    }
+
+    // Input flutuante sobre a forma recém-desenhada para o texto opcional
+    function muPedirTextoForma(f) {
+        const campo = document.getElementById('muCampo');
+        document.querySelector('.mu-forma-input')?.remove();
+
+        const b = muFormaBBox(f);
+        const inp = document.createElement('input');
+        inp.className = 'mu-forma-input';
+        inp.placeholder = 'Texto (opcional) — Enter';
+        inp.style.left = Math.max(9, Math.min(91, b.cx)) + '%';
+        inp.style.top = Math.max(6, Math.min(94, b.cy)) + '%';
+
+        let feito = false;
+        const fim = confirmar => {
+            if (feito) return;
+            feito = true;
+            if (confirmar && inp.value.trim()) {
+                f.texto = inp.value.trim();
+                muDesenharFormas();
+            }
+            inp.remove();
+        };
+        inp.addEventListener('keydown', ev => {
+            ev.stopPropagation(); // Esc aqui só fecha o input, não o modo
+            if (ev.key === 'Enter') fim(true);
+            else if (ev.key === 'Escape') fim(false);
+        });
+        inp.addEventListener('blur', () => fim(true)); // clicar fora confirma o digitado
+        inp.addEventListener('pointerdown', ev => ev.stopPropagation()); // não inicia outro desenho
+
+        campo.appendChild(inp);
+        inp.focus();
+    }
+
+    document.addEventListener('keydown', ev => {
+        if (ev.key !== 'Escape') return;
+        if (muModoSeta) {
+            if (muSetaOrigem) muLimparOrigemSeta();
+            else muToggleModoSeta();
+        } else if (muModoForma) {
+            if (muFormaDraw) { muFormaDraw = null; muDesenharFormas(); }
+            else muToggleModoForma();
+        }
+    });
 </script>
 
 <!-- ── Modal Pós-jogo ─────────────────────────────────────────────────── -->

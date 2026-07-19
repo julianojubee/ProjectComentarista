@@ -6,6 +6,7 @@
     @Html.AntiForgeryToken()
     <input type="hidden" asp-for="Id" />
 
+    <div class="table-responsive">
     <table class="table">
         <thead>
             <tr>
@@ -39,6 +40,7 @@
             }
         </tbody>
     </table>
+    </div>
 
     <h4>Adicionar novo jogador</h4>
     <div class="form-group">

@@ -613,7 +613,16 @@ namespace ControleFutebolWeb.Controllers
                     item.ObservacoesJogador = obsJogador;
 
             // ── Posições em campo (agregado das escalações tituladas) ─────
-            var posicoesPorJogo = escalacaoSelecionadaPorJogo;
+            // Só entra no agregado quem tem registro na fase INICIAL: a linha
+            // resolvida acima (escalacaoSelecionadaPorJogo) só cai pra FASE FINAL
+            // quando o jogador entrou como substituto naquele jogo — a coordenada
+            // ali é o slot de quem ele substituiu, não a posição real dele (um
+            // atacante que entra na vaga do lateral não pode contar como lateral
+            // nesta % por posição). O histórico por jogo (posicaoPorJogoId, acima)
+            // continua mostrando a entrada normalmente — só o agregado ignora.
+            var posicoesPorJogo = escalacaoSelecionadaPorJogo
+                .Where(e => e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null)
+                .ToList();
 
             var posicoesJogadas = posicoesPorJogo
                 .GroupBy(e => granularPorEscalacao[e.Id])
@@ -717,6 +726,187 @@ namespace ControleFutebolWeb.Controllers
                 PosicoesJogadas = posicoesJogadas,
                 PontosHeatmap = pontosHeatmap,
                 Medias = medias
+            };
+
+            return View(vm);
+        }
+
+        // GET: /Jogadores/EstatisticasJogo/5?jogoId=123
+        // Todas as ações do jogador NAQUELE jogo: estatísticas importadas completas
+        // (api-football), eventos com minuto (gols, assistências, cartões,
+        // substituições, pênaltis) e o mapa de calor só com as posições desse jogo.
+        // Complementa o histórico de /Jogadores/Estatisticas, que mostra o resumo.
+        [HttpGet]
+        public async Task<IActionResult> EstatisticasJogo(int id, int jogoId)
+        {
+            var uid = _userManager.GetUserId(User);
+
+            var jogador = await _context.Jogadores
+                .AsNoTracking()
+                .Include(j => j.Time)
+                .FirstOrDefaultAsync(j => j.Id == id);
+            if (jogador == null) return NotFound();
+
+            var jogo = await _context.Jogos
+                .AsNoTracking()
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .Include(j => j.Competicao)
+                .FirstOrDefaultAsync(j => j.Id == jogoId);
+            if (jogo == null) return NotFound();
+
+            // Escalações do jogador nesse jogo (cópia do usuário ou compartilhada),
+            // com as setas de movimentação — base da posição e do mapa de calor.
+            var escalacoes = await _context.Escalacoes
+                .AsNoTracking()
+                .Include(e => e.Setas)
+                .Where(e => e.JogoId == jogoId && e.JogadorId == id &&
+                            (e.UsuarioId == uid || e.UsuarioId == null))
+                .ToListAsync();
+
+            // Uma "foto" por fase (INICIAL, FINAL e fases táticas), preferindo a
+            // cópia do usuário — mesmo critério do mapa de calor de /Jogos/Analisar.
+            // (0,0) não é posição real (reserva sem slot) e não entra.
+            var fotos = escalacoes
+                .Where(e => e.Titular)
+                .GroupBy(e => e.FaseEscalacao ?? "INICIAL")
+                .Select(g => g.OrderBy(e => e.UsuarioId == uid ? 0 : 1).First())
+                .ToList();
+
+            var pontosHeatmap = fotos
+                .Where(e => e.PosicaoX != 0 || e.PosicaoY != 0)
+                .Select(e => new PontoHeatmap { X = e.PosicaoX, Y = e.PosicaoY, Peso = 1.0 })
+                .Concat(fotos
+                    .SelectMany(e => e.Setas)
+                    .Select(s => new PontoHeatmap { X = s.X, Y = s.Y, Peso = 0.45 }))
+                .ToList();
+
+            // Escalação de referência (posição/lado): prefere a do usuário e a fase
+            // INICIAL — quem só aparece na FINAL entrou no decorrer do jogo.
+            var escalacaoRef = escalacoes
+                .OrderBy(e => e.UsuarioId == uid ? 0 : 1)
+                .ThenBy(e => e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null ? 0 : 1)
+                .FirstOrDefault();
+
+            var estatistica = await _context.EstatisticasJogador
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.JogoId == jogoId && e.JogadorId == id);
+
+            // ── Linha do tempo de ações ────────────────────────────────────
+            var eventos = new List<EventoJogadorJogo>();
+
+            var golsJogo = await _context.Gols.AsNoTracking()
+                .Where(g => g.JogoId == jogoId && g.JogadorId == id)
+                .ToListAsync();
+            foreach (var g in golsJogo)
+                eventos.Add(new EventoJogadorJogo
+                {
+                    Minuto = g.Minuto,
+                    Icone = "⚽",
+                    Titulo = g.Contra ? "Gol contra" : "Gol",
+                    Cor = g.Contra ? "#f87171" : "#4ade80"
+                });
+
+            var assistsJogo = await _context.Assistencias.AsNoTracking()
+                .Where(a => a.JogoId == jogoId && a.JogadorId == id)
+                .ToListAsync();
+            foreach (var a in assistsJogo)
+                eventos.Add(new EventoJogadorJogo
+                {
+                    Minuto = a.Minuto,
+                    Icone = "🅰️",
+                    Titulo = "Assistência",
+                    Cor = "#60a5fa"
+                });
+
+            var cartoesJogo = await _context.Cartoes.AsNoTracking()
+                .Where(c => c.JogoId == jogoId && c.JogadorId == id)
+                .ToListAsync();
+            foreach (var c in cartoesJogo)
+            {
+                var vermelho = string.Equals(c.Tipo, "Vermelho", StringComparison.OrdinalIgnoreCase);
+                eventos.Add(new EventoJogadorJogo
+                {
+                    Minuto = c.Minuto,
+                    Icone = vermelho ? "🟥" : "🟨",
+                    Titulo = vermelho ? "Cartão vermelho" : "Cartão amarelo",
+                    Cor = vermelho ? "#f87171" : "#facc15"
+                });
+            }
+
+            var subsJogo = await _context.Substituicoes.AsNoTracking()
+                .Include(s => s.JogadorEntrou)
+                .Include(s => s.JogadorSaiu)
+                .Where(s => s.JogoId == jogoId && (s.JogadorEntrouId == id || s.JogadorSaiuId == id))
+                .ToListAsync();
+            foreach (var s in subsJogo)
+            {
+                if (s.JogadorEntrouId == id)
+                    eventos.Add(new EventoJogadorJogo
+                    {
+                        Minuto = s.Minuto,
+                        Icone = "🔺",
+                        Titulo = "Entrou em campo",
+                        Detalhe = s.JogadorSaiu != null ? $"no lugar de {s.JogadorSaiu.NomeExibicao}" : null,
+                        Cor = "#4ade80"
+                    });
+                if (s.JogadorSaiuId == id)
+                    eventos.Add(new EventoJogadorJogo
+                    {
+                        Minuto = s.Minuto,
+                        Icone = "🔻",
+                        Titulo = "Substituído",
+                        Detalhe = s.JogadorEntrou != null ? $"deu lugar a {s.JogadorEntrou.NomeExibicao}" : null,
+                        Cor = "#f87171"
+                    });
+            }
+
+            var penPerdidosJogo = await _context.PenaltisPerdidos.AsNoTracking()
+                .Where(p => p.JogoId == jogoId && p.JogadorId == id)
+                .ToListAsync();
+            foreach (var p in penPerdidosJogo)
+                eventos.Add(new EventoJogadorJogo
+                {
+                    Minuto = p.Minuto,
+                    Icone = "🚫",
+                    Titulo = "Pênalti perdido",
+                    Cor = "#f87171"
+                });
+
+            var penDisputaJogo = await _context.PenaltisDisputa.AsNoTracking()
+                .Where(p => p.JogoId == jogoId && p.JogadorId == id)
+                .OrderBy(p => p.Ordem)
+                .ToListAsync();
+            foreach (var p in penDisputaJogo)
+                eventos.Add(new EventoJogadorJogo
+                {
+                    Minuto = null,
+                    Icone = p.Convertido ? "✅" : "❌",
+                    Titulo = $"Disputa de pênaltis — {p.Ordem}ª cobrança",
+                    Detalhe = p.Convertido ? "converteu" : "perdeu",
+                    Cor = p.Convertido ? "#4ade80" : "#f87171"
+                });
+
+            // Eventos sem minuto (disputa de pênaltis) ficam no fim — acontecem após o jogo.
+            eventos = eventos
+                .OrderBy(e => e.Minuto ?? int.MaxValue)
+                .ToList();
+
+            // Lado da escalação da época; sem escalação, cai pro time atual do jogador.
+            var isCasa = escalacaoRef?.IsTimeCasa
+                ?? (jogo.TimeCasaId == jogador.TimeId || jogo.TimeCasaId == jogador.SelecaoId);
+
+            var vm = new JogadorEstatisticasJogoViewModel
+            {
+                Jogador = jogador,
+                Jogo = jogo,
+                IsCasa = isCasa,
+                Posicao = escalacaoRef?.Posicao,
+                Titular = escalacaoRef?.Titular ?? false,
+                TemEscalacao = escalacaoRef != null,
+                Estatistica = estatistica,
+                Eventos = eventos,
+                PontosHeatmap = pontosHeatmap
             };
 
             return View(vm);

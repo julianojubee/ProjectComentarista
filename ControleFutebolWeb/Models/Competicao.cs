@@ -28,6 +28,10 @@ namespace ControleFutebolWeb.Models
         public int? IdApi { get; set; }
 
         public ICollection<Jogo> Jogos { get; set; } = new List<Jogo>();
+
+        // Fases declaradas (grupos + mata-mata, pontos corridos + playoffs...).
+        // Vazio = competição de fase única, comportamento guiado só pelo Tipo.
+        public ICollection<CompeticaoFase> Fases { get; set; } = new List<CompeticaoFase>();
         [System.ComponentModel.DataAnnotations.Schema.Column("linktransfermarket")]
         public string? LinkTransfermarket { get; set; }
 
