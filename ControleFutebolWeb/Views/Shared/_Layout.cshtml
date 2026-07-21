@@ -41,7 +41,9 @@
     Func<ControleFutebolWeb.Models.Competicao, string> _rotaCompeticao = (comp) =>
     {
         var nome = comp.Nome?.ToLowerInvariant() ?? "";
-        if (nome.Contains("brasileiro") || nome.Contains("brasileirão"))
+        // Só o Brasileirão masculino (CompeticaoId == 1) tem tabela dedicada;
+        // "Brasileirão Feminino"/"Brasileiro U20" caem na tela genérica da competição.
+        if (comp.Id == 1)
             return Url.Action("Brasileirao", "Tabela")!;
         if (nome.Contains("copa do brasil"))
             return Url.Action("Index", "CopaBrasil")!;
@@ -222,6 +224,10 @@
                                         var isAdmin = User.IsInRole("Admin");
                                     }
                                     <a class="dropdown-item" asp-controller="Account" asp-action="Usuarios"><span class="gold-ico">👥</span> Usuários</a>
+                                    @if (_layoutIsAdmin)
+                                    {
+                                        <a class="dropdown-item" asp-controller="Pagamentos" asp-action="Index"><span class="gold-ico">💰</span> Pagamentos</a>
+                                    }
                                     <div class="dropdown-divider"></div>
                                     <form asp-controller="Account" asp-action="Logout" method="post" style="display:inline">
                                         @Html.AntiForgeryToken()

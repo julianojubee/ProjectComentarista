@@ -1,0 +1,268 @@
+@using System.Globalization
+@model ControleFutebolWeb.Models.ViewModels.PagamentosIndexViewModel
+@{
+    ViewData["Title"] = "Pagamentos";
+    var ptBr = CultureInfo.GetCultureInfo("pt-BR");
+    // Data "de hoje" no calendário do Brasil (UTC-3) — mesma regra do AssinaturaFilter.
+    var hoje = DateTime.UtcNow.AddHours(-3).Date;
+    decimal valorPadrao = ViewBag.ValorPadrao;
+    bool pixConfigurado = ViewBag.PixConfigurado;
+}
+
+<style>
+    .pag-hero {
+        background: linear-gradient(135deg, #0a1628 0%, #1a2f4e 55%, #0f2040 100%);
+        border-radius: 14px;
+        padding: 2rem;
+        text-align: center;
+        color: #fff;
+        margin-bottom: 1.5rem;
+    }
+    .pag-hero h1 { font-size: 1.7rem; font-weight: 600; margin: 0; }
+    .pag-hero p { color: rgba(255,255,255,0.65); margin: 0.3rem 0 0; font-size: 0.9rem; }
+    .secao-titulo { font-size: 1.1rem; font-weight: 600; margin: 1.8rem 0 0.8rem; }
+</style>
+
+@if (TempData["Sucesso"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">@TempData["Sucesso"]<button class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["Erro"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">@TempData["Erro"]<button class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+<div class="pag-hero">
+    <h1>💰 Pagamentos</h1>
+    <p>Registre os pagamentos recebidos (PIX) e controle o vencimento de cada usuário</p>
+</div>
+
+@if (!pixConfigurado)
+{
+    <div class="alert alert-warning">
+        ⚠️ Chave PIX não configurada — a tela de bloqueio não mostra o QR code de pagamento.
+        Preencha a seção <code>Pix</code> (Chave, NomeRecebedor, Cidade, ValorPadrao) no
+        <code>appsettings.json</code> ou via variáveis de ambiente (<code>Pix__Chave</code> etc.).
+    </div>
+}
+
+<div class="card border-0 shadow-sm table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Usuário</th>
+                <th>Situação</th>
+                <th>Pago até</th>
+                <th>Mensalidade</th>
+                <th>Último pagamento</th>
+                <th>Total pago</th>
+                <th style="text-align:right">Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.Usuarios)
+            {
+                var u = item.Usuario;
+                var vencimento = u.AcessoPagoAte?.Date;
+                <tr>
+                    <td>
+                        @u.Nome<br />
+                        <code style="font-size:0.75rem">@u.UserName</code>
+                    </td>
+                    <td>
+                        @if (u.IsAdmin)
+                        {
+                            <span class="badge bg-dark">Admin (isento)</span>
+                        }
+                        else if (vencimento == null)
+                        {
+                            <span class="badge bg-secondary">Sem cobrança</span>
+                        }
+                        else if (vencimento < hoje)
+                        {
+                            <span class="badge bg-danger">Inadimplente há @((hoje - vencimento.Value).Days) d — bloqueado</span>
+                        }
+                        else if ((vencimento.Value - hoje).Days <= 7)
+                        {
+                            <span class="badge bg-warning text-dark">Vence em @((vencimento.Value - hoje).Days) d</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-success">Em dia</span>
+                        }
+                    </td>
+                    <td>@(vencimento?.ToString("dd/MM/yyyy") ?? "—")</td>
+                    <td>
+                        @if (u.ValorMensalidade.HasValue)
+                        {
+                            <text>R$ @u.ValorMensalidade.Value.ToString("N2", ptBr)</text>
+                        }
+                        else
+                        {
+                            <span class="text-muted" title="Valor padrão (Pix:ValorPadrao)">R$ @valorPadrao.ToString("N2", ptBr) <small>(padrão)</small></span>
+                        }
+                    </td>
+                    <td>
+                        @if (item.UltimoPagamento != null)
+                        {
+                            @item.UltimoPagamento.DataPagamento.ToString("dd/MM/yyyy")
+                            <span class="text-muted">(R$ @item.UltimoPagamento.Valor.ToString("N2", ptBr))</span>
+                        }
+                        else
+                        {
+                            <text>—</text>
+                        }
+                    </td>
+                    <td>@(item.TotalPago > 0 ? $"R$ {item.TotalPago.ToString("N2", ptBr)}" : "—")</td>
+                    <td style="text-align:right">
+                        <button class="btn btn-sm btn-success"
+                                data-bs-toggle="modal" data-bs-target="#modalPagamento-@u.Id">
+                            + Pagamento
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary"
+                                data-bs-toggle="modal" data-bs-target="#modalVencimento-@u.Id">
+                            Vencimento
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<div class="secao-titulo">📜 Lançamentos</div>
+@if (!Model.Lancamentos.Any())
+{
+    <p class="text-muted">Nenhum pagamento registrado ainda.</p>
+}
+else
+{
+    <div class="card border-0 shadow-sm table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Data</th>
+                    <th>Usuário</th>
+                    <th>Valor</th>
+                    <th>Pago até</th>
+                    <th>Observação</th>
+                    <th style="text-align:right">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in Model.Lancamentos)
+                {
+                    <tr>
+                        <td>@p.DataPagamento.ToString("dd/MM/yyyy")</td>
+                        <td>@p.Usuario.Nome</td>
+                        <td>R$ @p.Valor.ToString("N2", ptBr)</td>
+                        <td>@p.PagoAte.ToString("dd/MM/yyyy")</td>
+                        <td>@(string.IsNullOrEmpty(p.Observacao) ? "—" : p.Observacao)</td>
+                        <td style="text-align:right">
+                            <form asp-action="Excluir" method="post" style="display:inline"
+                                  onsubmit="return confirm('Excluir este lançamento de @p.Usuario.Nome? O vencimento será recalculado.')">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@p.Id" />
+                                <button class="btn btn-sm btn-outline-danger">Excluir</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@* Modais fora das tabelas (foster parenting — ver Usuarios.cshtml). *@
+@foreach (var item in Model.Usuarios)
+{
+    var u = item.Usuario;
+    // Sugestão de novo vencimento: 1 mês a partir do vencimento atual (se ainda
+    // válido) ou de hoje (se vencido/sem cobrança).
+    var baseVenc = (u.AcessoPagoAte?.Date is DateTime v && v >= hoje) ? v : hoje;
+    var vencSugerido = baseVenc.AddMonths(1);
+
+    <div class="modal fade" id="modalPagamento-@u.Id" tabindex="-1">
+        <div class="modal-dialog">
+            <form asp-action="Registrar" method="post" class="modal-content">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="usuarioId" value="@u.Id" />
+                <div class="modal-header">
+                    <h5 class="modal-title">Registrar pagamento — @u.Nome</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Data do pagamento</label>
+                        <input type="date" name="dataPagamento" class="form-control" required
+                               value="@hoje.ToString("yyyy-MM-dd")" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Valor (R$)</label>
+                        <input type="number" name="valor" class="form-control" required
+                               min="0.01" step="0.01"
+                               value="@((u.ValorMensalidade ?? valorPadrao).ToString("0.00", CultureInfo.InvariantCulture))" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Acesso liberado até</label>
+                        <input type="date" name="pagoAte" class="form-control" required
+                               value="@vencSugerido.ToString("yyyy-MM-dd")" />
+                        <div class="form-text">Sugestão: 1 mês a partir de @baseVenc.ToString("dd/MM/yyyy").</div>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">Observação (opcional)</label>
+                        <input type="text" name="observacao" class="form-control" maxlength="200"
+                               placeholder="Ex.: PIX recebido, referente a julho" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Registrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalVencimento-@u.Id" tabindex="-1">
+        <div class="modal-dialog">
+            <form asp-action="DefinirVencimento" method="post" class="modal-content">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="usuarioId" value="@u.Id" />
+                <div class="modal-header">
+                    <h5 class="modal-title">Ajustar cobrança — @u.Nome</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Acesso liberado até</label>
+                        <input type="date" name="vencimento" class="form-control"
+                               value="@u.AcessoPagoAte?.ToString("yyyy-MM-dd")" />
+                        <div class="form-text">
+                            Ajuste manual, sem registrar pagamento (cortesia, início de cobrança etc.).
+                            Deixe vazio ou use "Remover cobrança" para liberar o acesso sem vencimento.
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">Mensalidade (R$)</label>
+                        <input type="number" name="valorMensalidade" class="form-control"
+                               min="0.01" step="0.01"
+                               value="@u.ValorMensalidade?.ToString("0.00", CultureInfo.InvariantCulture)"
+                               placeholder="Padrão: @valorPadrao.ToString("N2", ptBr)" />
+                        <div class="form-text">
+                            Valor cobrado no QR PIX da tela de bloqueio. Vazio = usa o padrão
+                            (R$ @valorPadrao.ToString("N2", ptBr)).
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-outline-danger"
+                            onclick="this.form.vencimento.value='';">
+                        Remover cobrança
+                    </button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}

@@ -16,17 +16,20 @@ namespace ControleFutebolWeb.Controllers
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly IEmailSender _emailSender;
         private readonly ILogger<AccountController> _logger;
+        private readonly PixOptions _pixOptions;
 
         public AccountController(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
             IEmailSender emailSender,
-            ILogger<AccountController> logger)
+            ILogger<AccountController> logger,
+            Microsoft.Extensions.Options.IOptions<PixOptions> pixOptions)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _emailSender = emailSender;
             _logger = logger;
+            _pixOptions = pixOptions.Value;
         }
 
         [AllowAnonymous]
@@ -70,6 +73,37 @@ namespace ControleFutebolWeb.Controllers
         {
             await _signInManager.SignOutAsync();
             return RedirectToAction("Login");
+        }
+
+        // Destino do AssinaturaFilter para usuários com pagamento vencido.
+        // Quem não está bloqueado (em dia, sem cobrança ou admin) volta pra Home.
+        [Authorize]
+        public async Task<IActionResult> Bloqueado()
+        {
+            var usuario = await _userManager.GetUserAsync(User);
+            if (usuario == null || usuario.IsAdmin || !Filters.AssinaturaFilter.EstaInadimplente(usuario.AcessoPagoAte))
+                return RedirectToAction("Index", "Home");
+
+            ViewBag.VencidoEm = usuario.AcessoPagoAte!.Value;
+
+            // QR de PIX estático para regularizar na hora, se a chave estiver
+            // configurada (seção Pix do appsettings/env) e houver valor a cobrar.
+            var valor = usuario.ValorMensalidade ?? _pixOptions.ValorPadrao;
+            if (!string.IsNullOrWhiteSpace(_pixOptions.Chave) && valor > 0)
+            {
+                var payload = Helpers.PixHelper.GerarPayload(
+                    _pixOptions.Chave, _pixOptions.NomeRecebedor, _pixOptions.Cidade, valor);
+
+                using var gerador = new QRCoder.QRCodeGenerator();
+                using var dados = gerador.CreateQrCode(payload, QRCoder.QRCodeGenerator.ECCLevel.M);
+                var png = new QRCoder.PngByteQRCode(dados).GetGraphic(pixelsPerModule: 8);
+
+                ViewBag.PixPayload = payload;
+                ViewBag.PixQrBase64 = Convert.ToBase64String(png);
+                ViewBag.PixValor = valor;
+            }
+
+            return View();
         }
 
         // ── Recuperação de senha ─────────────────────────────────────────

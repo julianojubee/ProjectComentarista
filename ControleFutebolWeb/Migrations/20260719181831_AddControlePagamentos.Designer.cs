@@ -3,6 +3,7 @@ using System;
 using ControleFutebolWeb.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ControleFutebolWeb.Migrations
 {
     [DbContext(typeof(FutebolContext))]
-    partial class FutebolContextModelSnapshot : ModelSnapshot
+    [Migration("20260719181831_AddControlePagamentos")]
+    partial class AddControlePagamentos
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -153,10 +156,6 @@ namespace ControleFutebolWeb.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
                         .HasColumnName("username");
-
-                    b.Property<decimal?>("ValorMensalidade")
-                        .HasColumnType("numeric")
-                        .HasColumnName("valormensalidade");
 
                     b.HasKey("Id");
 

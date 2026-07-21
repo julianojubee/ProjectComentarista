@@ -10,7 +10,9 @@
     Func<Competicao, string> rotaCompeticao = (comp) =>
     {
         var nome = comp.Nome?.ToLowerInvariant() ?? "";
-        if (nome.Contains("brasileiro") || nome.Contains("brasileirão"))
+        // Só o Brasileirão masculino (CompeticaoId == 1, mesma convenção do resto do
+        // sistema) usa a tabela dedicada; Feminino/U20 etc. caem na tela genérica.
+        if (comp.Id == 1)
             return Url.Action("Brasileirao", "Tabela")!;
         if (nome.Contains("copa do brasil"))
             return Url.Action("Index", "CopaBrasil")!;

@@ -113,6 +113,8 @@ internal class Program
             options.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute());
             // Registra o último acesso do usuário autenticado (painel de "usuários online").
             options.Filters.Add(typeof(AtividadeUsuarioFilter));
+            // Bloqueia usuários inadimplentes (controle manual de pagamentos em /Pagamentos).
+            options.Filters.Add(typeof(AssinaturaFilter));
             // Binding de double/float/decimal aceita "10,5" e "10.5" como decimal,
             // independente da cultura do servidor (ver NumeroFlexivelModelBinder).
             options.ModelBinderProviders.Insert(0, new ControleFutebolWeb.ModelBinders.NumeroFlexivelModelBinderProvider());
@@ -154,6 +156,8 @@ internal class Program
         builder.Logging.AddDebug();
         builder.Services.Configure<CompeticoesApiOptions>(
         builder.Configuration.GetSection("CompeticoesApi"));
+        builder.Services.Configure<PixOptions>(
+        builder.Configuration.GetSection("Pix"));
         var app = builder.Build();
 
         // Inicializa o banco com dados (SeedData)

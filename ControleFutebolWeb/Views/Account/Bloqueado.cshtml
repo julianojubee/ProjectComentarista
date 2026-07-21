@@ -1,0 +1,99 @@
+@using System.Globalization
+@{
+    ViewData["Title"] = "Acesso suspenso";
+    DateTime vencidoEm = ViewBag.VencidoEm;
+    string? pixPayload = ViewBag.PixPayload as string;
+    string? pixQrBase64 = ViewBag.PixQrBase64 as string;
+    var ptBr = CultureInfo.GetCultureInfo("pt-BR");
+}
+
+<style>
+    .bloqueio-card {
+        max-width: 480px;
+        margin: 3rem auto;
+        background: linear-gradient(135deg, #0a1628 0%, #1a2f4e 55%, #0f2040 100%);
+        border-radius: 14px;
+        padding: 2.5rem 2rem;
+        text-align: center;
+        color: #fff;
+    }
+    .bloqueio-card .icone { font-size: 3rem; }
+    .bloqueio-card h1 { font-size: 1.5rem; font-weight: 600; margin: 0.8rem 0 0.5rem; }
+    .bloqueio-card p { color: rgba(255,255,255,0.75); margin-bottom: 0.4rem; }
+    .bloqueio-card .venc { color: #ffc107; font-weight: 600; }
+    .pix-box {
+        background: #fff;
+        border-radius: 12px;
+        padding: 1.2rem;
+        margin: 1.5rem auto 0;
+        max-width: 320px;
+        color: #0a1628;
+    }
+    .pix-box img { width: 220px; height: 220px; image-rendering: pixelated; }
+    .pix-box .valor { font-size: 1.3rem; font-weight: 700; margin: 0.4rem 0 0.2rem; }
+    .pix-box .dica { font-size: 0.8rem; color: #556; margin-bottom: 0.6rem; }
+    .pix-copia {
+        font-family: monospace;
+        font-size: 0.7rem;
+        word-break: break-all;
+        background: #f0f2f6;
+        border-radius: 6px;
+        padding: 0.5rem;
+        max-height: 4.5rem;
+        overflow-y: auto;
+        text-align: left;
+        margin-bottom: 0.5rem;
+    }
+</style>
+
+<div class="bloqueio-card">
+    <div class="icone">🔒</div>
+    <h1>Acesso suspenso</h1>
+    <p>Sua assinatura venceu em <span class="venc">@vencidoEm.ToString("dd/MM/yyyy")</span>.</p>
+
+    @if (pixPayload != null && pixQrBase64 != null)
+    {
+        decimal pixValor = ViewBag.PixValor;
+        <p>Pague pelo PIX abaixo e avise o administrador para liberar o acesso.</p>
+        <div class="pix-box">
+            <img src="data:image/png;base64,@pixQrBase64" alt="QR code PIX" />
+            <div class="valor">R$ @pixValor.ToString("N2", ptBr)</div>
+            <div class="dica">Aponte a câmera do app do seu banco, ou use o copia e cola:</div>
+            <div class="pix-copia" id="pixCopiaCola">@pixPayload</div>
+            <button type="button" class="btn btn-sm btn-primary w-100" id="btnCopiarPix">
+                📋 Copiar código PIX
+            </button>
+        </div>
+    }
+    else
+    {
+        <p>Para reativar o acesso, entre em contato com o administrador e regularize o pagamento.</p>
+    }
+
+    <form asp-action="Logout" method="post" class="mt-4">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="btn btn-outline-light">Sair da conta</button>
+    </form>
+</div>
+
+@if (pixPayload != null)
+{
+    <script>
+        document.getElementById('btnCopiarPix')?.addEventListener('click', async function () {
+            const texto = document.getElementById('pixCopiaCola').textContent.trim();
+            try {
+                await navigator.clipboard.writeText(texto);
+            } catch {
+                // Fallback para contextos sem Clipboard API (ex.: HTTP interno).
+                const ta = document.createElement('textarea');
+                ta.value = texto;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                ta.remove();
+            }
+            this.textContent = '✅ Copiado!';
+            setTimeout(() => this.textContent = '📋 Copiar código PIX', 2000);
+        });
+    </script>
+}

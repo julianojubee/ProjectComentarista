@@ -43,6 +43,7 @@ namespace ControleFutebolWeb.Data
         public DbSet<SelecaoCopaUsuario> SelecoesCopaUsuario { get; set; }
         public DbSet<Transferencia> Transferencias { get; set; }
         public DbSet<CompeticaoFase> CompeticaoFases { get; set; }
+        public DbSet<PagamentoUsuario> PagamentosUsuario { get; set; }
 
         public override int SaveChanges()
         {
