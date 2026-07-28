@@ -1,0 +1,84 @@
+@model IEnumerable<ControleFutebolWeb.Models.ViewModels.BlogAdminListaItemViewModel>
+@using ControleFutebolWeb.Models
+@{
+    ViewData["Title"] = "Blog — Meus posts";
+    string? filtro = ViewBag.FiltroStatus as string;
+}
+
+@if (TempData["Sucesso"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">@TempData["Sucesso"]<button class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h1 style="font-size:1.5rem;margin:0;">📝 Posts do blog</h1>
+    <div class="d-flex gap-2">
+        <a href="/blog" target="_blank" class="btn btn-outline-secondary">Ver blog público</a>
+        <a asp-action="Novo" class="btn btn-success">+ Novo post</a>
+    </div>
+</div>
+
+<div class="btn-group mb-3" role="group" aria-label="Filtro por status">
+    <a href="/blog/admin" class="btn btn-sm @(string.IsNullOrEmpty(filtro) ? "btn-primary" : "btn-outline-primary")">Todos</a>
+    <a href="/blog/admin?status=Rascunho" class="btn btn-sm @(filtro == "Rascunho" ? "btn-primary" : "btn-outline-primary")">Rascunhos</a>
+    <a href="/blog/admin?status=Publicado" class="btn btn-sm @(filtro == "Publicado" ? "btn-primary" : "btn-outline-primary")">Publicados</a>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="text-center py-5 text-muted">
+        Nenhum post por aqui ainda. <a asp-action="Novo">Escreva o primeiro!</a>
+    </div>
+}
+else
+{
+    <div class="card border-0 shadow-sm table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Título</th>
+                    <th>Status</th>
+                    <th>Publicado em</th>
+                    <th>Autor</th>
+                    <th style="text-align:right">Views</th>
+                    <th style="text-align:right">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in Model)
+                {
+                    <tr>
+                        <td>
+                            <a asp-action="Editar" asp-route-id="@p.Id">@p.Titulo</a>
+                            <div class="text-muted" style="font-size:.75rem;">/blog/@p.Slug</div>
+                        </td>
+                        <td>
+                            @if (p.Status == BlogPostStatus.Publicado)
+                            {
+                                <span class="badge bg-success">Publicado</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">@p.Status</span>
+                            }
+                        </td>
+                        <td>@(p.PublicadoEm?.AddHours(-3).ToString("dd/MM/yyyy HH:mm") ?? "—")</td>
+                        <td>@p.AutorNome</td>
+                        <td style="text-align:right">@p.Visualizacoes</td>
+                        <td style="text-align:right">
+                            @if (p.Status == BlogPostStatus.Publicado)
+                            {
+                                <a href="/blog/@p.Slug" target="_blank" class="btn btn-sm btn-outline-secondary">Ver</a>
+                            }
+                            <a asp-action="Editar" asp-route-id="@p.Id" class="btn btn-sm btn-outline-primary">Editar</a>
+                            <form asp-action="Excluir" asp-route-id="@p.Id" method="post" style="display:inline"
+                                  onsubmit="return confirm('Excluir o post @p.Titulo?')">
+                                <button class="btn btn-sm btn-outline-danger">Excluir</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

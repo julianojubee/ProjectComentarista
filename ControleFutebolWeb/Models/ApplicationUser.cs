@@ -7,6 +7,11 @@ namespace ControleFutebolWeb.Models
         public string Nome { get; set; } = string.Empty;
         public bool IsAdmin { get; set; } = false;
 
+        // Autor do blog público (/blog/admin). Marcado pelo admin na tela de
+        // usuários. Admin sempre pode escrever, independente desta flag
+        // (ver política "BlogEscrever" em Program.cs / BlogAutorHandler).
+        public bool EhAutorBlog { get; set; } = false;
+
         // Atualizado a cada requisição autenticada (ver AtividadeUsuarioFilter),
         // com throttling de 1 min para não martelar o banco a cada clique.
         public DateTime? UltimoAcesso { get; set; }

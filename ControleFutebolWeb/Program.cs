@@ -82,8 +82,12 @@ internal class Program
         {
             options.AddPolicy("Admin", policy =>
                 policy.AddRequirements(new AdminRequirement()));
+            // Escrever no blog: admin ou usuário com a flag EhAutorBlog.
+            options.AddPolicy("BlogEscrever", policy =>
+                policy.AddRequirements(new BlogAutorRequirement()));
         });
         builder.Services.AddScoped<IAuthorizationHandler, AdminHandler>();
+        builder.Services.AddScoped<IAuthorizationHandler, BlogAutorHandler>();
         builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
         builder.Services.AddScoped<RelatoriosService>();
 

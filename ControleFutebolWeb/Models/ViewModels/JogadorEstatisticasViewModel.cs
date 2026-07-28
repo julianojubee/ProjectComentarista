@@ -69,6 +69,29 @@ namespace ControleFutebolWeb.Models.ViewModels
 
         public double FaltasSofridas { get; set; }
         public double FaltasCometidas { get; set; }
+
+        // Catálogo de métricas já ordenado do melhor para o pior desempenho do
+        // jogador (ver JogadoresController.MontarMetricas). A tela usa as 3
+        // primeiras como donuts de destaque e o restante como chips — assim um
+        // zagueiro mostra desarmes/interceptações no lugar de dribles.
+        // Só é preenchido na tela de estatísticas do jogador.
+        public List<MetricaJogador> Metricas { get; set; } = new();
+    }
+
+    // Uma métrica do jogador com o desempenho já normalizado (0 a 1) contra uma
+    // referência de "nível de destaque", pra permitir comparar coisas de
+    // naturezas diferentes (ex.: 2,8 desarmes/jogo vs. 62% de duelos vencidos).
+    public class MetricaJogador
+    {
+        public string Rotulo { get; set; } = "";
+        public string Cor { get; set; } = "";
+
+        public double Media { get; set; }            // média por jogo
+        public int? Pct { get; set; }                // aproveitamento (null = métrica só de volume)
+        public string SufixoPct { get; set; } = "";  // ex.: "% no gol", "% certos"
+
+        public int PreenchimentoPct { get; set; }    // quanto do anel fica pintado (0-100)
+        public double Score { get; set; }            // 0 a 1 — só pra ordenar
     }
 
     public class NotaJogoItem

@@ -43,6 +43,7 @@
                 <th>Usuário</th>
                 <th>E-mail</th>
                 <th>Admin</th>
+                <th>Autor do blog</th>
                 <th>Status</th>
                 <th style="text-align:right">Ações</th>
             </tr>
@@ -56,6 +57,18 @@
                     <td><code>@u.UserName</code></td>
                     <td>@u.Email</td>
                     <td>@(u.IsAdmin ? "✅" : "—")</td>
+                    <td>
+                        @* Alterna a flag EhAutorBlog (efeito imediato: a política
+                           BlogEscrever consulta o banco a cada checagem). *@
+                        <form asp-action="AlternarAutorBlog" method="post" style="display:inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@u.Id" />
+                            <button class="btn btn-sm @(u.EhAutorBlog ? "btn-warning" : "btn-outline-secondary")"
+                                    title="@(u.EhAutorBlog ? "Remover permissão de escrever no blog" : "Permitir escrever no blog")">
+                                @(u.EhAutorBlog ? "✍️ Sim" : "—")
+                            </button>
+                        </form>
+                    </td>
                     <td>
                         @if (online)
                         {

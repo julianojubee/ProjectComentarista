@@ -25,7 +25,7 @@ namespace ControleFutebolWeb.Filters
         public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
         {
             var userId = context.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId) || EhControllerAccount(context))
+            if (string.IsNullOrEmpty(userId) || EhControllerIsento(context))
             {
                 await next();
                 return;
@@ -64,10 +64,14 @@ namespace ControleFutebolWeb.Filters
             return acessoPagoAte.Value.Date < hojeBrasil;
         }
 
-        private static bool EhControllerAccount(ActionExecutingContext context)
+        // Account: usuário bloqueado precisa ver a tela de bloqueio/sair/redefinir senha.
+        // Blog (leitura pública): é anônimo por design — um usuário logado e
+        // inadimplente também pode ler o blog, como qualquer visitante.
+        private static bool EhControllerIsento(ActionExecutingContext context)
         {
-            return context.ActionDescriptor is ControllerActionDescriptor d &&
-                   string.Equals(d.ControllerName, "Account", StringComparison.OrdinalIgnoreCase);
+            if (context.ActionDescriptor is not ControllerActionDescriptor d) return false;
+            return string.Equals(d.ControllerName, "Account", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(d.ControllerName, "Blog", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

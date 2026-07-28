@@ -22,7 +22,17 @@ namespace ControleFutebolWeb.Controllers
             _apiSportsHosts.Append("flagcdn.com"), // bandeiras de países (FlagHelper.GetFlagImageUrl)
             StringComparer.OrdinalIgnoreCase);
 
+        private static readonly HashSet<string> _tiposPermitidos = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"
+        };
+
         private sealed record CachedImage(byte[] Bytes, string ContentType);
+
+        // Quanto tempo uma URL que acabou de falhar fica marcada como ruim. Curto de
+        // propósito: é só para atravessar uma instabilidade do upstream, não para
+        // esconder a imagem até o próximo restart.
+        private static readonly TimeSpan _ttlFalha = TimeSpan.FromMinutes(5);
 
         public MediaProxyController(IHttpClientFactory httpClientFactory,
             ILogger<MediaProxyController> logger, IConfiguration config, IMemoryCache cache)
@@ -32,6 +42,31 @@ namespace ControleFutebolWeb.Controllers
             _config = config;
             _cache = cache;
         }
+
+        private static string ChaveImagem(string url) => $"midia:{url}";
+        private static string ChaveFalha(string url) => $"midia-falha:{url}";
+
+        // O [ResponseCache] da action grava Cache-Control: public,max-age=86400 ANTES
+        // de a action rodar — ou seja, também nas respostas de erro. Sem desfazer isso,
+        // um timeout momentâneo do api-sports fazia o navegador guardar o 404 e deixar
+        // a foto/escudo sumido por 24 h, mesmo com o upstream já normalizado.
+        private IActionResult SemCache(IActionResult resultado)
+        {
+            Response.Headers.CacheControl = "no-store";
+            Response.Headers.Remove("Expires");
+            Response.Headers.Remove("Pragma");
+            return resultado;
+        }
+
+        // Marca a URL como falha recente para que as próximas requisições (a mesma
+        // tela costuma pedir dezenas de imagens, e o usuário recarrega) respondam na
+        // hora, em vez de cada uma segurar uma conexão até estourar o timeout.
+        private void RegistrarFalha(string url) =>
+            _cache.Set(ChaveFalha(url), true, new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = _ttlFalha,
+                Size = 1 // obrigatório: o MemoryCache tem SizeLimit configurado.
+            });
 
         // GET /MediaProxy/Imagem?url=https://media.api-sports.io/football/players/50077.png
         // AllowAnonymous: o app Android carrega imagens pelo Coil, que não envia
@@ -44,42 +79,53 @@ namespace ControleFutebolWeb.Controllers
         public async Task<IActionResult> Imagem([FromQuery] string url, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(url))
-                return BadRequest();
+                return SemCache(BadRequest());
 
             if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
                 !_allowedHosts.Contains(uri.Host))
-                return Forbid();
+                // StatusCode e não Forbid(): com o esquema de cookie, Forbid() vira
+                // redirect 302 para /Account/Login, e a <img> acabava recebendo a
+                // página de login em vez de uma negativa.
+                return SemCache(StatusCode(StatusCodes.Status403Forbidden));
 
             // Serve do cache em memória quando disponível (evita rebaixar a mesma imagem,
             // especialmente escudos que se repetem em várias linhas).
-            if (_cache.TryGetValue(url, out CachedImage? cached) && cached != null)
+            if (_cache.TryGetValue(ChaveImagem(url), out CachedImage? cached) && cached != null)
                 return File(cached.Bytes, cached.ContentType);
+
+            // Falhou há pouco: devolve o erro de imediato, sem bater no upstream.
+            if (_cache.TryGetValue(ChaveFalha(url), out _))
+                return SemCache(NotFound());
 
             try
             {
                 var client = _httpClientFactory.CreateClient("MediaProxy");
 
-                // Fotos do api-sports exigem autenticação mesmo para imagens
-                // (a key só vai para hosts do api-sports, não para os demais proxied)
+                using var requisicao = new HttpRequestMessage(HttpMethod.Get, uri);
+
+                // Fotos do api-sports exigem autenticação mesmo para imagens. O header
+                // vai na requisição (e não em DefaultRequestHeaders) para que a chave
+                // nunca acompanhe um cliente reaproveitado para outro host.
                 if (_apiSportsHosts.Contains(uri.Host))
                 {
                     var apiKey = _config["ApiFootball:Key"];
-                    if (!string.IsNullOrEmpty(apiKey) &&
-                        !client.DefaultRequestHeaders.Contains("x-apisports-key"))
-                        client.DefaultRequestHeaders.Add("x-apisports-key", apiKey);
+                    if (!string.IsNullOrEmpty(apiKey))
+                        requisicao.Headers.TryAddWithoutValidation("x-apisports-key", apiKey);
                 }
 
-                var response = await client.GetAsync(url, ct);
+                var response = await client.SendAsync(requisicao, ct);
 
                 if (!response.IsSuccessStatusCode)
-                    return StatusCode((int)response.StatusCode);
+                {
+                    RegistrarFalha(url);
+                    return SemCache(StatusCode((int)response.StatusCode));
+                }
 
                 var remoteType = response.Content.Headers.ContentType?.MediaType ?? "";
-                var allowedTypes = new HashSet<string> { "image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml" };
-                var contentType = allowedTypes.Contains(remoteType) ? remoteType : "image/png";
+                var contentType = _tiposPermitidos.Contains(remoteType) ? remoteType : "image/png";
                 var bytes = await response.Content.ReadAsByteArrayAsync(ct);
 
-                _cache.Set(url, new CachedImage(bytes, contentType), new MemoryCacheEntryOptions
+                _cache.Set(ChaveImagem(url), new CachedImage(bytes, contentType), new MemoryCacheEntryOptions
                 {
                     AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24),
                     Size = bytes.Length
@@ -87,10 +133,36 @@ namespace ControleFutebolWeb.Controllers
 
                 return File(bytes, contentType);
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // O próprio usuário abandonou a página. Não é falha do upstream: não
+                // loga e não marca a URL como ruim (a resposta nem chega a ninguém).
+                return SemCache(new EmptyResult());
+            }
+            catch (TaskCanceledException)
+            {
+                // Timeout do HttpClient ("MediaProxy", 10s). Uma tela cheia de fotos
+                // gera dezenas destes de uma vez — loga uma linha, sem stack trace,
+                // que aqui é sempre o mesmo e só afogava o log.
+                RegistrarFalha(url);
+                _logger.LogWarning("[MediaProxy] Timeout ao buscar {Url}", url);
+                return SemCache(NotFound());
+            }
+            catch (HttpRequestException ex)
+            {
+                // DNS que não resolve, conexão recusada, TLS — a causa está na
+                // mensagem ("Este host não é conhecido", etc.); o stack trace é
+                // sempre o mesmo caminho do HttpClient e não ajuda a diagnosticar.
+                RegistrarFalha(url);
+                _logger.LogWarning("[MediaProxy] Falha de rede ao buscar {Url}: {Motivo}",
+                    url, ex.Message);
+                return SemCache(NotFound());
+            }
             catch (Exception ex)
             {
+                RegistrarFalha(url);
                 _logger.LogWarning(ex, "[MediaProxy] Falha ao buscar {Url}", url);
-                return NotFound();
+                return SemCache(NotFound());
             }
         }
     }

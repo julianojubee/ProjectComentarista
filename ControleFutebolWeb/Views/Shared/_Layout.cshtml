@@ -71,6 +71,8 @@
             ?? ((ViewData["Title"] as string ?? "") + " - Análise de Craque");
     }
     <title>@tituloAba</title>
+    <link rel="icon" type="image/svg+xml" href="~/favicon.svg" />
+    <link rel="alternate icon" href="~/favicon.ico" />
     @* data-theme aciona os overrides custom (site.css); data-bs-theme aciona o
        theming nativo do Bootstrap 5.3 (forms, accordion, tooltips etc.). *@
     <script>(function(){var t=localStorage.getItem('site-theme');if(t){document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-bs-theme',t);}})();</script>
@@ -78,6 +80,9 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/ControleFutebolWeb.styles.css" asp-append-version="true" />
+    @* CSS específico de tela (ex.: /Jogos/Analisar). Fica por último para vencer
+       o bootstrap e o site.css na cascata, como acontecia com o <style> inline. *@
+    @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
     <header>
@@ -189,6 +194,13 @@
                                 <span class="gold-ico">🔁</span> Transferências
                             </a>
                         </li>
+                        <li class="nav-item">
+                            @* Blog público — quem tem permissão de escrever acha o
+                               painel pelo botão "Escrever" dentro do próprio blog. *@
+                            <a class="nav-link text-dark" href="/blog">
+                                <span class="gold-ico">📝</span> Blog
+                            </a>
+                        </li>
                         @if (_layoutIsAdmin)
                         {
                         <li class="nav-item">
@@ -220,9 +232,6 @@
                                     <span class="gold-ico">👤</span> @nomeUsuario
                                 </a>
                                 <div class="dropdown-menu dropdown-menu-end">
-                                    @{
-                                        var isAdmin = User.IsInRole("Admin");
-                                    }
                                     <a class="dropdown-item" asp-controller="Account" asp-action="Usuarios"><span class="gold-ico">👥</span> Usuários</a>
                                     @if (_layoutIsAdmin)
                                     {
@@ -248,52 +257,54 @@
         </main>
     </div>
 
+    <div aria-live="polite" aria-atomic="true" class="position-relative">
+        <div class="toast-container position-fixed bottom-0 end-0 p-3">
+            @if (TempData["Mensagem"] != null)
+            {
+                <div class="toast align-items-center @(TempData["MensagemTipo"]?.ToString() == "erro" ? "text-bg-danger" : "text-bg-success") border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            @TempData["Mensagem"]
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Fechar"></button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
     @* jQuery não é mais carregado globalmente: só as telas de formulário que usam
        validação client-side precisam dele — carregado em _ValidationScriptsPartial. *@
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            var toastElList = [].slice.call(document.querySelectorAll('.toast'))
+            var toastList = toastElList.map(function (toastEl) {
+                return new bootstrap.Toast(toastEl, { delay: 6000 });
+            });
+            toastList.forEach(toast => toast.show());
+
+            var icon = document.getElementById('theme-toggle-icon');
+            if (icon) {
+                var t = document.documentElement.getAttribute('data-theme') || 'light';
+                icon.textContent = t === 'dark' ? '☀️' : '🌙';
+            }
+        });
+
+        function toggleTheme() {
+            var current = document.documentElement.getAttribute('data-theme') || 'light';
+            var next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            document.documentElement.setAttribute('data-bs-theme', next);
+            localStorage.setItem('site-theme', next);
+            var icon = document.getElementById('theme-toggle-icon');
+            if (icon) icon.textContent = next === 'dark' ? '☀️' : '🌙';
+        }
+    </script>
+
+    @* Por último: scripts de página podem depender do bootstrap e do site.js. *@
     @await RenderSectionAsync("Scripts", required: false)
 </body>
-<div aria-live="polite" aria-atomic="true" class="position-relative">
-    <div class="toast-container position-fixed bottom-0 end-0 p-3">
-        @if (TempData["Mensagem"] != null)
-        {
-            <div class="toast align-items-center @(TempData["MensagemTipo"]?.ToString() == "erro" ? "text-bg-danger" : "text-bg-success") border-0" role="alert" aria-live="assertive" aria-atomic="true">
-                <div class="d-flex">
-                    <div class="toast-body">
-                        @TempData["Mensagem"]
-                    </div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Fechar"></button>
-                </div>
-            </div>
-        }
-    </div>
-</div>
-
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        var toastElList = [].slice.call(document.querySelectorAll('.toast'))
-        var toastList = toastElList.map(function (toastEl) {
-            return new bootstrap.Toast(toastEl, { delay: 6000 });
-        });
-        toastList.forEach(toast => toast.show());
-
-        var icon = document.getElementById('theme-toggle-icon');
-        if (icon) {
-            var t = document.documentElement.getAttribute('data-theme') || 'light';
-            icon.textContent = t === 'dark' ? '☀️' : '🌙';
-        }
-    });
-
-    function toggleTheme() {
-        var current = document.documentElement.getAttribute('data-theme') || 'light';
-        var next = current === 'dark' ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', next);
-        document.documentElement.setAttribute('data-bs-theme', next);
-        localStorage.setItem('site-theme', next);
-        var icon = document.getElementById('theme-toggle-icon');
-        if (icon) icon.textContent = next === 'dark' ? '☀️' : '🌙';
-    }
-</script>
-
 </html>

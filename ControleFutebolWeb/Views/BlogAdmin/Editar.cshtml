@@ -1,0 +1,288 @@
+@model ControleFutebolWeb.Models.ViewModels.BlogPostEditarViewModel
+@using ControleFutebolWeb.Models
+@{
+    var ehNovo = !Model.Id.HasValue;
+    ViewData["Title"] = ehNovo ? "Blog — Novo post" : "Blog — Editar post";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/blog.css" asp-append-version="true" />
+}
+
+@if (TempData["Sucesso"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">@TempData["Sucesso"]<button class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h1 style="font-size:1.5rem;margin:0;">@(ehNovo ? "✍️ Novo post" : "✍️ Editar post")</h1>
+    <a asp-action="Index" class="btn btn-outline-secondary">← Meus posts</a>
+</div>
+
+<form asp-action="Salvar" method="post" id="form-post">
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="Status" />
+
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
+
+    <div class="row g-3">
+        <div class="col-lg-8">
+            <div class="mb-3">
+                <label asp-for="Titulo" class="form-label">Título</label>
+                <input asp-for="Titulo" class="form-control form-control-lg" maxlength="200" />
+                <span asp-validation-for="Titulo" class="text-danger"></span>
+            </div>
+
+            <ul class="nav nav-tabs" role="tablist">
+                <li class="nav-item"><button class="nav-link active" type="button" data-bs-toggle="tab" data-bs-target="#aba-escrever">Escrever</button></li>
+                <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#aba-preview" id="btn-aba-preview">Pré-visualizar</button></li>
+            </ul>
+            <div class="tab-content pt-2">
+                <div class="tab-pane fade show active" id="aba-escrever">
+                    <div class="d-flex align-items-center gap-2 py-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-inserir-imagem">
+                            🖼️ Inserir imagem
+                        </button>
+                        <input type="file" id="input-imagem" accept="image/jpeg,image/png,image/gif,image/webp" hidden />
+                        <span id="status-upload" class="form-text m-0"></span>
+                    </div>
+                    <textarea asp-for="ConteudoMarkdown" class="form-control blog-editor-textarea"
+                              placeholder="Escreva em Markdown: **negrito**, *itálico*, # Título, - lista, [link](https://...), ![imagem](https://...)"></textarea>
+                    <div class="form-text">
+                        Formatação em <strong>Markdown</strong>: <code>**negrito**</code>, <code>*itálico*</code>,
+                        <code># Título</code>, <code>## Subtítulo</code>, <code>- item de lista</code>,
+                        <code>[texto](https://link)</code>, <code>![descrição](https://url-da-imagem)</code>,
+                        <code>&gt; citação</code>.
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="aba-preview">
+                    <div class="blog-editor-preview blog-post-conteudo" id="painel-preview">
+                        <span class="text-muted">Carregando…</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <h2 style="font-size:1rem;" class="card-title">Publicação</h2>
+                    <p class="mb-1" style="font-size:.9rem;">
+                        Status:
+                        @if (Model.Status == BlogPostStatus.Publicado)
+                        {
+                            <span class="badge bg-success">Publicado</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">@Model.Status</span>
+                        }
+                    </p>
+                    @if (!string.IsNullOrEmpty(Model.Slug))
+                    {
+                        <p class="text-muted mb-2" style="font-size:.8rem;">
+                            URL: /blog/@Model.Slug
+                            @if (Model.Status == BlogPostStatus.Publicado)
+                            {
+                                <span> — <a href="/blog/@Model.Slug" target="_blank">abrir</a></span>
+                            }
+                        </p>
+                    }
+                    <button type="submit" class="btn btn-primary w-100 mb-2">💾 Salvar</button>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <h2 style="font-size:1rem;" class="card-title">Resumo</h2>
+                    <textarea asp-for="Resumo" class="form-control" rows="3" maxlength="300"
+                              placeholder="Chamada curta exibida na listagem e nas buscas (até 300 caracteres)."></textarea>
+                    <span asp-validation-for="Resumo" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <h2 style="font-size:1rem;" class="card-title">Imagem de capa</h2>
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-enviar-capa">⬆️ Enviar arquivo</button>
+                        <input type="file" id="input-capa" accept="image/jpeg,image/png,image/gif,image/webp" hidden />
+                        <span id="status-capa" class="form-text m-0"></span>
+                    </div>
+                    <label asp-for="ImagemCapaUrl" class="form-label" style="font-size:.85rem;">URL da imagem</label>
+                    <input asp-for="ImagemCapaUrl" class="form-control mb-2" placeholder="https://exemplo.com/foto.jpg" />
+                    <span asp-validation-for="ImagemCapaUrl" class="text-danger"></span>
+                    <img id="preview-capa" class="img-fluid rounded mb-2" alt="Pré-visualização da capa"
+                         src="@Model.ImagemCapaUrl" style="@(string.IsNullOrEmpty(Model.ImagemCapaUrl) ? "display:none" : "")" />
+                    <label asp-for="ImagemCapaAlt" class="form-label" style="font-size:.85rem;">Descrição da imagem (alt)</label>
+                    <input asp-for="ImagemCapaAlt" class="form-control" placeholder="Ex.: Torcida no Maracanã à noite" />
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+@if (!ehNovo)
+{
+    <div class="d-flex gap-2 mt-3 pt-3 border-top">
+        @if (Model.Status != BlogPostStatus.Publicado)
+        {
+            <form asp-action="Publicar" asp-route-id="@Model.Id" method="post"
+                  onsubmit="return confirm('Publicar este post? Ele ficará visível para qualquer pessoa em /blog.')">
+                <button class="btn btn-success">🚀 Publicar</button>
+            </form>
+        }
+        else
+        {
+            <form asp-action="Despublicar" asp-route-id="@Model.Id" method="post"
+                  onsubmit="return confirm('Despublicar? O post sai do ar e volta para rascunho.')">
+                <button class="btn btn-warning">Despublicar</button>
+            </form>
+        }
+        <form asp-action="Excluir" asp-route-id="@Model.Id" method="post" class="ms-auto"
+              onsubmit="return confirm('Excluir este post?')">
+            <button class="btn btn-outline-danger">Excluir</button>
+        </form>
+    </div>
+}
+
+@section Scripts {
+    @* Validação client-side (título obrigatório, limites de tamanho, URL da capa)
+       antes do POST — a validação server-side continua sendo a que vale. *@
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        // ── Upload de imagem ────────────────────────────────────────────
+        // Envia o arquivo, recebe a URL e insere ![alt](url) na posição do
+        // cursor do textarea (sem sobrescrever o que já foi digitado).
+        (function () {
+            var btn = document.getElementById('btn-inserir-imagem');
+            var input = document.getElementById('input-imagem');
+            var status = document.getElementById('status-upload');
+            var textarea = document.getElementById('ConteudoMarkdown');
+
+            btn.addEventListener('click', function () { input.click(); });
+
+            input.addEventListener('change', async function () {
+                var arquivo = input.files && input.files[0];
+                if (!arquivo) return;
+
+                status.textContent = 'Enviando…';
+                status.className = 'form-text m-0';
+                btn.disabled = true;
+
+                try {
+                    var dados = new FormData();
+                    dados.append('arquivo', arquivo);
+                    var resp = await fetch('/blog/admin/imagem', {
+                        method: 'POST',
+                        headers: { 'RequestVerificationToken': document.querySelector('meta[name="csrf-token"]').content },
+                        body: dados
+                    });
+                    var json = await resp.json().catch(function () { return {}; });
+
+                    if (!resp.ok) {
+                        status.textContent = json.erro || 'Falha no envio da imagem.';
+                        status.className = 'form-text m-0 text-danger';
+                        return;
+                    }
+
+                    // Alt inicial = nome do arquivo sem extensão; o autor edita depois.
+                    var alt = arquivo.name.replace(/\.[^.]+$/, '');
+                    var trecho = '![' + alt + '](' + json.url + ')';
+                    var pos = textarea.selectionStart;
+                    var antes = textarea.value.substring(0, pos);
+                    var depois = textarea.value.substring(textarea.selectionEnd);
+                    // Garante linha própria para a imagem (Markdown exige separação).
+                    var prefixo = (antes === '' || antes.endsWith('\n\n')) ? '' : (antes.endsWith('\n') ? '\n' : '\n\n');
+                    textarea.value = antes + prefixo + trecho + '\n\n' + depois;
+                    textarea.focus();
+                    // Deixa o cursor dentro dos colchetes, para ajustar a descrição.
+                    var inicioAlt = (antes + prefixo).length + 2;
+                    textarea.setSelectionRange(inicioAlt, inicioAlt + alt.length);
+
+                    status.textContent = 'Imagem inserida — ajuste a descrição entre colchetes.';
+                    status.className = 'form-text m-0 text-success';
+                } catch {
+                    status.textContent = 'Falha no envio da imagem.';
+                    status.className = 'form-text m-0 text-danger';
+                } finally {
+                    btn.disabled = false;
+                    input.value = ''; // permite reenviar o mesmo arquivo
+                }
+            });
+        })();
+
+        // ── Upload da imagem de capa ────────────────────────────────────
+        // Mesmo endpoint do corpo; aqui a URL vai para o campo e o preview.
+        (function () {
+            var btn = document.getElementById('btn-enviar-capa');
+            var input = document.getElementById('input-capa');
+            var status = document.getElementById('status-capa');
+            var campoUrl = document.getElementById('ImagemCapaUrl');
+            var preview = document.getElementById('preview-capa');
+
+            btn.addEventListener('click', function () { input.click(); });
+
+            input.addEventListener('change', async function () {
+                var arquivo = input.files && input.files[0];
+                if (!arquivo) return;
+
+                status.textContent = 'Enviando…';
+                status.className = 'form-text m-0';
+                btn.disabled = true;
+
+                try {
+                    var dados = new FormData();
+                    dados.append('arquivo', arquivo);
+                    var resp = await fetch('/blog/admin/imagem', {
+                        method: 'POST',
+                        headers: { 'RequestVerificationToken': document.querySelector('meta[name="csrf-token"]').content },
+                        body: dados
+                    });
+                    var json = await resp.json().catch(function () { return {}; });
+
+                    if (!resp.ok) {
+                        status.textContent = json.erro || 'Falha no envio.';
+                        status.className = 'form-text m-0 text-danger';
+                        return;
+                    }
+
+                    campoUrl.value = json.url;
+                    preview.src = json.url;
+                    preview.style.display = '';
+                    status.textContent = 'Capa enviada — salve o post para gravar.';
+                    status.className = 'form-text m-0 text-success';
+                } catch {
+                    status.textContent = 'Falha no envio.';
+                    status.className = 'form-text m-0 text-danger';
+                } finally {
+                    btn.disabled = false;
+                    input.value = '';
+                }
+            });
+        })();
+
+        // Pré-visualização server-side: renderiza com o MESMO pipeline
+        // (Markdig + sanitizer) usado no save — o preview é fiel ao publicado.
+        document.getElementById('btn-aba-preview').addEventListener('click', async function () {
+            var painel = document.getElementById('painel-preview');
+            painel.innerHTML = '<span class="text-muted">Carregando…</span>';
+            var corpo = new URLSearchParams();
+            corpo.append('markdown', document.getElementById('ConteudoMarkdown').value);
+            try {
+                var resp = await fetch('/blog/admin/preview-md', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'RequestVerificationToken': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: corpo.toString()
+                });
+                painel.innerHTML = resp.ok ? await resp.text()
+                    : '<span class="text-danger">Erro ao gerar a pré-visualização.</span>';
+            } catch {
+                painel.innerHTML = '<span class="text-danger">Erro ao gerar a pré-visualização.</span>';
+            }
+        });
+    </script>
+}

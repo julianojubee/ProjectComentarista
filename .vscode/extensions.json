@@ -1,0 +1,15 @@
+{
+  "recommendations": [
+    "ms-dotnettools.csdevkit",
+    "ms-dotnettools.csharp",
+    "ms-dotnettools.vscode-dotnet-runtime",
+    "visualstudioexptteam.vscodeintellicode",
+    "patcx.vscode-nuget-gallery",
+    "eamodio.gitlens",
+    "ms-vscode.vs-keybindings",
+    "jchannon.csharpextensions",
+    "editorconfig.editorconfig",
+    "ms-vscode.cpptools",
+    "ms-vscode.cmake-tools"
+  ]
+}

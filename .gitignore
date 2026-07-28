@@ -15,6 +15,12 @@ publish/
 *.log
 *.tmp
 
+# ---- Uploads do blog ----
+# Imagens enviadas pelo editor (/blog/admin). São conteúdo de produção, não
+# código: ficam no disco do servidor e sobrevivem ao deploy (o scp do deploy.ps1
+# sobrepõe arquivos, não apaga o destino). Não versionar.
+ControleFutebolWeb/wwwroot/uploads/
+
 # ---- Segredos / configuração local ----
 # Nunca versione segredos. Use User Secrets (dotnet user-secrets) ou variáveis
 # de ambiente. Mantém-se appsettings.json no repo APENAS sem segredos.

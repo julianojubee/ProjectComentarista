@@ -18,5 +18,8 @@ namespace ControleFutebolWeb.Models.ViewModels
         public string Password { get; set; } = string.Empty;
 
         public bool IsAdmin { get; set; }
+
+        // Pode escrever no blog público (/blog/admin).
+        public bool EhAutorBlog { get; set; }
     }
 }

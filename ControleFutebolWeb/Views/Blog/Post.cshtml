@@ -1,0 +1,58 @@
+@model ControleFutebolWeb.Models.BlogPost
+@{
+    Layout = "_LayoutBlog";
+    ViewData["Title"] = Model.Titulo;
+    ViewData["TitleOverride"] = (Model.MetaTitulo ?? Model.Titulo) + " - Blog Análise de Craque";
+    var descricao = Model.MetaDescricao ?? Model.Resumo;
+    var dataPublicacao = Model.PublicadoEm!.Value;
+}
+
+@section Meta {
+    @if (!string.IsNullOrEmpty(descricao))
+    {
+        <meta name="description" content="@descricao" />
+    }
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="@(Model.MetaTitulo ?? Model.Titulo)" />
+    @if (!string.IsNullOrEmpty(descricao))
+    {
+        <meta property="og:description" content="@descricao" />
+    }
+    @if (!string.IsNullOrEmpty(Model.ImagemCapaUrl))
+    {
+        <meta property="og:image" content="@Model.ImagemCapaUrl" />
+    }
+    <meta property="article:published_time" content="@dataPublicacao.ToString("o")" />
+}
+
+<article class="blog-post">
+    <header>
+        <h1 class="blog-post-titulo">@Model.Titulo</h1>
+        <div class="blog-post-meta">
+            Por <strong>@Model.Autor.Nome</strong> ·
+            <time datetime="@dataPublicacao.ToString("yyyy-MM-dd")">
+                @dataPublicacao.AddHours(-3).ToString("dd/MM/yyyy")
+            </time>
+            · @Model.TempoLeituraMin min de leitura
+            @if (Model.AtualizadoEm.HasValue)
+            {
+                <span> · atualizado em @Model.AtualizadoEm.Value.AddHours(-3).ToString("dd/MM/yyyy")</span>
+            }
+        </div>
+    </header>
+
+    @if (!string.IsNullOrEmpty(Model.ImagemCapaUrl))
+    {
+        <img class="blog-post-capa" src="@Model.ImagemCapaUrl" alt="@(Model.ImagemCapaAlt ?? Model.Titulo)" />
+    }
+
+    @* ConteudoHtml já foi renderizado do Markdown e SANITIZADO no save
+       (BlogMarkdownHelper) — este Raw nunca recebe entrada não tratada. *@
+    <div class="blog-post-conteudo">
+        @Html.Raw(Model.ConteudoHtml)
+    </div>
+
+    <footer class="mt-4 pt-3 border-top">
+        <a href="/blog">← Todos os posts</a>
+    </footer>
+</article>

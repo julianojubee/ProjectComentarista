@@ -36,6 +36,7 @@ namespace ControleFutebolWeb.Data
         public DbSet<JogoAnalisadoUsuario> JogosAnalisadosUsuario { get; set; }
         public DbSet<ObservacaoJogoUsuario> ObservacoesJogoUsuario { get; set; }
         public DbSet<ObservacaoJogoTag> ObservacoesJogoTag { get; set; }
+        public DbSet<ObservacaoJogoTagMencao> ObservacoesJogoTagMencoes { get; set; }
         public DbSet<CompeticaoTopTierUsuario> CompeticoesTopTierUsuario { get; set; }
         public DbSet<CronometroPartida> CronometrosPartida { get; set; }
         public DbSet<FaseTatica> FasesTaticas { get; set; }
@@ -44,6 +45,10 @@ namespace ControleFutebolWeb.Data
         public DbSet<Transferencia> Transferencias { get; set; }
         public DbSet<CompeticaoFase> CompeticaoFases { get; set; }
         public DbSet<PagamentoUsuario> PagamentosUsuario { get; set; }
+        public DbSet<BlogPost> BlogPosts { get; set; }
+        public DbSet<BlogCategoria> BlogCategorias { get; set; }
+        public DbSet<BlogTag> BlogTags { get; set; }
+        public DbSet<BlogPostTag> BlogPostTags { get; set; }
 
         public override int SaveChanges()
         {
@@ -275,6 +280,20 @@ namespace ControleFutebolWeb.Data
             modelBuilder.Entity<Escalacao>().HasIndex(e => new { e.JogoId, e.UsuarioId });
             modelBuilder.Entity<ObservacaoJogoTag>().HasIndex(o => new { o.JogadorId, o.UsuarioId });
 
+            // Menções a jogadores dentro do texto de uma observação (via "@Nome"):
+            // apagar a observação apaga suas menções junto.
+            modelBuilder.Entity<ObservacaoJogoTagMencao>(entity =>
+            {
+                entity.HasOne(m => m.ObservacaoJogoTag).WithMany()
+                    .HasForeignKey(m => m.ObservacaoJogoTagId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(m => m.Jogador).WithMany()
+                    .HasForeignKey(m => m.JogadorId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(m => m.JogadorId);
+                entity.HasIndex(m => m.ObservacaoJogoTagId);
+            });
+
             // Transferências: apagar time/jogo não apaga o histórico (FK vira null);
             // apagar o jogador remove as transferências dele junto.
             modelBuilder.Entity<Transferencia>(entity =>
@@ -298,6 +317,49 @@ namespace ControleFutebolWeb.Data
                 entity.HasOne(f => f.Competicao).WithMany(c => c.Fases)
                     .HasForeignKey(f => f.CompeticaoId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // 🔹 Blog público (/blog)
+            modelBuilder.Entity<BlogPost>(entity =>
+            {
+                // Slug é a URL pública do post — único e imutável após publicado.
+                entity.HasIndex(p => p.Slug).IsUnique();
+                // Query da listagem pública: WHERE status='Publicado' ORDER BY publicadoem DESC.
+                entity.HasIndex(p => new { p.Status, p.PublicadoEm });
+                // String no banco ("Rascunho"/"Publicado"...) — legível em SQL manual.
+                entity.Property(p => p.Status).HasConversion<string>().HasMaxLength(20);
+
+                // Excluir usuário NÃO pode apagar posts públicos silenciosamente:
+                // Restrict faz a exclusão do usuário falhar enquanto ele tiver posts
+                // (tratado com mensagem amigável em Account/ExcluirUsuario).
+                entity.HasOne(p => p.Autor).WithMany()
+                    .HasForeignKey(p => p.AutorId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(p => p.Categoria).WithMany(c => c.Posts)
+                    .HasForeignKey(p => p.CategoriaId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                // Vínculos opcionais com o domínio: apagar jogo/time/jogador não
+                // apaga o post, só desfaz o vínculo.
+                entity.HasOne(p => p.Jogo).WithMany()
+                    .HasForeignKey(p => p.JogoId).OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(p => p.Time).WithMany()
+                    .HasForeignKey(p => p.TimeId).OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(p => p.Jogador).WithMany()
+                    .HasForeignKey(p => p.JogadorId).OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<BlogCategoria>().HasIndex(c => c.Slug).IsUnique();
+            modelBuilder.Entity<BlogTag>().HasIndex(t => t.Slug).IsUnique();
+
+            modelBuilder.Entity<BlogPostTag>(entity =>
+            {
+                entity.HasKey(pt => new { pt.PostId, pt.TagId });
+                entity.HasOne(pt => pt.Post).WithMany(p => p.Tags)
+                    .HasForeignKey(pt => pt.PostId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(pt => pt.Tag).WithMany(t => t.Posts)
+                    .HasForeignKey(pt => pt.TagId).OnDelete(DeleteBehavior.Cascade);
             });
 
             // 🔹 Converte nomes de tabelas e colunas para minúsculas

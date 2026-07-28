@@ -220,6 +220,7 @@
     .je-pos-nome { font-size: .82rem; font-weight: 600; color: #e5e7eb; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .je-pos-sub { font-size: .68rem; color: #6b7280; }
 
+    .je-destaques-label { font-size: .6rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
     .je-donuts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
     .je-donut { text-align: center; min-width: 0; }
     .je-donut-ring { width: 74px; height: 74px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
@@ -693,43 +694,47 @@
                     <div class="je-card">
                         <div class="je-card-titulo">Médias por Jogo <span style="text-transform:none; letter-spacing:0; font-weight:400; color:#4b5563;">(@m.Jogos jogo@(m.Jogos == 1 ? "" : "s") com estatísticas importadas)</span></div>
 
-                        <div class="je-donuts">
-                            <div class="je-donut">
-                                <div class="je-donut-ring" style="background: conic-gradient(#22c55e 0 @(m.FinalizacoesPct)%, #1e293b @(m.FinalizacoesPct)% 100%);">
-                                    <div class="je-donut-hole">@m.FinalizacoesPct%</div>
-                                </div>
-                                <div class="je-donut-label">Finalizações</div>
-                                <div class="je-donut-sub">@m.Finalizacoes.ToString("0.#")/jogo · % no gol</div>
-                            </div>
-                            <div class="je-donut">
-                                <div class="je-donut-ring" style="background: conic-gradient(#60a5fa 0 @(m.DriblesPct)%, #1e293b @(m.DriblesPct)% 100%);">
-                                    <div class="je-donut-hole">@m.DriblesPct%</div>
-                                </div>
-                                <div class="je-donut-label">Dribles</div>
-                                <div class="je-donut-sub">@m.Dribles.ToString("0.#")/jogo · % certos</div>
-                            </div>
-                            <div class="je-donut">
-                                <div class="je-donut-ring" style="background: conic-gradient(#facc15 0 @(m.DuelosPct)%, #1e293b @(m.DuelosPct)% 100%);">
-                                    <div class="je-donut-hole">@m.DuelosPct%</div>
-                                </div>
-                                <div class="je-donut-label">Duelos</div>
-                                <div class="je-donut-sub">@m.Duelos.ToString("0.#")/jogo · % vencidos</div>
-                            </div>
-                        </div>
+                        @{
+                            // Os donuts são os 3 fundamentos em que o jogador melhor
+                            // se sai (ranking calculado no controller) — o restante
+                            // do catálogo desce para os chips.
+                            var destaques = m.Metricas.Take(3).ToList();
+                            var demais = m.Metricas.Skip(3).ToList();
+                        }
 
-                        <div class="je-chips">
-                            <div class="je-chip"><div class="je-chip-valor">@m.Passes.ToString("0.#")</div><div class="je-chip-label">Passes</div></div>
-                            <div class="je-chip"><div class="je-chip-valor">@m.PassesChave.ToString("0.#")</div><div class="je-chip-label">Passes-chave</div></div>
-                            <div class="je-chip"><div class="je-chip-valor">@m.Desarmes.ToString("0.#")</div><div class="je-chip-label">Desarmes</div></div>
-                            <div class="je-chip"><div class="je-chip-valor">@m.Interceptacoes.ToString("0.#")</div><div class="je-chip-label">Interceptações</div></div>
-                            <div class="je-chip"><div class="je-chip-valor">@m.Bloqueios.ToString("0.#")</div><div class="je-chip-label">Bloqueios</div></div>
-                            @if (m.Defesas > 0)
-                            {
-                                <div class="je-chip"><div class="je-chip-valor">@m.Defesas.ToString("0.#")</div><div class="je-chip-label">Defesas</div></div>
-                            }
-                            <div class="je-chip"><div class="je-chip-valor">@m.FaltasSofridas.ToString("0.#")</div><div class="je-chip-label">Faltas sofridas</div></div>
-                            <div class="je-chip"><div class="je-chip-valor">@m.FaltasCometidas.ToString("0.#")</div><div class="je-chip-label">Faltas cometidas</div></div>
-                        </div>
+                        @if (destaques.Any())
+                        {
+                            <div class="je-destaques-label">⭐ Destaques do jogador</div>
+                            <div class="je-donuts">
+                                @foreach (var met in destaques)
+                                {
+                                    <div class="je-donut">
+                                        <div class="je-donut-ring" style="background: conic-gradient(@met.Cor 0 @(met.PreenchimentoPct)%, #1e293b @(met.PreenchimentoPct)% 100%);">
+                                            <div class="je-donut-hole">@(met.Pct.HasValue ? $"{met.Pct}%" : met.Media.ToString("0.#"))</div>
+                                        </div>
+                                        <div class="je-donut-label">@met.Rotulo</div>
+                                        <div class="je-donut-sub">
+                                            @(met.Pct.HasValue
+                                                ? $"{met.Media.ToString("0.#")}/jogo · {met.SufixoPct}"
+                                                : "por jogo")
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        @if (demais.Any())
+                        {
+                            <div class="je-chips">
+                                @foreach (var met in demais)
+                                {
+                                    <div class="je-chip">
+                                        <div class="je-chip-valor">@met.Media.ToString("0.#")</div>
+                                        <div class="je-chip-label">@met.Rotulo</div>
+                                    </div>
+                                }
+                            </div>
+                        }
                     </div>
                 }
             </div>
@@ -823,7 +828,12 @@
 
                     var temMinutagem = item.Minutos.HasValue;
                     var temPosicao = !string.IsNullOrWhiteSpace(item.Posicao);
-                    var temAnalise = item.Analisado && (item.Detalhes.Any(d => d.Quantidade > 0) || !string.IsNullOrWhiteSpace(item.Comentario) || item.ObservacoesJogador.Any() || item.NotaManual.HasValue);
+                    // Menções via "@Nome" (feature de /Jogos/Analisar) podem existir mesmo em
+                    // jogos ainda não analisados (sem Nota/EstatisticaJogador) — por isso
+                    // ObservacoesJogador.Any() precisa abrir o painel por conta própria,
+                    // fora da condição "item.Analisado" que vale pro resto do painel.
+                    var temAnalise = item.ObservacoesJogador.Any()
+                        || (item.Analisado && (item.Detalhes.Any(d => d.Quantidade > 0) || !string.IsNullOrWhiteSpace(item.Comentario) || item.NotaManual.HasValue));
 
                     <div class="je-jogo-card" style="@(!item.Analisado ? "opacity:.75;" : "")">
 
@@ -905,20 +915,23 @@
                         @if (temAnalise)
                         {
                             <div class="je-analise-panel" data-analise="analise-@idx">
-                                <div class="je-analise-comp">
-                                    <div class="je-analise-comp-titulo">Composição da nota</div>
-                                    @if (item.NotaManual.HasValue)
-                                    {
-                                        <span>Nota manual <strong style="color:@notaColor;">@item.NotaFinal.ToString("0.00")</strong></span>
-                                        <span style="color:rgba(255,255,255,.35); font-size:10px;">ações registradas abaixo (sem peso na nota)</span>
-                                    }
-                                    else
-                                    {
-                                        <span>Base <strong style="color:#e2e8f0;">@item.NotaBaseFixa.ToString("0.0")</strong></span>
-                                        <span>Ações <strong style="color:@(item.Nota >= 0 ? "#4ade80" : "#f87171");">@(item.Nota >= 0 ? "+" : "")@item.Nota.ToString("0.##")</strong></span>
-                                        <span>= <strong style="color:@notaColor;">@item.NotaFinal.ToString("0.00")</strong></span>
-                                    }
-                                </div>
+                                @if (item.Analisado)
+                                {
+                                    <div class="je-analise-comp">
+                                        <div class="je-analise-comp-titulo">Composição da nota</div>
+                                        @if (item.NotaManual.HasValue)
+                                        {
+                                            <span>Nota manual <strong style="color:@notaColor;">@item.NotaFinal.ToString("0.00")</strong></span>
+                                            <span style="color:rgba(255,255,255,.35); font-size:10px;">ações registradas abaixo (sem peso na nota)</span>
+                                        }
+                                        else
+                                        {
+                                            <span>Base <strong style="color:#e2e8f0;">@item.NotaBaseFixa.ToString("0.0")</strong></span>
+                                            <span>Ações <strong style="color:@(item.Nota >= 0 ? "#4ade80" : "#f87171");">@(item.Nota >= 0 ? "+" : "")@item.Nota.ToString("0.##")</strong></span>
+                                            <span>= <strong style="color:@notaColor;">@item.NotaFinal.ToString("0.00")</strong></span>
+                                        }
+                                    </div>
+                                }
 
                                 @if (item.Detalhes.Any(d => d.Quantidade > 0))
                                 {
@@ -1448,4 +1461,22 @@
             ${grupos}
         `;
     }
+
+    // ── Animação de preenchimento dos donuts (conic-gradient não responde a
+    // transition CSS, então tween manual via requestAnimationFrame) ───────────
+    document.querySelectorAll('.je-donut-ring').forEach(function (ring) {
+        var m = ring.getAttribute('style').match(/(#[0-9a-f]{3,6})\s+0\s+([\d.]+)%/i);
+        if (!m) return;
+        var cor = m[1], alvo = parseFloat(m[2]);
+        var dur = 900, t0 = performance.now();
+        ring.style.background = 'conic-gradient(' + cor + ' 0 0%, #1e293b 0% 100%)';
+        function tick(now) {
+            var p = Math.min((now - t0) / dur, 1);
+            var ease = 1 - Math.pow(1 - p, 3);
+            var v = (alvo * ease).toFixed(1);
+            ring.style.background = 'conic-gradient(' + cor + ' 0 ' + v + '%, #1e293b ' + v + '% 100%)';
+            if (p < 1) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+    });
 </script>

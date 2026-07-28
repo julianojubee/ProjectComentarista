@@ -1,0 +1,707 @@
+<title>Análise de Craque — Manual de Uso</title>
+<style>
+  :root {
+    --paper: #f6f1e4;
+    --paper-raised: #fffcf5;
+    --ink: #1b2419;
+    --ink-soft: #4a5245;
+    --pitch: #0b3d24;
+    --pitch-soft: #dce8de;
+    --gold: #a97e1f;
+    --gold-strong: #8a6516;
+    --line: #ddd4bd;
+    --line-strong: #c7bb9c;
+    --shadow: 0 1px 2px rgba(27,36,25,0.06), 0 8px 24px rgba(27,36,25,0.06);
+    --radius: 3px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #12160f;
+      --paper-raised: #191f16;
+      --ink: #e9e4d4;
+      --ink-soft: #b3ab94;
+      --pitch: #6aab84;
+      --pitch-soft: #1c2a20;
+      --gold: #e2b34c;
+      --gold-strong: #f0c467;
+      --line: #2b3225;
+      --line-strong: #3a4232;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #12160f;
+    --paper-raised: #191f16;
+    --ink: #e9e4d4;
+    --ink-soft: #b3ab94;
+    --pitch: #6aab84;
+    --pitch-soft: #1c2a20;
+    --gold: #e2b34c;
+    --gold-strong: #f0c467;
+    --line: #2b3225;
+    --line-strong: #3a4232;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+  :root[data-theme="light"] {
+    --paper: #f6f1e4;
+    --paper-raised: #fffcf5;
+    --ink: #1b2419;
+    --ink-soft: #4a5245;
+    --pitch: #0b3d24;
+    --pitch-soft: #dce8de;
+    --gold: #a97e1f;
+    --gold-strong: #8a6516;
+    --line: #ddd4bd;
+    --line-strong: #c7bb9c;
+    --shadow: 0 1px 2px rgba(27,36,25,0.06), 0 8px 24px rgba(27,36,25,0.06);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+  }
+  h1, h2, h3 {
+    font-family: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, "URW Palladio L", serif;
+    color: var(--ink);
+    text-wrap: balance;
+    font-weight: 600;
+  }
+  .mono {
+    font-family: ui-monospace, "SFMono-Regular", Consolas, Menlo, monospace;
+  }
+  a { color: var(--pitch); }
+
+  .page {
+    display: grid;
+    grid-template-columns: 240px minmax(0,1fr);
+    max-width: 1180px;
+    margin: 0 auto;
+    gap: 0;
+  }
+
+  /* ---------- Sidebar / TOC ---------- */
+  .toc {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 32px 20px 32px 28px;
+    border-right: 1px solid var(--line);
+  }
+  .toc-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+  .toc-crest { flex-shrink: 0; }
+  .toc-brand-text {
+    font-family: ui-serif, "Iowan Old Style", Palatino, serif;
+    line-height: 1.1;
+  }
+  .toc-brand-name { font-size: 14.5px; font-weight: 700; letter-spacing: 0.03em; }
+  .toc-brand-tag { font-size: 10px; letter-spacing: 0.14em; color: var(--gold-strong); text-transform: uppercase; }
+
+  .toc nav { display: flex; flex-direction: column; gap: 2px; }
+  .toc-label {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-soft);
+    margin: 16px 0 6px;
+  }
+  .toc a.tlink {
+    display: block;
+    padding: 6px 10px;
+    border-radius: var(--radius);
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-size: 13.5px;
+    border-left: 2px solid transparent;
+  }
+  .toc a.tlink:hover { background: var(--pitch-soft); color: var(--ink); }
+  .toc a.tlink.flagship { color: var(--gold-strong); font-weight: 600; }
+
+  /* ---------- Main content ---------- */
+  main { padding: 48px 56px 100px; min-width: 0; }
+
+  .cover {
+    padding-bottom: 40px;
+    margin-bottom: 44px;
+    border-bottom: 1px solid var(--line);
+  }
+  .cover .kicker {
+    font-size: 11.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--gold-strong);
+    margin-bottom: 14px;
+  }
+  .cover h1 {
+    font-size: 40px;
+    margin: 0 0 14px;
+    line-height: 1.08;
+  }
+  .cover p.lede {
+    max-width: 62ch;
+    color: var(--ink-soft);
+    font-size: 16.5px;
+  }
+  .cover-stats {
+    display: flex;
+    gap: 28px;
+    margin-top: 28px;
+    flex-wrap: wrap;
+  }
+  .cover-stat { min-width: 120px; }
+  .cover-stat .n {
+    font-family: ui-serif, Palatino, serif;
+    font-size: 22px;
+    color: var(--pitch);
+  }
+  .cover-stat .l {
+    font-size: 12px;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  section.chapter {
+    margin-bottom: 64px;
+    scroll-margin-top: 24px;
+  }
+  .crumb {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.02em;
+    color: var(--ink-soft);
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-bottom: 14px;
+  }
+  .crumb b { color: var(--pitch); font-weight: 600; }
+  .chapter h2 {
+    font-size: 27px;
+    margin: 0 0 6px;
+  }
+  .chapter .dek {
+    color: var(--ink-soft);
+    max-width: 68ch;
+    margin-bottom: 22px;
+    font-size: 15.5px;
+  }
+  .flagship-badge {
+    display: inline-block;
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gold-strong);
+    border: 1px solid var(--gold);
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-bottom: 10px;
+  }
+
+  /* nav mockup */
+  .navmock {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    font-size: 12.5px;
+    box-shadow: var(--shadow);
+  }
+  .navmock .item {
+    padding: 5px 10px;
+    color: var(--ink-soft);
+    border-radius: var(--radius);
+    white-space: nowrap;
+  }
+  .navmock .item.active {
+    color: var(--ink);
+    background: var(--pitch-soft);
+    box-shadow: inset 0 -2px 0 var(--gold);
+    font-weight: 600;
+  }
+  .navmock .sep { color: var(--line-strong); padding: 0 2px; }
+
+  .cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 8px;
+  }
+  @media (max-width: 720px) { .cols { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+  .card h3 {
+    font-size: 15px;
+    margin: 0 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card h3 .ico { font-size: 15px; }
+  .card ul { margin: 0; padding-left: 18px; }
+  .card li { margin-bottom: 5px; font-size: 14px; color: var(--ink-soft); }
+  .card li::marker { color: var(--gold); }
+
+  .steps {
+    margin: 18px 0 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: step;
+    border-left: 2px solid var(--line-strong);
+    padding-left: 0;
+  }
+  .steps li {
+    counter-increment: step;
+    position: relative;
+    padding: 0 0 16px 26px;
+    font-size: 14px;
+    color: var(--ink-soft);
+  }
+  .steps li:last-child { padding-bottom: 0; }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: -13px;
+    top: -1px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--paper);
+    border: 1px solid var(--gold);
+    color: var(--gold-strong);
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .steps li b { color: var(--ink); }
+
+  .note {
+    display: flex;
+    gap: 10px;
+    background: var(--pitch-soft);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--pitch);
+    padding: 12px 14px;
+    border-radius: var(--radius);
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    margin-top: 16px;
+  }
+  .note b { color: var(--ink); }
+
+  .divider {
+    height: 1px;
+    background: repeating-linear-gradient(90deg, var(--line-strong) 0 6px, transparent 6px 12px);
+    margin: 56px 0;
+  }
+
+  footer.manual-footer {
+    padding-top: 28px;
+    border-top: 1px solid var(--line);
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  @media (max-width: 900px) {
+    .page { grid-template-columns: 1fr; }
+    .toc { position: relative; height: auto; border-right: none; border-bottom: 1px solid var(--line); }
+    main { padding: 32px 22px 80px; }
+  }
+</style>
+
+<div class="page">
+  <aside class="toc">
+    <div class="toc-brand">
+      <svg class="toc-crest" width="20" height="30" viewBox="0 0 80 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect x="0" y="0" width="80" height="120" rx="8" fill="#161616" />
+        <rect x="10" y="10" width="60" height="100" rx="2" fill="#0b130b" stroke="#d4a520" stroke-width="2" />
+        <line x1="10" y1="60" x2="70" y2="60" stroke="#d4a520" stroke-width="1.5" />
+        <circle cx="40" cy="60" r="14" fill="none" stroke="#d4a520" stroke-width="1.5" />
+        <circle cx="40" cy="60" r="3" fill="#d4a520" />
+        <rect x="22" y="10" width="36" height="18" fill="none" stroke="#d4a520" stroke-width="1.5" />
+        <rect x="22" y="92" width="36" height="18" fill="none" stroke="#d4a520" stroke-width="1.5" />
+      </svg>
+      <div class="toc-brand-text">
+        <div class="toc-brand-name">ANÁLISE</div>
+        <div class="toc-brand-tag">de Craque</div>
+      </div>
+    </div>
+    <nav>
+      <a class="tlink" href="#home">Home</a>
+      <div class="toc-label">Cadastros</div>
+      <a class="tlink" href="#times">Times</a>
+      <a class="tlink" href="#jogadores">Jogadores</a>
+      <a class="tlink" href="#treinadores">Treinadores</a>
+      <a class="tlink" href="#jogos">Jogos</a>
+      <div class="toc-label">Análise</div>
+      <a class="tlink flagship" href="#analisar">★ Analisar Partida</a>
+      <a class="tlink" href="#hoje">Jogos de Hoje</a>
+      <div class="toc-label">Competições</div>
+      <a class="tlink" href="#competicoes">Competições</a>
+      <div class="toc-label">Inteligência</div>
+      <a class="tlink" href="#relatorios">Relatórios</a>
+      <a class="tlink" href="#scout">Scout de Mercado</a>
+      <a class="tlink" href="#transferencias">Transferências</a>
+      <div class="toc-label">Conta</div>
+      <a class="tlink" href="#conta">Perfil e Preferências</a>
+    </nav>
+  </aside>
+
+  <main>
+    <div class="cover">
+      <div class="kicker">Manual de uso · Análise de Craque</div>
+      <h1>Um guia completo, tela por tela, do menu ao lance decisivo.</h1>
+      <p class="lede">Este manual acompanha a navegação real do sistema — cada capítulo corresponde a um item do menu. A ideia é que qualquer pessoa da comissão técnica ou do departamento de scouting consiga abrir o sistema e, em poucos minutos, saber exatamente onde cadastrar, onde analisar e onde relatar.</p>
+      <div class="cover-stats">
+        <div class="cover-stat"><div class="n">4</div><div class="l">Grupos de menu</div></div>
+        <div class="cover-stat"><div class="n">10</div><div class="l">Telas principais</div></div>
+        <div class="cover-stat"><div class="n">1</div><div class="l">Ficha por partida</div></div>
+      </div>
+    </div>
+
+    <!-- HOME -->
+    <section class="chapter" id="home">
+      <div class="crumb">Menu → <b>Home</b></div>
+      <h2>Home</h2>
+      <p class="dek">O painel de entrada. Um retrato rápido da base de dados e um atalho para qualquer time, jogador ou competição.</p>
+      <div class="navmock">
+        <span class="item active">Home</span><span class="sep">›</span>
+        <span class="item">Cadastros ▾</span><span class="sep">›</span>
+        <span class="item">Competições ▾</span><span class="sep">›</span>
+        <span class="item">Jogos de Hoje</span><span class="sep">›</span>
+        <span class="item">Relatórios</span><span class="sep">›</span>
+        <span class="item">Transferências</span>
+      </div>
+      <div class="cols">
+        <div class="card">
+          <h3><span class="ico">🔎</span> Busca global</h3>
+          <ul>
+            <li>Campo de busca no topo, disponível em qualquer tela</li>
+            <li>Procura times, jogadores e competições ao mesmo tempo</li>
+            <li>Resultado já leva direto para a ficha correspondente</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3><span class="ico">📊</span> Panorama da base</h3>
+          <ul>
+            <li>Últimos 6 jogos finalizados, com placar</li>
+            <li>Classificação resumida dos times mais ativos</li>
+            <li>Contadores gerais: times, jogadores, jogos e competições cadastrados</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- CADASTROS -->
+    <section class="chapter" id="times">
+      <div class="crumb">Menu → Cadastros → <b>Times</b></div>
+      <h2>Cadastros: Times</h2>
+      <p class="dek">A base de tudo: cada time cadastrado alimenta jogos, competições, transferências e relatórios automaticamente.</p>
+      <div class="cols">
+        <div class="card">
+          <h3><span class="ico">🏟</span> O que você cadastra</h3>
+          <ul>
+            <li>Nome, cidade, escudo e se é seleção nacional ou clube</li>
+            <li>Elenco vinculado — jogadores aparecem automaticamente na ficha do time</li>
+            <li>Escalação padrão, usada como ponto de partida ao montar uma partida nova</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3><span class="ico">📓</span> Anotações do time</h3>
+          <ul>
+            <li>Dossiê próprio por time: sondagens, pontos fortes, alertas</li>
+            <li>Organizadas por categoria e pesquisáveis por palavra-chave</li>
+            <li>Reúne também as observações feitas durante a análise de partidas desse time</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter" id="jogadores">
+      <div class="crumb">Menu → Cadastros → <b>Jogadores</b></div>
+      <h2>Cadastros: Jogadores</h2>
+      <p class="dek">Ficha individual completa — a peça central para scouting e comparação de atletas.</p>
+      <div class="cols">
+        <div class="card">
+          <h3><span class="ico">👤</span> Dados de cadastro</h3>
+          <ul>
+            <li>Posição (com posição secundária, ex. "Ala Direito/Ala Esquerdo")</li>
+            <li>Idade, altura, peso, nacionalidade, número de camisa</li>
+            <li>Clube atual — atualizado automaticamente pelo módulo de Transferências</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3><span class="ico">📈</span> Estatísticas do jogador</h3>
+          <ul>
+            <li>Histórico completo: gols, assistências, cartões, notas por partida</li>
+            <li>Estatísticas de campo: passes-chave, desarmes, interceptações, duelos, dribles</li>
+            <li>Evolução de nota ao longo do tempo, competição a competição</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter" id="treinadores">
+      <div class="crumb">Menu → Cadastros → <b>Treinadores</b></div>
+      <h2>Cadastros: Treinadores</h2>
+      <p class="dek">Mesmo princípio dos jogadores, aplicado ao comando técnico.</p>
+      <div class="cols">
+        <div class="card">
+          <h3><span class="ico">🧑‍💼</span> Ficha do treinador</h3>
+          <ul>
+            <li>Nome, nacionalidade, clube atual</li>
+            <li>Filtro por competição, time e nacionalidade na listagem</li>
+            <li>Histórico de passagens por clubes</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter" id="jogos">
+      <div class="crumb">Menu → Cadastros → <b>Jogos</b></div>
+      <h2>Cadastros: Jogos</h2>
+      <p class="dek">O calendário de partidas — cada jogo cadastrado é a porta de entrada para escalação, estatísticas e a Análise de Partida.</p>
+      <div class="cols">
+        <div class="card">
+          <h3><span class="ico">📅</span> O que fica registrado</h3>
+          <ul>
+            <li>Data, competição, mandante, visitante e placar</li>
+            <li>Importação automática via API de futebol ou upload de arquivo JSON</li>
+            <li>Edição de escalação (titulares e reservas) por time</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- ANALISAR PARTIDA -->
+    <section class="chapter" id="analisar">
+      <span class="flagship-badge">★ Recurso principal</span>
+      <div class="crumb">Menu → Cadastros → Jogos → <b>Analisar</b></div>
+      <h2>Analisar Partida</h2>
+      <p class="dek">A tela onde o trabalho de scouting realmente acontece: escalar o time no campo, avaliar cada jogador e registrar observações amarradas ao momento exato da partida.</p>
+      <div class="cols">
+        <div class="card">
+          <h3><span class="ico">⚽</span> Escalação tática</h3>
+          <ul>
+            <li>Jogadores posicionados no campo por formação (4-3-3, 4-4-2, etc.)</li>
+            <li>Duas fases: escalação <b>inicial</b> e escalação <b>final</b> (pós-substituições)</li>
+            <li>Setas de movimentação para marcar deslocamentos táticos</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3><span class="ico">⭐</span> Nota por jogador</h3>
+          <ul>
+            <li>Nota automática calculada a partir das estatísticas da partida</li>
+            <li>Pesos de cada estatística ajustáveis em Critérios de Nota</li>
+            <li>Possibilidade de sobrescrever com nota manual e comentário</li>
+          </ul>
+        </div>
+      </div>
+      <div class="cols">
+        <div class="card">
+          <h3><span class="ico">🏷</span> Observações com marcação</h3>
+          <ul>
+            <li>Anotações rápidas marcadas como Mandante, Visitante, Competição ou Jogador</li>
+            <li>Menção a jogadores específicos dentro do texto da observação</li>
+            <li>Marco de tempo (ex. "aos 35 do 2º tempo") para reconstituir a sequência do jogo</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3><span class="ico">🔁</span> Reimportação e histórico</h3>
+          <ul>
+            <li>Escalação pode ser reimportada da fonte oficial sem perder suas observações</li>
+            <li>Últimas escalações usadas ficam disponíveis para reaproveitar em jogos seguintes</li>
+          </ul>
+        </div>
+      </div>
+      <div class="note"><span>💡</span><div><b>Por que isso importa:</b> é aqui que a opinião do olheiro vira dado — a nota e as observações desta tela alimentam diretamente os Relatórios e o Scout de Mercado.</div></div>
+    </section>
+
+    <section class="chapter" id="hoje">
+      <div class="crumb">Menu → <b>Jogos de Hoje</b></div>
+      <h2>Jogos de Hoje</h2>
+      <p class="dek">Agenda do dia, para saber sem esforço o que precisa ser assistido e analisado hoje.</p>
+      <div class="card">
+        <h3><span class="ico">📅</span> Uso típico</h3>
+        <ul>
+          <li>Lista somente as partidas do dia corrente</li>
+          <li>Acesso direto de cada jogo para a tela de Analisar Partida</li>
+        </ul>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- COMPETIÇÕES -->
+    <section class="chapter" id="competicoes">
+      <div class="crumb">Menu → <b>Competições</b></div>
+      <h2>Competições</h2>
+      <p class="dek">Cada competição marcada como ⭐ Principal ganha atalho direto no menu. As demais ficam a um clique em "Ver todas as competições".</p>
+      <div class="navmock">
+        <span class="item">Home</span><span class="sep">›</span>
+        <span class="item active">Competições ▾</span><span class="sep">›</span>
+        <span class="item">Jogos de Hoje</span><span class="sep">›</span>
+        <span class="item">Relatórios</span>
+      </div>
+      <div class="cols">
+        <div class="card">
+          <h3><span class="ico">🏆</span> Formatos suportados</h3>
+          <ul>
+            <li>Pontos corridos com tabela de classificação (ex. Brasileirão)</li>
+            <li>Fase de grupos + mata-mata (ex. Libertadores, Sul-Americana, Champions League)</li>
+            <li>Chaveamento eliminatório direto (ex. Copa do Brasil, Copa do Mundo)</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3><span class="ico">⭐</span> Painel da competição</h3>
+          <ul>
+            <li>Classificação, chaveamento e grupos, conforme o formato</li>
+            <li>Próximos jogos da competição em destaque</li>
+            <li>Busca de jogos automática direto da fonte configurada</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- RELATÓRIOS -->
+    <section class="chapter" id="relatorios">
+      <div class="crumb">Menu → <b>Relatórios</b></div>
+      <h2>Relatórios</h2>
+      <p class="dek">Rankings da base inteira de jogadores, cruzando notas e estatísticas por competição, time e temporada.</p>
+      <div class="cols">
+        <div class="card">
+          <h3><span class="ico">📊</span> Filtros</h3>
+          <ul>
+            <li>Por competição, time e temporada, combináveis</li>
+            <li>Opção de incluir jogadores ainda não analisados</li>
+            <li>Mínimo de jogos disputados, para evitar amostras pequenas</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3><span class="ico">♻️</span> Recalcular notas</h3>
+          <ul>
+            <li>Reaplica os pesos atuais de Critérios de Nota às notas manuais já salvas</li>
+            <li>Útil depois de ajustar o que mais vale peso na avaliação (ex. valorizar mais desarmes)</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter" id="scout">
+      <div class="crumb">Menu → Relatórios → <b>Scout</b></div>
+      <h2>Scout de Mercado</h2>
+      <p class="dek">O motor de busca de reforços: encontre jogadores que atendam a um perfil técnico e físico específico em toda a base.</p>
+      <div class="cols">
+        <div class="card">
+          <h3><span class="ico">🎯</span> Perfil físico e de cadastro</h3>
+          <ul>
+            <li>Posição, idade, altura, peso e nacionalidade</li>
+            <li>Time e competição de origem</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3><span class="ico">📐</span> Perfil de desempenho</h3>
+          <ul>
+            <li>Mínimos de gols, assistências, passes-chave, desarmes, duelos vencidos e mais</li>
+            <li>Médias por jogo (não só o total), para comparar jogadores com volumes de minutos diferentes</li>
+            <li>Nota mínima e teto de cartões recebidos</li>
+          </ul>
+        </div>
+      </div>
+      <div class="note"><span>💡</span><div><b>Fluxo de trabalho:</b> defina o perfil que a comissão técnica pediu (ex. "lateral esquerdo, sub-23, mínimo 3 desarmes por jogo") e o Scout devolve a lista ordenada por nota média — pronta para virar uma lista curta de observação.</div></div>
+    </section>
+
+    <section class="chapter" id="transferencias">
+      <div class="crumb">Menu → <b>Transferências</b></div>
+      <h2>Transferências</h2>
+      <p class="dek">A janela de mercado registrada: de onde cada jogador veio e para onde foi, com data.</p>
+      <div class="cols">
+        <div class="card">
+          <h3><span class="ico">🔁</span> Detecção automática</h3>
+          <ul>
+            <li>Ao importar uma partida, se o jogador aparece por um clube diferente do cadastrado, o sistema registra a troca sozinho</li>
+            <li>Filtro por time, competição e nome do jogador</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3><span class="ico">✍️</span> Lançamento manual</h3>
+          <ul>
+            <li>Registre uma transferência assim que souber dela, sem esperar o jogador entrar em campo pelo novo clube</li>
+            <li>Cada usuário só pode excluir as transferências manuais que ele mesmo lançou</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- CONTA -->
+    <section class="chapter" id="conta">
+      <div class="crumb">Menu → <b>Perfil</b></div>
+      <h2>Perfil e Preferências</h2>
+      <p class="dek">Ajustes de conta e de exibição, no menu com o seu nome, no canto superior direito.</p>
+      <div class="cols">
+        <div class="card">
+          <h3><span class="ico">👥</span> Usuários</h3>
+          <ul>
+            <li>Cada analista tem seu próprio conjunto de notas, observações e escalações — sem sobrescrever o trabalho de outra pessoa</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3><span class="ico">🌙</span> Modo claro / escuro</h3>
+          <ul>
+            <li>Alternância de tema pelo ícone ao lado do menu de usuário</li>
+            <li>Preferência salva no navegador para as próximas visitas</li>
+          </ul>
+        </div>
+      </div>
+      <ol class="steps">
+        <li><b>Cadastre</b> times, jogadores e o jogo em Cadastros.</li>
+        <li><b>Analise</b> a partida: escale, pontue e observe em Analisar Partida.</li>
+        <li><b>Consulte</b> o resultado agregado em Relatórios ou busque um reforço em Scout de Mercado.</li>
+      </ol>
+    </section>
+
+    <footer class="manual-footer">
+      <span>Análise de Craque — Manual de Uso</span>
+      <span class="mono">v1.0</span>
+    </footer>
+  </main>
+</div>

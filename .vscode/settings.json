@@ -1,0 +1,68 @@
+{
+  // ===== Editor: aparência e comportamento =====
+  "editor.fontSize": 14,
+  "editor.fontFamily": "Cascadia Code, Consolas, 'Courier New', monospace",
+  "editor.lineHeight": 22,
+  "editor.minimap.enabled": false,
+  "editor.minimap.side": "right",
+  "editor.cursorBlinking": "smooth",
+  "editor.cursorStyle": "line",
+  "editor.renderWhitespace": "boundary",
+  "editor.guides.indentation": true,
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": true,
+  "editor.wordWrap": "off",
+  "editor.smoothScrolling": true,
+  "editor.linkedEditing": true,
+
+  // ===== Formatação automática (igual ao "Format on Save" do VS) =====
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": true,
+  "editor.formatOnType": true,
+  "editor.defaultFormatter": "ms-dotnettools.csharp",
+
+  // ===== IntelliSense / sugestões =====
+  "editor.suggestSelection": "first",
+  "editor.suggest.preview": true,
+  "editor.parameterHints.enabled": true,
+  "editor.inlayHints.enabled": "on",
+
+  // ===== C# / .NET (C# Dev Kit) =====
+  "dotnet.defaultSolution": "",
+  "csharp.format.enable": true,
+  "omnisharp.enableEditorConfigSupport": true,
+  "omnisharp.enableRoslynAnalyzers": true,
+  "dotnetAcquisitionExtension.enableTelemetry": false,
+
+  // ===== Solution Explorer / navegação =====
+  "explorer.compactFolders": false,
+  "workbench.editor.enablePreview": false,
+  "breadcrumbs.enabled": true,
+
+  // ===== Terminal integrado =====
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.fontSize": 13,
+
+  // ===== Tema visual (estilo Visual Studio) =====
+  "workbench.colorTheme": "Visual Studio Dark",
+  "workbench.iconTheme": "vscode-icons",
+  "workbench.startupEditor": "none",
+
+  // ===== Debug =====
+  "debug.inlineValues": "on",
+  "debug.showBreakpointsInOverviewRuler": true,
+
+  // ===== Git / GitLens =====
+  "git.autofetch": true,
+  "git.confirmSync": false,
+  "gitlens.hovers.currentLine.over": "line",
+  "gitlens.currentLine.enabled": true,
+  "gitlens.codeLens.enabled": true,
+
+  // ===== EditorConfig =====
+  "editor.rulers": [120],
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.encoding": "utf8",
+  "dotnet.formatting.organizeImportsOnFormat": true
+}

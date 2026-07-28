@@ -601,12 +601,24 @@ namespace ControleFutebolWeb.Controllers
                 .OrderByDescending(x => x.Jogo.Data)
                 .ToList();
 
-            // Observações marcadas com a tag "Jogador" (criadas em /Jogos/Analisar),
-            // exibidas junto ao jogo correspondente no histórico.
-            var observacoesJogadorPorJogo = await _context.ObservacoesJogoTag
+            // Observações marcadas com a tag "Jogador" OU que mencionam o jogador
+            // via "@Nome" no texto (criadas em /Jogos/Analisar), exibidas junto ao
+            // jogo correspondente no histórico.
+            var observacoesDiretas = await _context.ObservacoesJogoTag
                 .Where(o => o.Tipo == "JOGADOR" && o.JogadorId == id && o.UsuarioId == uid)
+                .Select(o => new { o.Id, o.JogoId, o.Ordem, o.Texto })
+                .ToListAsync();
+
+            var observacoesMencionadas = await _context.ObservacoesJogoTagMencoes
+                .Where(m => m.JogadorId == id && m.ObservacaoJogoTag.UsuarioId == uid)
+                .Select(m => new { m.ObservacaoJogoTag.Id, m.ObservacaoJogoTag.JogoId, m.ObservacaoJogoTag.Ordem, m.ObservacaoJogoTag.Texto })
+                .ToListAsync();
+
+            var observacoesJogadorPorJogo = observacoesDiretas
+                .Concat(observacoesMencionadas)
+                .DistinctBy(o => o.Id)
                 .GroupBy(o => o.JogoId)
-                .ToDictionaryAsync(g => g.Key, g => g.OrderBy(o => o.Ordem).Select(o => o.Texto).ToList());
+                .ToDictionary(g => g.Key, g => g.OrderBy(o => o.Ordem).Select(o => o.Texto).ToList());
 
             foreach (var item in notasPorJogo)
                 if (observacoesJogadorPorJogo.TryGetValue(item.Jogo.Id, out var obsJogador))
@@ -708,6 +720,8 @@ namespace ControleFutebolWeb.Controllers
                     FaltasSofridas = Math.Round(estatisticas.Average(e => e.FaltasSofridas), 1),
                     FaltasCometidas = Math.Round(estatisticas.Average(e => e.FaltasCometidas), 1),
                 };
+
+                medias.Metricas = MontarMetricas(estatisticas);
             }
 
             double mediaFinal = notasPorJogo.Any(x => x.Analisado)
@@ -2105,6 +2119,99 @@ namespace ControleFutebolWeb.Controllers
                 .ToList();
             if (roles.Count == 0) roles.Add("ATA"); // mesmo fallback do GrupoPosicao
             return roles;
+        }
+
+        // Monta o catálogo de métricas do jogador ordenado do melhor para o pior
+        // desempenho. A tela mostra as 3 primeiras como donuts de destaque, então
+        // um zagueiro exibe desarmes/interceptações em vez de dribles/finalizações.
+        //
+        // Cada métrica vira um score de 0 a 1 comparando o número do jogador com
+        // uma "referência de destaque" (o valor por jogo de quem se sobressai
+        // naquele fundamento). Nas métricas que têm aproveitamento, o score mistura
+        // volume e percentual — assim 100% de dribles em 1 tentativa a cada 5 jogos
+        // não passa na frente de 2,5 desarmes por jogo.
+        private static List<MetricaJogador> MontarMetricas(List<EstatisticaJogador> estatisticas)
+        {
+            double MediaDe(Func<EstatisticaJogador, int> campo) =>
+                Math.Round(estatisticas.Average(e => (double)campo(e)), 1);
+
+            static double Normalizar(double valor, double referencia) =>
+                referencia > 0 ? Math.Min(1.0, valor / referencia) : 0;
+
+            var metricas = new List<MetricaJogador>();
+
+            // Métrica de volume puro: o anel é preenchido pela fração da referência.
+            void Volume(string rotulo, string cor, double media, double referencia)
+            {
+                if (media <= 0) return;
+                var score = Normalizar(media, referencia);
+                metricas.Add(new MetricaJogador
+                {
+                    Rotulo = rotulo,
+                    Cor = cor,
+                    Media = media,
+                    PreenchimentoPct = (int)Math.Round(score * 100),
+                    Score = score,
+                });
+            }
+
+            // Métrica com aproveitamento: o anel mostra o %, mas o score pondera
+            // volume (60%) e percentual (40%) pra não premiar amostra minúscula.
+            void Aproveitamento(string rotulo, string cor, string sufixo,
+                                Func<EstatisticaJogador, int> total, Func<EstatisticaJogador, int> certos,
+                                double refVolume, double refPct)
+            {
+                var somaTotal = estatisticas.Sum(total);
+                if (somaTotal <= 0) return;
+
+                var media = MediaDe(total);
+                var pct = (int)Math.Round(100.0 * estatisticas.Sum(certos) / somaTotal);
+                var score = 0.6 * Normalizar(media, refVolume) + 0.4 * Normalizar(pct, refPct);
+
+                metricas.Add(new MetricaJogador
+                {
+                    Rotulo = rotulo,
+                    Cor = cor,
+                    Media = media,
+                    Pct = pct,
+                    SufixoPct = sufixo,
+                    PreenchimentoPct = pct,
+                    Score = score,
+                });
+            }
+
+            Aproveitamento("Finalizações", "#22c55e", "% no gol",
+                e => e.FinalizacoesTotal, e => e.FinalizacoesNoGol, 3.0, 50);
+            Aproveitamento("Dribles", "#60a5fa", "% certos",
+                e => e.DriblesTentados, e => e.DriblesCertos, 3.5, 60);
+            Aproveitamento("Duelos", "#facc15", "% vencidos",
+                e => e.DuelosTotal, e => e.DuelosVencidos, 12.0, 60);
+
+            Volume("Gols", "#f472b6", MediaDe(e => e.Gols), 0.5);
+            Volume("Assistências", "#a78bfa", MediaDe(e => e.Assistencias), 0.35);
+            Volume("Passes", "#38bdf8", MediaDe(e => e.PassesTotal), 60);
+            Volume("Passes-chave", "#818cf8", MediaDe(e => e.PassesChave), 2.0);
+            Volume("Desarmes", "#fb923c", MediaDe(e => e.Desarmes), 3.0);
+            Volume("Interceptações", "#2dd4bf", MediaDe(e => e.Interceptacoes), 2.0);
+            Volume("Bloqueios", "#e879f9", MediaDe(e => e.Bloqueios), 1.2);
+            Volume("Defesas", "#34d399", MediaDe(e => e.Defesas), 3.5);
+            Volume("Faltas sofridas", "#fbbf24", MediaDe(e => e.FaltasSofridas), 2.5);
+
+            // Faltas cometidas nunca é destaque (quanto menor, melhor): fica no fim
+            // da lista, aparecendo só como chip informativo.
+            var faltasCometidas = MediaDe(e => e.FaltasCometidas);
+            if (faltasCometidas > 0)
+            {
+                metricas.Add(new MetricaJogador
+                {
+                    Rotulo = "Faltas cometidas",
+                    Cor = "#94a3b8",
+                    Media = faltasCometidas,
+                    Score = -1,
+                });
+            }
+
+            return metricas.OrderByDescending(x => x.Score).ToList();
         }
 
         // Âncora genérica no mini-campo para os rótulos crus vindos da API (usados

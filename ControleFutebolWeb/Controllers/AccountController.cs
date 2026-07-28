@@ -227,6 +227,7 @@ namespace ControleFutebolWeb.Controllers
                 Email = string.IsNullOrWhiteSpace(model.Email) ? null : model.Email,
                 Nome = model.Nome,
                 IsAdmin = model.IsAdmin,
+                EhAutorBlog = model.EhAutorBlog,
                 EmailConfirmed = true
             };
 
@@ -255,9 +256,46 @@ namespace ControleFutebolWeb.Controllers
             }
 
             var usuario = await _userManager.FindByIdAsync(id);
-            if (usuario != null) await _userManager.DeleteAsync(usuario);
+            if (usuario != null)
+            {
+                try
+                {
+                    await _userManager.DeleteAsync(usuario);
+                }
+                catch (Microsoft.EntityFrameworkCore.DbUpdateException)
+                {
+                    // FK Restrict em blogposts.autorid: posts públicos não podem
+                    // sumir junto com o usuário. Exclua/reatribua os posts antes.
+                    TempData["Erro"] = $"{usuario.Nome} tem posts no blog e não pode ser excluído. " +
+                        "Exclua os posts dele em /blog/admin antes.";
+                    return RedirectToAction("Usuarios");
+                }
+            }
 
             TempData["Sucesso"] = "Usuário excluído.";
+            return RedirectToAction("Usuarios");
+        }
+
+        // POST: alterna a flag "Autor do blog" de um usuário (admin only).
+        [HttpPost, Authorize, ValidateAntiForgeryToken]
+        public async Task<IActionResult> AlternarAutorBlog(string id)
+        {
+            var admin = await _userManager.GetUserAsync(User);
+            if (admin == null || !admin.IsAdmin) return Forbid();
+
+            var usuario = await _userManager.FindByIdAsync(id);
+            if (usuario == null)
+            {
+                TempData["Erro"] = "Usuário não encontrado.";
+                return RedirectToAction("Usuarios");
+            }
+
+            usuario.EhAutorBlog = !usuario.EhAutorBlog;
+            await _userManager.UpdateAsync(usuario);
+
+            TempData["Sucesso"] = usuario.EhAutorBlog
+                ? $"{usuario.Nome} agora é autor do blog."
+                : $"{usuario.Nome} não é mais autor do blog.";
             return RedirectToAction("Usuarios");
         }
 

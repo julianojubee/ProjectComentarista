@@ -1,0 +1,74 @@
+@model ControleFutebolWeb.Models.ViewModels.BlogIndexViewModel
+@{
+    Layout = "_LayoutBlog";
+    ViewData["Title"] = "Blog";
+    ViewData["TitleOverride"] = Model.PaginaAtual > 1
+        ? $"Blog — página {Model.PaginaAtual} - Análise de Craque"
+        : "Blog - Análise de Craque";
+}
+
+@section Meta {
+    <meta name="description" content="Análises, textos e bastidores sobre futebol — Blog Análise de Craque." />
+}
+
+<h1 class="visually-hidden">Blog Análise de Craque</h1>
+
+@if (!Model.Posts.Any())
+{
+    <div class="text-center py-5" style="color:var(--bs-secondary-color);">
+        <div style="font-size:2.5rem;">📝</div>
+        <p class="mt-2 mb-0">Nenhum post publicado ainda. Volte em breve!</p>
+    </div>
+}
+else
+{
+    <div class="row g-4">
+        @foreach (var post in Model.Posts)
+        {
+            <div class="col-12 col-md-6 col-lg-4">
+                <article class="blog-card">
+                    <a href="/blog/@post.Slug">
+                        @if (!string.IsNullOrEmpty(post.ImagemCapaUrl))
+                        {
+                            <img class="blog-card-capa" src="@post.ImagemCapaUrl" alt="@(post.ImagemCapaAlt ?? post.Titulo)" loading="lazy" />
+                        }
+                        <div class="blog-card-body">
+                            <h2 class="blog-card-titulo">@post.Titulo</h2>
+                            @if (!string.IsNullOrEmpty(post.Resumo))
+                            {
+                                <p class="blog-card-resumo">@post.Resumo</p>
+                            }
+                            <div class="blog-card-meta">
+                                @post.AutorNome ·
+                                <time datetime="@post.PublicadoEm.ToString("yyyy-MM-dd")">
+                                    @post.PublicadoEm.AddHours(-3).ToString("dd/MM/yyyy")
+                                </time>
+                                · @post.TempoLeituraMin min de leitura
+                            </div>
+                        </div>
+                    </a>
+                </article>
+            </div>
+        }
+    </div>
+
+    @if (Model.TotalPaginas > 1)
+    {
+        <nav aria-label="Paginação do blog" class="mt-4">
+            <ul class="pagination justify-content-center">
+                @if (Model.PaginaAtual > 1)
+                {
+                    var hrefAnterior = Model.PaginaAtual == 2 ? "/blog" : $"/blog/pagina/{Model.PaginaAtual - 1}";
+                    <li class="page-item"><a class="page-link" href="@hrefAnterior">← Anteriores</a></li>
+                }
+                <li class="page-item disabled">
+                    <span class="page-link">@Model.PaginaAtual de @Model.TotalPaginas</span>
+                </li>
+                @if (Model.PaginaAtual < Model.TotalPaginas)
+                {
+                    <li class="page-item"><a class="page-link" href="/blog/pagina/@(Model.PaginaAtual + 1)">Próximos →</a></li>
+                }
+            </ul>
+        </nav>
+    }
+}

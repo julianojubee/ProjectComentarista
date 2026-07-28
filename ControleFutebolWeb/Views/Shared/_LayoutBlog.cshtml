@@ -1,0 +1,99 @@
+@using Microsoft.AspNetCore.Authorization
+@inject Microsoft.AspNetCore.Authorization.IAuthorizationService _authz
+@{
+    // Layout PÚBLICO do blog: ao contrário do _Layout, não injeta UserManager nem
+    // FutebolContext — páginas anônimas renderizam sem nenhuma query por usuário.
+    // A única exceção é a checagem "pode escrever?" abaixo, que só roda para
+    // visitante JÁ autenticado (para mostrar o atalho do painel).
+    var podeEscrever = false;
+    if (User.Identity?.IsAuthenticated == true)
+    {
+        podeEscrever = (await _authz.AuthorizeAsync(User, "BlogEscrever")).Succeeded;
+    }
+    var tituloAba = (ViewData["TitleOverride"] as string)
+        ?? ((ViewData["Title"] as string ?? "Blog") + " - Análise de Craque");
+}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@tituloAba</title>
+    <link rel="icon" type="image/svg+xml" href="~/favicon.svg" />
+    <link rel="alternate icon" href="~/favicon.ico" />
+    @* Meta tags por página (description, canonical, OG — fase 3 completa). *@
+    @await RenderSectionAsync("Meta", required: false)
+    <script>(function(){var t=localStorage.getItem('site-theme');if(t){document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-bs-theme',t);}})();</script>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/blog.css" asp-append-version="true" />
+</head>
+<body>
+    <header>
+        <nav class="navbar brand-nav navbar-expand-sm navbar-light bg-white border-bottom box-shadow mb-3">
+            <div class="container blog-container">
+                <a class="navbar-brand brand-logo text-dark p-0" href="/blog" aria-label="Blog Análise de Craque — início">
+                    <svg class="brand-mark" width="27" height="40" viewBox="0 0 80 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                        <rect x="0" y="0" width="80" height="120" rx="8" fill="#161616" />
+                        <rect x="10" y="10" width="60" height="100" rx="2" fill="#0b130b" stroke="#d4a520" stroke-width="2" />
+                        <line x1="10" y1="60" x2="70" y2="60" stroke="#d4a520" stroke-width="1.5" />
+                        <circle cx="40" cy="60" r="14" fill="none" stroke="#d4a520" stroke-width="1.5" />
+                        <circle cx="40" cy="60" r="3" fill="#d4a520" />
+                        <rect x="22" y="10" width="36" height="18" fill="none" stroke="#d4a520" stroke-width="1.5" />
+                        <rect x="22" y="92" width="36" height="18" fill="none" stroke="#d4a520" stroke-width="1.5" />
+                    </svg>
+                    <span class="brand-wordmark">
+                        <span class="brand-name">ANÁLISE</span>
+                        <span class="brand-tag">DE CRAQUE — BLOG</span>
+                    </span>
+                </a>
+                <div class="d-flex align-items-center ms-auto gap-2">
+                    <button id="theme-toggle-btn" onclick="toggleThemeBlog()"
+                            style="background:none;border:none;cursor:pointer;padding:4px 8px;font-size:18px;line-height:1;"
+                            title="Alternar modo escuro">
+                        <span id="theme-toggle-icon">🌙</span>
+                    </button>
+                    @if (podeEscrever)
+                    {
+                        <a class="btn btn-sm btn-outline-warning" href="/blog/admin">✍️ Escrever</a>
+                    }
+                    else if (User.Identity?.IsAuthenticated != true)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" asp-controller="Account" asp-action="Login">Entrar</a>
+                    }
+                </div>
+            </div>
+        </nav>
+    </header>
+    <div class="container blog-container">
+        <main role="main" class="pb-4">
+            @RenderBody()
+        </main>
+    </div>
+    <footer class="border-top py-4 mt-4">
+        <div class="container blog-container text-center" style="font-size:.85rem;color:var(--bs-secondary-color);">
+            Blog Análise de Craque — análises e textos sobre futebol.
+        </div>
+    </footer>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            var icon = document.getElementById('theme-toggle-icon');
+            if (icon) {
+                var t = document.documentElement.getAttribute('data-theme') || 'light';
+                icon.textContent = t === 'dark' ? '☀️' : '🌙';
+            }
+        });
+        function toggleThemeBlog() {
+            var current = document.documentElement.getAttribute('data-theme') || 'light';
+            var next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            document.documentElement.setAttribute('data-bs-theme', next);
+            localStorage.setItem('site-theme', next);
+            var icon = document.getElementById('theme-toggle-icon');
+            if (icon) icon.textContent = next === 'dark' ? '☀️' : '🌙';
+        }
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

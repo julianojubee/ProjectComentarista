@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 Write-Host "==> Compilando..." -ForegroundColor Cyan
-Set-Location "C:\Users\Juliano\source\repos\ProjectComentarista\ControleFutebolWeb"
+Set-Location "C:\GitHub\ProjectComentarista\ControleFutebolWeb"
 
 # Limpa o publish anterior: dotnet publish NAO remove arquivos antigos, e uma
 # pasta suja ja mandou binarios de janeiro (incl. a DLL falsa NpgsqlVault) pra
@@ -18,7 +18,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "==> Enviando arquivos para o servidor..." -ForegroundColor Cyan
-scp -r "C:/Users/Juliano/source/repos/ProjectComentarista/ControleFutebolWeb/publish/*" root@76.13.160.202:/var/www/analisedecraque/
+scp -r "C:/GitHub/ProjectComentarista/ControleFutebolWeb/publish/*" root@76.13.160.202:/var/www/analisedecraque/
 
 Write-Host "==> Reiniciando servico..." -ForegroundColor Cyan
 ssh root@76.13.160.202 "systemctl restart analisedecraque"

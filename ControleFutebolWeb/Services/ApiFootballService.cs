@@ -123,6 +123,13 @@ namespace ControleFutebolWeb.Services
         private static readonly HashSet<string> StatusFinalizados =
             new(StringComparer.OrdinalIgnoreCase) { "FT", "AET", "PEN" };
 
+        // Travas contra escalação corrompida na origem (ver AvaliarLineups).
+        // A api-football já entregou partidas de mata-mata com as duas lineups
+        // penduradas no time errado; sem trava isso reescrevia o clube de dois
+        // elencos inteiros e enchia a Janela de Transferências de registros falsos.
+        private const int MinIndiciosLineupCruzada = 5;   // jogadores cruzados p/ acusar troca de lados
+        private const int MaxTrocasMesmoParClubes = 3;    // trocas origem→destino iguais toleradas por jogo
+
         public ApiFootballService(HttpClient http, IConfiguration config,
             ILogger<ApiFootballService> logger, IMemoryCache cache)
         {
@@ -1060,6 +1067,14 @@ namespace ControleFutebolWeb.Services
                 if (grupoDesatualizado && !string.IsNullOrWhiteSpace(grupo))
                     existente.Grupo = grupo;
 
+                // Estádio e árbitro só costumam ficar disponíveis na API perto/depois da
+                // partida — jogo criado como "Agendado" nasce sem esses dados, então
+                // preenche aqui assim que a API passar a informá-los.
+                if (string.IsNullOrWhiteSpace(existente.Estadio) && !string.IsNullOrWhiteSpace(fx.Fixture.Venue?.Name))
+                    existente.Estadio = fx.Fixture.Venue!.Name;
+                if (string.IsNullOrWhiteSpace(existente.Arbitro) && !string.IsNullOrWhiteSpace(fx.Fixture.Referee))
+                    existente.Arbitro = fx.Fixture.Referee;
+
                 if (fx.Statistics.Any())
                     existente.EstatisticasJson = MontarEstatisticasJson(fx);
 
@@ -1162,6 +1177,80 @@ namespace ControleFutebolWeb.Services
                 AdicionarEscalacaoVazia(context, jogo, formCasa, formVis);
         }
 
+        /// <summary>
+        /// Confere as lineups da API contra os elencos já cadastrados antes de importar.
+        /// Devolve <c>cruzadas</c> quando os dois times vieram com a escalação do
+        /// adversário (defeito real da api-football em jogos de mata-mata) e
+        /// <c>permitirTrocaClube</c> = false quando o jogo tenta mover um bolo de
+        /// jogadores entre o mesmo par de clubes — sinal de dado ruim, não de mercado.
+        /// </summary>
+        private async Task<(bool cruzadas, bool permitirTrocaClube, string diagnostico)> AvaliarLineups(
+            FutebolContext context, AfFixture fx, Time timeCasa, Time timeVis, CancellationToken ct)
+        {
+            // Só dá para julgar com quem já existe na base: num jogo em que todos os
+            // jogadores são novos não há nada com que comparar e a importação segue.
+            var idsApi = fx.Lineups
+                .SelectMany(l => l.StartXI.Concat(l.Substitutes))
+                .Select(lp => (long)(lp.Player.Id ?? 0))
+                .Where(id => id > 0)
+                .Distinct()
+                .ToList();
+
+            if (idsApi.Count == 0) return (false, true, "");
+
+            var conhecidos = await context.Jogadores
+                .Include(j => j.Time)
+                .Where(j => j.IdApi != null && idsApi.Contains(j.IdApi.Value))
+                .ToDictionaryAsync(j => j.IdApi!.Value, ct);
+
+            var alinhados = 0;
+            var cruzados = 0;
+            var trocasPorPar = new Dictionary<(string origem, string destino), int>();
+
+            foreach (var lineup in fx.Lineups)
+            {
+                var ehCasa = lineup.Team.Id == fx.Teams.Home.Id;
+                var time = ehCasa ? timeCasa : timeVis;
+                var adversario = ehCasa ? timeVis : timeCasa;
+
+                // Seleção não entra: convocado continua pertencendo ao clube dele.
+                if (time.EhSelecao) continue;
+
+                foreach (var lp in lineup.StartXI.Concat(lineup.Substitutes))
+                {
+                    var idApi = (long)(lp.Player.Id ?? 0);
+                    if (idApi <= 0 || !conhecidos.TryGetValue(idApi, out var jogador)) continue;
+
+                    if (jogador.TimeId == time.Id || jogador.SelecaoId == time.Id)
+                    {
+                        alinhados++;
+                        continue;
+                    }
+
+                    // Cadastrado só pela seleção: o clube ainda é desconhecido, então
+                    // não é indício de lado trocado nem de transferência.
+                    if (jogador.Time?.EhSelecao == true || jogador.SelecaoId == jogador.TimeId)
+                        continue;
+
+                    if (jogador.TimeId == adversario.Id) cruzados++;
+
+                    var par = (jogador.Time?.Nome ?? $"time {jogador.TimeId}", time.Nome);
+                    trocasPorPar[par] = trocasPorPar.GetValueOrDefault(par) + 1;
+                }
+            }
+
+            if (cruzados >= MinIndiciosLineupCruzada && cruzados > alinhados)
+                return (true, false,
+                    $"{cruzados} jogadores escalados pelo adversário contra {alinhados} no time certo");
+
+            foreach (var (par, qtd) in trocasPorPar.OrderByDescending(p => p.Value).Take(1))
+                if (qtd > MaxTrocasMesmoParClubes)
+                    return (false, false,
+                        $"{qtd} jogadores mudariam de {par.origem} para {par.destino} nesta única partida");
+
+            return (false, true, "");
+        }
+
         private async Task ImportarLineupEEventos(
             FutebolContext context,
             Jogo jogo,
@@ -1171,6 +1260,38 @@ namespace ControleFutebolWeb.Services
             Guid cicloId,
             CancellationToken ct)
         {
+            // Escalação da fonte conferida contra os elencos já cadastrados. Lineups
+            // cruzadas (as duas no time errado) não podem ser importadas de jeito
+            // nenhum: gravariam o jogo com os lados invertidos e reescreveriam o clube
+            // dos dois elencos. Já um lote grande de trocas só desliga a detecção de
+            // transferência — a escalação em si continua utilizável.
+            var (lineupsCruzadas, permitirTrocaClube, diagnostico) =
+                await AvaliarLineups(context, fx, timeCasa, timeVis, ct);
+
+            if (lineupsCruzadas)
+            {
+                _logger.LogWarning(
+                    "[ApiFoot] Escalação ignorada em {Casa} × {Vis}: lineups trocadas entre os times na API ({Diag})",
+                    fx.Teams.Home.Name, fx.Teams.Away.Name, diagnostico);
+
+                Log(context, cicloId, "Escalação", "Ignorada",
+                    jogoDescricao: $"{fx.Teams.Home.Name} × {fx.Teams.Away.Name}",
+                    detalhes: $"Lineups trocadas entre os times na api-football — {diagnostico}. " +
+                              "Escalação e eventos não importados para não inverter o jogo.");
+                return;
+            }
+
+            if (!permitirTrocaClube)
+            {
+                _logger.LogWarning(
+                    "[ApiFoot] Transferências desligadas em {Casa} × {Vis}: {Diag}",
+                    fx.Teams.Home.Name, fx.Teams.Away.Name, diagnostico);
+
+                Log(context, cicloId, "Transferência", "Ignorada",
+                    jogoDescricao: $"{fx.Teams.Home.Name} × {fx.Teams.Away.Name}",
+                    detalhes: $"{diagnostico} — escalação importada, mas o clube dos jogadores não foi alterado.");
+            }
+
             // Remove apenas escalações compartilhadas (UsuarioId == null) — as personalizadas por usuário são preservadas
             var escalOld = await context.Escalacoes.Where(e => e.JogoId == jogo.Id && e.UsuarioId == null).ToListAsync(ct);
             context.Escalacoes.RemoveRange(escalOld);
@@ -1305,12 +1426,14 @@ namespace ControleFutebolWeb.Services
                             lp.Player.Grid, posicoes, totalLinhasGrid, colunasPorLinhaGrid);
                     idxTitular++;
                     await AdicionarEscalacaoJogador(context, jogo, lp.Player, time,
-                        isTimeCasa, true, "INICIAL", jogadorMap, jogadorSemIdMap, posFormacao, ct);
+                        isTimeCasa, true, "INICIAL", jogadorMap, jogadorSemIdMap, posFormacao,
+                        permitirTrocaClube, ct);
                 }
 
                 foreach (var lp in lineup.Substitutes)
                     await AdicionarEscalacaoJogador(context, jogo, lp.Player, time,
-                        isTimeCasa, false, "INICIAL", jogadorMap, jogadorSemIdMap, null, ct);
+                        isTimeCasa, false, "INICIAL", jogadorMap, jogadorSemIdMap, null,
+                        permitirTrocaClube, ct);
             }
 
             await context.SaveChangesAsync(ct);
@@ -1329,7 +1452,7 @@ namespace ControleFutebolWeb.Services
                     {
                         var jogador = await ResolverJogador(context, ev.Player.Id ?? 0,
                             ev.Player.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct,
-                            jogo: jogo, mapSemId: jogadorSemIdMap);
+                            jogo: jogo, mapSemId: jogadorSemIdMap, permitirTrocaClube: permitirTrocaClube);
                         if (jogador == null) break;
 
                         // Disputa de pênaltis (mata-mata): a api-football marca cada cobrança
@@ -1374,7 +1497,7 @@ namespace ControleFutebolWeb.Services
                         {
                             var assist = await ResolverJogador(context, ev.Assist.Id ?? 0,
                                 ev.Assist.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct,
-                                jogo: jogo, mapSemId: jogadorSemIdMap);
+                                jogo: jogo, mapSemId: jogadorSemIdMap, permitirTrocaClube: permitirTrocaClube);
                             if (assist != null)
                                 context.Assistencias.Add(new Assistencia
                                 {
@@ -1388,7 +1511,7 @@ namespace ControleFutebolWeb.Services
                     {
                         var jogador = await ResolverJogador(context, ev.Player.Id ?? 0,
                             ev.Player.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct,
-                            jogo: jogo, mapSemId: jogadorSemIdMap);
+                            jogo: jogo, mapSemId: jogadorSemIdMap, permitirTrocaClube: permitirTrocaClube);
                         if (jogador == null) break;
 
                         var tipo = ev.Detail?.Contains("Yellow", StringComparison.OrdinalIgnoreCase) == true
@@ -1406,14 +1529,14 @@ namespace ControleFutebolWeb.Services
                         // Convenção da api-football: player = quem SAIU, assist = quem ENTROU
                         var saiu = await ResolverJogador(context, ev.Player.Id ?? 0,
                             ev.Player.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct,
-                            jogo: jogo, mapSemId: jogadorSemIdMap);
+                            jogo: jogo, mapSemId: jogadorSemIdMap, permitirTrocaClube: permitirTrocaClube);
                         if (saiu == null) break;
 
                         Jogador? entrou = null;
                         if (ev.Assist != null)
                             entrou = await ResolverJogador(context, ev.Assist.Id ?? 0,
                                 ev.Assist.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct,
-                                jogo: jogo, mapSemId: jogadorSemIdMap);
+                                jogo: jogo, mapSemId: jogadorSemIdMap, permitirTrocaClube: permitirTrocaClube);
 
                         // Se quem entrou não foi resolvido, fica null — jamais usar o
                         // jogador que saiu como fallback: isso registrava "fulano entrou
@@ -1512,13 +1635,15 @@ namespace ControleFutebolWeb.Services
             Dictionary<int, Jogador> map,
             Dictionary<string, Jogador> mapSemId,
             PosicaoFormacao? posFormacao,
+            bool permitirTrocaClube,
             CancellationToken ct)
         {
             var posicao = MapearPosicao(info.Pos);
 
             // info.Id null = jogador ainda sem id na api-football (estreante):
             // ResolverJogador cria/casa por nome e vincula o id quando ele existir.
-            var jogador = await ResolverJogador(context, info.Id ?? 0, info.Name, time, map, ct, info.Number, posicao, jogo, mapSemId);
+            var jogador = await ResolverJogador(context, info.Id ?? 0, info.Name, time, map, ct, info.Number, posicao, jogo, mapSemId,
+                origemLineupConfiavel: true, permitirTrocaClube: permitirTrocaClube);
             if (jogador == null) return;
 
             context.Escalacoes.Add(new Escalacao
@@ -1604,6 +1729,32 @@ namespace ControleFutebolWeb.Services
             return posicoesLinha[colunaIdx];
         }
 
+        /// <summary>
+        /// Verdadeiro quando a partida é anterior ao que já se sabe do jogador — a
+        /// última transferência registrada ou o jogo mais recente em que ele apareceu
+        /// escalado. Nesses casos a escalação é histórico e não pode redefinir o
+        /// clube atual (backfill de temporada antiga rodando depois do elenco de hoje).
+        /// </summary>
+        private static async Task<bool> JogoEhRetroativoParaJogador(
+            FutebolContext context, Jogador jogador, Jogo? jogo, CancellationToken ct)
+        {
+            if (jogo?.Data == null) return false;
+
+            var ultimaTransferencia = await context.Transferencias
+                .Where(t => t.JogadorId == jogador.Id)
+                .MaxAsync(t => (DateTime?)t.Data, ct);
+
+            var ultimoJogo = await context.Escalacoes
+                .Where(e => e.JogadorId == jogador.Id && e.Jogo.Data != null)
+                .MaxAsync(e => e.Jogo.Data, ct);
+
+            var referencia = ultimaTransferencia;
+            if (ultimoJogo.HasValue && (!referencia.HasValue || ultimoJogo > referencia))
+                referencia = ultimoJogo;
+
+            return referencia.HasValue && jogo.Data < referencia.Value;
+        }
+
         private async Task<Jogador?> ResolverJogador(
             FutebolContext context,
             int idApi,
@@ -1614,7 +1765,9 @@ namespace ControleFutebolWeb.Services
             int? numeroCamisa = null,
             string? posicao = null,
             Jogo? jogo = null,
-            Dictionary<string, Jogador>? mapSemId = null)
+            Dictionary<string, Jogador>? mapSemId = null,
+            bool origemLineupConfiavel = false,
+            bool permitirTrocaClube = true)
         {
             // A api-football manda jogadores estreantes sem id (id null na lineup,
             // 0 nas estatísticas) até cadastrá-los na base dela. Eles são salvos com
@@ -1652,6 +1805,27 @@ namespace ControleFutebolWeb.Services
                     .Include(j => j.Time)
                     .FirstOrDefaultAsync(j => j.Nome == nome &&
                         (j.TimeId == time.Id || j.SelecaoId == time.Id), ct);
+
+            // Por nome aproximado entre os jogadores do time ainda sem IdApi: são os
+            // cadastrados à mão (botão "+ jogador" da tela de análise) ou criados por
+            // uma lineup anterior sem id. A grafia raramente bate letra a letra com a
+            // da API ("Kauã Prates" x "K. Prates"), e sem esta passagem a importação
+            // criava um SEGUNDO jogador em vez de completar o que já existe.
+            if (jogador == null && !string.IsNullOrWhiteSpace(nome))
+            {
+                var semVinculo = await context.Jogadores
+                    .Include(j => j.Time)
+                    .Where(j => (j.IdApi == null || j.IdApi == 0)
+                             && (j.TimeId == time.Id || j.SelecaoId == time.Id))
+                    .ToListAsync(ct);
+
+                jogador = semVinculo.FirstOrDefault(j => NomesCorrespondem(j.Nome, nome));
+
+                if (jogador != null)
+                    _logger.LogInformation(
+                        "[ApiFoot] Jogador {Existente} ({Time}) reaproveitado para \"{DaApi}\" da API — atualizado em vez de duplicado",
+                        jogador.Nome, time.Nome, nome);
+            }
 
             // Cria se não existe e busca dados completos imediatamente
             if (jogador == null && !string.IsNullOrWhiteSpace(nome))
@@ -1699,6 +1873,16 @@ namespace ControleFutebolWeb.Services
                     alterado = true;
                 }
 
+                // A lineup é a única fonte que traz o "apelido" curto e legível do jogador
+                // (o feed de eventos manda o nome completo/formal, ex.: "L. F. de Morais
+                // Francisco" em vez de "Luiz Felipe"). Se o jogador foi cadastrado antes a
+                // partir de um nome assim, corrige assim que a lineup trouxer o apelido.
+                if (origemLineupConfiavel && !string.IsNullOrWhiteSpace(nome) && jogador.Nome != nome)
+                {
+                    jogador.Nome = nome;
+                    alterado = true;
+                }
+
                 if (!string.IsNullOrWhiteSpace(posicao) && string.IsNullOrWhiteSpace(jogador.Posicao))
                 {
                     jogador.Posicao = posicao;
@@ -1729,6 +1913,25 @@ namespace ControleFutebolWeb.Services
                         jogador.SelecaoId = jogador.TimeId;
                         jogador.TimeId = time.Id;
                         alterado = true;
+                    }
+                    else if (!permitirTrocaClube)
+                    {
+                        // O jogo já foi reprovado em AvaliarLineups: escalação aproveitada,
+                        // clube do jogador preservado.
+                        _logger.LogInformation(
+                            "[ApiFoot] Transferência ignorada (jogo suspeito): {Jogador} — {Origem} → {Destino}",
+                            jogador.Nome, jogador.Time?.Nome ?? jogador.TimeId.ToString(), time.Nome);
+                    }
+                    else if (await JogoEhRetroativoParaJogador(context, jogador, jogo, ct))
+                    {
+                        // Importação de temporada antiga rodada depois do elenco atual:
+                        // o clube de hoje vale mais que o de um jogo de meses atrás. Sem
+                        // esta trava, um jogo de 2025 movia o jogador para o clube da época
+                        // e o próximo jogo real "devolvia" ele com a data de hoje — era isso
+                        // que aparecia na Janela de Transferências como mercado de agora.
+                        _logger.LogInformation(
+                            "[ApiFoot] Transferência ignorada (jogo anterior ao cadastro atual): {Jogador} — {Origem} → {Destino} ({Data:dd/MM/yyyy})",
+                            jogador.Nome, jogador.Time?.Nome ?? jogador.TimeId.ToString(), time.Nome, jogo?.Data);
                     }
                     else
                     {
@@ -1809,45 +2012,12 @@ namespace ControleFutebolWeb.Services
         private static string ChaveSemId(int timeId, string nome) =>
             $"{timeId}|{NormalizarNome(nome)}";
 
-        // Minúsculas, sem acentos e com espaços colapsados, para comparação de nomes.
-        private static string NormalizarNome(string nome)
-        {
-            var decomposto = nome.Trim().ToLowerInvariant().Normalize(NormalizationForm.FormD);
-            var sb = new StringBuilder(decomposto.Length);
-            foreach (var c in decomposto)
-                if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
-                    sb.Append(c);
-            return string.Join(' ', sb.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries));
-        }
+        // Comparação de nomes: implementação em NomeJogadorHelper, compartilhada com o
+        // cadastro manual de jogador da tela de análise (JogosController.CriarJogadorNoTime)
+        // — os dois lados precisam casar do mesmo jeito para não duplicar jogador.
+        private static string NormalizarNome(string nome) => NomeJogadorHelper.Normalizar(nome);
 
-        // Compara nomes tolerando abreviação por iniciais: "L. E. Jales do Nascimento"
-        // ↔ "Lucas Emanuel". Cada token é comparado na ordem por igualdade ou por
-        // inicial ("l." ↔ "lucas"); sobrenomes excedentes do nome mais longo são
-        // ignorados. Usado só entre candidatos restritos (jogadores sem IdApi do
-        // mesmo time), nunca como busca geral.
-        private static bool NomesCorrespondem(string a, string b)
-        {
-            var ta = NormalizarNome(a).Split(' ');
-            var tb = NormalizarNome(b).Split(' ');
-            if (ta.Length == 0 || tb.Length == 0) return false;
-
-            var n = Math.Min(ta.Length, tb.Length);
-            var exatos = 0;
-            for (var i = 0; i < n; i++)
-            {
-                var x = ta[i].TrimEnd('.');
-                var y = tb[i].TrimEnd('.');
-                if (x.Length == 0 || y.Length == 0) return false;
-                if (x == y) { exatos++; continue; }
-                if (x.Length == 1 && y[0] == x[0]) continue;
-                if (y.Length == 1 && x[0] == y[0]) continue;
-                return false;
-            }
-
-            // Exige dois tokens casando (ou um token exato razoável) para não
-            // vincular por coincidência de uma única inicial.
-            return n >= 2 || (exatos == 1 && ta[0].Length >= 4);
-        }
+        private static bool NomesCorrespondem(string a, string b) => NomeJogadorHelper.Corresponde(a, b);
 
         private static async Task<Nacionalidade?> ResolverOuCriarNacionalidade(
             FutebolContext context, string nomeRaw, CancellationToken ct)

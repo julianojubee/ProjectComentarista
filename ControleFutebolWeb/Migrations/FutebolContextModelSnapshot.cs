@@ -89,6 +89,10 @@ namespace ControleFutebolWeb.Migrations
                         .HasColumnType("text")
                         .HasColumnName("concurrencystamp");
 
+                    b.Property<bool>("EhAutorBlog")
+                        .HasColumnType("boolean")
+                        .HasColumnName("ehautorblog");
+
                     b.Property<string>("Email")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
@@ -198,6 +202,218 @@ namespace ControleFutebolWeb.Migrations
                     b.HasIndex("JogoId");
 
                     b.ToTable("assistencias", (string)null);
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.BlogCategoria", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Descricao")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("descricao");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("nome");
+
+                    b.Property<int>("Ordem")
+                        .HasColumnType("integer")
+                        .HasColumnName("ordem");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("slug");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.ToTable("blogcategorias");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.BlogPost", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizadoem");
+
+                    b.Property<string>("AutorId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("autorid");
+
+                    b.Property<int?>("CategoriaId")
+                        .HasColumnType("integer")
+                        .HasColumnName("categoriaid");
+
+                    b.Property<string>("ConteudoHtml")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("conteudohtml");
+
+                    b.Property<string>("ConteudoMarkdown")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("conteudomarkdown");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criadoem");
+
+                    b.Property<DateTime?>("ExcluidoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("excluidoem");
+
+                    b.Property<string>("ImagemCapaAlt")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("imagemcapaalt");
+
+                    b.Property<string>("ImagemCapaUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("imagemcapaurl");
+
+                    b.Property<int?>("JogadorId")
+                        .HasColumnType("integer")
+                        .HasColumnName("jogadorid");
+
+                    b.Property<int?>("JogoId")
+                        .HasColumnType("integer")
+                        .HasColumnName("jogoid");
+
+                    b.Property<string>("MetaDescricao")
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("metadescricao");
+
+                    b.Property<string>("MetaTitulo")
+                        .HasMaxLength(70)
+                        .HasColumnType("character varying(70)")
+                        .HasColumnName("metatitulo");
+
+                    b.Property<DateTime?>("PublicadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("publicadoem");
+
+                    b.Property<string>("Resumo")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("resumo");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("slug");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<int>("TempoLeituraMin")
+                        .HasColumnType("integer")
+                        .HasColumnName("tempoleituramin");
+
+                    b.Property<int?>("TimeId")
+                        .HasColumnType("integer")
+                        .HasColumnName("timeid");
+
+                    b.Property<string>("Titulo")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("titulo");
+
+                    b.Property<int>("Visualizacoes")
+                        .HasColumnType("integer")
+                        .HasColumnName("visualizacoes");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AutorId");
+
+                    b.HasIndex("CategoriaId");
+
+                    b.HasIndex("JogadorId");
+
+                    b.HasIndex("JogoId");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.HasIndex("TimeId");
+
+                    b.HasIndex("Status", "PublicadoEm");
+
+                    b.ToTable("blogposts");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.BlogPostTag", b =>
+                {
+                    b.Property<int>("PostId")
+                        .HasColumnType("integer")
+                        .HasColumnName("postid");
+
+                    b.Property<int>("TagId")
+                        .HasColumnType("integer")
+                        .HasColumnName("tagid");
+
+                    b.HasKey("PostId", "TagId");
+
+                    b.HasIndex("TagId");
+
+                    b.ToTable("blogposttags");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.BlogTag", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("nome");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("slug");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.ToTable("blogtags");
                 });
 
             modelBuilder.Entity("ControleFutebolWeb.Models.Cartao", b =>
@@ -1161,6 +1377,32 @@ namespace ControleFutebolWeb.Migrations
                     b.ToTable("observacoesjogotag");
                 });
 
+            modelBuilder.Entity("ControleFutebolWeb.Models.ObservacaoJogoTagMencao", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("JogadorId")
+                        .HasColumnType("integer")
+                        .HasColumnName("jogadorid");
+
+                    b.Property<int>("ObservacaoJogoTagId")
+                        .HasColumnType("integer")
+                        .HasColumnName("observacaojogotagid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JogadorId");
+
+                    b.HasIndex("ObservacaoJogoTagId");
+
+                    b.ToTable("observacoesjogotagmencoes");
+                });
+
             modelBuilder.Entity("ControleFutebolWeb.Models.ObservacaoJogoUsuario", b =>
                 {
                     b.Property<int>("Id")
@@ -2071,6 +2313,64 @@ namespace ControleFutebolWeb.Migrations
                     b.Navigation("Jogo");
                 });
 
+            modelBuilder.Entity("ControleFutebolWeb.Models.BlogPost", b =>
+                {
+                    b.HasOne("ControleFutebolWeb.Models.ApplicationUser", "Autor")
+                        .WithMany()
+                        .HasForeignKey("AutorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ControleFutebolWeb.Models.BlogCategoria", "Categoria")
+                        .WithMany("Posts")
+                        .HasForeignKey("CategoriaId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ControleFutebolWeb.Models.Jogador", "Jogador")
+                        .WithMany()
+                        .HasForeignKey("JogadorId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ControleFutebolWeb.Models.Jogo", "Jogo")
+                        .WithMany()
+                        .HasForeignKey("JogoId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ControleFutebolWeb.Models.Time", "Time")
+                        .WithMany()
+                        .HasForeignKey("TimeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Autor");
+
+                    b.Navigation("Categoria");
+
+                    b.Navigation("Jogador");
+
+                    b.Navigation("Jogo");
+
+                    b.Navigation("Time");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.BlogPostTag", b =>
+                {
+                    b.HasOne("ControleFutebolWeb.Models.BlogPost", "Post")
+                        .WithMany("Tags")
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ControleFutebolWeb.Models.BlogTag", "Tag")
+                        .WithMany("Posts")
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Post");
+
+                    b.Navigation("Tag");
+                });
+
             modelBuilder.Entity("ControleFutebolWeb.Models.Cartao", b =>
                 {
                     b.HasOne("ControleFutebolWeb.Models.Jogador", "Jogador")
@@ -2379,6 +2679,25 @@ namespace ControleFutebolWeb.Migrations
                     b.Navigation("Usuario");
                 });
 
+            modelBuilder.Entity("ControleFutebolWeb.Models.ObservacaoJogoTagMencao", b =>
+                {
+                    b.HasOne("ControleFutebolWeb.Models.Jogador", "Jogador")
+                        .WithMany()
+                        .HasForeignKey("JogadorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ControleFutebolWeb.Models.ObservacaoJogoTag", "ObservacaoJogoTag")
+                        .WithMany()
+                        .HasForeignKey("ObservacaoJogoTagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Jogador");
+
+                    b.Navigation("ObservacaoJogoTag");
+                });
+
             modelBuilder.Entity("ControleFutebolWeb.Models.ObservacaoJogoUsuario", b =>
                 {
                     b.HasOne("ControleFutebolWeb.Models.Jogo", "Jogo")
@@ -2667,6 +2986,21 @@ namespace ControleFutebolWeb.Migrations
                     b.Navigation("JogadorSaiu");
 
                     b.Navigation("Jogo");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.BlogCategoria", b =>
+                {
+                    b.Navigation("Posts");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.BlogPost", b =>
+                {
+                    b.Navigation("Tags");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.BlogTag", b =>
+                {
+                    b.Navigation("Posts");
                 });
 
             modelBuilder.Entity("ControleFutebolWeb.Models.Competicao", b =>

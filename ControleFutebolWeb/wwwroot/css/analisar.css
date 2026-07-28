@@ -1,0 +1,1755 @@
+/* Estilos da tela de análise tática (/Jogos/Analisar).
+   Extraído dos blocos <style> inline da view: ~55 KB que eram reenviados a
+   cada request. Aqui vira arquivo estático versionado (asp-append-version),
+   cacheável por 1 ano. As únicas regras que continuam inline na view são as
+   variáveis :root de cor de camisa, que dependem do jogo. */
+
+    /* ── Página sempre no tema escuro/dourado (mesmo padrão das telas já
+       convertidas — Home, Times, Jogadores, Jogos, Competições, Relatórios,
+       Estatísticas). Full-bleed: ocupa a largura toda, ignorando o gutter
+       do .container do layout. ── */
+    .an-root {
+        margin: 0 -12px;
+        background: #0f0f0f;
+        border-radius: 14px;
+        overflow: hidden;
+        padding: 20px 2.5rem 48px;
+        color: #e5e7eb;
+        font-family: 'Barlow', Arial, sans-serif;
+    }
+    .an-root * { box-sizing: border-box; }
+
+    /* Bootstrap genérico usado nesta tela → reskin dark */
+    .an-root .form-select, .an-root .form-control {
+        background: #1a1a1a !important; border: 1px solid #2a2a2a !important;
+        color: #e5e7eb !important; border-radius: 8px !important;
+        font-family: 'Barlow', Arial, sans-serif !important;
+    }
+    .an-root .form-select:focus, .an-root .form-control:focus { border-color: #d4a520 !important; box-shadow: none !important; }
+    .an-root .form-select option { background: #1a1a1a; }
+    .an-root label, .an-root .form-label, .an-root .fw-bold { color: #9ca3af !important; }
+    .an-root .text-muted { color: #6b7280 !important; }
+
+    .an-root .nav-tabs { border-bottom: 2px solid #222; }
+    .an-root .nav-tabs .nav-link {
+        color: #6b7280; border: none; border-bottom: 2px solid transparent;
+        font-size: .85rem; font-weight: 600; margin-bottom: -2px; background: transparent;
+    }
+    .an-root .nav-tabs .nav-link:hover { color: #d4a520; border-color: transparent; }
+    .an-root .nav-tabs .nav-link.active {
+        color: #d4a520; background: transparent; border-color: transparent transparent #d4a520; font-weight: 700;
+    }
+
+    .an-root .btn-outline-primary {
+        color: #60a5fa; border-color: rgba(59,130,246,.4); background: rgba(59,130,246,.08);
+    }
+    .an-root .btn-outline-primary:hover { background: rgba(59,130,246,.18); color: #93c5fd; border-color: rgba(59,130,246,.5); }
+    .an-root .btn-outline-warning {
+        color: #d4a520; border-color: rgba(212,165,32,.5); background: rgba(212,165,32,.08);
+    }
+    .an-root .btn-outline-warning:hover { background: rgba(212,165,32,.18); color: #f0c04a; }
+    .an-root .btn-primary { background: #d4a520; border-color: #d4a520; color: #141414; }
+    .an-root .btn-primary:hover { background: #c49918; border-color: #c49918; }
+    .an-root .badge.bg-secondary { background: #374151 !important; }
+
+    .an-root .cf-card { background: #161616; border: 1px solid #262626; border-radius: 12px; }
+
+    /* Tabelas Bootstrap (listas de jogadores) → reskin dark */
+    .an-root .table { color: #e5e7eb; margin-bottom: 0; }
+    .an-root .table > :not(caption) > * > * { background-color: transparent; border-color: #1e1e1e; color: #e5e7eb; box-shadow: none; }
+    .an-root .table-striped > tbody > tr:nth-of-type(odd) > * { background-color: rgba(255,255,255,0.03); }
+    .an-root .table thead th { color: #6b7280; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid #262626; font-weight: 700; }
+    .an-root .table-sm td, .an-root .table-sm th { padding: .35rem .5rem; }
+
+    /* ── Campo: substitui a textura antiga (campo.png) pelo gramado plano
+       do novo layout, com as marcações desenhadas em divs (igual ao mock). ── */
+    .an-root .campo {
+        background: linear-gradient(180deg, #14532d 0%, #166534 100%) !important;
+        border: 2px solid rgba(255,255,255,.15) !important;
+        border-radius: 10px !important;
+        max-height: none !important;
+        height: auto !important;
+    }
+    .campo-linha-meio { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(255,255,255,.22); pointer-events: none; }
+    .campo-circulo { position: absolute; left: 50%; top: 50%; width: 22%; aspect-ratio: 1; border: 1.5px solid rgba(255,255,255,.2); border-radius: 50%; transform: translate(-50%,-50%); pointer-events: none; }
+    .campo-area-sup, .campo-area-inf { position: absolute; left: 20%; right: 20%; height: 14%; border: 1.5px solid rgba(255,255,255,.2); pointer-events: none; }
+    .campo-area-sup { top: -1px; border-top: none; }
+    .campo-area-inf { bottom: -1px; border-bottom: none; }
+    .campo-gol-sup, .campo-gol-inf { position: absolute; left: 30%; right: 30%; height: 6%; border: 1.5px solid rgba(255,255,255,.2); background: rgba(255,255,255,.04); pointer-events: none; }
+    .campo-gol-sup { top: -1px; border-top: none; }
+    .campo-gol-inf { bottom: -1px; border-bottom: none; }
+
+    /* ── Larguras do layout: lista de jogadores fixa em 190px, campo flexível
+       (igual ao grid 190px 1fr 1fr 190px do novo layout) ── */
+    .an-root #painelEscalacao .col-5.scroll-panel { flex: 0 0 190px; max-width: 190px; width: 190px; }
+    .an-root #painelEscalacao .col-7 { flex: 1 1 0%; max-width: 100%; width: auto; }
+
+    /* ── Painel de jogadores (cabeçalho com escudo + nome + lista) ── */
+    .jog-panel {
+        background: #161616; border: 1px solid #262626; border-radius: 10px; overflow: hidden;
+    }
+    .jog-panel-header {
+        display: flex; align-items: center; gap: 6px; padding: 8px 10px;
+        background: #111; border-bottom: 1px solid #1e1e1e;
+        font-size: .72rem; font-weight: 700;
+        color: #6b7280; text-transform: uppercase; letter-spacing: .1em;
+    }
+    .jog-panel-header img { width: 14px; height: 14px; object-fit: contain; flex-shrink: 0; }
+    .jog-panel-header .jog-nome { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Botão "+" e formulário de cadastro rápido de jogador fora da API */
+    .jog-btn-add {
+        flex-shrink: 0; width: 20px; height: 20px; line-height: 1; padding: 0;
+        border-radius: 5px; border: 1px solid #333; background: #1a1a1a;
+        color: #9ca3af; font-size: 14px; font-weight: 700; cursor: pointer;
+    }
+    .jog-btn-add:hover { border-color: #d4af37; color: #d4af37; }
+    .jog-form-novo { display: none; gap: 4px; padding: 6px 8px; background: #101010; border-bottom: 1px solid #1e1e1e; }
+    .jog-form-novo.aberto { display: flex; }
+    .jog-form-novo input {
+        min-width: 0; padding: 3px 6px; border-radius: 5px; border: 1px solid #2a2a2a;
+        background: #161616; color: #e5e7eb; font-size: 11px;
+    }
+    .jog-form-novo .jf-num { width: 34px; text-align: center; }
+    .jog-form-novo .jf-nome { flex: 1 1 auto; }
+    .jog-form-novo .jf-pos { width: 42px; text-transform: uppercase; }
+    .jog-form-novo button {
+        flex-shrink: 0; padding: 3px 8px; border-radius: 5px; border: 1px solid #d4af37;
+        background: rgba(212,175,55,0.12); color: #d4af37; font-size: 11px; font-weight: 600; cursor: pointer;
+    }
+    .jog-panel .filtro-jogador { margin: 6px 8px 4px; width: calc(100% - 16px); }
+    .jog-panel table { table-layout: fixed; width: 100%; }
+    .an-root .jog-panel table th, .an-root .jog-panel table td { padding: .3rem .25rem !important; }
+    .an-root .jog-panel table th:first-child, .an-root .jog-panel table td:first-child { width: 32px; padding: .3rem .25rem .3rem 0 !important; }
+    .jog-panel table td:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem; }
+    .an-root .jog-panel table th:last-child, .an-root .jog-panel table td:last-child { width: 34px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; padding: .3rem 0 .3rem 2px !important; }
+    .jog-panel table td:last-child { font-size: 0.68rem; color: #6b7280; font-weight: 700; letter-spacing: .04em; }
+    .an-root .scroll-panel::-webkit-scrollbar { width: 5px; }
+    .an-root .scroll-panel::-webkit-scrollbar-track { background: #111; }
+    .an-root .scroll-panel::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+    .posicao-drop {
+        position: absolute;
+        text-align: center;
+        cursor: grab;
+        color: white;
+        font-size: 11px;
+        text-shadow: 1px 1px 2px black;
+        transform: translate(-50%, -50%);
+    }
+
+    /* ── Setas de movimentação dos jogadores ── */
+    .setas-svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+    }
+
+        .setas-svg line {
+            stroke: #facc15;
+            stroke-width: 3;
+            stroke-linecap: round;
+            filter: drop-shadow(0 1px 1px rgba(0,0,0,.5));
+            pointer-events: none;
+        }
+
+    body.modo-seta .setas-svg line {
+        pointer-events: stroke;
+        cursor: pointer;
+    }
+
+    /* .heatmap-overlay mora em site.css (compartilhada com Estatisticas.cshtml) */
+
+    body.modo-seta .campo { cursor: crosshair; }
+    body.modo-seta .posicao-drop { cursor: pointer; }
+
+    /* No modo seta os botões +/ℹ não podem roubar o clique do slot */
+    body.modo-seta .btn-avaliar,
+    body.modo-seta .btn-info-jogador { pointer-events: none; opacity: .25; }
+
+    .posicao-drop.seta-origem .player-circle {
+        outline: 3px solid #facc15;
+        outline-offset: 2px;
+    }
+
+    #btnModoSeta.ativo {
+        background: #facc15;
+        border-color: #facc15;
+        color: #111;
+        font-weight: 700;
+    }
+
+        /* Botões +/ℹ, a seta ↑ e o selo de cartão vermelho ficam fora do
+           pointer-events:none: precisam receber clique/hover. IMPORTANTE: os
+           :not() elevam a especificidade desta regra acima dos estilos dos
+           próprios botões — qualquer novo elemento interativo dentro do slot
+           precisa ser adicionado aqui também. */
+        .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in):not(.card-vermelho-badge):not(.card-amarelo-badge):not(.capitao-badge) {
+            pointer-events: none;
+        }
+
+    .scroll-panel {
+        height: 600px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .filtro-jogador {
+        width: 100%;
+        padding: 4px 8px;
+        margin-bottom: 4px;
+        font-size: 12px;
+        border: 1px solid #2a2a2a;
+        border-radius: 6px;
+        background: #1a1a1a;
+        color: #e5e7eb;
+        box-sizing: border-box;
+        position: sticky;
+        top: 0;
+        z-index: 5;
+    }
+    .filtro-jogador:focus { border-color: #d4a520; outline: none; }
+    .filtro-jogador::placeholder { color: #6b7280; }
+
+    .jogador-row {
+        cursor: grab;
+    }
+
+        .jogador-row.usado {
+            display: none;
+        }
+
+    .banco {
+        min-height: 100px;
+        border: 2px dashed #333;
+        border-radius: 6px;
+        padding: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: flex-start;
+        background: #111;
+        margin-top: 8px;
+    }
+
+        .banco.drag-over {
+            border-color: #d4a520;
+            background: rgba(212,165,32,0.06);
+        }
+
+    .reserva-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        font-size: 11px;
+        color: #9ca3af;
+        width: 56px;
+        cursor: pointer;
+        position: relative;
+    }
+
+        .reserva-card .rem-btn {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 16px;
+            height: 16px;
+            background: #dc3545;
+            color: white;
+            border-radius: 50%;
+            font-size: 10px;
+            line-height: 16px;
+            text-align: center;
+            cursor: pointer;
+            pointer-events: all;
+            z-index: 10;
+        }
+
+    .banco-label {
+        font-size: 12px;
+        color: #6b7280;
+        margin-bottom: 4px;
+        font-weight: 500;
+    }
+
+    .btn-avaliar {
+        position: absolute;
+        top: -6px;
+        right: -6px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #f5c400;
+        border: none;
+        font-size: 12px;
+        font-weight: 700;
+        color: #333;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        z-index: 10;
+        pointer-events: all;
+    }
+
+    .btn-info-jogador {
+        position: absolute;
+        top: -6px;
+        left: -6px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #38bdf8;
+        border: none;
+        font-size: 10px;
+        font-weight: 700;
+        color: #0c1a2e;
+        cursor: default;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        z-index: 10;
+        pointer-events: all;
+    }
+
+    /* Versão menor do ℹ para o círculo de 28px do banco de reservas. Fica no
+       canto inferior esquerdo: o topo direito é do × (rem-btn) e o topo
+       esquerdo dos selos mini de cartão amarelo/capitão. */
+    .reserva-card .btn-info-jogador {
+        top: 13px;
+        left: -2px;
+        width: 14px;
+        height: 14px;
+        font-size: 9px;
+    }
+
+    /* Versão menor do ℹ para o círculo de 28px da lista lateral de jogadores.
+       Fica no canto superior direito: à esquerda o círculo encosta na borda do
+       painel, que corta o overflow horizontal (.scroll-panel). */
+    .jogador-row .btn-info-jogador {
+        top: -3px;
+        left: auto;
+        right: -3px;
+        width: 14px;
+        height: 14px;
+        font-size: 9px;
+    }
+
+    #jogador-tooltip {
+        display: none;
+        position: fixed;
+        z-index: 9999;
+        background: #1e293b;
+        border: 1px solid #38bdf8;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 12px;
+        color: #e2e8f0;
+        min-width: 170px;
+        max-width: 250px;
+        pointer-events: none;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+        line-height: 1.6;
+    }
+
+    #jogador-tooltip .tt-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+    }
+
+    #jogador-tooltip .tt-foto {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #38bdf8;
+        flex-shrink: 0;
+    }
+
+    #jogador-tooltip .tt-nome {
+        font-weight: 700;
+        font-size: 13px;
+        color: #38bdf8;
+        line-height: 1.3;
+    }
+
+    #jogador-tooltip .tt-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 10px;
+        margin-bottom: 4px;
+        font-size: 11px;
+        color: #cbd5e1;
+    }
+
+    #jogador-tooltip .tt-icon {
+        width: 14px;
+        height: 14px;
+        object-fit: contain;
+        vertical-align: -2px;
+        border-radius: 2px;
+    }
+
+    #jogador-tooltip .tt-stats {
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px solid #334155;
+    }
+
+    /* Blocos consecutivos (Competição + Temporada) formam um bloco só */
+    #jogador-tooltip .tt-stats + .tt-stats {
+        margin-top: 4px;
+        padding-top: 0;
+        border-top: none;
+    }
+
+    /* Rótulo do escopo (COMPETIÇÃO / TEMPORADA) em linha própria, stats abaixo */
+    #jogador-tooltip .tt-stat-rotulo {
+        font-size: 10px;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        margin-bottom: 3px;
+    }
+
+    #jogador-tooltip .tt-stat-valores {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    #jogador-tooltip .tt-stat-gol  { color: #4ade80; font-weight: 600; }
+    #jogador-tooltip .tt-stat-ast  { color: #fb923c; font-weight: 600; }
+    #jogador-tooltip .tt-stat-tit  { color: #94a3b8; font-weight: 600; }
+
+    #jogador-tooltip .tt-obs {
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px solid #334155;
+        color: #94a3b8;
+        white-space: pre-wrap;
+    }
+
+    #jogador-tooltip .tt-medias-titulo {
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px solid #334155;
+        color: #94a3b8;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    #jogador-tooltip .tt-medias {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 4px;
+        margin-top: 4px;
+    }
+
+    #jogador-tooltip .tt-media-cel {
+        background: #1e293b;
+        border-radius: 6px;
+        padding: 4px 6px;
+        display: flex;
+        flex-direction: column;
+        line-height: 1.25;
+    }
+
+    #jogador-tooltip .tt-media-cel b {
+        color: #f1f5f9;
+        font-size: 12px;
+    }
+
+    #jogador-tooltip .tt-media-cel span {
+        color: #94a3b8;
+        font-size: 9.5px;
+    }
+
+    .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in):not(.card-vermelho-badge):not(.card-amarelo-badge):not(.capitao-badge) {
+        pointer-events: none;
+    }
+
+    .sub-badge-in {
+        color: #198754;
+        font-size: 12px;
+        font-weight: 700;
+        margin-left: 6px;
+    }
+
+    .sub-badge-out {
+        color: #dc3545;
+        font-size: 12px;
+        font-weight: 700;
+        margin-left: 6px;
+    }
+
+    /* Seta verde de "entrou": posicionada de forma absoluta no canto inferior
+       direito do círculo do jogador. Antes ficava DENTRO de .player-name, que
+       tem max-width:64px + overflow:hidden — nomes longos truncados cortavam a
+       seta junto (por isso ela "sumia às vezes"). */
+    .sub-chip-in {
+        position: absolute;
+        top: 24px;              /* borda inferior do círculo de 36px */
+        left: 50%;
+        margin-left: 9px;       /* metade do círculo (18px) - metade do chip */
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #16a34a;
+        color: #fff;
+        font-size: 10px;
+        line-height: 1;
+        border: 1.5px solid #fff;
+        box-shadow: 0 1px 3px rgba(0,0,0,.45);
+        z-index: 3;
+        pointer-events: auto; /* recebe hover para o tooltip */
+        cursor: help;
+    }
+
+    /* Jogador expulso (cartão vermelho): botão em campo fica cinza/desabilitado
+       e não pode mais ser arrastado (ver draggable="false" no HTML do slot). */
+    .posicao-drop.expulso {
+        cursor: not-allowed;
+    }
+    .posicao-drop.expulso .player-circle {
+        filter: grayscale(1);
+        opacity: .55;
+    }
+    .card-vermelho-badge {
+        position: absolute;
+        top: -4px;
+        left: 50%;
+        margin-left: 9px;      /* mesmo cálculo do .sub-chip-in: metade do círculo de 36px */
+        width: 11px;
+        height: 15px;
+        background: #dc2626;
+        border: 1.5px solid #fff;
+        border-radius: 2px;
+        box-shadow: 0 1px 3px rgba(0,0,0,.45);
+        z-index: 3;
+        pointer-events: auto;
+        cursor: help;
+    }
+
+    /* Cartão amarelo no botão do jogador em campo — mesmo tamanho do selo de
+       expulso, mas do lado esquerdo, logo abaixo do botão azul de info (que
+       ocupa top:-6/left:-6), para não disputar espaço com o botão amarelo de
+       avaliação à direita; só aparece quando ele não foi expulso
+       (o vermelho, mais grave, tem prioridade). */
+    .card-amarelo-badge {
+        position: absolute;
+        top: 13px;
+        left: -5px;
+        width: 11px;
+        height: 15px;
+        background: #facc15;
+        border: 1.5px solid #fff;
+        border-radius: 2px;
+        box-shadow: 0 1px 3px rgba(0,0,0,.45);
+        z-index: 3;
+        pointer-events: auto;
+        cursor: help;
+    }
+
+    /* Versão menor do cartão amarelo para o círculo de 28px do banco de reservas. */
+    .card-amarelo-badge-mini {
+        position: absolute;
+        top: -2px;
+        left: 12px;
+        width: 8px;
+        height: 11px;
+        background: #facc15;
+        border: 1px solid #fff;
+        border-radius: 1.5px;
+        box-shadow: 0 1px 2px rgba(0,0,0,.45);
+        z-index: 3;
+        pointer-events: auto;
+        cursor: help;
+    }
+
+    /* Braçadeira de capitão: espelha a posição do .sub-chip-in (borda inferior
+       do círculo de 36px) só que do lado esquerdo, pra não disputar espaço com
+       nenhum outro selo (cartões ficam no topo/lado esquerdo, seta de entrada
+       fica embaixo à direita). */
+    .capitao-badge {
+        position: absolute;
+        top: 24px;
+        left: 50%;
+        margin-left: -25px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #f5c400;
+        color: #111;
+        font-size: 10px;
+        font-weight: 800;
+        border: 1.5px solid #fff;
+        box-shadow: 0 1px 3px rgba(0,0,0,.45);
+        z-index: 3;
+        pointer-events: auto;
+        cursor: help;
+    }
+
+    /* Versão menor pro círculo de 28px do banco de reservas. */
+    .capitao-badge-mini {
+        position: absolute;
+        top: -2px;
+        left: 2px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #f5c400;
+        color: #111;
+        font-size: 7px;
+        font-weight: 800;
+        border: 1px solid #fff;
+        box-shadow: 0 1px 2px rgba(0,0,0,.45);
+        z-index: 3;
+        pointer-events: auto;
+        cursor: help;
+    }
+
+    .obs-box {
+        margin-top: 14px;
+        border: 1px solid #262626;
+        border-radius: 10px;
+        padding: 10px;
+        background: #161616;
+    }
+
+    .obs-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #9ca3af;
+        margin-bottom: 8px;
+    }
+
+    .obs-row {
+        display: grid;
+        grid-template-columns: 180px 1fr;
+        gap: 8px;
+        margin-bottom: 8px;
+        align-items: start;
+    }
+
+    .obs-team-pick {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .obs-team-icon {
+        width: 20px;
+        height: 20px;
+        object-fit: contain;
+        border-radius: 50%;
+        border: 1px solid #2a2a2a;
+        background: #1a1a1a;
+    }
+
+    .obs-row textarea {
+        width: 100%;
+        min-height: 38px;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 13px;
+        resize: none;
+        overflow: hidden;
+        line-height: 1.35;
+        background: #0f0f0f;
+        color: #e5e7eb;
+    }
+    .obs-row textarea:focus { border-color: #d4a520; outline: none; }
+
+    .obs-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 6px;
+    }
+
+    .obs-btn {
+        border: 1px solid #2a2a2a;
+        background: #1a1a1a;
+        color: #9ca3af;
+        border-radius: 8px;
+        padding: 5px 9px;
+        font-size: 12px;
+        cursor: pointer;
+    }
+    .obs-btn:hover { border-color: #d4a520; color: #d4a520; }
+
+    .obs-tag-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 6px 0;
+        border-bottom: 1px dashed #262626;
+        font-size: 13px;
+    }
+    .obs-tag-row:last-child { border-bottom: none; }
+    .obs-tag-badge {
+        flex: 0 0 auto;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 999px;
+        color: #fff;
+        white-space: nowrap;
+    }
+    .obs-tag-badge-mandante { background: #2563eb; }
+    .obs-tag-badge-visitante { background: #dc2626; }
+    .obs-tag-badge-competicao { background: #7c3aed; }
+    .obs-tag-badge-jogador { background: #059669; }
+    .obs-tag-badge-marco { background: #d97706; }
+    .obs-tag-jogador-nome {
+        flex: 0 0 auto;
+        font-weight: 600;
+        color: #e5e7eb;
+        font-size: 12px;
+    }
+    .obs-tag-texto {
+        flex: 1;
+        min-width: 0;
+        color: #fff;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+    .obs-tag-input {
+        flex: 1;
+        min-width: 220px;
+        resize: none;
+        overflow: hidden;
+        line-height: 1.35;
+        min-height: 32px;
+    }
+    .obs-mencao {
+        color: #d4a520;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+    }
+    .obs-mencao:hover {
+        text-decoration: underline;
+    }
+    .obs-mencao-dropdown {
+        position: absolute;
+        z-index: 50;
+        min-width: 200px;
+        max-height: 220px;
+        overflow-y: auto;
+        background: #161616;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        box-shadow: 0 4px 14px rgba(0,0,0,.5);
+        padding: 4px;
+    }
+    .obs-mencao-item {
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+        color: #e5e7eb;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    .obs-mencao-item.ativo,
+    .obs-mencao-item:hover {
+        background: #2a2412;
+        color: #d4a520;
+    }
+    .obs-mencao-vazio {
+        padding: 6px 10px;
+        font-size: 12px;
+        color: #6b7280;
+    }
+    .obs-tag-editar {
+        flex: 0 0 auto;
+        cursor: pointer;
+        color: #9ca3af;
+        padding: 0 4px;
+    }
+    .obs-tag-editar:hover { color: #d4a520; }
+    .obs-tag-remover {
+        flex: 0 0 auto;
+        cursor: pointer;
+        color: #dc3545;
+        font-weight: 700;
+        padding: 0 4px;
+    }
+
+    .cf-comp-hero {
+        position: relative;
+        border-radius: 14px;
+        padding: 1.5rem 1.6rem;
+        margin-bottom: 1rem;
+        overflow: hidden;
+        background: linear-gradient(135deg, #0b5f2a 0%, #1f8f45 55%, #0d6d30 100%);
+    }
+
+    .cf-comp-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        opacity: 0.12;
+        background-image: radial-gradient(circle at 50% 50%, transparent 28%, #fff 28.5%, #fff 29.2%, transparent 29.8%), linear-gradient(90deg, transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%), linear-gradient(transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%);
+    }
+
+    .cf-comp-hero-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .cf-comp-badge {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.16);
+        color: #e6f7eb;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        padding: 4px 11px;
+        border-radius: 999px;
+        margin-bottom: 0.55rem;
+    }
+
+    .cf-comp-title {
+        color: #fff;
+        font-size: 1.35rem;
+        font-weight: 700;
+        margin: 0 0 0.2rem;
+    }
+
+    .cf-comp-title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 0.2rem;
+    }
+
+    .cf-comp-logo {
+        width: 34px;
+        height: 34px;
+        object-fit: contain;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.12);
+        padding: 2px;
+    }
+
+    .cf-comp-sub {
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 0.92rem;
+        margin: 0;
+    }
+    /* ── Placar board ─────────────────────────────────────── */
+    .match-board {
+        background: linear-gradient(160deg, #0d1b2a 0%, #1b2e44 60%, #0d1b2a 100%);
+        border-radius: 16px;
+        padding: 1.25rem 1.5rem 1rem;
+        margin-bottom: 1.2rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 24px rgba(0,0,0,.35);
+    }
+
+        .match-board::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(circle at 20% 50%, rgba(55,138,221,.08) 0%, transparent 55%), radial-gradient(circle at 80% 50%, rgba(55,138,221,.08) 0%, transparent 55%);
+            pointer-events: none;
+        }
+
+    /* ── Linha de times + placar ─────────────────────────── */
+    .mb-scoreline {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .mb-team {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+        .mb-team.away {
+            flex-direction: row-reverse;
+        }
+
+        .mb-team img {
+            width: 42px;
+            height: 42px;
+            object-fit: contain;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,.5));
+            flex-shrink: 0;
+        }
+
+    .mb-team-link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        color: inherit;
+        border-radius: 8px;
+        padding: 4px 6px;
+        margin: -4px -6px;
+        transition: background-color .15s;
+    }
+
+        .mb-team-link:hover {
+            background-color: rgba(255,255,255,.06);
+        }
+
+        .mb-team-link:hover .mb-team-name {
+            color: #fff;
+            text-decoration: underline;
+        }
+
+        .mb-team.away .mb-team-link {
+            flex-direction: row-reverse;
+        }
+
+    .mb-team-name {
+        font-size: .9rem;
+        font-weight: 600;
+        color: #e2e8f0;
+        line-height: 1.2;
+    }
+
+    .mb-score {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        justify-content: center;
+    }
+
+    .mb-score-box {
+        background: rgba(255,255,255,.07);
+        border: 1px solid rgba(255,255,255,.15);
+        border-radius: 10px;
+        min-width: 52px;
+        height: 52px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.9rem;
+        font-weight: 700;
+        color: #fff;
+        cursor: pointer;
+        transition: background .15s, transform .1s;
+        user-select: none;
+    }
+
+        .mb-score-box:hover {
+            background: rgba(255,255,255,.13);
+            transform: scale(1.04);
+        }
+
+    .mb-score-sep {
+        font-size: 1.4rem;
+        color: rgba(255,255,255,.35);
+        font-weight: 300;
+    }
+
+    /* ── Estádio / árbitro ────────────────────────────────── */
+    .mb-meta {
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+        flex-wrap: wrap;
+        padding: 0 1rem 0.8rem;
+        margin-top: -4px;
+    }
+    .mb-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: rgba(255,255,255,0.75);
+        font-size: 0.82rem;
+    }
+    .mb-meta-icon { font-size: 1rem; }
+
+    /* ── Disputa de pênaltis ──────────────────────────────── */
+    .mb-pen-result {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1px;
+        margin-top: -2px;
+        padding-bottom: 6px;
+    }
+    .mb-pen-score { font-size: .95rem; font-weight: 700; color: #fff; }
+    .mb-pen-winner { font-size: .78rem; font-weight: 600; color: #4ade80; }
+
+    .mb-penaltis {
+        margin: 4px auto 8px;
+        max-width: 520px;
+        padding: 10px 14px;
+        border-radius: 12px;
+        background: rgba(255,255,255,.05);
+        border: 1px solid rgba(255,255,255,.12);
+    }
+    .mb-pen-head {
+        text-align: center;
+        font-size: .72rem;
+        letter-spacing: .08em;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: rgba(255,255,255,.6);
+        margin-bottom: 8px;
+    }
+    .mb-pen-cols {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 5px 18px;
+    }
+    .mb-pen-col { display: flex; flex-direction: column; gap: 5px; }
+    .mb-pen-kick {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: .85rem;
+        color: rgba(255,255,255,.9);
+    }
+    .mb-pen-col.vis .mb-pen-kick { flex-direction: row-reverse; }
+    .mb-pen-ord {
+        min-width: 14px;
+        text-align: center;
+        font-size: .75rem;
+        color: rgba(255,255,255,.4);
+    }
+    .mb-pen-ball { font-size: .8rem; line-height: 1; }
+    .mb-pen-kick.ok   .mb-pen-ball { color: #4ade80; }
+    .mb-pen-kick.fail .mb-pen-ball { color: #f87171; }
+    .mb-pen-kick.fail .mb-pen-name {
+        color: rgba(255,255,255,.5);
+        text-decoration: line-through;
+    }
+    .mb-pen-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* ── Toolbar de eventos ───────────────────────────────── */
+    .mb-toolbar-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-top: .9rem;
+        padding: 6px 13px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,.18);
+        background: rgba(255,255,255,.07);
+        color: rgba(255,255,255,.85);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        width: fit-content;
+        margin-left: auto;
+        margin-right: auto;
+        transition: background .15s, color .15s;
+    }
+
+        .mb-toolbar-toggle:hover {
+            background: rgba(255,255,255,.16);
+            color: #fff;
+        }
+
+    .mb-toolbar {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        margin-top: .6rem;
+        flex-wrap: wrap;
+    }
+
+    .mb-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 13px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,.18);
+        background: rgba(255,255,255,.07);
+        color: rgba(255,255,255,.8);
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background .15s, color .15s, border-color .15s;
+    }
+
+        .mb-btn:hover {
+            background: rgba(255,255,255,.16);
+            color: #fff;
+        }
+
+        .mb-btn.gol {
+            border-color: rgba(34,197,94,.5);
+            color: #4ade80;
+        }
+
+            .mb-btn.gol:hover {
+                background: rgba(34,197,94,.15);
+            }
+
+        .mb-btn.cartao-amarelo {
+            border-color: rgba(250,204,21,.5);
+            color: #fde047;
+        }
+
+            .mb-btn.cartao-amarelo:hover {
+                background: rgba(250,204,21,.12);
+            }
+
+        .mb-btn.cartao-vermelho {
+            border-color: rgba(239,68,68,.5);
+            color: #f87171;
+        }
+
+            .mb-btn.cartao-vermelho:hover {
+                background: rgba(239,68,68,.12);
+            }
+
+    /* ── Timeline de eventos ─────────────────────────────── */
+    .mb-timeline {
+        margin-top: .85rem;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        max-height: 220px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+        .mb-timeline::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .mb-timeline::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .mb-timeline::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,.2);
+            border-radius: 4px;
+        }
+
+    .mb-event {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 8px;
+        border-radius: 8px;
+        background: rgba(255,255,255,.05);
+        font-size: 12px;
+        color: #cbd5e1;
+        transition: background .15s;
+        position: relative;
+    }
+
+        .mb-event:hover {
+            background: rgba(255,255,255,.09);
+        }
+
+        .mb-event.casa {
+            flex-direction: row;
+        }
+
+        .mb-event.vis {
+            flex-direction: row-reverse;
+            text-align: right;
+        }
+
+    .mb-event-min {
+        font-size: 11px;
+        font-weight: 700;
+        color: rgba(255,255,255,.45);
+        min-width: 28px;
+        flex-shrink: 0;
+    }
+
+    .mb-event-icon {
+        font-size: 14px;
+        flex-shrink: 0;
+    }
+
+    .mb-event-text {
+        flex: 1;
+        line-height: 1.3;
+    }
+
+        .mb-event-text strong {
+            color: #e2e8f0;
+            font-weight: 600;
+        }
+
+        .mb-event-text small {
+            color: rgba(255,255,255,.4);
+            font-size: 11px;
+            display: block;
+        }
+
+    .mb-event-del {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: rgba(239,68,68,.25);
+        color: #f87171;
+        border: none;
+        cursor: pointer;
+        font-size: 11px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        opacity: 0;
+        transition: opacity .15s;
+    }
+
+    .mb-event:hover .mb-event-del {
+        opacity: 1;
+    }
+
+    .mb-event-sub {
+        opacity: 0.82;
+        border-left: 3px solid #22c55e;
+    }
+    .mb-event-sub .mb-event-text small {
+        color: #ef4444;
+    }
+
+    /* ── Modal de evento ─────────────────────────────────── */
+    #modal-evento {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,.6);
+        z-index: 9998;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-evento-box {
+        background: #1e293b;
+        border: 1px solid rgba(255,255,255,.12);
+        border-radius: 16px;
+        padding: 1.4rem;
+        width: 360px;
+        max-width: 95vw;
+        box-shadow: 0 20px 60px rgba(0,0,0,.5);
+        color: #e2e8f0;
+    }
+
+        .modal-evento-box h5 {
+            font-size: 15px;
+            font-weight: 700;
+            margin: 0 0 1rem;
+            color: #fff;
+        }
+
+    .mev-field {
+        margin-bottom: .9rem;
+    }
+
+        .mev-field label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            color: rgba(255,255,255,.5);
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            margin-bottom: 5px;
+        }
+
+        .mev-field select,
+        .mev-field input {
+            width: 100%;
+            background: rgba(255,255,255,.07);
+            border: 1px solid rgba(255,255,255,.15);
+            border-radius: 9px;
+            padding: 8px 12px;
+            font-size: 13px;
+            color: #e2e8f0;
+        }
+
+            .mev-field select option {
+                background: #1e293b;
+            }
+
+    .mev-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .mev-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 1.1rem;
+    }
+
+    .mev-save {
+        flex: 1;
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        border-radius: 9px;
+        padding: 9px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background .15s;
+    }
+
+        .mev-save:hover {
+            background: #1d4ed8;
+        }
+
+    .mev-cancel {
+        background: rgba(255,255,255,.07);
+        color: rgba(255,255,255,.6);
+        border: 1px solid rgba(255,255,255,.12);
+        border-radius: 9px;
+        padding: 9px 16px;
+        font-size: 13px;
+        cursor: pointer;
+    }
+
+        .mev-cancel:hover {
+            background: rgba(255,255,255,.12);
+        }
+
+    .mev-tipo-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: .8rem;
+    }
+
+    /* ══ Responsivo (celular/tablet) ═══════════════════════════════════════
+       Prioridade é a VISUALIZAÇÃO do jogo: abaixo de 992px cada time vira
+       "campo em cima, lista de jogadores embaixo". No celular em pé os dois
+       times empilham (col-md-6); deitado (≥768px) ficam lado a lado — por
+       isso a orientação paisagem é a recomendada no celular. A edição por
+       arrastar-e-soltar segue sendo tarefa de desktop (HTML5 DnD não
+       funciona por toque no iOS). ── */
+    @media (max-width: 991.98px) {
+        /* Campo primeiro (largura total), lista depois — vale para os dois
+           times: os seletores pegam as duas linhas internas do painel. */
+        .an-root #painelEscalacao .col-7 {
+            flex: 0 0 100%;
+            max-width: 100%;
+            order: 1;
+        }
+        .an-root #painelEscalacao .col-5.scroll-panel {
+            flex: 0 0 100%;
+            max-width: 100%;
+            width: 100%;
+            order: 2;
+            height: auto;
+            max-height: 300px;
+            margin-top: 10px;
+        }
+        /* Campo centralizado e com teto de largura pra não ficar alto demais
+           em tela cheia (proporção 2/3 vem do site.css). */
+        .an-root #painelEscalacao .campo {
+            max-width: 430px;
+            margin: 0 auto;
+        }
+        .an-root #painelEscalacao .banco {
+            max-width: 430px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        .an-root { padding: 16px 12px 32px; }
+
+        /* Abas de escalação viram trilho horizontal rolável */
+        .an-root #tabsEscalacao {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .an-root #tabsEscalacao .nav-link { white-space: nowrap; }
+
+        /* Placar mais compacto */
+        .match-board { padding: .9rem .8rem .8rem; }
+        .mb-scoreline { gap: .5rem; }
+        .mb-team { gap: 6px; }
+        .mb-team-link { gap: 6px; }
+        .mb-team img { width: 30px; height: 30px; }
+        .mb-team-name { font-size: .78rem; }
+        .mb-score { gap: 6px; }
+        .mb-score-box { min-width: 40px; height: 40px; font-size: 1.5rem; }
+
+        /* Observações: rótulo do time em cima, textarea embaixo */
+        .obs-row { grid-template-columns: 1fr; }
+        .obs-tag-input { min-width: 0; }
+    }
+
+    .h2h-card {
+        background: rgba(255,255,255,.05);
+        border: 1px solid rgba(255,255,255,.08);
+        border-radius: 10px;
+        padding: .75rem 1rem;
+        margin-bottom: .6rem;
+        color: #e2e8f0;
+        font-size: 13px;
+    }
+    .h2h-card-header {
+        color: #94a3b8;
+        font-size: 11px;
+        margin-bottom: .45rem;
+    }
+    .h2h-placar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .6rem;
+    }
+    .h2h-time {
+        display: flex;
+        align-items: center;
+        gap: .4rem;
+        flex: 1;
+    }
+    .h2h-time.direita { justify-content: flex-end; flex-direction: row-reverse; }
+    .h2h-time img { width: 22px; height: 22px; object-fit: contain; }
+    .h2h-time-nome { font-size: 12px; font-weight: 600; }
+    .h2h-gols {
+        font-size: 20px;
+        font-weight: 800;
+        min-width: 48px;
+        text-align: center;
+        background: rgba(0,0,0,.3);
+        border-radius: 6px;
+        padding: 2px 8px;
+        letter-spacing: 2px;
+    }
+    .h2h-venceu { color: #4ade80; }
+    .h2h-perdeu { color: #f87171; }
+    .h2h-empate { color: #94a3b8; }
+
+    .mc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+    .mc-col-head { color:#e2e8f0; font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; margin-bottom:.4rem; }
+    .mc-col select { margin-bottom: .6rem; }
+    .mc-campo { width: 100%; }
+    @media (max-width: 640px) { .mc-grid { grid-template-columns: 1fr; } }
+
+    .pj-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 640px) { .pj-grid { grid-template-columns: 1fr; } }
+    .pj-col {
+        background: rgba(255,255,255,.04);
+        border: 1px solid rgba(255,255,255,.08);
+        border-radius: 12px;
+        padding: 1rem;
+    }
+    .pj-col.casa { border-top: 3px solid var(--cor-camisa-casa); }
+    .pj-col.vis  { border-top: 3px solid var(--cor-camisa-vis); }
+    .pj-team-head { display: flex; align-items: center; gap: .6rem; margin-bottom: .8rem; }
+    .pj-team-head img { width: 34px; height: 34px; object-fit: contain; }
+    .pj-team-nome { font-size: 14px; font-weight: 700; color: #e2e8f0; }
+    .pj-record { display: flex; gap: .5rem; }
+    .pj-rec-box { flex: 1; text-align: center; background: rgba(0,0,0,.25); border-radius: 8px; padding: .45rem .2rem; }
+    .pj-rec-num { font-size: 19px; font-weight: 800; line-height: 1.1; }
+    .pj-rec-label { font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: .4px; }
+    .pj-v .pj-rec-num { color: #4ade80; }
+    .pj-e .pj-rec-num { color: #cbd5e1; }
+    .pj-d .pj-rec-num { color: #f87171; }
+    .pj-section-title { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: .5px; margin: .9rem 0 .4rem; }
+    .pj-form { display: flex; gap: 4px; }
+    .pj-form span { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; }
+    .pj-form .V { background: #16a34a; }
+    .pj-form .E { background: #64748b; }
+    .pj-form .D { background: #dc2626; }
+    .pj-player { display: flex; align-items: center; gap: .5rem; padding: .35rem 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+    .pj-player:last-child { border-bottom: none; }
+    .pj-player img, .pj-player .pj-noimg { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+    .pj-player .pj-noimg { background: rgba(255,255,255,.1); }
+    .pj-player-nome { flex: 1; font-size: 12px; color: #e2e8f0; }
+    .pj-player-stat { font-size: 11px; color: #94a3b8; white-space: nowrap; }
+    .pj-obs { padding-left: 1.1rem; margin: 0; font-size: 12px; color: #cbd5e1; line-height: 1.5; }
+    .pj-obs li { margin-bottom: .3rem; }
+    .pj-vazio { font-size: 12px; color: #64748b; }
+
+    /* ── Abas do modal Pré-jogo ── */
+    .pj-tabs { display: flex; gap: 6px; margin-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,.08); }
+    .pj-tab {
+        background: none; border: none; border-bottom: 2px solid transparent;
+        color: #94a3b8; font-size: 12px; font-weight: 700; padding: 6px 12px 8px;
+        cursor: pointer; text-transform: uppercase; letter-spacing: .04em;
+    }
+    .pj-tab:hover { color: #e2e8f0; }
+    .pj-tab.active { color: #d4a520; border-bottom-color: #d4a520; }
+
+    /* ── Aba Match-up: mesmo campo horizontal da tela de Relatórios, com os
+       dois times frente a frente (estilo escalação de transmissão de TV). ── */
+    .mu-header {
+        display: flex; align-items: center; justify-content: center; gap: 1.5rem;
+        margin-bottom: 1rem; flex-wrap: wrap;
+    }
+    .mu-time-info { display: flex; align-items: center; gap: 10px; text-align: left; }
+    .mu-time-info.mu-dir { text-align: right; flex-direction: row-reverse; }
+    .mu-time-info img { width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; }
+    .mu-time-nome { font-size: 16px; font-weight: 800; color: #e2e8f0; }
+    .mu-time-jogo { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+    .mu-vs { font-size: 20px; font-weight: 900; color: #d4a520; }
+
+    .mu-campo {
+        position: relative; width: 100%; aspect-ratio: 1.8 / 1;
+        background: linear-gradient(90deg, #14532d 0%, #166534 50%, #14532d 100%);
+        border: 2px solid rgba(255,255,255,.15); border-radius: 10px; overflow: hidden;
+    }
+    .mu-linha-meio { position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: rgba(255,255,255,.22); }
+    .mu-circulo {
+        position: absolute; left: 50%; top: 50%; height: 46%; aspect-ratio: 1;
+        border: 1.5px solid rgba(255,255,255,.2); border-radius: 50%; transform: translate(-50%,-50%);
+    }
+    .mu-area-esq, .mu-area-dir { position: absolute; top: 18%; bottom: 18%; width: 11%; border: 1.5px solid rgba(255,255,255,.2); }
+    .mu-area-esq { left: -1px; border-left: none; }
+    .mu-area-dir { right: -1px; border-right: none; }
+    .mu-gol-esq, .mu-gol-dir { position: absolute; top: 32%; bottom: 32%; width: 4.5%; border: 1.5px solid rgba(255,255,255,.2); background: rgba(255,255,255,.04); }
+    .mu-gol-esq { left: -1px; border-left: none; }
+    .mu-gol-dir { right: -1px; border-right: none; }
+
+    .mu-slot {
+        position: absolute; text-align: center; cursor: grab; color: #fff;
+        font-size: 11px; text-shadow: 1px 1px 2px #000; transform: translate(-50%,-50%);
+        width: 62px; user-select: none;
+        /* pointer events cuidam do arrasto no campo; sem isto o navegador
+           tentaria rolar/gesticular em touch em vez de mover o jogador */
+        touch-action: none;
+    }
+    .mu-slot:active { cursor: grabbing; }
+    /* Slot sendo arrastado: acima dos demais (o elementsFromPoint do soltar
+       pula o próprio arrastado no JS para achar o alvo por baixo) */
+    .mu-slot.mu-arrastando { z-index: 20; cursor: grabbing; opacity: .85; }
+    /* Sem isto o dragover/drop (banco→campo) dispararia nos filhos (círculo/
+       nome) e o slot nunca receberia o drop — mesmo truque do campo principal. */
+    .mu-slot * { pointer-events: none; }
+    /* Marcações do campo nunca participam de hit-test */
+    .mu-linha-meio, .mu-circulo, .mu-area-esq, .mu-area-dir, .mu-gol-esq, .mu-gol-dir { pointer-events: none; }
+    .mu-slot-sigla {
+        font-size: 9px; font-weight: 700; color: #d4a520;
+        text-shadow: 1px 1px 2px #000; display: block; margin-bottom: 1px;
+    }
+    /* O .player-name global limita largura a 64px; dentro do slot já cabe */
+    .mu-slot .player-circle { width: 30px; height: 30px; font-size: 12px; }
+
+    /* Layout: banco do time 1 | campo | banco do time 2 */
+    .mu-layout { display: grid; grid-template-columns: 185px 1fr 185px; gap: 12px; align-items: start; }
+    @media (max-width: 900px) { .mu-layout { grid-template-columns: 1fr; } }
+
+    .mu-banco {
+        background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 10px;
+        overflow: hidden;
+    }
+    .mu-banco-header {
+        display: flex; align-items: center; gap: 6px; padding: 8px 10px;
+        background: rgba(0,0,0,.3); border-bottom: 1px solid rgba(255,255,255,.06);
+        font-size: .68rem; font-weight: 700; color: #94a3b8;
+        text-transform: uppercase; letter-spacing: .1em;
+    }
+    .mu-banco-lista { max-height: 430px; overflow-y: auto; }
+    .mu-banco-lista::-webkit-scrollbar { width: 5px; }
+    .mu-banco-lista::-webkit-scrollbar-track { background: rgba(0,0,0,.3); }
+    .mu-banco-lista::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    .mu-banco-item {
+        display: flex; align-items: center; gap: 8px; padding: 5px 10px;
+        font-size: 12px; color: #cbd5e1; cursor: grab; user-select: none;
+        border-bottom: 1px solid rgba(255,255,255,.05);
+    }
+    .mu-banco-item:hover { background: rgba(255,255,255,.07); }
+    .mu-banco-item:active { cursor: grabbing; }
+    .mu-banco-item * { pointer-events: none; }
+    .mu-banco-num {
+        flex: 0 0 24px; text-align: center; font-weight: 700; color: #d4a520;
+    }
+    .mu-banco-nome { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mu-banco-pos { flex: 0 0 auto; font-size: 10px; font-weight: 700; color: #94a3b8; }
+    .mu-dica { text-align: center; color: #64748b; font-size: 11px; margin-top: 8px; }
+
+    /* ── Match-up: modo seta (mesmo visual das setas da análise) ── */
+    .mu-toolbar { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+    #muBtnSeta.ativo { background: #facc15; border-color: #facc15; color: #111; font-weight: 700; }
+    .mu-campo.mu-modo-seta { cursor: crosshair; }
+    .mu-campo.mu-modo-seta .mu-slot { cursor: pointer; }
+    .mu-campo.mu-modo-seta .setas-svg line { pointer-events: stroke; cursor: pointer; }
+    .mu-slot.mu-seta-origem .player-circle { outline: 3px solid #facc15; outline-offset: 2px; }
+
+    /* ── Match-up: modo formas (áreas anotadas sobre o campo) ── */
+    #muBtnForma.ativo { background: #ef4444; border-color: #ef4444; color: #fff; font-weight: 700; }
+    .mu-forma-tipo {
+        background: none; border: 1px solid rgba(239,68,68,.4); color: #f87171; border-radius: 6px;
+        width: 26px; height: 25px; padding: 0; font-size: 13px; line-height: 1; cursor: pointer;
+    }
+    .mu-forma-tipo.ativo { background: #ef4444; border-color: #ef4444; color: #fff; }
+    .mu-campo.mu-modo-forma { cursor: crosshair; }
+    .mu-forma { stroke: #ef4444; stroke-width: 2.5; fill: rgba(239,68,68,.07); pointer-events: none; }
+    polyline.mu-forma { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .mu-forma-texto {
+        fill: #f87171; font-size: 13px; font-weight: 700; pointer-events: none;
+        paint-order: stroke; stroke: rgba(0,0,0,.65); stroke-width: 3px;
+    }
+    .mu-campo.mu-modo-forma .mu-forma { pointer-events: all; cursor: pointer; }
+    .mu-campo.mu-modo-forma .mu-forma-texto { pointer-events: all; cursor: move; }
+    .mu-forma-input {
+        position: absolute; transform: translate(-50%,-50%); z-index: 30; width: 180px;
+        background: rgba(0,0,0,.78); border: 1px solid #ef4444; border-radius: 6px;
+        color: #fff; font-size: 12px; padding: 4px 8px; text-align: center;
+    }
+
+    /* ── Match-up: jogador avulso (fora da API) ── */
+    .mu-btn-add {
+        margin-left: auto; flex: 0 0 auto; width: 20px; height: 20px; padding: 0; line-height: 1;
+        background: rgba(212,165,32,.15); border: 1px solid rgba(212,165,32,.4); border-radius: 6px;
+        color: #d4a520; font-size: 14px; font-weight: 700; cursor: pointer;
+    }
+    .mu-btn-add:hover { background: rgba(212,165,32,.3); }
+    .mu-form-ficticio {
+        display: flex; gap: 6px; padding: 8px 10px;
+        background: rgba(0,0,0,.25); border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .mu-form-ficticio input {
+        background: #0b1526; border: 1px solid rgba(255,255,255,.15); border-radius: 6px;
+        color: #e2e8f0; font-size: 12px; padding: 4px 6px; min-width: 0;
+    }
+    .mu-form-ficticio .mu-fic-num { flex: 0 0 40px; }
+    .mu-form-ficticio .mu-fic-nome { flex: 1 1 auto; }
+    .mu-form-ficticio button {
+        background: #d4a520; border: none; border-radius: 6px; color: #111;
+        font-size: 11px; font-weight: 700; padding: 4px 8px; cursor: pointer;
+    }
+
+    /* ── Hero (cabeçalho da partida) ── */
+    .pgj-hero { background:linear-gradient(135deg,#070d18 0%,#0d1a30 55%,#070d18 100%); padding:32px 40px 26px; border-radius:16px 16px 0 0; }
+    .pgj-hero-pills { display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:18px; flex-wrap:wrap; }
+    .pgj-pill-comp { font-size:.65rem; font-weight:700; letter-spacing:.2em; color:#d4a520; text-transform:uppercase; padding:3px 12px; border:1px solid rgba(212,165,32,.3); border-radius:999px; }
+    .pgj-pill-date { font-size:.65rem; color:#4b5563; }
+    .pgj-hero-teams { display:flex; align-items:center; justify-content:center; gap:26px; flex-wrap:wrap; }
+    .pgj-hero-team { display:flex; flex-direction:column; align-items:center; gap:9px; flex:1; min-width:130px; max-width:200px; }
+    .pgj-hero-escudo { width:60px; height:60px; border-radius:50%; background:rgba(255,255,255,.06); border:2px solid rgba(255,255,255,.12); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+    .pgj-hero-escudo img { width:82%; height:82%; object-fit:contain; }
+    .pgj-hero-nome { font-family:'Barlow Condensed',Arial,sans-serif; font-size:1.2rem; font-weight:800; color:#f1f5f9; text-align:center; }
+    .pgj-hero-forma { display:flex; gap:4px; }
+    .pgj-hero-forma span { width:15px; height:15px; border-radius:3px; display:flex; align-items:center; justify-content:center; font-size:8px; font-weight:800; color:#fff; }
+    .pgj-hero-center { text-align:center; flex-shrink:0; }
+    .pgj-hero-placar { font-family:'Barlow Condensed',Arial,sans-serif; font-size:3.6rem; font-weight:900; color:#f1f5f9; line-height:1; letter-spacing:.04em; }
+    .pgj-hero-pen { font-size:.68rem; color:#6b7280; margin-top:2px; }
+    .pgj-hero-medias { margin-top:8px; display:flex; align-items:center; gap:8px; justify-content:center; flex-wrap:wrap; }
+    .pgj-hero-media { display:flex; flex-direction:column; align-items:center; gap:2px; padding:5px 12px; background:rgba(212,165,32,.1); border:1px solid rgba(212,165,32,.25); border-radius:8px; }
+    .pgj-hero-media .val { font-family:'Barlow Condensed',Arial,sans-serif; font-size:1.2rem; font-weight:900; color:#d4a520; line-height:1; }
+    .pgj-hero-media .lbl { font-size:.55rem; color:#6b7280; text-transform:uppercase; letter-spacing:.1em; }
+
+    /* ── Tabs ── */
+    .pgj-tabs { background:#111; border-bottom:1px solid #1e1e1e; padding:0 40px; display:flex; gap:0; overflow-x:auto; }
+    .pgj-tab { padding:13px 16px; background:transparent; border:none; cursor:pointer; font-size:.8rem; font-weight:600; color:#9ca3af; border-bottom:2px solid transparent; white-space:nowrap; font-family:inherit; }
+    .pgj-tab.active { font-weight:700; color:#d4a520; border-bottom-color:#d4a520; }
+    .pgj-content { padding:22px 40px 40px; }
+    .pgj-panel { display:none; }
+    .pgj-panel.active { display:block; }
+
+    /* ── Notas dos jogadores ── */
+    .pgj-notas-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+    @media (max-width: 760px) { .pgj-notas-grid, .pgj-campo-grid, .pgj-destaques-grid { grid-template-columns:1fr; } }
+    .pgj-team-col { background:#161616; border:1px solid #262626; border-radius:14px; overflow:hidden; }
+    .pgj-team-col-header { padding:12px 16px; background:#111; border-bottom:1px solid #1e1e1e; display:flex; align-items:center; gap:10px; }
+    .pgj-team-col-header img { width:20px; height:20px; object-fit:contain; }
+    .pgj-team-col-nome { font-family:'Barlow Condensed',Arial,sans-serif; font-size:.92rem; font-weight:700; color:#f1f5f9; text-transform:uppercase; flex:1; }
+    .pgj-team-col-media { font-size:.7rem; color:#d4a520; font-weight:700; background:rgba(212,165,32,.1); border:1px solid rgba(212,165,32,.25); padding:2px 8px; border-radius:5px; white-space:nowrap; }
+    .pgj-subsection-label { padding:8px 14px 4px; font-size:.62rem; font-weight:700; color:#4b5563; text-transform:uppercase; letter-spacing:.1em; }
+    .pgj-subsection-label.sep { border-top:1px solid #1e1e1e; margin-top:4px; }
+    .pgj-jog-row { display:flex; align-items:center; gap:10px; padding:9px 14px; border-bottom:1px solid #111; }
+    .pgj-jog-row:last-child { border-bottom:none; }
+    .pgj-jog-row:hover { background:#1e1e1e; }
+    .pgj-jog-num { width:28px; height:28px; border-radius:50%; color:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0; }
+    .pgj-jog-info { flex:1; min-width:0; }
+    .pgj-jog-nome { font-size:.84rem; font-weight:600; color:#e5e7eb; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; text-decoration:none; cursor:pointer; }
+    .pgj-jog-nome:hover { color:#facc15; text-decoration:underline; }
+    .pgj-jog-nome.res { font-weight:500; color:#9ca3af; }
+    .pgj-jog-meta { display:flex; align-items:center; gap:6px; margin-top:2px; flex-wrap:wrap; }
+    .pgj-jog-pos { font-size:.62rem; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:.06em; }
+    .pgj-badge-amarelo { font-size:.65rem; background:#f59e0b; color:#0f0f0f; border-radius:2px; padding:0 5px; font-weight:700; }
+    .pgj-badge-vermelho { font-size:.65rem; background:#ef4444; color:#fff; border-radius:2px; padding:0 5px; font-weight:700; }
+    .pgj-evt-saiu { font-size:.65rem; color:#ef4444; font-weight:600; }
+    .pgj-evt-entrou { font-size:.65rem; color:#22c55e; font-weight:600; }
+    .pgj-jog-nota { width:38px; height:38px; border-radius:50%; border:2px solid #2a2a2a; color:#4b5563; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .pgj-jog-nota span { font-family:'Barlow Condensed',Arial,sans-serif; font-size:.92rem; font-weight:900; line-height:1; }
+    .pgj-vazio { font-size:12px; color:#64748b; padding:14px; }
+
+    /* ── Campinho tático ── */
+    .pgj-campo-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+    .pgj-campo-col-label { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+    .pgj-campo-col-label img { width:18px; height:18px; object-fit:contain; }
+    .pgj-campo-col-label span { font-size:.68rem; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:.14em; }
+    .pgjc-jog { position:absolute; transform:translate(-50%,-50%); text-align:center; z-index:2; }
+    .pgjc-circle { width:30px; height:30px; border-radius:50%; color:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; border:2px solid rgba(255,255,255,.7); margin:0 auto; box-shadow:0 2px 6px rgba(0,0,0,.6); }
+    .pgjc-nome { font-size:7px; color:#fff; text-shadow:1px 1px 2px rgba(0,0,0,.9); margin-top:2px; white-space:nowrap; max-width:60px; overflow:hidden; text-overflow:ellipsis; text-align:center; line-height:1.2; margin-left:auto; margin-right:auto; display:block; text-decoration:none; cursor:pointer; }
+    .pgjc-nome:hover { color:#facc15; text-decoration:underline; }
+    .pgjc-nota { font-size:8px; font-weight:800; padding:1px 4px; border-radius:4px; display:inline-block; margin-top:2px; color:#fff; white-space:nowrap; }
+
+    /* ── Estatísticas ── */
+    .pgj-stats-card { background:#161616; border:1px solid #262626; border-radius:14px; overflow:hidden; margin-bottom:20px; }
+    .pgj-stats-head { padding:12px 18px; background:#111; border-bottom:1px solid #1e1e1e; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .pgj-stats-head-team { display:flex; align-items:center; gap:8px; }
+    .pgj-stats-head-team img { width:16px; height:16px; object-fit:contain; }
+    .pgj-stats-head-team span { font-size:.8rem; font-weight:700; }
+    .pgj-stats-title { font-size:.62rem; font-weight:700; letter-spacing:.16em; color:#6b7280; text-transform:uppercase; }
+    .pgj-stat-row { padding:8px 20px 5px; border-bottom:1px solid #111; }
+    .pgj-stat-row:last-child { border-bottom:none; }
+    .pgj-stat-lbl { text-align:center; font-size:.7rem; color:#6b7280; margin-bottom:5px; font-weight:500; }
+    .pgj-stat-vals { display:flex; align-items:center; gap:12px; }
+    .pgj-stat-vals .num { font-family:'Barlow Condensed',Arial,sans-serif; font-size:1rem; font-weight:800; color:#f1f5f9; min-width:36px; }
+    .pgj-stat-vals .num.right { text-align:right; }
+    .pgj-stat-bar { flex:1; height:6px; background:#222; border-radius:3px; overflow:hidden; display:flex; }
+    .pgj-destaques-grid { display:grid; grid-template-columns:1fr 1fr; gap:0; }
+    .pgj-destaque-card { padding:12px 16px; border-bottom:1px solid #111; border-right:1px solid #111; }
+    .pgj-destaque-label { font-size:.62rem; font-weight:700; color:#4b5563; text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px; }
+    .pgj-destaque-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+    .pgj-destaque-row:last-child { margin-bottom:0; }
+    .pgj-destaque-row img { width:14px; height:14px; object-fit:contain; flex-shrink:0; }
+    .pgj-destaque-nome { font-size:.8rem; font-weight:600; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .pgj-destaque-val { font-family:'Barlow Condensed',Arial,sans-serif; font-size:1rem; font-weight:800; flex-shrink:0; }
+
+    /* ── Observações ── */
+    .pgj-obs-row { background:#161616; border:1px solid #262626; border-radius:10px; padding:14px 16px; display:flex; gap:12px; align-items:flex-start; margin-bottom:12px; }
+    .pgj-obs-badge { flex-shrink:0; font-size:.62rem; font-weight:700; padding:2px 9px; border-radius:999px; white-space:nowrap; color:#fff; }
+    .pgj-obs-badge.MANDANTE { background:#2563eb; }
+    .pgj-obs-badge.VISITANTE { background:#dc2626; }
+    .pgj-obs-badge.COMPETICAO { background:#7c3aed; }
+    .pgj-obs-badge.JOGADOR { background:#059669; }
+    .pgj-obs-badge.MARCO { background:#d97706; }
+    .pgj-obs-jogador { font-size:.8rem; font-weight:700; color:#f1f5f9; flex-shrink:0; }
+    .pgj-obs-texto { font-size:.84rem; color:#9ca3af; margin:0; line-height:1.65; flex:1; }
+    .pgj-obs-editar { color:#4b5563; background:transparent; border:none; cursor:pointer; font-size:.9rem; flex-shrink:0; }
+    .pgj-obs-editar:hover { color:#d4a520; }
+    .pgj-obs-remover { color:#4b5563; background:transparent; border:none; cursor:pointer; font-size:.9rem; flex-shrink:0; }
+    .pgj-obs-remover:hover { color:#f87171; }
+    .pgj-obs-form { background:#161616; border:1px solid #262626; border-radius:12px; padding:16px; }
+    .pgj-obs-form-row { display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+    .pgj-obs-form select { appearance:none; background:#0f0f0f; border:1px solid #2a2a2a; border-radius:8px; color:#e5e7eb; font-size:.85rem; padding:8px 12px; cursor:pointer; outline:none; }
+    .pgj-obs-form button { padding:8px 16px; background:#d4a520; color:#141414; font-size:.82rem; font-weight:800; border:none; border-radius:8px; cursor:pointer; }
+    .pgj-obs-form button:hover { background:#c49918; }
+    .pgj-obs-form textarea { width:100%; padding:10px 12px; background:#0f0f0f; border:1px solid #2a2a2a; border-radius:8px; color:#e5e7eb; font-size:.85rem; outline:none; line-height:1.6; resize:none; box-sizing:border-box; }
