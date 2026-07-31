@@ -92,5 +92,38 @@ namespace ControleFutebolWeb.Tests.Helpers
 
             Assert.True(tabela.FindIndex(t => t.TimeId == 1) < tabela.FindIndex(t => t.TimeId == 3));
         }
+
+        [Fact]
+        public void TimesParticipantes_EntramZerados_MesmoSemJogoRealizado()
+        {
+            var a = T(1, "A"); var b = T(2, "B"); var c = T(3, "C");
+            // Simulador: a tabela lista o campeonato inteiro já na rodada 1, então
+            // C precisa aparecer mesmo sem jogo com placar.
+            var tabela = ClassificacaoCalculator.Calcular(
+                new List<Jogo> { J(1, a, b, 2, 1) },
+                new[] { a, b, c });
+
+            Assert.Equal(3, tabela.Count);
+
+            var linhaC = tabela.Single(t => t.TimeId == 3);
+            Assert.Equal(0, linhaC.Jogos);
+            Assert.Equal(0, linhaC.Pontos);
+            // Entra na ordenação normal: atrás de A (3 pts) e à frente de B, que
+            // perdeu e tem saldo negativo.
+            Assert.Equal(2, linhaC.Posicao);
+            Assert.Equal(3, tabela.Single(t => t.TimeId == 2).Posicao);
+        }
+
+        [Fact]
+        public void TimesParticipantes_NaoDuplicaQuemJaJogou()
+        {
+            var a = T(1, "A"); var b = T(2, "B");
+            var tabela = ClassificacaoCalculator.Calcular(
+                new List<Jogo> { J(1, a, b, 2, 1) },
+                new[] { a, b });
+
+            Assert.Equal(2, tabela.Count);
+            Assert.Equal(3, tabela.Single(t => t.TimeId == 1).Pontos);
+        }
     }
 }

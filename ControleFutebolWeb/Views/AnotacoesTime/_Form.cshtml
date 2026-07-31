@@ -3,9 +3,12 @@
     var time = (ControleFutebolWeb.Models.Time)ViewBag.Time;
     var isEdicao = Model.Id > 0;
     var action = isEdicao ? "Editar" : "Nova";
+    var jogadoresMencao = ViewBag.JogadoresMencao as List<ControleFutebolWeb.Models.ViewModels.JogadorMencaoViewModel>
+        ?? new List<ControleFutebolWeb.Models.ViewModels.JogadorMencaoViewModel>();
 }
 
 <link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/mencao-jogador.css" asp-append-version="true" />
 
 <style>
     .af * { box-sizing: border-box; }
@@ -63,8 +66,8 @@
 
             <div class="af-field">
                 <label class="af-label">Conteúdo *</label>
-                <textarea asp-for="Conteudo" class="af-textarea" placeholder="Escreva livremente…"></textarea>
-                <div class="af-hint">Suporta texto livre com quebras de linha.</div>
+                <textarea asp-for="Conteudo" class="af-textarea" placeholder="Escreva livremente… use @@ para mencionar um jogador"></textarea>
+                <div class="af-hint">Suporta texto livre com quebras de linha. Digite <strong>@@</strong> para mencionar um jogador do elenco.</div>
                 <span asp-validation-for="Conteudo" class="text-danger" style="font-size:12px;"></span>
             </div>
 
@@ -75,3 +78,12 @@
         </form>
     </div>
 </div>
+
+<script src="~/js/mencao-jogador.js" asp-append-version="true"></script>
+<script>
+    (function () {
+        const jogadores = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(jogadoresMencao));
+        window.MencaoJogador.ativar(document.getElementById('Titulo'), () => jogadores);
+        window.MencaoJogador.ativar(document.getElementById('Conteudo'), () => jogadores);
+    })();
+</script>

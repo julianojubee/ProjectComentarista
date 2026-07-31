@@ -1,0 +1,147 @@
+/* Estilos do "@" de menção a jogador (ver wwwroot/js/mencao-jogador.js).
+   Compartilhado entre /Jogos/Analisar e /AnotacoesTime. */
+
+.obs-mencao {
+    color: #d4a520;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.obs-mencao:hover {
+    text-decoration: underline;
+}
+
+.obs-mencao-dropdown {
+    position: absolute;
+    /* acima do editor (10050), que por sua vez fica acima do modal pós-jogo (10000) */
+    z-index: 10100;
+    min-width: 200px;
+    max-height: 220px;
+    overflow-y: auto;
+    background: #161616;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.5);
+    padding: 4px;
+}
+
+.obs-mencao-item {
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #e5e7eb;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.obs-mencao-item.ativo,
+.obs-mencao-item:hover {
+    background: #2a2412;
+    color: #d4a520;
+}
+
+.obs-mencao-vazio {
+    padding: 6px 10px;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+/* ── Editor de texto livre (substitui o prompt() do navegador) ────────────── */
+.mencao-editor-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.7);
+    z-index: 10050;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    overflow-y: auto;
+}
+
+.mencao-editor-box {
+    background: #161616;
+    border: 1px solid #2a2a2a;
+    border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.6);
+    width: 100%;
+    max-width: 720px;
+    padding: 1.2rem 1.4rem 1.1rem;
+    font-family: 'Barlow', Arial, sans-serif;
+    color: #e5e7eb;
+}
+
+.mencao-editor-head {
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: #6b7280;
+    margin-bottom: .7rem;
+}
+
+.mencao-editor-input {
+    width: 100%;
+    background: #0f0f0f;
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
+    color: #f1f5f9;
+    font-family: inherit;
+    font-size: .92rem;
+    line-height: 1.6;
+    padding: .8rem .9rem;
+    outline: none;
+    resize: vertical;
+    min-height: 130px;
+    max-height: 420px;
+}
+
+.mencao-editor-input:focus { border-color: #d4a520; }
+
+.mencao-editor-hint {
+    font-size: .68rem;
+    color: #4b5563;
+    margin-top: .5rem;
+}
+
+.mencao-editor-hint kbd {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 0 5px;
+    color: #d4a520;
+    font-weight: 700;
+}
+
+.mencao-editor-acoes {
+    display: flex;
+    justify-content: flex-end;
+    gap: .6rem;
+    margin-top: 1rem;
+}
+
+.mencao-editor-acoes button {
+    border-radius: 8px;
+    padding: .55rem 1.3rem;
+    font-size: .84rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.mencao-editor-cancelar {
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.12);
+    color: #9ca3af;
+}
+
+.mencao-editor-cancelar:hover { border-color: #444; color: #e5e7eb; }
+
+.mencao-editor-salvar {
+    background: #d4a520;
+    border: none;
+    color: #141414;
+}
+
+.mencao-editor-salvar:hover { background: #c49918; }

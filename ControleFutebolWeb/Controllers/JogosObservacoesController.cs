@@ -1,4 +1,5 @@
 using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -36,26 +37,6 @@ namespace ControleFutebolWeb.Controllers
             public string Texto { get; set; } = "";
         }
 
-        // Reconhece menções "@Nome" no texto livre da observação, comparando com os
-        // jogadores escalados no jogo (o mesmo universo oferecido no dropdown de @).
-        // Compara os nomes mais longos primeiro para não confundir "@João" com "@João Silva".
-        private static List<int> ExtrairMencoes(string texto, IEnumerable<Jogador> disponiveis)
-        {
-            var encontrados = new List<int>();
-            if (string.IsNullOrWhiteSpace(texto)) return encontrados;
-
-            foreach (var jogador in disponiveis
-                         .Where(j => !string.IsNullOrWhiteSpace(j.NomeExibicao))
-                         .OrderByDescending(j => j.NomeExibicao.Length))
-            {
-                var alvo = "@" + jogador.NomeExibicao;
-                if (texto.Contains(alvo, StringComparison.OrdinalIgnoreCase) && !encontrados.Contains(jogador.Id))
-                    encontrados.Add(jogador.Id);
-            }
-
-            return encontrados;
-        }
-
         private async Task SincronizarMencoesAsync(int observacaoId, int jogoId, string texto)
         {
             var mencoesAntigas = _context.ObservacoesJogoTagMencoes.Where(m => m.ObservacaoJogoTagId == observacaoId);
@@ -67,7 +48,9 @@ namespace ControleFutebolWeb.Controllers
                 .Distinct()
                 .ToListAsync();
 
-            foreach (var jogadorId in ExtrairMencoes(texto, jogadoresDoJogo))
+            // O universo comparado é o dos jogadores escalados no jogo — o mesmo
+            // oferecido no dropdown de "@" da tela de análise.
+            foreach (var jogadorId in MencaoJogadorHelper.Extrair(texto, jogadoresDoJogo))
             {
                 _context.ObservacoesJogoTagMencoes.Add(new ObservacaoJogoTagMencao
                 {

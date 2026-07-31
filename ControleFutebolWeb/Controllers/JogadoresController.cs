@@ -926,6 +926,69 @@ namespace ControleFutebolWeb.Controllers
             return View(vm);
         }
 
+        // GET: /Jogadores/ObservacoesJogador?id=X
+        // Tudo que o usuário já escreveu referenciando este jogador: anotações do
+        // clube (/AnotacoesTime) e observações de jogo (/Jogos/Analisar) em que ele
+        // foi mencionado com "@Nome" — mais as observações marcadas com a tag Jogador.
+        [HttpGet]
+        public async Task<IActionResult> ObservacoesJogador(int id)
+        {
+            var uid = _userManager.GetUserId(User);
+
+            var anotacoes = await _context.AnotacoesTimeMencoes
+                .AsNoTracking()
+                .Where(m => m.JogadorId == id && m.AnotacaoTime.UsuarioId == uid)
+                .Select(m => new
+                {
+                    id = m.AnotacaoTime.Id,
+                    titulo = m.AnotacaoTime.Titulo,
+                    texto = m.AnotacaoTime.Conteudo,
+                    categoria = m.AnotacaoTime.Categoria,
+                    data = m.AnotacaoTime.DtInc,
+                    timeId = m.AnotacaoTime.TimeId,
+                    timeNome = m.AnotacaoTime.Time.Nome,
+                    timeEscudo = m.AnotacaoTime.Time.EscudoUrl
+                })
+                .ToListAsync();
+
+            var obsDiretas = await _context.ObservacoesJogoTag
+                .AsNoTracking()
+                .Where(o => o.Tipo == "JOGADOR" && o.JogadorId == id && o.UsuarioId == uid)
+                .Select(o => o.Id)
+                .ToListAsync();
+
+            var obsMencionadas = await _context.ObservacoesJogoTagMencoes
+                .AsNoTracking()
+                .Where(m => m.JogadorId == id && m.ObservacaoJogoTag.UsuarioId == uid)
+                .Select(m => m.ObservacaoJogoTagId)
+                .ToListAsync();
+
+            var idsObs = obsDiretas.Concat(obsMencionadas).Distinct().ToList();
+
+            var observacoesJogo = await _context.ObservacoesJogoTag
+                .AsNoTracking()
+                .Where(o => idsObs.Contains(o.Id))
+                .Select(o => new
+                {
+                    id = o.Id,
+                    texto = o.Texto,
+                    jogoId = o.JogoId,
+                    data = o.Jogo.Data,
+                    competicao = o.Jogo.Competicao != null ? o.Jogo.Competicao.Nome : null,
+                    casa = o.Jogo.TimeCasa.Nome,
+                    visitante = o.Jogo.TimeVisitante.Nome,
+                    placarCasa = o.Jogo.PlacarCasa,
+                    placarVisitante = o.Jogo.PlacarVisitante
+                })
+                .ToListAsync();
+
+            return Json(new
+            {
+                anotacoes = anotacoes.OrderByDescending(a => a.data),
+                observacoesJogo = observacoesJogo.OrderByDescending(o => o.data ?? DateTime.MinValue)
+            });
+        }
+
         // GET: /Jogadores/JogadoresSemelhantes?id=X
         // Retorna até 10 jogadores com perfil parecido ao jogador informado.
         // Critérios derivados do próprio jogador (posição, idade, jogos, gols, assistências);

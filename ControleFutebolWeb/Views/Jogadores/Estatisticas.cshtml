@@ -146,6 +146,13 @@
     }
     .je-btn-semelhantes:hover { background: rgba(34,197,94,0.2); }
 
+    .je-btn-observacoes {
+        display: flex; align-items: center; gap: 7px; padding: 8px 16px;
+        background: rgba(212,165,32,0.1); border: 1px solid rgba(212,165,32,0.28); border-radius: 8px;
+        color: #d4a520; font-size: .8rem; font-weight: 700; cursor: pointer;
+    }
+    .je-btn-observacoes:hover { background: rgba(212,165,32,0.2); }
+
     /* ── Conteúdo principal ── */
     .je-main { padding: 28px 2.5rem 64px; max-width: 1244px; margin: 0 auto; }
 
@@ -355,6 +362,35 @@
     .je-sem-stat-lbl { font-size: .6rem; text-transform: uppercase; color: #6b7280; letter-spacing: .05em; margin-top: .15rem; }
     .je-sem-escudo { width: 14px; height: 14px; object-fit: contain; vertical-align: middle; }
 
+    /* ── Modal: observações que referenciam o jogador ── */
+    .je-obs-secao { margin-bottom: 1.4rem; }
+    .je-obs-secao:last-child { margin-bottom: 0; }
+    .je-obs-secao-titulo {
+        font-size: .68rem; font-weight: 700; letter-spacing: .14em; color: #6b7280;
+        text-transform: uppercase; margin-bottom: .6rem; display: flex; align-items: center; gap: .5rem;
+    }
+    .je-obs-secao-titulo .cnt { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 999px; padding: 1px 8px; letter-spacing: 0; }
+    .je-obs-card { background: #161616; border: 1px solid #262626; border-radius: 12px; padding: .8rem 1rem; margin-bottom: .55rem; }
+    .je-obs-card:hover { border-color: #333; }
+    .je-obs-card-head { display: flex; align-items: flex-start; gap: .6rem; margin-bottom: .4rem; flex-wrap: wrap; }
+    .je-obs-card-titulo { flex: 1; font-size: 1rem; font-weight: 700; color: #f1f5f9; line-height: 1.3; min-width: 0; }
+    .je-obs-cat {
+        font-size: .6rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+        padding: 2px 9px; border-radius: 999px; flex-shrink: 0;
+        background: rgba(212,165,32,.12); border: 1px solid rgba(212,165,32,.3); color: #d4a520;
+    }
+    .je-obs-texto { font-size: .84rem; color: #9ca3af; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+    .je-obs-card-foot {
+        display: flex; align-items: center; justify-content: space-between; gap: .6rem; flex-wrap: wrap;
+        margin-top: .6rem; padding-top: .5rem; border-top: 1px solid #1e1e1e; font-size: .68rem; color: #4b5563;
+    }
+    .je-obs-card-foot a { color: #6b7280; font-weight: 600; text-decoration: none; }
+    .je-obs-card-foot a:hover { color: #d4a520; }
+    .je-obs-clube { display: inline-flex; align-items: center; gap: .35rem; }
+    .je-obs-clube img { width: 14px; height: 14px; object-fit: contain; }
+    .je-obs-mencao { color: #d4a520; font-weight: 600; text-decoration: none; }
+    .je-obs-mencao:hover { text-decoration: underline; }
+
     /* ── Modal: comparar jogadores ── */
     .je-btn-comparar {
         display: flex; align-items: center; gap: 7px; padding: 8px 16px;
@@ -540,6 +576,10 @@
                 <button type="button" class="je-btn-semelhantes" onclick="abrirSemelhantes()">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
                     Semelhantes
+                </button>
+                <button type="button" class="je-btn-observacoes" onclick="abrirObservacoes()">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+                    Observações
                 </button>
                 <button type="button" class="je-btn-comparar" onclick="abrirComparar()">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 11 21 7 17 3" /><line x1="21" y1="7" x2="9" y2="7" /><polyline points="7 21 3 17 7 13" /><line x1="15" y1="17" x2="3" y2="17" /></svg>
@@ -998,6 +1038,17 @@
     </div>
 </div>
 
+<!-- ── Modal: Observações que referenciam o jogador ─────────────────────── -->
+<div class="je-modal-overlay" id="observacoesModal" onclick="if(event.target===this)fecharObservacoes()">
+    <div class="je-modal-box">
+        <div class="je-modal-header">
+            <h2 class="je-modal-titulo">Observações</h2>
+            <button type="button" class="je-modal-close" onclick="fecharObservacoes()">✕</button>
+        </div>
+        <div class="je-modal-body" id="observacoesBody"></div>
+    </div>
+</div>
+
 <!-- ── Modal: Comparar jogadores ────────────────────────────────────────── -->
 <div class="je-modal-overlay" id="compararModal" onclick="if(event.target===this)fecharComparar()">
     <div class="je-modal-box je-cmp-box">
@@ -1208,7 +1259,7 @@
     }
 
     document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') { fecharSemelhantes(); fecharComparar(); }
+        if (e.key === 'Escape') { fecharSemelhantes(); fecharComparar(); fecharObservacoes(); }
     });
 
     function carregarSemelhantes() {
@@ -1282,6 +1333,124 @@
                 <div class="je-sem-stats">${statsHtml}</div>
             </div>`;
         }).join('');
+    }
+
+    // ── Observações que referenciam o jogador ────────────────────────────────
+    // Anotações do clube (/AnotacoesTime) e observações de jogo (/Jogos/Analisar)
+    // em que ele foi citado com "@@Nome".
+    const jogadorNome = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Jogador.NomeExibicao));
+    let observacoesCarregadas = false;
+
+    function abrirObservacoes() {
+        document.getElementById('observacoesModal').classList.add('open');
+        document.body.style.overflow = 'hidden';
+        if (!observacoesCarregadas) {
+            observacoesCarregadas = true;
+            carregarObservacoes();
+        }
+    }
+
+    function fecharObservacoes() {
+        document.getElementById('observacoesModal').classList.remove('open');
+        document.body.style.overflow = '';
+    }
+
+    function carregarObservacoes() {
+        const body = document.getElementById('observacoesBody');
+        body.innerHTML = '<div style="text-align:center;color:#6b7280;padding:2rem;font-size:.9rem;">Buscando observações...</div>';
+
+        fetch(`/Jogadores/ObservacoesJogador?id=${jogadorId}`)
+            .then(r => r.json())
+            .then(data => renderObservacoes(data))
+            .catch(() => {
+                body.innerHTML = '<div style="text-align:center;color:#f87171;padding:2rem;font-size:.9rem;">Erro ao buscar as observações.</div>';
+            });
+    }
+
+    function escHtmlObsJog(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // Destaca a própria menção "@@Nome" dentro do texto, para o trecho relevante saltar aos olhos.
+    function destacarMencaoPropria(texto) {
+        const html = escHtmlObsJog(texto);
+        const alvo = escHtmlObsJog('@@' + jogadorNome).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return html.replace(new RegExp(alvo, 'gi'), m => `<span class="je-obs-mencao">${m}</span>`);
+    }
+
+    function dataBr(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        return isNaN(d) ? '' : d.toLocaleDateString('pt-BR');
+    }
+
+    function renderObservacoes(data) {
+        const body = document.getElementById('observacoesBody');
+        const anotacoes = data.anotacoes || [];
+        const jogos = data.observacoesJogo || [];
+
+        if (!anotacoes.length && !jogos.length) {
+            body.innerHTML = `<div style="text-align:center;color:#6b7280;padding:2rem;font-size:.9rem;">
+                Nenhuma observação referencia este jogador ainda.<br />
+                <span style="font-size:.8rem;">Use <strong>@@${escHtmlObsJog(jogadorNome)}</strong> nas anotações do clube ou nas observações de jogo.</span>
+            </div>`;
+            return;
+        }
+
+        let html = '';
+
+        if (anotacoes.length) {
+            const cards = anotacoes.map(a => {
+                const escudo = a.timeEscudo
+                    ? `<img src="/MediaProxy/Imagem?url=${encodeURIComponent(a.timeEscudo)}" alt="" />`
+                    : '';
+                const cat = a.categoria
+                    ? `<span class="je-obs-cat">${escHtmlObsJog(a.categoria)}</span>`
+                    : '';
+                return `
+                <div class="je-obs-card">
+                    <div class="je-obs-card-head">
+                        <div class="je-obs-card-titulo">${destacarMencaoPropria(a.titulo)}</div>
+                        ${cat}
+                    </div>
+                    <div class="je-obs-texto">${destacarMencaoPropria(a.texto)}</div>
+                    <div class="je-obs-card-foot">
+                        <span class="je-obs-clube">${escudo}${escHtmlObsJog(a.timeNome)} · ${dataBr(a.data)}</span>
+                        <a href="/AnotacoesTime?timeId=${a.timeId}">Ver anotações do clube →</a>
+                    </div>
+                </div>`;
+            }).join('');
+
+            html += `<div class="je-obs-secao">
+                <div class="je-obs-secao-titulo">Anotações do clube <span class="cnt">${anotacoes.length}</span></div>
+                ${cards}
+            </div>`;
+        }
+
+        if (jogos.length) {
+            const cards = jogos.map(o => {
+                const placar = (o.placarCasa != null && o.placarVisitante != null)
+                    ? `${o.placarCasa} – ${o.placarVisitante}`
+                    : '×';
+                const comp = o.competicao ? `${escHtmlObsJog(o.competicao)} · ` : '';
+                return `
+                <div class="je-obs-card">
+                    <div class="je-obs-texto">${destacarMencaoPropria(o.texto)}</div>
+                    <div class="je-obs-card-foot">
+                        <span>${comp}${escHtmlObsJog(o.casa)} ${placar} ${escHtmlObsJog(o.visitante)} · ${dataBr(o.data)}</span>
+                        <a href="/Jogos/Analisar/${o.jogoId}">Ver análise do jogo →</a>
+                    </div>
+                </div>`;
+            }).join('');
+
+            html += `<div class="je-obs-secao">
+                <div class="je-obs-secao-titulo">Observações de jogos <span class="cnt">${jogos.length}</span></div>
+                ${cards}
+            </div>`;
+        }
+
+        body.innerHTML = html;
     }
 
     // ── Comparar com ──────────────────────────────────────────────────────────

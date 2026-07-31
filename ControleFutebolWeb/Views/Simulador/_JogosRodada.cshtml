@@ -1,0 +1,90 @@
+@model ControleFutebolWeb.Models.ViewModels.SimuladorRodadaViewModel
+
+@{
+    var ptBr = new System.Globalization.CultureInfo("pt-BR");
+}
+
+<div id="sim-rodada" data-rodada="@Model.Numero">
+    <div class="sim-rodada-head">
+        <button type="button" class="sim-seta" data-ir="@Model.RodadaAnterior"
+                title="Rodada anterior" @(Model.RodadaAnterior == null ? "disabled" : "")>‹</button>
+        <div class="sim-rodada-titulo">
+            @if (Model.Numero > 0)
+            {
+                <strong>Rodada @Model.Numero</strong>
+            }
+            else
+            {
+                <strong>Sem rodada definida</strong>
+            }
+            <span>@Model.Jogos.Count(j => !j.Realizado) jogo(s) a simular</span>
+        </div>
+        <button type="button" class="sim-seta" data-ir="@Model.RodadaProxima"
+                title="Próxima rodada" @(Model.RodadaProxima == null ? "disabled" : "")>›</button>
+    </div>
+
+    <div class="sim-jogos">
+        @foreach (var item in Model.Jogos)
+        {
+            var j = item.Jogo;
+            @* data-ultimo é o estado já salvo: o simulador.js compara antes de
+               postar, para um blur em campo intocado não regravar o mesmo placar. *@
+            <div class="sim-jogo @(item.Realizado ? "realizado" : "") @(item.Simulado ? "simulado" : "")"
+                 data-jogo="@j.Id"
+                 data-ultimo="@(item.Simulado ? $"{item.PlacarCasa}x{item.PlacarVisitante}" : "vazio")">
+                <div class="sim-jogo-data">
+                    @(j.Data.HasValue ? j.Data.Value.ToLocalTime().ToString("dd/MM HH:mm", ptBr) : "a definir")
+                    @if (item.Realizado)
+                    {
+                        <span class="sim-tag oficial">oficial</span>
+                    }
+                    else if (item.Simulado)
+                    {
+                        <span class="sim-tag palpite">simulado</span>
+                    }
+                </div>
+
+                <div class="sim-jogo-linha">
+                    <div class="sim-lado casa">
+                        <span class="sim-time-nome">@j.TimeCasa?.Nome</span>
+                        <div class="sim-escudo sm">
+                            @if (!string.IsNullOrEmpty(j.TimeCasa?.EscudoUrl))
+                            {
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.TimeCasa.EscudoUrl })" alt="" />
+                            }
+                        </div>
+                    </div>
+
+                    <div class="sim-placar">
+                        @if (item.Realizado)
+                        {
+                            <span class="sim-placar-fixo">@item.PlacarCasa</span>
+                            <span class="sim-x">×</span>
+                            <span class="sim-placar-fixo">@item.PlacarVisitante</span>
+                        }
+                        else
+                        {
+                            <input type="number" class="sim-input" data-lado="casa" min="0" max="99"
+                                   inputmode="numeric" value="@(item.PlacarCasa?.ToString() ?? "")"
+                                   aria-label="Gols de @j.TimeCasa?.Nome" />
+                            <span class="sim-x">×</span>
+                            <input type="number" class="sim-input" data-lado="visitante" min="0" max="99"
+                                   inputmode="numeric" value="@(item.PlacarVisitante?.ToString() ?? "")"
+                                   aria-label="Gols de @j.TimeVisitante?.Nome" />
+                        }
+                    </div>
+
+                    <div class="sim-lado visitante">
+                        <div class="sim-escudo sm">
+                            @if (!string.IsNullOrEmpty(j.TimeVisitante?.EscudoUrl))
+                            {
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.TimeVisitante.EscudoUrl })" alt="" />
+                            }
+                        </div>
+                        <span class="sim-time-nome">@j.TimeVisitante?.Nome</span>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>

@@ -1,0 +1,589 @@
+/* ── Prancheta de jogadas ────────────────────────────────────────────────
+   Editor (modal de /Jogos/Analisar) e player somente-leitura (arsenal de
+   /Times/Details). O campo é sempre horizontal com o time atacando para a
+   direita, e as peças são posicionadas em % (left/top), como no campinho
+   da análise — assim a mesma coordenada serve em qualquer tamanho de tela. */
+
+/* ══ Modal ══════════════════════════════════════════════════════════ */
+#modal-jogadas {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.72);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+}
+
+.jgd-box {
+    background: #0b0f16;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 16px;
+    width: 1180px;
+    max-width: 97vw;
+    max-height: 94vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 12px 40px rgba(0,0,0,.5);
+    overflow: hidden;
+}
+
+.jgd-topo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: .9rem 1.2rem;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+.jgd-titulo {
+    margin: 0;
+    color: #e2e8f0;
+    font-size: 15px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.jgd-fechar {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+/* Abas de time (casa / visitante) */
+.jgd-abas { display: flex; gap: 6px; }
+
+.jgd-aba {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 9px;
+    padding: 5px 12px;
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    max-width: 240px;
+}
+
+.jgd-aba img { width: 20px; height: 20px; object-fit: contain; }
+.jgd-aba span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jgd-aba:hover { color: #e2e8f0; }
+.jgd-aba.ativa { background: rgba(250,204,21,.14); border-color: rgba(250,204,21,.5); color: #facc15; }
+.jgd-aba-contagem { font-size: 11px; opacity: .7; }
+
+.jgd-corpo {
+    display: grid;
+    grid-template-columns: 232px 1fr;
+    gap: 0;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+/* ══ Sidebar: jogadas salvas do time ════════════════════════════════ */
+.jgd-lista {
+    border-right: 1px solid rgba(255,255,255,.08);
+    padding: .8rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.jgd-btn-nova {
+    background: rgba(34,197,94,.12);
+    border: 1px solid rgba(34,197,94,.4);
+    color: #4ade80;
+    border-radius: 8px;
+    padding: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    flex: 0 0 auto;
+}
+
+.jgd-btn-nova:hover { background: rgba(34,197,94,.2); }
+
+.jgd-item {
+    background: rgba(255,255,255,.03);
+    border: 1px solid rgba(255,255,255,.08);
+    border-left: 3px solid transparent;
+    border-radius: 8px;
+    padding: 7px 10px;
+    cursor: pointer;
+    color: #cbd5e1;
+}
+
+.jgd-item:hover { background: rgba(255,255,255,.07); }
+.jgd-item.ativa { border-left-color: #facc15; background: rgba(250,204,21,.1); color: #fde68a; }
+.jgd-item-nome { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jgd-item-meta { font-size: 11px; color: #64748b; margin-top: 2px; }
+.jgd-lista-vazia { color: #64748b; font-size: 12px; text-align: center; padding: 1.2rem .4rem; line-height: 1.5; }
+
+/* ══ Editor ═════════════════════════════════════════════════════════ */
+.jgd-editor { padding: .8rem 1.1rem 1rem; overflow-y: auto; min-width: 0; }
+
+.jgd-vazio {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 320px;
+    color: #64748b;
+    font-size: 13px;
+    text-align: center;
+    line-height: 1.7;
+    padding: 2rem;
+}
+
+.jgd-vazio .jgd-vazio-icone { font-size: 40px; margin-bottom: .6rem; opacity: .5; }
+
+.jgd-barra {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: .6rem;
+}
+
+.jgd-nome-input {
+    background: #111827;
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 7px;
+    color: #e2e8f0;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 5px 10px;
+    width: 230px;
+}
+
+.jgd-nome-input:focus { outline: none; border-color: #facc15; }
+
+.jgd-btn {
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 7px;
+    color: #cbd5e1;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 10px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.jgd-btn:hover:not(:disabled) { background: rgba(255,255,255,.1); color: #fff; }
+.jgd-btn:disabled { opacity: .35; cursor: not-allowed; }
+.jgd-btn.ativo { background: #facc15; border-color: #facc15; color: #0b0f16; }
+.jgd-btn.jgd-btn-play { background: rgba(250,204,21,.14); border-color: rgba(250,204,21,.5); color: #facc15; }
+.jgd-btn.jgd-btn-play:hover { background: rgba(250,204,21,.24); }
+.jgd-btn.jgd-btn-salvar { background: rgba(59,130,246,.15); border-color: rgba(59,130,246,.45); color: #93c5fd; }
+.jgd-btn.jgd-btn-salvar:hover:not(:disabled) { background: rgba(59,130,246,.28); }
+.jgd-btn.jgd-btn-perigo { border-color: rgba(239,68,68,.4); color: #f87171; }
+.jgd-btn.jgd-btn-perigo:hover:not(:disabled) { background: rgba(239,68,68,.15); }
+
+.jgd-sep { width: 1px; align-self: stretch; background: rgba(255,255,255,.1); margin: 0 3px; }
+.jgd-espaco { margin-left: auto; }
+
+.jgd-passo-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 7px;
+    padding: 2px 4px;
+}
+
+.jgd-passo-nav button {
+    background: none;
+    border: none;
+    color: #cbd5e1;
+    font-size: 14px;
+    line-height: 1;
+    padding: 3px 6px;
+    cursor: pointer;
+}
+
+.jgd-passo-nav button:disabled { opacity: .3; cursor: not-allowed; }
+.jgd-passo-nav span { font-size: 12px; color: #facc15; font-weight: 700; min-width: 46px; text-align: center; }
+
+.jgd-vel {
+    background: #111827;
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 7px;
+    color: #cbd5e1;
+    font-size: 12px;
+    padding: 5px 6px;
+}
+
+.jgd-dica-modo {
+    font-size: 11px;
+    color: #facc15;
+    width: 100%;
+    margin: -2px 0 4px;
+}
+
+/* ══ Campo + elenco ═════════════════════════════════════════════════ */
+.jgd-palco { display: grid; grid-template-columns: 178px 1fr; gap: 10px; align-items: start; }
+.jgd-palco.jgd-sem-elenco { grid-template-columns: 1fr; }
+
+.jgd-elenco {
+    background: rgba(255,255,255,.03);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Duas listas: o time que executa a jogada e o adversário que a marca */
+.jgd-elenco-abas { display: flex; border-bottom: 1px solid rgba(255,255,255,.08); }
+
+.jgd-elenco-aba {
+    flex: 1 1 0;
+    min-width: 0;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #64748b;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+    padding: 6px 4px;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.jgd-elenco-aba:hover { color: #cbd5e1; }
+.jgd-elenco-aba.ativa { color: #facc15; border-bottom-color: #facc15; }
+.jgd-elenco-aba.jgd-aba-adv.ativa { color: #60a5fa; border-bottom-color: #60a5fa; }
+
+.jgd-elenco-todos {
+    background: rgba(255,255,255,.05);
+    border: none;
+    border-top: 1px solid rgba(255,255,255,.08);
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 6px;
+    cursor: pointer;
+}
+
+.jgd-elenco-todos:hover:not(:disabled) { background: rgba(255,255,255,.1); color: #e2e8f0; }
+.jgd-elenco-todos:disabled { opacity: .35; cursor: not-allowed; }
+
+.jgd-elenco-busca {
+    background: #111827;
+    border: none;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    color: #e2e8f0;
+    font-size: 12px;
+    padding: 6px 9px;
+    width: 100%;
+}
+
+.jgd-elenco-busca:focus { outline: none; }
+.jgd-elenco-lista { overflow-y: auto; max-height: 340px; }
+
+.jgd-elenco-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 9px;
+    cursor: grab;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+}
+
+.jgd-elenco-item:hover { background: rgba(250,204,21,.1); }
+.jgd-lista-adv .jgd-elenco-item:hover { background: rgba(59,130,246,.14); }
+.jgd-lista-adv .jgd-elenco-num { color: #60a5fa; }
+.jgd-elenco-item.jgd-em-campo { opacity: .35; cursor: default; }
+.jgd-elenco-item.jgd-em-campo:hover { background: none; }
+.jgd-elenco-num { font-size: 11px; font-weight: 700; color: #facc15; min-width: 18px; text-align: center; }
+.jgd-elenco-nome { font-size: 12px; color: #cbd5e1; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jgd-elenco-sigla { font-size: 10px; color: #64748b; font-weight: 700; }
+
+/* A margem lateral existe para as traves: elas ficam fora da linha de fundo,
+   e não sobre o gramado, mantendo .jgd-campo intocado como caixa de coordenadas. */
+.jgd-campo-wrap { position: relative; padding: 0 13px; }
+
+.jgd-trave {
+    position: absolute;
+    top: 50%;
+    height: 17%;
+    width: 13px;
+    transform: translateY(-50%);
+    /* Rede: duas hachuras cruzadas, mais barato e mais nítido que uma imagem */
+    background:
+        repeating-linear-gradient(0deg, rgba(255,255,255,.3) 0 1px, transparent 1px 4px),
+        repeating-linear-gradient(90deg, rgba(255,255,255,.3) 0 1px, transparent 1px 4px);
+    border: 2px solid rgba(255,255,255,.8);
+    box-shadow: 0 1px 4px rgba(0,0,0,.4);
+    pointer-events: none;
+}
+
+.jgd-trave-esq { left: 0; border-right: none; border-radius: 3px 0 0 3px; }
+.jgd-trave-dir { right: 0; border-left: none; border-radius: 0 3px 3px 0; }
+
+.jgd-campo {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1.62 / 1;
+    background: linear-gradient(90deg, #14532d 0%, #166534 50%, #14532d 100%);
+    border: 2px solid rgba(255,255,255,.15);
+    border-radius: 10px;
+    overflow: hidden;
+    touch-action: none;
+}
+
+.jgd-campo .jgd-linha-meio { position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: rgba(255,255,255,.22); }
+.jgd-campo .jgd-circulo {
+    position: absolute; left: 50%; top: 50%; height: 30%; aspect-ratio: 1;
+    border: 1.5px solid rgba(255,255,255,.2); border-radius: 50%; transform: translate(-50%,-50%);
+}
+.jgd-campo .jgd-area-esq, .jgd-campo .jgd-area-dir {
+    position: absolute; top: 20%; bottom: 20%; width: 13%; border: 1.5px solid rgba(255,255,255,.2);
+}
+.jgd-campo .jgd-area-esq { left: -1px; border-left: none; }
+.jgd-campo .jgd-area-dir { right: -1px; border-right: none; }
+.jgd-campo .jgd-gol-esq, .jgd-campo .jgd-gol-dir {
+    position: absolute; top: 38%; bottom: 38%; width: 4.5%;
+    border: 1.5px solid rgba(255,255,255,.25); background: rgba(255,255,255,.05);
+}
+.jgd-campo .jgd-gol-esq { left: -1px; border-left: none; }
+.jgd-campo .jgd-gol-dir { right: -1px; border-right: none; }
+
+/* Seta indicando o lado de ataque — sem ela o usuário não sabe para onde jogar */
+.jgd-campo .jgd-sentido {
+    position: absolute; top: 6px; right: 10px;
+    font-size: 10px; font-weight: 700; color: rgba(255,255,255,.4);
+    letter-spacing: .06em; pointer-events: none;
+}
+
+.jgd-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.jgd-campo.jgd-modo-seta { cursor: crosshair; }
+.jgd-campo.jgd-modo-seta .jgd-svg { pointer-events: none; }
+.jgd-campo.jgd-modo-seta .jgd-svg line.jgd-seta { pointer-events: stroke; cursor: pointer; }
+.jgd-seta { stroke: #facc15; stroke-width: 2.4; }
+.jgd-rastro { stroke: rgba(255,255,255,.35); stroke-width: 1.6; stroke-dasharray: 4 4; }
+
+/* Peça (jogador) */
+.jgd-peca {
+    position: absolute;
+    transform: translate(-50%,-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 74px;
+    cursor: grab;
+    user-select: none;
+    z-index: 4;
+}
+
+.jgd-peca.jgd-arrastando { cursor: grabbing; z-index: 20; }
+.jgd-peca-sigla { font-size: 9px; font-weight: 700; color: rgba(255,255,255,.65); line-height: 1; margin-bottom: 2px; }
+
+/* O disco é o "chão" da peça: sombra, nariz de direção e o círculo empilhados
+   no mesmo espaço. Redimensionar a peça é redimensionar o disco. */
+.jgd-peca-disco { position: relative; width: 30px; height: 30px; }
+
+.jgd-peca-circulo {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; color: #0b0f16;
+    background: #facc15; border: 2px solid rgba(255,255,255,.5);
+    box-shadow: 0 2px 6px rgba(0,0,0,.45);
+}
+
+/* Sombra no chão: alonga na corrida e encolhe no alto da passada */
+.jgd-peca-sombra {
+    position: absolute; left: 50%; bottom: -3px;
+    width: 72%; height: 5px; border-radius: 50%;
+    background: rgba(0,0,0,.4);
+    transform: translateX(-50%);
+    filter: blur(1px);
+    pointer-events: none;
+}
+
+/* Nariz de direção — um círculo é simétrico, então é ele que diz para onde o
+   jogador corre. Só aparece com a peça em movimento, para não poluir o campo
+   parado. Fica atrás do círculo (z-index) e gira em torno do centro do disco. */
+.jgd-peca-facing {
+    position: absolute; inset: 0;
+    opacity: 0;
+    transition: opacity .14s linear;
+    pointer-events: none;
+}
+
+.jgd-peca-facing::before {
+    content: '';
+    position: absolute; left: 50%; top: -8px;
+    transform: translateX(-50%);
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 8px solid #facc15;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,.5));
+}
+
+.jgd-peca.jgd-movendo .jgd-peca-facing { opacity: .95; }
+
+/* Quem está com a bola ganha um anel branco */
+.jgd-peca.jgd-com-bola .jgd-peca-circulo {
+    box-shadow: 0 0 0 2.5px rgba(255,255,255,.95), 0 3px 10px rgba(0,0,0,.55);
+}
+
+.jgd-peca-nome {
+    font-size: 9px; color: #fff; line-height: 1.1; margin-top: 2px; text-align: center;
+    max-width: 74px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    text-shadow: 0 1px 3px rgba(0,0,0,.9);
+}
+
+/* Marcação adversária: azul, o mesmo par de cores que o campinho da análise usa
+   para casa e visitante, para não inventar um terceiro código de cor. */
+.jgd-peca.jgd-adv .jgd-peca-circulo { background: #3b82f6; color: #fff; }
+.jgd-peca.jgd-adv .jgd-peca-sigla { color: rgba(191,219,254,.8); }
+.jgd-peca.jgd-adv .jgd-peca-facing::before { border-bottom-color: #3b82f6; }
+
+.jgd-peca-remover {
+    position: absolute; top: 6px; right: 6px;
+    width: 15px; height: 15px; border-radius: 50%;
+    background: #ef4444; border: none; color: #fff;
+    font-size: 10px; line-height: 1; padding: 0; cursor: pointer;
+    display: none;
+}
+
+.jgd-peca:hover .jgd-peca-remover { display: block; }
+.jgd-tocando .jgd-peca-remover { display: none !important; }
+.jgd-tocando .jgd-peca, .jgd-tocando .jgd-bola { cursor: default; }
+
+/* Fantasma do passo anterior: referência de onde a peça saiu */
+.jgd-fantasma {
+    position: absolute; transform: translate(-50%,-50%);
+    width: 30px; height: 30px; border-radius: 50%;
+    border: 1.5px dashed rgba(255,255,255,.45);
+    background: rgba(255,255,255,.06);
+    pointer-events: none; z-index: 2;
+}
+
+.jgd-bola {
+    position: absolute; transform: translate(-50%,-50%);
+    width: 17px; height: 17px; border-radius: 50%;
+    background: radial-gradient(circle at 32% 30%, #fff 0%, #e5e7eb 55%, #9ca3af 100%);
+    border: 1.5px solid rgba(0,0,0,.55);
+    box-shadow: 0 2px 7px rgba(0,0,0,.6);
+    cursor: grab; z-index: 12;
+}
+
+/* Gomo assimétrico: sem ele o giro da bola seria invisível numa esfera lisa */
+.jgd-bola::before {
+    content: '';
+    position: absolute; left: 50%; top: 2px;
+    width: 5px; height: 5px; border-radius: 50%;
+    background: rgba(17,24,39,.7);
+    transform: translateX(-50%);
+}
+
+/* Sombra da bola: fica no chão enquanto a bola sobe no cruzamento */
+.jgd-bola-sombra {
+    position: absolute; transform: translate(-50%,-50%);
+    width: 14px; height: 5px; border-radius: 50%;
+    background: rgba(0,0,0,.42);
+    filter: blur(1.5px);
+    pointer-events: none; z-index: 11;
+}
+
+.jgd-bola.jgd-arrastando { cursor: grabbing; }
+
+/* Legenda do passo sobreposta ao campo durante a reprodução */
+.jgd-legenda-palco {
+    position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
+    background: rgba(0,0,0,.72); border: 1px solid rgba(255,255,255,.14);
+    border-radius: 8px; padding: 5px 14px;
+    color: #fde68a; font-size: 12px; font-weight: 600;
+    max-width: 82%; text-align: center; pointer-events: none;
+    z-index: 30; display: none;
+}
+
+.jgd-legenda-palco.jgd-visivel { display: block; }
+
+/* ══ Timeline de passos ═════════════════════════════════════════════ */
+.jgd-timeline {
+    display: flex; align-items: center; gap: 5px;
+    margin-top: .6rem; flex-wrap: wrap;
+}
+
+.jgd-chip {
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 7px;
+    color: #94a3b8;
+    font-size: 11px; font-weight: 700;
+    padding: 4px 9px; cursor: pointer;
+    max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.jgd-chip:hover { color: #e2e8f0; border-color: rgba(255,255,255,.25); }
+.jgd-chip.ativo { background: #facc15; border-color: #facc15; color: #0b0f16; }
+
+.jgd-legenda-input {
+    background: #111827;
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 7px;
+    color: #e2e8f0; font-size: 12px;
+    padding: 6px 10px; width: 100%; margin-top: .55rem;
+}
+
+.jgd-legenda-input:focus { outline: none; border-color: #facc15; }
+
+.jgd-rodape-dica { font-size: 11px; color: #64748b; margin-top: .5rem; line-height: 1.6; }
+
+/* ══ Arsenal em /Times/Details ══════════════════════════════════════ */
+.jgd-arsenal-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 14px;
+}
+
+.jgd-arsenal-card {
+    background: rgba(255,255,255,.03);
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 12px;
+    padding: .8rem;
+}
+
+.jgd-arsenal-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: .55rem; }
+.jgd-arsenal-nome { font-size: 14px; font-weight: 700; color: #f1f5f9; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jgd-arsenal-meta { font-size: 11px; color: #64748b; white-space: nowrap; }
+.jgd-arsenal-desc { font-size: 12px; color: #94a3b8; margin: .5rem 0 0; line-height: 1.5; }
+.jgd-arsenal-acoes { display: flex; align-items: center; gap: 6px; margin-top: .55rem; flex-wrap: wrap; }
+.jgd-arsenal-vazio { color: #64748b; font-size: 13px; padding: 1.5rem 0; text-align: center; line-height: 1.7; }
+
+/* Card do arsenal é mais estreito: encolhe as peças para o nome não virar sopa */
+.jgd-arsenal-card .jgd-peca { width: 60px; }
+.jgd-arsenal-card .jgd-peca-disco { width: 24px; height: 24px; }
+.jgd-arsenal-card .jgd-peca-circulo { font-size: 10px; border-width: 1.5px; }
+.jgd-arsenal-card .jgd-peca-facing::before { border-left-width: 4px; border-right-width: 4px; border-bottom-width: 6px; top: -6px; }
+.jgd-arsenal-card .jgd-peca-nome { max-width: 60px; font-size: 8px; }
+.jgd-arsenal-card .jgd-bola { width: 14px; height: 14px; }
+.jgd-arsenal-card .jgd-bola::before { width: 4px; height: 4px; top: 1.5px; }
+.jgd-arsenal-card .jgd-bola-sombra { width: 11px; height: 4px; }
+.jgd-arsenal-card .jgd-campo-wrap { padding: 0 8px; }
+.jgd-arsenal-card .jgd-trave { width: 8px; border-width: 1.5px; }
+
+@media (max-width: 900px) {
+    .jgd-corpo { grid-template-columns: 1fr; }
+    .jgd-lista { border-right: none; border-bottom: 1px solid rgba(255,255,255,.08); max-height: 150px; }
+    .jgd-palco { grid-template-columns: 1fr; }
+    .jgd-elenco-lista { max-height: 150px; }
+}

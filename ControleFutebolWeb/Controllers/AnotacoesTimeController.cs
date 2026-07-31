@@ -21,6 +21,43 @@ namespace ControleFutebolWeb.Controllers
             _userManager = userManager;
         }
 
+        // Elenco do time — universo do dropdown de "@" e das menções reconhecidas.
+        private Task<List<Jogador>> JogadoresDoTimeAsync(int timeId) =>
+            _context.Jogadores
+                .AsNoTracking()
+                .Where(j => j.TimeId == timeId)
+                .ToListAsync();
+
+        // Elenco no formato consumido pelo dropdown de "@" e pelo realce das menções.
+        private async Task<List<JogadorMencaoViewModel>> JogadoresMencaoAsync(int timeId) =>
+            (await JogadoresDoTimeAsync(timeId))
+                .Where(j => !string.IsNullOrWhiteSpace(j.NomeExibicao))
+                .OrderBy(j => j.NomeExibicao)
+                .Select(j => new JogadorMencaoViewModel { Id = j.Id, Nome = j.NomeExibicao })
+                .ToList();
+
+        // Regrava as menções "@Nome" de uma anotação a partir do texto salvo
+        // (título + conteúdo), para que o jogador citado veja a anotação no perfil dele.
+        private async Task SincronizarMencoesAsync(AnotacaoTime anotacao)
+        {
+            _context.AnotacoesTimeMencoes.RemoveRange(
+                _context.AnotacoesTimeMencoes.Where(m => m.AnotacaoTimeId == anotacao.Id));
+
+            var elenco = await JogadoresDoTimeAsync(anotacao.TimeId);
+            var texto = $"{anotacao.Titulo}\n{anotacao.Conteudo}";
+
+            foreach (var jogadorId in MencaoJogadorHelper.Extrair(texto, elenco))
+            {
+                _context.AnotacoesTimeMencoes.Add(new AnotacaoTimeMencao
+                {
+                    AnotacaoTimeId = anotacao.Id,
+                    JogadorId = jogadorId
+                });
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
         // GET: /AnotacoesTime?timeId=1&q=sondagem
         public async Task<IActionResult> Index(int timeId, string? q)
         {
@@ -83,6 +120,7 @@ namespace ControleFutebolWeb.Controllers
             ViewBag.ObservacoesJogos = observacoesJogos;
             ViewBag.ContagemCategorias = contagemCategorias;
             ViewBag.NovaAnotacao = new AnotacaoTime { TimeId = timeId };
+            ViewBag.JogadoresMencao = await JogadoresMencaoAsync(timeId);
             return View(anotacoes);
         }
 
@@ -94,6 +132,7 @@ namespace ControleFutebolWeb.Controllers
             if (time == null) return NotFound();
 
             ViewBag.Time = time;
+            ViewBag.JogadoresMencao = await JogadoresMencaoAsync(timeId);
             return View(new AnotacaoTime { TimeId = timeId });
         }
 
@@ -105,6 +144,7 @@ namespace ControleFutebolWeb.Controllers
             if (!ModelState.IsValid)
             {
                 ViewBag.Time = await _context.Times.FindAsync(model.TimeId);
+                ViewBag.JogadoresMencao = await JogadoresMencaoAsync(model.TimeId);
                 return View(model);
             }
 
@@ -112,6 +152,8 @@ namespace ControleFutebolWeb.Controllers
             model.UsuarioId = _userManager.GetUserId(User);
             _context.AnotacoesTime.Add(model);
             await _context.SaveChangesAsync();
+
+            await SincronizarMencoesAsync(model);
 
             TempData["Sucesso"] = "✅ Anotação salva.";
             return RedirectToAction(nameof(Index), new { timeId = model.TimeId });
@@ -128,6 +170,7 @@ namespace ControleFutebolWeb.Controllers
             if (anotacao == null) return NotFound();
 
             ViewBag.Time = anotacao.Time;
+            ViewBag.JogadoresMencao = await JogadoresMencaoAsync(anotacao.TimeId);
             return View(anotacao);
         }
 
@@ -141,6 +184,7 @@ namespace ControleFutebolWeb.Controllers
             if (!ModelState.IsValid)
             {
                 ViewBag.Time = await _context.Times.FindAsync(model.TimeId);
+                ViewBag.JogadoresMencao = await JogadoresMencaoAsync(model.TimeId);
                 return View(model);
             }
 
@@ -154,6 +198,8 @@ namespace ControleFutebolWeb.Controllers
             existing.DtAlt     = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
+
+            await SincronizarMencoesAsync(existing);
 
             TempData["Sucesso"] = "✅ Anotação atualizada.";
             return RedirectToAction(nameof(Index), new { timeId = existing.TimeId });

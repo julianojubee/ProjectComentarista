@@ -40,10 +40,40 @@
         return sb.ToString();
     }
 
+    var jogadoresMencao = ViewBag.JogadoresMencao as List<ControleFutebolWeb.Models.ViewModels.JogadorMencaoViewModel>
+        ?? new List<ControleFutebolWeb.Models.ViewModels.JogadorMencaoViewModel>();
+
+    // Transforma "@Nome do Jogador" em link para o perfil dele. Recebe o HTML já
+    // escapado (saída de Realcar), então os nomes também são escapados antes de
+    // virarem padrão. Numa passada só e com os nomes mais longos primeiro, para
+    // "@João Silva" não ser cortado no meio por um "@João".
+    string ComMencoes(string html)
+    {
+        if (jogadoresMencao.Count == 0) return html;
+
+        var idPorNome = new Dictionary<string, int>();
+        foreach (var j in jogadoresMencao)
+        {
+            var nomeEsc = System.Web.HttpUtility.HtmlEncode(j.Nome);
+            if (!idPorNome.ContainsKey(nomeEsc)) idPorNome[nomeEsc] = j.Id;
+        }
+
+        var alternativas = idPorNome.Keys
+            .OrderByDescending(n => n.Length)
+            .Select(System.Text.RegularExpressions.Regex.Escape);
+        var regex = new System.Text.RegularExpressions.Regex("@(" + string.Join("|", alternativas) + ")");
+
+        return regex.Replace(html, m =>
+            $"<a class=\"obs-mencao\" href=\"/Jogadores/Estatisticas/{idPorNome[m.Groups[1].Value]}\">@{m.Groups[1].Value}</a>");
+    }
+
+    string Formatar(string texto) => ComMencoes(Realcar(texto));
+
     string[] categorias = { "Sondagem", "Informação", "Curiosidade", "Demissão" };
 }
 
 <link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/mencao-jogador.css" asp-append-version="true" />
 
 <style>
     .an * { box-sizing: border-box; }
@@ -231,6 +261,9 @@
     }
     .an-form-save:hover { background: #c49918; }
 
+    .an-mencao-hint { font-size: 0.68rem; color: #4b5563; margin-top: 6px; line-height: 1.5; }
+    .an-mencao-hint kbd { background: #1e1e1e; border: 1px solid #333; border-radius: 4px; padding: 0 5px; color: #d4a520; font-weight: 700; }
+
     /* ── Resumo ──────────────────────────────────── */
     .an-resumo { background: #161616; border: 1px solid #262626; border-radius: 12px; padding: 18px; margin-top: 16px; }
     .an-resumo-title { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.14em; color: #4b5563; text-transform: uppercase; margin-bottom: 14px; }
@@ -347,13 +380,13 @@
                             <div class="an-bar" style="background:@cor.line;"></div>
                             <div class="an-card-body">
                                 <div class="an-card-head">
-                                    <div class="an-card-title">@Html.Raw(Realcar(a.Titulo))</div>
+                                    <div class="an-card-title">@Html.Raw(Formatar(a.Titulo))</div>
                                     @if (!string.IsNullOrEmpty(a.Categoria))
                                     {
                                         <span class="an-card-cat" style="background:@cor.bg;border:1px solid @cor.border;color:@cor.text;">@a.Categoria</span>
                                     }
                                 </div>
-                                <div class="an-card-content">@Html.Raw(Realcar(a.Conteudo))</div>
+                                <div class="an-card-content">@Html.Raw(Formatar(a.Conteudo))</div>
                                 <div class="an-card-footer">
                                     <span class="an-card-date">
                                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
@@ -425,7 +458,7 @@
                                 {
                                     <li class="an-game-obs-item">
                                         <div class="an-game-obs-dot"></div>
-                                        <span class="an-game-obs-text">@Html.Raw(Realcar(linha))</span>
+                                        <span class="an-game-obs-text">@Html.Raw(Formatar(linha))</span>
                                     </li>
                                 }
                             </ul>
@@ -454,7 +487,7 @@
 
                     <div class="an-field">
                         <label>Título</label>
-                        <input type="text" name="Titulo" placeholder="Ex: Interesse em atacante..." required />
+                        <input type="text" id="nova-titulo" name="Titulo" placeholder="Ex: Interesse em atacante..." autocomplete="off" required />
                     </div>
 
                     <div class="an-field">
@@ -470,7 +503,8 @@
 
                     <div class="an-field">
                         <label>Conteúdo</label>
-                        <textarea name="Conteudo" placeholder="Escreva a anotação..." required></textarea>
+                        <textarea id="nova-conteudo" name="Conteudo" placeholder="Escreva a anotação... use @@ para mencionar um jogador" required></textarea>
+                        <div class="an-mencao-hint">Digite <kbd>@@</kbd> para mencionar um jogador do elenco — a anotação aparece no perfil dele.</div>
                     </div>
 
                     <button type="submit" class="an-form-save">Salvar Anotação</button>
@@ -496,6 +530,7 @@
     </div>
 </div>
 
+<script src="~/js/mencao-jogador.js" asp-append-version="true"></script>
 <script>
     // Ctrl+F foca na busca em vez de abrir o browser
     document.addEventListener('keydown', e => {
@@ -506,4 +541,11 @@
             inp.select();
         }
     });
+
+    // "@@" no formulário de nova anotação sugere jogadores do elenco deste time.
+    (function () {
+        const jogadores = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(jogadoresMencao));
+        window.MencaoJogador.ativar(document.getElementById('nova-titulo'), () => jogadores);
+        window.MencaoJogador.ativar(document.getElementById('nova-conteudo'), () => jogadores);
+    })();
 </script>

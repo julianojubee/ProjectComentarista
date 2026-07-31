@@ -1,0 +1,137 @@
+@model ControleFutebolWeb.Models.ViewModels.SimuladorViewModel
+@removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
+
+@{
+    ViewData["Title"] = "Simulador";
+    var temCompeticao = Model.Competicao != null;
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/simulador.css" asp-append-version="true" />
+}
+
+<div class="sim-root" id="sim-root"
+     data-competicao="@(Model.Competicao?.Id)"
+     data-temporada="@(Model.Temporada)">
+
+    <div class="sim-hero">
+        <div class="sim-hero-inner">
+            <div class="sim-hero-titulo">
+                <span class="sim-kicker">Pontos corridos</span>
+                <h1>Simulador de Tabela</h1>
+                <p>Preencha os placares dos jogos que faltam e veja a classificação mudar na hora. Cada placar é salvo automaticamente.</p>
+            </div>
+
+            <form method="get" asp-action="Index" class="sim-filtros" id="sim-filtros">
+                <label>
+                    <span>Competição</span>
+                    <select name="competicaoId" id="sim-select-competicao">
+                        <option value="">Escolha uma competição…</option>
+                        @foreach (var c in Model.CompeticoesDisponiveis)
+                        {
+                            <option value="@c.Id" selected="@(c.Id == Model.Competicao?.Id)">@c.Nome</option>
+                        }
+                    </select>
+                </label>
+
+                @if (temCompeticao && Model.TemporadasDisponiveis.Count > 1)
+                {
+                    <label>
+                        <span>Temporada</span>
+                        <select name="temporada" id="sim-select-temporada">
+                            @foreach (var t in Model.TemporadasDisponiveis)
+                            {
+                                <option value="@t" selected="@(t == Model.Temporada)">@t</option>
+                            }
+                        </select>
+                    </label>
+                }
+                <noscript><button type="submit" class="sim-btn">Carregar</button></noscript>
+            </form>
+        </div>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="sim-aviso ok">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="sim-aviso erro">@TempData["Erro"]</div>
+    }
+    @if (TempData["Mensagem"] != null)
+    {
+        <div class="sim-aviso">@TempData["Mensagem"]</div>
+    }
+
+    @if (!temCompeticao)
+    {
+        <div class="sim-vazio">
+            <div class="sim-vazio-ico">🧮</div>
+            <h2>Escolha uma competição para simular</h2>
+            <p>
+                Só competições de <strong>pontos corridos</strong> aparecem na lista — mata-mata
+                depende de chaveamento, onde o resultado de um jogo muda quem joga o seguinte.
+            </p>
+            @if (Model.CompeticoesDisponiveis.Count == 0)
+            {
+                <p class="sim-vazio-alerta">
+                    Nenhuma competição de pontos corridos com jogos importados foi encontrada.
+                    Cadastre o formato em <a asp-controller="Competicoes" asp-action="Index">Competições</a>.
+                </p>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="sim-barra">
+            <div class="sim-status">
+                <span class="sim-chip">
+                    <strong id="sim-contador">@Model.TotalSimulados</strong> de @Model.TotalPendentes jogos simulados
+                </span>
+                <span class="sim-salvo" id="sim-salvo"></span>
+            </div>
+
+            <form method="post" asp-action="Limpar" class="sim-form-limpar"
+                  onsubmit="return confirm('Apagar todos os placares simulados desta competição?');">
+                <input type="hidden" name="competicaoId" value="@Model.Competicao!.Id" />
+                <input type="hidden" name="temporada" value="@Model.Temporada" />
+                <button type="submit" class="sim-btn danger">🗑 Limpar simulação</button>
+            </form>
+        </div>
+
+        <div class="sim-grid">
+            <section class="sim-painel">
+                <header class="sim-painel-head">
+                    <h2>Classificação</h2>
+                    <span>@Model.Competicao.Nome @Model.Temporada</span>
+                </header>
+                <partial name="_TabelaSimulada" model="Model" />
+            </section>
+
+            <section class="sim-painel">
+                <header class="sim-painel-head">
+                    <h2>Jogos que faltam</h2>
+                    <span>@Model.TotalPendentes no total</span>
+                </header>
+
+                @if (Model.Rodada == null)
+                {
+                    <div class="sim-vazio compacto">
+                        <div class="sim-vazio-ico">🏆</div>
+                        <h2>Nada a simular</h2>
+                        <p>Todos os jogos desta temporada já têm resultado oficial.</p>
+                    </div>
+                }
+                else
+                {
+                    <partial name="_JogosRodada" model="Model.Rodada" />
+                }
+            </section>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/simulador.js" asp-append-version="true"></script>
+}

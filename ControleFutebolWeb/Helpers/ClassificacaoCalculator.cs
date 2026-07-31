@@ -15,9 +15,22 @@ namespace ControleFutebolWeb.Helpers
         /// <summary>
         /// Acumula pontos/gols e ordena por Pontos → Saldo → Gols pró → Vitórias.
         /// </summary>
-        public static List<Classificacao> Calcular(List<Jogo> jogos)
+        /// <param name="timesParticipantes">
+        /// Opcional: times que devem aparecer zerados mesmo sem jogo realizado. Usado pelo
+        /// simulador, onde a tabela precisa listar o campeonato inteiro desde a rodada 1.
+        /// </param>
+        public static List<Classificacao> Calcular(List<Jogo> jogos, IEnumerable<Time>? timesParticipantes = null)
         {
             var tabela = new Dictionary<int, Classificacao>();
+
+            if (timesParticipantes != null)
+            {
+                foreach (var time in timesParticipantes)
+                {
+                    if (time != null && !tabela.ContainsKey(time.Id))
+                        tabela[time.Id] = new Classificacao { TimeId = time.Id, Time = time };
+                }
+            }
 
             foreach (var jogo in jogos)
             {

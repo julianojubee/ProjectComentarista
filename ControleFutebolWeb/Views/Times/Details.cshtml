@@ -25,6 +25,7 @@
 }
 
 <link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/jogadas.css" asp-append-version="true" />
 
 <style>
     body {
@@ -831,6 +832,19 @@
     initUsados();
 </script>
 
+<!-- ══ ARSENAL DE JOGADAS ═══════════════════════════════════════════════════
+     As jogadas nascem dentro da análise de um jogo (modal 🎬 Jogadas), mas são
+     gravadas com o TimeId — aqui elas se juntam no acervo do time, de todas as
+     partidas. Só reprodução: editar é no jogo de origem (link "Editar"). -->
+<div id="painel-jogadas-time" style="margin-top:2rem;">
+    <div style="background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:1.5rem;">
+        <h5 style="color:#f1f5f9;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;margin-bottom:1rem;">
+            🎬 Arsenal de Jogadas
+        </h5>
+        <div id="jgd-arsenal"></div>
+    </div>
+</div>
+
 <!-- ══ ESTATÍSTICAS DA TEMPORADA (API) ══════════════════════════════════════ -->
 <div id="painel-estatisticas-api" style="margin-top:2rem;">
     <div style="background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:1.5rem;">
@@ -1075,4 +1089,10 @@ function statBox(label, valor, cor, sub) {
         ${sub ? `<div style="font-size:11px;color:#64748b;">${sub}</div>` : ''}
     </div>`;
 }
+</script>
+
+<!-- Arsenal de jogadas: carregado sob demanda (uma chamada por time). -->
+<script src="~/js/jogadas.js" asp-append-version="true"></script>
+<script>
+    Jogadas.montarArsenal("jgd-arsenal", @Model.Time.Id);
 </script>

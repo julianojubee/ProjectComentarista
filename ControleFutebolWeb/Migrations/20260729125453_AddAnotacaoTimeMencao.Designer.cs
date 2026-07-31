@@ -3,6 +3,7 @@ using System;
 using ControleFutebolWeb.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ControleFutebolWeb.Migrations
 {
     [DbContext(typeof(FutebolContext))]
-    partial class FutebolContextModelSnapshot : ModelSnapshot
+    [Migration("20260729125453_AddAnotacaoTimeMencao")]
+    partial class AddAnotacaoTimeMencao
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -992,69 +995,6 @@ namespace ControleFutebolWeb.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("formacoes");
-                });
-
-            modelBuilder.Entity("ControleFutebolWeb.Models.Jogada", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("AtualizadoEm")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("atualizadoem");
-
-                    b.Property<DateTime>("CriadoEm")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("criadoem");
-
-                    b.Property<string>("Descricao")
-                        .HasMaxLength(400)
-                        .HasColumnType("character varying(400)")
-                        .HasColumnName("descricao");
-
-                    b.Property<int>("JogoId")
-                        .HasColumnType("integer")
-                        .HasColumnName("jogoid");
-
-                    b.Property<string>("Nome")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("character varying(80)")
-                        .HasColumnName("nome");
-
-                    b.Property<int>("Ordem")
-                        .HasColumnType("integer")
-                        .HasColumnName("ordem");
-
-                    b.Property<string>("PassosJson")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("passosjson");
-
-                    b.Property<int>("TimeId")
-                        .HasColumnType("integer")
-                        .HasColumnName("timeid");
-
-                    b.Property<string>("UsuarioId")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("usuarioid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("JogoId");
-
-                    b.HasIndex("TimeId");
-
-                    b.HasIndex("UsuarioId", "JogoId");
-
-                    b.HasIndex("UsuarioId", "TimeId");
-
-                    b.ToTable("jogadas");
                 });
 
             modelBuilder.Entity("ControleFutebolWeb.Models.Jogador", b =>
@@ -2689,33 +2629,6 @@ namespace ControleFutebolWeb.Migrations
                         .IsRequired();
 
                     b.Navigation("Jogo");
-
-                    b.Navigation("Usuario");
-                });
-
-            modelBuilder.Entity("ControleFutebolWeb.Models.Jogada", b =>
-                {
-                    b.HasOne("ControleFutebolWeb.Models.Jogo", "Jogo")
-                        .WithMany()
-                        .HasForeignKey("JogoId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("ControleFutebolWeb.Models.Time", "Time")
-                        .WithMany()
-                        .HasForeignKey("TimeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("ControleFutebolWeb.Models.ApplicationUser", "Usuario")
-                        .WithMany()
-                        .HasForeignKey("UsuarioId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Jogo");
-
-                    b.Navigation("Time");
 
                     b.Navigation("Usuario");
                 });

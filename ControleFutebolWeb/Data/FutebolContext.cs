@@ -33,11 +33,14 @@ namespace ControleFutebolWeb.Data
         public DbSet<EstatisticaJogador> EstatisticasJogador { get; set; }
         public DbSet<CriterioNota> CriteriosNota { get; set; }
         public DbSet<AnotacaoTime> AnotacoesTime { get; set; }
+        public DbSet<AnotacaoTimeMencao> AnotacoesTimeMencoes { get; set; }
         public DbSet<JogoAnalisadoUsuario> JogosAnalisadosUsuario { get; set; }
         public DbSet<ObservacaoJogoUsuario> ObservacoesJogoUsuario { get; set; }
         public DbSet<ObservacaoJogoTag> ObservacoesJogoTag { get; set; }
         public DbSet<ObservacaoJogoTagMencao> ObservacoesJogoTagMencoes { get; set; }
         public DbSet<CompeticaoTopTierUsuario> CompeticoesTopTierUsuario { get; set; }
+        public DbSet<SimulacaoJogoUsuario> SimulacoesJogoUsuario { get; set; }
+        public DbSet<Jogada> Jogadas { get; set; }
         public DbSet<CronometroPartida> CronometrosPartida { get; set; }
         public DbSet<FaseTatica> FasesTaticas { get; set; }
         public DbSet<CuriosidadeTime> CuriosidadesTime { get; set; }
@@ -294,6 +297,20 @@ namespace ControleFutebolWeb.Data
                 entity.HasIndex(m => m.ObservacaoJogoTagId);
             });
 
+            // Menções a jogadores dentro do texto de uma anotação de time (via "@Nome"):
+            // apagar a anotação (ou o jogador) apaga as menções junto.
+            modelBuilder.Entity<AnotacaoTimeMencao>(entity =>
+            {
+                entity.HasOne(m => m.AnotacaoTime).WithMany()
+                    .HasForeignKey(m => m.AnotacaoTimeId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(m => m.Jogador).WithMany()
+                    .HasForeignKey(m => m.JogadorId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(m => m.JogadorId);
+                entity.HasIndex(m => m.AnotacaoTimeId);
+            });
+
             // Transferências: apagar time/jogo não apaga o histórico (FK vira null);
             // apagar o jogador remove as transferências dele junto.
             modelBuilder.Entity<Transferencia>(entity =>
@@ -317,6 +334,38 @@ namespace ControleFutebolWeb.Data
                 entity.HasOne(f => f.Competicao).WithMany(c => c.Fases)
                     .HasForeignKey(f => f.CompeticaoId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Palpites do simulador — um por jogo por usuário (salvar de novo sobrescreve).
+            modelBuilder.Entity<SimulacaoJogoUsuario>(entity =>
+            {
+                entity.HasIndex(s => new { s.UsuarioId, s.JogoId }).IsUnique();
+                // Consulta da tela e do "limpar simulação": tudo de um usuário na temporada.
+                entity.HasIndex(s => new { s.UsuarioId, s.CompeticaoId, s.Temporada });
+
+                entity.HasOne(s => s.Jogo).WithMany()
+                    .HasForeignKey(s => s.JogoId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(s => s.Usuario).WithMany()
+                    .HasForeignKey(s => s.UsuarioId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Jogadas desenhadas na prancheta tática (modal Jogadas de /Jogos/Analisar).
+            modelBuilder.Entity<Jogada>(entity =>
+            {
+                // Lista do modal: as jogadas do usuário naquele jogo (os dois times).
+                entity.HasIndex(j => new { j.UsuarioId, j.JogoId });
+                // Arsenal de /Times/Details: tudo que o usuário já desenhou para o time.
+                entity.HasIndex(j => new { j.UsuarioId, j.TimeId });
+
+                entity.Property(j => j.Nome).HasMaxLength(80);
+                entity.Property(j => j.Descricao).HasMaxLength(400);
+
+                entity.HasOne(j => j.Jogo).WithMany()
+                    .HasForeignKey(j => j.JogoId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(j => j.Usuario).WithMany()
+                    .HasForeignKey(j => j.UsuarioId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(j => j.Time).WithMany()
+                    .HasForeignKey(j => j.TimeId).OnDelete(DeleteBehavior.Cascade);
             });
 
             // 🔹 Blog público (/blog)

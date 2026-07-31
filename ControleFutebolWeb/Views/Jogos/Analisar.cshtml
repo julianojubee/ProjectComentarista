@@ -22,6 +22,29 @@
         entrouNoLugarDe.TryGetValue(jogadorId, out var saiu)
             ? $"Entrou no lugar de {saiu}"
             : "Jogador entrou";
+    // Expulso sai do campo e vai para o TOPO da lista lateral, em cinza e sem
+    // poder ser arrastado de volta: antes o botão dele ficava no campo apenas
+    // desabilitado e atrapalhava quem precisava arrastar outro jogador para a vaga.
+    // Na escalação INICIAL ele aparece normal — quando ela foi montada o cartão
+    // vermelho ainda não tinha acontecido.
+    // Reserva expulso continua no banco (o banco não usa o campo), por isso sai daqui.
+    List<Jogador> ExpulsosDoTime(List<Escalacao> titulares, List<Escalacao> reservas, List<Jogador> elenco)
+    {
+        if (faseEhInicial) return new List<Jogador>();
+        var idsReservas = reservas.Where(e => e.JogadorId != null).Select(e => e.JogadorId!.Value).ToHashSet();
+        return titulares.Where(e => e.Jogador != null).Select(e => e.Jogador!)
+            .Concat(elenco)
+            .Where(j => Model.JogadoresComCartaoVermelho.Contains(j.Id) && !idsReservas.Contains(j.Id))
+            .GroupBy(j => j.Id)
+            .Select(g => g.First())
+            .OrderBy(j => j.Nome)
+            .ToList();
+    }
+    var expulsosCasa = ExpulsosDoTime(Model.EscalacoesCasa, Model.ReservasCasa, Model.JogadoresCasa);
+    var expulsosVisitante = ExpulsosDoTime(Model.EscalacoesVisitante, Model.ReservasVisitante, Model.JogadoresVisitante);
+    var idsExpulsosCasa = expulsosCasa.Select(j => j.Id).ToHashSet();
+    var idsExpulsosVisitante = expulsosVisitante.Select(j => j.Id).ToHashSet();
+
     var golsPorJogador = (Model.GolsPorJogador as Dictionary<int, int>) ?? new Dictionary<int, int>();
     var assistsPorJogador = (Model.AssistsPorJogador as Dictionary<int, int>) ?? new Dictionary<int, int>();
 
@@ -148,6 +171,8 @@
    pela seção Styles: versionado por hash, o navegador baixa uma vez e reusa em
    todas as partidas — antes vinha inline e era retransmitido a cada abertura. *@
 @section Styles {
+    <link rel="stylesheet" href="~/css/mencao-jogador.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/jogadas.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/analisar.css" asp-append-version="true" />
 }
 
@@ -336,6 +361,10 @@
         </div>
         <div class="mb-toolbar-toggle" id="mbPosJogoToggle" onclick="abrirPosJogo(@Model.Jogo.Id)" style="margin:0; cursor:pointer;">
             <span>📝 Pós-jogo</span>
+        </div>
+        <div class="mb-toolbar-toggle" id="mbJogadasToggle" onclick="Jogadas.abrirModal(@Model.Jogo.Id)" style="margin:0; cursor:pointer;"
+             title="Prancheta tática: desenhe passo a passo as jogadas de cada time e reproduza a animação">
+            <span>🎬 Jogadas</span>
         </div>
     </div>
 
@@ -757,7 +786,30 @@
                     <table class="table table-sm table-striped">
                         <thead><tr><th></th><th>Nome</th><th>Pos</th></tr></thead>
                         <tbody id="listaCasa">
-                            @foreach (var jogador in (List<ControleFutebolWeb.Models.Jogador>)Model.JogadoresCasa)
+                            @* Expulsos primeiro: fora do campo, cinza e sem draggable *@
+                            @foreach (var jogador in expulsosCasa)
+                            {
+                                <tr class="jogador-row expulso" id="jogador-casa-@jogador.Id"
+                                    title="Expulso (cartão vermelho)">
+                                    <td>
+                                        <div style="position:relative;display:inline-block;">
+                                            <div class="player-circle player-circle-casa" style="width:28px;height:28px;font-size:11px;">
+                                                @(jogador.NumeroCamisa?.ToString() ?? "")
+                                            </div>
+                                            <span class="card-vermelho-badge-mini" title="Expulso (cartão vermelho)"></span>
+                                            <button type="button" class="btn-info-jogador"
+                                                    onmouseenter="mostrarInfoJogador(this, DADOS_JOGADORES[@jogador.Id])"
+                                                    onmouseleave="esconderInfoJogador()">
+                                                ℹ
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td>@jogador.Nome</td>
+                                    <td>@AbreviarPosicao(jogador.Posicao)</td>
+                                </tr>
+                            }
+                            @foreach (var jogador in ((List<ControleFutebolWeb.Models.Jogador>)Model.JogadoresCasa)
+                                .Where(j => !idsExpulsosCasa.Contains(j.Id)))
                             {
                                 <tr class="jogador-row"
                                     id="jogador-casa-@jogador.Id"
@@ -815,16 +867,23 @@
                         }
                         @foreach (var esc in (List<ControleFutebolWeb.Models.Escalacao>)Model.EscalacoesCasa)
                         {
-                            bool expulsoCasa = esc.Jogador != null && Model.JogadoresComCartaoVermelho.Contains(esc.Jogador.Id);
+                            @* Expulso: a posição inteira some do campo (nem o slot vazio fica —
+                               ninguém entra no lugar dele, o time joga com um a menos) e ele
+                               passa para o topo da lista lateral. Os hidden continuam com o
+                               valor salvo: a escalação no banco não muda por causa do vermelho. *@
+                            bool expulsoCasa = !faseEhInicial && esc.Jogador != null
+                                               && Model.JogadoresComCartaoVermelho.Contains(esc.Jogador.Id);
                             bool amareloCasa = esc.Jogador != null && Model.JogadoresComCartaoAmarelo.Contains(esc.Jogador.Id);
                             bool capitaoCasa = esc.Jogador != null && Model.JogadoresCapitao.Contains(esc.Jogador.Id);
-                            <div class="posicao-drop @(expulsoCasa ? "expulso" : "")"
+                            if (!expulsoCasa)
+                            {
+                            <div class="posicao-drop"
                                  data-index="casa_@idxCasa"
                                  data-posicao="@AbreviarPosicao(esc.Posicao)"
                                  data-campo="casa"
                                  data-escid="@esc.Id"
                                  data-temjogador="@(esc.Jogador != null ? "1" : "0")"
-                                 draggable="@(expulsoCasa ? "false" : "true")"
+                                 draggable="true"
                                  ondragstart="dragPosicao(event, 'casa_@idxCasa')"
                                  ondrop="dropEscalacao(event, 'casa_@idxCasa')"
                                  ondragover="allowDrop(event)"
@@ -832,11 +891,7 @@
                                 @if (esc.Jogador != null)
                                 {
                                     <div class="player-circle player-circle-casa">@(esc.Jogador.NumeroCamisa?.ToString() ?? "")</div>
-                                    @if (expulsoCasa)
-                                    {
-                                        <span class="card-vermelho-badge" title="Expulso (cartão vermelho)"></span>
-                                    }
-                                    else if (amareloCasa)
+                                    @if (amareloCasa)
                                     {
                                         <span class="card-amarelo-badge" title="Cartão amarelo"></span>
                                     }
@@ -867,6 +922,7 @@
                                     <div class="player-circle player-circle-empty"></div>
                                 }
                             </div>
+                            }
                             <input type="hidden" name="escalacaoCasa[@idxCasa].Id" value="@esc.Id" />
                             <input type="hidden" name="escalacaoCasa[@idxCasa].PosicaoId" value="@esc.Id" />
                             <input type="hidden" id="escalacaoCasa_@(idxCasa)__JogadorId" name="escalacaoCasa[@idxCasa].JogadorId" value="@esc.JogadorId" />
@@ -960,16 +1016,21 @@
                         }
                         @foreach (var esc in (List<ControleFutebolWeb.Models.Escalacao>)Model.EscalacoesVisitante)
                         {
-                            bool expulsoVis = esc.Jogador != null && Model.JogadoresComCartaoVermelho.Contains(esc.Jogador.Id);
+                            @* Ver comentário do campo da casa: a posição do expulso some do
+                               campo e ele vai para o topo da lista lateral. *@
+                            bool expulsoVis = !faseEhInicial && esc.Jogador != null
+                                              && Model.JogadoresComCartaoVermelho.Contains(esc.Jogador.Id);
                             bool amareloVis = esc.Jogador != null && Model.JogadoresComCartaoAmarelo.Contains(esc.Jogador.Id);
                             bool capitaoVis = esc.Jogador != null && Model.JogadoresCapitao.Contains(esc.Jogador.Id);
-                            <div class="posicao-drop @(expulsoVis ? "expulso" : "")"
+                            if (!expulsoVis)
+                            {
+                            <div class="posicao-drop"
                                  data-index="vis_@idxVis"
                                  data-posicao="@AbreviarPosicao(esc.Posicao)"
                                  data-campo="vis"
                                  data-escid="@esc.Id"
                                  data-temjogador="@(esc.Jogador != null ? "1" : "0")"
-                                 draggable="@(expulsoVis ? "false" : "true")"
+                                 draggable="true"
                                  ondragstart="dragPosicao(event, 'vis_@idxVis')"
                                  ondrop="dropEscalacao(event, 'vis_@idxVis')"
                                  ondragover="allowDrop(event)"
@@ -977,11 +1038,7 @@
                                 @if (esc.Jogador != null)
                                 {
                                     <div class="player-circle player-circle-vis">@(esc.Jogador.NumeroCamisa?.ToString() ?? "")</div>
-                                    @if (expulsoVis)
-                                    {
-                                        <span class="card-vermelho-badge" title="Expulso (cartão vermelho)"></span>
-                                    }
-                                    else if (amareloVis)
+                                    @if (amareloVis)
                                     {
                                         <span class="card-amarelo-badge" title="Cartão amarelo"></span>
                                     }
@@ -1011,6 +1068,7 @@
                                     <div class="player-circle player-circle-empty"></div>
                                 }
                             </div>
+                            }
                             <input type="hidden" name="escalacaoVisitante[@idxVis].Id" value="@esc.Id" />
                             <input type="hidden" name="escalacaoVisitante[@idxVis].PosicaoId" value="@esc.Id" />
                             <input type="hidden" id="escalacaoVisitante_@(idxVis)__JogadorId" name="escalacaoVisitante[@idxVis].JogadorId" value="@esc.JogadorId" />
@@ -1116,7 +1174,30 @@
                     <table class="table table-sm table-striped">
                         <thead><tr><th></th><th>Nome</th><th>Pos</th></tr></thead>
                         <tbody id="listaVisitante">
-                            @foreach (var jogador in (List<ControleFutebolWeb.Models.Jogador>)Model.JogadoresVisitante)
+                            @* Expulsos primeiro: fora do campo, cinza e sem draggable *@
+                            @foreach (var jogador in expulsosVisitante)
+                            {
+                                <tr class="jogador-row expulso" id="jogador-vis-@jogador.Id"
+                                    title="Expulso (cartão vermelho)">
+                                    <td>
+                                        <div style="position:relative;display:inline-block;">
+                                            <div class="player-circle player-circle-vis" style="width:28px;height:28px;font-size:11px;">
+                                                @(jogador.NumeroCamisa?.ToString() ?? "")
+                                            </div>
+                                            <span class="card-vermelho-badge-mini" title="Expulso (cartão vermelho)"></span>
+                                            <button type="button" class="btn-info-jogador"
+                                                    onmouseenter="mostrarInfoJogador(this, DADOS_JOGADORES[@jogador.Id])"
+                                                    onmouseleave="esconderInfoJogador()">
+                                                ℹ
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td>@jogador.Nome</td>
+                                    <td>@AbreviarPosicao(jogador.Posicao)</td>
+                                </tr>
+                            }
+                            @foreach (var jogador in ((List<ControleFutebolWeb.Models.Jogador>)Model.JogadoresVisitante)
+                                .Where(j => !idsExpulsosVisitante.Contains(j.Id)))
                             {
                                 <tr class="jogador-row"
                                     id="jogador-vis-@jogador.Id"
@@ -1427,6 +1508,22 @@
 
 
 
+<!-- ── Modal Jogadas (prancheta tática) ───────────────────────────────────
+     Estrutura vazia: as abas de time, a lista e o editor são montados por
+     jogadas.js a partir de /Jogadas/DoJogo, na primeira vez que o modal abre. -->
+<div id="modal-jogadas">
+    <div class="jgd-box">
+        <div class="jgd-topo">
+            <h5 class="jgd-titulo">🎬 Jogadas</h5>
+            <div class="jgd-abas" id="jgd-abas"></div>
+            <button type="button" class="jgd-fechar" onclick="Jogadas.fecharModal()" title="Fechar">&times;</button>
+        </div>
+        <div class="jgd-corpo" id="jgd-corpo">
+            <div class="jgd-vazio" style="grid-column:1/-1;">Carregando…</div>
+        </div>
+    </div>
+</div>
+
 <!-- ── Modal Pós-jogo ─────────────────────────────────────────────────── -->
 <div id="modal-posjogo" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:10000; align-items:center; justify-content:center;">
     <div style="background:#0b0f16; border:1px solid rgba(255,255,255,.12); border-radius:16px; width:1140px; max-width:97vw; max-height:93vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,.5); position:relative;">
@@ -1441,6 +1538,8 @@
    todo o DOM já existe — os scripts acessam elementos direto, sem esperar
    DOMContentLoaded, como faziam quando estavam inline logo abaixo do HTML deles. *@
 @section Scripts {
+    <script src="~/js/mencao-jogador.js" asp-append-version="true"></script>
+    <script src="~/js/jogadas.js" asp-append-version="true"></script>
     <script src="~/js/analisar.js" asp-append-version="true"></script>
 }
 

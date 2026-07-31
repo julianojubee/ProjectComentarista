@@ -1,0 +1,78 @@
+@model ControleFutebolWeb.Models.ViewModels.SimuladorViewModel
+
+@{
+    string ZonaCor(int pos, int total)
+    {
+        if (pos == 1) return "#3b82f6";
+        if (pos <= 4) return "#22c55e";
+        if (total > 4 && pos > total - 4) return "#ef4444";
+        return "#374151";
+    }
+
+    var totalTimes = Model.Classificacao.Count;
+}
+
+@* data-* é lido pelo simulador.js para atualizar o contador de jogos simulados
+   sem precisar de um segundo endpoint só para os números. *@
+<div id="sim-tabela" data-simulados="@Model.TotalSimulados" data-pendentes="@Model.TotalPendentes">
+    <div class="sim-cols">
+        <span></span>
+        <span>#</span>
+        <span></span>
+        <span class="left">Clube</span>
+        <span>J</span>
+        <span class="v">V</span>
+        <span class="e">E</span>
+        <span class="d">D</span>
+        <span>SG</span>
+        <span class="pts">Pts</span>
+    </div>
+
+    @foreach (var item in Model.Classificacao)
+    {
+        var c = item.Linha;
+        var zc = ZonaCor(c.Posicao, totalTimes);
+        <div class="sim-row @(item.PontosSimulados > 0 ? "simulado" : "")">
+            <div class="sim-zonebar" style="background:@zc;"></div>
+            <span class="sim-pos">
+                @c.Posicao
+                @if (item.Variacao > 0)
+                {
+                    <i class="sim-var up" title="Subiu @item.Variacao posição(ões) na simulação">▲@item.Variacao</i>
+                }
+                else if (item.Variacao < 0)
+                {
+                    <i class="sim-var down" title="Caiu @(Math.Abs(item.Variacao)) posição(ões) na simulação">▼@Math.Abs(item.Variacao)</i>
+                }
+            </span>
+            <div class="sim-escudo">
+                @if (!string.IsNullOrEmpty(c.Time?.EscudoUrl))
+                {
+                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.Time.EscudoUrl })" alt="" />
+                }
+            </div>
+            <div class="sim-nome-wrap">
+                <span class="sim-nome">@c.Time?.Nome</span>
+            </div>
+            <span class="sim-cell">@c.Jogos</span>
+            <span class="sim-cell v">@c.Vitorias</span>
+            <span class="sim-cell e">@c.Empates</span>
+            <span class="sim-cell d">@c.Derrotas</span>
+            <span class="sim-cell sg @(c.SaldoGols > 0 ? "pos" : c.SaldoGols < 0 ? "neg" : "")">@(c.SaldoGols > 0 ? "+" : "")@c.SaldoGols</span>
+            <span class="sim-pts">
+                @c.Pontos
+                @if (item.PontosSimulados > 0)
+                {
+                    <i class="sim-ptssim" title="@item.PontosSimulados ponto(s) vindo(s) da simulação">+@item.PontosSimulados</i>
+                }
+            </span>
+        </div>
+    }
+
+    <div class="sim-legend">
+        <span><i class="dot" style="background:#3b82f6;"></i>Líder</span>
+        <span><i class="dot" style="background:#22c55e;"></i>Classificação</span>
+        <span><i class="dot" style="background:#ef4444;"></i>Zona de risco</span>
+        <span><i class="dot" style="background:#d4a520;"></i>Pontos simulados</span>
+    </div>
+</div>

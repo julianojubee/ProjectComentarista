@@ -68,147 +68,9 @@
     const JOGADORES_ESCALADOS_OBS = ANALISAR.jogadoresEscalados;
 
     // ── Menção de jogador com "@" nas caixas de observação ──────────────────
-    function escHtmlObs(s) {
-        return String(s == null ? '' : s)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    }
-
-    // Envolve ocorrências de "@Nome" (nomes reconhecidos na lista de jogadores) num
-    // link para o perfil do jogador, para deixar a menção clicável e visualmente clara.
-    function renderizarTextoComMencoes(texto, jogadores) {
-        const textoEscapado = escHtmlObs(texto);
-        const idPorNomeEscapado = new Map();
-        (jogadores || []).forEach(j => {
-            if (!j || !j.nome) return;
-            const nomeEsc = escHtmlObs(j.nome);
-            if (!idPorNomeEscapado.has(nomeEsc)) idPorNomeEscapado.set(nomeEsc, j.id);
-        });
-        if (!idPorNomeEscapado.size) return textoEscapado;
-
-        const alternativas = [...idPorNomeEscapado.keys()]
-            .sort((a, b) => b.length - a.length)
-            .map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-        const regex = new RegExp('@(' + alternativas.join('|') + ')', 'g');
-        return textoEscapado.replace(regex, (match, nomeCapturado) => {
-            const jogadorId = idPorNomeEscapado.get(nomeCapturado);
-            if (!jogadorId) return match;
-            return '<a class="obs-mencao" href="/Jogadores/Estatisticas/' + jogadorId + '" onclick="event.stopPropagation();">@' + nomeCapturado + '</a>';
-        });
-    }
-
-    function removerAcentosObs(s) {
-        return s.normalize('NFD').replace(/[̀-ͯ]/g, '');
-    }
-
-    function fecharDropdownMencao() {
-        document.querySelectorAll('.obs-mencao-dropdown').forEach(el => el.remove());
-    }
-
-    function atualizarItemAtivoMencao(dropdown, indice) {
-        dropdown.querySelectorAll('.obs-mencao-item').forEach((el, i) => el.classList.toggle('ativo', i === indice));
-    }
-
-    function abrirDropdownMencao(textarea, jogadores, query, onSelect) {
-        fecharDropdownMencao();
-        const termo = removerAcentosObs(query.toLowerCase());
-        const filtrados = (jogadores || [])
-            .filter(j => removerAcentosObs((j.nome || '').toLowerCase()).includes(termo))
-            .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
-            .slice(0, 8);
-
-        const dropdown = document.createElement('div');
-        dropdown.className = 'obs-mencao-dropdown';
-        const rect = textarea.getBoundingClientRect();
-        dropdown.style.left = `${rect.left + window.scrollX}px`;
-        dropdown.style.top = `${rect.bottom + window.scrollY + 4}px`;
-
-        if (filtrados.length === 0) {
-            dropdown.innerHTML = '<div class="obs-mencao-vazio">Nenhum jogador encontrado</div>';
-        } else {
-            filtrados.forEach((j, idx) => {
-                const item = document.createElement('div');
-                item.className = 'obs-mencao-item' + (idx === 0 ? ' ativo' : '');
-                item.textContent = j.nome;
-                item.addEventListener('mousedown', (e) => { e.preventDefault(); onSelect(j); });
-                dropdown.appendChild(item);
-            });
-        }
-
-        document.body.appendChild(dropdown);
-        dropdown._itensFiltrados = filtrados;
-        return dropdown;
-    }
-
-    // Liga o gatilho "@" numa textarea de observação: getJogadores() é chamada a
-    // cada digitação para permitir listas dinâmicas (ex.: popup pós-jogo).
-    function ativarMencaoJogador(textarea, getJogadores) {
-        if (!textarea || textarea._mencaoAtiva) return;
-        textarea._mencaoAtiva = true;
-
-        let dropdownAtual = null;
-        let indiceAtivo = 0;
-        let estadoAtual = null;
-
-        function fechar() {
-            fecharDropdownMencao();
-            dropdownAtual = null;
-            estadoAtual = null;
-        }
-
-        function detectarMencao() {
-            const valor = textarea.value;
-            const cursor = textarea.selectionStart;
-            const antesCursor = valor.slice(0, cursor);
-            const arroba = antesCursor.lastIndexOf('@');
-            if (arroba === -1) return null;
-            const trecho = antesCursor.slice(arroba + 1);
-            if (/[\s@]/.test(trecho)) return null;
-            return { inicio: arroba, fim: cursor, query: trecho };
-        }
-
-        function selecionar(jogador) {
-            if (!estadoAtual) return;
-            const valor = textarea.value;
-            const inserir = '@' + jogador.nome + ' ';
-            textarea.value = valor.slice(0, estadoAtual.inicio) + inserir + valor.slice(estadoAtual.fim);
-            const novaPosicao = estadoAtual.inicio + inserir.length;
-            fechar();
-            textarea.focus();
-            textarea.setSelectionRange(novaPosicao, novaPosicao);
-            textarea.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-
-        textarea.addEventListener('input', () => {
-            estadoAtual = detectarMencao();
-            if (!estadoAtual) { fecharDropdownMencao(); dropdownAtual = null; return; }
-            indiceAtivo = 0;
-            dropdownAtual = abrirDropdownMencao(textarea, getJogadores(), estadoAtual.query, selecionar);
-        });
-
-        textarea.addEventListener('keydown', (e) => {
-            if (!dropdownAtual) return;
-            const itens = dropdownAtual._itensFiltrados;
-            if (!itens || !itens.length) return;
-
-            if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                indiceAtivo = (indiceAtivo + 1) % itens.length;
-                atualizarItemAtivoMencao(dropdownAtual, indiceAtivo);
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                indiceAtivo = (indiceAtivo - 1 + itens.length) % itens.length;
-                atualizarItemAtivoMencao(dropdownAtual, indiceAtivo);
-            } else if (e.key === 'Enter' || e.key === 'Tab') {
-                e.preventDefault();
-                selecionar(itens[indiceAtivo]);
-            } else if (e.key === 'Escape') {
-                e.preventDefault();
-                fechar();
-            }
-        });
-
-        textarea.addEventListener('blur', () => setTimeout(fechar, 150));
-    }
+    // Implementação em wwwroot/js/mencao-jogador.js (compartilhada com /AnotacoesTime).
+    const renderizarTextoComMencoes = window.MencaoJogador.renderizarTexto;
+    const ativarMencaoJogador = window.MencaoJogador.ativar;
 
     function destacarMencoesExistentes(containerId, jogadores) {
         document.querySelectorAll(`#${containerId} .obs-tag-texto`).forEach(el => {
@@ -259,9 +121,12 @@
         const textoEl = row.querySelector('.obs-tag-texto');
         const textoAtual = textoEl.textContent;
 
-        const novoTexto = prompt('Editar observação:', textoAtual);
-        if (novoTexto === null) return;
-        const textoTrim = novoTexto.trim();
+        const textoTrim = await window.MencaoJogador.editarTexto({
+            titulo: 'Editar observação',
+            valor: textoAtual,
+            getJogadores: () => JOGADORES_ESCALADOS_OBS
+        });
+        if (textoTrim === null) return;
         if (!textoTrim) { alert('O texto da observação não pode ficar vazio.'); return; }
         if (textoTrim === textoAtual) return;
 
@@ -2390,9 +2255,12 @@
         var textoEl = row ? row.querySelector('.pgj-obs-texto') : null;
         var textoAtual = textoEl ? textoEl.textContent : '';
 
-        var novoTexto = prompt('Editar observação:', textoAtual);
-        if (novoTexto === null) return;
-        var textoTrim = novoTexto.trim();
+        var textoTrim = await window.MencaoJogador.editarTexto({
+            titulo: 'Editar observação',
+            valor: textoAtual,
+            getJogadores: () => window._pgjJogadoresAtual || []
+        });
+        if (textoTrim === null) return;
         if (!textoTrim) { alert('O texto da observação não pode ficar vazio.'); return; }
         if (textoTrim === textoAtual) return;
 

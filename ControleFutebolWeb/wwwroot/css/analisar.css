@@ -185,7 +185,7 @@
            :not() elevam a especificidade desta regra acima dos estilos dos
            próprios botões — qualquer novo elemento interativo dentro do slot
            precisa ser adicionado aqui também. */
-        .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in):not(.card-vermelho-badge):not(.card-amarelo-badge):not(.capitao-badge) {
+        .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in):not(.card-amarelo-badge):not(.capitao-badge) {
             pointer-events: none;
         }
 
@@ -473,7 +473,7 @@
         font-size: 9.5px;
     }
 
-    .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in):not(.card-vermelho-badge):not(.card-amarelo-badge):not(.capitao-badge) {
+    .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in):not(.card-amarelo-badge):not(.capitao-badge) {
         pointer-events: none;
     }
 
@@ -517,26 +517,34 @@
         cursor: help;
     }
 
-    /* Jogador expulso (cartão vermelho): botão em campo fica cinza/desabilitado
-       e não pode mais ser arrastado (ver draggable="false" no HTML do slot). */
-    .posicao-drop.expulso {
+    /* Jogador expulso (cartão vermelho): sai do campo e vai para o topo da lista
+       lateral, cinza e sem arrastar. A vaga dele no campo fica livre para receber
+       outro jogador — antes o botão continuava lá, só desabilitado, e atrapalhava.
+       A linha segue visível mesmo marcada como "usado" (o hidden da escalação
+       ainda guarda o id dele até que alguém ocupe a vaga). */
+    .jogador-row.expulso {
         cursor: not-allowed;
-    }
-    .posicao-drop.expulso .player-circle {
-        filter: grayscale(1);
         opacity: .55;
     }
-    .card-vermelho-badge {
+    .jogador-row.expulso .player-circle {
+        filter: grayscale(1);
+    }
+    .jogador-row.expulso.usado {
+        display: table-row;
+    }
+
+    /* Cartão vermelho no círculo de 28px da lista lateral — mesma geometria do
+       .card-amarelo-badge-mini. */
+    .card-vermelho-badge-mini {
         position: absolute;
-        top: -4px;
-        left: 50%;
-        margin-left: 9px;      /* mesmo cálculo do .sub-chip-in: metade do círculo de 36px */
-        width: 11px;
-        height: 15px;
+        top: -2px;
+        left: 12px;
+        width: 8px;
+        height: 11px;
         background: #dc2626;
-        border: 1.5px solid #fff;
-        border-radius: 2px;
-        box-shadow: 0 1px 3px rgba(0,0,0,.45);
+        border: 1px solid #fff;
+        border-radius: 1.5px;
+        box-shadow: 0 1px 2px rgba(0,0,0,.45);
         z-index: 3;
         pointer-events: auto;
         cursor: help;
@@ -740,45 +748,7 @@
         line-height: 1.35;
         min-height: 32px;
     }
-    .obs-mencao {
-        color: #d4a520;
-        font-weight: 600;
-        text-decoration: none;
-        cursor: pointer;
-    }
-    .obs-mencao:hover {
-        text-decoration: underline;
-    }
-    .obs-mencao-dropdown {
-        position: absolute;
-        z-index: 50;
-        min-width: 200px;
-        max-height: 220px;
-        overflow-y: auto;
-        background: #161616;
-        border: 1px solid #2a2a2a;
-        border-radius: 8px;
-        box-shadow: 0 4px 14px rgba(0,0,0,.5);
-        padding: 4px;
-    }
-    .obs-mencao-item {
-        padding: 6px 10px;
-        border-radius: 6px;
-        font-size: 13px;
-        color: #e5e7eb;
-        cursor: pointer;
-        white-space: nowrap;
-    }
-    .obs-mencao-item.ativo,
-    .obs-mencao-item:hover {
-        background: #2a2412;
-        color: #d4a520;
-    }
-    .obs-mencao-vazio {
-        padding: 6px 10px;
-        font-size: 12px;
-        color: #6b7280;
-    }
+    /* .obs-mencao* (dropdown e link do "@") ficam em wwwroot/css/mencao-jogador.css */
     .obs-tag-editar {
         flex: 0 0 auto;
         cursor: pointer;
