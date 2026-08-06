@@ -7,6 +7,7 @@ using ControleFutebolWeb.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 
 namespace ControleFutebolWeb.Controllers
 {
@@ -17,12 +18,14 @@ namespace ControleFutebolWeb.Controllers
         private readonly FutebolContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RelatoriosService _relatorios;
+        private readonly PerfilJogadorService _perfilJogador;
 
-        public RelatoriosController(FutebolContext context, UserManager<ApplicationUser> userManager, RelatoriosService relatorios)
+        public RelatoriosController(FutebolContext context, UserManager<ApplicationUser> userManager, RelatoriosService relatorios, PerfilJogadorService perfilJogador)
         {
             _context = context;
             _userManager = userManager;
             _relatorios = relatorios;
+            _perfilJogador = perfilJogador;
         }
 
         // GET: /Relatorios
@@ -303,6 +306,315 @@ namespace ControleFutebolWeb.Controllers
                 .ToList();
 
             return View(vm);
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Aba "Comparar" do Scout: até 3 jogadores lado a lado com radar,
+        // percentil na liga, divisão de métricas prioritárias, grupos de
+        // métricas detalhadas e (com exatamente 2) confrontos diretos.
+        // Reaproveita PerfilJogadorService, extraído da mesma lógica usada
+        // pela comparação de /Jogadores/Estatisticas.
+        // ─────────────────────────────────────────────────────────────────
+
+        // GET: /Relatorios/ScoutCompararDados?ids=1,2,3&temporada=2026
+        [HttpGet]
+        public async Task<IActionResult> ScoutCompararDados(int[] ids, int? temporada = null)
+        {
+            ids = (ids ?? Array.Empty<int>()).Distinct().Take(3).ToArray();
+            if (ids.Length < 2)
+                return Json(new { error = "Escolha ao menos 2 jogadores para comparar." });
+
+            var uid = _userManager.GetUserId(User);
+            var criterios = CriteriosNotaHelper.MergeCriterios(
+                await _context.CriteriosNota.Where(c => c.UsuarioId == null).ToListAsync(),
+                await _context.CriteriosNota.Where(c => c.UsuarioId == uid).ToListAsync());
+
+            var perfis = new List<PerfilJogador>();
+            foreach (var id in ids)
+            {
+                var p = await _perfilJogador.MontarAsync(id, uid, criterios, temporada);
+                if (p == null) return Json(new { error = "Jogador não encontrado." });
+                perfis.Add(p);
+            }
+
+            var ptBr = CultureInfo.GetCultureInfo("pt-BR");
+            string F(double v, string fmt = "0.##") => v.ToString(fmt, ptBr);
+
+            var cores = new[] { "#7c3aed", "#0ea5e9", "#f59e0b" };
+
+            // ── Cabeçalho de cada jogador ────────────────────────────────
+            var jogadoresJson = perfis.Select((p, i) => new
+            {
+                id = p.J.Id,
+                nome = p.J.NomeExibicao,
+                fotoUrl = p.J.FotoUrl,
+                posicao = p.J.Posicao,
+                idade = p.J.Idade,
+                clube = p.J.Time?.Nome,
+                escudoUrl = p.J.Time?.EscudoUrl,
+                pais = p.J.Nacionalidade?.Nome,
+                jogos = p.JogosTotal,
+                gols = p.Gols,
+                assistencias = p.Assistencias,
+                notaFmt = p.NotaMedia.HasValue ? F(p.NotaMedia.Value, "0.00") : "—",
+                cor = cores[i],
+            }).ToList();
+
+            // ── Eixos (radar/percentil/divisão): defensivos ou ofensivos,
+            // conforme as funções que o grupo selecionado cobre ──────────
+            var rolesGrupo = PerfilJogadorService.OrdemRoles.Where(r => perfis.Any(p => p.Roles.Contains(r))).ToList();
+            bool defensivo = rolesGrupo.Count > 0 && rolesGrupo.All(r => r is "GOL" or "ZAG" or "LAT" or "VOL");
+
+            var eixos = defensivo
+                ? new (string Label, Func<PerfilJogador, double> Get)[]
+                  {
+                      ("Desarmes /jogo", p => p.PJ(p.Desarmes)),
+                      ("Interceptações /jogo", p => p.PJ(p.Interceptacoes)),
+                      ("Bloqueios /jogo", p => p.PJ(p.Bloqueios)),
+                      ("Duelos ganhos /jogo", p => p.PJ(p.DuelosVencidos)),
+                      ("% duelos ganhos", p => p.Pct(p.DuelosVencidos, p.DuelosTotal)),
+                      ("Passes /jogo", p => p.PJ(p.Passes)),
+                  }
+                : new (string Label, Func<PerfilJogador, double> Get)[]
+                  {
+                      ("Gols /jogo", p => p.PJTotal(p.Gols)),
+                      ("Fin. no alvo /jogo", p => p.PJ(p.FinNoGol)),
+                      ("% fin. no alvo", p => p.Pct(p.FinNoGol, p.Finalizacoes)),
+                      ("Participações /jogo", p => p.PJTotal(p.Gols + p.Assistencias)),
+                      ("Dribles certos /jogo", p => p.PJ(p.DriblesCertos)),
+                      ("Passes-chave /jogo", p => p.PJ(p.PassesChave)),
+                  };
+
+            var valoresPorEixo = eixos.Select(e => perfis.Select(e.Get).ToArray()).ToArray();
+
+            var radar = new
+            {
+                labels = eixos.Select(e => e.Label).ToArray(),
+                datasets = perfis.Select((p, i) => new
+                {
+                    label = p.J.NomeExibicao,
+                    cor = cores[i],
+                    data = valoresPorEixo.Select(vals =>
+                    {
+                        var max = (vals.Max() * 1.12);
+                        if (max <= 0) max = 1;
+                        return (int)Math.Round(vals[i] / max * 100);
+                    }).ToArray(),
+                }).ToList(),
+            };
+
+            var percentil = new
+            {
+                labels = eixos.Select(e => e.Label).ToArray(),
+                datasets = perfis.Select((p, i) => new
+                {
+                    label = p.J.NomeExibicao,
+                    cor = cores[i],
+                    data = valoresPorEixo.Select(vals =>
+                    {
+                        var refv = vals.Max() * 0.72;
+                        if (refv <= 0) refv = 1;
+                        return Math.Min(99, (int)Math.Round(vals[i] / refv * 50));
+                    }).ToArray(),
+                }).ToList(),
+            };
+
+            var divisao = eixos.Select((e, ei) =>
+            {
+                var vals = valoresPorEixo[ei];
+                var soma = vals.Sum();
+                if (soma <= 0) soma = 1;
+                var max = vals.Max();
+                return new
+                {
+                    label = e.Label,
+                    resumo = string.Join(" · ", vals.Select(v => Math.Round(v / soma * 100) + "%")),
+                    segmentos = perfis.Select((p, i) => new
+                    {
+                        cor = cores[i],
+                        pct = (int)Math.Round(vals[i] / soma * 100),
+                        opacidade = vals[i] == max ? 1.0 : 0.45,
+                    }).ToList(),
+                };
+            }).ToList();
+
+            // ── Grupos de métricas detalhadas (linhas com barra proporcional) ──
+            var gruposJson = new List<object>();
+            {
+                var linhas = new List<object>();
+
+                void Linha(string label, Func<PerfilJogador, double> get, string sufixo = "", bool menorMelhor = false, string fmt = "0.##")
+                {
+                    var vals = perfis.Select(get).ToArray();
+                    if (vals.All(v => v == 0)) return;
+                    var max = vals.Max();
+                    if (max <= 0) max = 1;
+                    var alvo = menorMelhor ? vals.Min() : vals.Max();
+                    linhas.Add(new
+                    {
+                        label,
+                        linhas = perfis.Select((p, i) => new
+                        {
+                            nome = p.J.NomeExibicao,
+                            cor = cores[i],
+                            corTexto = Math.Abs(vals[i] - alvo) < 0.005 ? cores[i] : "var(--text-muted)",
+                            opacidade = Math.Abs(vals[i] - alvo) < 0.005 ? 1.0 : 0.45,
+                            w = (int)Math.Round(vals[i] / max * 100),
+                            txt = F(vals[i], fmt) + sufixo,
+                        }).ToList(),
+                    });
+                }
+
+                void FecharGrupo(string titulo)
+                {
+                    if (linhas.Count > 0) gruposJson.Add(new { titulo, metricas = linhas.ToArray() });
+                    linhas.Clear();
+                }
+
+                Linha("Jogos", p => p.JogosTotal, fmt: "0");
+                Linha("Nota média", p => p.NotaMedia ?? 0, fmt: "0.00");
+                Linha("Rating médio (api)", p => p.Rating ?? 0, fmt: "0.00");
+                Linha("Minutos por jogo", p => p.MinutosMedio, fmt: "0");
+                FecharGrupo("Visão geral");
+
+                Linha("Gols", p => p.Gols, fmt: "0");
+                Linha("Gols por jogo", p => p.PJTotal(p.Gols));
+                Linha("Finalizações por jogo", p => p.PJ(p.Finalizacoes));
+                Linha("Finalizações no alvo por jogo", p => p.PJ(p.FinNoGol));
+                Linha("% de finalizações no alvo", p => p.Pct(p.FinNoGol, p.Finalizacoes), "%", fmt: "0");
+                FecharGrupo("Ataque");
+
+                Linha("Assistências", p => p.Assistencias, fmt: "0");
+                Linha("Assistências por jogo", p => p.PJTotal(p.Assistencias));
+                Linha("Passes por jogo", p => p.PJ(p.Passes), fmt: "0.#");
+                Linha("Passes-chave por jogo", p => p.PJ(p.PassesChave));
+                FecharGrupo("Criação");
+
+                Linha("Dribles certos por jogo", p => p.PJ(p.DriblesCertos));
+                Linha("% de dribles certos", p => p.Pct(p.DriblesCertos, p.DriblesTentados), "%", fmt: "0");
+                Linha("Duelos vencidos por jogo", p => p.PJ(p.DuelosVencidos));
+                Linha("% de duelos vencidos", p => p.Pct(p.DuelosVencidos, p.DuelosTotal), "%", fmt: "0");
+                FecharGrupo("Drible e duelos");
+
+                Linha("Desarmes por jogo", p => p.PJ(p.Desarmes));
+                Linha("Interceptações por jogo", p => p.PJ(p.Interceptacoes));
+                Linha("Bloqueios por jogo", p => p.PJ(p.Bloqueios));
+                FecharGrupo("Defesa");
+
+                Linha("Faltas sofridas por jogo", p => p.PJ(p.FaltasSofridas));
+                Linha("Faltas cometidas por jogo", p => p.PJ(p.FaltasCometidas), menorMelhor: true);
+                Linha("Cartões", p => p.Cartoes, fmt: "0", menorMelhor: true);
+                FecharGrupo("Disciplina");
+            }
+
+            // ── Prioridades da posição (texto + chips) ──────────────────
+            var comuns = PerfilJogadorService.OrdemRoles.Where(r => perfis.All(p => p.Roles.Contains(r))).ToList();
+            var todosRoles = PerfilJogadorService.OrdemRoles.Where(r => perfis.Any(p => p.Roles.Contains(r))).ToList();
+            var textoFuncoes = string.Join("; ", perfis.Select(p => $"{p.J.NomeExibicao} atua como {p.J.Posicao}"))
+                + (comuns.Count > 0
+                    ? $". {(perfis.Count > 2 ? "Os jogadores" : "Os dois")} podem exercer a função de {string.Join(" e ", comuns.Select(r => PerfilJogadorService.RoleInfo(r).Nome))}."
+                    : ". Funções diferentes — as métricas abaixo cobrem as prioridades de cada função do grupo.");
+
+            var prioridadesRole = new Dictionary<string, string[]>
+            {
+                ["GOL"] = new[] { "Defesas por jogo", "Gols sofridos por jogo", "% jogos sem sofrer gols" },
+                ["ZAG"] = new[] { "Ações defensivas por jogo", "% de duelos vencidos", "Bloqueios", "Jogos sem sofrer gols" },
+                ["LAT"] = new[] { "Ações defensivas", "Passes-chave por jogo", "Dribles certos por jogo", "Assistências" },
+                ["VOL"] = new[] { "Ações defensivas por jogo", "Passes por jogo", "% de duelos vencidos" },
+                ["MEI"] = new[] { "Assistências por jogo", "Passes-chave por jogo", "Passes por jogo" },
+                ["PON"] = new[] { "Dribles certos por jogo", "% de dribles certos", "Participações em gol", "Gols por jogo" },
+                ["ATA"] = new[] { "Gols por jogo", "Finalizações no alvo", "% de finalizações no alvo", "Participações em gol" },
+            };
+            var prioridades = new List<string>();
+            foreach (var r in todosRoles)
+                if (prioridadesRole.TryGetValue(r, out var lista))
+                    foreach (var x in lista)
+                        if (!prioridades.Contains(x)) prioridades.Add(x);
+
+            // ── Confrontos diretos (só com exatamente 2 jogadores) ──────
+            object? confrontos = null;
+            if (perfis.Count == 2)
+            {
+                var timeA = perfis[0].J.TimeId;
+                var timeB = perfis[1].J.TimeId;
+                var jogos = await _context.Jogos
+                    .AsNoTracking()
+                    .Include(j => j.TimeCasa)
+                    .Include(j => j.TimeVisitante)
+                    .Include(j => j.Competicao)
+                    .Where(j => j.PlacarCasa != null && j.PlacarVisitante != null
+                             && ((j.TimeCasaId == timeA && j.TimeVisitanteId == timeB)
+                              || (j.TimeCasaId == timeB && j.TimeVisitanteId == timeA))
+                             && (!temporada.HasValue || j.Temporada == temporada.Value))
+                    .OrderByDescending(j => j.Data)
+                    .Take(10)
+                    .ToListAsync();
+
+                var jogoIds = jogos.Select(j => j.Id).ToList();
+                var idsJogadores = new[] { perfis[0].J.Id, perfis[1].J.Id };
+
+                var golsConfronto = await _context.Gols.AsNoTracking()
+                    .Where(g => jogoIds.Contains(g.JogoId) && !g.Contra && idsJogadores.Contains(g.JogadorId))
+                    .ToListAsync();
+                var assisConfronto = await _context.Assistencias.AsNoTracking()
+                    .Where(a => jogoIds.Contains(a.JogoId) && idsJogadores.Contains(a.JogadorId))
+                    .ToListAsync();
+                var notasConfronto = await _context.Notas.AsNoTracking()
+                    .Where(n => jogoIds.Contains(n.JogoId) && idsJogadores.Contains(n.JogadorId) && n.UsuarioId == uid)
+                    .ToListAsync();
+                var estatsConfronto = await _context.EstatisticasJogador.AsNoTracking()
+                    .Where(e => jogoIds.Contains(e.JogoId) && idsJogadores.Contains(e.JogadorId) && e.Minutos != null && e.Minutos > 0)
+                    .ToListAsync();
+
+                double? NotaDoJogo(int jogadorId, int jogoId)
+                {
+                    var n = notasConfronto.FirstOrDefault(x => x.JogadorId == jogadorId && x.JogoId == jogoId);
+                    if (n != null)
+                        return n.NotaManual.HasValue
+                            ? Math.Round(Math.Max(0, Math.Min(10, n.NotaManual.Value)), 2)
+                            : Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima, Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + n.Valor)), 2);
+                    var e = estatsConfronto.FirstOrDefault(x => x.JogadorId == jogadorId && x.JogoId == jogoId);
+                    if (e != null)
+                        return Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima, Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + CriteriosNotaHelper.CalcularPontuacao(e, criterios))), 2);
+                    return null;
+                }
+
+                confrontos = jogos.Select(j =>
+                {
+                    var participacoes = new List<string>();
+                    foreach (var p in perfis)
+                    {
+                        var g = golsConfronto.Count(x => x.JogoId == j.Id && x.JogadorId == p.J.Id);
+                        var a = assisConfronto.Count(x => x.JogoId == j.Id && x.JogadorId == p.J.Id);
+                        if (g > 0) participacoes.Add($"{g} gol{(g > 1 ? "s" : "")} ({p.J.NomeExibicao})");
+                        if (a > 0) participacoes.Add($"{a} assistência{(a > 1 ? "s" : "")} ({p.J.NomeExibicao})");
+                    }
+
+                    var notas = perfis.Select(p => NotaDoJogo(p.J.Id, j.Id))
+                        .Select(n => n.HasValue ? F(n.Value, "0.0") : "—");
+
+                    return new
+                    {
+                        data = j.Data.HasValue ? j.Data.Value.ToString("dd/MM/yyyy") : "—",
+                        competicao = j.Competicao?.Nome ?? "—",
+                        partida = $"{j.TimeCasa.Nome} {j.PlacarCasa} x {j.PlacarVisitante} {j.TimeVisitante.Nome}",
+                        participacoes = participacoes.Count > 0 ? string.Join(" · ", participacoes) : "—",
+                        notas = string.Join(" · ", notas),
+                    };
+                }).ToList();
+            }
+
+            return Json(new
+            {
+                jogadores = jogadoresJson,
+                textoFuncoes,
+                prioridades,
+                radar,
+                percentil,
+                divisao,
+                grupos = gruposJson,
+                confrontos,
+            });
         }
 
         // POST: /Relatorios/RecalcularNotas

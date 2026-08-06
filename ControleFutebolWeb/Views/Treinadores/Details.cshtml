@@ -3,6 +3,8 @@
     ViewData["Title"] = $"Detalhes — {Model.Nome}";
 }
 
+<partial name="_HistoricoEstilos" />
+
 <div class="estat-page">
     <div class="container" style="max-width:860px;">
 
@@ -10,24 +12,19 @@
 
         @if (TempData["Sucesso"] != null)
         {
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                @TempData["Sucesso"]
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
+            <div class="aviso-box aviso-ok">@TempData["Sucesso"]</div>
         }
         @if (TempData["Erro"] != null)
         {
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                @TempData["Erro"]
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
+            <div class="aviso-box aviso-erro">@TempData["Erro"]</div>
         }
         @if (TempData["Info"] != null)
         {
-            <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                @TempData["Info"]
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
+            <div class="aviso-box">@TempData["Info"]</div>
+        }
+        @if (TempData["Avisos"] != null)
+        {
+            <div class="aviso-box">⚠️ @TempData["Avisos"]</div>
         }
 
         <!-- Header -->
@@ -57,15 +54,24 @@
             </div>
         </div>
 
-        <!-- Histórico atual -->
-        <div class="jogos-titulo">Histórico no Banco</div>
+        <!-- Histórico atual: só um resumo — a lista completa vive em ConsultarHistorico,
+             pra não duplicar a mesma informação em duas telas diferentes. -->
+        <div class="jogos-titulo">
+            Histórico no Banco
+            @if (Model.Historicos.Any())
+            {
+                <span style="font-size:.8rem; font-weight:400; color:var(--muted); text-transform:none;">
+                    (@Model.Historicos.Count() passagem(ns))
+                </span>
+            }
+        </div>
         @if (!Model.Historicos.Any())
         {
-            <div class="sem-dados">Nenhum histórico salvo ainda.</div>
+            <div class="sem-dados">Nenhum histórico salvo ainda — use uma das opções abaixo para importar.</div>
         }
         else
         {
-            foreach (var h in Model.Historicos)
+            foreach (var h in Model.Historicos.OrderByDescending(h => h.DtInicio).Take(3))
             {
                 <div class="jogo-item">
                     <div>
@@ -77,10 +83,19 @@
                     </div>
                 </div>
             }
+            <a asp-action="ConsultarHistorico" asp-route-id="@Model.Id"
+               style="display:inline-block; margin:.2rem 0 .5rem; font-size:.8rem; color:var(--verde2); text-decoration:none;">
+                Ver histórico completo →
+            </a>
         }
 
-        <!-- Ações -->
-        <div class="cf-card-actions" style="margin-top:1rem;">
+        <!-- Ações: importar busca os dados numa tela de pré-visualização — nada é salvo até
+             clicar em "Salvar Histórico" lá. Limpar Histórico é imediato (com confirmação). -->
+        <div class="resumo-contagem" style="margin-top:1.5rem;">
+            "Importar Histórico" abre uma <b>pré-visualização</b> antes de salvar — nada é
+            gravado até você confirmar lá. "Limpar Histórico" apaga na hora.
+        </div>
+        <div class="cf-card-actions">
             <form asp-action="BuscarFoto" asp-route-id="@Model.Id" method="post" style="display:inline;">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="voltarParaDetalhes" value="true" />
@@ -91,23 +106,22 @@
                 </button>
             </form>
 
-            <a asp-action="PreVisualizarHistorico" asp-route-id="@Model.Id"
-               class="btn btn-primary btn-sm cf-small-btn">
-                📊 Importar Histórico (nome + time)
-            </a>
-
             <a asp-action="PreVisualizarHistoricoApi" asp-route-id="@Model.Id"
                class="btn btn-primary btn-sm cf-small-btn">
                 📊 Importar Histórico (API)
             </a>
 
-            <form asp-action="PreVisualizarHistoricoUrl" method="get" style="display:inline;">
-                <input type="hidden" name="id" value="@Model.Id" />
-                <input type="text" name="url" placeholder="URL Transfermarkt" style="width:280px;" />
-                <button type="submit" class="btn btn-outline-primary btn-sm cf-small-btn">
-                    🔗 Importar por URL
-                </button>
-            </form>
+            @if (Model.Historicos.Any())
+            {
+                <form asp-action="LimparHistorico" asp-route-id="@Model.Id" method="post" style="display:inline;">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-danger btn-sm cf-small-btn"
+                            title="Apagar todo o histórico salvo"
+                            onclick="return confirm('Apagar todas as @Model.Historicos.Count() passagem(ns) do histórico de @Model.Nome? Essa ação não pode ser desfeita.')">
+                        🗑️ Limpar Histórico
+                    </button>
+                </form>
+            }
         </div>
     </div>
 </div>

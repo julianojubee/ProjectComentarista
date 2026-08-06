@@ -19,14 +19,16 @@ namespace ControleFutebolWeb.Controllers
         private readonly ApiFootballService _transfermarkt;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly TransmissaoJogoService _transmissaoJogo;
 
-        public JogosController(FutebolContext context, ILogger<JogosController> logger, ApiFootballService transfermarkt, IServiceScopeFactory scopeFactory, UserManager<ApplicationUser> userManager)
+        public JogosController(FutebolContext context, ILogger<JogosController> logger, ApiFootballService transfermarkt, IServiceScopeFactory scopeFactory, UserManager<ApplicationUser> userManager, TransmissaoJogoService transmissaoJogo)
         {
             _context = context;
             _logger = logger;
             _transfermarkt = transfermarkt;
             _scopeFactory = scopeFactory;
             _userManager = userManager;
+            _transmissaoJogo = transmissaoJogo;
         }
 
         // GET: Jogos/Hoje
@@ -254,6 +256,7 @@ namespace ControleFutebolWeb.Controllers
             ViewBag.TimeVisitanteId = new SelectList(_context.Times, "Id", "Nome");
             ViewBag.FormacaoCasaId = new SelectList(_context.Formacoes, "Id", "Nome");
             ViewBag.FormacaoVisitanteId = new SelectList(_context.Formacoes, "Id", "Nome");
+            ViewBag.CompeticaoId = new SelectList(_context.Competicoes.OrderBy(c => c.Nome), "Id", "Nome");
             return View();
         }
 
@@ -262,9 +265,9 @@ namespace ControleFutebolWeb.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Jogo jogo)
         {
-            jogo.Data = jogo.Data.HasValue
-            ? DateTime.SpecifyKind(jogo.Data.Value, DateTimeKind.Utc)
-            : (DateTime?)null;
+            // O formulário recebe a data no fuso de Brasília (mesma convenção do Edit) —
+            // precisa converter pra UTC antes de salvar, senão o jogo fica ~3h atrasado no banco.
+            jogo.Data = DateHelper.DeBrasiliaParaUtc(jogo.Data);
 
 
             if (ModelState.IsValid)
@@ -305,6 +308,23 @@ namespace ControleFutebolWeb.Controllers
                         });
 
                 await _context.SaveChangesAsync();
+
+                // Jogo de hoje: busca a transmissão na hora em vez de esperar o próximo
+                // ciclo do AtualizarTransmissoesService (até 3h depois). Falha aqui não
+                // pode derrubar o cadastro do jogo — só fica sem a transmissão por ora.
+                var diaBrasilDoJogo = TransmissaoJogoService.DiaBrasilDoJogo(jogo.Data);
+                if (diaBrasilDoJogo == TransmissaoJogoService.HojeBrasil())
+                {
+                    try
+                    {
+                        await _transmissaoJogo.AtualizarTransmissoesDoDiaAsync(diaBrasilDoJogo.Value);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "[Jogos/Create] Falha ao buscar transmissão do jogo {Id} recém-criado.", jogo.Id);
+                    }
+                }
+
                 return RedirectToAction(nameof(Index));
             }
 
@@ -312,6 +332,7 @@ namespace ControleFutebolWeb.Controllers
             ViewBag.TimeVisitanteId = new SelectList(_context.Times, "Id", "Nome", jogo.TimeVisitanteId);
             ViewBag.FormacaoCasaId = new SelectList(_context.Formacoes, "Id", "Nome", jogo.FormacaoCasaId);
             ViewBag.FormacaoVisitanteId = new SelectList(_context.Formacoes, "Id", "Nome", jogo.FormacaoVisitanteId);
+            ViewBag.CompeticaoId = new SelectList(_context.Competicoes.OrderBy(c => c.Nome), "Id", "Nome", jogo.CompeticaoId);
 
             return View(jogo);
         }

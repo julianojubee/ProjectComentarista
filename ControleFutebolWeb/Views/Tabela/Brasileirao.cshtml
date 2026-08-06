@@ -25,6 +25,8 @@
         if (temporadaBrSel.HasValue) qs += $"&temporada={temporadaBrSel}";
         return Url.Action("Brasileirao") + qs;
     };
+
+    var estatisticasTimes = ViewBag.EstatisticasTimes as List<ControleFutebolWeb.Models.ViewModels.EstatisticaTimeViewModel> ?? new();
 }
 
 <style>
@@ -158,6 +160,17 @@
 
     .br-vazio { text-align: center; color: #6b7280; padding: 2rem 1rem; font-size: .82rem; }
 
+    /* ── Tabs (Classificação / Estatísticas) ── */
+    .br-tabs { padding: 0 2.5rem; border-bottom: 1px solid #1e1e1e; display: flex; gap: 4px; }
+    .br-tab {
+        background: none; border: none; cursor: pointer; font-family: 'Barlow Condensed', Arial, sans-serif;
+        font-size: 16px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+        padding: .8rem 1.3rem; border-bottom: 3px solid transparent; color: #6b7280;
+    }
+    .br-tab.active { color: #22c55e; border-bottom-color: #22c55e; }
+    .br-tabpane { display: none; }
+    .br-tabpane.active { display: block; }
+
     /* ── Responsivo ── */
     @@media (max-width: 768px) {
         .br-hero { padding: 26px 1.1rem 22px; }
@@ -165,6 +178,7 @@
         .br-layout { padding: 18px 1.1rem 40px; }
         .br-tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .br-cols, .br-row { min-width: 620px; }
+        .br-tabs { padding: 0 1.1rem; }
     }
 </style>
 
@@ -222,6 +236,13 @@
         </div>
     </div>
 
+    <!-- ── Tabs ── -->
+    <div class="br-tabs">
+        <button type="button" class="br-tab active" data-tab="classificacao">Classificação</button>
+        <button type="button" class="br-tab" data-tab="estatisticas">Estatísticas</button>
+    </div>
+
+    <div id="tab-classificacao" class="br-tabpane active">
     <!-- ── Layout principal ── -->
     <div class="br-layout">
 
@@ -428,4 +449,21 @@
 
         </div>
     </div>
+    </div>
+
+    <!-- ── Estatísticas ── -->
+    <div id="tab-estatisticas" class="br-tabpane">
+        @await Html.PartialAsync("_PainelEstatisticas", estatisticasTimes)
+    </div>
 </div>
+
+<script>
+    document.querySelectorAll('.br-tab').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.br-tab').forEach((b) => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelectorAll('.br-tabpane').forEach((p) => p.classList.remove('active'));
+            document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        });
+    });
+</script>

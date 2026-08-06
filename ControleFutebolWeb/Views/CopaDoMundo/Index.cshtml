@@ -873,6 +873,7 @@ else
                 <button type="button" class="cdm-tab @(!temGrupos ? "active" : "")" data-cdm-tab="chave">⚔️ Mata-Mata</button>
             }
             <button type="button" class="cdm-tab" data-cdm-tab="selecao">⭐ Seleção</button>
+            <button type="button" class="cdm-tab" data-cdm-tab="estatisticas">📈 Estatísticas</button>
         </div>
 
         @if (temChave)
@@ -1350,6 +1351,10 @@ else
                     </div>
                 </div>
             }
+        </div>
+
+        <div class="cdm-panel" data-cdm-panel="estatisticas">
+            @await Html.PartialAsync("_PainelEstatisticas", ViewBag.EstatisticasTimes as List<ControleFutebolWeb.Models.ViewModels.EstatisticaTimeViewModel>)
         </div>
     </div>
 

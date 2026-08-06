@@ -19,6 +19,14 @@
     </div>
 
     <div class="form-group">
+        <label asp-for="CompeticaoId" class="control-label">Competição</label>
+        <select asp-for="CompeticaoId" class="form-control" asp-items="ViewBag.CompeticaoId">
+            <option value="">-- Selecione --</option>
+        </select>
+        <span asp-validation-for="CompeticaoId" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
         <label asp-for="TimeCasaId" class="control-label">Time da Casa</label>
         <select asp-for="TimeCasaId" class="form-control" asp-items="ViewBag.TimeCasaId"></select>
         <span asp-validation-for="TimeCasaId" class="text-danger"></span>

@@ -5,6 +5,7 @@
     var vm = ViewBag.Vm as CopaBrasilViewModel ?? new CopaBrasilViewModel();
     var temporadasCb = ViewBag.TemporadasDisponiveis as List<int> ?? new List<int>();
     var temporadaCbSel = ViewBag.Temporada as int?;
+    var estatisticasTimes = ViewBag.EstatisticasTimes as List<ControleFutebolWeb.Models.ViewModels.EstatisticaTimeViewModel> ?? new();
 }
 
 <style>
@@ -95,6 +96,18 @@
     /* Sem dados */
     .cb-empty { text-align: center; padding: 3.5rem 1rem; color: #6b7280; font-size: .8rem; background: #161616; border: 1px solid #262626; border-radius: 14px; }
     .cb-trophy { font-size: 2.5rem; margin-bottom: 10px; }
+
+    /* ── Abas (Confrontos / Estatísticas) ── */
+    .cb-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; border-bottom: 1px solid #262626; margin-bottom: 1.2rem; }
+    .cb-tab {
+        flex: 0 0 auto; background: #161616; border: 1px solid #262626; border-radius: 999px;
+        padding: 7px 16px; font-size: 12px; font-weight: 700; color: #9ca3af; cursor: pointer; white-space: nowrap;
+        font-family: 'Barlow', Arial, sans-serif; transition: border-color .15s, color .15s;
+    }
+    .cb-tab:hover { border-color: #d4a520; color: #d4a520; }
+    .cb-tab.active { background: #d4a5201a; border-color: #d4a52080; color: #d4a520; }
+    .cb-panel { display: none; }
+    .cb-panel.active { display: block; }
 </style>
 
 <div class="cb-root">
@@ -133,6 +146,12 @@
 
     <div class="cb-content">
 
+        <div class="cb-tabs" role="tablist">
+            <button type="button" class="cb-tab active" data-cb-tab="confrontos">🏆 Confrontos</button>
+            <button type="button" class="cb-tab" data-cb-tab="estatisticas">📈 Estatísticas</button>
+        </div>
+
+        <div class="cb-panel active" data-cb-panel="confrontos">
         @if (vm.FaseAtual == "Sem dados" || !vm.Confrontos.Any())
         {
             <div class="cb-empty">
@@ -347,5 +366,25 @@
                 }
             </div>
         }
+        </div>
+
+        <div class="cb-panel" data-cb-panel="estatisticas">
+            @await Html.PartialAsync("_PainelEstatisticas", estatisticasTimes)
+        </div>
     </div>
 </div>
+
+<script>
+    (function () {
+        var tabs = document.querySelectorAll('.cb-tab');
+        tabs.forEach(function (tab) {
+            tab.addEventListener('click', function () {
+                tabs.forEach(function (t) { t.classList.remove('active'); });
+                document.querySelectorAll('.cb-panel').forEach(function (p) { p.classList.remove('active'); });
+                tab.classList.add('active');
+                var alvo = document.querySelector('[data-cb-panel="' + tab.dataset.cbTab + '"]');
+                if (alvo) alvo.classList.add('active');
+            });
+        });
+    })();
+</script>

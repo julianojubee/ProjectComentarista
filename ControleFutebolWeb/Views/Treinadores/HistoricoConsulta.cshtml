@@ -1,113 +1,65 @@
 ﻿@model IEnumerable<ControleFutebolWeb.Models.TreinadorHistorico>
 @using ControleFutebolWeb.Helpers
-<style>
-    /* Reaproveitando o mesmo estilo da tela de jogadores */
-    @@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500&display=swap');
-
-    :root {
-        --cinza1: #0f172a;
-        --cinza2: #1e293b;
-        --cinza3: #334155;
-        --texto: #f1f5f9;
-        --muted: #94a3b8;
-        --verde: #16a34a;
-        --verde2: #22c55e;
-    }
-
-    .estat-page {
-        background: var(--cinza1);
-        min-height: 100vh;
-        color: var(--texto);
-        font-family: 'Barlow', sans-serif;
-        padding: 2rem 1rem 4rem;
-    }
-
-    .jogador-header {
-        display: flex;
-        align-items: center;
-        gap: 1.5rem;
-        margin-bottom: 2rem;
-        padding-bottom: 1.5rem;
-        border-bottom: 1px solid var(--cinza3);
-    }
-
-    .jogador-foto {
-        width: 72px;
-        height: 72px;
-        object-fit: cover;
-        border-radius: 12px;
-        border: 2px solid var(--cinza3);
-        background: var(--cinza2);
-    }
-
-    .jogador-nome {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 2.4rem;
-        font-weight: 800;
-        margin: 0;
-    }
-
-    .jogador-meta {
-        font-size: .85rem;
-        color: var(--muted);
-        margin-top: .3rem;
-        display: flex;
-        gap: 1rem;
-        flex-wrap: wrap;
-    }
-
-    .jogos-titulo {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 1.4rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
-        gap: .6rem;
-    }
-
-    .jogo-item {
-        background: var(--cinza2);
-        border: 1px solid var(--cinza3);
-        border-radius: 10px;
-        padding: .9rem 1.1rem;
-        margin-bottom: .6rem;
-        display: grid;
-        grid-template-columns: 1fr auto;
-        align-items: center;
-        gap: 1rem;
-    }
-
-    .jogo-adversario {
-        font-size: .95rem;
-        font-weight: 500;
-    }
-
-    .jogo-data {
-        font-size: .75rem;
-        color: var(--muted);
-        margin-top: .2rem;
-    }
-
-    .btn-voltar {
-        display: inline-flex;
-        align-items: center;
-        gap: .4rem;
-        background: var(--cinza2);
-        border: 1px solid var(--cinza3);
-        color: var(--texto);
-        padding: .45rem 1rem;
-        border-radius: 8px;
-        font-size: .85rem;
-        text-decoration: none;
-        margin-bottom: 1.5rem;
-    }
-</style>
+<partial name="_HistoricoEstilos" />
 <div class="estat-page">
     <div class="container" style="max-width:860px;">
 
         <a href="javascript:history.back()" class="btn-voltar">← Voltar</a>
+
+        @if (TempData["Sucesso"] != null)
+        {
+            <div class="aviso-box aviso-ok">@TempData["Sucesso"]</div>
+        }
+        @if (TempData["Erro"] != null)
+        {
+            <div class="aviso-box aviso-erro">@TempData["Erro"]</div>
+        }
+        @if (TempData["Avisos"] != null)
+        {
+            <div class="aviso-box">⚠️ @TempData["Avisos"]</div>
+        }
+
+        @{
+            // Detalhe item a item de um salvamento via API (formato "STATUS|time|motivo",
+            // separados por "~~" — ver SalvarHistoricoApi). Mostra exatamente o que aconteceu
+            // com cada passagem da pré-visualização, em vez de deixar só um total agregado.
+            var detalhesRaw = TempData["HistoricoDetalhes"] as string;
+        }
+        @if (!string.IsNullOrEmpty(detalhesRaw))
+        {
+            var linhas = detalhesRaw.Split("~~", StringSplitOptions.RemoveEmptyEntries);
+            <div class="jogos-titulo" style="font-size:1.1rem;">O que aconteceu ao salvar</div>
+            <div style="margin-bottom:1.5rem;">
+                @foreach (var linha in linhas)
+                {
+                    var partes = linha.Split('|');
+                    var status = partes[0];
+                    var nomeTime = partes.Length > 1 ? partes[1] : "";
+                    var motivo = partes.Length > 2 ? partes[2] : "";
+                    <div class="jogo-item" style="grid-template-columns:1fr auto; padding:.55rem .9rem; margin-bottom:.35rem;">
+                        <div class="jogo-adversario" style="font-size:.85rem;">
+                            @nomeTime
+                            @if (status == "SALVO" && !string.IsNullOrEmpty(motivo))
+                            {
+                                <span style="font-size:.7rem; color:var(--muted); font-weight:400; margin-left:.4rem;">(@motivo)</span>
+                            }
+                        </div>
+                        @if (status == "SALVO")
+                        {
+                            <span class="tag-badge ok">✅ salvo</span>
+                        }
+                        else if (status == "JASALVO")
+                        {
+                            <span class="tag-badge info">já estava salvo</span>
+                        }
+                        else
+                        {
+                            <span class="tag-badge aviso">ignorado — @motivo</span>
+                        }
+                    </div>
+                }
+            </div>
+        }
 
         <!-- Header -->
         <div class="jogador-header">
@@ -151,7 +103,15 @@
         </div>
 
         <!-- Histórico -->
-        <div class="jogos-titulo">Histórico Salvo</div>
+        <div class="jogos-titulo">
+            Histórico Salvo
+            @if (Model.Any())
+            {
+                <span style="font-size:.8rem; font-weight:400; color:var(--muted); text-transform:none;">
+                    (@Model.Count() passagem(ns))
+                </span>
+            }
+        </div>
 
         @if (!Model.Any())
         {
@@ -181,6 +141,15 @@
                     </div>
                 </div>
             }
+
+            <form asp-action="LimparHistorico" asp-route-id="@(((ControleFutebolWeb.Models.Treinador)ViewBag.Treinador).Id)" method="post" style="margin-top:1.2rem;">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-outline-danger btn-sm cf-small-btn"
+                        title="Apagar todo o histórico salvo"
+                        onclick="return confirm('Apagar todas as @Model.Count() passagem(ns) do histórico de @(((ControleFutebolWeb.Models.Treinador)ViewBag.Treinador).Nome)? Essa ação não pode ser desfeita.')">
+                    🗑️ Limpar Histórico
+                </button>
+            </form>
         }
 
     </div>

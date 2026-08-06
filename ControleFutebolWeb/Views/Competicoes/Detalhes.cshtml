@@ -329,6 +329,7 @@
                     <button type="button" class="cd-tab-btn" data-tab="bracket">⚔️ Playoffs</button>
                 }
             }
+            <button type="button" class="cd-tab-btn" data-tab="estatisticas">📈 Estatísticas</button>
             <button type="button" class="cd-tab-btn" data-tab="jogos">📋 Jogos Realizados</button>
             <button type="button" class="cd-tab-btn" data-tab="proximos">📅 Próximos</button>
         </div>
@@ -387,6 +388,11 @@
                 </div>
             }
 
+
+            <!-- ══════ ESTATÍSTICAS (compartilhado, todos os tipos/formatos) ══════ -->
+            <div class="cd-panel" id="cd-panel-estatisticas" style="display:none;">
+                @await Html.PartialAsync("_PainelEstatisticas", ViewBag.EstatisticasTimes as List<ControleFutebolWeb.Models.ViewModels.EstatisticaTimeViewModel>)
+            </div>
 
             <!-- ══════ JOGOS REALIZADOS (compartilhado) ══════ -->
             <div class="cd-panel" id="cd-panel-jogos" style="display:none;">

@@ -1,6 +1,7 @@
 ﻿using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
+using ControleFutebolWeb.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
@@ -36,7 +37,7 @@ namespace ControleFutebolWeb.Controllers
             return saldo;
         }
 
-        public IActionResult Brasileirao(int? temporada = null, int? rodada = null)
+        public async Task<IActionResult> Brasileirao(int? temporada = null, int? rodada = null)
         {
             // Temporadas disponíveis para o Brasileirão; padrão = a mais recente
             var temporadasDisponiveis = _context.Jogos
@@ -199,6 +200,21 @@ namespace ControleFutebolWeb.Controllers
                 .ThenByDescending(t => t.SaldoGols)
                 .ThenByDescending(t => t.GolsPro)
                 .ToList();
+
+            // ── Aba "Estatísticas": estatísticas completas por time da temporada ──
+            var jogoIds = jogos.Select(j => j.Id).ToHashSet();
+
+            var golsEstat = await _context.Gols.AsNoTracking()
+                .Include(g => g.Jogador)
+                .Where(g => jogoIds.Contains(g.JogoId))
+                .ToListAsync();
+
+            var cartoesEstat = await _context.Cartoes.AsNoTracking()
+                .Include(c => c.Jogador)
+                .Where(c => jogoIds.Contains(c.JogoId))
+                .ToListAsync();
+
+            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(jogos, golsEstat, cartoesEstat);
 
             return View(tabela);
         }

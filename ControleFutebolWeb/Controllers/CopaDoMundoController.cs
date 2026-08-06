@@ -2,6 +2,7 @@ using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
+using ControleFutebolWeb.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -131,6 +132,25 @@ namespace ControleFutebolWeb.Controllers
             vm.RodadaAtual = rodadaAtual;
             vm.TerceirosColocados = terceiros;
             vm.Chaveamento = chaveamento;
+
+            // ── Aba "Estatísticas": todos os jogos realizados da competição/temporada,
+            // grupos + mata-mata (jogosRealizados acima só cobre a fase de grupos).
+            var todosJogosRealizadosEstat = _context.Jogos
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .Where(j => j.CompeticaoId == competicao.Id && (temporadaSel == null || j.Temporada == temporadaSel)
+                         && j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue)
+                .ToList();
+            var jogoIdsEstat = todosJogosRealizadosEstat.Select(j => j.Id).ToHashSet();
+            var golsEstat = _context.Gols.AsNoTracking()
+                .Include(g => g.Jogador)
+                .Where(g => jogoIdsEstat.Contains(g.JogoId))
+                .ToList();
+            var cartoesEstat = _context.Cartoes.AsNoTracking()
+                .Include(c => c.Jogador)
+                .Where(c => jogoIdsEstat.Contains(c.JogoId))
+                .ToList();
+            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(todosJogosRealizadosEstat, golsEstat, cartoesEstat);
 
             PreencherAbaSelecao(vm, competicao.Id, temporadaSel, selFormacaoId, selId, nova);
 

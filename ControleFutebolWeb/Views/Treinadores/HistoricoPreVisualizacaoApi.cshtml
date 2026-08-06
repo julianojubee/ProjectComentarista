@@ -1,138 +1,17 @@
 @model ControleFutebolWeb.Models.ViewModels.TreinadorHistoricoApiViewModel
 @{
     ViewData["Title"] = $"Histórico (API) — {Model.Treinador.Nome}";
+    var novas = Model.Itens.Count(i => i.StatusPrevisto == "nova");
+    var jaSalvas = Model.Itens.Count(i => i.StatusPrevisto == "ja-salva");
+    var ignoradas = Model.Itens.Count(i => i.StatusPrevisto == "ignorada");
+    var naoCadastrados = Model.Itens.Count(i => i.ClubeNaoCadastrado);
+
+    // Homônimos na API e nenhum escolhido ainda: a tela vira um seletor e o histórico
+    // (e o botão de salvar) só aparecem depois da escolha.
+    var escolhaPendente = Model.Ambiguo && Model.Candidatos.Any();
 }
 
-<style>
-    /* Reaproveitando o mesmo estilo da tela de jogadores */
-    @@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500&display=swap');
-
-    :root {
-        --cinza1: #0f172a;
-        --cinza2: #1e293b;
-        --cinza3: #334155;
-        --texto: #f1f5f9;
-        --muted: #94a3b8;
-        --verde: #16a34a;
-        --verde2: #22c55e;
-        --amarelo: #eab308;
-    }
-
-    .estat-page {
-        background: var(--cinza1);
-        min-height: 100vh;
-        color: var(--texto);
-        font-family: 'Barlow', sans-serif;
-        padding: 2rem 1rem 4rem;
-    }
-
-    .jogador-header {
-        display: flex;
-        align-items: center;
-        gap: 1.5rem;
-        margin-bottom: 2rem;
-        padding-bottom: 1.5rem;
-        border-bottom: 1px solid var(--cinza3);
-    }
-
-    .jogador-foto {
-        width: 72px;
-        height: 72px;
-        object-fit: cover;
-        border-radius: 12px;
-        border: 2px solid var(--cinza3);
-        background: var(--cinza2);
-    }
-
-    .jogador-nome {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 2.4rem;
-        font-weight: 800;
-        margin: 0;
-    }
-
-    .jogador-meta {
-        font-size: .85rem;
-        color: var(--muted);
-        margin-top: .3rem;
-        display: flex;
-        gap: 1rem;
-        flex-wrap: wrap;
-    }
-
-    .jogos-titulo {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 1.4rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
-        gap: .6rem;
-    }
-
-    .jogo-item {
-        background: var(--cinza2);
-        border: 1px solid var(--cinza3);
-        border-radius: 10px;
-        padding: .9rem 1.1rem;
-        margin-bottom: .6rem;
-        display: grid;
-        grid-template-columns: 1fr auto;
-        align-items: center;
-        gap: 1rem;
-    }
-
-    .jogo-item.nao-cadastrado {
-        opacity: .6;
-        border-style: dashed;
-    }
-
-    .jogo-adversario {
-        font-size: .95rem;
-        font-weight: 500;
-    }
-
-    .jogo-data {
-        font-size: .75rem;
-        color: var(--muted);
-        margin-top: .2rem;
-    }
-
-    .tag-aviso {
-        font-size: .7rem;
-        color: var(--amarelo);
-        border: 1px solid var(--amarelo);
-        border-radius: 6px;
-        padding: .1rem .4rem;
-        margin-left: .5rem;
-        white-space: nowrap;
-    }
-
-    .aviso-box {
-        background: #422006;
-        border: 1px solid var(--amarelo);
-        color: #fde68a;
-        border-radius: 8px;
-        padding: .8rem 1rem;
-        margin-bottom: 1.2rem;
-        font-size: .85rem;
-    }
-
-    .btn-voltar {
-        display: inline-flex;
-        align-items: center;
-        gap: .4rem;
-        background: var(--cinza2);
-        border: 1px solid var(--cinza3);
-        color: var(--texto);
-        padding: .45rem 1rem;
-        border-radius: 8px;
-        font-size: .85rem;
-        text-decoration: none;
-        margin-bottom: 1.5rem;
-    }
-</style>
+<partial name="_HistoricoEstilos" />
 
 <div class="estat-page">
     <div class="container" style="max-width:860px;">
@@ -171,7 +50,77 @@
             </div>
         }
 
-        @if (Model.Ambiguo)
+        @if (Model.Ambiguo && Model.Candidatos.Any())
+        {
+            <!-- Homônimos na API (ex.: os dois "Luís Castro" portugueses): em vez de importar
+                 só a passagem do time atual, o usuário escolhe de quem é a carreira. -->
+            <div class="aviso-box">
+                ⚠️ A API tem <b>@Model.Candidatos.Count técnicos</b> com o nome de @Model.Treinador.Nome.
+                Escolha abaixo qual é o certo — o histórico dele será importado e o cadastro
+                (idade, nacionalidade e foto) atualizado. O time atual
+                @if (Model.Treinador.Time != null)
+                {
+                    <text>(<b>@Model.Treinador.Time.Nome</b>)</text>
+                }
+                não muda.
+            </div>
+
+            <div class="jogos-titulo">Qual desses é o @Model.Treinador.Nome?</div>
+
+            @foreach (var c in Model.Candidatos)
+            {
+                <div class="jogo-item" style="grid-template-columns:auto 1fr auto; gap:14px;">
+                    @if (!string.IsNullOrWhiteSpace(c.FotoUrl))
+                    {
+                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.FotoUrl })"
+                             style="width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--cinza1);" alt="@c.Nome" />
+                    }
+                    else
+                    {
+                        <img src="/images/placeholder-treinador.png"
+                             style="width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--cinza1);" alt="" />
+                    }
+
+                    <div>
+                        <div class="jogo-adversario">
+                            @(c.NomeCompleto ?? c.Nome)
+                            @if (c.Idade.HasValue)
+                            {
+                                <span class="tag-badge info">@c.Idade anos</span>
+                            }
+                        </div>
+                        <div class="jogo-data">
+                            @if (!string.IsNullOrWhiteSpace(c.Nacionalidade))
+                            {
+                                <text>🌍 @c.Nacionalidade · </text>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(c.TimeAtual))
+                            {
+                                <text>🏟️ hoje no @c.TimeAtual · </text>
+                            }
+                            @c.TotalPassagens passagem(ns)
+                            @if (!string.IsNullOrWhiteSpace(c.PeriodoCarreira))
+                            {
+                                <text> · @c.PeriodoCarreira</text>
+                            }
+                        </div>
+                        @if (c.ClubesResumo.Any())
+                        {
+                            <div class="jogo-data" style="margin-top:.3rem;">
+                                @string.Join(" · ", c.ClubesResumo)@(c.TotalPassagens > c.ClubesResumo.Count ? " …" : "")
+                            </div>
+                        }
+                    </div>
+
+                    <a asp-action="PreVisualizarHistoricoApi" asp-route-id="@Model.Treinador.Id"
+                       asp-route-coachApiId="@c.Id" class="btn-salvar-historico"
+                       style="text-decoration:none; white-space:nowrap; align-self:center;">
+                        É este →
+                    </a>
+                </div>
+            }
+        }
+        else if (Model.Ambiguo)
         {
             <div class="aviso-box">
                 ⚠️ A API tem mais de um técnico com nome parecido ao de @Model.Treinador.Nome —
@@ -181,7 +130,40 @@
             </div>
         }
 
-        <!-- Histórico -->
+        @if (Model.Escolhido != null)
+        {
+            <!-- Registro escolhido entre homônimos: deixa explícito de quem são os dados que
+                 serão gravados e permite trocar sem sair da tela. -->
+            <div class="aviso-box aviso-ok" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:220px;">
+                    ✅ Usando o registro de <b>@(Model.Escolhido.NomeCompleto ?? Model.Escolhido.Nome)</b>
+                    @if (Model.Escolhido.Idade.HasValue)
+                    {
+                        <text>, @Model.Escolhido.Idade anos</text>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Model.Escolhido.Nacionalidade))
+                    {
+                        <text>, @Model.Escolhido.Nacionalidade</text>
+                    }.
+                    Ao salvar, esses dados vão para o cadastro — o time atual
+                    @if (Model.Treinador.Time != null)
+                    {
+                        <text>(<b>@Model.Treinador.Time.Nome</b>)</text>
+                    }
+                    é mantido.
+                </div>
+                <a asp-action="PreVisualizarHistoricoApi" asp-route-id="@Model.Treinador.Id"
+                   asp-route-escolher="true"
+                   style="font-size:.8rem; color:var(--amarelo); text-decoration:none; white-space:nowrap;">
+                    trocar de técnico →
+                </a>
+            </div>
+        }
+
+        <!-- Histórico. Com escolha pendente entre homônimos ele nem é montado — só aparece
+             depois que o usuário disser qual técnico é o certo. -->
+        @if (!escolhaPendente)
+        {
         <div class="jogos-titulo">Histórico de Trabalhos (api-football)</div>
 
         @if (!Model.Itens.Any())
@@ -190,15 +172,43 @@
         }
         else
         {
+            <!-- Prevê exatamente o resultado do clique em "Salvar Histórico" — mesma regra de
+                 dedupe usada em SalvarHistoricoApi — pra fechar o ciclo preview → salvar sem
+                 surpresa nenhuma. -->
+            <div class="resumo-contagem">
+                <b>@novas</b> passagem(ns) nova(s) será(ão) salva(s)
+                @if (jaSalvas > 0)
+                {
+                    <text>, <b>@jaSalvas</b> já estava(m) salva(s)</text>
+                }
+                @if (ignoradas > 0)
+                {
+                    <text>, <b>@ignoradas</b> será(ão) ignorada(s)</text>
+                }
+                de <b>@Model.Itens.Count</b> passagem(ns) encontrada(s) na API.
+                @if (naoCadastrados > 0)
+                {
+                    <text> @naoCadastrados delas têm o clube fora do sistema — marque a opção abaixo do botão pra cadastrá-los também.</text>
+                }
+            </div>
+
             foreach (var item in Model.Itens)
             {
-                <div class="jogo-item @(item.ClubeNaoCadastrado ? "nao-cadastrado" : "")">
+                <div class="jogo-item @(item.ClubeNaoCadastrado ? "nao-cadastrado" : item.JaSalva ? "ja-salva" : "")">
                     <div>
                         <div class="jogo-adversario">
                             @(item.TimeLocalNome ?? item.NomeTime)
                             @if (item.ClubeNaoCadastrado)
                             {
-                                <span class="tag-aviso">clube não cadastrado — não será salvo</span>
+                                <span class="tag-aviso">clube não cadastrado — marque a opção abaixo para criar</span>
+                            }
+                            else if (item.JaSalva)
+                            {
+                                <span class="tag-badge info">já salvo</span>
+                            }
+                            else
+                            {
+                                <span class="tag-badge ok">novo</span>
                             }
                         </div>
                         <div class="jogo-data">
@@ -211,13 +221,37 @@
         }
 
         <!-- Botão de salvar -->
-        <form asp-action="SalvarHistoricoApi" method="post">
+        <form asp-action="SalvarHistoricoApi" method="post" style="margin-top:1rem;">
             @Html.AntiForgeryToken()
             <input type="hidden" name="treinadorId" value="@Model.Treinador.Id" />
-            <button type="submit" class="btn btn-success"
-                    disabled="@(Model.Itens.All(i => i.ClubeNaoCadastrado) ? "disabled" : null)">
-                Salvar Histórico
+            @if (Model.EscolhidoId.HasValue)
+            {
+                <!-- Carrega a escolha do preview até o salvamento, senão o servidor voltaria
+                     a considerar a resolução ambígua. -->
+                <input type="hidden" name="coachApiId" value="@Model.EscolhidoId" />
+            }
+
+            @if (naoCadastrados > 0)
+            {
+                <label style="display:flex; align-items:center; gap:.5rem; font-size:.85rem; color:var(--texto); margin-bottom:.9rem; cursor:pointer;">
+                    <input type="checkbox" name="criarClubes" value="true" style="width:16px; height:16px;" />
+                    Criar automaticamente @naoCadastrados clube(s) não cadastrado(s) (cadastro genérico —
+                    só nome e escudo — dá pra completar os dados depois em "Times")
+                </label>
+            }
+
+            <button type="submit" class="btn-salvar-historico"
+                    disabled="@(novas == 0 && naoCadastrados == 0 ? "disabled" : null)">
+                @if (novas == 0 && naoCadastrados == 0)
+                {
+                    <text>Nada novo para salvar</text>
+                }
+                else
+                {
+                    <text>Salvar histórico</text>
+                }
             </button>
         </form>
+        }
     </div>
 </div>

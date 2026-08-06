@@ -2,6 +2,7 @@ using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
+using ControleFutebolWeb.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -107,6 +108,26 @@ namespace ControleFutebolWeb.Controllers
             vm.ProximosJogos = proximosJogos;
             vm.RodadaAtual = rodadaAtual;
             vm.Chaveamento = chaveamento;
+
+            // ── Aba "Estatísticas": todos os jogos realizados da competição/temporada,
+            // grupos + mata-mata (a classificação por grupo acima só usa a fase de grupos).
+            var todosJogosRealizados = _context.Jogos
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .Where(j => j.CompeticaoId == 2 && (temporadaSel == null || j.Temporada == temporadaSel)
+                         && j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue)
+                .ToList();
+
+            var jogoIdsEstat = todosJogosRealizados.Select(j => j.Id).ToHashSet();
+            var golsEstat = _context.Gols.AsNoTracking()
+                .Include(g => g.Jogador)
+                .Where(g => jogoIdsEstat.Contains(g.JogoId))
+                .ToList();
+            var cartoesEstat = _context.Cartoes.AsNoTracking()
+                .Include(c => c.Jogador)
+                .Where(c => jogoIdsEstat.Contains(c.JogoId))
+                .ToList();
+            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(todosJogosRealizados, golsEstat, cartoesEstat);
 
             return View(vm);
         }

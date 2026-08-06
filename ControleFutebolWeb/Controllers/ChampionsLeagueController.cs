@@ -2,6 +2,7 @@ using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
+using ControleFutebolWeb.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -86,6 +87,20 @@ namespace ControleFutebolWeb.Controllers
             vm.FasesMataMata = fasesMataMata;
             vm.TotalJogos = todosJogos.Count;
             vm.JogosRealizados = todosJogos.Count(j => j.PlacarCasa.HasValue);
+
+            // ── Aba "Estatísticas": todos os jogos realizados da competição/temporada,
+            // fase de liga + mata-mata.
+            var jogosRealizadosEstat = todosJogos.Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue).ToList();
+            var jogoIdsEstat = jogosRealizadosEstat.Select(j => j.Id).ToHashSet();
+            var golsEstat = _context.Gols.AsNoTracking()
+                .Include(g => g.Jogador)
+                .Where(g => jogoIdsEstat.Contains(g.JogoId))
+                .ToList();
+            var cartoesEstat = _context.Cartoes.AsNoTracking()
+                .Include(c => c.Jogador)
+                .Where(c => jogoIdsEstat.Contains(c.JogoId))
+                .ToList();
+            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(jogosRealizadosEstat, golsEstat, cartoesEstat);
 
             return View(vm);
         }

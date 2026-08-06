@@ -259,6 +259,18 @@ namespace ControleFutebolWeb.Controllers
                 .Select(t => new ArtilheiroViewModel { Jogador = jogadoresArtilheiros[t.JogadorId], Gols = t.Gols })
                 .ToList();
 
+            // ── Aba "Estatísticas" ─────────────────────────────────────────────
+            var jogoIdsEstat = jogosRealizados.Select(j => j.Id).ToHashSet();
+            var golsEstat = _context.Gols.AsNoTracking()
+                .Include(g => g.Jogador)
+                .Where(g => jogoIdsEstat.Contains(g.JogoId))
+                .ToList();
+            var cartoesEstat = _context.Cartoes.AsNoTracking()
+                .Include(c => c.Jogador)
+                .Where(c => jogoIdsEstat.Contains(c.JogoId))
+                .ToList();
+            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(jogosRealizados, golsEstat, cartoesEstat);
+
             return View(vm);
         }
 

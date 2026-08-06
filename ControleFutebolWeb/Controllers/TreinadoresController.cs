@@ -11,16 +11,13 @@ namespace ControleFutebolWeb.Controllers
     public class TreinadoresController : Controller
     {
         private readonly FutebolContext _context;
-        private readonly TransfermarktTreinadorService _tmTreinadorService;
         private readonly ApiFootballService _apiFootball;
 
         public TreinadoresController(
             FutebolContext context,
-            TransfermarktTreinadorService tmTreinadorService,
             ApiFootballService apiFootball)
         {
             _context = context;
-            _tmTreinadorService = tmTreinadorService;
             _apiFootball = apiFootball;
         }
 
@@ -38,7 +35,7 @@ namespace ControleFutebolWeb.Controllers
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(nome))
-                query = query.Where(t => t.Nome.Contains(nome));
+                query = query.Where(t => EF.Functions.ILike(t.Nome, $"%{nome}%"));
 
             // Filtro por competições: treinadores cujos times jogaram nas competições selecionadas
             if (competicaoIds.Any())
@@ -320,7 +317,7 @@ namespace ControleFutebolWeb.Controllers
                 // Resolve o registro certo (o mesmo tratamento de "stub" usado na importação
                 // de histórico via API) — evita travar no cadastro parcial que a api-football
                 // cria quando o técnico assume um time novo.
-                var (melhor, registros, ambiguo) = await _apiFootball.ResolverTreinadorApiAsync(
+                var (melhor, registros, ambiguo, _) = await _apiFootball.ResolverTreinadorApiAsync(
                     termoBusca, teamApiId, treinador.IdApi);
 
                 if (melhor == null)
@@ -329,81 +326,11 @@ namespace ControleFutebolWeb.Controllers
                     return Voltar();
                 }
 
-                var alteracoes = new List<string>();
-
                 // registros.Count > 1 só acontece quando um stub foi resolvido para o
                 // registro completo correspondente (ver ResolverTreinadorApiAsync).
                 var resolveuStub = registros.Count > 1;
 
-                // Grava/atualiza o IdApi para travar as próximas buscas no técnico certo —
-                // sempre o id do registro completo quando a resolução encontrar um, o que
-                // corrige automaticamente treinadores já travados no id de um stub.
-                if (melhor.Id is int coachId && coachId > 0 && treinador.IdApi != coachId)
-                {
-                    treinador.IdApi = coachId;
-                }
-
-                // Corrige o nome pelo canônico da API só quando o nome local é uma variação
-                // dos mesmos tokens (ex.: "Ceni Rogerio", invertido, herdado de um stub →
-                // "Rogério Ceni") ou veio literalmente do stub resolvido — nunca sobrescreve
-                // um nome escolhido à mão pelo usuário.
-                var stub = resolveuStub ? registros.FirstOrDefault(r => r.Id != melhor.Id) : null;
-                if (!string.IsNullOrWhiteSpace(melhor.Name) && treinador.Nome != melhor.Name &&
-                    (ApiFootballService.NomesEquivalentes(treinador.Nome, melhor.Name) ||
-                     (stub != null && ApiFootballService.NomesEquivalentes(treinador.Nome, stub.Name))))
-                {
-                    treinador.Nome = melhor.Name;
-                    alteracoes.Add($"nome ({melhor.Name})");
-                }
-
-                // Idade / data de nascimento
-                DateTime? novaData = null;
-                if (!string.IsNullOrEmpty(melhor.Birth?.Date) &&
-                    DateTime.TryParse(melhor.Birth.Date,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        System.Globalization.DateTimeStyles.None, out var dtNasc))
-                {
-                    novaData = dtNasc;
-                }
-                else if (melhor.Age is int idadeApi && idadeApi > 0 && idadeApi < 120)
-                {
-                    // Sem data na API: estima 01/01 do ano que resulta na idade informada.
-                    novaData = new DateTime(DateTime.Today.Year - idadeApi, 1, 1);
-                }
-
-                if (novaData.HasValue && novaData.Value.Year > 1900)
-                {
-                    // Data de nascimento é data pura: ancora ao meio-dia UTC para que nenhuma
-                    // conversão de fuso (converter do EF ou coerção do Postgres) mude o DIA —
-                    // meia-noite deslocada em -3h vira o dia anterior, o que fazia a data ser
-                    // regravada (e exibida errada) a cada clique em Buscar dados.
-                    var data = DateTime.SpecifyKind(novaData.Value.Date.AddHours(12), DateTimeKind.Utc);
-                    if (treinador.DataNascimento?.Date != data.Date)
-                    {
-                        treinador.DataNascimento = data;
-                        alteracoes.Add($"idade ({treinador.Idade} anos)");
-                    }
-                }
-
-                // Nacionalidade (resolve ou cria)
-                if (!string.IsNullOrWhiteSpace(melhor.Nationality))
-                {
-                    var nac = await ApiFootballService.ResolverOuCriarNacionalidadePublicAsync(_context, melhor.Nationality);
-                    if (nac != null && treinador.NacionalidadeId != nac.Id)
-                    {
-                        treinador.NacionalidadeId = nac.Id;
-                        alteracoes.Add($"nacionalidade ({nac.Nome})");
-                    }
-                }
-
-                // Foto
-                if (!string.IsNullOrEmpty(melhor.Photo) && treinador.FotoUrl != melhor.Photo)
-                {
-                    treinador.FotoUrl = melhor.Photo;
-                    alteracoes.Add("foto");
-                }
-
-                treinador.DtAlt = DateTime.UtcNow;
+                var alteracoes = await AplicarDadosDaApiAsync(treinador, melhor, registros);
                 await _context.SaveChangesAsync();
 
                 if (alteracoes.Any())
@@ -424,8 +351,7 @@ namespace ControleFutebolWeb.Controllers
                 if (ambiguo)
                 {
                     var aviso = $"⚠️ A API tem mais de um técnico com nome parecido a '{treinador.Nome}' — " +
-                        "só foi encontrado um cadastro parcial (sem idade/nacionalidade confirmadas) e não foi " +
-                        "possível confirmar qual é o registro completo.";
+                        "abra \"Importar Histórico (API)\" para escolher qual é o certo.";
                     TempData["Info"] = TempData["Info"] != null ? $"{TempData["Info"]} {aviso}" : aviso;
                 }
             }
@@ -437,132 +363,115 @@ namespace ControleFutebolWeb.Controllers
             return Voltar();
         }
 
-        // ── Importar histórico pelo nome (busca automática) ──────────────────
-
         /// <summary>
-        /// GET: Abre a tela de pré-visualização do histórico antes de salvar.
+        /// Copia para o treinador local os dados do registro escolhido na api-football: nome
+        /// canônico, data de nascimento, nacionalidade, foto e o IdApi (que trava as buscas
+        /// seguintes no técnico certo). O <b>time atual não é tocado</b> — o vínculo com o
+        /// clube continua sendo o que está cadastrado aqui, mesmo quando a API aponta outro.
+        /// Devolve a lista de campos alterados (vazia = já estava tudo atualizado).
         /// </summary>
-        [HttpGet]
-        public async Task<IActionResult> PreVisualizarHistorico(int id)
+        private async Task<List<string>> AplicarDadosDaApiAsync(
+            Treinador treinador, AfCoachFull melhor, List<AfCoachFull> registros)
         {
-            var treinador = await _context.Treinadores
-                .Include(t => t.Time)
-                .FirstOrDefaultAsync(t => t.Id == id);
+            var alteracoes = new List<string>();
 
-            if (treinador == null) return NotFound();
+            // Grava/atualiza o IdApi para travar as próximas buscas no técnico certo —
+            // sempre o id do registro completo quando a resolução encontrar um, o que
+            // corrige automaticamente treinadores já travados no id de um stub.
+            if (melhor.Id is int coachId && coachId > 0 && treinador.IdApi != coachId)
+                treinador.IdApi = coachId;
 
-            var info = await _tmTreinadorService.BuscarTreinadorAsync(
-                treinador.Nome, treinador.Time?.Nome);
-
-            if (info == null || !info.Historico.Any())
+            // Corrige o nome pelo canônico da API só quando o nome local é uma variação
+            // dos mesmos tokens (ex.: "Ceni Rogerio", invertido, herdado de um stub →
+            // "Rogério Ceni") ou veio literalmente do stub resolvido — nunca sobrescreve
+            // um nome escolhido à mão pelo usuário.
+            var stub = registros.Count > 1 ? registros.FirstOrDefault(r => r.Id != melhor.Id) : null;
+            if (!string.IsNullOrWhiteSpace(melhor.Name) && treinador.Nome != melhor.Name &&
+                (ApiFootballService.NomesEquivalentes(treinador.Nome, melhor.Name) ||
+                 (stub != null && ApiFootballService.NomesEquivalentes(treinador.Nome, stub.Name))))
             {
-                TempData["Erro"] =
-                    $"Nenhum histórico encontrado para '{treinador.Nome}' no Transfermarkt. " +
-                    "Tente usar a URL direta do perfil.";
-                return RedirectToAction(nameof(Details), new { id });
+                treinador.Nome = melhor.Name;
+                alteracoes.Add($"nome ({melhor.Name})");
             }
 
-            ViewBag.Treinador = treinador;
-            ViewBag.Historico = info.Historico;
-            ViewBag.ProfileUrl = info.ProfileUrl;
-            ViewBag.FotoUrl = info.FotoUrl;
+            // Idade / data de nascimento
+            DateTime? novaData = null;
+            if (!string.IsNullOrEmpty(melhor.Birth?.Date) &&
+                DateTime.TryParse(melhor.Birth.Date,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out var dtNasc))
+            {
+                novaData = dtNasc;
+            }
+            else if (melhor.Age is int idadeApi && idadeApi > 0 && idadeApi < 120)
+            {
+                // Sem data na API: estima 01/01 do ano que resulta na idade informada.
+                novaData = new DateTime(DateTime.Today.Year - idadeApi, 1, 1);
+            }
 
-            return View("HistoricoPreVisualizacao", info);
+            if (novaData.HasValue && novaData.Value.Year > 1900)
+            {
+                // Data de nascimento é data pura: ancora ao meio-dia UTC para que nenhuma
+                // conversão de fuso (converter do EF ou coerção do Postgres) mude o DIA —
+                // meia-noite deslocada em -3h vira o dia anterior, o que fazia a data ser
+                // regravada (e exibida errada) a cada clique em Buscar dados.
+                var data = DateTime.SpecifyKind(novaData.Value.Date.AddHours(12), DateTimeKind.Utc);
+                if (treinador.DataNascimento?.Date != data.Date)
+                {
+                    treinador.DataNascimento = data;
+                    alteracoes.Add($"idade ({treinador.Idade} anos)");
+                }
+            }
+
+            // Nacionalidade (resolve ou cria)
+            if (!string.IsNullOrWhiteSpace(melhor.Nationality))
+            {
+                var nac = await ApiFootballService.ResolverOuCriarNacionalidadePublicAsync(_context, melhor.Nationality);
+                if (nac != null && treinador.NacionalidadeId != nac.Id)
+                {
+                    treinador.NacionalidadeId = nac.Id;
+                    alteracoes.Add($"nacionalidade ({nac.Nome})");
+                }
+            }
+
+            // Foto
+            if (!string.IsNullOrEmpty(melhor.Photo) && treinador.FotoUrl != melhor.Photo)
+            {
+                treinador.FotoUrl = melhor.Photo;
+                alteracoes.Add("foto");
+            }
+
+            treinador.DtAlt = DateTime.UtcNow;
+            return alteracoes;
         }
 
-        /// <summary>
-        /// GET: Busca histórico via URL direta do Transfermarkt.
-        /// </summary>
-        [HttpGet]
-        public async Task<IActionResult> PreVisualizarHistoricoUrl(int id, string url)
-        {
-            var treinador = await _context.Treinadores
-                .Include(t => t.Time)
-                .FirstOrDefaultAsync(t => t.Id == id);
-
-            if (treinador == null) return NotFound();
-
-            if (string.IsNullOrWhiteSpace(url))
-            {
-                TempData["Erro"] = "URL inválida.";
-                return RedirectToAction(nameof(Details), new { id });
-            }
-
-            // Converte URL de "estadisticas" ou "leistungsdaten" para "profil"
-            url = NormalizarUrlPerfil(url);
-
-            var info = await _tmTreinadorService.BuscarPerfilAsync(url);
-
-            if (info == null || !info.Historico.Any())
-            {
-                TempData["Erro"] =
-                    "Nenhum histórico encontrado na URL informada. " +
-                    "Verifique se é uma URL de perfil de treinador válida.";
-                return RedirectToAction(nameof(Details), new { id });
-            }
-
-            ViewBag.Treinador = treinador;
-            ViewBag.Historico = info.Historico;
-            ViewBag.ProfileUrl = info.ProfileUrl;
-            ViewBag.FotoUrl = info.FotoUrl;
-            ViewBag.TreinadorId = id;
-
-            return View("HistoricoPreVisualizacao", info);
-        }
+        // ── Limpar histórico ──────────────────────────────────────────────────
 
         /// <summary>
-        /// POST: Confirma e salva o histórico no banco.
-        /// Recebe os dados como JSON serializado nos hidden inputs.
+        /// POST: Apaga todo o histórico salvo do treinador (sem reimportar nada).
         /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SalvarHistorico(
-            int treinadorId,
-            string profileUrl,
-            bool atualizarFoto = false)
+        public async Task<IActionResult> LimparHistorico(int id)
         {
-            var treinador = await _context.Treinadores
-                .Include(t => t.Time)
-                .FirstOrDefaultAsync(t => t.Id == treinadorId);
-
+            var treinador = await _context.Treinadores.FirstOrDefaultAsync(t => t.Id == id);
             if (treinador == null) return NotFound();
 
-            if (string.IsNullOrWhiteSpace(profileUrl))
+            var existentes = await _context.TreinadoresHistorico
+                .Where(h => h.TreinadorId == id)
+                .ToListAsync();
+
+            if (existentes.Count == 0)
             {
-                TempData["Erro"] = "URL do perfil não informada.";
-                return RedirectToAction(nameof(Details), new { id = treinadorId });
+                TempData["Info"] = "Não havia histórico salvo para limpar.";
+                return RedirectToAction(nameof(Details), new { id });
             }
 
-            profileUrl = NormalizarUrlPerfil(profileUrl);
+            _context.TreinadoresHistorico.RemoveRange(existentes);
+            await _context.SaveChangesAsync();
 
-            var info = await _tmTreinadorService.BuscarPerfilAsync(profileUrl);
-
-            if (info == null)
-            {
-                TempData["Erro"] = "Não foi possível acessar o perfil para salvar o histórico.";
-                return RedirectToAction(nameof(Details), new { id = treinadorId });
-            }
-
-            // Salva histórico
-            var resultado = await _tmTreinadorService.SalvarHistoricoAsync(
-                _context, treinadorId, info.Historico);
-
-            // Atualiza foto se solicitado
-            if (atualizarFoto && !string.IsNullOrWhiteSpace(info.FotoUrl))
-            {
-                treinador.FotoUrl = info.FotoUrl;
-                treinador.DtAlt = DateTime.UtcNow;
-                await _context.SaveChangesAsync();
-            }
-
-            TempData["Sucesso"] =
-                $"✅ Histórico salvo! {resultado.RegistrosSalvos} registro(s), " +
-                $"{resultado.TimesCreados} time(s) criado(s).";
-
-            if (resultado.Avisos.Any())
-                TempData["Avisos"] = string.Join(" | ", resultado.Avisos.Take(5));
-
-            return RedirectToAction(nameof(Details), new { id = treinadorId });
+            TempData["Sucesso"] = $"🗑️ Histórico limpo — {existentes.Count} passagem(ns) removida(s).";
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         // ── Importar histórico via api-football ──────────────────────────────
@@ -574,21 +483,38 @@ namespace ControleFutebolWeb.Controllers
         /// falta no career do registro completo.
         /// </summary>
         [HttpGet]
-        public async Task<IActionResult> PreVisualizarHistoricoApi(int id)
+        public async Task<IActionResult> PreVisualizarHistoricoApi(
+            int id, int? coachApiId = null, bool escolher = false)
         {
             var treinador = await _context.Treinadores
                 .Include(t => t.Time)
+                .Include(t => t.Nacionalidade)
                 .FirstOrDefaultAsync(t => t.Id == id);
 
             if (treinador == null) return NotFound();
 
-            var (melhor, registros, ambiguo) = await _apiFootball.ResolverTreinadorApiAsync(
-                treinador.Nome, treinador.Time?.IdApi, treinador.IdApi);
+            // escolher=true ("trocar de técnico"): ignora o IdApi já gravado para a resolução
+            // voltar a ficar ambígua e a tela oferecer os homônimos de novo.
+            var (melhor, registros, ambiguo, candidatos) = await _apiFootball.ResolverTreinadorApiAsync(
+                treinador.Nome, treinador.Time?.IdApi, escolher ? null : treinador.IdApi, coachApiId);
 
             if (melhor == null)
             {
                 TempData["Erro"] = $"Nenhum treinador encontrado na API para '{treinador.Nome}'.";
                 return RedirectToAction(nameof(Details), new { id });
+            }
+
+            // Ambíguo: a API tem vários técnicos homônimos (ex.: os dois "Luís Castro"
+            // portugueses) e nenhum foi escolhido ainda. Em vez de importar só a passagem do
+            // stub, a tela lista os candidatos para o usuário dizer qual é o certo.
+            if (ambiguo && candidatos.Any())
+            {
+                return View("HistoricoPreVisualizacaoApi", new TreinadorHistoricoApiViewModel
+                {
+                    Treinador = treinador,
+                    Ambiguo = true,
+                    Candidatos = candidatos.Select(MapearCandidato).ToList()
+                });
             }
 
             var carreira = ApiFootballService.UnirCarreiras(registros);
@@ -610,30 +536,89 @@ namespace ControleFutebolWeb.Controllers
                 .Where(t => timesApiIds.Contains(t.IdApi))
                 .ToListAsync();
 
+            // Histórico já salvo deste treinador, para prever na tela — com a mesma regra de
+            // dedupe do SalvarHistoricoApi — quais passagens já existem no banco (evita que o
+            // usuário veja uma coisa aqui e outra depois de salvar).
+            var jaSalvos = await _context.TreinadoresHistorico
+                .Where(h => h.TreinadorId == id)
+                .Select(h => new { h.TimeId, h.DtInicio.Year, h.DtInicio.Month })
+                .ToListAsync();
+
             var vm = new TreinadorHistoricoApiViewModel
             {
                 Treinador = treinador,
                 Ambiguo = ambiguo,
                 RegistroCompletoEncontrado = registros.Count > 1,
+                // Só há candidatos aqui quando a ambiguidade foi resolvida por escolha (agora
+                // ou numa importação anterior) — a tela usa para mostrar quem foi escolhido e
+                // permitir trocar.
+                Candidatos = candidatos.Select(MapearCandidato).ToList(),
+                EscolhidoId = candidatos.Any() ? melhor.Id : null,
+                Escolhido = candidatos.Any() ? MapearCandidato(melhor) : null,
                 Itens = carreira.Select(c =>
                 {
                     var timeLocal = c.Team?.Id is int apiId
                         ? timesLocais.FirstOrDefault(t => t.IdApi == apiId)
                         : null;
+                    var inicio = ParseDataCarreiraApi(c.Start);
+                    var jaSalva = timeLocal != null && inicio != null && jaSalvos.Any(h =>
+                        h.TimeId == timeLocal.Id && h.Year == inicio.Value.Year && h.Month == inicio.Value.Month);
                     return new HistoricoApiItemViewModel
                     {
                         TeamApiId = c.Team?.Id,
                         NomeTime = c.Team?.Name ?? "(desconhecido)",
                         LogoUrl = c.Team?.Logo,
-                        DtInicio = ParseDataCarreiraApi(c.Start),
+                        DtInicio = inicio,
                         DtFim = ParseDataCarreiraApi(c.End),
                         TimeLocalId = timeLocal?.Id,
-                        TimeLocalNome = timeLocal?.Nome
+                        TimeLocalNome = timeLocal?.Nome,
+                        JaSalva = jaSalva
                     };
                 }).ToList()
             };
 
             return View("HistoricoPreVisualizacaoApi", vm);
+        }
+
+        /// <summary>
+        /// Resume um registro da api-football para a tela de escolha entre homônimos: dados
+        /// pessoais + um recorte da carreira (período e primeiros clubes), que é o que
+        /// realmente distingue um "Luís Castro" do outro na hora de escolher.
+        /// </summary>
+        private static TreinadorCandidatoViewModel MapearCandidato(AfCoachFull c)
+        {
+            var carreira = (c.Career ?? new List<AfCoachCareerItem>())
+                .OrderByDescending(i => ParseDataCarreiraApi(i.Start) ?? DateTime.MinValue)
+                .ToList();
+
+            var anos = carreira
+                .Select(i => ParseDataCarreiraApi(i.Start))
+                .Where(d => d.HasValue)
+                .Select(d => d!.Value.Year)
+                .ToList();
+
+            var nomeCompleto = string.Join(" ", new[] { c.Firstname, c.Lastname }
+                .Where(s => !string.IsNullOrWhiteSpace(s)));
+
+            return new TreinadorCandidatoViewModel
+            {
+                Id = c.Id ?? 0,
+                Nome = c.Name ?? "(sem nome)",
+                NomeCompleto = string.IsNullOrWhiteSpace(nomeCompleto) ? null : nomeCompleto,
+                Idade = c.Age,
+                Nacionalidade = c.Nationality,
+                FotoUrl = c.Photo,
+                TimeAtual = c.Team?.Name,
+                TotalPassagens = carreira.Count,
+                PeriodoCarreira = anos.Any() ? $"{anos.Min()} – {anos.Max()}" : null,
+                ClubesResumo = carreira
+                    .Select(i => i.Team?.Name)
+                    .Where(n => !string.IsNullOrWhiteSpace(n))
+                    .Select(n => n!)
+                    .Distinct()
+                    .Take(5)
+                    .ToList()
+            };
         }
 
         /// <summary>
@@ -643,16 +628,18 @@ namespace ControleFutebolWeb.Controllers
         /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SalvarHistoricoApi(int treinadorId)
+        public async Task<IActionResult> SalvarHistoricoApi(
+            int treinadorId, bool criarClubes = false, int? coachApiId = null)
         {
             var treinador = await _context.Treinadores
                 .Include(t => t.Time)
+                .Include(t => t.Nacionalidade)
                 .FirstOrDefaultAsync(t => t.Id == treinadorId);
 
             if (treinador == null) return NotFound();
 
-            var (melhor, registros, _) = await _apiFootball.ResolverTreinadorApiAsync(
-                treinador.Nome, treinador.Time?.IdApi, treinador.IdApi);
+            var (melhor, registros, _, _) = await _apiFootball.ResolverTreinadorApiAsync(
+                treinador.Nome, treinador.Time?.IdApi, treinador.IdApi, coachApiId);
 
             if (melhor == null)
             {
@@ -662,20 +649,63 @@ namespace ControleFutebolWeb.Controllers
 
             var carreira = ApiFootballService.UnirCarreiras(registros);
 
-            int salvos = 0, ignorados = 0;
+            int salvos = 0, ignorados = 0, clubesCriados = 0;
+            // Um item por passagem, no formato "STATUS|nome do time|motivo" — a
+            // ConsultarHistorico lê isso para mostrar exatamente o que aconteceu com cada
+            // passagem da pré-visualização, em vez de só um total agregado.
+            var detalhes = new List<string>();
 
             foreach (var item in carreira)
             {
-                // Team.Id null = seleção/clube fora da base da API — sem como casar com um time local.
-                if (item.Team?.Id is not int teamApiId) { ignorados++; continue; }
+                var nomeExibicao = item.Team?.Name ?? "(desconhecido)";
 
-                // Clube não cadastrado no banco: só é exibido na pré-visualização, nunca
-                // criado automaticamente (diferente do fluxo do Transfermarkt).
+                // Team.Id null = seleção/clube fora da base da API — sem como casar com um time local.
+                if (item.Team?.Id is not int teamApiId)
+                {
+                    ignorados++;
+                    detalhes.Add($"IGNORADO|{nomeExibicao}|clube fora da base da API");
+                    continue;
+                }
+
+                // Clube não cadastrado no banco: por padrão só é exibido na pré-visualização,
+                // nunca criado automaticamente. Se o usuário marcou "criar clubes" na tela de
+                // pré-visualização, cria um cadastro genérico (mesma ideia do fluxo do
+                // Transfermarkt) — com o IdApi já preenchido, então uma futura importação
+                // reconhece esse time de cara.
                 var timeLocal = await _context.Times.FirstOrDefaultAsync(t => t.IdApi == teamApiId);
-                if (timeLocal == null) { ignorados++; continue; }
+                var clubeCriadoAgora = false;
+                if (timeLocal == null)
+                {
+                    if (!criarClubes)
+                    {
+                        ignorados++;
+                        detalhes.Add($"IGNORADO|{nomeExibicao}|clube não cadastrado no sistema");
+                        continue;
+                    }
+
+                    timeLocal = new Time
+                    {
+                        Nome = nomeExibicao.Trim(),
+                        Cidade = "Desconhecida",
+                        EscudoUrl = item.Team?.Logo ?? "",
+                        CorPrincipal = "#000000",
+                        CorSecundaria = "#FFFFFF",
+                        IdApi = teamApiId,
+                        FormacaoPadraoId = await ObterFormacaoPadraoIdAsync()
+                    };
+                    _context.Times.Add(timeLocal);
+                    await _context.SaveChangesAsync();
+                    clubesCriados++;
+                    clubeCriadoAgora = true;
+                }
 
                 var inicio = ParseDataCarreiraApi(item.Start);
-                if (inicio == null) { ignorados++; continue; }
+                if (inicio == null)
+                {
+                    ignorados++;
+                    detalhes.Add($"IGNORADO|{timeLocal.Nome}|data de início inválida");
+                    continue;
+                }
 
                 var fim = ParseDataCarreiraApi(item.End);
 
@@ -683,7 +713,11 @@ namespace ControleFutebolWeb.Controllers
                 var duplicado = await _context.TreinadoresHistorico.AnyAsync(h =>
                     h.TreinadorId == treinadorId && h.TimeId == timeLocal.Id &&
                     h.DtInicio.Year == inicio.Value.Year && h.DtInicio.Month == inicio.Value.Month);
-                if (duplicado) continue;
+                if (duplicado)
+                {
+                    detalhes.Add($"JASALVO|{timeLocal.Nome}|");
+                    continue;
+                }
 
                 _context.TreinadoresHistorico.Add(new TreinadorHistorico
                 {
@@ -693,24 +727,32 @@ namespace ControleFutebolWeb.Controllers
                     DtFim = fim.HasValue ? DateTime.SpecifyKind(fim.Value, DateTimeKind.Utc) : null
                 });
                 salvos++;
+                detalhes.Add(clubeCriadoAgora
+                    ? $"SALVO|{timeLocal.Nome}|clube criado automaticamente"
+                    : $"SALVO|{timeLocal.Nome}|");
             }
 
-            // Aproveita a resolução para corrigir o IdApi se ele ainda estivesse travado
-            // num stub (mesmo raciocínio do BuscarFoto).
-            if (melhor.Id is int coachId && coachId > 0 && treinador.IdApi != coachId)
-            {
-                treinador.IdApi = coachId;
-                treinador.DtAlt = DateTime.UtcNow;
-            }
+            // Aproveita a mesma resolução para atualizar o cadastro do treinador (idade,
+            // nacionalidade, foto e o IdApi que trava as próximas buscas). O time atual fica
+            // como está — quando o registro escolhido é o histórico completo, o "team" que a
+            // API devolve nele é o clube anterior, e sobrescrever trocaria o time errado.
+            var alteracoes = await AplicarDadosDaApiAsync(treinador, melhor, registros);
 
             await _context.SaveChangesAsync();
 
-            TempData["Sucesso"] = $"✅ Histórico da API salvo! {salvos} registro(s) salvo(s)" +
-                (ignorados > 0
-                    ? $", {ignorados} passagem(ns) ignorada(s) (clube não cadastrado, data inválida ou já existente)."
-                    : ".");
+            TempData["Sucesso"] = $"✅ Histórico da API salvo! {salvos} passagem(ns) nova(s) salva(s)" +
+                (clubesCriados > 0 ? $", {clubesCriados} clube(s) criado(s)" : "") +
+                (ignorados > 0 ? $", {ignorados} ignorada(s)." : ".") +
+                (alteracoes.Any() ? $" Cadastro atualizado: {string.Join(", ", alteracoes)}." : "");
+            TempData["HistoricoDetalhes"] = string.Join("~~", detalhes);
 
-            return RedirectToAction(nameof(Details), new { id = treinadorId });
+            return RedirectToAction(nameof(ConsultarHistorico), new { id = treinadorId });
+        }
+
+        private async Task<int> ObterFormacaoPadraoIdAsync()
+        {
+            var f = await _context.Formacoes.FirstOrDefaultAsync();
+            return f?.Id ?? 1;
         }
 
         // Uma única data "yyyy-MM-dd" (ou null) vinda da api-football (career.start/end).
@@ -718,20 +760,5 @@ namespace ControleFutebolWeb.Controllers
             DateTime.TryParse(data, System.Globalization.CultureInfo.InvariantCulture,
                 System.Globalization.DateTimeStyles.None, out var dt) ? dt : null;
 
-        // ─── Helper ───────────────────────────────────────────────────────────
-
-        private static string NormalizarUrlPerfil(string url)
-        {
-            // Garante que a URL aponta para /profil/trainer/
-            if (!url.Contains("/profil/trainer/"))
-            {
-                // Tenta converter leistungsdaten → profil
-                url = System.Text.RegularExpressions.Regex.Replace(
-                    url,
-                    @"/(leistungsdaten|statistik|transfers|steckbrief)/trainer/",
-                    "/profil/trainer/");
-            }
-            return url;
-        }
     }
 }

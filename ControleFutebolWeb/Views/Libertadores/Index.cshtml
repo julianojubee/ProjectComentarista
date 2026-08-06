@@ -9,6 +9,7 @@
     var proximosJogos = Model.ProximosJogos as List<Jogo> ?? new List<Jogo>();
     var rodadaAtual = Model.RodadaAtual;
     var chaveamento = Model.Chaveamento as ChaveamentoArvoreViewModel ?? new ChaveamentoArvoreViewModel();
+    var estatisticasTimes = ViewBag.EstatisticasTimes as List<ControleFutebolWeb.Models.ViewModels.EstatisticaTimeViewModel> ?? new();
 }
 
 <style>
@@ -634,7 +635,8 @@
     </text>;
 }
 
-@if (!temGrupos && !temChave)
+@{ bool temEstatisticas = estatisticasTimes.Any(); }
+@if (!temGrupos && !temChave && !temEstatisticas)
 {
     <div class="lib-empty">
         <div style="font-size:2rem;margin-bottom:8px;">🏆</div>
@@ -659,6 +661,7 @@ else
             {
                 <button type="button" class="cdm-tab @(!temGrupos ? "active" : "")" data-cdm-tab="chave">⚔️ Mata-Mata</button>
             }
+            <button type="button" class="cdm-tab @(!temGrupos && !temChave ? "active" : "")" data-cdm-tab="estatisticas">📈 Estatísticas</button>
         </div>
 
         @if (temGrupos)
@@ -899,6 +902,10 @@ else
                 </div>
             </div>
         }
+
+        <div class="cdm-panel @(!temGrupos && !temChave ? "active" : "")" data-cdm-panel="estatisticas">
+            @await Html.PartialAsync("_PainelEstatisticas", estatisticasTimes)
+        </div>
     </div>
 
     <script>

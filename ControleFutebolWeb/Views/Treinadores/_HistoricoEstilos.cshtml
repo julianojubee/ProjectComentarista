@@ -1,0 +1,194 @@
+<!--
+    Estilo compartilhado das telas de treinador (Details, ConsultarHistorico e as duas
+    pré-visualizações de importação). Existia duplicado em cada .cshtml — Details.cshtml
+    nem tinha o bloco, então renderizava sem nenhum estilo. Centralizado aqui para as
+    quatro telas ficarem sempre visualmente consistentes.
+-->
+<style>
+    @@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500&display=swap');
+
+    :root {
+        --cinza1: #0f172a;
+        --cinza2: #1e293b;
+        --cinza3: #334155;
+        --texto: #f1f5f9;
+        --muted: #94a3b8;
+        --verde: #16a34a;
+        --verde2: #22c55e;
+        --amarelo: #eab308;
+        --vermelho: #ef4444;
+    }
+
+    .estat-page {
+        background: var(--cinza1);
+        min-height: 100vh;
+        color: var(--texto);
+        font-family: 'Barlow', sans-serif;
+        padding: 2rem 1rem 4rem;
+    }
+
+    .jogador-header {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--cinza3);
+    }
+
+    .jogador-foto {
+        width: 72px;
+        height: 72px;
+        object-fit: cover;
+        border-radius: 12px;
+        border: 2px solid var(--cinza3);
+        background: var(--cinza2);
+    }
+
+    .jogador-nome {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 2.4rem;
+        font-weight: 800;
+        margin: 0;
+    }
+
+    .jogador-meta {
+        font-size: .85rem;
+        color: var(--muted);
+        margin-top: .3rem;
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .jogos-titulo {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 1.4rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+    }
+
+    .jogo-item {
+        background: var(--cinza2);
+        border: 1px solid var(--cinza3);
+        border-radius: 10px;
+        padding: .9rem 1.1rem;
+        margin-bottom: .6rem;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .jogo-item.nao-cadastrado { opacity: .6; border-style: dashed; }
+    .jogo-item.ja-salva { opacity: .75; }
+
+    .jogo-adversario {
+        font-size: .95rem;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .jogo-data {
+        font-size: .75rem;
+        color: var(--muted);
+        margin-top: .2rem;
+    }
+
+    .tag-badge {
+        font-size: .68rem;
+        font-weight: 700;
+        border-radius: 6px;
+        padding: .15rem .5rem;
+        margin-left: .5rem;
+        white-space: nowrap;
+        display: inline-block;
+    }
+    .tag-badge.ok { background: rgba(34,197,94,.15); color: var(--verde2); border: 1px solid rgba(34,197,94,.35); }
+    .tag-badge.info { background: rgba(148,163,184,.15); color: var(--muted); border: 1px solid rgba(148,163,184,.3); }
+    .tag-badge.aviso { background: rgba(234,179,8,.15); color: var(--amarelo); border: 1px solid rgba(234,179,8,.35); }
+
+    /* Compat: nome antigo usado só na pré-visualização da API. */
+    .tag-aviso {
+        font-size: .7rem;
+        color: var(--amarelo);
+        border: 1px solid var(--amarelo);
+        border-radius: 6px;
+        padding: .1rem .4rem;
+        margin-left: .5rem;
+        white-space: nowrap;
+    }
+
+    .aviso-box {
+        background: #422006;
+        border: 1px solid var(--amarelo);
+        color: #fde68a;
+        border-radius: 8px;
+        padding: .8rem 1rem;
+        margin-bottom: 1.2rem;
+        font-size: .85rem;
+    }
+    .aviso-box.aviso-ok { background: #052e1a; border-color: var(--verde2); color: #bbf7d0; }
+    .aviso-box.aviso-erro { background: #3a0d0d; border-color: var(--vermelho); color: #fecaca; }
+
+    .sem-dados {
+        color: var(--muted);
+        font-size: .85rem;
+        padding: 1rem 0;
+    }
+
+    .resumo-contagem {
+        font-size: .85rem;
+        color: var(--muted);
+        margin-bottom: 1rem;
+    }
+    .resumo-contagem b { color: var(--texto); }
+
+    .btn-voltar {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        background: var(--cinza2);
+        border: 1px solid var(--cinza3);
+        color: var(--texto);
+        padding: .45rem 1rem;
+        border-radius: 8px;
+        font-size: .85rem;
+        text-decoration: none;
+        margin-bottom: 1.5rem;
+    }
+
+    .btn-salvar-historico {
+        background: var(--verde);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: .6rem 1.4rem;
+        font-size: .9rem;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    .btn-salvar-historico:hover { background: var(--verde2); }
+    .btn-salvar-historico:disabled { background: var(--cinza3); color: var(--muted); cursor: not-allowed; }
+
+    .cf-card-actions {
+        display: flex;
+        gap: .6rem;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-top: 1rem;
+        padding-top: 1.2rem;
+        border-top: 1px solid var(--cinza3);
+    }
+
+    .cf-small-btn {
+        font-size: .8rem;
+        border-radius: 8px !important;
+    }
+</style>

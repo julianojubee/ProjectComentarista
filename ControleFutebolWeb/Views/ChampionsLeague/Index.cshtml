@@ -73,6 +73,10 @@
     /* ── Conteúdo ── */
     .ucl-content { padding: 24px 2.5rem 64px; max-width: 1500px; margin: 0 auto; }
     .ucl-layout { display: grid; grid-template-columns: 1fr 330px; gap: 18px; align-items: start; }
+    /* min-width:0 no item do grid: sem isso a coluna cresce pra caber todas as
+       abas (min-content de um flex com overflow:auto não colapsa) em vez de
+       deixar a barra de abas rolar — mesmo problema já visto em .br-layout. */
+    .ucl-layout > div { min-width: 0; }
     @@media (max-width: 992px) { .ucl-layout { grid-template-columns: 1fr; } }
 
     .ucl-section-header { display: flex; align-items: center; gap: 10px; margin: 0 0 1rem; }
@@ -185,6 +189,18 @@
     /* ── Sem dados ── */
     .ucl-empty { text-align: center; padding: 3.5rem 1rem; color: #6b7280; font-size: .8rem; background: #161616; border: 1px solid #262626; border-radius: 14px; }
     .ucl-empty-icon { font-size: 2.5rem; margin-bottom: 10px; }
+
+    /* ── Abas por fase (Liga / cada fase eliminatória / Estatísticas) ── */
+    .ucl-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; border-bottom: 1px solid #262626; margin-bottom: 1.2rem; -webkit-overflow-scrolling: touch; }
+    .ucl-tab {
+        flex: 0 0 auto; background: #161616; border: 1px solid #262626; border-radius: 999px;
+        padding: 7px 16px; font-size: 12px; font-weight: 700; color: #9ca3af; cursor: pointer; white-space: nowrap;
+        font-family: 'Barlow', Arial, sans-serif; transition: border-color .15s, color .15s;
+    }
+    .ucl-tab:hover { border-color: #d4a520; color: #d4a520; }
+    .ucl-tab.active { background: #d4a5201a; border-color: #d4a52080; color: #d4a520; }
+    .ucl-panel { display: none; }
+    .ucl-panel.active { display: block; }
 </style>
 
 <div class="ucl-root">
@@ -243,10 +259,22 @@
         }
         else
         {
+            bool temLiga = ranking.Any();
+            string primeiraAba = temLiga ? "liga" : (fasesMata.Any() ? "fase-0" : "estatisticas");
             <div class="ucl-layout">
 
                 <!-- ── Coluna principal ── -->
                 <div>
+                    <div class="ucl-tabs" role="tablist">
+                        <button type="button" class="ucl-tab @(primeiraAba == "liga" ? "active" : "")" data-ucl-tab="liga">🏆 Fase de Liga</button>
+                        @for (int i = 0; i < fasesMata.Count; i++)
+                        {
+                            <button type="button" class="ucl-tab @(primeiraAba == $"fase-{i}" ? "active" : "")" data-ucl-tab="fase-@i">⚡ @fasesMata[i].Nome</button>
+                        }
+                        <button type="button" class="ucl-tab @(primeiraAba == "estatisticas" ? "active" : "")" data-ucl-tab="estatisticas">📈 Estatísticas</button>
+                    </div>
+
+                    <div class="ucl-panel @(primeiraAba == "liga" ? "active" : "")" data-ucl-panel="liga">
                     @if (ranking.Any())
                     {
                         <div class="ucl-legenda">
@@ -319,18 +347,13 @@
                             Nenhum jogo da fase de liga realizado ainda.
                         </div>
                     }
+                    </div>
 
-                    <!-- ── Fase eliminatória ── -->
-                    @if (fasesMata.Any())
+                    <!-- ── Uma aba por fase eliminatória ── -->
+                    @for (int faseIdx = 0; faseIdx < fasesMata.Count; faseIdx++)
                     {
-                        <div class="ucl-mata-section">
-                            <div class="ucl-section-header">
-                                <h3 class="ucl-section-title">⚡ Fase Eliminatória</h3>
-                                <span class="ucl-section-badge">@fasesMata.Sum(f => f.Confrontos.Count) confronto(s)</span>
-                            </div>
-
-                            @foreach (var fase in fasesMata)
-                            {
+                        var fase = fasesMata[faseIdx];
+                        <div class="ucl-panel @(primeiraAba == $"fase-{faseIdx}" ? "active" : "")" data-ucl-panel="fase-@faseIdx">
                                 <div class="ucl-fase">
                                     <div class="ucl-fase-header">
                                         <h4 class="ucl-fase-title">@fase.Nome</h4>
@@ -492,9 +515,12 @@
                                         }
                                     </div>
                                 </div>
-                            }
                         </div>
                     }
+
+                    <div class="ucl-panel @(primeiraAba == "estatisticas" ? "active" : "")" data-ucl-panel="estatisticas">
+                        @await Html.PartialAsync("_PainelEstatisticas", ViewBag.EstatisticasTimes as List<ControleFutebolWeb.Models.ViewModels.EstatisticaTimeViewModel>)
+                    </div>
                 </div>
 
                 <!-- ── Sidebar: jogos ── -->
@@ -567,3 +593,18 @@
         }
     </div>
 </div>
+
+<script>
+    (function () {
+        var tabs = document.querySelectorAll('.ucl-tab');
+        tabs.forEach(function (tab) {
+            tab.addEventListener('click', function () {
+                tabs.forEach(function (t) { t.classList.remove('active'); });
+                document.querySelectorAll('.ucl-panel').forEach(function (p) { p.classList.remove('active'); });
+                tab.classList.add('active');
+                var alvo = document.querySelector('[data-ucl-panel="' + tab.dataset.uclTab + '"]');
+                if (alvo) alvo.classList.add('active');
+            });
+        });
+    })();
+</script>

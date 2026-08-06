@@ -90,6 +90,10 @@ namespace ControleFutebolWeb.Models
         public string? CorNumeroCasa { get; set; }
         public string? CorCamisaVisitante { get; set; }
         public string? CorNumeroVisitante { get; set; }
+
+        // Onde assistir (ex.: "SporTV", "Prime Video"), obtido via FutnatvService.
+        public string? TransmissaoTv { get; set; }
+        public DateTime? TransmissaoAtualizadaEm { get; set; }
     }
 }
 

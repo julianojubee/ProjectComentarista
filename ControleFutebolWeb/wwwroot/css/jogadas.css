@@ -54,6 +54,51 @@
     cursor: pointer;
 }
 
+.jgd-max-btn {
+    margin-left: auto;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 7px;
+    color: #94a3b8;
+    font-size: 15px;
+    line-height: 1;
+    padding: 4px 9px;
+    cursor: pointer;
+}
+
+.jgd-max-btn:hover { background: rgba(255,255,255,.12); color: #e2e8f0; }
+
+/* Quando o botão existe, é ELE que empurra o grupo para a direita — sem esta
+   regra as duas margens automáticas dividiriam o espaço entre os dois. */
+.jgd-max-btn + .jgd-fechar { margin-left: 6px; }
+
+/* ── Maximizado ─────────────────────────────────────────────────────
+   O campo é o que ganha com o espaço: ele ocupa 100% da coluna, então basta a
+   caixa crescer. O teto existe porque a proporção é fixa (1,62:1) — numa tela
+   larga o gramado ficaria alto demais e empurraria a timeline e os painéis para
+   fora da vista. Ele traduz a altura que sobra depois das barras (~440px) na
+   largura correspondente, mais as 214px da coluna do elenco e das margens.
+
+   O teto vai nos FILHOS do editor, e não no .jgd-campo-wrap: margem automática
+   num item de grid desliga o stretch e a largura vira fit-content — como o
+   conteúdo do wrap é só posicionamento absoluto, ele colapsaria para ~30px. */
+.jgd-box.jgd-maximizado {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    border: none;
+}
+
+.jgd-box.jgd-maximizado .jgd-editor > * {
+    max-width: max(760px, calc((100vh - 440px) * 1.62 + 214px));
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.jgd-box.jgd-maximizado .jgd-elenco-lista { max-height: calc(100vh - 530px); }
+
 /* Abas de time (casa / visitante) */
 .jgd-abas { display: flex; gap: 6px; }
 
@@ -230,6 +275,79 @@
     margin: -2px 0 4px;
 }
 
+/* ══ Barra do motor de movimento ════════════════════════════════════
+   Temporária: existe para comparar o motor antigo e o novo na mesma jogada
+   antes de aposentar o antigo. Ciano porque não disputa com o amarelo do time
+   nem com o azul da marcação. */
+.jgd-motor {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    background: rgba(34,211,238,.06);
+    border: 1px solid rgba(34,211,238,.28);
+    border-radius: 9px;
+    padding: 6px 9px;
+    margin-bottom: .6rem;
+}
+
+.jgd-motor-rotulo {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .04em;
+    text-transform: uppercase; color: #67e8f9;
+}
+
+.jgd-motor-desc { font-size: 11px; color: #94a3b8; flex: 1 1 240px; min-width: 0; line-height: 1.4; }
+
+.jgd-seg {
+    display: flex;
+    background: rgba(0,0,0,.35);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 7px;
+    overflow: hidden;
+}
+
+.jgd-seg button {
+    background: none; border: none;
+    color: #94a3b8; font-size: 11.5px; font-weight: 700;
+    padding: 5px 12px; cursor: pointer;
+}
+
+.jgd-seg button:hover { color: #e2e8f0; }
+.jgd-seg button.ativo { background: #22d3ee; color: #062a30; }
+
+.jgd-btn.jgd-btn-ciano.ativo { background: #67e8f9; border-color: #67e8f9; color: #062a30; }
+
+/* ══ Scrub: percorrer a jogada no tempo ═════════════════════════════ */
+.jgd-scrub-linha { display: flex; align-items: center; gap: 9px; margin-top: .6rem; }
+.jgd-scrub { flex: 1; height: 4px; accent-color: #facc15; cursor: pointer; }
+.jgd-scrub:disabled { opacity: .4; cursor: not-allowed; }
+.jgd-scrub-tempo { font-size: 10.5px; font-weight: 700; color: #64748b; min-width: 44px; }
+.jgd-scrub-total { font-weight: 400; min-width: 52px; text-align: right; }
+
+/* ══ Painéis do passo e da peça selecionada ═════════════════════════ */
+.jgd-paineis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: .6rem; }
+
+.jgd-painel {
+    background: rgba(255,255,255,.03);
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 9px;
+    padding: 8px 10px;
+}
+
+.jgd-painel-tit {
+    font-size: 10px; font-weight: 700; letter-spacing: .05em;
+    text-transform: uppercase; color: #facc15; margin-bottom: 6px;
+}
+
+.jgd-painel-tit.jgd-tit-ciano { color: #67e8f9; }
+.jgd-painel-nome { font-size: 12px; color: #e2e8f0; font-weight: 600; margin-bottom: 6px; }
+.jgd-painel-linha { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.jgd-painel-rot { font-size: 11px; color: #94a3b8; }
+.jgd-painel-dur { font-size: 11px; color: #64748b; }
+.jgd-painel-val { font-size: 11px; color: #facc15; font-weight: 700; min-width: 30px; }
+.jgd-atraso { width: 96px; height: 4px; accent-color: #22d3ee; cursor: pointer; }
+.jgd-atraso:disabled { opacity: .4; cursor: not-allowed; }
+
 /* ══ Campo + elenco ═════════════════════════════════════════════════ */
 .jgd-palco { display: grid; grid-template-columns: 178px 1fr; gap: 10px; align-items: start; }
 .jgd-palco.jgd-sem-elenco { grid-template-columns: 1fr; }
@@ -377,6 +495,15 @@
 .jgd-seta { stroke: #facc15; stroke-width: 2.4; }
 .jgd-rastro { stroke: rgba(255,255,255,.35); stroke-width: 1.6; stroke-dasharray: 4 4; }
 
+/* Onion skin da jogada inteira: o trajeto que o motor vai percorrer. Tracejado
+   para não competir com as setas de anotação, que são a informação tática. */
+.jgd-caminho {
+    fill: none; stroke: rgba(250,204,21,.45); stroke-width: 1.6;
+    stroke-dasharray: 5 4; stroke-linecap: round;
+}
+.jgd-caminho.jgd-caminho-adv { stroke: rgba(96,165,250,.5); }
+.jgd-caminho-bola { fill: none; stroke: rgba(255,255,255,.55); stroke-width: 1.8; stroke-linecap: round; }
+
 /* Peça (jogador) */
 .jgd-peca {
     position: absolute;
@@ -441,6 +568,12 @@
 /* Quem está com a bola ganha um anel branco */
 .jgd-peca.jgd-com-bola .jgd-peca-circulo {
     box-shadow: 0 0 0 2.5px rgba(255,255,255,.95), 0 3px 10px rgba(0,0,0,.55);
+}
+
+/* Peça selecionada no editor: alvo dos controles de ritmo/atraso e das setas do
+   teclado. Vem depois da regra de posse para vencer quando as duas valem. */
+.jgd-peca.jgd-selecionada .jgd-peca-circulo {
+    box-shadow: 0 0 0 2.5px #22d3ee, 0 0 12px rgba(34,211,238,.7);
 }
 
 .jgd-peca-nome {
@@ -586,4 +719,5 @@
     .jgd-lista { border-right: none; border-bottom: 1px solid rgba(255,255,255,.08); max-height: 150px; }
     .jgd-palco { grid-template-columns: 1fr; }
     .jgd-elenco-lista { max-height: 150px; }
+    .jgd-paineis { grid-template-columns: 1fr; }
 }

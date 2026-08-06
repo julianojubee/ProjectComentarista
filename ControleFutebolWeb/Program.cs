@@ -90,6 +90,8 @@ internal class Program
         builder.Services.AddScoped<IAuthorizationHandler, BlogAutorHandler>();
         builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
         builder.Services.AddScoped<RelatoriosService>();
+        builder.Services.AddScoped<PerfilJogadorService>();
+        builder.Services.AddScoped<TransmissaoJogoService>();
 
         builder.Services.ConfigureApplicationCookie(options =>
         {
@@ -130,7 +132,7 @@ internal class Program
 
         builder.Services.AddHttpClient<ApiFootballDataService>();
         builder.Services.AddHttpClient<ApiFootballService>();
-        builder.Services.AddHttpClient<TransfermarktTreinadorService>();
+        builder.Services.AddHttpClient<FutnatvService>();
         builder.Services.AddHttpClient("MediaProxy", c =>
         {
             c.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");
@@ -150,6 +152,9 @@ internal class Program
         builder.Services.AddSingleton<AtualizarJogadoresSemDataService>();
         builder.Services.AddHostedService(sp =>
             sp.GetRequiredService<AtualizarJogadoresSemDataService>());
+        builder.Services.AddSingleton<AtualizarTransmissoesService>();
+        builder.Services.AddHostedService(sp =>
+            sp.GetRequiredService<AtualizarTransmissoesService>());
         //builder.Services.AddHostedService<AtualizacaoJogosService>();
         //builder.Services.AddHostedService<AtualizarCopaSulAmericanaService>();
         builder.Services.AddHttpClient();

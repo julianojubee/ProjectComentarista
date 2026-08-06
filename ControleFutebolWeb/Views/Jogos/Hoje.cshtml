@@ -152,6 +152,7 @@
 
     .hj-card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding-top: 10px; border-top: 1px solid #1e1e1e; }
     .hj-estadio { font-size: .68rem; color: #4b5563; }
+    .hj-transmissao { font-size: .68rem; color: #d4a520; margin-left: 10px; }
     .hj-btn-analisar { font-size: .72rem; padding: 4px 12px; background: rgba(212,165,32,0.1); border: 1px solid rgba(212,165,32,0.28); border-radius: 6px; color: #d4a520; font-weight: 700; }
     .hj-btn-analisar:hover { background: rgba(212,165,32,0.2); color: #d4a520; }
     .hj-status-analisado { font-size: .72rem; font-weight: 700; color: #4ade80; display: flex; align-items: center; gap: 4px; text-decoration: none; }
@@ -286,7 +287,13 @@
                                 </div>
 
                                 <div class="hj-card-footer">
-                                    <span class="hj-estadio">🏟️ @(string.IsNullOrWhiteSpace(jogo.Estadio) ? "Local não informado" : jogo.Estadio)</span>
+                                    <span class="hj-estadio">
+                                        🏟️ @(string.IsNullOrWhiteSpace(jogo.Estadio) ? "Local não informado" : jogo.Estadio)
+                                        @if (!string.IsNullOrWhiteSpace(jogo.TransmissaoTv))
+                                        {
+                                            <span class="hj-transmissao">📺 @jogo.TransmissaoTv</span>
+                                        }
+                                    </span>
                                     @if (analisado)
                                     {
                                         <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id" class="hj-status-analisado">✓ Analisado</a>

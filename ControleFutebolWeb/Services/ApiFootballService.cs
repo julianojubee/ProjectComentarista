@@ -771,12 +771,17 @@ namespace ControleFutebolWeb.Services
         /// RegistrosDoMesmoTecnico: registros a unir para montar o histórico de carreira
         /// (completo + stub, quando o stub foi resolvido; só o Escolhido, caso contrário).
         /// Ambiguo: true quando o escolhido é um stub e há mais de um candidato completo
-        /// compatível pelo nome — nesse caso não arriscamos escolher o técnico errado.
+        /// compatível pelo nome — nesse caso não arriscamos escolher o técnico errado, e os
+        /// homônimos voltam em Candidatos para o usuário decidir qual importar.
+        /// Candidatos: os registros completos homônimos (só preenchido quando Ambiguo, ou
+        /// quando a ambiguidade foi resolvida por escolha explícita / IdApi já gravado).
         /// </returns>
-        public async Task<(AfCoachFull? Escolhido, List<AfCoachFull> RegistrosDoMesmoTecnico, bool Ambiguo)>
+        public async Task<(AfCoachFull? Escolhido, List<AfCoachFull> RegistrosDoMesmoTecnico, bool Ambiguo, List<AfCoachFull> Candidatos)>
             ResolverTreinadorApiAsync(
-                string nome, long? teamApiId, long? idApiAtual, CancellationToken ct = default)
+                string nome, long? teamApiId, long? idApiAtual, int? escolhidoId = null,
+                CancellationToken ct = default)
         {
+            var vazio = new List<AfCoachFull>();
             var resultados = await BuscarTreinadorApiAsync(nome, teamApiId, ct);
 
             // Fallback: se nada vier com o time, busca só pelo nome.
@@ -784,7 +789,7 @@ namespace ControleFutebolWeb.Services
                 resultados = await BuscarTreinadorApiAsync(nome, null, ct);
 
             if (!resultados.Any())
-                return (null, new List<AfCoachFull>(), false);
+                return (null, new List<AfCoachFull>(), false, vazio);
 
             // Se o treinador já tem IdApi, trava no técnico com aquele id. Senão, prefere o
             // resultado cujo time atual bate com o time cadastrado, depois o que tiver mais dados.
@@ -795,7 +800,7 @@ namespace ControleFutebolWeb.Services
                 .First();
 
             if (!EhStubTreinador(melhor))
-                return (melhor, new List<AfCoachFull> { melhor }, false);
+                return (melhor, new List<AfCoachFull> { melhor }, false, vazio);
 
             // O escolhido é um stub — mesmo tendo vencido pela trava do IdApi, ela não pode
             // cimentar um stub. Refaz a busca sem filtro de time e procura, entre os
@@ -833,18 +838,28 @@ namespace ControleFutebolWeb.Services
             if (compativeis.Count == 1)
             {
                 var completo = compativeis[0];
-                return (completo, new List<AfCoachFull> { completo, melhor }, false);
+                return (completo, new List<AfCoachFull> { completo, melhor }, false, vazio);
             }
 
             if (compativeis.Count > 1)
             {
-                // Homônimos: não dá para saber qual é o técnico certo — mantém o stub e
-                // sinaliza a ambiguidade para quem chamou decidir a mensagem ao usuário.
-                return (melhor, new List<AfCoachFull> { melhor }, true);
+                // Homônimos (ex.: os dois "Luís Castro" portugueses da api-football): sem
+                // escolha, não dá para saber qual é o técnico certo. Mas se o usuário já
+                // escolheu um deles — agora (escolhidoId) ou numa importação anterior, o que
+                // ficou gravado no IdApi — a resolução trava nesse registro e o une ao stub,
+                // que é quem tem a passagem no time atual.
+                var alvo = escolhidoId ?? (idApiAtual is long id ? (int?)id : null);
+                if (alvo is int idAlvo &&
+                    compativeis.FirstOrDefault(c => c.Id == idAlvo) is AfCoachFull escolhido)
+                {
+                    return (escolhido, new List<AfCoachFull> { escolhido, melhor }, false, compativeis);
+                }
+
+                return (melhor, new List<AfCoachFull> { melhor }, true, compativeis);
             }
 
             // Nenhum candidato completo compatível encontrado — mantém o stub mesmo.
-            return (melhor, new List<AfCoachFull> { melhor }, false);
+            return (melhor, new List<AfCoachFull> { melhor }, false, vazio);
         }
 
         /// <summary>

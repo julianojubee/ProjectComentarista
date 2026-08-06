@@ -16,6 +16,13 @@
         // Listas para o modal de vincular/cadastrar treinador
         public List<Treinador> TodosTreinadores { get; set; } = new();
         public List<Nacionalidade> Nacionalidades { get; set; } = new();
+        // Aba "Estatísticas do Elenco": números agregados de cada jogador na temporada
+        // (minutos, contribuição, defesa, disciplina) + o retrato do elenco em Resumo.
+        public List<ViewModels.JogadorElencoStatViewModel> EstatisticasElenco { get; set; } = new();
+        public ViewModels.ElencoResumoViewModel ElencoResumo { get; set; } = new();
+        // Temporadas com jogos realizados; o painel do elenco mostra uma de cada vez.
+        public List<int> TemporadasElenco { get; set; } = new();
+        public int TemporadaElencoSelecionada { get; set; }
     }
 
     public class CompeticaoApiItem

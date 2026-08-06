@@ -1,7 +1,7 @@
 @model IEnumerable<ControleFutebolWeb.Models.TransfermarktSincronizacaoLog>
 
 @{
-    ViewData["Title"] = "Logs Transfermarkt";
+    ViewData["Title"] = "Logs";
     var tipos = ViewBag.Tipos as IEnumerable<string> ?? Enumerable.Empty<string>();
     var acoes = ViewBag.Acoes as IEnumerable<string> ?? Enumerable.Empty<string>();
     string? tipoAtual = ViewBag.Tipo as string;
@@ -41,6 +41,7 @@
     .badge-Elenco     { background: #fce7f3; color: #9d174d; }
     .badge-Ciclo        { background: #f3f4f6; color: #374151; }
     .badge-GoogleSearch { background: #fef9c3; color: #854d0e; }
+    .badge-Futnatv      { background: #ffe4e6; color: #be123c; }
     .badge-default      { background: #e0f2fe; color: #0369a1; }
 
     .badge-acao {
@@ -55,8 +56,8 @@
 </style>
 
 <div class="tm-log-header">
-    <h2 class="mb-1">Logs de Sincronização Transfermarkt</h2>
-    <p class="mb-0 text-white-50">Registro de inclusões: jogos, jogadores, times e competições importados pelo processo automático.</p>
+    <h2 class="mb-1">Logs de Sincronização</h2>
+    <p class="mb-0 text-white-50">Registro dos processos automáticos: importação Transfermarkt (jogos, jogadores, times, competições) e busca de transmissões no futnatv.net.</p>
 </div>
 
 @if (TempData["Sucesso"] != null)
@@ -100,7 +101,7 @@
 
 @{
     // Atalhos rápidos por tipo de inclusão
-    var atalhos = new[] { "Jogo", "Jogador", "Time", "Elenco", "Competicao", "Ciclo", "GoogleSearch" };
+    var atalhos = new[] { "Jogo", "Jogador", "Time", "Elenco", "Competicao", "Ciclo", "GoogleSearch", "Futnatv" };
 }
 <div class="mb-3 d-flex flex-wrap gap-1">
     @foreach (var a in atalhos)

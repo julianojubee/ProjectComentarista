@@ -193,6 +193,82 @@
         .sc-hero h1 { font-size: 1.6rem; }
     }
 
+    /* ── Abas Buscar / Comparar ─────────────────────────────────────── */
+    .sc-tabs { display: flex; align-items: flex-end; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 1.2rem; }
+    .sc-tab-btn {
+        padding: 10px 16px; font-size: 13px; font-weight: 700; font-family: inherit;
+        cursor: pointer; background: none; border: none; border-bottom: 2px solid transparent;
+        color: var(--text-muted);
+    }
+    .sc-tab-btn.active { color: #7c3aed; border-bottom-color: #7c3aed; }
+    .sc-tab-btn:hover:not(.active) { color: var(--text-2); }
+
+    /* ── Aba Comparar ────────────────────────────────────────────────── */
+    .cmp-panel-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: .9rem; padding-bottom: .5rem; border-bottom: 1px solid var(--border-subtle); }
+    .cmp-hint { font-size: 11px; color: var(--text-muted); }
+    .cmp-select-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; align-items: end; }
+    .cmp-busca-wrap { position: relative; }
+    .cmp-busca-panel {
+        position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 200;
+        background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+        box-shadow: 0 8px 24px rgba(0,0,0,.12); max-height: 260px; overflow-y: auto; padding: 4px;
+        display: none;
+    }
+    .cmp-busca-panel.open { display: block; }
+    .cmp-busca-opt { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text); }
+    .cmp-busca-opt:hover { background: var(--surface-3); }
+    .cmp-busca-opt small { color: var(--text-muted); font-weight: 400; }
+
+    .cmp-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin-bottom: 1rem; }
+    .cmp-card { background: var(--surface); border: .5px solid var(--border); border-top: 3px solid; border-radius: 12px; padding: .9rem 1rem; display: flex; gap: .8rem; align-items: flex-start; }
+    .cmp-card-photo {
+        width: 54px; height: 54px; border-radius: 10px; flex-shrink: 0; overflow: hidden;
+        background: var(--surface-3); border: .5px solid var(--border);
+        display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 22px;
+    }
+    .cmp-card-photo img { width: 100%; height: 100%; object-fit: cover; }
+    .cmp-card-nome { font-family: 'Barlow Condensed', sans-serif; font-size: 1.25rem; font-weight: 800; color: var(--text); line-height: 1.1; display: block; }
+    .cmp-card-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .cmp-card-clube { font-size: 12px; color: var(--text-2); font-weight: 600; margin-top: 2px; }
+    .cmp-card-stats { display: flex; gap: 12px; margin-top: .55rem; }
+    .cmp-card-stat-v { font-family: 'Barlow Condensed', sans-serif; font-size: 1.1rem; font-weight: 800; color: var(--text); line-height: 1; }
+    .cmp-card-stat-l { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); }
+    .cmp-card-remove { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-muted); width: 26px; height: 26px; border-radius: 7px; cursor: pointer; font-size: 12px; flex-shrink: 0; }
+    .cmp-card-placeholder {
+        background: var(--surface-2); border: 1px dashed var(--border-strong); border-radius: 12px; padding: 1rem;
+        color: var(--text-muted); font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center;
+        text-align: center; min-height: 96px;
+    }
+
+    .cmp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .cmp-chip { background: #ede9fe; color: #5b21b6; border-radius: 999px; padding: 3px 10px; font-size: 11px; font-weight: 600; }
+
+    .cmp-graficos-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; margin-bottom: 1rem; }
+    .cmp-chart-wrap { height: 300px; position: relative; }
+    .cmp-panel-subtitle { font-weight: 600; letter-spacing: 0; text-transform: none; color: #9ca3af; }
+    .cmp-legenda { display: flex; gap: 12px; margin-left: auto; flex-wrap: wrap; }
+    .cmp-legenda-item { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: var(--text-2); }
+    .cmp-legenda-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+    .cmp-divisao-row { margin-bottom: .7rem; }
+    .cmp-divisao-head { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 3px; }
+    .cmp-divisao-head strong { color: var(--text-2); font-weight: 600; }
+    .cmp-divisao-bar { display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: var(--surface-3); }
+
+    .cmp-grupo-titulo { font-size: 11px; font-weight: 700; letter-spacing: .14em; color: var(--text-muted); text-transform: uppercase; margin-bottom: .6rem; padding-bottom: .4rem; border-bottom: 1px solid var(--border-subtle); }
+    .cmp-metrica-row { display: grid; grid-template-columns: minmax(140px, 220px) 1fr; gap: 14px; align-items: center; padding: .35rem 0; }
+    .cmp-metrica-label { font-size: 12px; color: var(--text-2); }
+    .cmp-metrica-linhas { display: grid; gap: 4px; }
+    .cmp-metrica-linha { display: grid; grid-template-columns: 1fr 56px; gap: 8px; align-items: center; }
+    .cmp-metrica-track { height: 8px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+    .cmp-metrica-fill { height: 100%; border-radius: 999px; }
+    .cmp-metrica-valor { font-size: 12px; font-weight: 700; text-align: right; }
+
+    @@media (max-width: 640px) {
+        .cmp-select-grid { grid-template-columns: 1fr 1fr; }
+        .cmp-graficos-grid { grid-template-columns: 1fr; }
+    }
+
     /* ── Responsivo (celular): a tabela rola na horizontal dentro do
        .sc-table-wrap; a coluna do jogador fica fixa (sticky) para não perder
        de vista de quem é a linha enquanto rola as estatísticas. ── */
@@ -227,6 +303,12 @@
         <p>Encontre jogadores por critérios combinados de desempenho e perfil.</p>
     </div>
 
+    <div class="sc-tabs">
+        <button type="button" id="tabBuscarBtn" class="sc-tab-btn active">🔍 Buscar</button>
+        <button type="button" id="tabCompararBtn" class="sc-tab-btn">⚖️ Comparar</button>
+    </div>
+
+    <div id="abaBuscar">
     <form method="get" asp-action="Scout">
         <input type="hidden" name="pesquisou" value="true" />
 
@@ -574,9 +656,107 @@
             </div>
         }
     }
+    </div>
+
+    <div id="abaComparar" style="display:none;">
+
+        <div class="sc-panel">
+            <div class="cmp-panel-head">
+                <div class="sc-panel-title" style="margin:0;padding:0;border:none;">Escolher jogadores</div>
+                <span class="cmp-hint">até 3 · liga → time → jogador, ou busque pelo nome</span>
+                <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+                    <select id="cmpTemporada" style="border:1px solid var(--border-strong);border-radius:8px;padding:6px 9px;font-size:12px;background:var(--input-bg);color:var(--text);font-family:inherit;">
+                        <option value="">Todas as temporadas</option>
+                        @foreach (var t in Model.Temporadas)
+                        {
+                            <option value="@t">Temporada @t</option>
+                        }
+                    </select>
+                    <button type="button" id="cmpExportar" class="sc-btn-clear">🖨 Exportar</button>
+                </div>
+            </div>
+            <div class="cmp-select-grid">
+                <div class="sc-field">
+                    <label>Liga</label>
+                    <select id="cmpLiga">
+                        <option value="">Todas as competições</option>
+                    </select>
+                </div>
+                <div class="sc-field">
+                    <label>Time</label>
+                    <select id="cmpTime">
+                        <option value="">Todos os times</option>
+                    </select>
+                </div>
+                <div class="sc-field">
+                    <label>Jogador</label>
+                    <select id="cmpJogador">
+                        <option value="">Adicionar jogador…</option>
+                    </select>
+                </div>
+                <div class="sc-field cmp-busca-wrap">
+                    <label>ou buscar por nome</label>
+                    <input type="text" id="cmpBusca" placeholder="Digite o nome do jogador…" autocomplete="off" />
+                    <div id="cmpBuscaPanel" class="cmp-busca-panel"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="cmpCards" class="cmp-cards"></div>
+
+        <div id="cmpVazio" class="sc-empty">Escolha ao menos 2 jogadores para comparar.</div>
+
+        <div id="cmpResultado" style="display:none;">
+            <div class="sc-panel">
+                <div class="sc-panel-title">Prioridades da posição</div>
+                <div id="cmpTextoFuncoes" style="font-size:13px;color:var(--text-2);margin-bottom:.6rem;"></div>
+                <div id="cmpChips" class="cmp-chips"></div>
+            </div>
+
+            <div class="cmp-graficos-grid">
+                <div class="sc-panel">
+                    <div class="sc-panel-title">Atributos-chave da posição</div>
+                    <div class="cmp-chart-wrap"><canvas id="cmpRadarCanvas"></canvas></div>
+                </div>
+                <div class="sc-panel">
+                    <div class="sc-panel-title">Percentil na liga <span class="cmp-panel-subtitle">(50 = média da liga)</span></div>
+                    <div class="cmp-chart-wrap"><canvas id="cmpPercentilCanvas"></canvas></div>
+                </div>
+            </div>
+
+            <div class="sc-panel">
+                <div class="cmp-panel-head">
+                    <div class="sc-panel-title" style="margin:0;padding:0;border:none;">Divisão das métricas prioritárias</div>
+                    <div id="cmpLegenda" class="cmp-legenda"></div>
+                </div>
+                <div id="cmpDivisao"></div>
+            </div>
+
+            <div class="sc-panel" id="cmpGruposPanel"></div>
+
+            <div class="sc-panel" id="cmpConfrontosPanel" style="display:none;">
+                <div class="sc-panel-title">Confrontos diretos</div>
+                <div class="sc-table-wrap">
+                    <table class="sc-table">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Competição</th>
+                                <th>Partida</th>
+                                <th>Participações</th>
+                                <th style="text-align:right;">Notas</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cmpConfrontosBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 
 </div>
 
+<script src="~/lib/chartjs/chart.umd.min.js"></script>
 <script>
 (function () {
     function initMulti(wrapId, boxId, panelId, placeholder) {
@@ -720,5 +900,402 @@
         th.classList.add('sc-th-sortable');
         th.addEventListener('click', function () { ordenar(col, tipos[col]); });
     });
+})();
+</script>
+
+<script>
+// ── Aba Comparar: seleção liga → time → jogador (ou busca por nome),
+// até 3 jogadores, com radar/percentil/divisão/grupos/confrontos vindos
+// de /Relatorios/ScoutCompararDados. ──────────────────────────────────
+(function () {
+    var mediaProxyBase = '@Url.Action("Imagem", "MediaProxy")';
+    var estatisticasBase = '@Url.Action("Estatisticas", "Jogadores")';
+    var ligasUrl = '@Url.Action("CompararLigas", "Jogadores")';
+    var timesUrl = '@Url.Action("CompararTimes", "Jogadores")';
+    var jogadoresListaUrl = '@Url.Action("CompararJogadoresLista", "Jogadores")';
+    var compararDadosUrl = '@Url.Action("ScoutCompararDados", "Relatorios")';
+
+    var CORES = ['#7c3aed', '#0ea5e9', '#f59e0b'];
+    var cmpIds = [];
+    var cmpInfo = {};
+    var cascataInit = false;
+    var radarChart = null, percentilChart = null;
+    var lastRadarData = null, lastPercentilData = null;
+
+    function escapeHtml(s) {
+        return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+        });
+    }
+
+    // ── Abas Buscar / Comparar ──────────────────────────────────────
+    function showTab(nome) {
+        var buscar = nome === 'buscar';
+        document.getElementById('abaBuscar').style.display = buscar ? '' : 'none';
+        document.getElementById('abaComparar').style.display = buscar ? 'none' : '';
+        document.getElementById('tabBuscarBtn').classList.toggle('active', buscar);
+        document.getElementById('tabCompararBtn').classList.toggle('active', !buscar);
+        if (!buscar) {
+            initCascataOnce();
+            if (radarChart) radarChart.resize();
+            if (percentilChart) percentilChart.resize();
+        }
+    }
+    document.getElementById('tabBuscarBtn').addEventListener('click', function () { showTab('buscar'); });
+    document.getElementById('tabCompararBtn').addEventListener('click', function () { showTab('comparar'); });
+
+    // ── Cascata liga → time → jogador ───────────────────────────────
+    function initCascataOnce() {
+        if (cascataInit) return;
+        cascataInit = true;
+        fetch(ligasUrl).then(function (r) { return r.json(); }).then(function (ligas) {
+            var sel = document.getElementById('cmpLiga');
+            (ligas || []).forEach(function (l) {
+                var opt = document.createElement('option');
+                opt.value = l.id; opt.textContent = l.nome;
+                sel.appendChild(opt);
+            });
+        });
+    }
+
+    document.getElementById('cmpLiga').addEventListener('change', function () {
+        var competicaoId = this.value;
+        var timeSel = document.getElementById('cmpTime');
+        timeSel.innerHTML = '<option value="">Todos os times</option>';
+        document.getElementById('cmpJogador').innerHTML = '<option value="">Adicionar jogador…</option>';
+        var url = timesUrl + (competicaoId ? ('?competicaoId=' + encodeURIComponent(competicaoId)) : '');
+        fetch(url).then(function (r) { return r.json(); }).then(function (times) {
+            (times || []).forEach(function (t) {
+                var opt = document.createElement('option');
+                opt.value = t.id; opt.textContent = t.nome;
+                timeSel.appendChild(opt);
+            });
+        });
+    });
+
+    document.getElementById('cmpTime').addEventListener('change', function () {
+        var timeId = this.value;
+        var jogSel = document.getElementById('cmpJogador');
+        jogSel.innerHTML = '<option value="">Adicionar jogador…</option>';
+        if (!timeId) return;
+        fetch(jogadoresListaUrl + '?timeId=' + encodeURIComponent(timeId)).then(function (r) { return r.json(); }).then(function (jogadores) {
+            (jogadores || []).forEach(function (j) {
+                var opt = document.createElement('option');
+                opt.value = j.id;
+                opt.textContent = j.nome + (j.posicao ? (' — ' + j.posicao) : '');
+                opt.dataset.nome = j.nome;
+                opt.dataset.posicao = j.posicao || '';
+                opt.dataset.clube = j.clube || '';
+                opt.dataset.fotoUrl = j.fotoUrl || '';
+                opt.dataset.idade = j.idade || '';
+                jogSel.appendChild(opt);
+            });
+        });
+    });
+
+    document.getElementById('cmpJogador').addEventListener('change', function () {
+        var id = parseInt(this.value, 10);
+        var opt = this.options[this.selectedIndex];
+        var info = id ? {
+            id: id, nome: opt.dataset.nome, posicao: opt.dataset.posicao, clube: opt.dataset.clube,
+            fotoUrl: opt.dataset.fotoUrl, idade: opt.dataset.idade ? parseInt(opt.dataset.idade, 10) : undefined,
+        } : null;
+        this.value = '';
+        if (info) addJogador(info);
+    });
+
+    // ── Busca por nome ───────────────────────────────────────────────
+    var buscaInput = document.getElementById('cmpBusca');
+    var buscaPanel = document.getElementById('cmpBuscaPanel');
+    var buscaTimer = null;
+    buscaInput.addEventListener('input', function () {
+        var termo = this.value.trim();
+        clearTimeout(buscaTimer);
+        if (termo.length < 2) { buscaPanel.classList.remove('open'); buscaPanel.innerHTML = ''; return; }
+        buscaTimer = setTimeout(function () {
+            fetch(jogadoresListaUrl + '?nome=' + encodeURIComponent(termo)).then(function (r) { return r.json(); }).then(function (jogadores) {
+                buscaPanel.innerHTML = '';
+                if (!jogadores || !jogadores.length) { buscaPanel.classList.remove('open'); return; }
+                jogadores.forEach(function (j) {
+                    var opt = document.createElement('div');
+                    opt.className = 'cmp-busca-opt';
+                    opt.innerHTML = '<span>' + escapeHtml(j.nome) + '</span>&nbsp;<small>' + escapeHtml(j.clube || '') + '</small>';
+                    opt.addEventListener('click', function () {
+                        addJogador(j);
+                        buscaInput.value = '';
+                        buscaPanel.classList.remove('open');
+                        buscaPanel.innerHTML = '';
+                    });
+                    buscaPanel.appendChild(opt);
+                });
+                buscaPanel.classList.add('open');
+            });
+        }, 300);
+    });
+    document.addEventListener('click', function (e) {
+        if (!buscaInput.contains(e.target) && !buscaPanel.contains(e.target)) buscaPanel.classList.remove('open');
+    });
+
+    // ── Estado dos selecionados (até 3, mínimo 2 para comparar) ──────
+    function addJogador(info) {
+        if (cmpIds.indexOf(info.id) !== -1 || cmpIds.length >= 3) return;
+        cmpIds.push(info.id);
+        cmpInfo[info.id] = info;
+        atualizarComparacao();
+    }
+    function removeJogador(id) {
+        if (cmpIds.length === 2) return; // mínimo de 2 para manter a comparação
+        cmpIds = cmpIds.filter(function (x) { return x !== id; });
+        delete cmpInfo[id];
+        atualizarComparacao();
+    }
+
+    function statBlock(v, l, cor) {
+        return '<div><div class="cmp-card-stat-v"' + (cor ? (' style="color:' + cor + ';"') : '') + '>' +
+            (v === undefined || v === null ? '—' : escapeHtml(v)) + '</div><div class="cmp-card-stat-l">' + l + '</div></div>';
+    }
+
+    function renderCards() {
+        var cards = document.getElementById('cmpCards');
+        cards.innerHTML = '';
+        cmpIds.forEach(function (id, i) {
+            var info = cmpInfo[id] || {};
+            var cor = CORES[i];
+            var div = document.createElement('div');
+            div.className = 'cmp-card';
+            div.style.borderTopColor = cor;
+            var fotoHtml = info.fotoUrl
+                ? '<img src="' + mediaProxyBase + '?url=' + encodeURIComponent(info.fotoUrl) + '" alt="">'
+                : '👤';
+            var statsHtml = '';
+            if (info.jogos !== undefined) {
+                statsHtml = '<div class="cmp-card-stats">' +
+                    statBlock(info.jogos, 'Jogos') +
+                    statBlock(info.gols, 'Gols') +
+                    statBlock(info.assistencias, 'Ass.') +
+                    statBlock(info.notaFmt, 'Nota', cor) +
+                    '</div>';
+            }
+            var removivel = cmpIds.length !== 2;
+            div.innerHTML =
+                '<div class="cmp-card-photo">' + fotoHtml + '</div>' +
+                '<div style="min-width:0;flex:1;">' +
+                    '<a class="cmp-card-nome" href="' + estatisticasBase + '?id=' + id + '">' + escapeHtml(info.nome || '') + '</a>' +
+                    '<div class="cmp-card-meta">' + escapeHtml(info.posicao || '') +
+                        (info.idade ? (' · ' + info.idade + ' anos') : '') +
+                        (info.pais ? (' · ' + escapeHtml(info.pais)) : '') + '</div>' +
+                    '<div class="cmp-card-clube">' + escapeHtml(info.clube || '') + '</div>' +
+                    statsHtml +
+                '</div>' +
+                (removivel ? '<button type="button" class="cmp-card-remove" data-id="' + id + '">✕</button>' : '');
+            cards.appendChild(div);
+        });
+
+        if (cmpIds.length < 3) {
+            var ph = document.createElement('div');
+            ph.className = 'cmp-card-placeholder';
+            ph.textContent = cmpIds.length < 2
+                ? 'Use os campos acima para escolher jogadores'
+                : '+ Use os campos acima para adicionar um 3º jogador';
+            cards.appendChild(ph);
+        }
+
+        cards.querySelectorAll('.cmp-card-remove').forEach(function (btn) {
+            btn.addEventListener('click', function () { removeJogador(parseInt(btn.dataset.id, 10)); });
+        });
+    }
+
+    function renderTextoFuncoes(texto, chips) {
+        document.getElementById('cmpTextoFuncoes').textContent = texto || '';
+        var wrap = document.getElementById('cmpChips');
+        wrap.innerHTML = '';
+        (chips || []).forEach(function (c) {
+            var span = document.createElement('span');
+            span.className = 'cmp-chip';
+            span.textContent = c;
+            wrap.appendChild(span);
+        });
+    }
+
+    function renderLegenda(jogadores) {
+        document.getElementById('cmpLegenda').innerHTML = (jogadores || []).map(function (j) {
+            return '<span class="cmp-legenda-item"><span class="cmp-legenda-dot" style="background:' + j.cor + ';"></span>' + escapeHtml(j.nome) + '</span>';
+        }).join('');
+    }
+
+    function renderDivisao(divisao) {
+        var wrap = document.getElementById('cmpDivisao');
+        wrap.innerHTML = '';
+        (divisao || []).forEach(function (m) {
+            var row = document.createElement('div');
+            row.className = 'cmp-divisao-row';
+            var head = document.createElement('div');
+            head.className = 'cmp-divisao-head';
+            head.innerHTML = '<span>' + escapeHtml(m.label) + '</span><strong>' + escapeHtml(m.resumo) + '</strong>';
+            var bar = document.createElement('div');
+            bar.className = 'cmp-divisao-bar';
+            (m.segmentos || []).forEach(function (s) {
+                var seg = document.createElement('div');
+                seg.style.width = s.pct + '%';
+                seg.style.background = s.cor;
+                seg.style.opacity = s.opacidade;
+                bar.appendChild(seg);
+            });
+            row.appendChild(head);
+            row.appendChild(bar);
+            wrap.appendChild(row);
+        });
+    }
+
+    function renderGrupos(grupos) {
+        var panel = document.getElementById('cmpGruposPanel');
+        panel.innerHTML = '';
+        (grupos || []).forEach(function (g) {
+            var block = document.createElement('div');
+            block.style.marginBottom = '1.1rem';
+            var titulo = document.createElement('div');
+            titulo.className = 'cmp-grupo-titulo';
+            titulo.textContent = g.titulo;
+            block.appendChild(titulo);
+            (g.metricas || []).forEach(function (m) {
+                var row = document.createElement('div');
+                row.className = 'cmp-metrica-row';
+                var label = document.createElement('div');
+                label.className = 'cmp-metrica-label';
+                label.textContent = m.label;
+                var linhasWrap = document.createElement('div');
+                linhasWrap.className = 'cmp-metrica-linhas';
+                (m.linhas || []).forEach(function (l) {
+                    var linha = document.createElement('div');
+                    linha.className = 'cmp-metrica-linha';
+                    var track = document.createElement('div');
+                    track.className = 'cmp-metrica-track';
+                    var fill = document.createElement('div');
+                    fill.className = 'cmp-metrica-fill';
+                    fill.style.width = l.w + '%';
+                    fill.style.background = l.cor;
+                    fill.style.opacity = l.opacidade;
+                    track.appendChild(fill);
+                    var valor = document.createElement('div');
+                    valor.className = 'cmp-metrica-valor';
+                    valor.style.color = l.corTexto;
+                    valor.textContent = l.txt;
+                    linha.appendChild(track);
+                    linha.appendChild(valor);
+                    linhasWrap.appendChild(linha);
+                });
+                row.appendChild(label);
+                row.appendChild(linhasWrap);
+                block.appendChild(row);
+            });
+            panel.appendChild(block);
+        });
+    }
+
+    function renderConfrontos(confrontos) {
+        var panel = document.getElementById('cmpConfrontosPanel');
+        var body = document.getElementById('cmpConfrontosBody');
+        if (!confrontos || !confrontos.length) {
+            panel.style.display = 'none';
+            body.innerHTML = '';
+            return;
+        }
+        panel.style.display = '';
+        body.innerHTML = confrontos.map(function (c) {
+            return '<tr>' +
+                '<td style="color:var(--text-muted);white-space:nowrap;">' + escapeHtml(c.data) + '</td>' +
+                '<td>' + escapeHtml(c.competicao) + '</td>' +
+                '<td style="font-weight:600;color:var(--text);">' + escapeHtml(c.partida) + '</td>' +
+                '<td style="color:var(--text-2);">' + escapeHtml(c.participacoes) + '</td>' +
+                '<td style="text-align:right;font-weight:700;color:var(--text-2);">' + escapeHtml(c.notas) + '</td>' +
+                '</tr>';
+        }).join('');
+    }
+
+    function temaAtual() {
+        var escuro = document.documentElement.getAttribute('data-theme') === 'dark';
+        return {
+            grid: escuro ? '#333' : '#e5e7eb',
+            gridFina: escuro ? '#2a2a2a' : '#f0f0f0',
+            rotulo: escuro ? '#cbd5e1' : '#374151',
+            tick: '#9ca3af',
+        };
+    }
+
+    function renderCharts(radar, percentil) {
+        lastRadarData = radar; lastPercentilData = percentil;
+        if (typeof Chart === 'undefined') return;
+        var c = temaAtual();
+        if (radarChart) { radarChart.destroy(); radarChart = null; }
+        if (percentilChart) { percentilChart.destroy(); percentilChart = null; }
+
+        radarChart = new Chart(document.getElementById('cmpRadarCanvas'), {
+            type: 'radar',
+            data: {
+                labels: radar.labels,
+                datasets: radar.datasets.map(function (d) {
+                    return { label: d.label, data: d.data, borderColor: d.cor, backgroundColor: d.cor + '26', pointBackgroundColor: d.cor, borderWidth: 2, pointRadius: 3 };
+                }),
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: false,
+                scales: { r: { min: 0, max: 100, ticks: { display: false, stepSize: 25 }, grid: { color: c.grid }, angleLines: { color: c.grid }, pointLabels: { color: c.rotulo, font: { size: 11, family: 'Barlow' } } } },
+                plugins: { legend: { position: 'bottom', labels: { color: c.rotulo, boxWidth: 10, font: { size: 11, family: 'Barlow' } } } },
+            },
+        });
+
+        percentilChart = new Chart(document.getElementById('cmpPercentilCanvas'), {
+            type: 'bar',
+            data: {
+                labels: percentil.labels,
+                datasets: percentil.datasets.map(function (d) {
+                    return { label: d.label, data: d.data, backgroundColor: d.cor, borderRadius: 3, barPercentage: 0.8, categoryPercentage: 0.7 };
+                }),
+            },
+            options: {
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false, animation: false,
+                scales: {
+                    x: { min: 0, max: 100, grid: { color: c.gridFina }, ticks: { color: c.tick, font: { size: 10, family: 'Barlow' } } },
+                    y: { grid: { display: false }, ticks: { color: c.rotulo, font: { size: 11, family: 'Barlow' } } },
+                },
+                plugins: { legend: { position: 'bottom', labels: { color: c.rotulo, boxWidth: 10, font: { size: 11, family: 'Barlow' } } } },
+            },
+        });
+    }
+
+    function atualizarComparacao() {
+        renderCards();
+        if (cmpIds.length < 2) {
+            document.getElementById('cmpVazio').style.display = '';
+            document.getElementById('cmpResultado').style.display = 'none';
+            return;
+        }
+        document.getElementById('cmpVazio').style.display = 'none';
+        var qs = cmpIds.map(function (id) { return 'ids=' + id; }).join('&');
+        var temporada = document.getElementById('cmpTemporada').value;
+        if (temporada) qs += '&temporada=' + encodeURIComponent(temporada);
+        fetch(compararDadosUrl + '?' + qs).then(function (r) { return r.json(); }).then(function (data) {
+            if (data.error) { document.getElementById('cmpResultado').style.display = 'none'; return; }
+            data.jogadores.forEach(function (j) {
+                cmpInfo[j.id] = Object.assign({}, cmpInfo[j.id] || {}, j);
+            });
+            renderCards();
+            document.getElementById('cmpResultado').style.display = '';
+            renderTextoFuncoes(data.textoFuncoes, data.prioridades);
+            renderLegenda(data.jogadores);
+            renderDivisao(data.divisao);
+            renderGrupos(data.grupos);
+            renderConfrontos(data.confrontos);
+            renderCharts(data.radar, data.percentil);
+        });
+    }
+
+    document.getElementById('cmpExportar').addEventListener('click', function () { window.print(); });
+
+    document.getElementById('cmpTemporada').addEventListener('change', function () { atualizarComparacao(); });
+
+    new MutationObserver(function () {
+        if (lastRadarData && lastPercentilData) renderCharts(lastRadarData, lastPercentilData);
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 })();
 </script>

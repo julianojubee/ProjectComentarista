@@ -1,6 +1,7 @@
 using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
+using ControleFutebolWeb.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -83,6 +84,19 @@ namespace ControleFutebolWeb.Controllers
                 .OrderBy(j => j.Rodada)
                 .ThenBy(j => j.Data)
                 .ToList();
+
+            // ── Aba "Estatísticas": todos os jogos já realizados da competição/temporada ──
+            var jogosRealizadosEstat = todos.Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue).ToList();
+            var jogoIdsEstat = jogosRealizadosEstat.Select(j => j.Id).ToHashSet();
+            var golsEstat = _context.Gols.AsNoTracking()
+                .Include(g => g.Jogador)
+                .Where(g => jogoIdsEstat.Contains(g.JogoId))
+                .ToList();
+            var cartoesEstat = _context.Cartoes.AsNoTracking()
+                .Include(c => c.Jogador)
+                .Where(c => jogoIdsEstat.Contains(c.JogoId))
+                .ToList();
+            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(jogosRealizadosEstat, golsEstat, cartoesEstat);
 
             if (!todos.Any())
             {

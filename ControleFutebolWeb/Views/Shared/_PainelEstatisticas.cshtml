@@ -1,0 +1,671 @@
+@model List<ControleFutebolWeb.Models.ViewModels.EstatisticaTimeViewModel>
+@*
+    Painel "Estatísticas" reaproveitado por todas as telas de competição
+    (Tabela do Brasileirão, Competicoes/Detalhes, Libertadores, Copa do Brasil).
+    O host decide como e quando mostrar este painel (aba própria, painel único
+    etc.) — aqui dentro só o conteúdo e os gráficos, agnóstico ao sistema de
+    abas de cada tela: os gráficos só são montados quando este bloco ganha
+    tamanho na página (via ResizeObserver), o que funciona tanto se ele já
+    nasce visível quanto se está dentro de uma aba escondida com display:none.
+*@
+@{
+    var estatisticasTimes = Model ?? new();
+    var estatisticasJson = System.Text.Json.JsonSerializer.Serialize(estatisticasTimes, new System.Text.Json.JsonSerializerOptions
+    {
+        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+    }).Replace("</", "<\\/");
+    // Ids únicos por instância: mais de uma tela pode incluir este painel na mesma
+    // página em cenários futuros (hoje não acontece, mas evita colisão de IDs).
+    var uid = Guid.NewGuid().ToString("N").Substring(0, 8);
+}
+
+<style>
+    .br-est { padding: 24px 2.5rem 64px; display: flex; flex-direction: column; gap: 22px; }
+    .br-est-controls { display: flex; gap: .75rem; align-items: flex-end; flex-wrap: wrap; }
+    .br-est-controls label { font-size: 11px; color: #4b5563; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: .35rem; font-weight: 700; }
+    .br-seg { display: flex; background: #161616; border: 1px solid #262626; border-radius: 8px; padding: 3px; gap: 3px; }
+    .br-seg button {
+        border: none; cursor: pointer; font-family: 'Barlow', Arial, sans-serif; font-size: 12px; font-weight: 700;
+        padding: .35rem .85rem; border-radius: 6px; background: transparent; color: #6b7280;
+    }
+    .br-seg button.active { background: #262626; color: #f1f5f9; }
+    .br-est-fonte { margin-left: auto; font-size: 11px; color: #4b5563; align-self: flex-end; max-width: 420px; }
+
+    .br-est-sectitle { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .br-est-sectitle span { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .72rem; font-weight: 700; letter-spacing: .16em; color: #6b7280; text-transform: uppercase; }
+    .br-est-sechr { flex: 1; height: 1px; background: #222; }
+
+    .br-est-destaques { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+    .br-est-card { background: #161616; border: 1px solid #262626; border-radius: 12px; padding: 14px 16px; }
+    .br-est-card-titulo { font-size: .6rem; color: #4b5563; text-transform: uppercase; letter-spacing: .12em; font-weight: 700; margin-bottom: 10px; }
+    /* flex-wrap + min-width:0: sem isso, quando nome do time + valor não cabem
+       numa linha só o flex não quebra pra segunda linha — o texto vaza pra fora
+       do card (min-content da linha sem wrap > largura disponível). */
+    .br-est-card-lider { display: flex; align-items: baseline; gap: 4px 8px; flex-wrap: wrap; }
+    .br-est-card-lider .br-est-nome-com-escudo { flex: 1 1 auto; min-width: 0; }
+    .br-est-card-lider .br-est-nome-com-escudo .txt { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.5rem; font-weight: 800; color: #f1f5f9; line-height: 1.15; white-space: normal; overflow-wrap: break-word; }
+    .br-est-card-lider .valor { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.5rem; font-weight: 800; line-height: 1.15; margin-left: auto; white-space: nowrap; }
+    .br-est-card-pior { margin-top: 10px; padding-top: 9px; border-top: 1px solid #1e1e1e; display: flex; align-items: baseline; gap: 8px; }
+    .br-est-card-pior .lbl { font-size: .7rem; color: #4b5563; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; flex-shrink: 0; }
+    .br-est-card-pior .br-est-nome-com-escudo { flex: 1 1 auto; min-width: 0; }
+    .br-est-card-pior .br-est-nome-com-escudo .txt { font-size: .78rem; color: #9ca3af; }
+    .br-est-card-pior .valor { font-size: .82rem; color: #ef4444; font-weight: 700; margin-left: auto; flex-shrink: 0; white-space: nowrap; }
+
+    .br-est-metricas { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+    .br-est-metricas button {
+        border: 1px solid #262626; cursor: pointer; font-family: 'Barlow', Arial, sans-serif; font-size: 11px; font-weight: 700;
+        padding: .3rem .7rem; border-radius: 999px; background: #161616; color: #6b7280;
+    }
+    .br-est-metricas button.active { background: rgba(34,197,94,0.12); color: #4ade80; border-color: rgba(34,197,94,0.35); }
+    .br-est-metrica-desc { font-size: .72rem; color: #6b7280; margin-bottom: 10px; }
+
+    .br-est-chart { position: relative; height: 340px; }
+    .br-est-chart.alto { height: 520px; }
+    .br-est-chart.medio { height: 280px; }
+
+    .br-est-grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; }
+    .br-est-sub { font-size: .68rem; color: #4b5563; margin-top: 2px; }
+
+    .br-est-intervalos-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 0; }
+    .br-est-decidem { padding: 16px 18px; border-left: 1px solid #1e1e1e; }
+    .br-est-decidem-titulo { font-size: .6rem; color: #4b5563; text-transform: uppercase; letter-spacing: .12em; font-weight: 700; margin-bottom: 12px; }
+    .br-est-decidem-item { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #1a1a1a; }
+    .br-est-decidem-item .pos { font-size: .72rem; font-weight: 700; color: #4b5563; width: 14px; text-align: center; }
+    .br-est-decidem-item .br-est-nome-com-escudo { flex: 1; min-width: 0; }
+    .br-est-decidem-item .br-est-nome-com-escudo .txt { font-size: .82rem; color: #e5e7eb; }
+    .br-est-decidem-item .bar { width: 90px; height: 5px; background: #222; border-radius: 3px; overflow: hidden; }
+    .br-est-decidem-item .bar div { height: 100%; border-radius: 3px; background: #d4a520; }
+    .br-est-decidem-item .gols { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1rem; font-weight: 800; color: #d4a520; width: 28px; text-align: right; }
+
+    .br-est-escudo { border-radius: 50%; background: #0f0f0f; border: 1px solid #2a2a2a; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; font-size: .6rem; color: #6b7280; }
+    .br-est-escudo img { width: 90%; height: 90%; object-fit: contain; }
+    .br-est-nome-com-escudo { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+    .br-est-nome-com-escudo .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .br-est-tabela-wrap { overflow-x: auto; }
+    .br-est-tabela-min { min-width: 1080px; }
+    .br-est-thead { display: grid; grid-template-columns: 30px 1fr repeat(11,72px); gap: 2px; padding: 10px 14px; background: #0d0d0d; border-bottom: 1px solid #1e1e1e; align-items: center; }
+    .br-est-thead span { font-size: .58rem; color: #374151; font-weight: 700; }
+    .br-est-thead button {
+        background: none; border: none; cursor: pointer; font-family: 'Barlow', Arial, sans-serif; font-size: .58rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .06em; padding: 0; color: #374151; text-align: center; width: 100%;
+    }
+    .br-est-thead button.left { text-align: left; }
+    .br-est-trow { display: grid; grid-template-columns: 30px 1fr repeat(11,72px); gap: 2px; padding: 9px 14px; border-bottom: 1px solid #131313; align-items: center; }
+    .br-est-trow span.pos { font-size: .72rem; color: #4b5563; font-weight: 700; }
+    .br-est-trow .br-est-nome-com-escudo { min-width: 0; }
+    .br-est-trow .br-est-nome-com-escudo .txt { font-size: .82rem; color: #e5e7eb; }
+    .br-est-trow span.cel { font-size: .78rem; font-weight: 600; text-align: center; }
+
+    @@media (max-width: 768px) {
+        .br-est { padding: 18px 1.1rem 40px; }
+        .br-est-fonte { display: none; }
+        .br-est-intervalos-grid { grid-template-columns: 1fr; }
+        .br-est-decidem { border-left: none; border-top: 1px solid #1e1e1e; }
+    }
+</style>
+
+<div class="br-est" data-est-root="@uid">
+
+    <div class="br-est-controls">
+        <div>
+            <label>Recorte</label>
+            <div class="br-seg" id="est-escopo-@uid">
+                <button type="button" data-v="total" class="active">Total</button>
+                <button type="button" data-v="casa">🏠 Casa</button>
+                <button type="button" data-v="fora">✈️ Fora</button>
+            </div>
+        </div>
+        <div>
+            <label>Base de comparação</label>
+            <div class="br-seg" id="est-normal-@uid">
+                <button type="button" data-v="total" class="active">Totais</button>
+                <button type="button" data-v="jogo">Por jogo</button>
+            </div>
+        </div>
+        <div class="br-est-fonte" id="est-fonte-@uid">Fonte: jogos, gols e cartões cadastrados + estatísticas da partida (posse, finalizações, escanteios, passes, xG) quando disponíveis</div>
+    </div>
+
+    @if (!estatisticasTimes.Any())
+    {
+        <div class="br-vazio">Nenhum jogo com placar cadastrado ainda para calcular estatísticas.</div>
+    }
+    else
+    {
+        <div>
+            <div class="br-est-sectitle"><span>Melhores e piores da competição</span><div class="br-est-sechr"></div></div>
+            <div class="br-est-destaques" id="est-destaques-@uid"></div>
+        </div>
+
+        <div class="br-side-card">
+            <div class="br-side-header">
+                <span style="font-size:1rem;">📊</span>
+                <span class="br-side-title">Ranking por métrica</span>
+                <div class="br-est-metricas" id="est-metricas-@uid"></div>
+            </div>
+            <div style="padding:16px 18px;">
+                <div class="br-est-metrica-desc" id="est-metrica-desc-@uid"></div>
+                <div class="br-est-chart alto"><canvas data-chart="ranking-@uid"></canvas></div>
+            </div>
+        </div>
+
+        <div class="br-est-grid4">
+            <div class="br-side-card">
+                <div class="br-side-header">
+                    <div>
+                        <span class="br-side-title">Ataque × Defesa</span>
+                        <div class="br-est-sub">quadrantes cortados pela média da competição · quanto mais à direita e mais acima, melhor</div>
+                    </div>
+                </div>
+                <div style="padding:16px 18px;"><div class="br-est-chart"><canvas data-chart="quadrantes-@uid"></canvas></div></div>
+            </div>
+
+            <div class="br-side-card">
+                <div class="br-side-header">
+                    <div>
+                        <span class="br-side-title">Aproveitamento em casa × fora</span>
+                        <div class="br-est-sub">quem depende do mandante e quem pontua longe de casa</div>
+                    </div>
+                </div>
+                <div style="padding:16px 18px;"><div class="br-est-chart"><canvas data-chart="casafora-@uid"></canvas></div></div>
+            </div>
+
+            <div class="br-side-card" id="est-card-xg-@uid">
+                <div class="br-side-header">
+                    <div>
+                        <span class="br-side-title">Gols × xG — quem finaliza melhor</span>
+                        <div class="br-est-sub">diferença entre gols marcados e gols esperados</div>
+                    </div>
+                </div>
+                <div style="padding:16px 18px;"><div class="br-est-chart"><canvas data-chart="xg-@uid"></canvas></div></div>
+            </div>
+
+            <div class="br-side-card">
+                <div class="br-side-header">
+                    <div>
+                        <span class="br-side-title">Disciplina</span>
+                        <div class="br-est-sub">cartões amarelos e vermelhos por time</div>
+                    </div>
+                </div>
+                <div style="padding:16px 18px;"><div class="br-est-chart"><canvas data-chart="cartoes-@uid"></canvas></div></div>
+            </div>
+        </div>
+
+        <div class="br-side-card">
+            <div class="br-side-header">
+                <span style="font-size:1rem;">⏱️</span>
+                <span class="br-side-title">Quando os gols acontecem</span>
+                <span style="font-size:.68rem; color:#4b5563;">todos os gols da competição, por intervalo de 15 minutos</span>
+            </div>
+            <div class="br-est-intervalos-grid">
+                <div style="padding:16px 18px;"><div class="br-est-chart medio"><canvas data-chart="intervalos-@uid"></canvas></div></div>
+                <div class="br-est-decidem">
+                    <div class="br-est-decidem-titulo">Times que decidem no fim (76'–90')</div>
+                    <div id="est-decidem-@uid"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="br-side-card">
+            <div class="br-side-header">
+                <span class="br-side-title">Tabela completa de estatísticas</span>
+                <span style="font-size:.68rem; color:#4b5563;">clique no cabeçalho para ordenar · verde = melhor terço, vermelho = pior terço</span>
+            </div>
+            <div class="br-est-tabela-wrap">
+                <div class="br-est-tabela-min">
+                    <div class="br-est-thead" id="est-thead-@uid"></div>
+                    <div id="est-tbody-@uid"></div>
+                </div>
+            </div>
+        </div>
+    }
+
+</div>
+
+<script type="application/json" data-est-dados="@uid">@Html.Raw(estatisticasJson)</script>
+<script src="~/lib/chartjs/chart.umd.min.js"></script>
+<script>
+// ══ Painel "Estatísticas" reaproveitado por todas as telas de competição ═══
+// Dados: EstatisticaTimeViewModel (EstatisticaTimeCalculator.Calcular), já
+// agregados no servidor a partir dos jogos/gols/cartões cadastrados e de
+// Jogo.EstatisticasJson (posse, finalizações, escanteios, passes, xG — quando
+// a api-football importou esses dados; ficam null quando não há nada importado).
+(function () {
+    const UID = '@uid';
+    const DADOS_BRUTOS = JSON.parse(document.querySelector('[data-est-dados="' + UID + '"]').textContent || '[]');
+
+    // Filtra times que jogaram pouco (ex.: eliminado na 1ª rodada da Champions
+    // com 1 jogo e 0 gols sofridos não deve aparecer como "melhor defesa").
+    // Referência = o time com mais jogos disputados na competição/temporada;
+    // exige pelo menos metade disso pra entrar nos rankings e destaques.
+    const maxJ = DADOS_BRUTOS.reduce((m, t) => Math.max(m, t.j), 0);
+    const jogosMin = Math.ceil(maxJ / 2);
+    const DADOS = DADOS_BRUTOS.filter((t) => t.j >= jogosMin);
+
+    const fonteEl = document.getElementById('est-fonte-' + UID);
+    if (fonteEl && jogosMin > 1) {
+        fonteEl.textContent += ` · considerando times com pelo menos ${jogosMin} jogo(s) disputado(s) (metade do líder, ${maxJ})`;
+    }
+
+    const state = { escopo: 'total', normal: 'total', metrica: 'gp', ordem: 'pts', desc: true };
+    const charts = {};
+    let construido = false;
+    const $ = (id) => document.getElementById(id + '-' + UID);
+
+    // ── acesso conforme recorte selecionado ────────────────────────────────
+    const jogosDoEscopo = (t) => state.escopo === 'casa' ? t.jCasa : state.escopo === 'fora' ? t.jFora : t.j;
+    const gp = (t) => state.escopo === 'casa' ? t.gpCasa : state.escopo === 'fora' ? t.gpFora : t.gp;
+    const gc = (t) => state.escopo === 'casa' ? t.gcCasa : state.escopo === 'fora' ? t.gcFora : t.gc;
+    const aprov = (t) => state.escopo === 'casa' ? t.aprovCasa : state.escopo === 'fora' ? t.aprovFora : t.aprov;
+    const porJogo = (t, valor) => {
+        if (valor === null || valor === undefined) return null;
+        const j = jogosDoEscopo(t);
+        return state.normal === 'jogo' && j > 0 ? +(valor / j).toFixed(2) : valor;
+    };
+
+    function defsMetricas() {
+        return [
+            { key: 'gp', label: 'Gols marcados', maior: true, get: (t) => porJogo(t, gp(t)), desc: 'Quem mais e quem menos balança a rede.' },
+            { key: 'gc', label: 'Gols sofridos', maior: false, get: (t) => porJogo(t, gc(t)), desc: 'Menos é melhor — a defesa mais e menos vazada.' },
+            { key: 'aprov', label: 'Aproveitamento', maior: true, un: '%', fixo: true, get: (t) => aprov(t), desc: 'Percentual dos pontos disputados no recorte selecionado.' },
+            { key: 'posse', label: 'Posse de bola', maior: true, un: '%', fixo: true, get: (t) => t.posse, desc: 'Média de posse por jogo (estatística da partida importada).' },
+            { key: 'fin', label: 'Finalizações', maior: true, fixo: true, get: (t) => t.fin, desc: 'Média de finalizações por jogo.' },
+            { key: 'finGol', label: 'Chutes no gol', maior: true, fixo: true, get: (t) => t.finGol, desc: 'Média de finalizações no alvo por jogo.' },
+            { key: 'precisao', label: 'Pontaria', maior: true, un: '%', fixo: true, get: (t) => t.precisao, desc: '% das finalizações que foram no gol — eficiência do chute.' },
+            { key: 'esc', label: 'Escanteios', maior: true, fixo: true, get: (t) => t.esc, desc: 'Média de escanteios por jogo — pressão no campo de ataque.' },
+            { key: 'passesCertos', label: 'Passes certos', maior: true, fixo: true, get: (t) => t.passesCertos, desc: 'Média de passes certos por jogo.' },
+            { key: 'xg', label: 'xG por jogo', maior: true, fixo: true, get: (t) => t.xg, desc: 'Gols esperados, em média por partida (quando informado pela api-football).' },
+            { key: 'cs', label: 'Jogos sem sofrer gol', maior: true, fixo: true, get: (t) => t.cleanSheets, desc: 'Número de jogos em que a defesa não foi vazada.' },
+            { key: 'am', label: 'Cartões amarelos', maior: false, get: (t) => porJogo(t, t.amarelos), desc: 'Menos é melhor — time mais e menos punido.' }
+        ].filter((m) => DADOS.some((t) => m.get(t) !== null && m.get(t) !== undefined));
+    }
+    const metricaAtual = () => defsMetricas().find((m) => m.key === state.metrica) || defsMetricas()[0];
+
+    const comDado = (getFn) => DADOS.filter((t) => { const v = getFn(t); return v !== null && v !== undefined && !isNaN(v); });
+    const melhor = (getFn, maior) => { const l = comDado(getFn); if (!l.length) return null; return l.slice().sort((a, b) => maior ? getFn(b) - getFn(a) : getFn(a) - getFn(b))[0]; };
+    const pior = (getFn, maior) => { const l = comDado(getFn); if (!l.length) return null; return l.slice().sort((a, b) => maior ? getFn(a) - getFn(b) : getFn(b) - getFn(a))[0]; };
+    function card(titulo, getFn, maior, fmt, cor) {
+        const m = melhor(getFn, maior), p = pior(getFn, maior);
+        if (!m) return null;
+        return { titulo, timeLider: m, valor: fmt(getFn(m)), timePior: p, valorPior: fmt(getFn(p)), cor };
+    }
+
+    // Mesmo proxy usado no resto do site para escudos vindos da api-football (ver
+    // MediaProxyController.Imagem): sem null-check, texto vira só a inicial do nome.
+    function escudoImg(t, px) {
+        const conteudo = t.escudoUrl
+            ? `<img src="/MediaProxy/Imagem?url=${encodeURIComponent(t.escudoUrl)}" alt="" />`
+            : (t.nome || '?').charAt(0);
+        return `<div class="br-est-escudo" style="width:${px}px;height:${px}px;">${conteudo}</div>`;
+    }
+    function nomeComEscudo(t, px) {
+        return `<span class="br-est-nome-com-escudo">${escudoImg(t, px)}<span class="txt">${t.nome}</span></span>`;
+    }
+
+    function destaques() {
+        return [
+            card('Melhor ataque', (t) => gp(t), true, (v) => v + ' gols', '#22c55e'),
+            card('Melhor defesa', (t) => gc(t), false, (v) => v + ' sofridos', '#3b82f6'),
+            card('Mais posse de bola', (t) => t.posse, true, (v) => v + '%', '#d4a520'),
+            card('Mais finalizações/jogo', (t) => t.fin, true, (v) => v.toFixed(1), '#d4a520'),
+            card('Melhor pontaria', (t) => t.precisao, true, (v) => v + '%', '#22c55e'),
+            card('Melhor mandante', (t) => t.aprovCasa, true, (v) => v + '%', '#22c55e'),
+            card('Melhor visitante', (t) => t.aprovFora, true, (v) => v + '%', '#f97316'),
+            card('Time mais disciplinado', (t) => t.amarelos + t.vermelhos * 3, false, (v) => v + ' pts disc.', '#3b82f6')
+        ].filter(Boolean);
+    }
+
+    // ── HTML ────────────────────────────────────────────────────────────────
+    function renderDestaques() {
+        const el = $('est-destaques');
+        if (!el) return;
+        el.innerHTML = destaques().map((c) => `
+            <div class="br-est-card">
+                <div class="br-est-card-titulo">${c.titulo}</div>
+                <div class="br-est-card-lider">
+                    ${nomeComEscudo(c.timeLider, 22)}
+                    <span class="valor" style="color:${c.cor};">${c.valor}</span>
+                </div>
+                <div class="br-est-card-pior">
+                    <span class="lbl">Pior</span>
+                    ${nomeComEscudo(c.timePior, 16)}
+                    <span class="valor">${c.valorPior}</span>
+                </div>
+            </div>`).join('');
+    }
+
+    function renderMetricas() {
+        const el = $('est-metricas');
+        if (!el) return;
+        el.innerHTML = defsMetricas().map((m) => `<button type="button" data-k="${m.key}" class="${state.metrica === m.key ? 'active' : ''}">${m.label}</button>`).join('');
+        el.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+            state.metrica = b.dataset.k;
+            renderMetricas();
+            atualizarRanking();
+        }));
+        const desc = $('est-metrica-desc');
+        if (desc) desc.textContent = metricaAtual().desc;
+    }
+
+    const COL_DEFS = [
+        { key: 'nome', label: 'Clube', align: 'left' },
+        { key: 'pts', label: 'Pts' }, { key: 'aprov', label: '%' },
+        { key: 'gp', label: 'GP' }, { key: 'gc', label: 'GC' },
+        { key: 'xg', label: 'xG' }, { key: 'difXg', label: 'G−xG' },
+        { key: 'posse', label: 'Posse' }, { key: 'fin', label: 'Fin/j' },
+        { key: 'precisao', label: 'Pontaria' }, { key: 'cs', label: 'CS' },
+        { key: 'am', label: 'Cartões' }
+    ];
+    const MENOR_MELHOR = { gc: true, am: true };
+
+    function rankMapa() {
+        const mapa = {};
+        ['pts', 'aprov', 'gp', 'gc', 'xg', 'difXg', 'posse', 'fin', 'precisao', 'cs', 'am'].forEach((k) => {
+            const valor = (t) => k === 'am' ? t.amarelos : t[k];
+            const ord = comDado(valor).sort((a, b) => MENOR_MELHOR[k] ? valor(a) - valor(b) : valor(b) - valor(a));
+            mapa[k] = {};
+            ord.forEach((t, i) => { mapa[k][t.timeId] = i < 6 ? '#4ade80' : i >= ord.length - 6 ? '#f87171' : '#9ca3af'; });
+        });
+        return mapa;
+    }
+
+    function renderTabela() {
+        const thead = $('est-thead');
+        if (!thead) return;
+        thead.innerHTML = '<span>#</span>' + COL_DEFS.map((c) => `
+            <button type="button" data-k="${c.key}" class="${c.align === 'left' ? 'left' : ''}" style="color:${state.ordem === c.key ? '#4ade80' : '#374151'};">
+                ${c.label}${state.ordem === c.key ? (state.desc ? ' ↓' : ' ↑') : ''}
+            </button>`).join('');
+        thead.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+            if (state.ordem === b.dataset.k) state.desc = !state.desc;
+            else { state.ordem = b.dataset.k; state.desc = true; }
+            renderTabela();
+        }));
+
+        const valorOrdem = (t) => state.ordem === 'nome' ? t.nome : (state.ordem === 'am' ? t.amarelos : t[state.ordem]);
+        const ordenados = DADOS.slice().sort((a, b) => {
+            if (state.ordem === 'nome') return state.desc ? b.nome.localeCompare(a.nome) : a.nome.localeCompare(b.nome);
+            const va = valorOrdem(a), vb = valorOrdem(b);
+            const na = va === null || va === undefined, nb = vb === null || vb === undefined;
+            if (na && nb) return 0;
+            if (na) return 1;
+            if (nb) return -1;
+            return state.desc ? vb - va : va - vb;
+        });
+        const cores = rankMapa();
+        const fmt = (v, suf) => v === null || v === undefined ? '—' : (suf ? v + suf : v);
+
+        $('est-tbody').innerHTML = ordenados.map((t, i) => `
+            <div class="br-est-trow">
+                <span class="pos">${i + 1}</span>
+                ${nomeComEscudo(t, 22)}
+                <span class="cel" style="color:${cores.pts[t.timeId] || '#9ca3af'};">${t.pts}</span>
+                <span class="cel" style="color:${cores.aprov[t.timeId] || '#9ca3af'};">${fmt(t.aprov, '%')}</span>
+                <span class="cel" style="color:${cores.gp[t.timeId] || '#9ca3af'};">${t.gp}</span>
+                <span class="cel" style="color:${cores.gc[t.timeId] || '#9ca3af'};">${t.gc}</span>
+                <span class="cel" style="color:${cores.xg[t.timeId] || '#9ca3af'};">${fmt(t.xg !== null && t.xg !== undefined ? t.xg.toFixed(1) : null)}</span>
+                <span class="cel" style="color:${cores.difXg[t.timeId] || '#9ca3af'};">${fmt(t.difXg !== null && t.difXg !== undefined ? ((t.difXg > 0 ? '+' : '') + t.difXg.toFixed(1)) : null)}</span>
+                <span class="cel" style="color:${cores.posse[t.timeId] || '#9ca3af'};">${fmt(t.posse, '%')}</span>
+                <span class="cel" style="color:${cores.fin[t.timeId] || '#9ca3af'};">${fmt(t.fin !== null && t.fin !== undefined ? t.fin.toFixed(1) : null)}</span>
+                <span class="cel" style="color:${cores.precisao[t.timeId] || '#9ca3af'};">${fmt(t.precisao, '%')}</span>
+                <span class="cel" style="color:${cores.cs[t.timeId] || '#9ca3af'};">${t.cleanSheets}</span>
+                <span class="cel" style="color:${cores.am[t.timeId] || '#9ca3af'};">${t.amarelos} / ${t.vermelhos}</span>
+            </div>`).join('');
+    }
+
+    function renderDecidem() {
+        const el = $('est-decidem');
+        if (!el) return;
+        const decidem = DADOS.slice().sort((a, b) => b.golsIntervalo[5] - a.golsIntervalo[5]).slice(0, 8);
+        const max = Math.max(1, decidem[0] ? decidem[0].golsIntervalo[5] : 0);
+        el.innerHTML = decidem.map((t, i) => `
+            <div class="br-est-decidem-item">
+                <span class="pos">${i + 1}</span>
+                ${nomeComEscudo(t, 20)}
+                <div class="bar"><div style="width:${Math.round(t.golsIntervalo[5] / max * 100)}%;"></div></div>
+                <span class="gols">${t.golsIntervalo[5]}</span>
+            </div>`).join('');
+    }
+
+    // ── Chart.js ──────────────────────────────────────────────────────────
+    function defaultsChart() {
+        if (window.Chart.___brDefaults) return;
+        const C = window.Chart;
+        C.defaults.font.family = "'Barlow', Arial, sans-serif";
+        C.defaults.font.size = 12;
+        C.defaults.color = '#9ca3af';
+        C.defaults.plugins.legend.labels.boxWidth = 12;
+        C.defaults.plugins.legend.labels.boxHeight = 12;
+        C.defaults.plugins.tooltip.backgroundColor = '#0f0f0f';
+        C.defaults.plugins.tooltip.borderColor = '#333';
+        C.defaults.plugins.tooltip.borderWidth = 1;
+        C.defaults.plugins.tooltip.titleColor = '#f1f5f9';
+        C.defaults.plugins.tooltip.bodyColor = '#cbd5e1';
+        C.defaults.plugins.tooltip.padding = 10;
+        C.defaults.plugins.tooltip.cornerRadius = 6;
+        C.defaults.maintainAspectRatio = false;
+        C.___brDefaults = true;
+    }
+    const eixo = (extra) => Object.assign({ grid: { color: '#222' }, border: { display: false }, ticks: { color: '#6b7280' } }, extra || {});
+    function destroyChart(nome) { if (charts[nome]) { charts[nome].destroy(); delete charts[nome]; } }
+
+    // Tooltip nativo do Chart.js é desenhado no canvas e não aceita <img> — por
+    // isso os gráficos que precisam mostrar o escudo no tooltip (ex.: o scatter
+    // de Ataque × Defesa, cujo eixo não tem espaço pra um rótulo por time) usam
+    // este tooltip externo em HTML em vez de plugins.tooltip.callbacks.
+    let tooltipEscudoEl = null;
+    function tooltipEscudoExterno(context) {
+        let el = tooltipEscudoEl;
+        if (!el) {
+            el = document.createElement('div');
+            el.style.cssText = 'position:absolute;pointer-events:none;opacity:0;transition:opacity .1s ease;'
+                + 'background:#0f0f0f;border:1px solid #333;border-radius:8px;padding:6px 10px;'
+                + "font-family:'Barlow',Arial,sans-serif;font-size:12px;color:#cbd5e1;z-index:1000;"
+                + 'display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.4);white-space:nowrap;';
+            document.body.appendChild(el);
+            tooltipEscudoEl = el;
+        }
+        const tm = context.tooltip;
+        if (!tm || tm.opacity === 0) { el.style.opacity = 0; return; }
+        const dp = tm.dataPoints && tm.dataPoints[0];
+        if (dp) {
+            const raw = dp.raw || {};
+            const escudo = raw.escudoUrl
+                ? `<img src="/MediaProxy/Imagem?url=${encodeURIComponent(raw.escudoUrl)}" style="width:22px;height:22px;object-fit:contain;border-radius:50%;background:#000;border:1px solid #2a2a2a;flex-shrink:0;" />`
+                : '';
+            el.innerHTML = `${escudo}<span>${raw.tooltipLinha || dp.label || ''}</span>`;
+        }
+        const canvasRect = context.chart.canvas.getBoundingClientRect();
+        el.style.opacity = 1;
+        el.style.left = (canvasRect.left + window.scrollX + tm.caretX) + 'px';
+        el.style.top = (canvasRect.top + window.scrollY + tm.caretY) + 'px';
+        el.style.transform = 'translate(-50%, calc(-100% - 10px))';
+    }
+    function buildChart(nome, cfg) {
+        const el = document.querySelector(`[data-chart="${nome}-${UID}"]`);
+        if (!el || !cfg) return;
+        defaultsChart();
+        destroyChart(nome);
+        charts[nome] = new window.Chart(el, cfg);
+    }
+
+    function atualizarRanking() {
+        const m = metricaAtual();
+        const lista = comDado(m.get).sort((a, b) => m.maior ? m.get(b) - m.get(a) : m.get(a) - m.get(b));
+        const n = lista.length;
+        const cores = lista.map((t, i) => i < 4 ? '#22c55e' : i >= n - 4 ? '#ef4444' : '#3b82f6');
+        buildChart('ranking', {
+            type: 'bar',
+            data: { labels: lista.map((t) => t.nome), datasets: [{ label: m.label, data: lista.map((t) => m.get(t)), backgroundColor: cores, borderRadius: 4, maxBarThickness: 18 }] },
+            options: {
+                indexAxis: 'y',
+                plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => m.label + ': ' + c.raw + (m.un || '') + '  (' + (c.dataIndex + 1) + 'º de ' + n + ')' } } },
+                scales: { x: eixo({ beginAtZero: true }), y: eixo({ grid: { display: false }, ticks: { color: '#cbd5e1', font: { size: 11 } } }) }
+            }
+        });
+    }
+
+    function buildQuadrantes() {
+        const pts = DADOS.filter((t) => t.j > 0).map((t) => {
+            const x = +(t.gp / t.j).toFixed(2), y = +(t.gc / t.j).toFixed(2);
+            return { x, y, nome: t.nome, escudoUrl: t.escudoUrl, tooltipLinha: t.nome + ' — marca ' + x + ' e sofre ' + y + ' por jogo' };
+        });
+        if (!pts.length) return;
+        const mx = pts.reduce((a, p) => a + p.x, 0) / pts.length;
+        const my = pts.reduce((a, p) => a + p.y, 0) / pts.length;
+        buildChart('quadrantes', {
+            type: 'scatter',
+            data: { datasets: [{ label: 'Times', data: pts, pointRadius: 7, pointHoverRadius: 10, backgroundColor: pts.map((p) => p.x >= mx && p.y <= my ? '#22c55e' : p.x < mx && p.y > my ? '#ef4444' : '#3b82f6'), borderColor: '#0f0f0f', borderWidth: 1.5 }] },
+            options: {
+                plugins: { legend: { display: false }, tooltip: { enabled: false, external: tooltipEscudoExterno } },
+                scales: {
+                    x: eixo({ title: { display: true, text: 'Gols marcados por jogo', color: '#6b7280' }, grid: { color: (ctx) => Math.abs(ctx.tick.value - mx) < 0.06 ? '#d4a520' : '#222' } }),
+                    y: eixo({ reverse: true, title: { display: true, text: 'Gols sofridos por jogo (menos é melhor)', color: '#6b7280' }, grid: { color: (ctx) => Math.abs(ctx.tick.value - my) < 0.06 ? '#d4a520' : '#222' } })
+                }
+            }
+        });
+    }
+
+    function buildCasaFora() {
+        const lista = DADOS.slice().sort((a, b) => (b.aprovCasa + b.aprovFora) - (a.aprovCasa + a.aprovFora));
+        buildChart('casafora', {
+            type: 'bar',
+            data: { labels: lista.map((t) => t.sigla), datasets: [
+                { label: '🏠 Casa', data: lista.map((t) => t.aprovCasa), backgroundColor: '#22c55e', borderRadius: 3, maxBarThickness: 14 },
+                { label: '✈️ Fora', data: lista.map((t) => -t.aprovFora), backgroundColor: '#f97316', borderRadius: 3, maxBarThickness: 14 }
+            ] },
+            options: {
+                plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { title: (it) => lista[it[0].dataIndex].nome, label: (c) => c.dataset.label + ': ' + Math.abs(c.raw).toFixed(1) + '%' } } },
+                scales: {
+                    x: eixo({ grid: { display: false }, ticks: { color: '#9ca3af', font: { size: 9 }, autoSkip: false, maxRotation: 90, minRotation: 90 } }),
+                    y: eixo({ ticks: { callback: (v) => Math.abs(v) + '%', color: '#6b7280' } })
+                }
+            }
+        });
+    }
+
+    function buildXg() {
+        const cartao = $('est-card-xg');
+        const lista = DADOS.filter((t) => t.xg !== null && t.xg !== undefined).sort((a, b) => b.difXg - a.difXg);
+        if (!lista.length) { if (cartao) cartao.style.display = 'none'; return; }
+        if (cartao) cartao.style.display = '';
+        buildChart('xg', {
+            type: 'bar',
+            data: { labels: lista.map((t) => t.sigla), datasets: [
+                { label: 'Gols − xG (por jogo)', data: lista.map((t) => t.difXg), backgroundColor: lista.map((t) => t.difXg >= 0 ? '#22c55e' : '#ef4444'), borderRadius: 3, maxBarThickness: 18 },
+                { type: 'line', label: 'Gols/jogo', data: lista.map((t) => t.j > 0 ? +(t.gp / t.j).toFixed(2) : 0), borderColor: '#d4a520', borderWidth: 2, pointRadius: 2, tension: .25, yAxisID: 'y1' },
+                { type: 'line', label: 'xG/jogo', data: lista.map((t) => t.xg), borderColor: '#3b82f6', borderWidth: 2, borderDash: [5, 4], pointRadius: 0, tension: .25, yAxisID: 'y1' }
+            ] },
+            options: {
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { title: (it) => lista[it[0].dataIndex].nome } } },
+                scales: {
+                    x: eixo({ grid: { display: false }, ticks: { color: '#9ca3af', font: { size: 9 }, autoSkip: false, maxRotation: 90, minRotation: 90 } }),
+                    y: eixo({ title: { display: true, text: 'Gols − xG por jogo', color: '#6b7280' } }),
+                    y1: eixo({ position: 'right', grid: { display: false }, beginAtZero: true })
+                }
+            }
+        });
+    }
+
+    function buildCartoes() {
+        const lista = DADOS.slice().sort((a, b) => (b.amarelos + b.vermelhos * 3) - (a.amarelos + a.vermelhos * 3));
+        buildChart('cartoes', {
+            type: 'bar',
+            data: { labels: lista.map((t) => t.sigla), datasets: [
+                { label: 'Amarelos', data: lista.map((t) => t.amarelos), backgroundColor: '#f59e0b', borderRadius: 3, maxBarThickness: 18, stack: 'c' },
+                { label: 'Vermelhos', data: lista.map((t) => t.vermelhos), backgroundColor: '#dc2626', borderRadius: 3, maxBarThickness: 18, stack: 'c' }
+            ] },
+            options: {
+                plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { title: (it) => lista[it[0].dataIndex].nome } } },
+                scales: {
+                    x: eixo({ stacked: true, grid: { display: false }, ticks: { color: '#9ca3af', font: { size: 9 }, autoSkip: false, maxRotation: 90, minRotation: 90 } }),
+                    y: eixo({ stacked: true, beginAtZero: true })
+                }
+            }
+        });
+    }
+
+    function buildIntervalos() {
+        const BUCKETS = ['0-15', '16-30', '31-45', '46-60', '61-75', '76-90', '91+'];
+        const soma = BUCKETS.map((_, i) => DADOS.reduce((a, t) => a + (t.golsIntervalo[i] || 0), 0));
+        const tot = soma.reduce((a, b) => a + b, 0) || 1;
+        const max = Math.max.apply(null, soma);
+        buildChart('intervalos', {
+            type: 'bar',
+            data: { labels: BUCKETS.map((b) => b + "'"), datasets: [
+                { label: 'Gols no intervalo', data: soma, backgroundColor: soma.map((v) => v === max ? '#d4a520' : '#22c55e'), borderRadius: 4, maxBarThickness: 46 },
+                { type: 'line', label: '% do total', data: soma.map((v) => +(v / tot * 100).toFixed(1)), borderColor: '#3b82f6', borderWidth: 2, tension: .3, pointRadius: 3, yAxisID: 'y1' }
+            ] },
+            options: {
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { position: 'bottom' } },
+                scales: {
+                    x: eixo({ grid: { display: false } }),
+                    y: eixo({ beginAtZero: true }),
+                    y1: eixo({ position: 'right', grid: { display: false }, beginAtZero: true, ticks: { callback: (v) => v + '%', color: '#6b7280' } })
+                }
+            }
+        });
+    }
+
+    function construirTudo() {
+        if (construido || !window.Chart || !DADOS.length) return;
+        construido = true;
+        atualizarRanking();
+        buildQuadrantes();
+        buildCasaFora();
+        buildXg();
+        buildCartoes();
+        buildIntervalos();
+    }
+
+    // ── Estado inicial + eventos ─────────────────────────────────────────────
+    function bindSegmento(id, onChange) {
+        const el = $(id);
+        if (!el) return;
+        el.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+            el.querySelectorAll('button').forEach((x) => x.classList.remove('active'));
+            b.classList.add('active');
+            onChange(b.dataset.v);
+        }));
+    }
+
+    bindSegmento('est-escopo', (v) => { state.escopo = v; renderDestaques(); if (construido) atualizarRanking(); });
+    bindSegmento('est-normal', (v) => { state.normal = v; if (construido) atualizarRanking(); });
+
+    renderDestaques();
+    renderMetricas();
+    renderTabela();
+    renderDecidem();
+
+    // Gráficos só podem ser construídos com o painel visível (Chart.js lê o
+    // tamanho do container na hora de montar). Como não dá pra saber de
+    // antemão qual sistema de abas cada tela usa, tenta construir de cara e,
+    // se o canvas ainda estiver escondido, observa mutações de estilo/classe
+    // nos ancestrais até ele aparecer — via MutationObserver (nível de DOM),
+    // não ResizeObserver: este depende do pipeline de renderização/composição
+    // e não dispara em abas de fundo ou previews sem compositing ativo.
+    const canvasRanking = document.querySelector(`[data-chart="ranking-${UID}"]`);
+    if (canvasRanking) {
+        const estaVisivel = () => canvasRanking.offsetParent !== null;
+        if (estaVisivel()) {
+            construirTudo();
+        } else {
+            const ancestrais = [];
+            for (let n = canvasRanking.parentElement; n; n = n.parentElement) ancestrais.push(n);
+            const mo = new MutationObserver(() => {
+                if (estaVisivel()) {
+                    construirTudo();
+                    if (construido) mo.disconnect();
+                }
+            });
+            ancestrais.forEach((n) => mo.observe(n, { attributes: true, attributeFilter: ['style', 'class'] }));
+        }
+    } else {
+        construirTudo();
+    }
+
+    window.addEventListener('resize', () => { Object.keys(charts).forEach((n) => charts[n].resize()); });
+})();
+</script>

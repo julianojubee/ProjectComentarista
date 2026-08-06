@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
 using Microsoft.AspNetCore.Authorization;
@@ -25,20 +26,32 @@ namespace ControleFutebolWeb.Controllers
 
             q = q.Trim();
 
-            var times = await _context.Times
+            // EscudoUrl/FotoUrl/LogoUrl às vezes apontam para hosts da api-sports.io,
+            // que precisam passar pelo MediaProxy — por isso o Url.FotoSrc só entra
+            // depois do ToListAsync (não é traduzível para SQL).
+            var timesRaw = await _context.Times
                 .Where(t => t.Nome != null && EF.Functions.ILike(t.Nome, $"%{q}%"))
-                .Select(t => new { tipo = "Time", nome = t.Nome, id = t.Id, extra = t.Cidade })
+                .Select(t => new { t.Nome, t.Id, t.Cidade, t.EscudoUrl })
                 .Take(5).ToListAsync();
+            var times = timesRaw
+                .Select(t => new { tipo = "Time", nome = t.Nome, id = t.Id, extra = t.Cidade, imagem = Url.FotoSrc(t.EscudoUrl) })
+                .ToList();
 
-            var jogadores = await _context.Jogadores
+            var jogadoresRaw = await _context.Jogadores
                 .Where(j => j.Nome != null && EF.Functions.ILike(j.Nome, $"%{q}%"))
-                .Select(j => new { tipo = "Jogador", nome = j.Nome, id = j.Id, extra = (string?)null })
+                .Select(j => new { j.Nome, j.Id, j.FotoUrl })
                 .Take(5).ToListAsync();
+            var jogadores = jogadoresRaw
+                .Select(j => new { tipo = "Jogador", nome = j.Nome, id = j.Id, extra = (string?)null, imagem = Url.FotoSrc(j.FotoUrl) })
+                .ToList();
 
-            var competicoes = await _context.Competicoes
+            var competicoesRaw = await _context.Competicoes
                 .Where(c => EF.Functions.ILike(c.Nome, $"%{q}%"))
-                .Select(c => new { tipo = "Competição", nome = c.Nome, id = c.Id, extra = c.Regiao })
+                .Select(c => new { c.Nome, c.Id, c.Regiao, c.LogoUrl })
                 .Take(5).ToListAsync();
+            var competicoes = competicoesRaw
+                .Select(c => new { tipo = "Competição", nome = c.Nome, id = c.Id, extra = c.Regiao, imagem = Url.FotoSrc(c.LogoUrl) })
+                .ToList();
 
             var resultados = times.Cast<object>()
                 .Concat(jogadores.Cast<object>())

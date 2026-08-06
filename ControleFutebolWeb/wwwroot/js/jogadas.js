@@ -23,9 +23,25 @@
     // que é de onde quase toda construção começa.
     var BOLA_PADRAO = { x: 12, y: 50 };
 
-    // A bola chega antes do fim da transição: o passe "estala" e os jogadores
-    // continuam se movimentando depois dele, como acontece de verdade.
-    var FRACAO_BOLA = 0.62;
+    // Perfil de cada tipo de bola: em que fração do trecho ela chega, quanto
+    // sobe (multiplicador do arco) e quanto gira por unidade de distância. É o
+    // que separa um toque rasteiro de um cruzamento — antes os dois tinham
+    // exatamente a mesma leitura na tela.
+    var PERFIL = {
+        toque:      { frac: 0.42, arco: 0.00, giro: 11 },
+        passe:      { frac: 0.62, arco: 0.30, giro: 9 },
+        conducao:   { frac: 1.00, arco: 0.00, giro: 7 },
+        cruzamento: { frac: 0.82, arco: 0.75, giro: 6 },
+        lancamento: { frac: 0.88, arco: 1.00, giro: 6 },
+        chute:      { frac: 0.30, arco: 0.18, giro: 16 }
+    };
+
+    // Multiplicador de tempo do deslocamento: sprint cobre a mesma distância em
+    // menos tempo, andar leva mais.
+    var RITMO = { andar: 1.35, trote: 1, sprint: 0.7 };
+
+    // Motor antigo: uma bola só, que sobe se o lance for longo.
+    function perfilV1(d) { return { frac: 0.62, arco: d > 18 ? 1 : 0, giro: 9 }; }
 
     function esc(s) {
         return String(s == null ? '' : s)
@@ -38,21 +54,75 @@
     function suave(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
     function desacelera(t) { return 1 - Math.pow(1 - t, 3); }
 
+    function distancia(a, b) { var dx = b.x - a.x, dy = b.y - a.y; return Math.sqrt(dx * dx + dy * dy); }
+
+    // ── Caminho curvo ───────────────────────────────────────────────────────
+    //
+    // Uma diagonal montada em três passos, interpolada em linha reta, vira um
+    // zigue-zague com bicos. Catmull-Rom passa exatamente pelos keyframes (o
+    // usuário continua vendo a peça onde a colocou) e arredonda o que há entre
+    // eles, que é como um jogador de verdade muda de direção.
+    function catmull(p0, p1, p2, p3, t) {
+        var t2 = t * t, t3 = t2 * t;
+        return {
+            x: 0.5 * ((2 * p1.x) + (-p0.x + p2.x) * t + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3),
+            y: 0.5 * ((2 * p1.y) + (-p0.y + p2.y) * t + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3)
+        };
+    }
+
+    // Polyline amostrada de pts[de] até pts[ate] com o comprimento acumulado em
+    // cada vértice. É o acumulado que permite andar pelo caminho em velocidade
+    // constante: sem ele, os trechos curtos da curva seriam percorridos no mesmo
+    // tempo dos longos. Corrida de um único trecho fica RETA, sem influência dos
+    // vizinhos — a peça vai direto para onde foi arrastada.
+    function spline(pts, de, ate) {
+        var trecho = pts.slice(de, ate + 1);
+        var out = [trecho[0]];
+        var sub = trecho.length > 2 ? 14 : 1;
+        for (var s = 0; s < trecho.length - 1; s++) {
+            var p0 = trecho[s - 1] || trecho[s], p1 = trecho[s];
+            var p2 = trecho[s + 1], p3 = trecho[s + 2] || trecho[s + 1];
+            for (var k = 1; k <= sub; k++) out.push(sub === 1 ? p2 : catmull(p0, p1, p2, p3, k / sub));
+        }
+        var cum = [0];
+        for (var i = 1; i < out.length; i++) cum.push(cum[i - 1] + distancia(out[i - 1], out[i]));
+        return { pts: out, cum: cum, len: cum[cum.length - 1] || 0 };
+    }
+
+    // Ponto a "d" unidades do início do caminho.
+    function emCaminho(path, d) {
+        var c = path.cum;
+        if (d <= 0) return path.pts[0];
+        if (d >= path.len) return path.pts[path.pts.length - 1];
+        var i = 1;
+        while (i < c.length && c[i] < d) i++;
+        var f = (d - c[i - 1]) / Math.max(0.0001, c[i] - c[i - 1]);
+        return {
+            x: path.pts[i - 1].x + (path.pts[i].x - path.pts[i - 1].x) * f,
+            y: path.pts[i - 1].y + (path.pts[i].y - path.pts[i - 1].y) * f
+        };
+    }
+
     function clonarPasso(p) {
         return {
             legenda: p.legenda || '',
+            passe: p.passe || 'passe',
             bola: { x: p.bola.x, y: p.bola.y },
-            pecas: p.pecas.map(function (c) { return { id: c.id, x: c.x, y: c.y }; }),
+            pecas: p.pecas.map(function (c) {
+                // O ritmo é característica do jogador naquele lance e costuma se
+                // manter no passo seguinte; o atraso é do momento e zera.
+                return { id: c.id, x: c.x, y: c.y, modo: c.modo || 'trote', atraso: 0 };
+            }),
             setas: []   // anotação descreve UM momento; copiá-la poluiria o passo novo
         };
     }
 
     function storyboardVazio(ms) {
         return {
-            v: 1,
+            v: 2,
             ms: ms || 900,
             elenco: [],
-            passos: [{ legenda: '', bola: { x: BOLA_PADRAO.x, y: BOLA_PADRAO.y }, pecas: [], setas: [] }]
+            passos: [{ legenda: '', passe: 'passe', bola: { x: BOLA_PADRAO.x, y: BOLA_PADRAO.y }, pecas: [], setas: [] }]
         };
     }
 
@@ -69,8 +139,17 @@
         var passos = (sb.passos || []).map(function (p) {
             return {
                 legenda: p.legenda || '',
+                // Jogada gravada na v1 não tinha tipo de bola nem ritmo por peça:
+                // o default reproduz exatamente o que ela fazia antes.
+                passe: PERFIL[p.passe] ? p.passe : 'passe',
                 bola: p.bola ? { x: p.bola.x, y: p.bola.y } : { x: BOLA_PADRAO.x, y: BOLA_PADRAO.y },
-                pecas: (p.pecas || []).map(function (c) { return { id: c.id, x: c.x, y: c.y }; }),
+                pecas: (p.pecas || []).map(function (c) {
+                    return {
+                        id: c.id, x: c.x, y: c.y,
+                        modo: RITMO[c.modo] ? c.modo : 'trote',
+                        atraso: typeof c.atraso === 'number' ? limitar(c.atraso, 0, 0.6) : 0
+                    };
+                }),
                 setas: (p.setas || []).map(function (s) { return { x1: s.x1, y1: s.y1, x2: s.x2, y2: s.y2 }; })
             };
         });
@@ -91,6 +170,10 @@
         // campo, e a peça pode sair pelo × dentro do palco (fora do alcance do
         // editor), então quem avisa é o palco.
         var aoMudarElenco = opts.aoMudarElenco || function () { };
+        // O relógio agora é em milissegundos absolutos e a barra de scrub precisa
+        // acompanhá-lo quadro a quadro.
+        var aoTempo = opts.aoTempo || function () { };
+        var aoSelecionar = opts.aoSelecionar || function () { };
 
         var sb = storyboardVazio();
         var passoAtual = 0;
@@ -102,6 +185,19 @@
         var setaOrigem = null;
         var pecasDom = {};   // id do jogador → elemento
         var bolaDom = null;
+
+        // 'v2' é o motor novo (corrida contínua, caminho curvo, tempo por
+        // distância); 'v1' reproduz o comportamento antigo para comparação lado a
+        // lado na mesma jogada.
+        var motor = opts.motor === 'v1' ? 'v1' : 'v2';
+        var plano = null;     // { durs, ini, total, pecas, bola } — ver planejar()
+        var tempo = 0;        // posição do player, em ms desde o início da jogada
+        var sel = null;       // peça selecionada no editor
+        var verCaminhos = false;
+        var snap = false;
+        var hist = [];        // pilha de desfazer (snapshots JSON do storyboard)
+        var fut = [];         // pilha de refazer
+        var setasDesenhadas = -1;   // último passo cujas setas foram para o SVG
 
         // As traves ficam FORA de .jgd-campo, na margem do wrapper. O campo é o
         // sistema de coordenadas da jogada (0–100% = a caixa verde): desenhar o gol
@@ -120,12 +216,13 @@
                     ' orient="auto" markerUnits="userSpaceOnUse">' +
                     '<path d="M0,0 L11,4.5 L0,9 z" fill="#facc15"></path>' +
                     '</marker>' +
-                '</defs><g class="jgd-g-rastro"></g><g class="jgd-g-setas"></g></svg>' +
+                '</defs><g class="jgd-g-caminhos"></g><g class="jgd-g-rastro"></g><g class="jgd-g-setas"></g></svg>' +
                 '<div class="jgd-legenda-palco"></div>' +
             '</div>';
 
         var campo = host.querySelector('.jgd-campo');
         var svg = host.querySelector('.jgd-svg');
+        var gCaminhos = host.querySelector('.jgd-g-caminhos');
         var gRastro = host.querySelector('.jgd-g-rastro');
         var gSetas = host.querySelector('.jgd-g-setas');
         var legendaPalco = host.querySelector('.jgd-legenda-palco');
@@ -182,7 +279,7 @@
                     campo.appendChild(el);
                     pecasDom[j.id] = el;
                 }
-                el.className = 'jgd-peca' + (j.adv ? ' jgd-adv' : '');
+                el.className = 'jgd-peca' + (j.adv ? ' jgd-adv' : '') + (j.id === sel ? ' jgd-selecionada' : '');
                 el.innerHTML =
                     '<div class="jgd-peca-sigla">' + esc(j.sigla) + '</div>' +
                     '<div class="jgd-peca-disco">' +
@@ -202,6 +299,8 @@
                 el._andado = 0;
                 el._px = null;
                 el._py = null;
+                el._ox = null;
+                el._oy = null;
             });
 
             Object.keys(pecasDom).forEach(function (id) {
@@ -210,6 +309,20 @@
                     delete pecasDom[id];
                 }
             });
+
+            if (sel != null && !pecasDom[sel]) selecionar(null);
+        }
+
+        // Peça selecionada: alvo dos controles de ritmo/atraso e das setas do
+        // teclado. Fica com anel ciano, cor que ainda não é usada em campo (o
+        // branco já é posse de bola e o amarelo/azul são os times).
+        function selecionar(id) {
+            if (sel === id) return;
+            sel = id;
+            Object.keys(pecasDom).forEach(function (k) {
+                pecasDom[k].classList.toggle('jgd-selecionada', String(k) === String(id));
+            });
+            aoSelecionar(id);
         }
 
         function posicionar(el, x, y) {
@@ -238,6 +351,8 @@
             el._andado = 0;
             el._px = null;
             el._py = null;
+            el._ox = null;
+            el._oy = null;
         }
 
         // Aplica a passada a partir do quanto a peça andou desde o quadro anterior.
@@ -266,12 +381,13 @@
             el._sombra.style.transform = 'translateX(-50%) scaleX(' + esticar + ') scaleY(' + (1 - altura * 0.12) + ')';
         }
 
-        // Bola: gira conforme roda e sobe num arco quando o passe é longo — o
-        // afastamento da própria sombra é o que lê como bola no alto.
-        function poseBola(x, y, distanciaDoLance, f) {
+        // Bola: gira conforme roda e sobe num arco cuja altura vem do tipo de
+        // lance — o afastamento da própria sombra é o que lê como bola no alto.
+        // `arco` é o multiplicador do PERFIL: 0 no toque rasteiro, 1 no lançamento.
+        function poseBola(x, y, distanciaDoLance, f, arco) {
             posicionar(bolaSombraDom, x, y);
 
-            var alto = distanciaDoLance > 18 ? Math.sin(Math.PI * limitar(f, 0, 1)) * Math.min(distanciaDoLance * 0.5, 16) : 0;
+            var alto = arco > 0 ? Math.sin(Math.PI * limitar(f, 0, 1)) * Math.min(distanciaDoLance * 0.5, 18) * arco : 0;
             var escala = 1 + alto / 46;
 
             bolaDom.style.transform = 'translate(-50%,-50%) translateY(' + (-alto) + 'px) rotate(' + giroBola + 'deg) scale(' + escala + ')';
@@ -300,6 +416,17 @@
             return el;
         }
 
+        function poli(g, pts, classe) {
+            var r = campo.getBoundingClientRect();
+            var el = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+            el.setAttribute('points', pts.map(function (p) {
+                return ((p.x / 100) * r.width) + ',' + ((p.y / 100) * r.height);
+            }).join(' '));
+            el.setAttribute('class', classe);
+            g.appendChild(el);
+            return el;
+        }
+
         function desenharSetas(p) {
             gSetas.innerHTML = '';
             if (!p) return;
@@ -308,6 +435,7 @@
                 if (editavel) {
                     el.addEventListener('dblclick', function (ev) {
                         ev.stopPropagation();
+                        snapshot();
                         p.setas.splice(idx, 1);
                         desenharSetas(p);
                         aoMudar();
@@ -345,6 +473,32 @@
             }
         }
 
+        // Onion skin da jogada inteira: cada corrida planejada vira uma polyline
+        // tracejada e o trajeto da bola uma linha cheia. Como sai do próprio
+        // plano, é a pré-visualização exata do que o motor vai percorrer — o
+        // rastro fantasma só mostra o passo anterior.
+        function desenharCaminhos() {
+            gCaminhos.innerHTML = '';
+            if (!verCaminhos || !plano || tocando) return;
+
+            var porId = {};
+            sb.elenco.forEach(function (j) { porId[j.id] = j; });
+
+            Object.keys(plano.pecas).forEach(function (id) {
+                var info = plano.pecas[id];
+                var j = porId[id];
+                var classe = 'jgd-caminho' + (j && j.adv ? ' jgd-caminho-adv' : '');
+                info.runs.forEach(function (r) {
+                    if (r.path) poli(gCaminhos, r.path.pts, classe);
+                    else poli(gCaminhos, [info.pts[r.de], info.pts[r.ate + 1]], classe);
+                });
+            });
+
+            if (sb.passos.length > 1) {
+                poli(gCaminhos, sb.passos.map(function (p) { return p.bola; }), 'jgd-caminho-bola');
+            }
+        }
+
         // Quem está com a bola num passo: o mais próximo dela, desde que perto o
         // bastante para ser dele (bola solta no campo não tem dono).
         function donoDaBola(p) {
@@ -362,10 +516,98 @@
             legendaPalco.classList.toggle('jgd-visivel', !!texto);
         }
 
+        // ── Plano de tempo ──────────────────────────────────────────────────
+        //
+        // O player trabalha em milissegundos absolutos sobre um plano
+        // pré-calculado, e não mais num relógio em "unidades de passo". É esse
+        // plano que resolve os três defeitos do motor antigo:
+        //
+        //  • a duração de cada trecho vem da MAIOR distância percorrida nele —
+        //    quem anda 2% e quem cruza 40% do campo não gastam mais o mesmo tempo;
+        //  • cada peça recebe "corridas" (sequências de trechos consecutivos em
+        //    que ela se move) com um caminho curvo único, percorrido em
+        //    velocidade constante — o easing passa a valer na corrida inteira, e
+        //    não em cada trecho, então a peça não desacelera nem para em cada
+        //    keyframe que atravessa;
+        //  • a bola sabe se está sendo conduzida ou em voo.
+        function planejar() {
+            var P = sb.passos, n = P.length, durs = [], i;
+            var v2 = motor === 'v2';
+
+            for (i = 0; i < n - 1; i++) {
+                if (!v2) { durs.push(sb.ms); continue; }
+                // A bola pesa menos que as pernas: um passe longo não deve esticar
+                // o trecho tanto quanto uma corrida longa.
+                var maior = distancia(P[i].bola, P[i + 1].bola) * 0.6;
+                P[i].pecas.forEach(function (c) {
+                    var b = pecaNoPasso(P[i + 1], c.id);
+                    if (b) maior = Math.max(maior, distancia(c, b));
+                });
+                durs.push(limitar(sb.ms * (0.42 + maior / 24), 380, 2600));
+            }
+
+            var ini = [0];
+            durs.forEach(function (d, k) { ini.push(ini[k] + d); });
+            var total = ini[n - 1] || 0;
+
+            var pecas = {};
+            sb.elenco.forEach(function (j) {
+                var pts = P.map(function (p) {
+                    var c = pecaNoPasso(p, j.id);
+                    return c ? { x: c.x, y: c.y } : null;
+                });
+                // Peça ausente de algum passo não tem trajetória contínua: fica
+                // fora do plano e o quadro a esconde.
+                if (pts.some(function (p) { return !p; })) return;
+
+                var info = { pts: pts, runs: [] }, k = 0;
+                while (k < n - 1) {
+                    if (distancia(pts[k], pts[k + 1]) < 0.6) { k++; continue; }   // parada
+                    var fim = k;
+                    while (fim + 1 < n - 1 && distancia(pts[fim + 1], pts[fim + 2]) >= 0.6) fim++;
+
+                    var c0 = pecaNoPasso(P[k], j.id);
+                    var atraso = v2 ? (c0.atraso || 0) : 0;
+                    var ritmo = v2 ? (RITMO[c0.modo] || 1) : 1;
+                    var t0 = ini[k] + durs[k] * atraso;
+                    var bruto = ini[fim + 1] - t0;
+                    var t1 = t0 + bruto * ritmo;
+
+                    // Quem anda termina depois do trecho terminar. Em vez de cortar
+                    // a corrida (a peça pararia antes de chegar onde foi colocada),
+                    // a jogada inteira espera por ela.
+                    if (t1 > total) total = t1;
+
+                    info.runs.push({
+                        de: k, ate: fim, t0: t0, t1: t1,
+                        path: v2 ? spline(pts, k, fim + 1) : null
+                    });
+                    k = fim + 1;
+                }
+                pecas[j.id] = info;
+            });
+
+            var bola = [];
+            for (i = 0; i < n - 1; i++) {
+                var a = P[i], b = P[i + 1];
+                var tipo = a.passe || 'passe';
+                var dA = donoDaBola(a), dB = donoDaBola(b);
+                // Condução: ou o usuário marcou o trecho assim, ou a bola termina
+                // com o mesmo jogador que a tinha — nos dois casos ela vai colada
+                // nele, em vez de escorregar sozinha até o destino.
+                var conduz = v2 && (tipo === 'conducao' ||
+                    (dA != null && dA === dB && distancia(a.bola, b.bola) > 0.6));
+                bola.push({ tipo: tipo, conduz: conduz, carregador: dA, d: distancia(a.bola, b.bola) });
+            }
+
+            plano = { durs: durs, ini: ini, total: total, pecas: pecas, bola: bola };
+        }
+
         // Render estático de um passo (modo edição / jogada parada).
         function renderizarPasso() {
             var p = passo();
             if (!p) return;
+            planejar();
             var ant = passoAtual > 0 ? sb.passos[passoAtual - 1] : null;
             var dono = donoDaBola(p);
 
@@ -389,102 +631,169 @@
             bolaParada(p.bola.x, p.bola.y);
             posicionar(bolaDom, p.bola.x, p.bola.y);
             desenharSetas(p);
+            setasDesenhadas = passoAtual;
             desenharRastro();
+            desenharCaminhos();
             mostrarLegenda(tocando ? p.legenda : (editavel ? '' : p.legenda));
         }
 
-        // Render de um instante entre os passos i e i+1 (fração f de 0 a 1).
-        function renderizarQuadro(i, f) {
-            var a = sb.passos[i], b = sb.passos[i + 1];
-            var fp = suave(f);
-            var fb = desacelera(limitar(f / FRACAO_BOLA, 0, 1));
+        // Render do instante t (ms desde o início da jogada). Devolve o passo
+        // corrente, para a timeline e o contador acompanharem.
+        function quadro(t) {
+            var P = sb.passos, n = P.length, i = 0;
+            var v2 = motor === 'v2';
+            while (i < n - 2 && plano.ini[i + 1] <= t) i++;
+            var f = limitar((t - plano.ini[i]) / Math.max(1, plano.durs[i]), 0, 1);
+            var a = P[i], b = P[i + 1];
+            var bp = plano.bola[i];
+            var prof = v2 ? PERFIL[bp.tipo] : perfilV1(bp.d);
 
-            // A bola vem primeiro: a posse de cada quadro é decidida por quem está
-            // mais perto dela, e para isso ela já precisa estar posicionada.
-            var bdx = b.bola.x - a.bola.x, bdy = b.bola.y - a.bola.y;
-            var lance = Math.sqrt(bdx * bdx + bdy * bdy);
-            var bx = a.bola.x + bdx * fb, by = a.bola.y + bdy * fb;
+            // ── peças
+            var posic = {};
+            sb.elenco.forEach(function (j) {
+                var el = pecasDom[j.id], info = plano.pecas[j.id], x, y;
+                if (!el) return;
+                if (!info) { el.style.display = 'none'; return; }
+                el.style.display = '';
 
-            giroBola += lance * (fb - (bolaDom._fb == null ? fb : bolaDom._fb)) * 9;
+                if (v2) {
+                    var run = null;
+                    for (var k = 0; k < info.runs.length; k++) {
+                        var r = info.runs[k];
+                        if (t >= r.t0 && t <= r.t1) { run = r; break; }
+                    }
+                    if (run) {
+                        // O easing vale sobre a CORRIDA inteira: no meio dela a
+                        // velocidade é constante, e a aceleração e a frenagem ficam
+                        // só no começo e no fim do deslocamento de verdade.
+                        var u = suave(limitar((t - run.t0) / Math.max(1, run.t1 - run.t0), 0, 1));
+                        var pt = emCaminho(run.path, u * run.path.len);
+                        x = pt.x; y = pt.y;
+                    } else {
+                        // Parada: no fim da última corrida concluída — ou, antes da
+                        // primeira, no ponto de onde ela vai sair.
+                        var idx = info.runs.length ? info.runs[0].de : 0;
+                        info.runs.forEach(function (r) { if (t > r.t1) idx = r.ate + 1; });
+                        var pp = info.pts[limitar(idx, 0, n - 1)];
+                        x = pp.x; y = pp.y;
+                    }
+                } else {
+                    var ca = pecaNoPasso(a, j.id), cb = pecaNoPasso(b, j.id);
+                    var de = ca || cb, para = cb || ca;
+                    if (!de) { el.style.display = 'none'; return; }
+                    var fp = suave(f);
+                    x = de.x + (para.x - de.x) * fp;
+                    y = de.y + (para.y - de.y) * fp;
+                }
+
+                posicionar(el, x, y);
+                passada(el, x, y);
+                // O caminho é curvo: a direção do nariz vem do deslocamento do
+                // quadro, não do vetor entre keyframes.
+                orientar(el, x - (el._ox == null ? x : el._ox), y - (el._oy == null ? y : el._oy));
+                el._ox = x; el._oy = y;
+                posic[j.id] = { x: x, y: y };
+            });
+
+            // ── bola
+            var bx, by, fb;
+            if (v2 && bp.conduz && posic[bp.carregador]) {
+                // Colada em quem conduz: um pouco à frente do jogador, com a
+                // oscilação lateral de quem toca a bola de um pé para o outro.
+                var c = posic[bp.carregador];
+                var dx = c.x - (bolaDom._cx == null ? c.x : bolaDom._cx);
+                var dy = c.y - (bolaDom._cy == null ? c.y : bolaDom._cy);
+                var m = Math.sqrt(dx * dx + dy * dy) || 1;
+                var bal = Math.sin(t / 90) * 0.7;
+                bx = c.x + (dx / m) * 2.4 - (dy / m) * bal;
+                by = c.y + (dy / m) * 2.4 + (dx / m) * bal;
+                bolaDom._cx = c.x; bolaDom._cy = c.y;
+                fb = 0;
+                giroBola += m * 12;
+            } else {
+                fb = desacelera(limitar(f / prof.frac, 0, 1));
+                bx = a.bola.x + (b.bola.x - a.bola.x) * fb;
+                by = a.bola.y + (b.bola.y - a.bola.y) * fb;
+                giroBola += bp.d * (fb - (bolaDom._fb == null ? fb : bolaDom._fb)) * prof.giro;
+                bolaDom._cx = null; bolaDom._cy = null;
+            }
             bolaDom._fb = fb;
-
             posicionar(bolaDom, bx, by);
-            poseBola(bx, by, lance, f / FRACAO_BOLA);
+            poseBola(bx, by, bp.d, f / prof.frac, prof.arco);
 
             // Posse é decidida nos PASSOS, não quadro a quadro: medir a distância
             // até a bola em pleno voo faz cada jogador por quem ela passa piscar,
             // como se tivesse tocado nela. Aqui o dono da bola só troca no instante
             // em que ela chega ao destino — antes disso ela ainda é de quem tocou.
-            var dono = fb >= 1 ? donoDaBola(b) : donoDaBola(a);
-
+            var dono = fb >= 1 ? donoDaBola(b) : (bp.conduz ? bp.carregador : donoDaBola(a));
             sb.elenco.forEach(function (j) {
                 var el = pecasDom[j.id];
-                if (!el) return;
-                var ca = pecaNoPasso(a, j.id), cb = pecaNoPasso(b, j.id);
-                var de = ca || cb, para = cb || ca;
-                if (!de) { el.style.display = 'none'; return; }
-                el.style.display = '';
-
-                var x = de.x + (para.x - de.x) * fp;
-                var y = de.y + (para.y - de.y) * fp;
-                posicionar(el, x, y);
-                orientar(el, para.x - de.x, para.y - de.y);
-                passada(el, x, y);
-                el.classList.toggle('jgd-com-bola', j.id === dono);
+                if (el) el.classList.toggle('jgd-com-bola', j.id === dono);
             });
 
-            desenharSetas(a);
+            // Setas são elementos SVG recriados do zero: redesenhar a cada quadro
+            // custaria 60 rebuilds por segundo sem mudar nada na tela.
+            if (i !== setasDesenhadas) { desenharSetas(a); setasDesenhadas = i; }
             mostrarLegenda(a.legenda);
+            return i;
         }
 
         // ── Player ──────────────────────────────────────────────────────────
         //
-        // O relógio é um acumulador em "unidades de passo" (0 = passo 1, 1,5 = meio
-        // caminho entre o 2º e o 3º), avançado pelo delta entre quadros. Duas razões:
+        // O relógio é um acumulador em milissegundos avançado pelo delta entre
+        // quadros. Duas razões para não usar um instante de origem fixo:
         //
         //  • trocar a velocidade passa a valer no quadro seguinte, sem reiniciar a
         //    animação — antes ela só era aplicada por um parar()/tocar();
         //  • o timestamp do rAF é o início do quadro e pode ser anterior ao
-        //    performance.now() lido no clique. Com um instante de origem fixo isso
-        //    dava um delta negativo no primeiro quadro, que caía no passo -1.
+        //    performance.now() lido no clique. Com origem fixa isso dava um delta
+        //    negativo no primeiro quadro, que caía num tempo negativo.
         function tocar() {
             if (tocando || sb.passos.length < 2) return;
+            planejar();
             tocando = true;
             host.classList.add('jgd-tocando');
             limparFantasmas();
+            gCaminhos.innerHTML = '';   // a pré-visualização atrapalha o lance rodando
 
             // Cadência começa do zero a cada reprodução, senão a primeira passada
             // herdaria a fase da execução anterior e a peça sairia "no meio do passo".
             Object.keys(pecasDom).forEach(function (id) { pousar(pecasDom[id]); });
             bolaDom._fb = null;
+            bolaDom._cx = null;
+            bolaDom._cy = null;
+            setasDesenhadas = -1;
 
-            var progresso = 0;
+            // Retoma de onde o scrub parou; se está no fim, recomeça.
+            var t = tempo >= plano.total - 20 ? 0 : tempo;
             var anterior = null;
 
-            function quadro(agora) {
+            function frame(agora) {
                 if (!tocando) return;
                 if (anterior === null) anterior = agora;   // 1º quadro só acerta o relógio
 
-                var ultimo = sb.passos.length - 1;
-                progresso += Math.max(0, agora - anterior) / (sb.ms / velocidade);
+                t += Math.max(0, agora - anterior) * velocidade;
                 anterior = agora;
 
-                if (progresso >= ultimo) {
-                    if (loop) progresso = 0;
+                if (t >= plano.total) {
+                    if (loop) t = 0;
                     else {
-                        passoAtual = ultimo;
+                        tempo = plano.total;
+                        passoAtual = sb.passos.length - 1;
                         parar();
                         aoTrocarPasso(passoAtual);
                         return;
                     }
                 }
 
-                var i = limitar(Math.floor(progresso), 0, ultimo - 1);
-                renderizarQuadro(i, limitar(progresso - i, 0, 1));
-                raf = requestAnimationFrame(quadro);
+                tempo = t;
+                var i = quadro(t);
+                if (i !== passoAtual) { passoAtual = i; aoTrocarPasso(i); }
+                aoTempo(t, plano.total);
+                raf = requestAnimationFrame(frame);
             }
 
-            raf = requestAnimationFrame(quadro);
+            raf = requestAnimationFrame(frame);
         }
 
         function parar() {
@@ -493,8 +802,46 @@
             if (!tocando) return;
             tocando = false;
             host.classList.remove('jgd-tocando');
+            setasDesenhadas = -1;
             renderizarPasso();
+            aoTempo(tempo, plano ? plano.total : 0);
             aoParar();
+        }
+
+        // ── Desfazer / refazer ──────────────────────────────────────────────
+        //
+        // Snapshot do storyboard inteiro em JSON. É grosseiro, mas o storyboard
+        // de uma jogada tem alguns KB e a alternativa — um diff por mutação —
+        // custaria um tipo de comando para cada ação do editor.
+        function snapshot() {
+            if (!editavel) return;
+            hist.push(JSON.stringify(sb));
+            if (hist.length > 40) hist.shift();
+            fut = [];
+        }
+
+        function restaurar(json) {
+            parar();
+            sb = normalizar(JSON.parse(json));
+            passoAtual = limitar(passoAtual, 0, sb.passos.length - 1);
+            setaOrigem = null;
+            tempo = 0;
+            sincronizarPecas();
+            renderizarPasso();
+            aoTrocarPasso(passoAtual);
+            aoMudar();
+        }
+
+        function desfazer() {
+            if (!hist.length) return;
+            fut.push(JSON.stringify(sb));
+            restaurar(hist.pop());
+        }
+
+        function refazer() {
+            if (!fut.length) return;
+            hist.push(JSON.stringify(sb));
+            restaurar(fut.pop());
         }
 
         // ── Arrasto de peças e da bola (só no editor) ───────────────────────
@@ -512,13 +859,18 @@
             var dado = ehBola ? p.bola : pecaNoPasso(p, parseInt(alvo.dataset.id, 10));
             if (!dado) return;
 
+            if (!ehBola) selecionar(parseInt(alvo.dataset.id, 10));
+            snapshot();
+
             alvo.classList.add('jgd-arrastando');
             alvo.setPointerCapture(ev.pointerId);
 
             function mover(e) {
                 var pos = pctDoEvento(e.clientX, e.clientY);
-                dado.x = Math.round(pos.x * 100) / 100;
-                dado.y = Math.round(pos.y * 100) / 100;
+                var x = pos.x, y = pos.y;
+                if (snap) { x = Math.round(x / 2.5) * 2.5; y = Math.round(y / 2.5) * 2.5; }
+                dado.x = Math.round(x * 100) / 100;
+                dado.y = Math.round(y * 100) / 100;
                 posicionar(alvo, dado.x, dado.y);
                 desenharRastro();
             }
@@ -559,6 +911,7 @@
                 setaOrigem = pos;
                 return;
             }
+            snapshot();
             passo().setas.push({ x1: setaOrigem.x, y1: setaOrigem.y, x2: pos.x, y2: pos.y });
             setaOrigem = null;
             desenharSetas(passo());
@@ -569,6 +922,54 @@
         // (o modal abre com o campo em tamanho zero até o layout assentar).
         var ro = new ResizeObserver(function () { if (!tocando) renderizarPasso(); });
         ro.observe(campo);
+
+        // ── Teclado ─────────────────────────────────────────────────────────
+        //
+        // O arrasto acerta a posição no olho; as setas fazem o ajuste fino que o
+        // mouse não alcança. O listener é global porque o campo não é focável —
+        // daí as guardas: só quando este palco está visível e o foco não está num
+        // campo de texto, senão as setas roubariam o cursor da legenda.
+        function aoTeclado(ev) {
+            if (!editavel || tocando) return;
+            if (host.offsetParent === null) return;
+            var alvo = ev.target;
+            var tag = alvo && alvo.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (alvo && alvo.isContentEditable)) {
+                // Ctrl+Z num input é o desfazer do próprio campo de texto.
+                return;
+            }
+
+            if ((ev.ctrlKey || ev.metaKey) && (ev.key === 'z' || ev.key === 'Z')) {
+                ev.preventDefault();
+                if (ev.shiftKey) refazer(); else desfazer();
+                return;
+            }
+            if ((ev.ctrlKey || ev.metaKey) && (ev.key === 'y' || ev.key === 'Y')) {
+                ev.preventDefault();
+                refazer();
+                return;
+            }
+
+            if (sel == null) return;
+            var eixo = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].indexOf(ev.key);
+            if (eixo < 0) return;
+            var c = pecaNoPasso(passo(), sel);
+            if (!c) return;
+
+            ev.preventDefault();
+            var d = ev.shiftKey ? 2 : 0.5;
+            snapshot();
+            if (ev.key === 'ArrowLeft') c.x = limitar(c.x - d, 0, 100);
+            if (ev.key === 'ArrowRight') c.x = limitar(c.x + d, 0, 100);
+            if (ev.key === 'ArrowUp') c.y = limitar(c.y - d, 0, 100);
+            if (ev.key === 'ArrowDown') c.y = limitar(c.y + d, 0, 100);
+            c.x = Math.round(c.x * 100) / 100;
+            c.y = Math.round(c.y * 100) / 100;
+            renderizarPasso();
+            aoMudar();
+        }
+
+        if (editavel) document.addEventListener('keydown', aoTeclado);
 
         // ── API ─────────────────────────────────────────────────────────────
         var api = {
@@ -585,9 +986,15 @@
                 sb = normalizar(novo);
                 passoAtual = 0;
                 setaOrigem = null;
+                tempo = 0;
+                sel = null;
+                hist = [];
+                fut = [];
                 sincronizarPecas();
                 renderizarPasso();
                 aoTrocarPasso(passoAtual);
+                aoTempo(0, plano.total);
+                aoSelecionar(null);
             },
 
             irParaPasso: function (i) {
@@ -595,12 +1002,15 @@
                 passoAtual = limitar(i, 0, sb.passos.length - 1);
                 setaOrigem = null;
                 renderizarPasso();
+                tempo = plano.ini[passoAtual] || 0;
                 aoTrocarPasso(passoAtual);
+                aoTempo(tempo, plano.total);
             },
 
             // Passo novo herda as posições do atual: o usuário só move quem andou.
             adicionarPasso: function () {
                 parar();
+                snapshot();
                 sb.passos.splice(passoAtual + 1, 0, clonarPasso(passo()));
                 passoAtual++;
                 renderizarPasso();
@@ -611,6 +1021,7 @@
             removerPasso: function () {
                 if (sb.passos.length <= 1) return;
                 parar();
+                snapshot();
                 sb.passos.splice(passoAtual, 1);
                 passoAtual = limitar(passoAtual, 0, sb.passos.length - 1);
                 renderizarPasso();
@@ -623,17 +1034,91 @@
                 aoMudar();
             },
 
+            // ── Motor v2: tipo de bola do trecho e ritmo/atraso da peça ─────
+            definirTipoPasse: function (tipo) {
+                if (!PERFIL[tipo]) return;
+                snapshot();
+                passo().passe = tipo;
+                renderizarPasso();
+                aoMudar();
+            },
+
+            // O ritmo acompanha a peça pelos passos seguintes: quem entrou em
+            // sprint num lance costuma seguir em sprint até parar.
+            definirModo: function (id, modo) {
+                if (id == null || !RITMO[modo]) return;
+                snapshot();
+                for (var i = passoAtual; i < sb.passos.length; i++) {
+                    var c = pecaNoPasso(sb.passos[i], id);
+                    if (c) c.modo = modo;
+                }
+                renderizarPasso();
+                aoMudar();
+            },
+
+            // `registrar` separa o arrasto do slider (input contínuo) do valor
+            // final (change): sem isso cada pixel do slider viraria um snapshot.
+            definirAtraso: function (id, atraso, registrar) {
+                var c = pecaNoPasso(passo(), id);
+                if (!c) return;
+                if (registrar) snapshot();
+                c.atraso = limitar(atraso, 0, 0.6);
+                renderizarPasso();
+                aoMudar();
+            },
+
+            selecionar: selecionar,
+            selecionada: function () { return sel; },
+            pecaSelecionada: function () { return sel == null ? null : pecaNoPasso(passo(), sel); },
+
+            definirMotor: function (v) {
+                motor = v === 'v1' ? 'v1' : 'v2';
+                parar();
+                tempo = 0;
+                renderizarPasso();
+                aoTempo(0, plano.total);
+            },
+
+            motor: function () { return motor; },
+
+            alternarCaminhos: function () {
+                verCaminhos = !verCaminhos;
+                desenharCaminhos();
+                return verCaminhos;
+            },
+
+            alternarSnap: function () { snap = !snap; return snap; },
+
+            desfazer: desfazer,
+            refazer: refazer,
+            podeDesfazer: function () { return hist.length > 0; },
+            podeRefazer: function () { return fut.length > 0; },
+
+            // Scrub: pausa e pinta o instante t sem mexer no storyboard.
+            irParaTempo: function (t) {
+                if (tocando) parar();
+                if (!plano || sb.passos.length < 2) return;
+                tempo = limitar(t, 0, plano.total);
+                var i = quadro(tempo);
+                if (i !== passoAtual) { passoAtual = i; aoTrocarPasso(i); }
+            },
+
+            duracaoTotal: function () { return plano ? plano.total : 0; },
+            duracaoDoPasso: function (i) { return plano && plano.durs[i] != null ? plano.durs[i] : null; },
+            tempo: function () { return tempo; },
+
             // Jogador entra em TODOS os passos na mesma posição: ele passa a existir
             // na jogada inteira e o usuário reposiciona onde precisar. Sem isso a
             // peça surgiria do nada no meio da animação.
             adicionarJogador: function (jogador, x, y, adv) {
                 if (sb.elenco.some(function (j) { return j.id === jogador.id; })) return;
+                snapshot();
                 sb.elenco.push({
                     id: jogador.id, num: jogador.num || '',
                     nome: jogador.nome || '', sigla: jogador.sigla || '', adv: !!adv
                 });
                 sb.passos.forEach(function (p) {
-                    p.pecas.push({ id: jogador.id, x: x, y: y });
+                    p.pecas.push({ id: jogador.id, x: x, y: y, modo: 'trote', atraso: 0 });
                 });
                 sincronizarPecas();
                 renderizarPasso();
@@ -642,6 +1127,8 @@
             },
 
             removerJogador: function (id) {
+                snapshot();
+                if (sel === id) selecionar(null);
                 sb.elenco = sb.elenco.filter(function (j) { return j.id !== id; });
                 sb.passos.forEach(function (p) {
                     p.pecas = p.pecas.filter(function (c) { return c.id !== id; });
@@ -657,7 +1144,7 @@
 
             definirLoop: function (v) { loop = v; },
 
-            definirDuracao: function (ms) { sb.ms = ms; aoMudar(); },
+            definirDuracao: function (ms) { sb.ms = ms; renderizarPasso(); aoMudar(); },
 
             alternarModoSeta: function () {
                 modoSeta = !modoSeta;
@@ -673,7 +1160,12 @@
             parar: parar,
             alternarPlay: function () { if (tocando) parar(); else tocar(); },
 
-            destruir: function () { parar(); ro.disconnect(); host.innerHTML = ''; }
+            destruir: function () {
+                parar();
+                ro.disconnect();
+                if (editavel) document.removeEventListener('keydown', aoTeclado);
+                host.innerHTML = '';
+            }
         };
 
         return api;
@@ -716,6 +1208,7 @@
         var modal = el('modal-jogadas');
         if (!modal) return;
         modal.style.display = 'flex';
+        aplicarMaximizado(maximizadoSalvo());
 
         if (M.carregado) return;
 
@@ -732,6 +1225,38 @@
             corpo.innerHTML = '<div class="jgd-vazio" style="grid-column:1/-1;color:#f87171;">' +
                 'Erro ao carregar as jogadas deste jogo.</div>';
         }
+    }
+
+    // ── Maximizar o modal ───────────────────────────────────────────────────
+    //
+    // A prancheta é a tela onde o tamanho do campo importa mais: quanto maior o
+    // gramado, mais preciso fica o arrasto das peças. A preferência fica gravada
+    // porque quem monta jogada costuma trabalhar sempre do mesmo jeito.
+    var CHAVE_MAX = 'jgd-maximizado';
+
+    function aplicarMaximizado(v) {
+        var box = document.querySelector('#modal-jogadas .jgd-box');
+        var btn = el('jgd-maximizar');
+        if (!box) return;
+        box.classList.toggle('jgd-maximizado', v);
+        if (btn) {
+            btn.innerHTML = v ? '&#10529;' : '&#9974;';
+            btn.title = v ? 'Restaurar o tamanho normal' : 'Maximizar (ocupa a tela inteira)';
+        }
+    }
+
+    function maximizadoSalvo() {
+        try { return localStorage.getItem(CHAVE_MAX) === '1'; } catch (e) { return false; }
+    }
+
+    function alternarMaximizar() {
+        var box = document.querySelector('#modal-jogadas .jgd-box');
+        if (!box) return;
+        var v = !box.classList.contains('jgd-maximizado');
+        aplicarMaximizado(v);
+        try { localStorage.setItem(CHAVE_MAX, v ? '1' : '0'); } catch (e) { /* modo privado */ }
+        // O campo mudou de tamanho: setas, rastros e caminhos são desenhados em
+        // pixels e precisam ser refeitos. O ResizeObserver do palco já cuida disso.
     }
 
     function fecharModal() {
@@ -847,6 +1372,11 @@
     function abrirEditor(jogada) {
         var t = ladoAtual();
 
+        // Salvar uma jogada nova reabre o editor: sem destruir o palco anterior,
+        // o ResizeObserver e o listener de teclado dele ficariam vivos sobre um
+        // storyboard que ninguém mais vê.
+        if (M.palco) { M.palco.destruir(); M.palco = null; }
+
         el('jgd-editor').innerHTML =
             '<div class="jgd-barra">' +
                 '<input type="text" class="jgd-nome-input" id="jgd-nome" maxlength="80"' +
@@ -859,6 +1389,9 @@
                     '<button type="button" id="jgd-prox" title="Próximo passo">›</button>' +
                 '</div>' +
                 '<button type="button" class="jgd-btn jgd-btn-perigo" id="jgd-del-passo" title="Excluir o passo atual">🗑</button>' +
+                '<div class="jgd-sep"></div>' +
+                '<button type="button" class="jgd-btn" id="jgd-desfazer" title="Desfazer (Ctrl+Z)">↶</button>' +
+                '<button type="button" class="jgd-btn" id="jgd-refazer" title="Refazer (Ctrl+Shift+Z)">↷</button>' +
                 '<div class="jgd-sep"></div>' +
                 '<button type="button" class="jgd-btn" id="jgd-seta" title="Ligue e clique em dois pontos do campo para traçar uma seta. Duplo clique numa seta remove.">➹ Setas</button>' +
                 '<div class="jgd-sep"></div>' +
@@ -877,6 +1410,18 @@
             '<div class="jgd-dica-modo" id="jgd-dica-seta" style="display:none;">' +
                 'clique no ponto de origem e depois no destino · duplo clique na seta remove · Esc sai' +
             '</div>' +
+            '<div class="jgd-motor">' +
+                '<span class="jgd-motor-rotulo">Motor de movimento</span>' +
+                '<div class="jgd-seg" id="jgd-seg-motor">' +
+                    '<button type="button" data-motor="v1">atual</button>' +
+                    '<button type="button" data-motor="v2" class="ativo">novo</button>' +
+                '</div>' +
+                '<span class="jgd-motor-desc" id="jgd-motor-desc"></span>' +
+                '<button type="button" class="jgd-btn jgd-btn-ciano" id="jgd-caminhos"' +
+                    ' title="Desenha o trajeto que cada peça e a bola vão percorrer">⤳ Caminhos</button>' +
+                '<button type="button" class="jgd-btn jgd-btn-ciano" id="jgd-snap"' +
+                    ' title="Arredonda o arrasto para uma grade de 2,5%">⌗ Snap</button>' +
+            '</div>' +
             '<div class="jgd-palco">' +
                 '<div class="jgd-elenco">' +
                     '<div class="jgd-elenco-abas">' +
@@ -890,12 +1435,48 @@
                 '</div>' +
                 '<div class="jgd-campo-wrap" id="jgd-campo-host"></div>' +
             '</div>' +
+            '<div class="jgd-scrub-linha">' +
+                '<span class="jgd-scrub-tempo" id="jgd-relogio">0,0s</span>' +
+                '<input type="range" class="jgd-scrub" id="jgd-scrub" min="0" max="1000" step="1" value="0"' +
+                    ' title="Arraste para percorrer a jogada quadro a quadro">' +
+                '<span class="jgd-scrub-tempo jgd-scrub-total" id="jgd-total">0,0s</span>' +
+            '</div>' +
             '<div class="jgd-timeline" id="jgd-timeline"></div>' +
-            '<input type="text" class="jgd-legenda-input" id="jgd-legenda" maxlength="120"' +
-                ' placeholder="Legenda deste passo (ex: goleiro toca no lateral) — aparece durante a reprodução">' +
+            '<div class="jgd-paineis">' +
+                '<div class="jgd-painel">' +
+                    '<div class="jgd-painel-tit" id="jgd-painel-passo">Passo 1</div>' +
+                    '<div class="jgd-painel-linha">' +
+                        '<span class="jgd-painel-rot">Tipo de bola</span>' +
+                        '<select class="jgd-vel" id="jgd-passe" title="Como a bola vai deste passo para o próximo">' +
+                            '<option value="toque">toque rasteiro</option>' +
+                            '<option value="passe">passe</option>' +
+                            '<option value="conducao">condução / drible</option>' +
+                            '<option value="cruzamento">cruzamento</option>' +
+                            '<option value="lancamento">lançamento</option>' +
+                            '<option value="chute">chute</option>' +
+                        '</select>' +
+                        '<span class="jgd-painel-dur" id="jgd-dur">—</span>' +
+                    '</div>' +
+                    '<input type="text" class="jgd-legenda-input" id="jgd-legenda" maxlength="120"' +
+                        ' placeholder="Legenda deste passo (ex: goleiro toca no lateral) — aparece na reprodução">' +
+                '</div>' +
+                '<div class="jgd-painel">' +
+                    '<div class="jgd-painel-tit jgd-tit-ciano">Peça selecionada</div>' +
+                    '<div class="jgd-painel-nome" id="jgd-sel-nome">nenhuma — clique numa peça no campo</div>' +
+                    '<div class="jgd-painel-linha" id="jgd-sel-controles">' +
+                        '<button type="button" class="jgd-btn jgd-btn-ciano" data-modo="andar">andar</button>' +
+                        '<button type="button" class="jgd-btn jgd-btn-ciano" data-modo="trote">trote</button>' +
+                        '<button type="button" class="jgd-btn jgd-btn-ciano" data-modo="sprint">sprint</button>' +
+                        '<span class="jgd-painel-rot" title="Fração do passo que a peça espera antes de sair">sai em</span>' +
+                        '<input type="range" class="jgd-atraso" id="jgd-atraso" min="0" max="60" step="5" value="0">' +
+                        '<span class="jgd-painel-val" id="jgd-atraso-val">—</span>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
             '<div class="jgd-rodape-dica">' +
                 'Arraste os jogadores do elenco para o campo (ou clique neles) · arraste as peças e a bola para montar cada passo · ' +
-                'passe o mouse numa peça e clique no × para tirá-la da jogada.<br>' +
+                'clique numa peça para selecioná-la e ajustar ritmo e atraso · as setas do teclado empurram a peça selecionada ' +
+                '(0,5% — 2% com Shift) · <b>Ctrl+Z</b> desfaz · passe o mouse numa peça e clique no × para tirá-la da jogada.<br>' +
                 'A aba <b>' + esc(adversario().nome) + '</b> traz a marcação (peças azuis) — útil para mostrar o defensor sendo arrastado para abrir espaço.' +
             '</div>';
 
@@ -903,9 +1484,11 @@
 
         M.palco = criarPalco(el('jgd-campo-host'), {
             editavel: true,
-            aoMudar: function () { marcarSujo(true); renderizarTimeline(); },
+            aoMudar: function () { marcarSujo(true); renderizarTimeline(); atualizarBarra(); },
             aoMudarElenco: renderizarElenco,
             aoTrocarPasso: function () { renderizarTimeline(); atualizarBarra(); },
+            aoTempo: atualizarScrub,
+            aoSelecionar: atualizarPainelPeca,
             aoParar: function () { el('jgd-play').textContent = '▶ Reproduzir'; }
         });
 
@@ -932,6 +1515,56 @@
         });
         el('jgd-ant').addEventListener('click', function () { M.palco.irParaPasso(M.palco.passoAtual() - 1); });
         el('jgd-prox').addEventListener('click', function () { M.palco.irParaPasso(M.palco.passoAtual() + 1); });
+
+        el('jgd-desfazer').addEventListener('click', function () { M.palco.desfazer(); });
+        el('jgd-refazer').addEventListener('click', function () { M.palco.refazer(); });
+
+        // Segmento atual/novo: existe para comparar o mesmo lance nos dois motores
+        // antes de aposentar o antigo de vez.
+        el('jgd-seg-motor').querySelectorAll('button').forEach(function (b) {
+            b.addEventListener('click', function () {
+                M.palco.definirMotor(b.dataset.motor);
+                el('jgd-seg-motor').querySelectorAll('button').forEach(function (o) {
+                    o.classList.toggle('ativo', o === b);
+                });
+                el('jgd-play').textContent = '▶ Reproduzir';
+                atualizarBarra();
+            });
+        });
+
+        el('jgd-caminhos').addEventListener('click', function () {
+            this.classList.toggle('ativo', M.palco.alternarCaminhos());
+        });
+
+        el('jgd-snap').addEventListener('click', function () {
+            this.classList.toggle('ativo', M.palco.alternarSnap());
+        });
+
+        el('jgd-passe').addEventListener('change', function () {
+            M.palco.definirTipoPasse(this.value);
+        });
+
+        el('jgd-sel-controles').querySelectorAll('[data-modo]').forEach(function (b) {
+            b.addEventListener('click', function () {
+                M.palco.definirModo(M.palco.selecionada(), b.dataset.modo);
+            });
+        });
+
+        // input pinta o valor enquanto arrasta; change registra um único snapshot
+        // no fim, para o desfazer não voltar de 5 em 5%.
+        el('jgd-atraso').addEventListener('input', function () {
+            M.palco.definirAtraso(M.palco.selecionada(), parseInt(this.value, 10) / 100, false);
+        });
+        el('jgd-atraso').addEventListener('change', function () {
+            M.palco.definirAtraso(M.palco.selecionada(), parseInt(this.value, 10) / 100, true);
+        });
+
+        el('jgd-scrub').addEventListener('input', function () {
+            var total = M.palco.duracaoTotal();
+            M.palco.irParaTempo((parseInt(this.value, 10) / 1000) * total);
+            el('jgd-play').textContent = '▶ Reproduzir';
+            el('jgd-relogio').textContent = (M.palco.tempo() / 1000).toFixed(1).replace('.', ',') + 's';
+        });
 
         el('jgd-seta').addEventListener('click', function () {
             var ativo = M.palco.alternarModoSeta();
@@ -1067,13 +1700,72 @@
         });
     }
 
+    function segundos(ms) { return (ms / 1000).toFixed(1).replace('.', ',') + 's'; }
+
     function atualizarBarra() {
+        if (!M.palco || !el('jgd-contador')) return;
         var i = M.palco.passoAtual(), n = M.palco.passos().length;
+        var p = M.palco.passos()[i];
+        var v2 = M.palco.motor() === 'v2';
+
         el('jgd-contador').textContent = (i + 1) + '/' + n;
         el('jgd-ant').disabled = i === 0;
         el('jgd-prox').disabled = i >= n - 1;
         el('jgd-del-passo').disabled = n <= 1;
-        el('jgd-legenda').value = M.palco.passos()[i].legenda || '';
+        el('jgd-desfazer').disabled = !M.palco.podeDesfazer();
+        el('jgd-refazer').disabled = !M.palco.podeRefazer();
+
+        // Escrever no input a cada mudança mandaria o cursor para o fim enquanto
+        // o usuário digita a legenda.
+        var leg = el('jgd-legenda');
+        if (leg.value !== (p.legenda || '')) leg.value = p.legenda || '';
+
+        el('jgd-motor-desc').textContent = v2
+            ? 'corrida contínua entre passos, caminho curvo, duração por distância, ritmo e atraso por peça, bola colada em quem conduz.'
+            : 'como era antes: todo passo dura o mesmo, easing em cada trecho (a peça para em todo keyframe) e trajetória reta.';
+
+        // O trecho é do passo atual PARA o próximo: no último não há trecho.
+        var ultimo = i >= n - 1;
+        el('jgd-painel-passo').textContent = ultimo ? 'Passo ' + n + ' (final)' : 'Passo ' + (i + 1) + ' → ' + (i + 2);
+        el('jgd-passe').value = p.passe || 'passe';
+        el('jgd-passe').disabled = ultimo;
+
+        var dur = M.palco.duracaoDoPasso(i);
+        el('jgd-dur').textContent = dur == null ? '—' : (v2 ? 'auto · ' : 'fixo · ') + Math.round(dur) + ' ms';
+
+        atualizarPainelPeca(M.palco.selecionada());
+        atualizarScrub(M.palco.tempo(), M.palco.duracaoTotal());
+    }
+
+    function atualizarPainelPeca(id) {
+        if (!M.palco || !el('jgd-sel-nome')) return;
+        var c = M.palco.pecaSelecionada();
+        var j = id == null ? null : M.palco.elenco().find(function (e) { return e.id === id; });
+
+        el('jgd-sel-nome').textContent = j
+            ? (j.num ? j.num + ' · ' : '') + j.nome
+            : 'nenhuma — clique numa peça no campo';
+
+        var modo = c ? (c.modo || 'trote') : null;
+        el('jgd-sel-controles').querySelectorAll('[data-modo]').forEach(function (b) {
+            b.classList.toggle('ativo', b.dataset.modo === modo);
+            b.disabled = !c;
+        });
+
+        var slider = el('jgd-atraso');
+        slider.disabled = !c;
+        var v = c ? Math.round((c.atraso || 0) * 100) : 0;
+        if (parseInt(slider.value, 10) !== v) slider.value = String(v);
+        el('jgd-atraso-val').textContent = c ? v + '%' : '—';
+    }
+
+    function atualizarScrub(t, total) {
+        var barra = el('jgd-scrub');
+        if (!barra) return;
+        barra.value = String(Math.round((t / Math.max(1, total)) * 1000));
+        barra.disabled = total <= 0;
+        el('jgd-relogio').textContent = segundos(t);
+        el('jgd-total').textContent = segundos(total);
     }
 
     async function salvarJogada(jogada) {
@@ -1241,6 +1933,7 @@
     window.Jogadas = {
         abrirModal: abrirModal,
         fecharModal: fecharModal,
+        alternarMaximizar: alternarMaximizar,
         montarArsenal: montarArsenal
     };
 })();
