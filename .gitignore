@@ -30,3 +30,8 @@ appsettings.Production.json
 secrets.json
 *.pfx
 *.key
+
+# ---- Material de marketing ----
+# Vídeos e cortes usados nos reels. São arquivos grandes (centenas de MB cada,
+# acima do limite de 100 MB por arquivo do GitHub) e não fazem parte do código.
+marketing/
