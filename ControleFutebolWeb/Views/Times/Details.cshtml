@@ -583,7 +583,9 @@
                                 <span>🏆</span>
                                 @if (!string.IsNullOrEmpty(titulo.LogoUrl))
                                 {
-                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = titulo.LogoUrl })" alt="" />
+                                    @* URL direta (o MediaProxy só aceita api-sports/flagcdn) e logo quebrado
+                                       some, deixando só a taça — mesmo tratamento do card em /Times. *@
+                                    <img src="@titulo.LogoUrl" alt="" onerror="this.remove()" />
                                 }
                                 <span>@titulo.Competicao</span>
                                 <span class="ctd-titulo-temporada">@titulo.TemporadaRotulo</span>

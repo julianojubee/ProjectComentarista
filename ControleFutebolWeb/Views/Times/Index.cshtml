@@ -537,7 +537,11 @@
                                                 <span>🏆</span>
                                                 @if (!string.IsNullOrEmpty(t.LogoUrl))
                                                 {
-                                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.LogoUrl })" alt="" />
+                                                    @* URL direta, como em /Competicoes/Index: o MediaProxy só
+                                                       aceita api-sports/flagcdn e recusaria o logo. Logo que não
+                                                       carrega sai de cena — o chip segue legível com taça e
+                                                       temporada, sem ícone de imagem quebrada. *@
+                                                    <img src="@t.LogoUrl" alt="" onerror="this.remove()" />
                                                 }
                                                 <span>@t.TemporadaRotulo</span>
                                             </span>
