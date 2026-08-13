@@ -1,0 +1,208 @@
+@model ControleFutebolWeb.Models.ViewModels.EquipeDaRodadaViewModel
+@using ControleFutebolWeb.Helpers
+@{
+    ViewData["Title"] = $"Equipe da rodada — {Model.Competicao.Nome}";
+}
+
+<style>
+    .er-hero {
+        background: linear-gradient(135deg,#0a1200 0%,#152000 55%,#0a1200 100%);
+        border-bottom: 1px solid var(--line-soft); padding: 26px 2.5rem 22px;
+        display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    }
+    .er-escudo { width: 58px; height: 58px; border-radius: 12px; background: var(--p-0); border: 1px solid var(--line-strong); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+    .er-escudo img { width: 82%; height: 82%; object-fit: contain; }
+    .er-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 2rem; font-weight: 800; color: var(--text-strong); margin: 0; line-height: 1.1; }
+    .er-hero .sub { font-size: .78rem; color: var(--text-dim); margin-top: 3px; }
+    .er-acoes { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .er-acoes a, .er-acoes select {
+        background: var(--p-1); border: 1px solid var(--line); color: var(--text-2); border-radius: 8px;
+        font-family: 'Barlow', Arial, sans-serif; font-size: 12px; font-weight: 700;
+        padding: .4rem .85rem; text-decoration: none;
+    }
+    .er-acoes a:hover { color: var(--text-strong); border-color: var(--line-strong); }
+
+    .er-wrap { padding: 24px 2.5rem 64px; display: grid; grid-template-columns: minmax(0,1.35fr) minmax(0,1fr); gap: 22px; align-items: start; }
+
+    /* Campo: 4 faixas (ataque no topo), cada uma distribuindo seus jogadores. */
+    .er-campo {
+        background:
+            repeating-linear-gradient(0deg, #0e2b12 0 46px, #0c2610 46px 92px);
+        border: 1px solid #1e3a22; border-radius: 14px; padding: 18px 12px;
+        display: flex; flex-direction: column; gap: 10px; position: relative; overflow: hidden;
+    }
+    .er-campo::before {
+        content: ""; position: absolute; left: 8%; right: 8%; top: 50%; height: 1px;
+        background: rgba(255,255,255,.16);
+    }
+    .er-linha { display: flex; justify-content: space-evenly; gap: 8px; position: relative; z-index: 1; }
+    .er-card { width: 108px; text-align: center; }
+    .er-foto {
+        width: 52px; height: 52px; margin: 0 auto 5px; border-radius: 50%; overflow: hidden;
+        background: var(--p-0); border: 2px solid rgba(255,255,255,.25);
+        display: flex; align-items: center; justify-content: center; font-size: 1rem;
+    }
+    .er-foto img { width: 100%; height: 100%; object-fit: cover; }
+    .er-nome { font-size: .74rem; font-weight: 700; color: var(--text-strong); line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .er-nome a { color: inherit; text-decoration: none; }
+    .er-nome a:hover { text-decoration: underline; }
+    .er-time { font-size: .62rem; color: #a7b6ab; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Time clicável → página do clube */
+    .er-time-link { color: inherit; text-decoration: none; }
+    .er-time-link:hover { color: var(--gold-ink); text-decoration: underline; }
+    .er-nota { display: inline-block; margin-top: 4px; font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .95rem; font-weight: 800; color: #0b0b0b; border-radius: 6px; padding: 1px 8px; }
+    .er-nota.auto { opacity: .82; }
+
+    .er-lista { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+    .er-lista h2 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.1rem; font-weight: 800; color: var(--text-strong); margin: 0; padding: 14px 16px; background: var(--p-0); border-bottom: 1px solid var(--line-soft); }
+    .er-item { display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-bottom: 1px solid var(--line-soft); }
+    .er-item .pos { font-size: .6rem; font-weight: 700; color: var(--text-dimmer); width: 26px; }
+    .er-item .info { flex: 1; min-width: 0; }
+    .er-item .info .n { font-size: .82rem; font-weight: 700; color: var(--text); }
+    .er-item .info .d { font-size: .68rem; color: var(--text-dim); }
+    .er-item .val { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.05rem; font-weight: 800; }
+
+    .er-vazio { padding: 3rem 2.5rem; color: var(--text-dim); font-size: .9rem; line-height: 1.6; }
+    .er-nota-rodape { font-size: .7rem; color: var(--text-dim); margin-top: 14px; line-height: 1.6; }
+
+    @@media (max-width: 900px) {
+        .er-wrap { grid-template-columns: 1fr; padding: 18px 1.1rem 40px; }
+        .er-hero { padding: 18px 1.1rem; }
+        .er-acoes { margin-left: 0; width: 100%; }
+        .er-card { width: 84px; }
+    }
+</style>
+
+@functions {
+    string Url_(int? temporada, int? rodada) =>
+        Url.Action("EquipeDaRodada", new { id = Model.Competicao.Id, temporada, rodada })!;
+}
+
+<div class="er-hero theme-dark-zone">
+    <div class="er-escudo">
+        @if (!string.IsNullOrWhiteSpace(Model.Competicao.LogoUrl))
+        {
+            <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Competicao.LogoUrl })" alt="" />
+        }
+    </div>
+    <div>
+        <h1>Equipe da rodada</h1>
+        <div class="sub">
+            @Model.Competicao.Nome@(Model.Temporada.HasValue ? $" · temporada {Model.Temporada}" : "")
+            @(Model.Rodada > 0 ? $" · rodada {Model.Rodada}" : "") ·
+            @Model.JogosNaRodada jogo(s)
+        </div>
+    </div>
+    <div class="er-acoes">
+        @if (Model.TemporadasDisponiveis.Count > 1)
+        {
+            <select onchange="location.href = this.value;">
+                @foreach (var t in Model.TemporadasDisponiveis)
+                {
+                    <option value="@Url_(t, null)" selected="@(t == Model.Temporada)">Temporada @t</option>
+                }
+            </select>
+        }
+        @if (Model.RodadasDisponiveis.Any())
+        {
+            <select onchange="location.href = this.value;">
+                @foreach (var r in Model.RodadasDisponiveis)
+                {
+                    <option value="@Url_(Model.Temporada, r)" selected="@(r == Model.Rodada)">Rodada @r</option>
+                }
+            </select>
+        }
+        <a asp-action="Estatisticas" asp-route-id="@Model.Competicao.Id" asp-route-temporada="@Model.Temporada">📊 Estatísticas</a>
+        <a asp-action="Detalhes" asp-route-id="@Model.Competicao.Id" asp-route-temporada="@Model.Temporada">← Voltar à competição</a>
+    </div>
+</div>
+
+@if (Model.Vazia)
+{
+    <div class="er-vazio">
+        @if (Model.JogosNaRodada == 0)
+        {
+            <text>Nenhum jogo com placar nesta rodada ainda.</text>
+        }
+        else if (Model.JogadoresAvaliados == 0)
+        {
+            <text>
+                Os jogos desta rodada não têm nota nem estatística importada, então não há
+                como escolher os melhores. Analise as partidas ou importe as estatísticas.
+            </text>
+        }
+        else
+        {
+            <text>
+                Há @Model.JogadoresAvaliados jogador(es) avaliado(s) na rodada, mas nenhum
+                com posição cadastrada — sem posição não dá para dizer em que vaga cada um entra.
+            </text>
+        }
+    </div>
+}
+else
+{
+    <div class="er-wrap">
+        <div>
+            @* Ataque no topo, goleiro na base: leitura de escalação, não de tabela. *@
+            <div class="er-campo theme-dark-zone">
+                @foreach (var linha in new[] { Model.Atacantes, Model.MeioCampo, Model.Defensores, Model.Goleiros })
+                {
+                    <div class="er-linha">
+                        @foreach (var p in linha)
+                        {
+                            <div class="er-card">
+                                <div class="er-foto">
+                                    @if (!string.IsNullOrWhiteSpace(p.Jogador.FotoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = p.Jogador.FotoUrl })" alt="" />
+                                    }
+                                    else
+                                    {
+                                        <span>👤</span>
+                                    }
+                                </div>
+                                <div class="er-nome" title="@p.Jogador.NomeExibicao">
+                                    <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@p.Jogador.Id">@p.Jogador.Nome</a>
+                                </div>
+                                <div class="er-time" title="@p.Time?.Nome">
+                                    <a class="er-time-link" href="@(p.Time != null ? Url.Action("Details", "Times", new { id = p.Time.Id }) : null)">@p.Time?.Nome</a>
+                                </div>
+                                <span class="er-nota @(p.NotaAutomatica ? "auto" : "")"
+                                      style="background:@p.NotaColor"
+                                      title="@(p.NotaAutomatica ? "Nota calculada pelos seus critérios" : "Nota que você deu")">
+                                    @p.Nota.ToString("F1")
+                                </span>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="er-nota-rodape">
+                A nota é a sua: manual quando você avaliou o jogador na partida, calculada pelos
+                seus critérios em cima da estatística importada quando não — estas aparecem
+                levemente esmaecidas. Reservas que não entraram em campo ficam de fora.
+            </div>
+        </div>
+
+        <div class="er-lista">
+            <h2>Os escolhidos</h2>
+            @foreach (var p in Model.Todos.OrderByDescending(x => x.Nota))
+            {
+                <div class="er-item">
+                    <span class="pos">@PosicaoJogadorHelper.Sigla(p.Jogador.Posicao)</span>
+                    <div class="info">
+                        <div class="n">@p.Jogador.NomeExibicao</div>
+                        <div class="d">
+                            <a class="er-time-link" href="@(p.Time != null ? Url.Action("Details", "Times", new { id = p.Time.Id }) : null)">@p.Time?.Nome</a> · @p.Placar vs @p.Adversario
+                            @if (p.Gols > 0) { <text> · @p.Gols gol(s)</text> }
+                            @if (p.Assistencias > 0) { <text> · @p.Assistencias assist.</text> }
+                        </div>
+                    </div>
+                    <span class="val" style="color:@p.NotaColor">@p.Nota.ToString("F1")</span>
+                </div>
+            }
+        </div>
+    </div>
+}

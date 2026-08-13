@@ -1,0 +1,1403 @@
+<title>Dossiê Técnico — Análise de Craque</title>
+
+<style>
+  :root {
+    --paper:   #F1F2EC;
+    --paper-2: #E8EAE2;
+    --paper-3: #DFE2D8;
+    --ink:     #131C18;
+    --ink-2:   #3C4A43;
+    --mute:    #6E7B73;
+    --line:    #D2D7CD;
+    --line-2:  #C0C7BA;
+    --moss:    #2E6A4B;
+    --brass:   #96721F;
+    --crit:    #9C3626;
+
+    --sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+
+    --measure: 70ch;
+    --rail: 15rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:   #0E1512;
+      --paper-2: #151E19;
+      --paper-3: #1C2721;
+      --ink:     #E7EBE4;
+      --ink-2:   #B5C0B8;
+      --mute:    #8A968E;
+      --line:    #26332C;
+      --line-2:  #33443A;
+      --moss:    #5CA97F;
+      --brass:   #CFAA5F;
+      --crit:    #DB8069;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:   #0E1512;
+    --paper-2: #151E19;
+    --paper-3: #1C2721;
+    --ink:     #E7EBE4;
+    --ink-2:   #B5C0B8;
+    --mute:    #8A968E;
+    --line:    #26332C;
+    --line-2:  #33443A;
+    --moss:    #5CA97F;
+    --brass:   #CFAA5F;
+    --crit:    #DB8069;
+  }
+
+  :root[data-theme="light"] {
+    --paper:   #F1F2EC;
+    --paper-2: #E8EAE2;
+    --paper-3: #DFE2D8;
+    --ink:     #131C18;
+    --ink-2:   #3C4A43;
+    --mute:    #6E7B73;
+    --line:    #D2D7CD;
+    --line-2:  #C0C7BA;
+    --moss:    #2E6A4B;
+    --brass:   #96721F;
+    --crit:    #9C3626;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 1.0625rem;
+    line-height: 1.68;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 76rem;
+    margin: 0 auto;
+    padding: 0 1.75rem 6rem;
+  }
+
+  /* ── Masthead ─────────────────────────────────────────── */
+
+  .masthead {
+    border-bottom: 2px solid var(--ink);
+    padding: 3.5rem 0 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .eyebrow {
+    font-family: var(--sans);
+    font-size: 0.6875rem;
+    font-weight: 650;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--moss);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .eyebrow::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--line-2);
+  }
+
+  h1 {
+    font-family: var(--sans);
+    font-size: clamp(2.25rem, 5.5vw, 3.75rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.02;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  h1 .sub {
+    display: block;
+    color: var(--mute);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    font-size: 0.5em;
+    margin-top: 0.5rem;
+  }
+
+  .deck {
+    max-width: 56ch;
+    font-size: 1.1875rem;
+    color: var(--ink-2);
+    margin: 0;
+  }
+
+  .stamps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 2rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--mute);
+  }
+
+  .stamps b {
+    color: var(--ink-2);
+    font-weight: 500;
+  }
+
+  /* ── Metrics strip ────────────────────────────────────── */
+
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 3.5rem;
+  }
+
+  .metric {
+    background: var(--paper);
+    padding: 1.375rem 1.25rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .metric .n {
+    font-family: var(--sans);
+    font-size: 1.875rem;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .metric .n span {
+    font-size: 0.6em;
+    color: var(--mute);
+    font-weight: 600;
+  }
+
+  .metric .l {
+    font-family: var(--sans);
+    font-size: 0.6875rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--mute);
+    line-height: 1.35;
+  }
+
+  .metric.hi .n { color: var(--moss); }
+
+  /* ── Layout ───────────────────────────────────────────── */
+
+  .cols {
+    display: grid;
+    grid-template-columns: var(--rail) minmax(0, 1fr);
+    gap: 4rem;
+    align-items: start;
+  }
+
+  nav.rail {
+    position: sticky;
+    top: 2rem;
+    font-family: var(--sans);
+    font-size: 0.8125rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    border-left: 1px solid var(--line);
+    padding-left: 0.125rem;
+  }
+
+  nav.rail .rail-title {
+    font-size: 0.6875rem;
+    font-weight: 650;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--mute);
+    padding: 0 0 0.75rem 1rem;
+  }
+
+  nav.rail a {
+    display: grid;
+    grid-template-columns: 1.75rem 1fr;
+    gap: 0.25rem;
+    padding: 0.3rem 0.5rem 0.3rem 1rem;
+    color: var(--ink-2);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    margin-left: -1px;
+    line-height: 1.3;
+  }
+
+  nav.rail a .num {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    color: var(--mute);
+    font-variant-numeric: tabular-nums;
+    padding-top: 0.15em;
+  }
+
+  nav.rail a:hover {
+    color: var(--ink);
+    border-left-color: var(--moss);
+    background: var(--paper-2);
+  }
+
+  nav.rail a:focus-visible {
+    outline: 2px solid var(--moss);
+    outline-offset: -2px;
+  }
+
+  main { min-width: 0; }
+
+  /* ── Sections ─────────────────────────────────────────── */
+
+  section {
+    scroll-margin-top: 2rem;
+    padding-bottom: 3.5rem;
+  }
+
+  section + section {
+    border-top: 1px solid var(--line);
+    padding-top: 3rem;
+  }
+
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .sec-num {
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--brass);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    flex: none;
+    padding-top: 0.35em;
+  }
+
+  h2 {
+    font-family: var(--sans);
+    font-size: clamp(1.5rem, 2.6vw, 2rem);
+    font-weight: 680;
+    letter-spacing: -0.025em;
+    line-height: 1.12;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  h3 {
+    font-family: var(--sans);
+    font-size: 1.125rem;
+    font-weight: 650;
+    letter-spacing: -0.012em;
+    line-height: 1.25;
+    text-wrap: balance;
+    margin: 2.5rem 0 0.875rem;
+    max-width: var(--measure);
+  }
+
+  h4 {
+    font-family: var(--sans);
+    font-size: 0.75rem;
+    font-weight: 650;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--moss);
+    margin: 2rem 0 0.625rem;
+  }
+
+  p, ul, ol {
+    max-width: var(--measure);
+    margin: 0 0 1.125rem;
+  }
+
+  ul, ol { padding-left: 1.25rem; }
+  li { margin-bottom: 0.5rem; }
+  li::marker { color: var(--mute); }
+
+  strong { font-weight: 640; }
+
+  a { color: var(--moss); text-underline-offset: 2px; }
+  a:focus-visible { outline: 2px solid var(--moss); outline-offset: 2px; }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.85em;
+    background: var(--paper-2);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 0.08em 0.34em;
+    word-break: break-word;
+  }
+
+  /* ── Tables ───────────────────────────────────────────── */
+
+  .scroller {
+    overflow-x: auto;
+    margin: 0 0 1.5rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-family: var(--sans);
+    font-size: 0.875rem;
+    line-height: 1.45;
+  }
+
+  thead th {
+    text-align: left;
+    font-size: 0.6875rem;
+    font-weight: 650;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--mute);
+    padding: 0 1rem 0.6rem 0;
+    border-bottom: 1.5px solid var(--ink);
+    white-space: nowrap;
+  }
+
+  tbody td {
+    padding: 0.7rem 1rem 0.7rem 0;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+    color: var(--ink-2);
+  }
+
+  tbody td:first-child {
+    color: var(--ink);
+    font-weight: 550;
+  }
+
+  table.figures tbody td:last-child {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+    color: var(--ink);
+  }
+
+  table.figures thead th:last-child { text-align: right; }
+
+  /* ── Diagram ──────────────────────────────────────────── */
+
+  .figure {
+    margin: 0 0 1.75rem;
+    border: 1px solid var(--line);
+    background: var(--paper-2);
+  }
+
+  .figure .cap {
+    font-family: var(--sans);
+    font-size: 0.6875rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--mute);
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .figure .body {
+    overflow-x: auto;
+    padding: 1.25rem;
+  }
+
+  pre.mermaid {
+    margin: 0;
+    background: transparent;
+    min-width: min-content;
+  }
+
+  /* ── Callouts ─────────────────────────────────────────── */
+
+  .note {
+    max-width: var(--measure);
+    background: var(--paper-2);
+    border-left: 3px solid var(--moss);
+    padding: 1rem 1.25rem;
+    margin: 0 0 1.5rem;
+    font-size: 1rem;
+  }
+
+  .note p:last-child { margin-bottom: 0; }
+
+  .debt {
+    max-width: var(--measure);
+    border: 1px solid var(--line);
+    border-top: 2px solid var(--crit);
+    padding: 1.25rem 1.375rem 0.5rem;
+    margin: 0 0 1.25rem;
+    background: var(--paper-2);
+  }
+
+  .debt h3 {
+    margin: 0 0 0.875rem;
+    font-size: 1rem;
+  }
+
+  .debt dl {
+    margin: 0;
+    display: grid;
+    grid-template-columns: 5.25rem 1fr;
+    gap: 0.4rem 0.875rem;
+    font-size: 0.9375rem;
+  }
+
+  .debt dt {
+    font-family: var(--sans);
+    font-size: 0.6875rem;
+    font-weight: 650;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--mute);
+    padding-top: 0.35em;
+  }
+
+  .debt dd { margin: 0 0 0.75rem; color: var(--ink-2); }
+
+  /* ── Layer cards ──────────────────────────────────────── */
+
+  .layers {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    margin-bottom: 1.5rem;
+  }
+
+  .layer {
+    background: var(--paper);
+    padding: 1.125rem 1.25rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .layer .k {
+    font-family: var(--sans);
+    font-size: 0.8125rem;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+  }
+
+  .layer .c {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    color: var(--brass);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .layer .d {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--ink-2);
+  }
+
+  /* ── Closing ──────────────────────────────────────────── */
+
+  .closing {
+    border-top: 2px solid var(--ink);
+    margin-top: 1rem;
+    padding-top: 2.5rem;
+  }
+
+  .closing p {
+    font-size: 1.1875rem;
+    max-width: 62ch;
+  }
+
+  .colophon {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--mute);
+    border-top: 1px solid var(--line);
+    margin-top: 3rem;
+    padding-top: 1.25rem;
+    max-width: none;
+  }
+
+  /* ── Responsive ───────────────────────────────────────── */
+
+  @media (max-width: 62rem) {
+    .cols { grid-template-columns: 1fr; gap: 0; }
+    nav.rail {
+      position: static;
+      border-left: none;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 1.25rem 0;
+      margin-bottom: 3rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+      gap: 0;
+    }
+    nav.rail .rail-title { grid-column: 1 / -1; padding-left: 0; }
+    nav.rail a { padding-left: 0; border-left: none; }
+    nav.rail a:hover { background: transparent; border-left-color: transparent; }
+    .debt dl { grid-template-columns: 1fr; gap: 0.15rem; }
+    .debt dt { padding-top: 0.5em; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+
+  html { scroll-behavior: smooth; }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">Dossiê técnico · Arquitetura e engenharia</div>
+    <h1>
+      Análise de Craque
+      <span class="sub">Plataforma de análise estruturada de partidas de futebol</span>
+    </h1>
+    <p class="deck">
+      Transforma a observação de jogos — hoje dispersa em papel, planilha e bloco de notas —
+      em base de dados relacional consultável, com estatísticas oficiais integradas à
+      avaliação do analista.
+    </p>
+    <div class="stamps">
+      <span>Em produção: <b>analisedecraque.cloud</b></span>
+      <span>Revisão: <b>07/08/2026</b></span>
+      <span>Stack: <b>.NET 9 · PostgreSQL · Kotlin</b></span>
+    </div>
+  </header>
+</div>
+
+<div class="wrap">
+  <div class="metrics">
+    <div class="metric"><div class="n">66 <span>mil</span></div><div class="l">Linhas de código</div></div>
+    <div class="metric"><div class="n">43</div><div class="l">Entidades de domínio</div></div>
+    <div class="metric"><div class="n">112</div><div class="l">Migrações versionadas</div></div>
+    <div class="metric hi"><div class="n">65</div><div class="l">Testes · 100% aprovados</div></div>
+    <div class="metric"><div class="n">3</div><div class="l">Superfícies: web · API · Android</div></div>
+    <div class="metric"><div class="n">1</div><div class="l">Base de regra compartilhada</div></div>
+  </div>
+</div>
+
+<div class="wrap">
+<div class="cols">
+
+  <nav class="rail" aria-label="Sumário">
+    <div class="rail-title">Sumário</div>
+    <a href="#s1"><span class="num">01</span><span>Visão geral</span></a>
+    <a href="#s2"><span class="num">02</span><span>Arquitetura</span></a>
+    <a href="#s3"><span class="num">03</span><span>Stack tecnológico</span></a>
+    <a href="#s4"><span class="num">04</span><span>Modelo de domínio</span></a>
+    <a href="#s5"><span class="num">05</span><span>Módulos funcionais</span></a>
+    <a href="#s6"><span class="num">06</span><span>Padrões de engenharia</span></a>
+    <a href="#s7"><span class="num">07</span><span>API e app Android</span></a>
+    <a href="#s8"><span class="num">08</span><span>Integrações e automações</span></a>
+    <a href="#s9"><span class="num">09</span><span>Segurança</span></a>
+    <a href="#s10"><span class="num">10</span><span>Persistência e schema</span></a>
+    <a href="#s11"><span class="num">11</span><span>Qualidade e testes</span></a>
+    <a href="#s12"><span class="num">12</span><span>Infraestrutura e deploy</span></a>
+    <a href="#s13"><span class="num">13</span><span>Acesso e monetização</span></a>
+    <a href="#s14"><span class="num">14</span><span>Métricas do código</span></a>
+    <a href="#s15"><span class="num">15</span><span>Dívida técnica e roadmap</span></a>
+  </nav>
+
+  <main>
+
+    <!-- 1 ─────────────────────────────────────────────── -->
+    <section id="s1">
+      <div class="sec-head"><span class="sec-num">01</span><h2>Visão geral</h2></div>
+
+      <h4>O problema</h4>
+      <p>
+        Analisar futebol com rigor é hoje um trabalho manual e disperso. Comentaristas,
+        analistas de desempenho, scouts e jornalistas esportivos acompanham partidas
+        anotando em papel, planilhas e blocos de notas soltos. O resultado é um acervo que
+        não se acumula: o que foi observado num jogo não conversa com o que foi observado
+        em outros vinte, e nenhuma conclusão agregada emerge daí.
+      </p>
+
+      <h4>O que o sistema faz</h4>
+      <p>
+        A plataforma transforma a observação de partidas em <strong>base de dados
+        estruturada e consultável</strong>. O usuário registra o que viu — escalações,
+        eventos, movimentações táticas, observações em texto, notas por critério — e o
+        sistema converte isso em estatísticas, rankings, relatórios comparativos e
+        histórico de jogadores e times.
+      </p>
+
+      <div class="layers">
+        <div class="layer">
+          <div class="k">Observação estruturada</div>
+          <div class="d">
+            A tela de análise não é um campo de texto livre: prancheta tática, escalação
+            por arrasto, cronômetro, registro de eventos e tags com menção a jogadores.
+            Cada elemento vira registro relacional.
+          </div>
+        </div>
+        <div class="layer">
+          <div class="k">Objetivo mais subjetivo</div>
+          <div class="d">
+            Estatísticas oficiais importadas por API — 22 métricas mapeadas — combinadas
+            à avaliação do analista, num motor de critérios com pesos configuráveis pelo
+            próprio usuário.
+          </div>
+        </div>
+        <div class="layer">
+          <div class="k">Acervo que compõe</div>
+          <div class="d">
+            Como tudo é relacional, o décimo jogo analisado enriquece a leitura dos nove
+            anteriores. Relatórios cruzam competições, temporadas, times e jogadores.
+          </div>
+        </div>
+      </div>
+
+      <h4>Quem usa</h4>
+      <p>
+        Usuários autenticados individualmente, com dados segregados por conta: análises,
+        notas, critérios e observações de cada usuário são privados. Um app Android
+        complementar atende o uso durante a partida — a TV à frente e o tablet na mão.
+      </p>
+    </section>
+
+    <!-- 2 ─────────────────────────────────────────────── -->
+    <section id="s2">
+      <div class="sec-head"><span class="sec-num">02</span><h2>Arquitetura</h2></div>
+
+      <p>
+        O sistema é um <strong>monólito modular</strong> em ASP.NET Core, servindo três
+        superfícies a partir de uma única base de código e um único banco.
+      </p>
+
+      <div class="figure">
+        <div class="cap">Figura 1 — Camadas e fluxo entre superfícies</div>
+        <div class="body">
+<pre class="mermaid">
+graph TB
+    subgraph Clientes
+        A["Navegador<br/>usuário autenticado"]
+        B["App Android<br/>Kotlin + Compose"]
+        C["Visitante anônimo<br/>blog público"]
+    end
+
+    subgraph "Aplicação ASP.NET Core 9"
+        D["Controllers MVC<br/>+ Views Razor"]
+        E["Controllers API REST<br/>/api/v1/*"]
+        F["Camada de Serviços<br/>regra de negócio"]
+        G["Helpers puros<br/>cálculo e formatação"]
+        H["Filtros globais<br/>auth · antiforgery · assinatura"]
+        I["BackgroundServices<br/>rotinas automáticas"]
+    end
+
+    subgraph Persistência
+        J[("PostgreSQL")]
+    end
+
+    subgraph "Fontes externas"
+        K["api-football.com<br/>estatísticas oficiais"]
+        L["Transfermarkt<br/>scraping"]
+        M["futnatv.net<br/>transmissões de TV"]
+    end
+
+    A -->|cookie de sessão| D
+    C -->|anônimo| D
+    B -->|JWT Bearer| E
+    D --> H
+    E --> H
+    H --> F
+    D --> F
+    E --> F
+    F --> G
+    F -->|EF Core| J
+    I --> F
+    F --> K
+    F --> L
+    F --> M
+</pre>
+        </div>
+      </div>
+
+      <h3>Por que monólito</h3>
+      <p>
+        A decisão é deliberada, não acidental. O domínio é altamente relacional — jogo,
+        jogador, time, competição, escalação e evento se cruzam em quase toda consulta.
+        Fragmentar isso em serviços significaria substituir <em>joins</em> por chamadas de
+        rede e transações locais por consistência eventual, sem ganho correspondente. O
+        sistema é operado por equipe pequena; um artefato único de deploy e um banco único
+        mantêm o custo operacional baixo e o tempo de diagnóstico curto.
+      </p>
+      <p>
+        A modularidade que interessa foi obtida <strong>dentro</strong> do monólito:
+        serviços de domínio isolados, helpers puros sem dependência de infraestrutura, e
+        uma camada de API que compartilha a regra de negócio com a web em vez de duplicá-la.
+      </p>
+
+      <h3>Fluxo de uma requisição</h3>
+      <ol>
+        <li><strong>Kestrel</strong> recebe a requisição atrás de proxy reverso nginx (TLS terminado no nginx, repassado via cabeçalhos <code>X-Forwarded-*</code>).</li>
+        <li><strong>Middleware de segurança</strong> aplica cabeçalhos (CSP, HSTS, <code>X-Content-Type-Options</code>, <code>Referrer-Policy</code>, <code>Permissions-Policy</code>) a toda resposta, inclusive estáticos.</li>
+        <li><strong>Autenticação</strong> resolve o cookie de sessão (web) ou o token JWT (API).</li>
+        <li><strong>Filtros globais</strong> verificam autorização, token antiforgery, situação de pagamento e registram atividade do usuário.</li>
+        <li><strong>Controller</strong> valida a entrada e delega ao <strong>serviço</strong> de domínio.</li>
+        <li><strong>Serviço</strong> consulta o banco via EF Core, aplica regra, chama <strong>helpers</strong> puros para cálculo.</li>
+        <li>Retorno como <strong>view Razor</strong> (HTML renderizado no servidor) ou <strong>JSON</strong> (API).</li>
+      </ol>
+    </section>
+
+    <!-- 3 ─────────────────────────────────────────────── -->
+    <section id="s3">
+      <div class="sec-head"><span class="sec-num">03</span><h2>Stack tecnológico</h2></div>
+
+      <h4>Backend</h4>
+      <div class="scroller">
+        <table>
+          <thead><tr><th>Componente</th><th>Tecnologia</th><th>Papel</th></tr></thead>
+          <tbody>
+            <tr><td>Runtime</td><td>.NET 9 / C# 13</td><td>Plataforma de execução</td></tr>
+            <tr><td>Framework web</td><td>ASP.NET Core MVC</td><td>Roteamento, model binding, pipeline</td></tr>
+            <tr><td>ORM</td><td>Entity Framework Core 9</td><td>Mapeamento objeto-relacional, migrações</td></tr>
+            <tr><td>Banco</td><td>PostgreSQL (Npgsql)</td><td>Persistência transacional</td></tr>
+            <tr><td>Identidade</td><td>ASP.NET Core Identity</td><td>Usuários, senhas, papéis, tokens</td></tr>
+            <tr><td>Autenticação API</td><td>JWT Bearer</td><td>Sessão do app Android</td></tr>
+            <tr><td>Servidor HTTP</td><td>Kestrel + nginx</td><td>Aplicação, proxy reverso e TLS</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Frontend web</h4>
+      <div class="scroller">
+        <table>
+          <thead><tr><th>Componente</th><th>Tecnologia</th></tr></thead>
+          <tbody>
+            <tr><td>Renderização</td><td>Razor (<code>.cshtml</code>) — server-side rendering</td></tr>
+            <tr><td>Estilo</td><td>CSS próprio + Bootstrap</td></tr>
+            <tr><td>Interatividade</td><td>JavaScript sem framework (vanilla)</td></tr>
+            <tr><td>Gráficos</td><td>Chart.js</td></tr>
+            <tr><td>Validação</td><td>jQuery Validation Unobtrusive, integrada às DataAnnotations do modelo</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <p>
+          Não há etapa de build de front-end — sem Node, sem bundler, sem
+          <code>package.json</code>. Uma alteração de tela é um arquivo salvo e a página
+          recarregada. Para um sistema com esse perfil — muita listagem, formulário e
+          relatório — a escolha elimina uma classe inteira de complexidade operacional sem
+          custo funcional. As poucas telas de estado realmente vivo, como prancheta tática
+          e escalação por arrasto, são atendidas por módulos JavaScript dedicados.
+        </p>
+      </div>
+
+      <h4>Aplicativo Android</h4>
+      <div class="scroller">
+        <table>
+          <thead><tr><th>Componente</th><th>Tecnologia</th></tr></thead>
+          <tbody>
+            <tr><td>Linguagem</td><td>Kotlin</td></tr>
+            <tr><td>UI</td><td>Jetpack Compose + Material 3</td></tr>
+            <tr><td>Arquitetura</td><td>MVVM (ViewModel + State)</td></tr>
+            <tr><td>Injeção de dependência</td><td>Hilt / Dagger</td></tr>
+            <tr><td>HTTP</td><td>Retrofit + OkHttp, serialização Kotlinx</td></tr>
+            <tr><td>Persistência local</td><td>DataStore (sessão e token)</td></tr>
+            <tr><td>SDK</td><td>mín. 26 · alvo 35 · JVM 17</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Bibliotecas de apoio</h4>
+      <p>
+        <code>Markdig</code> (Markdown do blog) · <code>HtmlSanitizer</code> (sanitização
+        do HTML gerado) · <code>HtmlAgilityPack</code> (parsing de páginas em scraping) ·
+        <code>QRCoder</code> (QR code de pagamento PIX).
+      </p>
+    </section>
+
+    <!-- 4 ─────────────────────────────────────────────── -->
+    <section id="s4">
+      <div class="sec-head"><span class="sec-num">04</span><h2>Modelo de domínio</h2></div>
+
+      <p>
+        O núcleo relacional gira em torno de cinco entidades, das quais tudo mais deriva.
+      </p>
+
+      <div class="figure">
+        <div class="cap">Figura 2 — Núcleo do modelo relacional</div>
+        <div class="body">
+<pre class="mermaid">
+erDiagram
+    TIME ||--o{ JOGADOR : possui
+    TIME ||--o{ JOGO : "manda ou visita"
+    COMPETICAO ||--o{ JOGO : organiza
+    COMPETICAO ||--o{ COMPETICAO_FASE : "tem fases"
+    JOGO ||--o{ ESCALACAO : registra
+    JOGO ||--o{ GOL : registra
+    JOGO ||--o{ CARTAO : registra
+    JOGO ||--o{ SUBSTITUICAO : registra
+    JOGO ||--o{ ESTATISTICA_JOGADOR : "importa da API"
+    JOGO ||--o{ JOGADA : "prancheta tática"
+    JOGO ||--o{ OBSERVACAO_JOGO_USUARIO : "anotações"
+    JOGADOR ||--o{ NOTA : recebe
+    JOGADOR ||--o{ TRANSFERENCIA : "histórico"
+    NOTA ||--o{ NOTA_DETALHE : "composta por"
+    CRITERIO_NOTA ||--o{ NOTA_DETALHE : pondera
+    USUARIO ||--o{ CRITERIO_NOTA : configura
+    USUARIO ||--o{ JOGO_ANALISADO_USUARIO : "marca analisado"
+</pre>
+        </div>
+      </div>
+
+      <p>
+        São <strong>43 entidades mapeadas</strong> (mais as tabelas do ASP.NET Core
+        Identity), cobrindo:
+      </p>
+
+      <ul>
+        <li><strong>Núcleo esportivo</strong> — times, jogadores, jogos, competições, fases, classificação, treinadores e histórico, nacionalidades, transferências.</li>
+        <li><strong>Eventos de partida</strong> — gols, assistências, cartões, substituições, pênaltis perdidos e disputas de pênaltis, cronômetro.</li>
+        <li><strong>Tática</strong> — formações, posições, escalações, setas de movimentação, jogadas da prancheta, fases táticas, escalação padrão do time.</li>
+        <li><strong>Avaliação</strong> — notas, detalhes de nota, critérios configuráveis, estatísticas por jogador e por jogo.</li>
+        <li><strong>Camada por usuário</strong> — jogos analisados, observações, tags com menções a jogadores, anotações de time, simulações, seleções de Copa, critérios próprios, competições prioritárias.</li>
+        <li><strong>Conteúdo e negócio</strong> — posts de blog com categorias e tags, pagamentos por usuário, logs de sincronização externa.</li>
+      </ul>
+
+      <div class="note">
+        <p>
+          Um traço de projeto relevante: entidades como <code>Nota</code>,
+          <code>CriterioNota</code> e <code>ObservacaoJogoUsuario</code> carregam
+          <code>UsuarioId</code>. O mesmo jogo pode ser analisado por vários usuários com
+          leituras diferentes, e cada um enxerga apenas a sua — <strong>o dado esportivo
+          objetivo é compartilhado, a interpretação é privada.</strong>
+        </p>
+      </div>
+    </section>
+
+    <!-- 5 ─────────────────────────────────────────────── -->
+    <section id="s5">
+      <div class="sec-head"><span class="sec-num">05</span><h2>Módulos funcionais</h2></div>
+
+      <h3>Análise de jogo — o núcleo do produto</h3>
+      <p>
+        A tela <code>Jogos/Analisar</code> é o ambiente principal de trabalho. Concentra,
+        numa única página, tudo que o analista precisa durante e após a partida: escalação
+        das duas equipes com formação, marcação de eventos, cronômetro, prancheta tática,
+        campo de observações com menção a jogadores, notas por critério e importação de
+        estatísticas. É o componente mais denso do sistema — a view soma ~1.500 linhas,
+        apoiada por ~2.700 linhas de JavaScript dedicado.
+      </p>
+
+      <h3>Prancheta de jogadas</h3>
+      <p>
+        Editor gráfico sobre campo renderizado em canvas: posicionamento de jogadores,
+        setas de movimentação, sequências de jogada. As jogadas são persistidas e
+        recuperáveis, associadas ao jogo. Módulo com maior densidade de código cliente
+        (~1.900 linhas de JavaScript).
+      </p>
+
+      <h3>Motor de notas</h3>
+      <p>
+        Sistema de pontuação híbrido. Parte de uma <strong>nota base fixa (4,0)</strong> e
+        aplica pesos sobre 22 ações mapeadas às estatísticas importadas — gol, assistência,
+        finalização no gol, desarme, interceptação, duelo vencido, drible certo, falta
+        cometida, cartão, pênalti sofrido, cometido e defendido, entre outras. Aplica ainda
+        modificadores de contexto: bônus por vitória, penalidade por derrota, bônus para
+        goleiro sem sofrer gol, e piso mínimo.
+      </p>
+      <div class="note">
+        <p>
+          O ponto de arquitetura: <strong>os pesos vivem no banco</strong>, por usuário,
+          não no código. O helper mantém apenas o mapeamento de ação → propriedade da
+          estatística. Cada analista calibra seu próprio modelo de avaliação sem alteração
+          de software — a regra é dado, não release.
+        </p>
+      </div>
+
+      <h3>Relatórios</h3>
+      <p>
+        Motor de agregação que cruza jogos, jogadores, times, competições e temporadas,
+        produzindo rankings individuais e coletivos, médias, totais e comparativos diretos
+        entre times (<em>match up</em>). Aceita filtros por competição, time, temporada,
+        mínimo de jogos e escopo. Foi extraído do controller para serviço próprio
+        justamente para ser reaproveitado pela API mobile sem duplicar regra — e expõe
+        parâmetros que permitem ao cliente móvel desligar blocos caros de agregação que
+        não exibe.
+      </p>
+
+      <h3>Competições</h3>
+      <p>
+        Suporte a estruturas distintas: pontos corridos (Brasileirão), mata-mata com
+        chaveamento (Copa do Brasil), fase de grupos seguida de eliminatórias
+        (Libertadores, Sul-Americana, Champions League, Copa do Mundo). Inclui construtores
+        de chaveamento em árvore, calculadora de classificação e classificador automático
+        de fase de jogo.
+      </p>
+
+      <h3>Demais módulos</h3>
+      <ul>
+        <li><strong>Simulador de tabela</strong> — projeta resultados de rodadas futuras e o efeito na classificação, com simulações persistidas por usuário.</li>
+        <li><strong>Perfil de jogador e transferências</strong> — estatísticas agregadas, notas históricas, jogos disputados, histórico de transferências e situação de aposentadoria.</li>
+        <li><strong>Blog público</strong> — posts em Markdown com categorias, tags e URLs por <em>slug</em>. Única área anônima, serve à aquisição orgânica. O Markdown vira HTML <strong>no momento de salvar</strong>, já sanitizado: a view pública só imprime, o que elimina custo por acesso e reduz a superfície de XSS.</li>
+        <li><strong>Painel administrativo</strong> — gestão de usuários, monitoramento dos serviços automáticos, usuários online, logs de sincronização e controle de pagamentos.</li>
+      </ul>
+    </section>
+
+    <!-- 6 ─────────────────────────────────────────────── -->
+    <section id="s6">
+      <div class="sec-head"><span class="sec-num">06</span><h2>Padrões de engenharia</h2></div>
+
+      <h3>Separação de responsabilidades</h3>
+      <div class="layers">
+        <div class="layer">
+          <div class="c">36 + 9</div>
+          <div class="k">Controllers</div>
+          <div class="d">Recebem a requisição, validam entrada, delegam. Sem regra de negócio de peso.</div>
+        </div>
+        <div class="layer">
+          <div class="c">21</div>
+          <div class="k">Services</div>
+          <div class="d">Regra de negócio, orquestração e acesso a dados. Injetados por construtor via o contêiner de DI.</div>
+        </div>
+        <div class="layer">
+          <div class="c">28</div>
+          <div class="k">Helpers</div>
+          <div class="d">Funções puras de cálculo e transformação. Sem estado, sem infraestrutura — a superfície naturalmente testável.</div>
+        </div>
+        <div class="layer">
+          <div class="c">30</div>
+          <div class="k">ViewModels</div>
+          <div class="d">Contratos explícitos entre controller e view. Nenhuma entidade de persistência exposta à apresentação.</div>
+        </div>
+      </div>
+
+      <h3>Filtros globais em vez de repetição</h3>
+      <p>
+        Preocupações transversais são aplicadas uma vez, no <em>pipeline</em>, e não
+        repetidas em cada controller.
+      </p>
+      <div class="scroller">
+        <table>
+          <thead><tr><th>Filtro</th><th>Efeito</th></tr></thead>
+          <tbody>
+            <tr><td><code>AuthorizeFilter</code></td><td>Todo controller exige autenticação <strong>por padrão</strong>; o acesso anônimo é exceção explícita</td></tr>
+            <tr><td><code>AutoValidateAntiforgeryToken</code></td><td>Todo <code>POST/PUT/DELETE/PATCH</code> valida token antiforgery</td></tr>
+            <tr><td><code>AtividadeUsuarioFilter</code></td><td>Registra último acesso (painel de usuários online)</td></tr>
+            <tr><td><code>AssinaturaFilter</code></td><td>Bloqueia usuário inadimplente — redireciona na web, retorna 403 na API</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        <p>
+          Tornar autenticação e proteção CSRF o <strong>padrão</strong> — em vez de algo a
+          lembrar a cada novo controller — é segurança por construção: o esquecimento leva
+          ao estado seguro, não ao inseguro.
+        </p>
+      </div>
+
+      <h3>Autorização baseada em política</h3>
+      <p>
+        Além do papel de administrador, há políticas com <em>requirements</em> e
+        <em>handlers</em> próprios (ex.: <code>BlogEscrever</code>, satisfeita por
+        administrador <strong>ou</strong> por usuário com permissão de autor). Permite
+        conceder capacidade granular sem inflar o conceito de administrador.
+      </p>
+
+      <h3>Detalhes de robustez</h3>
+      <ul>
+        <li><strong>Model binder de número flexível</strong> — aceita <code>10,5</code> e <code>10.5</code> indistintamente, independentemente da cultura do servidor. Elimina uma classe inteira de bug de entrada de dados.</li>
+        <li><strong>Validador de e-mail opcional</strong> — permite cadastro sem e-mail mantendo validação de formato e unicidade quando informado, contornando limitação do validador padrão do Identity.</li>
+        <li><strong>Cache de imagens em memória</strong> com limite de 128 MB dimensionado por bytes da imagem, servindo escudos e fotos por meio de proxy próprio.</li>
+        <li><strong>Leitura com <code>AsNoTracking</code></strong> — e <code>AsNoTrackingWithIdentityResolution</code> onde a deduplicação de entidades repetidas em <em>includes</em> importa mais que o custo do rastreamento.</li>
+      </ul>
+    </section>
+
+    <!-- 7 ─────────────────────────────────────────────── -->
+    <section id="s7">
+      <div class="sec-head"><span class="sec-num">07</span><h2>API REST e aplicativo Android</h2></div>
+
+      <h3>A API</h3>
+      <p>
+        Superfície REST versionada sob <code>/api/v1</code>, com nove controllers:
+        <code>auth</code>, <code>jogos</code>, <code>jogadores</code>, <code>times</code>,
+        <code>competicoes</code>, <code>relatorios</code>, <code>analises</code>,
+        <code>anotacoes</code>. Autenticação por <strong>JWT Bearer</strong>, coexistindo
+        com o cookie de sessão da web — dois esquemas de autenticação sobre o mesmo modelo
+        de identidade e as mesmas políticas de autorização.
+      </p>
+
+      <div class="note">
+        <p>
+          Este é o ponto estrutural que merece destaque em avaliação técnica: <strong>a API
+          não é um sistema paralelo</strong>. <code>RelatoriosService</code>,
+          <code>PerfilJogadorService</code> e os demais são compartilhados. Uma mudança em
+          regra de avaliação de jogador é feita uma vez e vale nas três superfícies. O
+          risco clássico de divergência entre web e mobile foi removido por construção.
+        </p>
+      </div>
+
+      <h3>O aplicativo</h3>
+      <p>
+        Cliente Android nativo em Kotlin com Jetpack Compose, arquitetura MVVM e injeção de
+        dependência via Hilt. Organizado em camadas explícitas — <code>data/remote</code>
+        (Retrofit e DTOs), <code>data/repository</code>, <code>data/local</code> (sessão),
+        <code>ui</code> (telas e ViewModels) — somando 60 arquivos-fonte, dos quais 35 de
+        interface. O caso de uso é o registro durante a partida, sem depender do computador.
+      </p>
+    </section>
+
+    <!-- 8 ─────────────────────────────────────────────── -->
+    <section id="s8">
+      <div class="sec-head"><span class="sec-num">08</span><h2>Integrações externas e automações</h2></div>
+
+      <h3>Fontes de dados</h3>
+      <div class="scroller">
+        <table>
+          <thead><tr><th>Fonte</th><th>Método</th><th>Dados obtidos</th></tr></thead>
+          <tbody>
+            <tr><td>api-football.com</td><td>API REST autenticada</td><td>Jogos, escalações, eventos e estatísticas oficiais por jogador</td></tr>
+            <tr><td>Transfermarkt</td><td>Scraping HTML (HtmlAgilityPack)</td><td>Calendário, placares, gols e detalhes de competições sul-americanas</td></tr>
+            <tr><td>futnatv.net</td><td>API pública</td><td>Plataforma de transmissão de TV de cada jogo do dia</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        A vinculação com a fonte externa é feita por chave de correlação na própria entidade
+        (ex.: <code>apifoot:71:2026</code> identifica liga e temporada), o que permite
+        reprocessar e reconciliar sem acoplamento estrutural. O casamento de nomes de time
+        entre fontes é resolvido por componente dedicado com dicionário de variações —
+        problema clássico e não trivial em integração esportiva.
+      </p>
+
+      <h3>Rotinas automáticas</h3>
+      <p>Executam como <code>BackgroundService</code> dentro do próprio processo:</p>
+      <ul>
+        <li><strong>Atualização de transmissões</strong> (ciclo de 3 h) — busca o canal de cada jogo do dia. O ciclo curto é intencional: as emissoras confirmam grade ao longo do dia, não à meia-noite.</li>
+        <li><strong>Complemento de dados de jogadores</strong> (ciclo de 6 h) — preenche informações faltantes a partir das fontes externas.</li>
+      </ul>
+      <p>
+        Ambas registram estado num <strong>monitor de serviços</strong> exposto no painel
+        administrativo: estado atual, último ciclo, resultado e possibilidade de pausa.
+        Rotina automática que roda sem observabilidade é passivo operacional; aqui há painel.
+      </p>
+    </section>
+
+    <!-- 9 ─────────────────────────────────────────────── -->
+    <section id="s9">
+      <div class="sec-head"><span class="sec-num">09</span><h2>Segurança</h2></div>
+
+      <p>Defesa em camadas, com decisões documentadas no próprio código.</p>
+
+      <h3>Autenticação e sessão</h3>
+      <ul>
+        <li>Senha com mínimo de 8 caracteres, exigindo maiúscula, minúscula, dígito, caractere não alfanumérico e ao menos 4 caracteres distintos.</li>
+        <li>Bloqueio de conta após 5 tentativas falhas, por 10 minutos.</li>
+        <li>Cookie de sessão com <code>HttpOnly</code>, <code>Secure</code>, <code>SameSite=Lax</code> e prefixo <strong><code>__Host-</code></strong>, que amarra o cookie a host, HTTPS e path raiz — proteção contra fixação de cookie por subdomínio.</li>
+        <li>Expiração de 7 dias com renovação deslizante.</li>
+      </ul>
+
+      <h3>Proteção da aplicação</h3>
+      <ul>
+        <li><strong>CSRF</strong> — validação automática de token antiforgery em toda requisição mutante, incluindo chamadas AJAX via cabeçalho dedicado.</li>
+        <li><strong>XSS</strong> — CSP restritiva (<code>default-src 'self'</code>, <code>object-src 'none'</code>, <code>frame-ancestors 'none'</code>), sanitização por <em>allowlist</em> de todo HTML gerado a partir de Markdown, e escape padrão do Razor.</li>
+        <li><strong>Clickjacking</strong> — <code>X-Frame-Options: DENY</code> e <code>frame-ancestors 'none'</code>.</li>
+        <li><strong>Transporte</strong> — HSTS em produção, redirecionamento HTTPS, TLS terminado no nginx.</li>
+        <li><strong>Fingerprinting</strong> — cabeçalho <code>Server</code> do Kestrel suprimido, <code>X-Powered-By</code> removido.</li>
+        <li><strong>APIs do navegador</strong> — câmera, microfone, geolocalização, pagamento e USB desligados por <code>Permissions-Policy</code>.</li>
+        <li><strong>SQL injection</strong> — eliminada por construção: todo acesso a dados passa por EF Core com consultas parametrizadas.</li>
+      </ul>
+
+      <h3>Gestão de segredos</h3>
+      <p>
+        Chave JWT, senha do administrador inicial e credenciais de API ficam fora do código,
+        em <em>user secrets</em> (desenvolvimento) ou variáveis de ambiente (produção). A
+        aplicação <strong>recusa iniciar em produção</strong> sem chave JWT configurada. Se
+        nenhuma senha de administrador for fornecida no primeiro boot, o sistema gera uma
+        senha forte criptograficamente aleatória (20 caracteres, embaralhamento
+        Fisher–Yates) e a registra uma única vez em log — nunca há credencial padrão fixa
+        no código.
+      </p>
+
+      <h3>Isolamento de dados</h3>
+      <p>
+        Consultas de dados de usuário são filtradas por <code>UsuarioId</code> na camada de
+        serviço. Análises, notas, critérios e observações de um usuário não são acessíveis
+        a outro.
+      </p>
+    </section>
+
+    <!-- 10 ────────────────────────────────────────────── -->
+    <section id="s10">
+      <div class="sec-head"><span class="sec-num">10</span><h2>Persistência e evolução do schema</h2></div>
+
+      <p>
+        O schema é versionado por <strong>migrações do EF Core</strong> — atualmente
+        <strong>112 migrações</strong> aplicadas. Cada alteração estrutural é um artefato
+        versionado no repositório, revisável e reversível, aplicado automaticamente na
+        subida da aplicação.
+      </p>
+      <div class="note">
+        <p>
+          O que isso significa em termos de risco: não há passo manual de banco no deploy,
+          não há divergência entre ambientes e o histórico completo de evolução do modelo é
+          auditável no Git. Sistemas que evoluem schema por script solto acumulam risco
+          silencioso; este não.
+        </p>
+      </div>
+      <p>Complementam a estratégia:</p>
+      <ul>
+        <li><strong>Seed idempotente</strong> — dados de referência (competições, formações, nacionalidades) garantidos na inicialização.</li>
+        <li><strong>Health check</strong> de banco exposto em <code>/health</code>, usado pelo deploy e disponível a monitoramento externo.</li>
+        <li><strong>Backup automático diário</strong> — <code>pg_dump</code> em formato <em>custom</em> comprimido, retenção de 14 dias, agendado por cron.</li>
+      </ul>
+    </section>
+
+    <!-- 11 ────────────────────────────────────────────── -->
+    <section id="s11">
+      <div class="sec-head"><span class="sec-num">11</span><h2>Qualidade e testes</h2></div>
+
+      <p>
+        Projeto de testes separado (<code>ControleFutebolWeb.Tests</code>) com
+        <strong>xUnit</strong> e coleta de cobertura por Coverlet.
+      </p>
+
+      <div class="metrics" style="margin-bottom:1.75rem; border-top:1px solid var(--line);">
+        <div class="metric hi"><div class="n">65</div><div class="l">Testes</div></div>
+        <div class="metric hi"><div class="n">100<span>%</span></div><div class="l">Aprovados</div></div>
+        <div class="metric"><div class="n">~1<span>s</span></div><div class="l">Duração da suíte</div></div>
+        <div class="metric"><div class="n">7</div><div class="l">Componentes cobertos</div></div>
+      </div>
+
+      <p>
+        Execução verificada em 07/08/2026. A suíte cobre a lógica de maior densidade
+        algorítmica e maior custo de erro: construtor de chaveamento mata-mata, calculadora
+        de classificação, normalização de fases, normalização de nomes de jogador, geração
+        de <em>slug</em>, renderização e sanitização de Markdown, e validação de upload de
+        imagem.
+      </p>
+      <p>
+        Concentrar os testes nos helpers puros é coerente com a arquitetura: são componentes
+        determinísticos, sem dependência de infraestrutura, onde o teste tem alto valor por
+        baixo custo de manutenção. É também, reconhecidamente, onde a cobertura se encerra
+        hoje — ver <a href="#s15">seção 15</a>.
+      </p>
+    </section>
+
+    <!-- 12 ────────────────────────────────────────────── -->
+    <section id="s12">
+      <div class="sec-head"><span class="sec-num">12</span><h2>Infraestrutura, deploy e operação</h2></div>
+
+      <h3>Ambiente de produção</h3>
+      <p>VPS Linux com:</p>
+      <ul>
+        <li><strong>nginx</strong> como proxy reverso e terminação TLS;</li>
+        <li><strong>systemd</strong> gerenciando a aplicação como serviço, com reinício automático em falha;</li>
+        <li><strong>PostgreSQL</strong> local com backup diário automatizado;</li>
+        <li>domínio próprio com HTTPS.</li>
+      </ul>
+
+      <h3>Pipeline de deploy</h3>
+      <p>Script automatizado com verificação em cada etapa:</p>
+      <ol>
+        <li><strong>Limpeza</strong> do diretório de publicação anterior — evita que binários obsoletos sobrevivam a um novo <em>publish</em>.</li>
+        <li><strong>Compilação</strong> em modo Release, com <strong>verificação explícita do código de saída</strong> — falha de compilação aborta o deploy antes de qualquer envio.</li>
+        <li><strong>Envio</strong> dos artefatos ao servidor.</li>
+        <li><strong>Reinício</strong> do serviço via systemd.</li>
+        <li><strong>Verificação pós-deploy</strong> — consulta o endpoint <code>/health</code>, que valida também a conexão com o banco, em até 12 tentativas ao longo de ~60 s. Sem resposta 200, o deploy é reportado como <strong>falho</strong>, com o comando de diagnóstico indicado.</li>
+      </ol>
+      <div class="note">
+        <p>
+          Vale registrar o que há por trás disso: os passos 1 e 2 foram acrescentados após
+          um incidente real de produção em julho de 2026, em que um <em>publish</em> falho
+          enviou binários antigos ao servidor. O procedimento incorpora a lição — o roteiro
+          de deploy é documento vivo, não formalidade.
+        </p>
+      </div>
+
+      <h3>Observabilidade</h3>
+      <p>
+        Logging estruturado, health check público, painel de monitoramento das rotinas
+        automáticas e logs de sincronização das integrações externas persistidos em banco.
+      </p>
+    </section>
+
+    <!-- 13 ────────────────────────────────────────────── -->
+    <section id="s13">
+      <div class="sec-head"><span class="sec-num">13</span><h2>Controle de acesso e monetização</h2></div>
+
+      <p>
+        O modelo de cobrança é <strong>assinatura com controle de acesso por vigência</strong>.
+        Cada usuário tem uma data de acesso pago; o filtro de assinatura, aplicado
+        globalmente, verifica a vigência a cada requisição:
+      </p>
+      <ul>
+        <li>vigente, administrador, ou sem cobrança definida → acesso normal;</li>
+        <li>vencido → redirecionamento para tela de bloqueio na web, <strong>403 com mensagem na API</strong>.</li>
+      </ul>
+      <p>
+        O controller de conta fica deliberadamente fora do bloqueio, para que o usuário
+        inadimplente ainda consiga ver a situação, sair da conta e redefinir senha —
+        bloqueio que aprisiona o usuário gera suporte, não receita.
+      </p>
+
+      <h3>Pagamento via PIX, sem intermediário</h3>
+      <div class="note">
+        <p>
+          O sistema gera o payload BR Code no padrão EMV-MPM do Banco Central, com cálculo
+          de CRC16-CCITT, servindo tanto ao "copia e cola" quanto ao QR code renderizado.
+          <strong>Não há dependência de PSP, gateway ou taxa de intermediação</strong> — o
+          recebimento é direto. A conciliação é feita hoje pelo painel administrativo.
+        </p>
+      </div>
+    </section>
+
+    <!-- 14 ────────────────────────────────────────────── -->
+    <section id="s14">
+      <div class="sec-head"><span class="sec-num">14</span><h2>Métricas do código</h2></div>
+
+      <p>Medições verificadas no repositório em 07/08/2026.</p>
+
+      <div class="scroller">
+        <table class="figures">
+          <thead><tr><th>Métrica</th><th>Valor</th></tr></thead>
+          <tbody>
+            <tr><td>Código C# (exceto migrações)</td><td>~31.900 linhas</td></tr>
+            <tr><td>Views Razor</td><td>~28.100 linhas</td></tr>
+            <tr><td>JavaScript</td><td>~5.800 linhas</td></tr>
+            <tr><td>Controllers web</td><td>36</td></tr>
+            <tr><td>Controllers de API</td><td>9</td></tr>
+            <tr><td>Serviços de domínio</td><td>21</td></tr>
+            <tr><td>Helpers</td><td>28</td></tr>
+            <tr><td>ViewModels</td><td>30</td></tr>
+            <tr><td>Views</td><td>88</td></tr>
+            <tr><td>Entidades mapeadas</td><td>43</td></tr>
+            <tr><td>Migrações de banco</td><td>112</td></tr>
+            <tr><td>Testes automatizados</td><td>65</td></tr>
+            <tr><td>Arquivos-fonte Android (Kotlin)</td><td>60</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        Total aproximado: <strong>66 mil linhas</strong> de código de aplicação, mais o
+        cliente Android.
+      </p>
+    </section>
+
+    <!-- 15 ────────────────────────────────────────────── -->
+    <section id="s15">
+      <div class="sec-head"><span class="sec-num">15</span><h2>Dívida técnica reconhecida e roadmap</h2></div>
+
+      <p>
+        Documentar apenas o que funciona produz um retrato incompleto. Segue a avaliação
+        franca dos pontos abertos e do plano para cada um.
+      </p>
+
+      <div class="debt">
+        <h3>Cobertura de testes concentrada nos helpers</h3>
+        <dl>
+          <dt>Situação</dt><dd>Os 65 testes cobrem lógica pura; não há testes de integração cobrindo controllers, serviços com acesso a banco ou os contratos da API.</dd>
+          <dt>Risco</dt><dd>Regressão em regra de negócio de serviço não é detectada automaticamente.</dd>
+          <dt>Plano</dt><dd>Testes de integração sobre os serviços de maior valor (relatórios, motor de notas) com banco em contêiner, e testes de contrato da API para proteger o app Android contra quebra silenciosa.</dd>
+        </dl>
+      </div>
+
+      <div class="debt">
+        <h3>CSP com <code>unsafe-inline</code></h3>
+        <dl>
+          <dt>Situação</dt><dd>A política de segurança de conteúdo ainda permite script e estilo inline, porque o layout usa <code>&lt;script&gt;</code>, <code>&lt;style&gt;</code> e <code>onclick</code> inline.</dd>
+          <dt>Risco</dt><dd>Reduz a eficácia da CSP contra XSS — mitigado pelas demais camadas (escape do Razor, sanitização por allowlist, cookie <code>HttpOnly</code>).</dd>
+          <dt>Plano</dt><dd>Migração para <em>nonces</em> por requisição e remoção do <code>unsafe-inline</code> de <code>script-src</code>. O caminho está identificado e comentado no próprio código.</dd>
+        </dl>
+      </div>
+
+      <div class="debt">
+        <h3>Concentração de código em telas grandes</h3>
+        <dl>
+          <dt>Situação</dt><dd>As telas de análise, relatórios e detalhes de time passam de 2.000 linhas cada.</dd>
+          <dt>Risco</dt><dd>Custo de manutenção e barreira de entrada para novos desenvolvedores.</dd>
+          <dt>Plano</dt><dd>Extração progressiva em <em>partial views</em> e view components — trabalho já iniciado, com o módulo de análise decomposto em refatoração anterior registrada no histórico do repositório.</dd>
+        </dl>
+      </div>
+
+      <div class="debt">
+        <h3>Backup no mesmo servidor</h3>
+        <dl>
+          <dt>Situação</dt><dd>O backup diário é gravado no disco do próprio servidor de produção.</dd>
+          <dt>Risco</dt><dd>Falha de disco compromete dados e backup simultaneamente.</dd>
+          <dt>Plano</dt><dd>Replicação para armazenamento externo — a limitação está explicitamente documentada no script de backup.</dd>
+        </dl>
+      </div>
+
+      <div class="debt">
+        <h3>Ausência de integração contínua</h3>
+        <dl>
+          <dt>Situação</dt><dd>Testes e build rodam localmente; o deploy é disparado manualmente por script.</dd>
+          <dt>Risco</dt><dd>Depende de disciplina do desenvolvedor.</dd>
+          <dt>Plano</dt><dd>Pipeline de CI executando build e testes a cada alteração, com o deploy condicionado à suíte verde.</dd>
+        </dl>
+      </div>
+
+      <div class="debt">
+        <h3>Escalabilidade</h3>
+        <dl>
+          <dt>Situação</dt><dd>Instância única, sem cache distribuído; o cache de imagens é em memória do processo.</dd>
+          <dt>Avaliação</dt><dd>Adequado ao volume atual. A arquitetura não impede escala horizontal: o estado de sessão é cookie, a API é <em>stateless</em> por JWT, e o gargalo previsível é o banco.</dd>
+          <dt>Plano</dt><dd>Quando o volume justificar: réplicas de leitura no PostgreSQL, cache distribuído e múltiplas instâncias atrás do nginx.</dd>
+        </dl>
+      </div>
+
+      <div class="debt">
+        <h3>Dependência declarada e não utilizada</h3>
+        <dl>
+          <dt>Situação</dt><dd>O pacote <code>Microsoft.Playwright</code> consta no arquivo de projeto sem uso correspondente no código — resíduo de exploração anterior de automação.</dd>
+          <dt>Plano</dt><dd>Remoção pendente.</dd>
+        </dl>
+      </div>
+    </section>
+
+    <!-- Fecho ─────────────────────────────────────────── -->
+    <section class="closing">
+      <h2 style="margin-bottom:1.5rem;">Síntese técnica</h2>
+      <p>
+        O sistema é uma aplicação web de porte real — ~66 mil linhas, 43 entidades de
+        domínio, 112 migrações versionadas — construída sobre stack corrente e estável
+        (.NET 9, PostgreSQL, ASP.NET Core Identity), com aplicativo móvel nativo consumindo
+        uma API que <strong>compartilha a regra de negócio</strong> com a web em vez de
+        duplicá-la.
+      </p>
+      <p>
+        Os traços que sustentam avaliação técnica favorável: segurança configurada por
+        padrão seguro e não por exceção; schema evoluído por migrações versionadas; deploy
+        automatizado com verificação de saúde e aprendizado de incidente incorporado; regra
+        de avaliação parametrizada em banco e não em código; integrações externas com
+        monitoramento próprio; e documentação de onboarding que reduz a dependência de
+        qualquer indivíduo específico para manutenção.
+      </p>
+      <p>
+        Os pontos abertos são conhecidos, delimitados e têm caminho definido — nenhum deles
+        é estrutural nem exige reescrita.
+      </p>
+
+      <p class="colophon">
+        Dossiê técnico · Análise de Craque · revisão de 07/08/2026 · métricas medidas
+        diretamente no repositório
+      </p>
+    </section>
+
+  </main>
+</div>
+</div>

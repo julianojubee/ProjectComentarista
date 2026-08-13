@@ -28,7 +28,8 @@ namespace ControleFutebolWeb.Helpers
         private static readonly string[] PalavrasMataMata =
         {
             "Final", "Semi", "Quarter", "Round of", "Knockout", "Play",
-            "Qualification", "Preliminary", "Oitavas", "Quartas", "avos",
+            "Qualification", "Preliminary", "Relegation", "Promotion",
+            "Oitavas", "Quartas", "avos",
         };
 
         // Round que termina em número ("Regular Season - 15", "Apertura - 3")
@@ -52,17 +53,22 @@ namespace ControleFutebolWeb.Helpers
             if (TerminaEmNumero.IsMatch(nome))
                 return FaseCategoria.Liga;
 
-            // Rounds desconhecidos sem número são quase sempre eliminatórios.
-            return FaseCategoria.MataMata;
+            // Round desconhecido e sem número NÃO é assumido como eliminatório: importações
+            // antigas gravavam em Jogo.Grupo o nome do "grupo" do standings, que em liga de
+            // tabela única é o próprio nome da competição ("Bundesliga", "Serie A"...). Tratar
+            // isso como mata-mata jogava a liga inteira para a aba de playoffs e deixava a
+            // classificação vazia. Indefinida entra na tabela de pontos corridos e, quando há
+            // fases declaradas, cai na fase padrão (não-eliminatória).
+            return FaseCategoria.Indefinida;
         }
 
         /// <summary>
         /// Distribui os jogos entre as fases declaradas:
         /// 1. RoundsPattern (padrões ";"-separados, Contains case-insensitive) sempre vence;
         /// 2. senão, a categoria heurística vai para a primeira fase (por Ordem) de Tipo
-        ///    correspondente (Grupos→GRUPOS, Liga→PONTOS_CORRIDOS, MataMata→MATA_MATA);
+        ///    correspondente (Grupos→GRUPOS, Liga→PONTOS_CORRIDOS, MataMata→MATA_MATA/JOGO_UNICO);
         /// 3. Indefinida ou categoria sem fase correspondente cai na primeira fase
-        ///    não-MATA_MATA (ou na primeira fase, se todas forem MATA_MATA) — assim
+        ///    não-eliminatória (ou na primeira fase, se todas forem eliminatórias) — assim
         ///    nenhum jogo desaparece da tela.
         /// </summary>
         public static Dictionary<int, List<Jogo>> DistribuirPorFases(
@@ -72,7 +78,7 @@ namespace ControleFutebolWeb.Helpers
             var resultado = ordenadas.ToDictionary(f => f.Id, _ => new List<Jogo>());
             if (ordenadas.Count == 0) return resultado;
 
-            var fasePadrao = ordenadas.FirstOrDefault(f => f.Tipo != "MATA_MATA") ?? ordenadas[0];
+            var fasePadrao = ordenadas.FirstOrDefault(f => !EhEliminatoria(f.Tipo)) ?? ordenadas[0];
 
             foreach (var jogo in jogos)
             {
@@ -97,14 +103,22 @@ namespace ControleFutebolWeb.Helpers
 
         private static CompeticaoFase? FasePorCategoria(List<CompeticaoFase> fases, FaseCategoria categoria)
         {
-            var tipo = categoria switch
+            // MataMata também casa com fases de JOGO_UNICO (final única): as duas são
+            // eliminatórias e recebem os mesmos rounds ("Final", "Semi-finals"...).
+            return categoria switch
             {
-                FaseCategoria.Grupos => "GRUPOS",
-                FaseCategoria.Liga => "PONTOS_CORRIDOS",
-                FaseCategoria.MataMata => "MATA_MATA",
+                FaseCategoria.Grupos => fases.FirstOrDefault(f => f.Tipo == "GRUPOS"),
+                FaseCategoria.Liga => fases.FirstOrDefault(f => f.Tipo == "PONTOS_CORRIDOS"),
+                FaseCategoria.MataMata => fases.FirstOrDefault(f => EhEliminatoria(f.Tipo)),
                 _ => null,
             };
-            return tipo == null ? null : fases.FirstOrDefault(f => f.Tipo == tipo);
         }
+
+        /// <summary>
+        /// Fase decidida em confronto direto — mata-mata ou partida única —, que nunca
+        /// vira tabela de pontos corridos.
+        /// </summary>
+        public static bool EhEliminatoria(string? tipo)
+            => tipo is "MATA_MATA" or "JOGO_UNICO";
     }
 }

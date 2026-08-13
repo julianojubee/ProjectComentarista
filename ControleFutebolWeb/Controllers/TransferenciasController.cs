@@ -1,5 +1,6 @@
 using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Models;
+using ControleFutebolWeb.Models.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -16,15 +17,35 @@ namespace ControleFutebolWeb.Controllers
     {
         private readonly FutebolContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly Services.ApiFootballService _apiFootball;
+        private readonly IWebHostEnvironment _env;
 
-        public TransferenciasController(FutebolContext context, UserManager<ApplicationUser> userManager)
+        // Temporada usada no catálogo de ligas (wwwroot/data/competicoes-api-2026.json)
+        // e nas consultas de clubes na api-football.
+        private const int TemporadaCatalogo = 2026;
+
+        public TransferenciasController(
+            FutebolContext context,
+            UserManager<ApplicationUser> userManager,
+            Services.ApiFootballService apiFootball,
+            IWebHostEnvironment env)
         {
             _context = context;
             _userManager = userManager;
+            _apiFootball = apiFootball;
+            _env = env;
         }
 
-        // GET: /Transferencias?timeId=1&competicaoId=2&jogador=borre
-        public async Task<IActionResult> Index(int? timeId, int? competicaoId, string? jogador)
+        // Teto de linhas da tela. A lista é longa (milhares de registros) e a
+        // página monta tudo de uma vez; quando corta, a view avisa.
+        private const int LimiteLista = 300;
+
+        // GET: /Transferencias?timeId=1&competicaoId=2&jogador=borre&ordem=data
+        // ordem=registro (padrão) → ordem de gravação, para ver no topo o que uma
+        // sincronização acabou de trazer: a data do anúncio costuma ser semanas
+        // atrás e jogaria o registro para o meio da lista, dando a impressão de
+        // que nada foi gravado. ordem=data → data da transferência.
+        public async Task<IActionResult> Index(int? timeId, int? competicaoId, string? jogador, string? ordem)
         {
             var query = _context.Transferencias
                 .AsNoTracking()
@@ -44,15 +65,22 @@ namespace ControleFutebolWeb.Controllers
             if (!string.IsNullOrWhiteSpace(jogador))
                 query = query.Where(t => t.Jogador.Nome.ToLower().Contains(jogador.ToLower()));
 
-            var transferencias = await query
-                .OrderByDescending(t => t.Data)
-                .ThenByDescending(t => t.Id)
-                .Take(300)
+            var porRegistro = !string.Equals(ordem, "data", StringComparison.OrdinalIgnoreCase);
+
+            var totalFiltrado = await query.CountAsync();
+
+            var ordenada = porRegistro
+                ? query.OrderByDescending(t => t.Id)
+                : query.OrderByDescending(t => t.Data).ThenByDescending(t => t.Id);
+
+            var transferencias = await ordenada
+                .Take(LimiteLista)
                 .ToListAsync();
 
             // Combos dos filtros: só times/competições que aparecem no histórico
             var timeIdsUsados = await _context.Transferencias
-                .Select(t => t.TimeDestinoId)
+                .Where(t => t.TimeDestinoId != null)
+                .Select(t => t.TimeDestinoId!.Value)
                 .Union(_context.Transferencias
                     .Where(t => t.TimeOrigemId != null)
                     .Select(t => t.TimeOrigemId!.Value))
@@ -80,6 +108,9 @@ namespace ControleFutebolWeb.Controllers
             ViewBag.FiltroTimeId = timeId;
             ViewBag.FiltroCompeticaoId = competicaoId;
             ViewBag.FiltroJogador = jogador;
+            ViewBag.Ordem = porRegistro ? "registro" : "data";
+            ViewBag.TotalFiltrado = totalFiltrado;
+            ViewBag.LimiteLista = LimiteLista;
 
             // Dados do formulário de transferência manual: todos os jogadores (com o
             // clube atual no rótulo, para conferência) e os clubes de destino possíveis.
@@ -144,10 +175,248 @@ namespace ControleFutebolWeb.Controllers
 
             var origemNome = jogador.Time?.Nome ?? "sem clube";
             jogador.TimeId = destino.Id;
+            // Voltou a ter clube: se estava marcado como aposentado, deixa de estar.
+            jogador.Aposentado = false;
+            jogador.AposentadoEm = null;
             await _context.SaveChangesAsync();
 
             TempData["Sucesso"] = $"{jogador.NomeExibicao} transferido: {origemNome} → {destino.Nome}.";
             return RedirectToAction(nameof(Index));
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Transferência para clube de fora do sistema (botão "Transferências"
+        // em /Jogadores/Estatisticas). Quando o jogador vai para um clube de uma
+        // liga que ninguém cadastrou, ele nunca aparece numa escalação importada
+        // e a detecção automática não acontece. Aqui o usuário escolhe país →
+        // liga (mesmo catálogo de /Competicoes/CompeticoesApi) → clube (consulta
+        // /teams na api-football) e o clube escolhido é criado no banco, já com
+        // a liga de origem gravada, para reaproveitamento nas próximas vezes.
+        // ─────────────────────────────────────────────────────────────────────
+
+        // Catálogo estático das ligas da api-football (mesmo arquivo da tela
+        // /Competicoes/CompeticoesApi).
+        private async Task<List<CompeticaoApiLiga>> CarregarCatalogoLigasAsync()
+        {
+            var caminho = Path.Combine(_env.WebRootPath, "data", $"competicoes-api-{TemporadaCatalogo}.json");
+            if (!System.IO.File.Exists(caminho)) return new();
+
+            var json = await System.IO.File.ReadAllTextAsync(caminho);
+            return System.Text.Json.JsonSerializer.Deserialize<List<CompeticaoApiLiga>>(json,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
+        }
+
+        // GET: /Transferencias/ApiPaises — países que têm liga no catálogo
+        [HttpGet]
+        public async Task<IActionResult> ApiPaises()
+        {
+            var paises = (await CarregarCatalogoLigasAsync())
+                .GroupBy(l => l.Pais)
+                .Select(g => new
+                {
+                    nome = g.Key,
+                    bandeira = g.First().Bandeira,
+                    ligas = g.Count()
+                })
+                // "World" (internacionais) primeiro, igual em /Competicoes/CompeticoesApi
+                .OrderBy(p => p.nome == "World" ? 0 : 1)
+                .ThenBy(p => p.nome)
+                .ToList();
+
+            return Json(paises);
+        }
+
+        // GET: /Transferencias/ApiLigas?pais=Qatar — ligas do país escolhido
+        [HttpGet]
+        public async Task<IActionResult> ApiLigas(string? pais)
+        {
+            if (string.IsNullOrWhiteSpace(pais))
+                return Json(Array.Empty<object>());
+
+            var ligas = (await CarregarCatalogoLigasAsync())
+                .Where(l => string.Equals(l.Pais, pais, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(l => l.Nome)
+                .Select(l => new { id = l.Id, nome = l.Nome, tipo = l.Tipo, logo = l.Logo })
+                .ToList();
+
+            return Json(ligas);
+        }
+
+        // GET: /Transferencias/ApiClubes?leagueId=824 — clubes da liga na api-football.
+        // Marca os que já existem no banco (timeId preenchido) para o usuário saber
+        // que a transferência não vai criar clube novo.
+        [HttpGet]
+        public async Task<IActionResult> ApiClubes(int leagueId, int? season, CancellationToken ct)
+        {
+            if (leagueId <= 0)
+                return Json(new { erro = "Liga inválida." });
+
+            List<Services.AfTeamCatalogo> clubes;
+            try
+            {
+                clubes = await _apiFootball.BuscarClubesDaLigaAsync(leagueId, season ?? TemporadaCatalogo, ct);
+            }
+            catch (Exception ex)
+            {
+                return Json(new { erro = "Não foi possível consultar os clubes na api-football: " + ex.Message });
+            }
+
+            var idsApi = clubes.Select(c => c.Id).ToList();
+            var existentes = await _context.Times
+                .AsNoTracking()
+                .Where(t => idsApi.Contains(t.IdApi))
+                .ToDictionaryAsync(t => t.IdApi, t => t.Id, ct);
+
+            var itens = clubes.Select(c => new
+            {
+                idApi = c.Id,
+                nome = c.Name,
+                pais = c.Country,
+                logo = c.Logo,
+                timeId = existentes.TryGetValue(c.Id, out var id) ? id : (int?)null
+            }).ToList();
+
+            return Json(new { clubes = itens });
+        }
+
+        // POST: /Transferencias/TransferirParaClubeApi
+        // Transfere o jogador para um clube vindo da api-football, criando o Time
+        // caso ainda não exista. Responde JSON (chamada via fetch pelo modal).
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> TransferirParaClubeApi(
+            int jogadorId, int idApi, string nome, string? logo, int leagueId, string? pais)
+        {
+            var jogador = await _context.Jogadores
+                .Include(j => j.Time)
+                .FirstOrDefaultAsync(j => j.Id == jogadorId);
+
+            if (jogador == null)
+                return Json(new { ok = false, mensagem = "Jogador não encontrado." });
+
+            if (idApi <= 0 || string.IsNullOrWhiteSpace(nome))
+                return Json(new { ok = false, mensagem = "Clube de destino inválido." });
+
+            var destino = await _context.Times.FirstOrDefaultAsync(t => t.IdApi == idApi);
+
+            if (destino == null)
+            {
+                // Clube ainda não existe no sistema: cria com os dados da API,
+                // guardando a liga/país de origem para reaproveitar depois.
+                var formacaoPadrao = await _context.Formacoes.FirstOrDefaultAsync();
+                if (formacaoPadrao == null)
+                    return Json(new { ok = false, mensagem = "Nenhuma formação cadastrada para servir de padrão do clube." });
+
+                destino = new Time
+                {
+                    Nome             = Services.ApiFootballService.TraduzirNomeClube(nome.Trim()),
+                    IdApi            = idApi,
+                    EscudoUrl        = logo ?? "",
+                    Cidade           = string.IsNullOrWhiteSpace(pais) ? "Importado" : pais,
+                    CorPrincipal     = "#000000",
+                    CorSecundaria    = "#FFFFFF",
+                    FormacaoPadraoId = formacaoPadrao.Id,
+                    EhSelecao        = false,
+                    LigaIdApi        = leagueId,
+                    PaisApi          = pais
+                };
+                _context.Times.Add(destino);
+                await _context.SaveChangesAsync();
+            }
+            else
+            {
+                // Já existia (importado de algum jogo): completa a liga de origem
+                // e o escudo, se ainda estiverem em branco.
+                if (destino.LigaIdApi == null && leagueId > 0) destino.LigaIdApi = leagueId;
+                if (string.IsNullOrWhiteSpace(destino.PaisApi)) destino.PaisApi = pais;
+                if (string.IsNullOrWhiteSpace(destino.EscudoUrl)) destino.EscudoUrl = logo ?? "";
+            }
+
+            // Estádio do clube: a lista de clubes da liga já veio com o "venue" e
+            // está em cache, então preencher aqui não custa requisição nova.
+            if (string.IsNullOrWhiteSpace(destino.EstadioNome) && leagueId > 0)
+            {
+                try
+                {
+                    var entradas = await _apiFootball.BuscarEntradasClubesDaLigaAsync(leagueId, TemporadaCatalogo);
+                    var entrada = entradas.FirstOrDefault(e => e.Team.Id == idApi);
+                    Services.ApiFootballService.AplicarEstadio(destino, entrada?.Venue);
+                }
+                catch
+                {
+                    // Estádio é acessório: falha na API não pode impedir a transferência.
+                }
+            }
+
+            if (destino.EhSelecao)
+                return Json(new { ok = false, mensagem = "O destino precisa ser um clube — seleções não contam como transferência." });
+
+            if (jogador.TimeId == destino.Id)
+                return Json(new { ok = false, mensagem = $"{jogador.NomeExibicao} já pertence a {destino.Nome}." });
+
+            _context.Transferencias.Add(new Transferencia
+            {
+                JogadorId     = jogador.Id,
+                TimeOrigemId  = jogador.TimeId,
+                TimeDestinoId = destino.Id,
+                JogoId        = null,
+                Data          = DateTime.UtcNow,
+                UsuarioId     = _userManager.GetUserId(User)
+            });
+
+            var origemNome = jogador.Time?.Nome ?? "sem clube";
+            jogador.TimeId = destino.Id;
+            // Voltou a ter clube: se estava marcado como aposentado, deixa de estar.
+            jogador.Aposentado = false;
+            jogador.AposentadoEm = null;
+            await _context.SaveChangesAsync();
+
+            return Json(new
+            {
+                ok = true,
+                mensagem = $"{jogador.NomeExibicao} transferido: {origemNome} → {destino.Nome}."
+            });
+        }
+
+        // POST: /Transferencias/Aposentar
+        // Jogador que parou de jogar: não há clube de destino, então o registro
+        // entra no histórico com TimeDestinoId null e o jogador ganha a marca de
+        // aposentado. O TimeId continua no último clube — jogos, escalações e
+        // estatísticas antigas dependem dele. Responde JSON (fetch pelo modal).
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Aposentar(int jogadorId)
+        {
+            var jogador = await _context.Jogadores
+                .Include(j => j.Time)
+                .FirstOrDefaultAsync(j => j.Id == jogadorId);
+
+            if (jogador == null)
+                return Json(new { ok = false, mensagem = "Jogador não encontrado." });
+
+            if (jogador.Aposentado)
+                return Json(new { ok = false, mensagem = $"{jogador.NomeExibicao} já está marcado como aposentado." });
+
+            _context.Transferencias.Add(new Transferencia
+            {
+                JogadorId     = jogador.Id,
+                TimeOrigemId  = jogador.TimeId,
+                TimeDestinoId = null,   // sem destino = aposentadoria
+                JogoId        = null,
+                Data          = DateTime.UtcNow,
+                UsuarioId     = _userManager.GetUserId(User)
+            });
+
+            jogador.Aposentado = true;
+            jogador.AposentadoEm = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            var origemNome = jogador.Time?.Nome ?? "sem clube";
+            return Json(new
+            {
+                ok = true,
+                mensagem = $"{jogador.NomeExibicao} marcado como aposentado (último clube: {origemNome})."
+            });
         }
 
         // POST: /Transferencias/Excluir
@@ -179,13 +448,26 @@ namespace ControleFutebolWeb.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            if (transferencia.Jogador.TimeId == transferencia.TimeDestinoId && transferencia.TimeOrigemId != null)
+            // Sem destino = aposentadoria: desfazer significa tirar a marca de
+            // aposentado (o clube nunca mudou, então não há o que reverter nele).
+            var ehAposentadoria = transferencia.TimeDestinoId == null;
+
+            if (ehAposentadoria)
+            {
+                transferencia.Jogador.Aposentado = false;
+                transferencia.Jogador.AposentadoEm = null;
+            }
+            else if (transferencia.Jogador.TimeId == transferencia.TimeDestinoId && transferencia.TimeOrigemId != null)
+            {
                 transferencia.Jogador.TimeId = transferencia.TimeOrigemId.Value;
+            }
 
             _context.Transferencias.Remove(transferencia);
             await _context.SaveChangesAsync();
 
-            TempData["Sucesso"] = $"Transferência de {transferencia.Jogador.NomeExibicao} excluída.";
+            TempData["Sucesso"] = ehAposentadoria
+                ? $"{transferencia.Jogador.NomeExibicao} não está mais marcado como aposentado."
+                : $"Transferência de {transferencia.Jogador.NomeExibicao} excluída.";
             return RedirectToAction(nameof(Index));
         }
     }

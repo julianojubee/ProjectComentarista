@@ -19,7 +19,11 @@
 
     // Envolve ocorrências de "@Nome" (nomes reconhecidos na lista de jogadores) num
     // link para o perfil do jogador, para deixar a menção clicável e visualmente clara.
-    function renderizarTexto(texto, jogadores) {
+    // opcoes.link = false renderiza a menção como texto destacado, sem <a>: é o
+    // caso da análise compartilhada (/analise/{token}), onde o visitante não
+    // pode navegar para a ficha do jogador (nem para nenhuma outra tela).
+    function renderizarTexto(texto, jogadores, opcoes) {
+        const comLink = !opcoes || opcoes.link !== false;
         const textoEscapado = escHtml(texto);
         const idPorNomeEscapado = new Map();
         (jogadores || []).forEach(j => {
@@ -36,6 +40,7 @@
         return textoEscapado.replace(regex, (match, nomeCapturado) => {
             const jogadorId = idPorNomeEscapado.get(nomeCapturado);
             if (!jogadorId) return match;
+            if (!comLink) return '<span class="obs-mencao">@' + nomeCapturado + '</span>';
             return '<a class="obs-mencao" href="/Jogadores/Estatisticas/' + jogadorId + '" onclick="event.stopPropagation();">@' + nomeCapturado + '</a>';
         });
     }

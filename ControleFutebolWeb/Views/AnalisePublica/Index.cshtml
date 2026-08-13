@@ -1,0 +1,60 @@
+﻿@model ControleFutebolWeb.Models.ViewModels.AnalisePublicaViewModel
+@{
+    Layout = "_LayoutAnalisePublica";
+    ViewData["TitleOverride"] = $"Análise de Craque - {Model.Confronto}";
+}
+
+@* Cores de camisa do jogo (números dos jogadores na lista e no campinho) —
+   inline porque dependem da partida, igual em /Jogos/Analisar. *@
+<style>
+    :root {
+        --cor-camisa-casa: #@Model.CorCamisaCasa;
+        --cor-numero-casa: #@Model.CorNumeroCasa;
+        --cor-camisa-vis:  #@Model.CorCamisaVisitante;
+        --cor-numero-vis:  #@Model.CorNumeroVisitante;
+    }
+</style>
+
+<div class="ap-root an-root">
+    <div class="ap-cabecalho">
+        <div>
+            <div class="ap-confronto">@Model.Confronto</div>
+            @if (!string.IsNullOrWhiteSpace(Model.AutorNome))
+            {
+                <div class="ap-autor">Análise de @Model.AutorNome</div>
+            }
+        </div>
+        <button type="button" class="ap-btn" onclick="abrirPreJogoPublico()">🔍 Pré-jogo</button>
+    </div>
+
+    <div class="ap-painel" id="ap-corpo">
+        <div class="pgj-vazio" style="padding:3rem 0;">Carregando análise...</div>
+    </div>
+</div>
+
+<!-- ── Modal Pré-jogo (somente leitura) ──────────────────────────────────
+     Único modal da página pública: resumo dos dois times a partir do banco
+     local. O match-up (interativo) e o H2H (consome a API externa paga) ficam
+     de fora de propósito. -->
+<div id="modal-prejogo-publico" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:10000; align-items:center; justify-content:center;">
+    <div style="background:#0f1b2d; border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:1.4rem; width:780px; max-width:96vw; max-height:90vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,.5);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem;">
+            <h5 style="margin:0; color:#f2f5fa; font-size:15px; font-weight:700">🔍 Pré-jogo</h5>
+            <button onclick="fecharPreJogoPublico()" style="background:none;border:none;color:rgba(255,255,255,.65);font-size:22px;cursor:pointer;line-height:1">&times;</button>
+        </div>
+        <div id="prejogo-publico-corpo">
+            <div style="text-align:center; color:rgba(255,255,255,.6); padding:2rem 0">Carregando...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Token da URL — todo fetch da página passa por ele.
+    window.ANALISE_PUBLICA = { token: '@Model.Token' };
+</script>
+
+@section Scripts {
+    <script src="~/js/mencao-jogador.js" asp-append-version="true"></script>
+    <script src="~/js/painel-jogo.js" asp-append-version="true"></script>
+    <script src="~/js/analise-publica.js" asp-append-version="true"></script>
+}

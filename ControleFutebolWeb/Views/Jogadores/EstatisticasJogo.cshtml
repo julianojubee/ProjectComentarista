@@ -9,6 +9,7 @@
 
     var adversario = Model.IsCasa ? jogo.TimeVisitante?.Nome : jogo.TimeCasa?.Nome;
     var adversarioEscudo = Model.IsCasa ? jogo.TimeVisitante?.EscudoUrl : jogo.TimeCasa?.EscudoUrl;
+    var adversarioId = Model.IsCasa ? jogo.TimeVisitanteId : jogo.TimeCasaId;
 
     var temPlacar = jogo.PlacarCasa.HasValue && jogo.PlacarVisitante.HasValue;
     var golsPro = Model.IsCasa ? jogo.PlacarCasa : jogo.PlacarVisitante;
@@ -37,59 +38,68 @@
 <style>
     .ej-page, .ej-page *, .ej-page *::before, .ej-page *::after { box-sizing: border-box; }
     .ej-page {
-        background: #0f0f0f; margin: 0 -12px; padding: 24px 16px 48px; color: #e2e8f0;
+        background: var(--p-0); margin: 0 -12px; padding: 24px 16px 48px; color: var(--text-strong);
         font-family: 'Barlow', Arial, sans-serif; border-radius: 14px; overflow: hidden;
     }
     .ej-wrap { max-width: 900px; margin: 0 auto; }
 
     .ej-voltar {
         display: inline-flex; align-items: center; gap: 8px; margin-bottom: 18px;
-        font-size: .78rem; font-weight: 600; color: #9ca3af; background: #1a1a1a;
-        border: 1px solid #2a2a2a; border-radius: 8px; padding: 8px 14px; cursor: pointer;
+        font-size: .78rem; font-weight: 600; color: var(--text-muted); background: var(--p-2);
+        border: 1px solid var(--line-strong); border-radius: 8px; padding: 8px 14px; cursor: pointer;
     }
-    .ej-voltar:hover { border-color: #d4a520; color: #d4a520; }
+    .ej-voltar:hover { border-color: #d4a520; color: var(--gold-ink); }
 
     .ej-header {
-        background: linear-gradient(135deg, #090909 0%, #141414 100%);
-        border: 1px solid #262626; border-radius: 12px; padding: 18px 20px; margin-bottom: 18px;
+        background: linear-gradient(135deg, #090909 0%, #161616 100%);
+        border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin-bottom: 18px;
         display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
     }
     .ej-res-badge {
         width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center;
         justify-content: center; font-weight: 800; font-size: 1.1rem; color: #fff; flex-shrink: 0;
     }
+    .ej-header-foto {
+        width: 48px; height: 48px; border-radius: 10px;
+        background: #1e293b; border: 1px solid #2a3a52;
+        overflow: hidden; flex-shrink: 0;
+    }
+    .ej-header-foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .ej-header-info { flex: 1; min-width: 220px; }
-    .ej-header-jogador { font-size: 1.05rem; font-weight: 700; color: #f8fafc; }
-    .ej-header-jogo { font-size: .82rem; color: #d4a520; font-weight: 600; margin-top: 2px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .ej-header-jogador { font-size: 1.05rem; font-weight: 700; color: var(--text-strong); }
+    .ej-header-jogo { font-size: .82rem; color: var(--gold-ink); font-weight: 600; margin-top: 2px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .ej-header-jogo img { width: 16px; height: 16px; object-fit: contain; }
-    .ej-header-placar { color: #94a3b8; font-weight: 500; }
-    .ej-header-meta { font-size: .7rem; color: #6b7280; margin-top: 3px; }
+    .ej-header-placar { color: var(--text-muted); font-weight: 500; }
+    /* Adversário clicável → página do time */
+    .ej-time-link { display: inline-flex; align-items: center; gap: 6px; color: inherit; text-decoration: none; }
+    .ej-time-link:hover { color: var(--gold-ink); text-decoration: underline; }
+    .ej-header-meta { font-size: .7rem; color: var(--text-dim); margin-top: 3px; }
     .ej-badges { display: flex; gap: 6px; flex-wrap: wrap; }
     .ej-badge {
         font-size: .65rem; font-weight: 700; padding: 4px 10px; border-radius: 999px;
-        background: #1e293b; border: 1px solid #2a3a52; color: #cbd5e1;
+        background: #1e293b; border: 1px solid #2a3a52; color: var(--text-2);
     }
 
-    .ej-card { background: #161616; border: 1px solid #262626; border-radius: 12px; padding: 18px 20px; margin-bottom: 18px; }
+    .ej-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin-bottom: 18px; }
     .ej-card-titulo {
         font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
-        color: #9ca3af; margin-bottom: 14px;
+        color: var(--text-muted); margin-bottom: 14px;
     }
 
-    .ej-evento { display: flex; align-items: baseline; gap: 10px; padding: 7px 0; border-bottom: 1px solid #1e1e1e; }
+    .ej-evento { display: flex; align-items: baseline; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line-soft); }
     .ej-evento:last-child { border-bottom: none; }
-    .ej-evento-min { min-width: 40px; text-align: right; font-weight: 700; font-size: .8rem; color: #94a3b8; }
+    .ej-evento-min { min-width: 40px; text-align: right; font-weight: 700; font-size: .8rem; color: var(--text-muted); }
     .ej-evento-txt { font-size: .85rem; font-weight: 600; }
-    .ej-evento-det { font-size: .75rem; color: #6b7280; font-weight: 400; }
+    .ej-evento-det { font-size: .75rem; color: var(--text-dim); font-weight: 400; }
 
     .ej-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-    .ej-stat { background: #111; border: 1px solid #1e1e1e; border-radius: 10px; padding: 10px 12px; }
-    .ej-stat-val { font-size: 1.05rem; font-weight: 800; color: #f8fafc; }
-    .ej-stat-val small { font-size: .68rem; font-weight: 600; color: #6b7280; }
-    .ej-stat-lbl { font-size: .62rem; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; margin-top: 2px; }
+    .ej-stat { background: var(--p-0); border: 1px solid var(--line-soft); border-radius: 10px; padding: 10px 12px; }
+    .ej-stat-val { font-size: 1.05rem; font-weight: 800; color: var(--text-strong); }
+    .ej-stat-val small { font-size: .68rem; font-weight: 600; color: var(--text-dim); }
+    .ej-stat-lbl { font-size: .62rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-dim); margin-top: 2px; }
     .ej-grupo { margin-bottom: 16px; }
     .ej-grupo:last-child { margin-bottom: 0; }
-    .ej-grupo-titulo { font-size: .68rem; font-weight: 700; color: #d4a520; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .06em; }
+    .ej-grupo-titulo { font-size: .68rem; font-weight: 700; color: var(--gold-ink); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .06em; }
 
     .ej-heatmap-body { display: flex; flex-direction: column; align-items: center; }
     .ej-heatmap-pitch { position: relative; width: 100%; max-width: 260px; aspect-ratio: 68/105; border-radius: 6px; overflow: hidden; }
@@ -97,7 +107,7 @@
     .ej-heatmap-legend span { font-size: .6rem; color: #374151; font-weight: 600; }
     .ej-heatmap-legend-bar { flex: 1; margin: 0 10px; height: 5px; border-radius: 3px; background: linear-gradient(90deg, #4ade80, #facc15, #f97316, #ef4444); }
 
-    .ej-sem-dados { font-size: .8rem; color: #6b7280; padding: 6px 0; }
+    .ej-sem-dados { font-size: .8rem; color: var(--text-dim); padding: 6px 0; }
     .ej-duas-colunas { display: grid; grid-template-columns: 1fr 320px; gap: 18px; align-items: start; }
     @@media (max-width: 760px) { .ej-duas-colunas { grid-template-columns: 1fr; } }
 </style>
@@ -111,16 +121,29 @@
         </button>
 
         <!-- Cabeçalho: jogador + jogo -->
-        <div class="ej-header">
-            <div class="ej-res-badge" style="background:@resBg;">@resultado</div>
+        <div class="ej-header theme-dark-zone">
+            <div class="ej-res-badge" style="background:@resBg">@resultado</div>
+            <div class="ej-header-foto">
+                @if (!string.IsNullOrWhiteSpace(Model.Jogador.FotoUrl))
+                {
+                    <img src="@Url.FotoSrc(Model.Jogador.FotoUrl)" alt="@Model.Jogador.NomeExibicao"
+                         onerror="this.onerror=null; this.src='/images/placeholder-jogador.png'" />
+                }
+                else
+                {
+                    <img src="/images/placeholder-jogador.png" alt="@Model.Jogador.NomeExibicao" />
+                }
+            </div>
             <div class="ej-header-info">
                 <div class="ej-header-jogador">@Model.Jogador.NomeExibicao</div>
                 <div class="ej-header-jogo">
-                    @if (!string.IsNullOrEmpty(adversarioEscudo))
-                    {
-                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = adversarioEscudo })" alt="" />
-                    }
-                    <span>vs @adversario</span>
+                    <a class="ej-time-link" asp-controller="Times" asp-action="Details" asp-route-id="@adversarioId" title="Ver @adversario">
+                        @if (!string.IsNullOrEmpty(adversarioEscudo))
+                        {
+                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = adversarioEscudo })" alt="" />
+                        }
+                        <span>vs @adversario</span>
+                    </a>
                     <span class="ej-header-placar">@placar</span>
                     @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
                     {
@@ -148,7 +171,7 @@
                 }
                 @if (e?.Capitao == true)
                 {
-                    <span class="ej-badge" style="border-color:#d4a520; color:#d4a520;">©️ Capitão</span>
+                    <span class="ej-badge" style="border-color:#d4a520; color:var(--gold-ink)">©️ Capitão</span>
                 }
             </div>
         </div>
@@ -203,7 +226,8 @@
                         <div class="ej-grupo">
                             <div class="ej-grupo-titulo">Passes e criação</div>
                             <div class="ej-grid">
-                                <div class="ej-stat"><div class="ej-stat-val">@e.PassesTotal</div><div class="ej-stat-lbl">Passes</div></div>
+                                <div class="ej-stat"><div class="ej-stat-val">@e.PassesTotal <small>(@e.PassesCertos certos)</small></div><div class="ej-stat-lbl">Passes</div></div>
+                                <div class="ej-stat"><div class="ej-stat-val">@Pct(e.PassesCertos, e.PassesTotal)</div><div class="ej-stat-lbl">Precisão de passe</div></div>
                                 <div class="ej-stat"><div class="ej-stat-val">@e.PassesChave</div><div class="ej-stat-lbl">Passes-chave</div></div>
                                 <div class="ej-stat"><div class="ej-stat-val">@e.DriblesTentados <small>(@e.DriblesCertos certos)</small></div><div class="ej-stat-lbl">Dribles</div></div>
                                 <div class="ej-stat"><div class="ej-stat-val">@Pct(e.DriblesCertos, e.DriblesTentados)</div><div class="ej-stat-lbl">Sucesso dribles</div></div>
@@ -269,7 +293,7 @@
                 else
                 {
                     <div class="ej-heatmap-body">
-                        <div id="ejHeatmapCampo" class="ej-heatmap-pitch">
+                        <div id="ejHeatmapCampo" class="ej-heatmap-pitch theme-dark-zone">
                             <svg viewBox="0 0 680 1050" xmlns="http://www.w3.org/2000/svg" style="position:absolute; inset:0; width:100%; height:100%;">
                                 <rect width="680" height="1050" fill="#0d3d1f" />
                                 <rect x="0" y="0" width="680" height="75" fill="#0e4221" opacity="0.5" />

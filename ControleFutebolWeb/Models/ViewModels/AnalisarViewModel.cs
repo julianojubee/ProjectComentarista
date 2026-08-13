@@ -60,6 +60,14 @@ namespace ControleFutebolWeb.Models.ViewModels
         public Dictionary<int, int> TitularPorJogador { get; set; } = new();
         public Dictionary<int, int> TitularTemporadaPorJogador { get; set; } = new();
 
+        // Temporada usada pelos números do tooltip (rótulo, igual a Jogo.Temporada);
+        // 0 = todas as temporadas. Começa na temporada do jogo e o usuário troca no
+        // seletor "ℹ Tooltip" da barra do campo (Jogos/TooltipTemporada).
+        public int TemporadaTooltip { get; set; }
+
+        // Opções do seletor: temporadas com estatística dos jogadores desta tela.
+        public List<int> TemporadasTooltip { get; set; } = new();
+
         // Jogo analisado pelo usuário atual (existência de JogoAnalisadoUsuario).
         public bool Analisado { get; set; }
 
@@ -80,5 +88,27 @@ namespace ControleFutebolWeb.Models.ViewModels
         // Jogadores marcados como capitão nas estatísticas importadas deste jogo —
         // mostra a braçadeira "C" no botão do jogador em campo/banco.
         public HashSet<int> JogadoresCapitao { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Números do tooltip de info do jogador em /Jogos/Analisar, todos no mesmo
+    /// recorte de temporada. Serializado direto como JSON por
+    /// JogosController.TooltipTemporada quando o usuário troca a temporada no
+    /// seletor (por isso os nomes curtos: o JS lê estas chaves em camelCase).
+    /// </summary>
+    public class TooltipJogadorDados
+    {
+        // Rótulo da temporada aplicada (0 = todas).
+        public int Temporada { get; set; }
+
+        public Dictionary<int, int> Gols { get; set; } = new();
+        public Dictionary<int, int> Assists { get; set; } = new();
+        public Dictionary<int, int> TitularCompeticao { get; set; } = new();
+
+        public Dictionary<int, int> GolsTemporada { get; set; } = new();
+        public Dictionary<int, int> AssistsTemporada { get; set; } = new();
+        public Dictionary<int, int> TitularTemporada { get; set; } = new();
+
+        public Dictionary<int, MediasPorJogo> Medias { get; set; } = new();
     }
 }

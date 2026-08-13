@@ -1,4 +1,4 @@
-using ControleFutebolWeb.Data;
+﻿using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.Api;
@@ -123,6 +123,8 @@ namespace ControleFutebolWeb.Controllers.Api
                 .Include(n => n.Jogo).ThenInclude(j => j.TimeCasa)
                 .Include(n => n.Jogo).ThenInclude(j => j.TimeVisitante)
                 .Include(n => n.Jogo).ThenInclude(j => j.Competicao)
+                // Detalhes: o piso de merecimento conta os chips verdes x vermelhos.
+                .Include(n => n.Detalhes)
                 .Where(n => n.JogadorId == id && n.UsuarioId == uid);
             if (competicaoId.HasValue)
                 notasQuery = notasQuery.Where(n => n.Jogo.CompeticaoId == competicaoId);
@@ -135,6 +137,9 @@ namespace ControleFutebolWeb.Controllers.Api
                 .Include(e => e.Jogo).ThenInclude(j => j.TimeCasa)
                 .Include(e => e.Jogo).ThenInclude(j => j.TimeVisitante)
                 .Include(e => e.Jogo).ThenInclude(j => j.Competicao)
+                // Jogador precisa vir junto: o bônus "não sofreu gol" (CriteriosNotaHelper)
+                // lê a posição e o time do jogador para saber de que lado ele jogou.
+                .Include(e => e.Jogador)
                 .Where(e => e.JogadorId == id && e.Minutos != null && e.Minutos > 0);
             if (competicaoId.HasValue)
                 estatisticasQuery = estatisticasQuery.Where(e => e.Jogo.CompeticaoId == competicaoId);
@@ -172,6 +177,19 @@ namespace ControleFutebolWeb.Controllers.Api
             var ladoPorJogoId = escalacoes
                 .GroupBy(e => e.JogoId)
                 .ToDictionary(g => g.Key, g => g.First().IsTimeCasa);
+
+            // Lado + posição na chave que o CriteriosNotaHelper espera: o bônus "não
+            // sofreu gol" precisa do lado da época (não do time atual) e da posição
+            // daquele jogo (não da posição cadastrada do jogador).
+            var slotsPorFormacao = (await _context.PosicoesFormacao.AsNoTracking().ToListAsync())
+                .GroupBy(p => p.FormacaoId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+            var formacoesPorJogo = escalacoes
+                .Select(e => e.Jogo)
+                .GroupBy(j => j.Id)
+                .ToDictionary(g => g.Key, g => (g.First().FormacaoCasaId, g.First().FormacaoVisitanteId));
+
+            var lados = LadoJogadorHelper.Montar(escalacoes, slotsPorFormacao, formacoesPorJogo);
 
             var posicaoPorJogoId = escalacoes
                 .Where(e => e.Titular && !string.IsNullOrWhiteSpace(e.Posicao) && e.Posicao != "RES")
@@ -228,9 +246,23 @@ namespace ControleFutebolWeb.Controllers.Api
                 };
             }
 
-            double ClampNota(double valorAcoes) => Math.Round(
-                Math.Max(CriteriosNotaHelper.NotaMinima,
-                    Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + valorAcoes)), 2);
+            // Minutos e goleiro decisivo por jogo. Carrega os próprios lados: `lados`
+            // acima é montado só com as escalações deste jogador e não fecharia as
+            // finalizações no alvo do elenco adversário.
+            var jogoIdsDoJogador = jogosComNotaManualIds.Concat(jogosComEstatisticaIds).Distinct().ToList();
+            var contextos = await ContextoNotaHelper.CarregarAsync(_context, jogoIdsDoJogador, uid);
+
+            // Motor da nota automática escolhido em /CriteriosNota — vale só para os
+            // jogos sem avaliação manual (o app mobile segue a mesma régua da web).
+            var calculadora = await NotaAutomaticaHelper.CarregarAsync(
+                _context, jogoIdsDoJogador, uid, criteriosBanco, lados, contextos);
+
+            double ClampNota(double valorAcoes, int jogoId, IEnumerable<Notadetalhe>? detalhes) =>
+                CriteriosNotaHelper.NotaFinal(valorAcoes, criteriosBanco,
+                    ContextoNotaHelper.De(contextos, jogador.Id, jogoId) with
+                    {
+                        Acoes = CriteriosNotaHelper.ContarAcoes(detalhes)
+                    });
 
             var itens = new List<JogadorJogoItemDto>();
 
@@ -239,15 +271,13 @@ namespace ControleFutebolWeb.Controllers.Api
             {
                 double notaFinal = n.NotaManual.HasValue
                     ? Math.Round(Math.Max(0, Math.Min(10, n.NotaManual.Value)), 2)
-                    : ClampNota(n.Valor);
+                    : ClampNota(n.Valor, n.JogoId, n.Detalhes);
                 itens.Add(MontarItem(n.Jogo, analisado: true, notaFinal, origemManual: true));
             }
 
             // Jogos só com estatísticas importadas → nota automática
             foreach (var e in estatisticas.Where(e => !jogosComNotaManualIds.Contains(e.JogoId)))
-                itens.Add(MontarItem(e.Jogo, analisado: true,
-                    ClampNota(Math.Round(CriteriosNotaHelper.CalcularPontuacao(e, criteriosBanco), 2)),
-                    origemManual: false));
+                itens.Add(MontarItem(e.Jogo, analisado: true, calculadora.De(e).Nota, origemManual: false));
 
             // Jogos em que só há escalação (não analisados)
             foreach (var e in escalacoes

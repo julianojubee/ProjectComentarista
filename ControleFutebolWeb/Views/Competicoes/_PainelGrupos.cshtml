@@ -34,26 +34,26 @@ else
                 </div>
                 <div class="cd-grupo-cols">
                     <span>#</span><span></span><span class="left" style="text-align:left;">Time</span>
-                    <span>J</span><span style="color:#22c55e;">V</span><span style="color:#f59e0b;">E</span><span style="color:#ef4444;">D</span><span style="color:#d4a520;">Pts</span>
+                    <span>J</span><span style="color:var(--ok-2)">V</span><span style="color:#f59e0b">E</span><span style="color:var(--bad-2)">D</span><span style="color:var(--gold-ink)">Pts</span>
                 </div>
                 @foreach (var t in grupo.Times)
                 {
                     var isQ = t.Posicao <= 2;
                     <div class="cd-grupo-row">
-                        <span class="cd-pos" style="font-size:.75rem; color:@(isQ ? "#3b82f6" : "#6b7280");">@t.Posicao</span>
-                        <div class="cd-grupo-escudo">
+                        <span class="cd-pos" style="font-size:.75rem; color:@(isQ ? "#3b82f6" : "var(--text-dim)");">@t.Posicao</span>
+                        <a class="cd-grupo-escudo" asp-controller="Times" asp-action="Details" asp-route-id="@t.Time?.Id" title="Ver @t.Time?.Nome">
                             @if (!string.IsNullOrEmpty(t.Time?.EscudoUrl))
                             {
                                 <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.Time.EscudoUrl })" alt="" />
                             }
-                        </div>
+                        </a>
                         <a asp-controller="Times" asp-action="Details" asp-route-id="@t.Time?.Id" class="cd-nome" style="font-size:.82rem;">@t.Time?.Nome</a>
                         <span class="cd-cell">@t.Jogos</span>
                         <span class="cd-cell v">@t.Vitorias</span>
                         <span class="cd-cell e">@t.Empates</span>
                         <span class="cd-cell d">@t.Derrotas</span>
                         <div class="cd-pts">
-                            <span style="font-size:1rem; color:@(isQ ? "#3b82f6" : "#f1f5f9"); background:@(isQ ? "rgba(59,130,246,0.1)" : "transparent"); padding:1px 6px; border-radius:5px;">@t.Pontos</span>
+                            <span style="font-size:1rem; color:@(isQ ? "#3b82f6" : "var(--text-strong)"); background:@(isQ ? "rgba(59,130,246,0.1)" : "transparent"); padding:1px 6px; border-radius:5px;">@t.Pontos</span>
                         </div>
                     </div>
                 }

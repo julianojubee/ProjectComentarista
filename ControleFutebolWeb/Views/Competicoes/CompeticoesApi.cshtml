@@ -4,7 +4,7 @@
 }
 
 <style>
-    .capi { color: #e5e7eb; }
+    .capi { color: var(--text); }
     .capi-main { padding: 24px 2.5rem 64px; max-width: 1200px; margin: 0 auto; }
 
     .capi-hero {
@@ -12,14 +12,14 @@
         flex-wrap: wrap; padding: 28px 2.5rem 0;
         max-width: 1200px; margin: 0 auto;
     }
-    .capi-hero h1 { font-family: 'Barlow Condensed', sans-serif; font-size: 2rem; font-weight: 800; margin: 0; color: #f1f5f9; }
-    .capi-hero p { font-size: .85rem; color: #6b7280; margin: 4px 0 0; }
+    .capi-hero h1 { font-family: 'Barlow Condensed', sans-serif; font-size: 2rem; font-weight: 800; margin: 0; color: var(--text-strong); }
+    .capi-hero p { font-size: .85rem; color: var(--text-dim); margin: 4px 0 0; }
     .capi-voltar {
         display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
-        background: transparent; color: #d4a520; border: 1px solid #d4a52055;
+        background: transparent; color: var(--gold-ink); border: 1px solid #d4a52055;
         font-size: .82rem; font-weight: 700; border-radius: 8px; text-decoration: none;
     }
-    .capi-voltar:hover { background: #d4a52015; color: #d4a520; }
+    .capi-voltar:hover { background: #d4a52015; color: var(--gold-ink); }
 
     .capi-toolbar {
         display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
@@ -27,55 +27,55 @@
     }
     .capi-busca {
         flex: 1 1 280px; max-width: 420px; padding: 9px 14px;
-        background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px;
-        color: #e5e7eb; font-size: .85rem; outline: none;
+        background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 8px;
+        color: var(--text); font-size: .85rem; outline: none;
     }
     .capi-busca:focus { border-color: #d4a520; }
-    .capi-resumo { font-size: .78rem; color: #6b7280; }
-    .capi-resumo b { color: #d4a520; }
+    .capi-resumo { font-size: .78rem; color: var(--text-dim); }
+    .capi-resumo b { color: var(--gold-ink); }
 
-    .capi-pais { margin-bottom: 10px; background: #161616; border: 1px solid #262626; border-radius: 10px; overflow: hidden; }
+    .capi-pais { margin-bottom: 10px; background: var(--p-1); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
     .capi-pais-header {
         display: flex; align-items: center; gap: 10px; padding: 10px 16px;
         cursor: pointer; user-select: none;
     }
-    .capi-pais-header:hover { background: #1c1c1c; }
+    .capi-pais-header:hover { background: var(--p-2); }
     .capi-pais-header img { width: 22px; height: 16px; object-fit: cover; border-radius: 2px; }
-    .capi-pais-header .nome { font-weight: 700; font-size: .92rem; color: #f1f5f9; flex: 1; }
-    .capi-pais-header .qtd { font-size: .72rem; color: #6b7280; }
-    .capi-pais-header .seta { font-size: .7rem; color: #6b7280; transition: transform .15s; }
+    .capi-pais-header .nome { font-weight: 700; font-size: .92rem; color: var(--text-strong); flex: 1; }
+    .capi-pais-header .qtd { font-size: .72rem; color: var(--text-dim); }
+    .capi-pais-header .seta { font-size: .7rem; color: var(--text-dim); transition: transform .15s; }
     .capi-pais.aberto .capi-pais-header .seta { transform: rotate(90deg); }
 
-    .capi-lista { display: none; border-top: 1px solid #262626; }
+    .capi-lista { display: none; border-top: 1px solid var(--line); }
     .capi-pais.aberto .capi-lista { display: block; }
 
     .capi-item {
         display: flex; align-items: center; gap: 12px; padding: 8px 16px;
-        border-bottom: 1px solid #1f1f1f; font-size: .85rem;
+        border-bottom: 1px solid var(--line-soft); font-size: .85rem;
     }
     .capi-item:last-child { border-bottom: none; }
     .capi-item img { width: 26px; height: 26px; object-fit: contain; flex-shrink: 0; }
-    .capi-item .nome { flex: 1 1 auto; color: #e5e7eb; min-width: 0; }
+    .capi-item .nome { flex: 1 1 auto; color: var(--text); min-width: 0; }
     .capi-item .tipo {
         flex: 0 0 auto; font-size: .68rem; font-weight: 700; padding: 2px 8px;
         border-radius: 5px; text-transform: uppercase; letter-spacing: .04em;
     }
-    .capi-item .tipo.league { background: rgba(59,130,246,.15); color: #60a5fa; }
-    .capi-item .tipo.cup { background: rgba(168,85,247,.15); color: #c084fc; }
+    .capi-item .tipo.league { background: rgba(59,130,246,.15); color: var(--info); }
+    .capi-item .tipo.cup { background: rgba(168,85,247,.15); color: var(--purple); }
     .capi-item .registrada {
         flex: 0 0 auto; font-size: .68rem; font-weight: 700; padding: 2px 8px;
-        border-radius: 5px; background: rgba(34,197,94,.15); color: #4ade80;
+        border-radius: 5px; background: rgba(34,197,94,.15); color: var(--ok);
     }
     .capi-item .codigo {
         flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
         font-family: 'Consolas', monospace; font-size: .82rem; font-weight: 700;
-        color: #d4a520; background: #d4a52012; border: 1px solid #d4a52033;
+        color: var(--gold-ink); background: #d4a52012; border: 1px solid #d4a52033;
         padding: 3px 10px; border-radius: 6px; cursor: pointer;
     }
     .capi-item .codigo:hover { background: #d4a52025; }
-    .capi-item .codigo.copiado { color: #4ade80; border-color: #4ade8055; }
+    .capi-item .codigo.copiado { color: var(--ok); border-color: #4ade8055; }
 
-    .capi-vazio { text-align: center; color: #6b7280; font-size: .85rem; padding: 2rem 0; display: none; }
+    .capi-vazio { text-align: center; color: var(--text-dim); font-size: .85rem; padding: 2rem 0; display: none; }
 </style>
 
 <div class="capi">

@@ -19,7 +19,7 @@
         })
         .ToList();
 
-    string CorForma(string r) => r switch { "V" => "#22c55e", "D" => "#ef4444", _ => "#6b7280" };
+    string CorForma(string r) => r switch { "V" => "#22c55e", "D" => "#ef4444", _ => "var(--text-dim)" };
 
     int totalPartidas = Model.Jogos.Count(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue);
 }
@@ -47,8 +47,8 @@
 
     .ctd {
         margin: 0 -12px;
-        background: #0f0f0f;
-        color: #e5e7eb;
+        background: var(--p-0);
+        color: var(--text);
         font-family: 'Barlow', Arial, sans-serif;
         border-radius: 14px;
         overflow: hidden;
@@ -84,12 +84,12 @@
     }
 
     .ctd-badge-lg img { width: 82%; height: 82%; object-fit: contain; }
-    .ctd-badge-lg span { font-size: 1.4rem; font-weight: 700; color: #9ca3af; }
+    .ctd-badge-lg span { font-size: 1.4rem; font-weight: 700; color: var(--text-muted); }
 
     .ctd-info { flex: 1; min-width: 200px; padding-top: 2px; }
 
     .ctd-name-row { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; flex-wrap: wrap; }
-    .ctd-name-row h1 { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; margin: 0; line-height: 1; }
+    .ctd-name-row h1 { font-size: 2.4rem; font-weight: 800; color: var(--text-strong); margin: 0; line-height: 1; }
 
     .ctd-formacao-badge {
         background: rgba(212,165,32,0.16); border: 1px solid rgba(212,165,32,0.4);
@@ -98,12 +98,14 @@
     }
 
     .ctd-cidade { display: flex; align-items: center; gap: 5px; margin-bottom: 14px; }
-    .ctd-cidade span { font-size: 0.8rem; color: #9ca3af; }
+    .ctd-cidade span { font-size: 0.8rem; color: var(--text-muted); }
+    .ctd-estadio { display: inline-flex; align-items: center; gap: 5px; }
+    .ctd-estadio::before { content: "·"; margin-right: 3px; color: var(--text-muted); }
 
     .ctd-meta-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .ctd-meta-label {
         font-size: 0.6rem; font-weight: 700; letter-spacing: 0.12em;
-        color: #64748b; text-transform: uppercase;
+        color: var(--text-dim); text-transform: uppercase;
     }
     .ctd-forma-dot {
         display: inline-flex; align-items: center; justify-content: center;
@@ -111,7 +113,17 @@
         font-size: 9px; font-weight: 800; flex-shrink: 0;
     }
     .ctd-meta-sep { width: 1px; height: 16px; background: rgba(255,255,255,0.14); margin: 0 2px; }
-    .ctd-meta-info { font-size: 0.75rem; color: #94a3b8; }
+    .ctd-meta-info { font-size: 0.75rem; color: var(--text-muted); }
+
+    /* Troféus — uma taça por competição/temporada conquistada */
+    .ctd-titulos { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+    .ctd-titulo {
+        display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
+        background: rgba(212,165,32,0.14); border: 1px solid rgba(212,165,32,0.34);
+        border-radius: 8px; font-size: 0.74rem; font-weight: 700; color: #eecb6c;
+    }
+    .ctd-titulo img { width: 16px; height: 16px; object-fit: contain; }
+    .ctd-titulo-temporada { color: rgba(255,255,255,0.62); font-weight: 600; }
 
     .ctd-treinador {
         background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
@@ -119,7 +131,7 @@
     }
     .ctd-treinador-label {
         font-size: 0.58rem; font-weight: 700; letter-spacing: 0.16em;
-        color: #6b7280; text-transform: uppercase; margin-bottom: 8px;
+        color: var(--text-dim); text-transform: uppercase; margin-bottom: 8px;
     }
     .ctd-treinador-row { display: flex; align-items: center; gap: 10px; }
     .ctd-treinador-foto {
@@ -130,37 +142,37 @@
         width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.1);
         display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0;
     }
-    .ctd-treinador-nome { font-size: 0.86rem; font-weight: 700; color: #f1f5f9; }
-    .ctd-treinador-nac { font-size: 0.7rem; color: #9ca3af; }
+    .ctd-treinador-nome { font-size: 0.86rem; font-weight: 700; color: var(--text-strong); }
+    .ctd-treinador-nac { font-size: 0.7rem; color: var(--text-muted); }
     .ctd-treinador-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .ctd-treinador-edit-btn {
-        background: none; border: none; color: #6b7280; cursor: pointer; font-size: 0.8rem;
+        background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.8rem;
         padding: 0; line-height: 1;
     }
-    .ctd-treinador-edit-btn:hover { color: #d4a520; }
+    .ctd-treinador-edit-btn:hover { color: var(--gold-ink); }
     .ctd-treinador-editar-link {
-        display: block; margin-top: 6px; font-size: 0.66rem; color: #6b7280; font-weight: 700;
+        display: block; margin-top: 6px; font-size: 0.66rem; color: var(--text-dim); font-weight: 700;
     }
-    .ctd-treinador-editar-link:hover { color: #d4a520; }
-    .ctd-treinador-vazio { font-size: 0.78rem; color: #6b7280; padding: 4px 0 2px; }
+    .ctd-treinador-editar-link:hover { color: var(--gold-ink); }
+    .ctd-treinador-vazio { font-size: 0.78rem; color: var(--text-dim); padding: 4px 0 2px; }
     .ctd-treinador-vincular-btn {
-        display: inline-block; margin-top: 6px; font-size: 0.7rem; font-weight: 700; color: #d4a520;
+        display: inline-block; margin-top: 6px; font-size: 0.7rem; font-weight: 700; color: var(--gold-ink);
         background: none; border: none; padding: 0; cursor: pointer;
     }
-    .ctd-treinador-vincular-btn:hover { color: #f0c040; }
+    .ctd-treinador-vincular-btn:hover { color: var(--gold-ink); }
 
     /* ── Modal treinador (sobrescreve tema claro do Bootstrap) ─── */
-    #treinadorModal .modal-content { background: #161616; color: #e5e7eb; border: 1px solid #262626; }
-    #treinadorModal .modal-header, #treinadorModal .modal-footer { border-color: #262626; }
-    #treinadorModal .nav-tabs { border-color: #262626; }
-    #treinadorModal .nav-tabs .nav-link { color: #9ca3af; border: none; }
-    #treinadorModal .nav-tabs .nav-link.active { color: #d4a520; background: transparent; border-bottom: 2px solid #d4a520; }
-    #treinadorModal .form-label { font-size: 0.78rem; color: #9ca3af; font-weight: 700; }
+    #treinadorModal .modal-content { background: var(--p-1); color: var(--text); border: 1px solid var(--line); }
+    #treinadorModal .modal-header, #treinadorModal .modal-footer { border-color: var(--line); }
+    #treinadorModal .nav-tabs { border-color: var(--line); }
+    #treinadorModal .nav-tabs .nav-link { color: var(--text-muted); border: none; }
+    #treinadorModal .nav-tabs .nav-link.active { color: var(--gold-ink); background: transparent; border-bottom: 2px solid #d4a520; }
+    #treinadorModal .form-label { font-size: 0.78rem; color: var(--text-muted); font-weight: 700; }
     #treinadorModal .form-control, #treinadorModal .form-select {
-        background: #0f0f0f; border: 1px solid #333; color: #e5e7eb;
+        background: var(--p-0); border: 1px solid var(--line); color: var(--text);
     }
     #treinadorModal .form-control:focus, #treinadorModal .form-select:focus {
-        background: #0f0f0f; color: #e5e7eb; border-color: #d4a520; box-shadow: none;
+        background: var(--p-0); color: var(--text); border-color: #d4a520; box-shadow: none;
     }
 
     .ctd-actions { display: flex; flex-direction: column; gap: 7px; flex-shrink: 0; }
@@ -169,9 +181,9 @@
         background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
         border-radius: 8px; color: #c9c5bb; font-size: 0.78rem; font-weight: 700; white-space: nowrap;
     }
-    .ctd-action-btn:hover { border-color: #d4a520; color: #d4a520; }
-    .ctd-action-btn.primary { background: rgba(212,165,32,0.14); border-color: rgba(212,165,32,0.32); color: #d4a520; }
-    .ctd-action-btn.primary:hover { background: rgba(212,165,32,0.24); color: #d4a520; }
+    .ctd-action-btn:hover { border-color: #d4a520; color: var(--gold-ink); }
+    .ctd-action-btn.primary { background: rgba(212,165,32,0.14); border-color: rgba(212,165,32,0.32); color: var(--gold-ink); }
+    .ctd-action-btn.primary:hover { background: rgba(212,165,32,0.24); color: var(--gold-ink); }
 
     /* ── Grid principal ──────────────────────────── */
     .ctd-grid {
@@ -189,25 +201,40 @@
     .ctd-col-title { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
     .ctd-col-title span {
         font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 0.72rem; font-weight: 700;
-        letter-spacing: 0.16em; color: #6b7280; text-transform: uppercase; white-space: nowrap;
+        letter-spacing: 0.16em; color: var(--text-dim); text-transform: uppercase; white-space: nowrap;
     }
-    .ctd-col-title .line { flex: 1; height: 1px; background: #222; }
-    .ctd-col-title .cnt { font-size: 0.68rem; color: #4b5563; font-weight: 600; }
-    .ctd-col-title a { font-size: 0.7rem; color: #d4a520; font-weight: 700; white-space: nowrap; }
-    .ctd-col-title a:hover { color: #f0c040; }
+    .ctd-col-title .line { flex: 1; height: 1px; background: var(--p-3); }
+    .ctd-col-title .cnt { font-size: 0.68rem; color: var(--text-dimmer); font-weight: 600; }
+    .ctd-col-title a { font-size: 0.7rem; color: var(--gold-ink); font-weight: 700; white-space: nowrap; }
+    .ctd-col-title a:hover { color: var(--gold-ink); }
 
     /* ── Elenco ──────────────────────────────────── */
     .ctd-elenco-panel {
-        background: #161616; border: 1px solid #262626; border-radius: 12px;
+        background: var(--p-1); border: 1px solid var(--line); border-radius: 12px;
         overflow: hidden; max-height: 560px; overflow-y: auto;
     }
 
     .jogador-row {
         display: flex; align-items: center; gap: 10px; padding: 9px 14px;
-        border-bottom: 1px solid #1a1a1a; cursor: grab; transition: background 0.12s;
+        border-bottom: 1px solid var(--line-soft); cursor: grab; transition: background 0.12s;
     }
-    .jogador-row:hover { background: #1e1e1e; }
+    .jogador-row:hover { background: var(--p-3); }
     .jogador-row.usado { display: none; }
+    /* Escondido pela busca/filtro de posição — separado de .usado (escalação) para
+       que os dois critérios não se atrapalhem. */
+    .jogador-row.filtrado { display: none; }
+
+    .ctd-elenco-filtros { display: flex; gap: 8px; margin-bottom: 10px; }
+    .ctd-elenco-filtros .busca { flex: 1; min-width: 0; }
+    .ctd-elenco-input {
+        width: 100%; background: var(--p-2); border: 1px solid var(--line); border-radius: 8px;
+        color: var(--text); font-size: 0.8rem; padding: 8px 11px; outline: none;
+    }
+    .ctd-elenco-input:focus { border-color: var(--line-strong); }
+    .ctd-elenco-input::placeholder { color: var(--text-dimmer); }
+    .ctd-elenco-vazio {
+        padding: 18px 14px; text-align: center; font-size: 0.78rem; color: var(--text-dim);
+    }
 
     .ctd-num {
         width: 28px; height: 28px; border-radius: 50%;
@@ -217,16 +244,16 @@
 
     .ctd-jog-foto {
         width: 30px; height: 30px; border-radius: 50%; object-fit: cover;
-        background: #0f0f0f; border: 1px solid #2f2f2f; flex-shrink: 0;
+        background: var(--p-0); border: 1px solid var(--line-strong); flex-shrink: 0;
     }
 
     .ctd-jog-info { flex: 1; min-width: 0; }
     .ctd-jog-nome {
-        font-size: 0.82rem; font-weight: 600; color: #e5e7eb;
+        font-size: 0.82rem; font-weight: 600; color: var(--text);
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .ctd-jog-pos {
-        font-size: 0.62rem; color: #6b7280; font-weight: 700;
+        font-size: 0.62rem; color: var(--text-dim); font-weight: 700;
         letter-spacing: 0.08em; text-transform: uppercase; margin-top: 1px;
         display: flex; align-items: center; gap: 5px;
     }
@@ -235,16 +262,16 @@
 
     .ctd-stats-link {
         font-size: 0.62rem; padding: 3px 8px; background: rgba(34,197,94,0.1);
-        border: 1px solid rgba(34,197,94,0.22); color: #4ade80; border-radius: 5px;
+        border: 1px solid rgba(34,197,94,0.22); color: var(--ok); border-radius: 5px;
         font-weight: 700; flex-shrink: 0;
     }
-    .ctd-stats-link:hover { background: rgba(34,197,94,0.2); color: #4ade80; }
+    .ctd-stats-link:hover { background: rgba(34,197,94,0.2); color: var(--ok); }
 
     /* ── Escalação ───────────────────────────────── */
     .ctd-form-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
     .ctd-select {
-        appearance: none; background: #1a1a1a; border: 1px solid #333; border-radius: 8px;
-        color: #e5e7eb; font-size: 0.84rem; padding: 9px 12px; cursor: pointer; outline: none;
+        appearance: none; background: var(--p-2); border: 1px solid var(--line); border-radius: 8px;
+        color: var(--text); font-size: 0.84rem; padding: 9px 12px; cursor: pointer; outline: none;
     }
     .ctd-btn {
         padding: 9px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 700;
@@ -290,7 +317,7 @@
     .ctd-partidas-list { display: flex; flex-direction: column; gap: 10px; max-height: 560px; overflow-y: auto; }
 
     .ctd-match-card {
-        background: #161616; border: 1px solid #262626; border-radius: 10px; padding: 12px 14px;
+        background: var(--p-1); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
         transition: border-color 0.15s;
     }
     .ctd-match-card:hover { border-color: #383838; }
@@ -298,11 +325,11 @@
     .ctd-match-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
     .ctd-match-comp {
         display: flex; align-items: center; gap: 5px; font-size: 0.64rem; font-weight: 700;
-        color: #d4a520; text-transform: uppercase; letter-spacing: 0.06em;
+        color: var(--gold-ink); text-transform: uppercase; letter-spacing: 0.06em;
         overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
     }
     .ctd-match-comp img { width: 14px; height: 14px; object-fit: contain; border-radius: 50%; flex-shrink: 0; }
-    .ctd-match-date { font-size: 0.64rem; color: #4b5563; flex-shrink: 0; white-space: nowrap; }
+    .ctd-match-date { font-size: 0.64rem; color: var(--text-dimmer); flex-shrink: 0; white-space: nowrap; }
 
     .ctd-match-teams { display: flex; align-items: center; gap: 8px; }
     .ctd-match-team { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; }
@@ -314,13 +341,13 @@
 
     .ctd-match-score {
         font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.2rem; font-weight: 800;
-        color: #f1f5f9; background: #0f0f0f; padding: 2px 10px; border-radius: 6px;
+        color: var(--text-strong); background: var(--p-0); padding: 2px 10px; border-radius: 6px;
         flex-shrink: 0; letter-spacing: 0.06em; white-space: nowrap;
     }
 
     .ctd-match-footer {
         display: flex; align-items: center; justify-content: space-between; gap: 8px;
-        margin-top: 10px; padding-top: 8px; border-top: 1px solid #1e1e1e;
+        margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line-soft);
     }
     .ctd-result-badge {
         color: #fff; border-radius: 4px; width: 20px; height: 20px; display: inline-flex;
@@ -330,16 +357,16 @@
         font-size: 0.62rem; font-weight: 700; padding: 2px 8px; border-radius: 999px;
         white-space: nowrap;
     }
-    .ctd-status-ok { background: rgba(34,197,94,0.14); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
-    .ctd-status-pending { background: rgba(255,255,255,0.08); color: #9ca3af; border: 1px solid rgba(255,255,255,0.15); }
+    .ctd-status-ok { background: rgba(34,197,94,0.14); color: var(--ok); border: 1px solid rgba(34,197,94,0.3); }
+    .ctd-status-pending { background: rgba(255,255,255,0.08); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.15); }
 
     .ctd-analisar-link {
-        font-size: 0.65rem; color: #6b7280; font-weight: 600; display: flex; align-items: center; gap: 3px;
+        font-size: 0.65rem; color: var(--text-dim); font-weight: 600; display: flex; align-items: center; gap: 3px;
         flex-shrink: 0;
     }
-    .ctd-analisar-link:hover { color: #d4a520; }
+    .ctd-analisar-link:hover { color: var(--gold-ink); }
 
-    .ctd-empty { text-align: center; padding: 1.5rem 1rem; color: #6b7280; font-size: 0.82rem; }
+    .ctd-empty { text-align: center; padding: 1.5rem 1rem; color: var(--text-dim); font-size: 0.82rem; }
 
     /* ── Painéis recolhíveis (acordeão) ─────────────── */
     .acc-header {
@@ -347,35 +374,35 @@
         padding: 1.1rem 1.5rem; background: none; border: none; cursor: pointer;
         text-align: left; font-family: 'Barlow', Arial, sans-serif;
     }
-    .acc-chevron { color: #64748b; font-size: 13px; width: 14px; flex-shrink: 0; }
-    .acc-title { color: #f1f5f9; font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 20px; font-weight: 800; }
+    .acc-chevron { color: var(--text-dim); font-size: 13px; width: 14px; flex-shrink: 0; }
+    .acc-title { color: var(--text-strong); font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 20px; font-weight: 800; }
     .acc-meta { font-size: 11px; color: #475569; margin-left: auto; }
     .acc-body { padding: 0 1.5rem 1.5rem; }
     .acc-body[hidden] { display: none; }
 
     /* ── Estatísticas da temporada ────────────────── */
-    .est-panel { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; overflow: hidden; }
+    .est-panel { background: var(--p-alt); border: 1px solid var(--p-alt-2); border-radius: 16px; overflow: hidden; }
 
     .est-filtros {
         display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap;
-        padding-bottom: 1.1rem; border-bottom: 1px solid #1e293b;
+        padding-bottom: 1.1rem; border-bottom: 1px solid var(--p-alt-2);
     }
     .est-label {
-        font-size: 11px; color: #94a3b8; text-transform: uppercase;
+        font-size: 11px; color: var(--text-muted); text-transform: uppercase;
         letter-spacing: 1px; display: block; margin-bottom: 0.3rem;
     }
     .est-input {
-        background: #1e293b; color: #f1f5f9; border: 1px solid #334155;
+        background: var(--p-alt-2); color: var(--text-strong); border: 1px solid var(--p-alt-3);
         border-radius: 8px; padding: 0.45rem 0.75rem; font-size: 13px;
     }
 
-    .est-seg { display: flex; background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 3px; gap: 3px; }
+    .est-seg { display: flex; background: var(--p-alt-2); border: 1px solid var(--p-alt-3); border-radius: 8px; padding: 3px; gap: 3px; }
     .est-seg button {
         border: none; cursor: pointer; font-family: 'Barlow', sans-serif; font-size: 12px;
         font-weight: 700; padding: 0.3rem 0.8rem; border-radius: 6px;
-        background: transparent; color: #94a3b8;
+        background: transparent; color: var(--text-muted);
     }
-    .est-seg button.ativo { background: #334155; color: #f1f5f9; }
+    .est-seg button.ativo { background: var(--p-alt-3); color: var(--text-strong); }
 
     .est-buscar {
         background: #3b82f6; color: #fff; border: none; border-radius: 8px;
@@ -384,31 +411,59 @@
     }
     .est-buscar:hover { background: #2563eb; }
 
-    .est-tabs { display: flex; gap: 2px; margin: 1.1rem 0 1.25rem; border-bottom: 1px solid #1e293b; flex-wrap: wrap; }
+    .est-tabs { display: flex; gap: 2px; margin: 1.1rem 0 1.25rem; border-bottom: 1px solid var(--p-alt-2); flex-wrap: wrap; }
     .est-tabs button {
         border: none; background: none; cursor: pointer; font-family: 'Barlow Condensed', sans-serif;
         font-size: 15px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-        padding: 0.55rem 1.1rem; border-bottom: 2px solid transparent; color: #94a3b8;
+        padding: 0.55rem 1.1rem; border-bottom: 2px solid transparent; color: var(--text-muted);
     }
-    .est-tabs button.ativo { color: #d4a520; border-bottom-color: #d4a520; }
+    .est-tabs button.ativo { color: var(--gold-ink); border-bottom-color: #d4a520; }
 
     .est-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem; }
-    .est-kpi { background: #1e293b; border-radius: 10px; padding: 0.8rem 0.95rem; }
-    .est-kpi-label { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+    .est-kpi { background: var(--p-alt-2); border-radius: 10px; padding: 0.8rem 0.95rem; }
+    .est-kpi-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
     .est-kpi-valor { font-family: 'Barlow Condensed', sans-serif; font-size: 30px; font-weight: 800; line-height: 1.1; }
-    .est-kpi-sub { font-size: 11px; color: #64748b; }
+    .est-kpi-sub { font-size: 11px; color: var(--text-dim); }
 
     .est-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }
-    .est-card { background: #1e293b; border-radius: 10px; padding: 1rem 1.1rem; }
+    .est-card { background: var(--p-alt-2); border-radius: 10px; padding: 1rem 1.1rem; }
     .est-card.full { grid-column: 1 / -1; }
     .est-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
-    .est-card-title { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
-    .est-card-title .leve { text-transform: none; letter-spacing: 0; color: #64748b; }
-    .est-card-nota { font-size: 10px; color: #64748b; }
+    .est-card-title { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+    .est-card-title .leve { text-transform: none; letter-spacing: 0; color: var(--text-dim); }
+    .est-card-nota { font-size: 10px; color: var(--text-dim); }
 
-    .est-chart { position: relative; height: 230px; }
+    /* min-width:0 — sem isso o track do grid não encolhe abaixo do tamanho do
+       canvas (min-width:auto = min-content) e o gráfico estoura o card ao
+       voltar do modo ampliado. */
+    .est-chart { position: relative; height: 230px; min-width: 0; }
     .est-chart.alto { height: 260px; }
     .est-chart.radar { height: 340px; }
+    .est-cards > * { min-width: 0; }
+
+    /* ── Ampliar card de gráfico (tela cheia) ──────────────────────────────
+       O card é movido para um overlay em document.body (position:fixed puro
+       quebraria dentro de qualquer ancestral com transform), com um
+       placeholder guardando o lugar original no grid. */
+    .est-zoom {
+        margin-left: auto; flex-shrink: 0; cursor: pointer; align-self: center;
+        background: var(--p-alt); border: 1px solid var(--p-alt-3); color: var(--text-muted); border-radius: 8px;
+        font-family: 'Barlow', Arial, sans-serif; font-size: 11px; font-weight: 700;
+        padding: .25rem .6rem; display: inline-flex; align-items: center; gap: 5px;
+    }
+    .est-zoom:hover { color: var(--text-strong); border-color: #475569; }
+
+    .est-overlay { position: fixed; inset: 0; z-index: 2000; background: rgba(2,6,23,.94); padding: 2.5vh 2.5vw; overflow: auto; }
+    .est-card.est-ampliado { margin: 0; height: 95vh; display: flex; flex-direction: column; }
+    .est-ampliado > .est-card-head { flex-shrink: 0; }
+    .est-ampliado > .est-chart,
+    .est-ampliado > .est-chart.alto,
+    .est-ampliado > .est-chart.radar { height: auto; flex: 1 1 auto; min-height: 0; }
+
+    @@media (max-width: 768px) {
+        .est-overlay { padding: 1rem .6rem; }
+        .est-card.est-ampliado { height: calc(100vh - 2rem); }
+    }
 
     .est-forma { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 1rem; }
     .est-forma span {
@@ -417,26 +472,26 @@
     }
 
     .est-mini { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.75rem; }
-    .est-mini-box { background: #0f172a; border-radius: 8px; padding: 0.75rem 0.9rem; }
-    .est-mini-label { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.35rem; }
-    .est-mini-valor { font-size: 13px; color: #f1f5f9; }
+    .est-mini-box { background: var(--p-alt); border-radius: 8px; padding: 0.75rem 0.9rem; }
+    .est-mini-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.35rem; }
+    .est-mini-valor { font-size: 13px; color: var(--text-strong); }
 
-    .est-vazio { color: #64748b; font-size: 12px; text-align: center; padding: 2rem 1rem; line-height: 1.5; }
+    .est-vazio { color: var(--text-dim); font-size: 12px; text-align: center; padding: 2rem 1rem; line-height: 1.5; }
 
     /* ── Tabela "Elenco em números" ────────────────── */
     .elenco-tab { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
     .elenco-tab th {
-        position: sticky; top: 0; background: #1e293b; color: #94a3b8; cursor: pointer;
+        position: sticky; top: 0; background: var(--p-alt-2); color: var(--text-muted); cursor: pointer;
         font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700;
-        padding: 0.5rem 0.55rem; text-align: right; border-bottom: 1px solid #334155; user-select: none;
+        padding: 0.5rem 0.55rem; text-align: right; border-bottom: 1px solid var(--p-alt-3); user-select: none;
     }
     .elenco-tab th.txt, .elenco-tab td.txt { text-align: left; }
-    .elenco-tab th:hover { color: #f1f5f9; }
-    .elenco-tab th.ativo { color: #d4a520; }
-    .elenco-tab td { padding: 0.45rem 0.55rem; text-align: right; color: #cbd5e1; border-bottom: 1px solid #16202e; }
+    .elenco-tab th:hover { color: var(--text-strong); }
+    .elenco-tab th.ativo { color: var(--gold-ink); }
+    .elenco-tab td { padding: 0.45rem 0.55rem; text-align: right; color: var(--text-2); border-bottom: 1px solid #16202e; }
     .elenco-tab tbody tr:hover { background: #172033; }
-    .elenco-tab td.txt a { color: #f1f5f9; text-decoration: none; }
-    .elenco-tab td.txt a:hover { color: #d4a520; }
+    .elenco-tab td.txt a { color: var(--text-strong); text-decoration: none; }
+    .elenco-tab td.txt a:hover { color: var(--gold-ink); }
     .elenco-setor {
         display: inline-block; font-size: 9px; font-weight: 800; letter-spacing: 0.06em;
         padding: 1px 6px; border-radius: 4px; color: #0f172a;
@@ -457,7 +512,7 @@
     }
 
     <!-- Hero -->
-    <div class="ctd-hero">
+    <div class="ctd-hero theme-dark-zone">
         <img class="ctd-hero-pattern" src="~/Images/banner/escudos-pattern.svg" alt="" />
         <div class="ctd-hero-stripe"></div>
 
@@ -484,6 +539,21 @@
                 <div class="ctd-cidade">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
                     <span>@Model.Time.Cidade</span>
+                    @if (!string.IsNullOrWhiteSpace(Model.Time.EstadioNome))
+                    {
+                        var tituloEstadio = "Estádio do clube";
+                        if (!string.IsNullOrWhiteSpace(Model.Time.EstadioGramado))
+                        {
+                            tituloEstadio += " · gramado: " + Model.Time.EstadioGramado;
+                        }
+                        var capacidadeEstadio = Model.Time.EstadioCapacidade > 0
+                            ? " · " + Model.Time.EstadioCapacidade.Value.ToString("N0") + " lugares"
+                            : "";
+                        <span class="ctd-estadio" title="@tituloEstadio">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="4" /><line x1="12" y1="6" x2="12" y2="18" /><circle cx="12" cy="12" r="2.5" /></svg>
+                            @(Model.Time.EstadioNome + capacidadeEstadio)
+                        </span>
+                    }
                 </div>
                 <div class="ctd-meta-row">
                     @if (formaTime.Any())
@@ -499,6 +569,28 @@
                     <span class="ctd-meta-info">·</span>
                     <span class="ctd-meta-info">@totalPartidas partidas</span>
                 </div>
+                @if (Model.Titulos.Any())
+                {
+                    <div class="ctd-meta-row ctd-titulos">
+                        <span class="ctd-meta-label">@(Model.Titulos.Count == 1 ? "Título" : "Títulos")</span>
+                        @foreach (var titulo in Model.Titulos)
+                        {
+                            <a class="ctd-titulo" asp-controller="Competicoes" asp-action="Detalhes"
+                               asp-route-id="@titulo.CompeticaoId" asp-route-temporada="@titulo.Temporada"
+                               title="Campeão — @titulo.Competicao @titulo.TemporadaRotulo">
+                                @* A taça é o que identifica o chip; o logo da competição
+                                   entra junto quando está cadastrado. *@
+                                <span>🏆</span>
+                                @if (!string.IsNullOrEmpty(titulo.LogoUrl))
+                                {
+                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = titulo.LogoUrl })" alt="" />
+                                }
+                                <span>@titulo.Competicao</span>
+                                <span class="ctd-titulo-temporada">@titulo.TemporadaRotulo</span>
+                            </a>
+                        }
+                    </div>
+                }
             </div>
 
             <div class="ctd-treinador">
@@ -554,6 +646,14 @@
                         Atualizar dados jogadores
                     </button>
                 </form>
+                <form method="post" asp-action="AtualizarEstadio" asp-controller="Times" asp-route-id="@Model.Time.Id" style="display:inline;"
+                      onsubmit="return confirm('Buscar o estádio deste clube na api-football e salvar no perfil do time?')">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="ctd-action-btn">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="4" /><line x1="12" y1="6" x2="12" y2="18" /><circle cx="12" cy="12" r="2.5" /></svg>
+                        Atualizar estádio
+                    </button>
+                </form>
             </div>
         </div>
     </div>
@@ -591,7 +691,7 @@
                                             </option>
                                         }
                                     </select>
-                                    <div class="form-text" style="color:#6b7280;">O time atual de cada treinador aparece entre parênteses — ao vincular, ele deixa de ser o treinador do time anterior.</div>
+                                    <div class="form-text" style="color:var(--text-dim)">O time atual de cada treinador aparece entre parênteses — ao vincular, ele deixa de ser o treinador do time anterior.</div>
                                 </div>
                                 <button type="submit" class="ctd-btn ctd-btn-gold">Vincular a @Model.Time.Nome</button>
                             </form>
@@ -635,14 +735,44 @@
             <div class="ctd-col-title">
                 <span>Elenco</span>
                 <div class="line"></div>
-                <span class="cnt">@Model.Elenco.Count jog.</span>
+                <span class="cnt" id="elenco-contador">@Model.Elenco.Count jog.</span>
             </div>
+
+            @{
+                // Opções do filtro: as siglas que realmente existem neste elenco, na
+                // ordem do campo (GOL → DEF → MEI → ATA). Quem tem duas posições
+                // ("LD/VOL") entra nas duas.
+                var ordemSetor = new[] { "GOL", "DEF", "MEI", "ATA" };
+                var posicoesElenco = Model.Elenco
+                    .SelectMany(j => PosicaoJogadorHelper.Sigla(j.Posicao).Split('/'))
+                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                    .Distinct()
+                    .OrderBy(s => { var i = Array.IndexOf(ordemSetor, PosicaoJogadorHelper.Setor(s) ?? ""); return i < 0 ? 99 : i; })
+                    .ThenBy(s => s)
+                    .ToList();
+            }
+            <div class="ctd-elenco-filtros">
+                <div class="busca">
+                    <input type="text" id="elenco-busca" class="ctd-elenco-input"
+                           placeholder="Buscar jogador por nome..." autocomplete="off" />
+                </div>
+                <select id="elenco-filtro-posicao" class="ctd-elenco-input" style="width:auto;cursor:pointer;">
+                    <option value="">Todas as posições</option>
+                    @foreach (var p in posicoesElenco)
+                    {
+                        <option value="@p">@p</option>
+                    }
+                </select>
+            </div>
+
             <div class="ctd-elenco-panel" id="listaJogadores">
                 @foreach (var jogador in Model.Elenco)
                 {
                     bool ehConvocado = jogador.TimeId != Model.Time.Id;
                     <div class="jogador-row"
                          id="jogador-@jogador.Id"
+                         data-nome="@($"{jogador.Nome} {jogador.NomeExibicao}".Trim())"
+                         data-posicoes="@PosicaoJogadorHelper.Sigla(jogador.Posicao)"
                          draggable="true"
                          ondragstart="dragJogador(event, @jogador.Id, '@jogador.Nome', '@(jogador.NumeroCamisa?.ToString() ?? "")')">
                         <div class="ctd-num player-circle-team">@(jogador.NumeroCamisa?.ToString() ?? "")</div>
@@ -673,7 +803,48 @@
                         <a href="/Jogadores/Estatisticas/@jogador.Id" class="ctd-stats-link" title="Ver estatísticas de @jogador.Nome">Stats</a>
                     </div>
                 }
+                <div class="ctd-elenco-vazio" id="elenco-sem-resultado" hidden>Nenhum jogador encontrado.</div>
             </div>
+
+            <script>
+                // Busca por nome + filtro de posição da lista do elenco. Só mostra/esconde
+                // as linhas já renderizadas — a classe .filtrado é independente da .usado,
+                // que a escalação padrão usa para tirar da lista quem já está em campo.
+                (function () {
+                    const busca = document.getElementById('elenco-busca');
+                    const filtro = document.getElementById('elenco-filtro-posicao');
+                    const linhas = Array.from(document.querySelectorAll('#listaJogadores .jogador-row'));
+                    const vazio = document.getElementById('elenco-sem-resultado');
+                    const contador = document.getElementById('elenco-contador');
+
+                    // Sem acento e em minúsculas: "Julián" acha com "julian".
+                    const normalizar = (s) => (s || '')
+                        .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+                    function aplicar() {
+                        const termo = normalizar(busca.value);
+                        const pos = filtro.value;
+                        let visiveis = 0;
+
+                        linhas.forEach(linha => {
+                            const casaNome = !termo || normalizar(linha.dataset.nome).includes(termo);
+                            const casaPos = !pos ||
+                                (linha.dataset.posicoes || '').split('/').includes(pos);
+                            const mostra = casaNome && casaPos;
+                            linha.classList.toggle('filtrado', !mostra);
+                            if (mostra) visiveis++;
+                        });
+
+                        vazio.hidden = visiveis > 0;
+                        contador.textContent = visiveis === linhas.length
+                            ? `${linhas.length} jog.`
+                            : `${visiveis} de ${linhas.length} jog.`;
+                    }
+
+                    busca.addEventListener('input', aplicar);
+                    filtro.addEventListener('change', aplicar);
+                })();
+            </script>
         </div>
 
         <!-- ── Escalação padrão ────────────────────── -->
@@ -700,7 +871,7 @@
                 <input type="hidden" name="id" value="@Model.Time.Id" />
 
                 <div class="ctd-campo-wrap">
-                    <div id="campo" class="ctd-campo"
+                    <div id="campo" class="ctd-campo theme-dark-zone"
                          ondrop="dropNoCampo(event)" ondragover="allowDrop(event)">
 
                         <div class="ctd-campo-linha-meio"></div>
@@ -768,7 +939,7 @@
                                    (Model.Time.Id == jogo.TimeVisitanteId && jogo.PlacarVisitante > jogo.PlacarCasa);
                     bool empate = jogo.PlacarCasa == jogo.PlacarVisitante;
                     string resLetra = vitoria ? "V" : empate ? "E" : "D";
-                    string resCor = vitoria ? "#22c55e" : empate ? "#6b7280" : "#ef4444";
+                    string resCor = vitoria ? "#22c55e" : empate ? "var(--text-dim)" : "#ef4444";
                     bool casaVenceu = jogo.PlacarCasa > jogo.PlacarVisitante;
                     bool visVenceu = jogo.PlacarVisitante > jogo.PlacarCasa;
                     var logoComp = CompeticaoHelper.GetLogoCompeticao(jogo.CompeticaoId);
@@ -788,17 +959,17 @@
                         <div class="ctd-match-teams">
                             <div class="ctd-match-team">
                                 <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa?.EscudoUrl })" alt="" />
-                                <span style="font-weight:@(casaVenceu ? "700" : "500"); color:@(casaVenceu ? "#f1f5f9" : "#6b7280");">@jogo.TimeCasa?.Nome</span>
+                                <span style="font-weight:@(casaVenceu ? "700" : "500"); color:@(casaVenceu ? "var(--text-strong)" : "var(--text-dim)");">@jogo.TimeCasa?.Nome</span>
                             </div>
                             <span class="ctd-match-score">@jogo.PlacarCasa &ndash; @jogo.PlacarVisitante</span>
                             <div class="ctd-match-team right">
-                                <span style="font-weight:@(visVenceu ? "700" : "500"); color:@(visVenceu ? "#f1f5f9" : "#6b7280");">@jogo.TimeVisitante?.Nome</span>
+                                <span style="font-weight:@(visVenceu ? "700" : "500"); color:@(visVenceu ? "var(--text-strong)" : "var(--text-dim)");">@jogo.TimeVisitante?.Nome</span>
                                 <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante?.EscudoUrl })" alt="" />
                             </div>
                         </div>
                         @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
                         {
-                            <div style="text-align:center; font-size:0.62rem; color:#6b7280; margin-top:4px;">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</div>
+                            <div style="text-align:center; font-size:0.62rem; color:var(--text-dim); margin-top:4px">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</div>
                         }
                         <div class="ctd-match-footer">
                             <div style="display:flex; align-items:center; gap:8px;">
@@ -839,11 +1010,11 @@
                         <div class="ctd-match-teams">
                             <div class="ctd-match-team">
                                 <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa?.EscudoUrl })" alt="" />
-                                <span style="color:#9ca3af;">@jogo.TimeCasa?.Nome</span>
+                                <span style="color:var(--text-muted)">@jogo.TimeCasa?.Nome</span>
                             </div>
-                            <span class="ctd-match-score" style="color:#6b7280;">vs</span>
+                            <span class="ctd-match-score" style="color:var(--text-dim)">vs</span>
                             <div class="ctd-match-team right">
-                                <span style="color:#9ca3af;">@jogo.TimeVisitante?.Nome</span>
+                                <span style="color:var(--text-muted)">@jogo.TimeVisitante?.Nome</span>
                                 <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante?.EscudoUrl })" alt="" />
                             </div>
                         </div>
@@ -1042,8 +1213,8 @@
                 <button type="button" class="est-buscar" onclick="buscarEstatisticasApi()">🔍 Buscar</button>
             </div>
 
-            <div id="estat-loading" style="display:none;color:#94a3b8;text-align:center;padding:1rem;">Buscando estatísticas...</div>
-            <div id="estat-erro"    style="display:none;color:#ef4444;padding:.5rem 0;"></div>
+            <div id="estat-loading" style="display:none;color:var(--text-muted);text-align:center;padding:1rem">Buscando estatísticas...</div>
+            <div id="estat-erro"    style="display:none;color:var(--bad-2);padding:.5rem 0"></div>
 
             <div id="estat-result" style="display:none;">
                 <div class="est-tabs" id="est-tabs">
@@ -1076,10 +1247,222 @@
     </div>
 </div>
 
+<!-- ══ TRANSFERÊNCIAS ═══════════════════════════════════════════════════════
+     Chegadas e saídas do clube, vindas de /transfers?team=X da api-football
+     (via /Times/TransferenciasApi). A API devolve o histórico inteiro do clube,
+     sem filtro de data; o recorte por temporada é feito no servidor. A janela
+     muda de país para país: no Brasil a temporada é o ano civil, na Europa vai
+     de julho a junho — por isso os dois formatos ficam à escolha, com o padrão
+     sugerido pelo país do clube na API. -->
+@{
+    // Países em que a temporada é o ano civil; o resto assume julho→junho.
+    var paisesAnoCivil = new[] { "Brazil", "Argentina", "Colombia", "Chile", "Peru",
+        "Ecuador", "Uruguay", "Paraguay", "Venezuela", "Bolivia", "USA", "Japan",
+        "South-Korea", "China", "Norway", "Sweden", "Finland", "Ireland", "Iceland" };
+    var janelaPadrao = string.IsNullOrWhiteSpace(Model.Time.PaisApi)
+        || paisesAnoCivil.Contains(Model.Time.PaisApi, StringComparer.OrdinalIgnoreCase)
+            ? "civil" : "europeia";
+    var temporadaTransf = Model.CompeticoesApi.Any()
+        ? Model.CompeticoesApi.First().Season
+        : DateTime.Now.Year;
+}
+<style>
+    .trf-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @@media (max-width: 900px) { .trf-cols { grid-template-columns: 1fr; } }
+    .trf-col-head {
+        display: flex; align-items: center; gap: .4rem; font-size: .75rem;
+        font-weight: 800; text-transform: uppercase; letter-spacing: .04em;
+        padding-bottom: .4rem; margin-bottom: .5rem; border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .trf-col-head .trf-qtd { margin-left: auto; color: var(--text-muted); font-weight: 700; }
+    .trf-in  { color: #4ade80; }
+    .trf-out { color: #f87171; }
+    .trf-item {
+        display: flex; align-items: center; gap: .55rem;
+        padding: .45rem .3rem; border-bottom: 1px solid rgba(255,255,255,.05);
+    }
+    .trf-foto {
+        width: 30px; height: 30px; border-radius: 50%; object-fit: cover;
+        background: rgba(255,255,255,.05); flex: 0 0 auto;
+    }
+    .trf-nome { font-size: .82rem; font-weight: 700; }
+    .trf-nome a { color: inherit; text-decoration: none; }
+    .trf-nome a:hover { color: var(--gold-ink); }
+    .trf-sub { font-size: .7rem; color: var(--text-muted); display: flex; align-items: center; gap: .25rem; }
+    .trf-sub img { width: 14px; height: 14px; object-fit: contain; }
+    .trf-meta { margin-left: auto; text-align: right; flex: 0 0 auto; }
+    .trf-tipo {
+        display: inline-block; font-size: .66rem; font-weight: 800; padding: .1rem .4rem;
+        border-radius: 4px; background: rgba(212,165,32,.14); color: var(--gold-ink);
+    }
+    .trf-data { display: block; font-size: .66rem; color: var(--text-muted); margin-top: .15rem; }
+    .trf-vazio { color: var(--text-muted); font-size: .78rem; padding: .6rem .3rem; }
+    /* Selo do que a sincronização fez com este movimento no cadastro. */
+    .trf-selo { display: inline-block; font-size: .62rem; font-weight: 800; padding: .05rem .35rem; border-radius: 4px; }
+    .trf-selo.aplicada { background: rgba(74,222,128,.16); color: #4ade80; }
+    .trf-selo.pendente { background: rgba(248,113,113,.14); color: #f87171; }
+    .trf-selo.anterior { background: rgba(255,255,255,.06); color: var(--text-muted); }
+    .trf-item.aplicada { background: rgba(74,222,128,.06); }
+    .trf-resumo { font-size: .75rem; color: var(--text-muted); margin-bottom: .7rem; }
+    .trf-resumo b { color: var(--gold-ink); }
+</style>
+<div id="painel-transferencias" style="margin-top:1rem;">
+    <div class="est-panel">
+        <button type="button" class="acc-header" onclick="toggleAccordion(this)">
+            <span class="acc-chevron">▸</span>
+            <span class="acc-title">🔁 Transferências</span>
+            <span class="acc-meta" id="trf-meta">chegadas e saídas da temporada</span>
+        </button>
+        <div class="acc-body" hidden>
+            <!-- A busca sincroniza o cadastro (POST), por isso o token. -->
+            <form id="trf-form" style="display:none;">@Html.AntiForgeryToken()</form>
+            <div class="est-filtros">
+                <div>
+                    <label class="est-label" for="trf-season">Temporada</label>
+                    <input id="trf-season" class="est-input" type="number" style="width:100px;" value="@temporadaTransf" />
+                </div>
+                <div>
+                    <label class="est-label" for="trf-janela">Janela</label>
+                    <select id="trf-janela" class="est-input" style="min-width:190px;">
+                        <option value="civil" selected="@(janelaPadrao == "civil")">Ano civil (jan–dez)</option>
+                        <option value="europeia" selected="@(janelaPadrao == "europeia")">Europeia (jul–jun)</option>
+                    </select>
+                </div>
+                <button type="button" class="est-buscar" onclick="Transferencias.buscar()">🔍 Buscar e sincronizar</button>
+            </div>
+
+            <div id="trf-loading" style="display:none;color:var(--text-muted);text-align:center;padding:1rem">Buscando transferências...</div>
+            <div id="trf-erro" style="display:none;color:var(--bad-2);padding:.5rem 0"></div>
+
+            <div id="trf-result" style="display:none;">
+                <div class="trf-resumo" id="trf-resumo"></div>
+                <div class="trf-cols">
+                    <div>
+                        <div class="trf-col-head trf-in">⬅ Chegadas <span class="trf-qtd" id="trf-qtd-in"></span></div>
+                        <div id="trf-lista-in"></div>
+                    </div>
+                    <div>
+                        <div class="trf-col-head trf-out">➡ Saídas <span class="trf-qtd" id="trf-qtd-out"></span></div>
+                        <div id="trf-lista-out"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Painel de transferências: uma chamada ao servidor por temporada/janela.
+var Transferencias = (function () {
+    const TIME_ID = @Model.Time.Id;
+
+    function esc(t) {
+        return String(t ?? '').replace(/[&<>"']/g, c =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    // "aplicada" = o cadastro acabou de mudar; "sem-cadastro"/"sem-clube" = não deu
+    // para aplicar. O resto já batia com a API e fica só para conferência.
+    function selo(t) {
+        if (t.situacao === 'aplicada')
+            return `<span class="trf-selo aplicada" title="${esc(t.motivo || '')}">✓ aplicada</span>`;
+        if (t.situacao === 'sem-cadastro' || t.situacao === 'sem-clube')
+            return `<span class="trf-selo pendente" title="${esc(t.motivo || '')}">não aplicada</span>`;
+        if (t.situacao === 'criado')
+            return `<span class="trf-selo aplicada" title="${esc(t.motivo || '')}">✓ jogador criado</span>`;
+        if (t.situacao === 'anterior')
+            return `<span class="trf-selo anterior" title="${esc(t.motivo || '')}">movimento anterior</span>`;
+        return '';
+    }
+
+    function item(t, chegada) {
+        const foto = t.fotoUrl
+            ? `<img class="trf-foto" src="${esc(t.fotoUrl)}" alt="">`
+            : `<div class="trf-foto"></div>`;
+        const nome = t.jogadorId
+            ? `<a href="/Jogadores/Estatisticas/${t.jogadorId}">${esc(t.jogador)}</a>`
+            : esc(t.jogador);
+        const logo = t.clubeLogo ? `<img src="${esc(t.clubeLogo)}" alt="">` : '';
+        const seta = chegada ? 'de' : 'para';
+        const destacar = t.situacao === 'aplicada' || t.situacao === 'criado';
+        return `<div class="trf-item ${destacar ? 'aplicada' : ''}">
+            ${foto}
+            <div>
+                <div class="trf-nome">${nome}${t.posicao ? ` <span class="trf-sub">· ${esc(t.posicao)}</span>` : ''}</div>
+                <div class="trf-sub">${seta} ${logo} ${esc(t.clube)} ${selo(t)}</div>
+            </div>
+            <div class="trf-meta">
+                <span class="trf-tipo">${esc(t.tipo)}</span>
+                <span class="trf-data">${esc(t.data)}</span>
+            </div>
+        </div>`;
+    }
+
+    function lista(el, dados, chegada) {
+        document.getElementById(el).innerHTML = dados.length
+            ? dados.map(t => item(t, chegada)).join('')
+            : '<div class="trf-vazio">Nenhum movimento registrado nesta janela.</div>';
+    }
+
+    async function buscar() {
+        const season = document.getElementById('trf-season').value;
+        const janela = document.getElementById('trf-janela').value;
+        const loading = document.getElementById('trf-loading');
+        const erro = document.getElementById('trf-erro');
+        const resultado = document.getElementById('trf-result');
+
+        loading.style.display = 'block';
+        erro.style.display = 'none';
+        resultado.style.display = 'none';
+
+        try {
+            const corpo = new FormData();
+            corpo.append('timeId', TIME_ID);
+            corpo.append('season', season);
+            corpo.append('janela', janela);
+            corpo.append('__RequestVerificationToken',
+                document.querySelector('#trf-form input[name="__RequestVerificationToken"]').value);
+
+            const res = await fetch('/Times/TransferenciasApi', { method: 'POST', body: corpo });
+            const dados = await res.json();
+            loading.style.display = 'none';
+
+            if (dados.erro) {
+                erro.textContent = dados.erro;
+                erro.style.display = 'block';
+                return;
+            }
+
+            lista('trf-lista-in', dados.chegadas, true);
+            lista('trf-lista-out', dados.saidas, false);
+            document.getElementById('trf-qtd-in').textContent = dados.chegadas.length;
+            document.getElementById('trf-qtd-out').textContent = dados.saidas.length;
+            document.getElementById('trf-meta').textContent =
+                `${dados.periodo} · ${dados.chegadas.length} chegada(s), ${dados.saidas.length} saída(s)`;
+            const mexeu = dados.aplicadas || dados.jogadoresCriados || dados.clubesCriados;
+            document.getElementById('trf-resumo').innerHTML = mexeu
+                ? `<b>${dados.aplicadas}</b> transferência(s) aplicada(s) no cadastro` +
+                  (dados.jogadoresCriados ? ` · <b>${dados.jogadoresCriados}</b> jogador(es) criado(s)` : '') +
+                  (dados.clubesCriados ? ` · <b>${dados.clubesCriados}</b> clube(s) criado(s)` : '') +
+                  ` · veja o histórico na <a href="/Transferencias?timeId=${TIME_ID}">Janela de Transferências</a>.`
+                : 'Cadastro já em dia com a API — nada a aplicar, só conferência.';
+            resultado.style.display = 'block';
+        } catch (e) {
+            loading.style.display = 'none';
+            erro.textContent = 'Erro ao buscar transferências.';
+            erro.style.display = 'block';
+        }
+    }
+
+    return { buscar };
+})();
+</script>
+
 <!-- ══ ESTATÍSTICAS DO ELENCO ═══════════════════════════════════════════════
      Tudo o que EstatisticaJogador guarda (minutos, finalizações, passes-chave,
-     duelos, dribles, desarmes/interceptações/bloqueios, faltas, cartões, rating,
-     defesas), agregado por jogador nos jogos já realizados do time. Quase todo
+     duelos, dribles, desarmes/interceptações/bloqueios, faltas, cartões,
+     defesas), agregado por jogador nos jogos já realizados do time, mais a nota
+     média calculada pelo sistema (a coluna "Nota"). Quase todo
      ranking é normalizado por 90 minutos — é a única forma justa de comparar um
      titular absoluto com quem só entra no segundo tempo. Monta em
      TimesController.Details / MontarResumoElenco. -->
@@ -1126,7 +1509,7 @@
                     <input id="elenco-min-jogos" class="est-input" type="number" min="1" max="60" step="1"
                            value="@minJogosPadrao" style="width:90px;" />
                 </div>
-                <div style="font-size:11px;color:#64748b;max-width:340px;line-height:1.4;align-self:center;">
+                <div style="font-size:11px;color:var(--text-dim);max-width:340px;line-height:1.4;align-self:center">
                     Quem jogou menos que isso sai dos rankings por 90' e aparece esmaecido na tabela —
                     com pouca amostra, 1 gol em 20 minutos viraria 4,5 gols por 90'.
                 </div>
@@ -1137,7 +1520,7 @@
                 <div class="est-kpis">
                     <div class="est-kpi">
                         <div class="est-kpi-label">Idade média</div>
-                        <div class="est-kpi-valor" style="color:#f1f5f9;">@elencoResumo.IdadeMedia.ToString("0.0")</div>
+                        <div class="est-kpi-valor" style="color:var(--text-strong)">@elencoResumo.IdadeMedia.ToString("0.0")</div>
                         <div class="est-kpi-sub">@elencoResumo.IdadeMediaPonderada.ToString("0.0") em campo (por minutos)</div>
                     </div>
                     <div class="est-kpi">
@@ -1147,27 +1530,27 @@
                     </div>
                     <div class="est-kpi">
                         <div class="est-kpi-label">Dependência do XI</div>
-                        <div class="est-kpi-valor" style="color:@(elencoResumo.PercMinutosTop11 >= 75 ? "#eecb6c" : "#4ade80");">@elencoResumo.PercMinutosTop11.ToString("0.0")%</div>
+                        <div class="est-kpi-valor" style="color:@(elencoResumo.PercMinutosTop11 >= 75 ? "var(--warn)" : "var(--ok)");">@elencoResumo.PercMinutosTop11.ToString("0.0")%</div>
                         <div class="est-kpi-sub">dos minutos nos 11 mais usados</div>
                     </div>
                     <div class="est-kpi">
                         <div class="est-kpi-label">Gols + assistências</div>
-                        <div class="est-kpi-valor" style="color:#4ade80;">@(elencoResumo.Gols + elencoResumo.Assistencias)</div>
+                        <div class="est-kpi-valor" style="color:var(--ok)">@(elencoResumo.Gols + elencoResumo.Assistencias)</div>
                         <div class="est-kpi-sub">@elencoResumo.Gols gols · @elencoResumo.Assistencias assistências</div>
                     </div>
                     <div class="est-kpi">
                         <div class="est-kpi-label">Disciplina</div>
-                        <div class="est-kpi-valor" style="color:#eecb6c;">@elencoResumo.CartoesAmarelos<span style="font-size:18px;color:#ef4444;"> / @elencoResumo.CartoesVermelhos</span></div>
+                        <div class="est-kpi-valor" style="color:#eecb6c">@elencoResumo.CartoesAmarelos<span style="font-size:18px;color:var(--bad-2)"> / @elencoResumo.CartoesVermelhos</span></div>
                         <div class="est-kpi-sub">amarelos / vermelhos</div>
                     </div>
                     <div class="est-kpi">
-                        <div class="est-kpi-label">Rating médio</div>
+                        <div class="est-kpi-label">Nota média</div>
                         <div class="est-kpi-valor" style="color:#a78bfa;">@(elencoResumo.RatingMedio?.ToString("0.00") ?? "—")</div>
-                        <div class="est-kpi-sub">ponderado pelos minutos</div>
+                        <div class="est-kpi-sub">notas do sistema · ponderada pelos minutos</div>
                     </div>
                     <div class="est-kpi">
                         <div class="est-kpi-label">Porte físico</div>
-                        <div class="est-kpi-valor" style="color:#f1f5f9;">@(elencoResumo.AlturaMedia.HasValue ? elencoResumo.AlturaMedia + "cm" : "—")</div>
+                        <div class="est-kpi-valor" style="color:var(--text-strong)">@(elencoResumo.AlturaMedia.HasValue ? elencoResumo.AlturaMedia + "cm" : "—")</div>
                         <div class="est-kpi-sub">@elencoResumo.Nacionalidades nacionalidade(s)</div>
                     </div>
                 </div>
@@ -1262,7 +1645,7 @@
                                     <th data-col="jogos">J</th>
                                     <th data-col="titular">Tit</th>
                                     <th data-col="minutos" class="ativo">Min</th>
-                                    <th data-col="rating">Rating</th>
+                                    <th data-col="rating" title="Nota calculada pelo sistema (mesma régua de Relatórios)">Nota</th>
                                     <th data-col="gols">G</th>
                                     <th data-col="assist">A</th>
                                     <th data-col="fin">Fin</th>
@@ -1286,7 +1669,8 @@
                     </div>
                     <div class="est-card-nota" style="margin-top:.6rem;">
                         J = jogos com estatística importada · Tit = titularidades · Def.Ações = desarmes + interceptações + bloqueios ·
-                        Defesas só faz sentido para goleiros. No modo “Por 90'” os percentuais e o rating não mudam e
+                        Nota = média das notas do sistema (manual quando você avaliou o jogo, automática nos demais) ·
+                        Defesas só faz sentido para goleiros. No modo “Por 90'” os percentuais e a nota não mudam e
                         quem tem menos de <span class="elenco-min-lbl">@minJogosPadrao</span> jogo(s) aparece esmaecido — a amostra é pequena demais para o número valer.
                     </div>
                 </div>
@@ -2434,7 +2818,7 @@ function buscarEstatisticasApi() { Estatisticas.buscar(); }
             // ── Tabela "Elenco em números" ───────────────────────────────────────
             // Cada coluna sabe extrair seu valor bruto (para ordenar) e formatá-lo.
             // No modo "por 90" só as contagens são normalizadas — percentuais,
-            // rating, idade, jogos e minutos continuam absolutos.
+            // nota, idade, jogos e minutos continuam absolutos.
             const COLS = {
                 nome:        { txt: true, get: d => d.nome, fmt: d => `<a href="/Jogadores/Estatisticas/${d.jogadorId}">${d.nome}</a>` },
                 grupo:       { txt: true, get: d => d.grupo, fmt: d => `<span class="elenco-setor" style="background:${CORES_SETOR[d.grupo]}">${d.grupo}</span>` },
@@ -2560,6 +2944,111 @@ function buscarEstatisticasApi() { Estatisticas.buscar(); }
         })();
     </script>
 }
+
+<script>
+// ══ "Ampliar" nos cards de gráfico (painel da API e painel do elenco) ══════
+// Fica fora dos dois scripts de gráfico de propósito: eles têm registros de
+// Chart separados (charts / instancias), então aqui a instância é obtida pelo
+// próprio canvas via Chart.getChart — assim vale para os dois painéis, inclusive
+// para os cards que o painel da API recria a cada troca de aba.
+(function () {
+    let ampliado = null;
+
+    function graficosDoCard(card) {
+        return [...card.querySelectorAll('canvas')]
+            .map((cv) => window.Chart && window.Chart.getChart(cv))
+            .filter(Boolean);
+    }
+
+    function redimensionar(card) {
+        graficosDoCard(card).forEach((ch) => {
+            // Zerar o canvas antes de medir: o Chart.js dimensiona o canvas por
+            // estilo inline, e um canvas grande (o do card ampliado) segura a
+            // largura do container ao voltar pro layout normal — o gráfico
+            // ficaria maior que o card, cortado.
+            ch.canvas.style.width = '0px';
+            ch.canvas.style.height = '0px';
+            // resize() sozinho não basta: com animação em curso o Chart.js só
+            // guarda o tamanho novo para o próximo draw, que pode nunca vir.
+            ch.stop();
+            ch.resize();
+            ch.update('none');
+        });
+    }
+
+    function redimensionarAposLayout(card) {
+        // 2 frames: o 1º aplica o novo layout, o 2º já tem o tamanho do
+        // container. O timer cobre o reflow que o próprio resize provoca.
+        requestAnimationFrame(() => requestAnimationFrame(() => redimensionar(card)));
+        setTimeout(() => redimensionar(card), 250);
+    }
+
+    function ampliar(card, botao) {
+        if (ampliado) restaurar();
+        const placeholder = document.createElement('div');
+        card.parentNode.insertBefore(placeholder, card);
+        const overlay = document.createElement('div');
+        overlay.className = 'est-overlay';
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+        card.classList.add('est-ampliado');
+        document.body.style.overflow = 'hidden';
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) restaurar(); });
+        botao.innerHTML = '✕ Fechar';
+        ampliado = { card, placeholder, overlay, botao };
+        redimensionarAposLayout(card);
+    }
+
+    function restaurar() {
+        if (!ampliado) return;
+        const { card, placeholder, overlay, botao } = ampliado;
+        ampliado = null;
+        card.classList.remove('est-ampliado');
+        placeholder.parentNode.insertBefore(card, placeholder);
+        placeholder.remove();
+        overlay.remove();
+        document.body.style.overflow = '';
+        botao.innerHTML = '⛶ Ampliar';
+        redimensionarAposLayout(card);
+    }
+
+    // Os cards do painel da API são recriados a cada render, então o botão é
+    // (re)instalado por observação do DOM em vez de no HTML de cada card.
+    function instalarBotoes() {
+        document.querySelectorAll('.est-card').forEach((card) => {
+            const head = card.querySelector('.est-card-head');
+            if (!head || !card.querySelector('.est-chart') || head.querySelector('[data-zoom]')) return;
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'est-zoom';
+            b.dataset.zoom = '';
+            b.title = 'Ampliar (Esc para fechar)';
+            b.innerHTML = '⛶ Ampliar';
+            head.appendChild(b);
+        });
+    }
+
+    document.addEventListener('click', (e) => {
+        const b = e.target.closest && e.target.closest('[data-zoom]');
+        if (!b) return;
+        const card = b.closest('.est-card');
+        if (!card) return;
+        if (ampliado && ampliado.card === card) restaurar();
+        else ampliar(card, b);
+    });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') restaurar(); });
+
+    instalarBotoes();
+    // Debounce por timer (e não requestAnimationFrame): em aba de fundo o rAF
+    // não roda e o botão só apareceria quando a aba voltasse ao primeiro plano.
+    let agendado = false;
+    new MutationObserver(() => {
+        if (agendado) return;
+        agendado = true;
+        setTimeout(() => { agendado = false; instalarBotoes(); }, 0);
+    }).observe(document.body, { childList: true, subtree: true });
+})();
+</script>
 
 <!-- Arsenal de jogadas: carregado sob demanda (uma chamada por time). -->
 <script src="~/js/jogadas.js" asp-append-version="true"></script>

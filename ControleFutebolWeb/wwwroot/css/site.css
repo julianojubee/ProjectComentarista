@@ -22,9 +22,65 @@
     --accent-surface: #eff6ff;  /* hover azulado (botões/atalhos) */
     --accent-border: #bfdbfe;
     --gold: #d4a520;            /* dourado da marca (igual nos dois temas) */
+
+    /* ── Tokens de painel ──────────────────────────────────────────────────
+       As telas com layout próprio (Home, Jogos, Times, Relatórios, Estatísticas,
+       competições…) desenham a própria hierarquia de superfícies dentro do
+       <style> da view. Estes tokens dão a essa hierarquia um equivalente em
+       cada tema: --p-0 é o fundo do painel e --p-4 o nível mais destacado.
+       Os valores do dark reproduzem exatamente a paleta que essas views já
+       usavam, então o tema escuro não muda de aparência. */
+    --p-0: #ffffff;             /* fundo do painel/página */
+    --p-1: #f8f9fa;             /* seções, cabeçalhos de bloco */
+    --p-2: #ffffff;             /* cards */
+    --p-3: #f1f3f5;             /* linhas alternadas, blocos elevados */
+    --p-4: #e9ecef;             /* hover, chips */
+    /* Variante "azulada" das superfícies (telas Serviços, Treinadores,
+       TransfermarktLogs, que usam uma paleta navy em vez do cinza neutro). */
+    --p-alt: #f6f8fb;
+    --p-alt-2: #eaeff6;
+    --p-alt-3: #d9e2ee;
+
+    --line: #e5e7eb;            /* borda padrão dos painéis */
+    --line-soft: #f0f1f3;       /* separador sutil */
+    --line-strong: #d1d5db;
+
+    --text-strong: #0f172a;     /* títulos/números em destaque */
+    --text-dim: #6b7280;        /* rótulos */
+    --text-dimmer: #9ca3af;     /* separadores textuais, placeholders */
+    --gold-ink: #8a6a0a;        /* dourado como TEXTO (o da marca não contrasta no claro) */
+
+    /* Acentos semânticos usados como texto/ícone sobre o painel */
+    --ok: #15803d;
+    --ok-2: #16a34a;
+    --bad: #b91c1c;
+    --bad-2: #dc2626;
+    --info: #2563eb;
+    --warn: #b45309;
+    --purple: #7c3aed;
+
+    /* Superfícies tingidas (badges e blocos de status) */
+    --ok-surface: #dcfce7;
+    --bad-surface: #fee2e2;
+    --warn-surface: #fef3c7;
+    --purple-surface: #ede9fe;
+    --info-surface: #dbeafe;
+
+    /* Fundo real da página. Diferente de --p-0 porque NÃO é redefinido dentro
+       de .theme-dark-zone: os degradês que dissolvem um herói escuro no corpo
+       da página precisam da cor de quem está embaixo, não a do próprio herói. */
+    --page-bg: #ffffff;
 }
 
 [data-theme="dark"] {
+    --page-bg: #0f0f0f;
+}
+
+/* .theme-dark-zone: trecho que continua escuro nos dois temas — heróis com
+   foto de fundo, faixas com scrim, banners da identidade preto+dourado. Basta
+   redefinir os tokens localmente; as regras da view não mudam. */
+[data-theme="dark"],
+.theme-dark-zone {
     color-scheme: dark; /* scrollbars e controles nativos escuros */
     --bg: #121212;
     --surface: #1a1a1a;
@@ -41,6 +97,38 @@
     --link-hover: #93c5fd;
     --accent-surface: #25324a;
     --accent-border: #3b4a63;
+
+    /* Painéis: mesmos valores que as views já usavam chumbados */
+    --p-0: #0f0f0f;
+    --p-1: #161616;
+    --p-2: #1a1a1a;
+    --p-3: #1e1e1e;
+    --p-4: #262626;
+    --p-alt: #0f172a;
+    --p-alt-2: #1e293b;
+    --p-alt-3: #334155;
+    --line: #262626;
+    --line-soft: #1e1e1e;
+    --line-strong: #2a2a2a;
+
+    --text-strong: #f1f5f9;
+    --text-dim: #6b7280;
+    --text-dimmer: #4b5563;
+    --gold-ink: var(--gold);
+
+    --ok: #4ade80;
+    --ok-2: #22c55e;
+    --bad: #f87171;
+    --bad-2: #ef4444;
+    --info: #60a5fa;
+    --warn: #fbbf24;
+    --purple: #c084fc;
+
+    --ok-surface: #14532d;
+    --bad-surface: #2d0a0a;
+    --warn-surface: #1a1200;
+    --purple-surface: #3b0764;
+    --info-surface: #0a1628;
 }
 
 /* Jogadores */
@@ -332,12 +420,17 @@ tr.rebaixado td:first-child {
     background-color: #ffe5e5;
 }
 
-/* Cabeçalho fixo da tabela */
+/* Cabeçalho fixo da tabela. O fundo sólido evita que as linhas apareçam por
+   trás ao rolar — mas não pode valer para <thead class="table-dark">, senão o
+   branco cobre o fundo escuro do Bootstrap e sobra texto branco no branco. */
 .table thead th {
     position: sticky;
     top: 0;
-    background-color: #fff; /* fundo sólido para não ficar transparente */
     z-index: 2; /* garante que fique acima das linhas */
+}
+
+.table thead:not(.table-dark) th {
+    background-color: var(--surface);
 }
 
 /* Título fixo do calendário */
@@ -608,7 +701,7 @@ tr.rebaixado td:first-child {
     color: var(--text);
     border-color: var(--border);
 }
-[data-theme="dark"] .table thead th {
+[data-theme="dark"] .table thead:not(.table-dark) th {
     background-color: var(--surface-2) !important;
     color: var(--text);
     border-color: var(--border-strong) !important;

@@ -1,0 +1,78 @@
+@model ControleFutebolWeb.Models.AnotacaoJogador
+@{
+    var jogador = (ControleFutebolWeb.Models.Jogador)ViewBag.Jogador;
+    var isEdicao = Model.Id > 0;
+    var action = isEdicao ? "Editar" : "Nova";
+}
+
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+
+<style>
+    .af * { box-sizing: border-box; }
+    .af {
+        background: var(--p-0); color: var(--text); font-family: 'Barlow', Arial, sans-serif;
+        border-radius: 14px; padding: 2rem; margin: 0 -12px;
+    }
+    .af-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; padding: 1.8rem 2rem; max-width: 720px; margin: 0 auto; }
+    .af-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--text-strong); margin-bottom: 1.5rem; }
+    .af-field { margin-bottom: 1.25rem; }
+    .af-label { font-size: 0.68rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.1em; display: block; margin-bottom: .5rem; }
+    .af-input, .af-textarea, .af-select {
+        width: 100%; background: var(--p-0); border: 1px solid var(--line-strong);
+        border-radius: 8px; color: var(--text-strong); font-size: 0.87rem;
+        padding: .65rem .85rem; outline: none; font-family: inherit;
+    }
+    .af-input:focus, .af-textarea:focus, .af-select:focus { border-color: #d4a520; }
+    .af-textarea { resize: vertical; min-height: 200px; line-height: 1.6; }
+    .af-select { appearance: none; cursor: pointer; }
+    .af-actions { display: flex; gap: .75rem; margin-top: 1.5rem; }
+    .af-save { background: #d4a520; color: #141414; border: none; border-radius: 8px; padding: .65rem 1.5rem; font-size: 0.85rem; font-weight: 800; cursor: pointer; letter-spacing: 0.03em; }
+    .af-save:hover { background: #c49918; }
+    .af-cancel { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); border-radius: 8px; padding: .65rem 1.2rem; font-size: 0.85rem; font-weight: 700; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; }
+    .af-cancel:hover { border-color: #d4a520; color: var(--gold-ink); }
+    .af-hint { font-size: 0.68rem; color: var(--text-dimmer); margin-top: .4rem; }
+</style>
+
+<div class="af">
+    <div class="af-card">
+        <div class="af-title">
+            @(isEdicao ? "✏️ Editar anotação" : "📝 Nova anotação") — @jogador.NomeExibicao
+        </div>
+
+        <form asp-action="@action" asp-route-id="@(isEdicao ? Model.Id : null)" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" asp-for="JogadorId" />
+
+            <div class="af-field">
+                <label class="af-label">Título *</label>
+                <input asp-for="Titulo" class="af-input" placeholder="Ex: Lesão na coxa, renovação até 2028…" autofocus />
+                <span asp-validation-for="Titulo" class="text-danger" style="font-size:12px;"></span>
+            </div>
+
+            <div class="af-field">
+                <label class="af-label">Categoria</label>
+                <select asp-for="Categoria" class="af-select">
+                    <option value="">— Sem categoria —</option>
+                    <option value="Lesão">Lesão</option>
+                    <option value="Contrato">Contrato</option>
+                    <option value="Desempenho">Desempenho</option>
+                    <option value="Curiosidade">Curiosidade</option>
+                    <option value="Informação">Informação</option>
+                </select>
+            </div>
+
+            <div class="af-field">
+                <label class="af-label">Conteúdo *</label>
+                <textarea asp-for="Conteudo" class="af-textarea" placeholder="Escreva livremente sobre o jogador…"></textarea>
+                <div class="af-hint">Suporta texto livre com quebras de linha.</div>
+                <span asp-validation-for="Conteudo" class="text-danger" style="font-size:12px;"></span>
+            </div>
+
+            <div class="af-actions">
+                <button type="submit" class="af-save">💾 Salvar</button>
+                <a asp-action="Index" asp-route-jogadorId="@Model.JogadorId" class="af-cancel">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>

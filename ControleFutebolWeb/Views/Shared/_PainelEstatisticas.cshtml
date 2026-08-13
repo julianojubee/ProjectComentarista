@@ -22,86 +22,179 @@
 <style>
     .br-est { padding: 24px 2.5rem 64px; display: flex; flex-direction: column; gap: 22px; }
     .br-est-controls { display: flex; gap: .75rem; align-items: flex-end; flex-wrap: wrap; }
-    .br-est-controls label { font-size: 11px; color: #4b5563; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: .35rem; font-weight: 700; }
-    .br-seg { display: flex; background: #161616; border: 1px solid #262626; border-radius: 8px; padding: 3px; gap: 3px; }
+    .br-est-controls label { font-size: 11px; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: .35rem; font-weight: 700; }
+    .br-seg { display: flex; background: var(--p-1); border: 1px solid var(--line); border-radius: 8px; padding: 3px; gap: 3px; }
     .br-seg button {
         border: none; cursor: pointer; font-family: 'Barlow', Arial, sans-serif; font-size: 12px; font-weight: 700;
-        padding: .35rem .85rem; border-radius: 6px; background: transparent; color: #6b7280;
+        padding: .35rem .85rem; border-radius: 6px; background: transparent; color: var(--text-dim);
     }
-    .br-seg button.active { background: #262626; color: #f1f5f9; }
-    .br-est-fonte { margin-left: auto; font-size: 11px; color: #4b5563; align-self: flex-end; max-width: 420px; }
+    .br-seg button.active { background: var(--p-4); color: var(--text-strong); }
+    .br-est-fonte { margin-left: auto; font-size: 11px; color: var(--text-dimmer); align-self: flex-end; max-width: 420px; }
 
     .br-est-sectitle { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-    .br-est-sectitle span { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .72rem; font-weight: 700; letter-spacing: .16em; color: #6b7280; text-transform: uppercase; }
-    .br-est-sechr { flex: 1; height: 1px; background: #222; }
+    .br-est-sectitle span { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .72rem; font-weight: 700; letter-spacing: .16em; color: var(--text-dim); text-transform: uppercase; }
+    .br-est-sechr { flex: 1; height: 1px; background: var(--p-3); }
+
+    /* Retrato da competição inteira (não de um time): média de gols, mando,
+       cartões. Mesma leitura que o Sofascore põe na aba "Detalhes" do torneio. */
+    .br-est-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+    .br-est-resumo-item { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+    .br-est-resumo-item .rot { font-size: .58rem; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: .12em; font-weight: 700; }
+    .br-est-resumo-item .val { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.7rem; font-weight: 800; color: var(--text-strong); line-height: 1.15; margin-top: 6px; }
+    .br-est-resumo-item .det { font-size: .68rem; color: var(--text-dim); margin-top: 2px; }
+    .br-est-mando { display: flex; height: 7px; border-radius: 4px; overflow: hidden; margin-top: 9px; background: var(--p-0); }
+    .br-est-mando i { display: block; height: 100%; }
+    .br-est-mando-legenda { display: flex; gap: 10px; flex-wrap: wrap; font-size: .64rem; color: #8b93a1; margin-top: 7px; }
+    .br-est-mando-legenda span { display: inline-flex; align-items: center; gap: 4px; }
+    .br-est-mando-legenda b { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
 
     .br-est-destaques { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
-    .br-est-card { background: #161616; border: 1px solid #262626; border-radius: 12px; padding: 14px 16px; }
-    .br-est-card-titulo { font-size: .6rem; color: #4b5563; text-transform: uppercase; letter-spacing: .12em; font-weight: 700; margin-bottom: 10px; }
+    .br-est-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+    .br-est-card-titulo { font-size: .6rem; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: .12em; font-weight: 700; margin-bottom: 10px; }
     /* flex-wrap + min-width:0: sem isso, quando nome do time + valor não cabem
        numa linha só o flex não quebra pra segunda linha — o texto vaza pra fora
        do card (min-content da linha sem wrap > largura disponível). */
     .br-est-card-lider { display: flex; align-items: baseline; gap: 4px 8px; flex-wrap: wrap; }
     .br-est-card-lider .br-est-nome-com-escudo { flex: 1 1 auto; min-width: 0; }
-    .br-est-card-lider .br-est-nome-com-escudo .txt { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.5rem; font-weight: 800; color: #f1f5f9; line-height: 1.15; white-space: normal; overflow-wrap: break-word; }
+    .br-est-card-lider .br-est-nome-com-escudo .txt { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--text-strong); line-height: 1.15; white-space: normal; overflow-wrap: break-word; }
     .br-est-card-lider .valor { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.5rem; font-weight: 800; line-height: 1.15; margin-left: auto; white-space: nowrap; }
-    .br-est-card-pior { margin-top: 10px; padding-top: 9px; border-top: 1px solid #1e1e1e; display: flex; align-items: baseline; gap: 8px; }
-    .br-est-card-pior .lbl { font-size: .7rem; color: #4b5563; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; flex-shrink: 0; }
+    .br-est-card-pior { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--line-soft); display: flex; align-items: baseline; gap: 8px; }
+    .br-est-card-pior .lbl { font-size: .7rem; color: var(--text-dimmer); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; flex-shrink: 0; }
     .br-est-card-pior .br-est-nome-com-escudo { flex: 1 1 auto; min-width: 0; }
-    .br-est-card-pior .br-est-nome-com-escudo .txt { font-size: .78rem; color: #9ca3af; }
-    .br-est-card-pior .valor { font-size: .82rem; color: #ef4444; font-weight: 700; margin-left: auto; flex-shrink: 0; white-space: nowrap; }
+    .br-est-card-pior .br-est-nome-com-escudo .txt { font-size: .78rem; color: var(--text-muted); }
+    .br-est-card-pior .valor { font-size: .82rem; color: var(--bad-2); font-weight: 700; margin-left: auto; flex-shrink: 0; white-space: nowrap; }
 
-    .br-est-metricas { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+    /* Categoria (Ataque, Distribuição, …) fica no cabeçalho e as métricas dela
+       logo abaixo, no corpo do card: com 20+ métricas numa fileira só o
+       cabeçalho quebrava em três linhas e virava um paredão de chips. */
+    .br-est-cats { margin-left: auto; }
+    .br-est-metricas { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
     .br-est-metricas button {
-        border: 1px solid #262626; cursor: pointer; font-family: 'Barlow', Arial, sans-serif; font-size: 11px; font-weight: 700;
-        padding: .3rem .7rem; border-radius: 999px; background: #161616; color: #6b7280;
+        border: 1px solid var(--line); cursor: pointer; font-family: 'Barlow', Arial, sans-serif; font-size: 11px; font-weight: 700;
+        padding: .3rem .7rem; border-radius: 999px; background: var(--p-1); color: var(--text-dim);
     }
-    .br-est-metricas button.active { background: rgba(34,197,94,0.12); color: #4ade80; border-color: rgba(34,197,94,0.35); }
-    .br-est-metrica-desc { font-size: .72rem; color: #6b7280; margin-bottom: 10px; }
+    .br-est-metricas button.active { background: rgba(34,197,94,0.12); color: var(--ok); border-color: rgba(34,197,94,0.35); }
+    .br-est-metrica-desc { font-size: .72rem; color: var(--text-dim); margin-bottom: 10px; }
 
-    .br-est-chart { position: relative; height: 340px; }
+    /* min-width:0 — sem isso o track do grid não encolhe abaixo do tamanho do
+       canvas (min-width:auto = min-content) e o gráfico estoura o card. */
+    .br-est-chart { position: relative; height: 340px; min-width: 0; }
     .br-est-chart.alto { height: 520px; }
     .br-est-chart.medio { height: 280px; }
 
     .br-est-grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; }
-    .br-est-sub { font-size: .68rem; color: #4b5563; margin-top: 2px; }
+    .br-est-grid4 > * { min-width: 0; }
+    .br-est-sub { font-size: .68rem; color: var(--text-dimmer); margin-top: 2px; }
 
     .br-est-intervalos-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 0; }
-    .br-est-decidem { padding: 16px 18px; border-left: 1px solid #1e1e1e; }
-    .br-est-decidem-titulo { font-size: .6rem; color: #4b5563; text-transform: uppercase; letter-spacing: .12em; font-weight: 700; margin-bottom: 12px; }
-    .br-est-decidem-item { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #1a1a1a; }
-    .br-est-decidem-item .pos { font-size: .72rem; font-weight: 700; color: #4b5563; width: 14px; text-align: center; }
+    .br-est-intervalos-grid > * { min-width: 0; }
+    .br-est-decidem { padding: 16px 18px; border-left: 1px solid var(--line-soft); }
+    .br-est-decidem-titulo { font-size: .6rem; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: .12em; font-weight: 700; margin-bottom: 12px; }
+    .br-est-decidem-item { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line-soft); }
+    .br-est-decidem-item .pos { font-size: .72rem; font-weight: 700; color: var(--text-dimmer); width: 14px; text-align: center; }
     .br-est-decidem-item .br-est-nome-com-escudo { flex: 1; min-width: 0; }
-    .br-est-decidem-item .br-est-nome-com-escudo .txt { font-size: .82rem; color: #e5e7eb; }
-    .br-est-decidem-item .bar { width: 90px; height: 5px; background: #222; border-radius: 3px; overflow: hidden; }
+    .br-est-decidem-item .br-est-nome-com-escudo .txt { font-size: .82rem; color: var(--text); }
+    .br-est-decidem-item .bar { width: 90px; height: 5px; background: var(--p-3); border-radius: 3px; overflow: hidden; }
     .br-est-decidem-item .bar div { height: 100%; border-radius: 3px; background: #d4a520; }
-    .br-est-decidem-item .gols { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1rem; font-weight: 800; color: #d4a520; width: 28px; text-align: right; }
+    .br-est-decidem-item .gols { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1rem; font-weight: 800; color: var(--gold-ink); width: 28px; text-align: right; }
 
-    .br-est-escudo { border-radius: 50%; background: #0f0f0f; border: 1px solid #2a2a2a; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; font-size: .6rem; color: #6b7280; }
+    .br-est-escudo { border-radius: 50%; background: var(--p-0); border: 1px solid var(--line-strong); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; font-size: .6rem; color: var(--text-dim); }
     .br-est-escudo img { width: 90%; height: 90%; object-fit: contain; }
-    .br-est-nome-com-escudo { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+    .br-est-nome-com-escudo { display: inline-flex; align-items: center; gap: 6px; min-width: 0; text-decoration: none; color: inherit; }
+    .br-est-nome-com-escudo:hover .txt { color: var(--gold-ink); text-decoration: underline; }
     .br-est-nome-com-escudo .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+    /* --est-cols = nº de colunas numéricas, definido em JS a partir de COL_DEFS
+       (varia com o que a api-football importou para a competição). */
     .br-est-tabela-wrap { overflow-x: auto; }
-    .br-est-tabela-min { min-width: 1080px; }
-    .br-est-thead { display: grid; grid-template-columns: 30px 1fr repeat(11,72px); gap: 2px; padding: 10px 14px; background: #0d0d0d; border-bottom: 1px solid #1e1e1e; align-items: center; }
+    .br-est-tabela-min { min-width: 100%; }
+    .br-est-thead { display: grid; grid-template-columns: 30px minmax(150px,1fr) repeat(var(--est-cols,11),72px); gap: 2px; padding: 10px 14px; background: var(--p-0); border-bottom: 1px solid var(--line-soft); align-items: center; }
     .br-est-thead span { font-size: .58rem; color: #374151; font-weight: 700; }
     .br-est-thead button {
         background: none; border: none; cursor: pointer; font-family: 'Barlow', Arial, sans-serif; font-size: .58rem; font-weight: 700;
         text-transform: uppercase; letter-spacing: .06em; padding: 0; color: #374151; text-align: center; width: 100%;
     }
     .br-est-thead button.left { text-align: left; }
-    .br-est-trow { display: grid; grid-template-columns: 30px 1fr repeat(11,72px); gap: 2px; padding: 9px 14px; border-bottom: 1px solid #131313; align-items: center; }
-    .br-est-trow span.pos { font-size: .72rem; color: #4b5563; font-weight: 700; }
+    .br-est-trow { display: grid; grid-template-columns: 30px minmax(150px,1fr) repeat(var(--est-cols,11),72px); gap: 2px; padding: 9px 14px; border-bottom: 1px solid #131313; align-items: center; }
+    .br-est-trow span.pos { font-size: .72rem; color: var(--text-dimmer); font-weight: 700; }
     .br-est-trow .br-est-nome-com-escudo { min-width: 0; }
-    .br-est-trow .br-est-nome-com-escudo .txt { font-size: .82rem; color: #e5e7eb; }
+    .br-est-trow .br-est-nome-com-escudo .txt { font-size: .82rem; color: var(--text); }
     .br-est-trow span.cel { font-size: .78rem; font-weight: 600; text-align: center; }
+
+    /* ── Ampliar card (tela cheia) ─────────────────────────────────────────
+       O card é movido para um overlay em document.body (e não só marcado com
+       position:fixed) porque qualquer ancestral com transform/filter nas telas
+       que hospedam o painel quebraria o fixed. Um placeholder guarda o lugar
+       original para devolver o card no fechamento. */
+    .br-est-zoom {
+        margin-left: auto; flex-shrink: 0; cursor: pointer;
+        background: var(--p-1); border: 1px solid var(--line); color: var(--text-dim); border-radius: 8px;
+        font-family: 'Barlow', Arial, sans-serif; font-size: 11px; font-weight: 700;
+        padding: .3rem .7rem; display: inline-flex; align-items: center; gap: 5px;
+    }
+    .br-est-zoom:hover { color: var(--text-strong); border-color: var(--line-strong); }
+    .br-side-header .br-est-cats + .br-est-zoom { margin-left: 10px; }
+
+    .br-est-overlay { position: fixed; inset: 0; z-index: 2000; background: rgba(6,6,6,.93); padding: 2.5vh 2.5vw; overflow: auto; }
+
+    /* ── Glossário ─────────────────────────────────────────────────────────
+       Mesma ideia do glossário das estatísticas da FIFA: o que cada métrica
+       quer dizer, agrupado pelas mesmas categorias do seletor. */
+    .br-est-glossario-btn {
+        cursor: pointer; background: var(--p-1); border: 1px solid var(--line); color: var(--text-dim); border-radius: 8px;
+        font-family: 'Barlow', Arial, sans-serif; font-size: 12px; font-weight: 700; padding: .35rem .85rem;
+    }
+    .br-est-glossario-btn:hover { color: var(--text-strong); border-color: var(--line-strong); }
+
+    /* Recorte por equipe — o "Todas as equipes" das estatísticas da FIFA. */
+    .br-est-times-wrap { position: relative; }
+    .br-est-times-menu {
+        position: absolute; z-index: 60; top: calc(100% + 4px); left: 0; width: 260px; max-height: 320px; overflow-y: auto;
+        background: var(--p-0); border: 1px solid var(--line-strong); border-radius: 10px; padding: 6px; box-shadow: 0 10px 30px rgba(0,0,0,.55);
+    }
+    .br-est-times-menu label {
+        display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer;
+        font-size: 12px; font-weight: 600; color: var(--text-2); text-transform: none; letter-spacing: 0; margin: 0;
+    }
+    .br-est-times-menu label:hover { background: var(--p-2); }
+    .br-est-times-menu .sep { height: 1px; background: var(--p-3); margin: 5px 2px; }
+    .br-est-times-menu input { accent-color: #22c55e; }
+    .br-est-gloss-card { max-width: 760px; margin: 0 auto; background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+    .br-est-gloss-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px; background: var(--p-0); border-bottom: 1px solid var(--line-soft); }
+    .br-est-gloss-head .titulo { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.25rem; font-weight: 800; color: var(--text-strong); letter-spacing: .02em; }
+    .br-est-gloss-head button { margin-left: auto; }
+    .br-est-gloss-body { padding: 6px 18px 18px; }
+    .br-est-gloss-cat { font-size: .6rem; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: .14em; font-weight: 700; margin: 18px 0 8px; }
+    .br-est-gloss-item { padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+    .br-est-gloss-item dt { font-size: .84rem; font-weight: 700; color: var(--text); }
+    .br-est-gloss-item dd { margin: 3px 0 0; font-size: .76rem; color: #8b93a1; line-height: 1.5; }
+    .br-est-gloss-nota { font-size: .72rem; color: var(--text-dim); line-height: 1.6; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
+    /* fundo/borda explícitos: .br-side-card só tem estilo próprio na tela do
+       Brasileirão — nas demais o card é transparente e, ampliado, deixaria o
+       conteúdo da página aparecer por trás do gráfico. */
+    .br-side-card.br-est-ampliado { margin: 0; height: 95vh; display: flex; flex-direction: column; background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+    .br-est-ampliado > .br-side-header { flex-shrink: 0; background: var(--p-0); border-bottom: 1px solid var(--line-soft); }
+    .br-est-ampliado > *:not(.br-side-header) { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+    .br-est-ampliado .br-est-intervalos-grid { display: grid; }
+    .br-est-ampliado .br-est-intervalos-grid > div { display: flex; flex-direction: column; min-height: 0; }
+    .br-est-ampliado .br-est-chart,
+    .br-est-ampliado .br-est-chart.alto,
+    .br-est-ampliado .br-est-chart.medio { height: auto; flex: 1 1 auto; min-height: 0; }
+    .br-est-ampliado .br-est-tabela-wrap { overflow: auto; }
+    .br-est-ampliado .br-est-decidem { overflow-y: auto; }
+    .br-est-ampliado .br-est-trow,
+    .br-est-ampliado .br-est-thead { grid-template-columns: 40px minmax(150px,1fr) repeat(var(--est-cols,11), minmax(72px, 1fr)); }
+    .br-est-ampliado .br-est-trow .br-est-nome-com-escudo .txt { font-size: .95rem; }
+    .br-est-ampliado .br-est-trow span.cel { font-size: .92rem; }
+    .br-est-ampliado .br-est-thead button { font-size: .68rem; }
 
     @@media (max-width: 768px) {
         .br-est { padding: 18px 1.1rem 40px; }
         .br-est-fonte { display: none; }
         .br-est-intervalos-grid { grid-template-columns: 1fr; }
-        .br-est-decidem { border-left: none; border-top: 1px solid #1e1e1e; }
+        .br-est-decidem { border-left: none; border-top: 1px solid var(--line-soft); }
+        .br-est-overlay { padding: 1rem .6rem; }
+        .br-side-card.br-est-ampliado { height: calc(100vh - 2rem); }
     }
 </style>
 
@@ -123,7 +216,16 @@
                 <button type="button" data-v="jogo">Por jogo</button>
             </div>
         </div>
-        <div class="br-est-fonte" id="est-fonte-@uid">Fonte: jogos, gols e cartões cadastrados + estatísticas da partida (posse, finalizações, escanteios, passes, xG) quando disponíveis</div>
+        <div class="br-est-times-wrap">
+            <label>Equipes</label>
+            <button type="button" class="br-est-glossario-btn" id="est-times-btn-@uid">Todas as equipes ▾</button>
+            <div class="br-est-times-menu" id="est-times-menu-@uid" hidden></div>
+        </div>
+        <div>
+            <label>&nbsp;</label>
+            <button type="button" class="br-est-glossario-btn" id="est-glossario-@uid">📖 Glossário</button>
+        </div>
+        <div class="br-est-fonte" id="est-fonte-@uid">Fonte: jogos, gols e cartões cadastrados + estatísticas da partida (posse, finalizações, chutes na/fora da área, escanteios, passes e precisão, faltas, impedimentos, defesas, xG) quando disponíveis</div>
     </div>
 
     @if (!estatisticasTimes.Any())
@@ -133,6 +235,11 @@
     else
     {
         <div>
+            <div class="br-est-sectitle"><span>A competição em números</span><div class="br-est-sechr"></div></div>
+            <div class="br-est-resumo" id="est-resumo-@uid"></div>
+        </div>
+
+        <div>
             <div class="br-est-sectitle"><span>Melhores e piores da competição</span><div class="br-est-sechr"></div></div>
             <div class="br-est-destaques" id="est-destaques-@uid"></div>
         </div>
@@ -141,9 +248,11 @@
             <div class="br-side-header">
                 <span style="font-size:1rem;">📊</span>
                 <span class="br-side-title">Ranking por métrica</span>
-                <div class="br-est-metricas" id="est-metricas-@uid"></div>
+                <div class="br-seg br-est-cats" id="est-cats-@uid"></div>
+                <button type="button" class="br-est-zoom" data-zoom title="Ampliar (Esc para fechar)">⛶ Ampliar</button>
             </div>
-            <div style="padding:16px 18px;">
+            <div style="padding:16px 18px">
+                <div class="br-est-metricas" id="est-metricas-@uid"></div>
                 <div class="br-est-metrica-desc" id="est-metrica-desc-@uid"></div>
                 <div class="br-est-chart alto"><canvas data-chart="ranking-@uid"></canvas></div>
             </div>
@@ -156,6 +265,7 @@
                         <span class="br-side-title">Ataque × Defesa</span>
                         <div class="br-est-sub">quadrantes cortados pela média da competição · quanto mais à direita e mais acima, melhor</div>
                     </div>
+                    <button type="button" class="br-est-zoom" data-zoom title="Ampliar (Esc para fechar)">⛶ Ampliar</button>
                 </div>
                 <div style="padding:16px 18px;"><div class="br-est-chart"><canvas data-chart="quadrantes-@uid"></canvas></div></div>
             </div>
@@ -166,6 +276,7 @@
                         <span class="br-side-title">Aproveitamento em casa × fora</span>
                         <div class="br-est-sub">quem depende do mandante e quem pontua longe de casa</div>
                     </div>
+                    <button type="button" class="br-est-zoom" data-zoom title="Ampliar (Esc para fechar)">⛶ Ampliar</button>
                 </div>
                 <div style="padding:16px 18px;"><div class="br-est-chart"><canvas data-chart="casafora-@uid"></canvas></div></div>
             </div>
@@ -176,6 +287,7 @@
                         <span class="br-side-title">Gols × xG — quem finaliza melhor</span>
                         <div class="br-est-sub">diferença entre gols marcados e gols esperados</div>
                     </div>
+                    <button type="button" class="br-est-zoom" data-zoom title="Ampliar (Esc para fechar)">⛶ Ampliar</button>
                 </div>
                 <div style="padding:16px 18px;"><div class="br-est-chart"><canvas data-chart="xg-@uid"></canvas></div></div>
             </div>
@@ -186,6 +298,7 @@
                         <span class="br-side-title">Disciplina</span>
                         <div class="br-est-sub">cartões amarelos e vermelhos por time</div>
                     </div>
+                    <button type="button" class="br-est-zoom" data-zoom title="Ampliar (Esc para fechar)">⛶ Ampliar</button>
                 </div>
                 <div style="padding:16px 18px;"><div class="br-est-chart"><canvas data-chart="cartoes-@uid"></canvas></div></div>
             </div>
@@ -195,7 +308,8 @@
             <div class="br-side-header">
                 <span style="font-size:1rem;">⏱️</span>
                 <span class="br-side-title">Quando os gols acontecem</span>
-                <span style="font-size:.68rem; color:#4b5563;">todos os gols da competição, por intervalo de 15 minutos</span>
+                <span style="font-size:.68rem; color:var(--text-dimmer)">todos os gols da competição, por intervalo de 15 minutos</span>
+                <button type="button" class="br-est-zoom" data-zoom title="Ampliar (Esc para fechar)">⛶ Ampliar</button>
             </div>
             <div class="br-est-intervalos-grid">
                 <div style="padding:16px 18px;"><div class="br-est-chart medio"><canvas data-chart="intervalos-@uid"></canvas></div></div>
@@ -209,7 +323,8 @@
         <div class="br-side-card">
             <div class="br-side-header">
                 <span class="br-side-title">Tabela completa de estatísticas</span>
-                <span style="font-size:.68rem; color:#4b5563;">clique no cabeçalho para ordenar · verde = melhor terço, vermelho = pior terço</span>
+                <span style="font-size:.68rem; color:var(--text-dimmer)">clique no cabeçalho para ordenar · verde = melhor terço, vermelho = pior terço</span>
+                <button type="button" class="br-est-zoom" data-zoom title="Ampliar (Esc para fechar)">⛶ Ampliar</button>
             </div>
             <div class="br-est-tabela-wrap">
                 <div class="br-est-tabela-min">
@@ -228,8 +343,10 @@
 // ══ Painel "Estatísticas" reaproveitado por todas as telas de competição ═══
 // Dados: EstatisticaTimeViewModel (EstatisticaTimeCalculator.Calcular), já
 // agregados no servidor a partir dos jogos/gols/cartões cadastrados e de
-// Jogo.EstatisticasJson (posse, finalizações, escanteios, passes, xG — quando
-// a api-football importou esses dados; ficam null quando não há nada importado).
+// Jogo.EstatisticasJson (posse, finalizações e sua distribuição, escanteios,
+// passes e precisão, faltas, impedimentos, defesas, xG — quando a api-football
+// importou esses dados; ficam null quando não há nada importado, e nesse caso
+// a coluna/métrica correspondente some da tela em vez de aparecer vazia).
 (function () {
     const UID = '@uid';
     const DADOS_BRUTOS = JSON.parse(document.querySelector('[data-est-dados="' + UID + '"]').textContent || '[]');
@@ -240,14 +357,25 @@
     // exige pelo menos metade disso pra entrar nos rankings e destaques.
     const maxJ = DADOS_BRUTOS.reduce((m, t) => Math.max(m, t.j), 0);
     const jogosMin = Math.ceil(maxJ / 2);
-    const DADOS = DADOS_BRUTOS.filter((t) => t.j >= jogosMin);
+    const ELEGIVEIS = DADOS_BRUTOS.filter((t) => t.j >= jogosMin);
+
+    // Recorte por equipe (o "Todas as equipes" da FIFA). null = todas; um Set de
+    // timeIds restringe rankings, destaques e tabela ao subconjunto escolhido.
+    // DADOS é reatribuído em vez de refiltrado em cada uso porque todo o resto do
+    // painel já lê essa variável.
+    let timesSelecionados = null;
+    let DADOS = ELEGIVEIS;
+
+    function aplicarFiltroTimes() {
+        DADOS = timesSelecionados ? ELEGIVEIS.filter((t) => timesSelecionados.has(t.timeId)) : ELEGIVEIS;
+    }
 
     const fonteEl = document.getElementById('est-fonte-' + UID);
     if (fonteEl && jogosMin > 1) {
         fonteEl.textContent += ` · considerando times com pelo menos ${jogosMin} jogo(s) disputado(s) (metade do líder, ${maxJ})`;
     }
 
-    const state = { escopo: 'total', normal: 'total', metrica: 'gp', ordem: 'pts', desc: true };
+    const state = { escopo: 'total', normal: 'total', categoria: 'geral', metrica: 'gp', ordem: 'pts', desc: true };
     const charts = {};
     let construido = false;
     const $ = (id) => document.getElementById(id + '-' + UID);
@@ -263,23 +391,59 @@
         return state.normal === 'jogo' && j > 0 ? +(valor / j).toFixed(2) : valor;
     };
 
+    // Estatística vinda da partida: t[chave] é sempre a média por jogo e
+    // t.totais[chave] o acumulado — a média não dá pra reverter aqui porque o
+    // denominador dela é o nº de partidas que tinham o dado, não o de partidas
+    // disputadas. Percentuais e razões não têm entrada em totais e por isso
+    // ficam iguais nos dois modos, que é o comportamento correto.
+    function stat(t, chave) {
+        if (state.normal === 'total' && t.totais && t.totais[chave] !== undefined) return t.totais[chave];
+        return t[chave];
+    }
+
+    // Categorias no mesmo recorte que a FIFA usa nas estatísticas de seleção
+    // (fifa.com → Estatísticas da Equipe): Ataque, Distribuição, Defesa/Goleiro
+    // e Disciplina, com "Geral" para o que vem dos jogos cadastrados.
+    const CATEGORIAS = [
+        { key: 'geral', label: 'Geral' },
+        { key: 'ataque', label: 'Ataque' },
+        { key: 'distribuicao', label: 'Distribuição' },
+        { key: 'defesa', label: 'Defesa' },
+        { key: 'disciplina', label: 'Disciplina' }
+    ];
+
     function defsMetricas() {
         return [
-            { key: 'gp', label: 'Gols marcados', maior: true, get: (t) => porJogo(t, gp(t)), desc: 'Quem mais e quem menos balança a rede.' },
-            { key: 'gc', label: 'Gols sofridos', maior: false, get: (t) => porJogo(t, gc(t)), desc: 'Menos é melhor — a defesa mais e menos vazada.' },
-            { key: 'aprov', label: 'Aproveitamento', maior: true, un: '%', fixo: true, get: (t) => aprov(t), desc: 'Percentual dos pontos disputados no recorte selecionado.' },
-            { key: 'posse', label: 'Posse de bola', maior: true, un: '%', fixo: true, get: (t) => t.posse, desc: 'Média de posse por jogo (estatística da partida importada).' },
-            { key: 'fin', label: 'Finalizações', maior: true, fixo: true, get: (t) => t.fin, desc: 'Média de finalizações por jogo.' },
-            { key: 'finGol', label: 'Chutes no gol', maior: true, fixo: true, get: (t) => t.finGol, desc: 'Média de finalizações no alvo por jogo.' },
-            { key: 'precisao', label: 'Pontaria', maior: true, un: '%', fixo: true, get: (t) => t.precisao, desc: '% das finalizações que foram no gol — eficiência do chute.' },
-            { key: 'esc', label: 'Escanteios', maior: true, fixo: true, get: (t) => t.esc, desc: 'Média de escanteios por jogo — pressão no campo de ataque.' },
-            { key: 'passesCertos', label: 'Passes certos', maior: true, fixo: true, get: (t) => t.passesCertos, desc: 'Média de passes certos por jogo.' },
-            { key: 'xg', label: 'xG por jogo', maior: true, fixo: true, get: (t) => t.xg, desc: 'Gols esperados, em média por partida (quando informado pela api-football).' },
-            { key: 'cs', label: 'Jogos sem sofrer gol', maior: true, fixo: true, get: (t) => t.cleanSheets, desc: 'Número de jogos em que a defesa não foi vazada.' },
-            { key: 'am', label: 'Cartões amarelos', maior: false, get: (t) => porJogo(t, t.amarelos), desc: 'Menos é melhor — time mais e menos punido.' }
+            { cat: 'geral', key: 'gp', label: 'Gols marcados', maior: true, get: (t) => porJogo(t, gp(t)), desc: 'Quem mais e quem menos balança a rede.' },
+            { cat: 'geral', key: 'gc', label: 'Gols sofridos', maior: false, get: (t) => porJogo(t, gc(t)), desc: 'Menos é melhor — a defesa mais e menos vazada.' },
+            { cat: 'geral', key: 'aprov', label: 'Aproveitamento', maior: true, un: '%', fixo: true, get: (t) => aprov(t), desc: 'Percentual dos pontos disputados no recorte selecionado.' },
+
+            { cat: 'ataque', key: 'fin', label: 'Finalizações', maior: true, partida: true, get: (t) => stat(t, 'fin'), desc: 'Finalizações tentadas.' },
+            { cat: 'ataque', key: 'finGol', label: 'Chutes no gol', maior: true, partida: true, get: (t) => stat(t, 'finGol'), desc: 'Finalizações no alvo.' },
+            { cat: 'ataque', key: 'precisao', label: 'Pontaria', maior: true, un: '%', partida: true, get: (t) => t.precisao, desc: '% das finalizações que foram no gol — eficiência do chute.' },
+            { cat: 'ataque', key: 'chutesArea', label: 'Chutes na área', maior: true, partida: true, get: (t) => stat(t, 'chutesArea'), desc: 'Finalizações de dentro da área — qualidade da chegada ao gol.' },
+            { cat: 'ataque', key: 'chutesForaArea', label: 'Chutes de fora', maior: true, partida: true, get: (t) => stat(t, 'chutesForaArea'), desc: 'Finalizações de fora da área.' },
+            { cat: 'ataque', key: 'conversao', label: 'Conversão', maior: true, un: '%', partida: true, get: (t) => t.conversao, desc: 'Percentual das finalizações que viraram gol.' },
+            { cat: 'ataque', key: 'xg', label: 'xG', maior: true, partida: true, get: (t) => stat(t, 'xg'), desc: 'Gols esperados (quando informado pela api-football).' },
+            { cat: 'ataque', key: 'eficienciaXg', label: 'Eficiência em xG', maior: true, un: 'x', partida: true, get: (t) => t.eficienciaXg, desc: 'Gols marcados ÷ gols esperados. Acima de 1x o time converte mais do que o xG previa.' },
+            { cat: 'ataque', key: 'esc', label: 'Escanteios', maior: true, partida: true, get: (t) => stat(t, 'esc'), desc: 'Escanteios conquistados — pressão no campo de ataque.' },
+
+            { cat: 'distribuicao', key: 'posse', label: 'Posse de bola', maior: true, un: '%', partida: true, get: (t) => t.posse, desc: 'Média de posse por jogo (estatística da partida importada).' },
+            { cat: 'distribuicao', key: 'passes', label: 'Passes tentados', maior: true, partida: true, get: (t) => stat(t, 'passes'), desc: 'Passes tentados — volume de posse trabalhada.' },
+            { cat: 'distribuicao', key: 'passesCertos', label: 'Passes certos', maior: true, partida: true, get: (t) => stat(t, 'passesCertos'), desc: 'Passes concluídos.' },
+            { cat: 'distribuicao', key: 'precisaoPasses', label: 'Precisão de passe', maior: true, un: '%', partida: true, get: (t) => t.precisaoPasses, desc: 'Percentual de passes concluídos.' },
+
+            { cat: 'defesa', key: 'cs', label: 'Jogos sem sofrer gol', maior: true, get: (t) => porJogo(t, t.cleanSheets), desc: 'Jogos em que a defesa não foi vazada — a coluna "CS" da tabela.' },
+            { cat: 'defesa', key: 'defesasGoleiro', label: 'Defesas do goleiro', maior: true, partida: true, get: (t) => stat(t, 'defesasGoleiro'), desc: 'Defesas do goleiro. Valor alto pode significar bom goleiro ou defesa exposta.' },
+            { cat: 'defesa', key: 'golsEvitados', label: 'Gols evitados', maior: true, partida: true, get: (t) => stat(t, 'golsEvitados'), desc: 'Quanto o goleiro salvou além do esperado pelo xG das finalizações sofridas.' },
+
+            { cat: 'disciplina', key: 'faltas', label: 'Faltas cometidas', maior: false, partida: true, get: (t) => stat(t, 'faltas'), desc: 'Menos é melhor — faltas cometidas.' },
+            { cat: 'disciplina', key: 'impedimentos', label: 'Impedimentos', maior: false, partida: true, get: (t) => stat(t, 'impedimentos'), desc: 'Menos é melhor — impedimentos marcados.' },
+            { cat: 'disciplina', key: 'am', label: 'Cartões amarelos', maior: false, get: (t) => porJogo(t, t.amarelos), desc: 'Menos é melhor — time mais e menos punido.' }
         ].filter((m) => DADOS.some((t) => m.get(t) !== null && m.get(t) !== undefined));
     }
-    const metricaAtual = () => defsMetricas().find((m) => m.key === state.metrica) || defsMetricas()[0];
+    const metricasDaCategoria = () => defsMetricas().filter((m) => m.cat === state.categoria);
+    const metricaAtual = () => defsMetricas().find((m) => m.key === state.metrica) || metricasDaCategoria()[0] || defsMetricas()[0];
 
     const comDado = (getFn) => DADOS.filter((t) => { const v = getFn(t); return v !== null && v !== undefined && !isNaN(v); });
     const melhor = (getFn, maior) => { const l = comDado(getFn); if (!l.length) return null; return l.slice().sort((a, b) => maior ? getFn(b) - getFn(a) : getFn(a) - getFn(b))[0]; };
@@ -298,8 +462,9 @@
             : (t.nome || '?').charAt(0);
         return `<div class="br-est-escudo" style="width:${px}px;height:${px}px;">${conteudo}</div>`;
     }
+    // Nome + escudo levam à página do time, em todos os cards e rankings do painel.
     function nomeComEscudo(t, px) {
-        return `<span class="br-est-nome-com-escudo">${escudoImg(t, px)}<span class="txt">${t.nome}</span></span>`;
+        return `<a class="br-est-nome-com-escudo" href="/Times/Details/${t.timeId}" title="Ver ${t.nome}">${escudoImg(t, px)}<span class="txt">${t.nome}</span></a>`;
     }
 
     function destaques() {
@@ -309,6 +474,10 @@
             card('Mais posse de bola', (t) => t.posse, true, (v) => v + '%', '#d4a520'),
             card('Mais finalizações/jogo', (t) => t.fin, true, (v) => v.toFixed(1), '#d4a520'),
             card('Melhor pontaria', (t) => t.precisao, true, (v) => v + '%', '#22c55e'),
+            card('Melhor conversão', (t) => t.conversao, true, (v) => v + '%', '#22c55e'),
+            card('Mais eficiente vs. xG', (t) => t.eficienciaXg, true, (v) => v.toFixed(2) + 'x', '#d4a520'),
+            card('Melhor precisão de passe', (t) => t.precisaoPasses, true, (v) => v + '%', '#3b82f6'),
+            card('Menos faltas/jogo', (t) => t.faltas, false, (v) => v.toFixed(1), '#3b82f6'),
             card('Melhor mandante', (t) => t.aprovCasa, true, (v) => v + '%', '#22c55e'),
             card('Melhor visitante', (t) => t.aprovFora, true, (v) => v + '%', '#f97316'),
             card('Time mais disciplinado', (t) => t.amarelos + t.vermelhos * 3, false, (v) => v + ' pts disc.', '#3b82f6')
@@ -316,6 +485,69 @@
     }
 
     // ── HTML ────────────────────────────────────────────────────────────────
+    // Retrato da competição, não de um time. Usa DADOS_BRUTOS de propósito: nem o
+    // corte de elegibilidade (times com poucos jogos) nem o recorte por equipe
+    // valem aqui — deixar de fora o time eliminado na primeira fase faria a média
+    // de gols do torneio ignorar as partidas dele.
+    function renderResumo() {
+        const el = $('est-resumo');
+        if (!el) return;
+
+        // Cada partida tem exatamente um mandante, então somar os contadores de
+        // mando entre os times conta cada jogo uma vez só.
+        const soma = (f) => DADOS_BRUTOS.reduce((a, t) => a + (f(t) || 0), 0);
+        const jogosMando = soma((t) => t.jCasa);
+        const vCasa = soma((t) => t.vCasa);
+        const empates = soma((t) => t.eCasa);
+        const vFora = jogosMando - vCasa - empates;
+        const gols = soma((t) => t.gp);
+        // Um jogo aparece nos dois times envolvidos; jCasa já é por partida única.
+        const jogos = jogosMando;
+        const amarelos = soma((t) => t.amarelos);
+        const vermelhos = soma((t) => t.vermelhos);
+
+        if (!jogos) { el.innerHTML = ''; return; }
+        const pct = (n) => Math.round(n / jogos * 100);
+        const um = (n) => (Math.round(n * 100) / 100).toFixed(2).replace('.', ',');
+
+        el.innerHTML = `
+            <div class="br-est-resumo-item">
+                <div class="rot">Jogos</div>
+                <div class="val">${jogos}</div>
+                <div class="det">com placar cadastrado</div>
+            </div>
+            <div class="br-est-resumo-item">
+                <div class="rot">Gols</div>
+                <div class="val">${gols}</div>
+                <div class="det">${um(gols / jogos)} por jogo</div>
+            </div>
+            <div class="br-est-resumo-item" style="grid-column: span 2; min-width: 0">
+                <div class="rot">Mando de campo</div>
+                <div class="val">${pct(vCasa)}%</div>
+                <div class="det">das partidas terminam em vitória do mandante</div>
+                <div class="br-est-mando">
+                    <i style="width:${pct(vCasa)}%;background:#22c55e"></i>
+                    <i style="width:${pct(empates)}%;background:#6b7280"></i>
+                    <i style="width:${pct(vFora)}%;background:#f97316"></i>
+                </div>
+                <div class="br-est-mando-legenda">
+                    <span><b style="background:#22c55e"></b>Mandante ${pct(vCasa)}%</span>
+                    <span><b style="background:#6b7280"></b>Empate ${pct(empates)}%</span>
+                    <span><b style="background:#f97316"></b>Visitante ${pct(vFora)}%</span>
+                </div>
+            </div>
+            <div class="br-est-resumo-item">
+                <div class="rot">Cartões amarelos</div>
+                <div class="val">${um(amarelos / jogos)}</div>
+                <div class="det">${amarelos} no total, por jogo</div>
+            </div>
+            <div class="br-est-resumo-item">
+                <div class="rot">Cartões vermelhos</div>
+                <div class="val">${um(vermelhos / jogos)}</div>
+                <div class="det">${vermelhos} no total, por jogo</div>
+            </div>`;
+    }
+
     function renderDestaques() {
         const el = $('est-destaques');
         if (!el) return;
@@ -334,37 +566,95 @@
             </div>`).join('');
     }
 
+    function renderCategorias() {
+        const el = $('est-cats');
+        if (!el) return;
+        // Categoria sem nenhuma métrica disponível (competição sem estatística de
+        // partida importada) simplesmente não aparece.
+        const disponiveis = CATEGORIAS.filter((c) => defsMetricas().some((m) => m.cat === c.key));
+        if (!disponiveis.some((c) => c.key === state.categoria) && disponiveis.length) state.categoria = disponiveis[0].key;
+        el.innerHTML = disponiveis.map((c) => `<button type="button" data-c="${c.key}" class="${state.categoria === c.key ? 'active' : ''}">${c.label}</button>`).join('');
+        el.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+            state.categoria = b.dataset.c;
+            // A métrica selecionada quase nunca pertence à nova categoria — cai
+            // na primeira dela para o gráfico não ficar mostrando outra coisa.
+            const primeira = metricasDaCategoria()[0];
+            if (primeira) state.metrica = primeira.key;
+            renderCategorias();
+            renderMetricas();
+            atualizarRanking();
+        }));
+    }
+
     function renderMetricas() {
         const el = $('est-metricas');
         if (!el) return;
-        el.innerHTML = defsMetricas().map((m) => `<button type="button" data-k="${m.key}" class="${state.metrica === m.key ? 'active' : ''}">${m.label}</button>`).join('');
+        el.innerHTML = metricasDaCategoria().map((m) => `<button type="button" data-k="${m.key}" class="${state.metrica === m.key ? 'active' : ''}">${m.label}</button>`).join('');
         el.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
             state.metrica = b.dataset.k;
             renderMetricas();
             atualizarRanking();
         }));
         const desc = $('est-metrica-desc');
-        if (desc) desc.textContent = metricaAtual().desc;
+        const m = metricaAtual();
+        if (!desc) return;
+        if (!m) { desc.textContent = ''; return; }
+
+        const notas = [];
+        // Percentuais e razões não têm total acumulado — dizer isso evita o
+        // usuário achar que o seletor "Totais × Por jogo" está quebrado.
+        if (m.partida && !DADOS.some((t) => t.totais && t.totais[m.key] !== undefined)) {
+            notas.push('valor médio por jogo — percentuais não mudam entre totais e por jogo');
+        } else {
+            notas.push(state.normal === 'total' ? 'somado no período' : 'média por jogo');
+        }
+        // As estatísticas da partida não são separadas por mando de campo na
+        // importação, então o recorte casa/fora não vale para elas.
+        if (m.partida && state.escopo !== 'total') notas.push('não separa casa e fora');
+        desc.textContent = m.desc + ' · ' + notas.join(' · ');
     }
 
+    // Cada coluna se descreve por inteiro (leitura, formatação e sentido do
+    // "melhor"), então cabeçalho, ordenação, semáforo de cores e células saem
+    // todos daqui — acrescentar uma métrica é acrescentar uma linha.
+    const um = (v) => v.toFixed(1);
     const COL_DEFS = [
         { key: 'nome', label: 'Clube', align: 'left' },
-        { key: 'pts', label: 'Pts' }, { key: 'aprov', label: '%' },
-        { key: 'gp', label: 'GP' }, { key: 'gc', label: 'GC' },
-        { key: 'xg', label: 'xG' }, { key: 'difXg', label: 'G−xG' },
-        { key: 'posse', label: 'Posse' }, { key: 'fin', label: 'Fin/j' },
-        { key: 'precisao', label: 'Pontaria' }, { key: 'cs', label: 'CS' },
-        { key: 'am', label: 'Cartões' }
+        { key: 'pts', label: 'Pts', get: (t) => t.pts },
+        { key: 'aprov', label: '%', get: (t) => t.aprov, fmt: (v) => v + '%' },
+        { key: 'gp', label: 'GP', get: (t) => t.gp },
+        { key: 'gc', label: 'GC', get: (t) => t.gc, menorMelhor: true },
+        { key: 'xg', label: 'xG', get: (t) => t.xg, fmt: um },
+        { key: 'difXg', label: 'G−xG', get: (t) => t.difXg, fmt: (v) => (v > 0 ? '+' : '') + v.toFixed(1) },
+        { key: 'eficienciaXg', label: 'Efic. xG', get: (t) => t.eficienciaXg, fmt: (v) => v.toFixed(2) + 'x' },
+        { key: 'conversao', label: 'Conv.', get: (t) => t.conversao, fmt: (v) => v + '%' },
+        { key: 'posse', label: 'Posse', get: (t) => t.posse, fmt: (v) => v + '%' },
+        { key: 'fin', label: 'Fin/j', get: (t) => t.fin, fmt: um },
+        { key: 'precisao', label: 'Pontaria', get: (t) => t.precisao, fmt: (v) => v + '%' },
+        { key: 'chutesArea', label: 'Na área/j', get: (t) => t.chutesArea, fmt: um },
+        { key: 'passes', label: 'Passes/j', get: (t) => t.passes, fmt: (v) => v.toFixed(0) },
+        { key: 'precisaoPasses', label: 'Prec. passe', get: (t) => t.precisaoPasses, fmt: (v) => v + '%' },
+        { key: 'cs', label: 'CS', get: (t) => t.cleanSheets },
+        { key: 'defesasGoleiro', label: 'Def/j', get: (t) => t.defesasGoleiro, fmt: um },
+        { key: 'faltas', label: 'Faltas/j', get: (t) => t.faltas, fmt: um, menorMelhor: true },
+        { key: 'impedimentos', label: 'Imp/j', get: (t) => t.impedimentos, fmt: um, menorMelhor: true },
+        { key: 'am', label: 'Cartões', get: (t) => t.amarelos, cel: (t) => t.amarelos + ' / ' + t.vermelhos, menorMelhor: true }
     ];
-    const MENOR_MELHOR = { gc: true, am: true };
+
+    // Esconde a coluna quando nenhum time da competição tem o dado — competições
+    // antigas, sem estatística de partida importada, ficam com a tabela enxuta.
+    const COLS = COL_DEFS.filter((c) => c.key === 'nome' || DADOS.some((t) => {
+        const v = c.get(t);
+        return v !== null && v !== undefined;
+    }));
+    const NUMERICAS = COLS.filter((c) => c.key !== 'nome');
 
     function rankMapa() {
         const mapa = {};
-        ['pts', 'aprov', 'gp', 'gc', 'xg', 'difXg', 'posse', 'fin', 'precisao', 'cs', 'am'].forEach((k) => {
-            const valor = (t) => k === 'am' ? t.amarelos : t[k];
-            const ord = comDado(valor).sort((a, b) => MENOR_MELHOR[k] ? valor(a) - valor(b) : valor(b) - valor(a));
-            mapa[k] = {};
-            ord.forEach((t, i) => { mapa[k][t.timeId] = i < 6 ? '#4ade80' : i >= ord.length - 6 ? '#f87171' : '#9ca3af'; });
+        NUMERICAS.forEach((c) => {
+            const ord = comDado(c.get).sort((a, b) => c.menorMelhor ? c.get(a) - c.get(b) : c.get(b) - c.get(a));
+            mapa[c.key] = {};
+            ord.forEach((t, i) => { mapa[c.key][t.timeId] = i < 6 ? '#4ade80' : i >= ord.length - 6 ? '#f87171' : '#9ca3af'; });
         });
         return mapa;
     }
@@ -372,8 +662,16 @@
     function renderTabela() {
         const thead = $('est-thead');
         if (!thead) return;
-        thead.innerHTML = '<span>#</span>' + COL_DEFS.map((c) => `
-            <button type="button" data-k="${c.key}" class="${c.align === 'left' ? 'left' : ''}" style="color:${state.ordem === c.key ? '#4ade80' : '#374151'};">
+
+        // Largura mínima acompanha o nº de colunas visíveis (30px + nome + 72px cada),
+        // senão a tabela ou espreme as células ou sobra espaço quando há poucas.
+        const raiz = document.querySelector(`[data-est-root="${UID}"]`);
+        if (raiz) raiz.style.setProperty('--est-cols', NUMERICAS.length);
+        const wrap = thead.closest('.br-est-tabela-min');
+        if (wrap) wrap.style.minWidth = (30 + 150 + NUMERICAS.length * 74) + 'px';
+
+        thead.innerHTML = '<span>#</span>' + COLS.map((c) => `
+            <button type="button" data-k="${c.key}" class="${c.align === 'left' ? 'left' : ''}" style="color:${state.ordem === c.key ? '#4ade80' : '#374151'}">
                 ${c.label}${state.ordem === c.key ? (state.desc ? ' ↓' : ' ↑') : ''}
             </button>`).join('');
         thead.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
@@ -382,10 +680,10 @@
             renderTabela();
         }));
 
-        const valorOrdem = (t) => state.ordem === 'nome' ? t.nome : (state.ordem === 'am' ? t.amarelos : t[state.ordem]);
+        const colOrdem = NUMERICAS.find((c) => c.key === state.ordem);
         const ordenados = DADOS.slice().sort((a, b) => {
-            if (state.ordem === 'nome') return state.desc ? b.nome.localeCompare(a.nome) : a.nome.localeCompare(b.nome);
-            const va = valorOrdem(a), vb = valorOrdem(b);
+            if (!colOrdem) return state.desc ? b.nome.localeCompare(a.nome) : a.nome.localeCompare(b.nome);
+            const va = colOrdem.get(a), vb = colOrdem.get(b);
             const na = va === null || va === undefined, nb = vb === null || vb === undefined;
             if (na && nb) return 0;
             if (na) return 1;
@@ -393,23 +691,20 @@
             return state.desc ? vb - va : va - vb;
         });
         const cores = rankMapa();
-        const fmt = (v, suf) => v === null || v === undefined ? '—' : (suf ? v + suf : v);
+
+        function celula(c, t) {
+            const v = c.get(t);
+            const cor = (cores[c.key] || {})[t.timeId] || '#9ca3af';
+            if (v === null || v === undefined) return `<span class="cel" style="color:var(--text-dimmer)">—</span>`;
+            const texto = c.cel ? c.cel(t) : (c.fmt ? c.fmt(v) : v);
+            return `<span class="cel" style="color:${cor}">${texto}</span>`;
+        }
 
         $('est-tbody').innerHTML = ordenados.map((t, i) => `
             <div class="br-est-trow">
                 <span class="pos">${i + 1}</span>
                 ${nomeComEscudo(t, 22)}
-                <span class="cel" style="color:${cores.pts[t.timeId] || '#9ca3af'};">${t.pts}</span>
-                <span class="cel" style="color:${cores.aprov[t.timeId] || '#9ca3af'};">${fmt(t.aprov, '%')}</span>
-                <span class="cel" style="color:${cores.gp[t.timeId] || '#9ca3af'};">${t.gp}</span>
-                <span class="cel" style="color:${cores.gc[t.timeId] || '#9ca3af'};">${t.gc}</span>
-                <span class="cel" style="color:${cores.xg[t.timeId] || '#9ca3af'};">${fmt(t.xg !== null && t.xg !== undefined ? t.xg.toFixed(1) : null)}</span>
-                <span class="cel" style="color:${cores.difXg[t.timeId] || '#9ca3af'};">${fmt(t.difXg !== null && t.difXg !== undefined ? ((t.difXg > 0 ? '+' : '') + t.difXg.toFixed(1)) : null)}</span>
-                <span class="cel" style="color:${cores.posse[t.timeId] || '#9ca3af'};">${fmt(t.posse, '%')}</span>
-                <span class="cel" style="color:${cores.fin[t.timeId] || '#9ca3af'};">${fmt(t.fin !== null && t.fin !== undefined ? t.fin.toFixed(1) : null)}</span>
-                <span class="cel" style="color:${cores.precisao[t.timeId] || '#9ca3af'};">${fmt(t.precisao, '%')}</span>
-                <span class="cel" style="color:${cores.cs[t.timeId] || '#9ca3af'};">${t.cleanSheets}</span>
-                <span class="cel" style="color:${cores.am[t.timeId] || '#9ca3af'};">${t.amarelos} / ${t.vermelhos}</span>
+                ${NUMERICAS.map((c) => celula(c, t)).join('')}
             </div>`).join('');
     }
 
@@ -460,7 +755,9 @@
             el = document.createElement('div');
             el.style.cssText = 'position:absolute;pointer-events:none;opacity:0;transition:opacity .1s ease;'
                 + 'background:#0f0f0f;border:1px solid #333;border-radius:8px;padding:6px 10px;'
-                + "font-family:'Barlow',Arial,sans-serif;font-size:12px;color:#cbd5e1;z-index:1000;"
+                // z-index acima do overlay de "ampliar" (2000): o tooltip vive em
+                // document.body, então sem isso ele fica atrás do card ampliado.
+                + "font-family:'Barlow',Arial,sans-serif;font-size:12px;color:#cbd5e1;z-index:2100;"
                 + 'display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.4);white-space:nowrap;';
             document.body.appendChild(el);
             tooltipEscudoEl = el;
@@ -471,7 +768,7 @@
         if (dp) {
             const raw = dp.raw || {};
             const escudo = raw.escudoUrl
-                ? `<img src="/MediaProxy/Imagem?url=${encodeURIComponent(raw.escudoUrl)}" style="width:22px;height:22px;object-fit:contain;border-radius:50%;background:#000;border:1px solid #2a2a2a;flex-shrink:0;" />`
+                ? `<img src="/MediaProxy/Imagem?url=${encodeURIComponent(raw.escudoUrl)}" style="width:22px;height:22px;object-fit:contain;border-radius:50%;background:#000;border:1px solid var(--line-strong);flex-shrink:0" />`
                 : '';
             el.innerHTML = `${escudo}<span>${raw.tooltipLinha || dp.label || ''}</span>`;
         }
@@ -491,6 +788,7 @@
 
     function atualizarRanking() {
         const m = metricaAtual();
+        if (!m) return;
         const lista = comDado(m.get).sort((a, b) => m.maior ? m.get(b) - m.get(a) : m.get(a) - m.get(b));
         const n = lista.length;
         const cores = lista.map((t, i) => i < 4 ? '#22c55e' : i >= n - 4 ? '#ef4444' : '#3b82f6');
@@ -631,10 +929,224 @@
         }));
     }
 
-    bindSegmento('est-escopo', (v) => { state.escopo = v; renderDestaques(); if (construido) atualizarRanking(); });
-    bindSegmento('est-normal', (v) => { state.normal = v; if (construido) atualizarRanking(); });
+    // ── Ampliar card em tela cheia ──────────────────────────────────────────
+    // Move o card para um overlay em document.body e devolve depois usando um
+    // placeholder: assim o layout original (grid de 2 colunas) não se perde e
+    // nenhum ancestral com transform/filter atrapalha o position:fixed.
+    let ampliado = null;
 
+    // chart.resize() sozinho não basta: com uma animação em curso o Chart.js só
+    // guarda o novo tamanho e aplica no próximo draw — que pode nunca acontecer,
+    // e o gráfico fica com o tamanho antigo dentro do card ampliado. stop()
+    // antes tira o gráfico do animator e o resize passa a valer na hora.
+    function redimensionarGraficos() {
+        Object.keys(charts).forEach((n) => {
+            // Zerar o canvas antes de medir: o Chart.js dimensiona o canvas por
+            // estilo inline, e um canvas grande (o de dentro do card ampliado)
+            // segura a largura do container ao voltar pro layout normal — o
+            // gráfico ficaria maior que o card, cortado. Zerado, o container
+            // volta ao tamanho natural e o resize mede o valor certo.
+            charts[n].canvas.style.width = '0px';
+            charts[n].canvas.style.height = '0px';
+            charts[n].stop();
+            charts[n].resize();
+            charts[n].update('none');
+        });
+    }
+
+    function redimensionarAposLayout() {
+        // o tooltip externo fica posicionado em coordenadas de página; ao mover o
+        // card ele apontaria pro lugar errado até o próximo hover.
+        if (tooltipEscudoEl) tooltipEscudoEl.style.opacity = 0;
+        // 2 frames: o 1º aplica o novo layout, o 2º já tem o tamanho do container.
+        // A 2ª passada (timer) é necessária porque o próprio resize dos gráficos
+        // reflui o card (legenda/botões de métrica quebram linha) e o container
+        // muda de novo depois da primeira medição.
+        requestAnimationFrame(() => requestAnimationFrame(redimensionarGraficos));
+        setTimeout(redimensionarGraficos, 250);
+    }
+
+    function ampliar(card, botao) {
+        if (ampliado) restaurar();
+        const placeholder = document.createElement('div');
+        card.parentNode.insertBefore(placeholder, card);
+        const overlay = document.createElement('div');
+        overlay.className = 'br-est-overlay';
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+        card.classList.add('br-est-ampliado');
+        document.body.style.overflow = 'hidden';
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) restaurar(); });
+        botao.innerHTML = '✕ Fechar';
+        ampliado = { card, placeholder, overlay, botao };
+        redimensionarAposLayout();
+    }
+
+    function restaurar() {
+        if (!ampliado) return;
+        const { card, placeholder, overlay, botao } = ampliado;
+        ampliado = null;
+        card.classList.remove('br-est-ampliado');
+        placeholder.parentNode.insertBefore(card, placeholder);
+        placeholder.remove();
+        overlay.remove();
+        document.body.style.overflow = '';
+        botao.innerHTML = '⛶ Ampliar';
+        redimensionarAposLayout();
+    }
+
+    document.querySelectorAll(`[data-est-root="${UID}"] [data-zoom]`).forEach((b) => {
+        b.addEventListener('click', () => {
+            const card = b.closest('.br-side-card');
+            if (!card) return;
+            if (ampliado && ampliado.card === card) restaurar();
+            else ampliar(card, b);
+        });
+    });
+    // ── Glossário ───────────────────────────────────────────────────────────
+    // Mesmo serviço do glossário das estatísticas da FIFA: dizer o que cada
+    // métrica significa. As descrições são as mesmas que aparecem sob o gráfico,
+    // então não existe um segundo texto para manter em sincronia.
+    const GLOSSARIO_EXTRA = [
+        { cat: 'geral', label: 'Pts', desc: 'Pontos somados no período — 3 por vitória, 1 por empate.' },
+        { cat: 'ataque', label: 'G−xG', desc: 'Gols marcados menos gols esperados, ambos por jogo. Positivo significa finalizar acima do que as chances criadas previam.' }
+    ];
+
+    let glossarioAberto = null;
+
+    function abrirGlossario() {
+        if (glossarioAberto) { fecharGlossario(); return; }
+        const metricas = defsMetricas();
+        const secoes = CATEGORIAS.map((c) => {
+            const itens = metricas.filter((m) => m.cat === c.key).map((m) => ({ label: m.label, desc: m.desc }))
+                .concat(GLOSSARIO_EXTRA.filter((x) => x.cat === c.key));
+            if (!itens.length) return '';
+            return `<div class="br-est-gloss-cat">${c.label}</div><dl style="margin:0">`
+                + itens.map((i) => `<div class="br-est-gloss-item"><dt>${i.label}</dt><dd>${i.desc}</dd></div>`).join('')
+                + '</dl>';
+        }).join('');
+
+        const overlay = document.createElement('div');
+        overlay.className = 'br-est-overlay';
+        overlay.innerHTML = `
+            <div class="br-est-gloss-card">
+                <div class="br-est-gloss-head">
+                    <span style="font-size:1.1rem">📖</span>
+                    <span class="titulo">Glossário</span>
+                    <button type="button" class="br-est-zoom" data-fechar>✕ Fechar</button>
+                </div>
+                <div class="br-est-gloss-body">
+                    ${secoes}
+                    <div class="br-est-gloss-nota">
+                        As métricas de partida (finalizações, passes, faltas, xG…) vêm das estatísticas
+                        importadas da api-football e só existem nos jogos em que ela as forneceu — por isso
+                        a métrica some da tela em vez de aparecer zerada quando a competição não tem esse dado.
+                        Percentuais e razões não têm versão &ldquo;total&rdquo;: continuam iguais nos dois modos do
+                        seletor &ldquo;Totais × Por jogo&rdquo;. O recorte casa/fora não vale para elas, porque a
+                        importação não separa as estatísticas da partida por mando de campo.
+                    </div>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+        document.body.style.overflow = 'hidden';
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) fecharGlossario(); });
+        overlay.querySelector('[data-fechar]').addEventListener('click', fecharGlossario);
+        glossarioAberto = overlay;
+    }
+
+    function fecharGlossario() {
+        if (!glossarioAberto) return;
+        glossarioAberto.remove();
+        glossarioAberto = null;
+        // Só devolve o scroll se não houver um card ampliado aberto por baixo.
+        if (!ampliado) document.body.style.overflow = '';
+    }
+
+    const btnGlossario = $('est-glossario');
+    if (btnGlossario) btnGlossario.addEventListener('click', abrirGlossario);
+
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { fecharGlossario(); restaurar(); } });
+
+    bindSegmento('est-escopo', (v) => { state.escopo = v; renderDestaques(); renderMetricas(); if (construido) atualizarRanking(); });
+    bindSegmento('est-normal', (v) => { state.normal = v; renderMetricas(); if (construido) atualizarRanking(); });
+
+    // ── Recorte por equipe ──────────────────────────────────────────────────
+    function redesenharTudo() {
+        aplicarFiltroTimes();
+        // renderResumo fica de fora: cobre a competição inteira e não muda com o
+        // recorte de equipes.
+        renderDestaques();
+        renderCategorias();
+        renderMetricas();
+        renderTabela();
+        renderDecidem();
+        if (!construido) return;
+        // Todos os gráficos leem DADOS, então nenhum pode ficar com o recorte antigo.
+        atualizarRanking();
+        buildQuadrantes();
+        buildCasaFora();
+        buildXg();
+        buildCartoes();
+        buildIntervalos();
+    }
+
+    // O menu é montado uma vez só. Reconstruí-lo a cada marcação zeraria a
+    // rolagem da lista debaixo do cursor — só o rótulo e o "Todas" mudam.
+    function atualizarRotuloTimes() {
+        const menu = $('est-times-menu'), btn = $('est-times-btn');
+        if (!menu || !btn) return;
+        const todas = !timesSelecionados;
+        btn.textContent = (todas ? 'Todas as equipes' : timesSelecionados.size + ' de ' + ELEGIVEIS.length) + ' ▾';
+        const cbTodas = menu.querySelector('[data-todas]');
+        if (cbTodas) cbTodas.checked = todas;
+    }
+
+    function renderFiltroTimes() {
+        const menu = $('est-times-menu');
+        if (!menu) return;
+
+        menu.innerHTML =
+            '<label><input type="checkbox" data-todas checked> Todas as equipes</label><div class="sep"></div>'
+            + ELEGIVEIS.map((t) => `<label><input type="checkbox" data-id="${t.timeId}" checked> ${t.nome}</label>`).join('');
+
+        menu.querySelector('[data-todas]').addEventListener('change', (e) => {
+            // Desmarcar "todas" não tem significado próprio — só marcar tem.
+            e.target.checked = true;
+            timesSelecionados = null;
+            menu.querySelectorAll('[data-id]').forEach((c) => { c.checked = true; });
+            atualizarRotuloTimes();
+            redesenharTudo();
+        });
+
+        menu.querySelectorAll('[data-id]').forEach((cb) => cb.addEventListener('change', () => {
+            const marcados = [...menu.querySelectorAll('[data-id]')].filter((x) => x.checked).map((x) => +x.dataset.id);
+            // Nenhuma equipe marcada deixaria a tela vazia sem explicar o motivo;
+            // nesse caso, e quando todas estão marcadas, volta para "todas".
+            if (marcados.length === 0 || marcados.length === ELEGIVEIS.length) {
+                timesSelecionados = null;
+                menu.querySelectorAll('[data-id]').forEach((c) => { c.checked = true; });
+            } else {
+                timesSelecionados = new Set(marcados);
+            }
+            atualizarRotuloTimes();
+            redesenharTudo();
+        }));
+
+        atualizarRotuloTimes();
+    }
+
+    const btnTimes = $('est-times-btn');
+    if (btnTimes) {
+        const menu = $('est-times-menu');
+        btnTimes.addEventListener('click', (e) => { e.stopPropagation(); menu.hidden = !menu.hidden; });
+        menu.addEventListener('click', (e) => e.stopPropagation());
+        document.addEventListener('click', () => { menu.hidden = true; });
+        renderFiltroTimes();
+    }
+
+    renderResumo();
     renderDestaques();
+    renderCategorias();
     renderMetricas();
     renderTabela();
     renderDecidem();
@@ -666,6 +1178,6 @@
         construirTudo();
     }
 
-    window.addEventListener('resize', () => { Object.keys(charts).forEach((n) => charts[n].resize()); });
+    window.addEventListener('resize', redimensionarGraficos);
 })();
 </script>

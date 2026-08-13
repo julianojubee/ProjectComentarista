@@ -58,7 +58,7 @@
     .lib-badge {
         display: inline-block;
         background: rgba(250, 204, 21, 0.15);
-        color: #fde68a;
+        color: var(--warn);
         font-size: 10px;
         font-weight: 700;
         letter-spacing: 1px;
@@ -126,7 +126,7 @@
     }
 
     .lib-grupo-header {
-        background: linear-gradient(90deg, #3b0764, #6b21a8);
+        background: linear-gradient(90deg, var(--purple-surface), var(--purple-surface));
         color: #fff;
         padding: 8px 14px;
         font-size: 13px;
@@ -156,7 +156,7 @@
 
         .lib-table th {
             padding: 6px 8px;
-            color: #6b7280;
+            color: var(--text-dim);
             font-weight: 600;
             text-transform: uppercase;
             font-size: 10px;
@@ -208,7 +208,7 @@
     /* repescagem */
     .lib-pos-4, .lib-pos-default {
         background: #d1d5db;
-        color: #6b7280;
+        color: var(--text-dim);
     }
 
     .lib-team-cell {
@@ -251,7 +251,7 @@
         margin-top: 6px;
         margin-bottom: 16px;
         font-size: 11px;
-        color: #6b7280;
+        color: var(--text-dim);
     }
 
     .lib-leg-dot {
@@ -279,7 +279,7 @@
     }
 
     .lib-rodada-badge {
-        background: linear-gradient(90deg, #3b0764, #6b21a8);
+        background: linear-gradient(90deg, var(--purple-surface), var(--purple-surface));
         color: #fff;
         font-size: 11px;
         font-weight: 700;
@@ -301,8 +301,8 @@
         }
 
     .lib-jogo-header {
-        background: linear-gradient(90deg, #3b0764, #6b21a8);
-        color: #fde68a;
+        background: linear-gradient(90deg, var(--purple-surface), var(--purple-surface));
+        color: var(--warn);
         font-size: 10px;
         font-weight: 600;
         padding: 5px 10px;
@@ -354,7 +354,7 @@
     .lib-vs {
         font-size: 11px;
         font-weight: 700;
-        color: #9ca3af;
+        color: var(--text-muted);
         flex-shrink: 0;
     }
 
@@ -374,7 +374,7 @@
     .lib-badge-agendado {
         font-size: 10px;
         background: #f3f4f6;
-        color: #6b7280;
+        color: var(--text-dim);
         padding: 2px 8px;
         border-radius: 6px;
         font-weight: 500;
@@ -388,7 +388,7 @@
         padding-top: 6px;
         border-top: 0.5px solid #f3f4f6;
         font-size: 10px;
-        color: #9ca3af;
+        color: var(--text-muted);
     }
 
     .lib-analisar-btn {
@@ -411,7 +411,7 @@
 
     .lib-grupo-tag {
         background: rgba(255,255,255,0.15);
-        color: #fde68a;
+        color: var(--warn);
         font-size: 9px;
         padding: 1px 6px;
         border-radius: 999px;
@@ -425,7 +425,7 @@
     .lib-empty {
         text-align: center;
         padding: 3rem 1rem;
-        color: #9ca3af;
+        color: var(--text-muted);
         font-size: 13px;
         background: #fff;
         border: 0.5px solid #e5e7eb;
@@ -462,7 +462,7 @@
 }
 
 <!-- ── Banner ── -->
-<div class="lib-hero">
+<div class="lib-hero theme-dark-zone">
     <div class="lib-hero-content">
         <span class="lib-badge">Competição Internacional</span>
         <div class="lib-title-wrap mascotes-inline">
@@ -591,7 +591,7 @@ else
         .cdm-bracket-head h3 {
             font-size: 1.05rem; font-weight: 700; color: #111827; margin: 0;
         }
-        .cdm-bracket-head small { color: #6b7280; font-size: 11px; }
+        .cdm-bracket-head small { color: var(--text-dim); font-size: 11px; }
 
         /* Abas roláveis (1/16, 1/8, Quartas, ...) */
         .cdm-tabs {
@@ -602,7 +602,7 @@ else
         .cdm-tab {
             flex: 0 0 auto;
             background: #fff; border: 1px solid #e5e7eb; border-radius: 999px;
-            padding: 7px 16px; font-size: 12px; font-weight: 600; color: #6b7280;
+            padding: 7px 16px; font-size: 12px; font-weight: 600; color: var(--text-dim);
             cursor: pointer; white-space: nowrap; transition: all .15s;
         }
         .cdm-tab:hover { border-color: #228B22; color: #15803d; }
@@ -629,7 +629,7 @@ else
         .cdm-match.done { border-color: #bbf7d0; }
         .cdm-match-head {
             background: linear-gradient(90deg, #006400, #228B22);
-            color: #fde68a; font-size: 10px; font-weight: 600;
+            color: var(--warn); font-size: 10px; font-weight: 600;
             padding: 5px 12px; display: flex; justify-content: space-between; align-items: center;
         }
         .cdm-row {
@@ -651,8 +651,8 @@ else
             flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: #111827;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
-        .cdm-name.placeholder { font-weight: 500; font-style: italic; color: #9ca3af; }
-        .cdm-name.provisorio  { color: #6b7280; }
+        .cdm-name.placeholder { font-weight: 500; font-style: italic; color: var(--text-muted); }
+        .cdm-name.provisorio  { color: var(--text-dim); }
         .cdm-row.winner .cdm-name { color: #15803d; }
         .cdm-row.winner { background: rgba(34,139,34,.05); }
         .cdm-score {
@@ -676,7 +676,7 @@ else
 
         /* ── Chaveamento em árvore (bracket estilo FIFA) ─────────── */
         .bkt-legend {
-            display: flex; gap: 16px; flex-wrap: wrap; font-size: 11px; color: #6b7280;
+            display: flex; gap: 16px; flex-wrap: wrap; font-size: 11px; color: var(--text-dim);
             margin-bottom: 14px;
         }
         .bkt-leg-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; vertical-align: middle; }
@@ -695,7 +695,7 @@ else
         .bkt-colwrap { width: var(--bkt-w); display: flex; flex-direction: column; }
         .bkt-col-label {
             text-align: center; font-size: 11px; font-weight: 800; letter-spacing: 1px;
-            text-transform: uppercase; color: #9ca3af; padding-bottom: 10px;
+            text-transform: uppercase; color: var(--text-muted); padding-bottom: 10px;
         }
         .bkt-col { flex: 1; display: flex; flex-direction: column; }
         /* min-height precisa conter o card inteiro (cabeçalho + 2 times + rodapé
@@ -711,7 +711,7 @@ else
         .bkt-match.done { border-color: #bbf7d0; }
         .bkt-match-no {
             display: flex; justify-content: space-between; align-items: center;
-            background: linear-gradient(90deg,#006400,#228B22); color: #fde68a;
+            background: linear-gradient(90deg,#006400,#228B22); color: var(--warn);
             font-size: 9px; font-weight: 700; padding: 3px 8px; letter-spacing: .3px;
         }
         .bkt-team {
@@ -722,8 +722,8 @@ else
         .bkt-team img { width: 20px; height: 20px; object-fit: contain; border-radius: 50%; border: .5px solid #e5e7eb; background: #f9f9f9; flex-shrink: 0; }
         .bkt-flag-ph { width: 20px; height: 20px; border-radius: 50%; background: repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 4px,#e5e7eb 4px,#e5e7eb 8px); flex-shrink: 0; }
         .bkt-tname { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .bkt-tname.placeholder { font-weight: 500; font-style: italic; color: #9ca3af; }
-        .bkt-tname.prov { color: #6b7280; }
+        .bkt-tname.placeholder { font-weight: 500; font-style: italic; color: var(--text-muted); }
+        .bkt-tname.prov { color: var(--text-dim); }
         .bkt-team.win .bkt-tname { color: #15803d; }
         .bkt-team.win { background: rgba(34,139,34,.06); }
         .bkt-score { font-size: 13px; font-weight: 800; color: #111827; min-width: 18px; text-align: center; flex-shrink: 0; }
@@ -731,7 +731,7 @@ else
             display: flex; justify-content: space-between; align-items: center; gap: 6px;
             padding: 4px 8px; border-top: 1px solid #f3f4f6; background: #fafafa;
         }
-        .bkt-date { font-size: 9px; color: #9ca3af; }
+        .bkt-date { font-size: 9px; color: var(--text-muted); }
         .bkt-analisar {
             font-size: 9px; padding: 2px 8px; border-radius: 5px; border: 1px solid #15803d;
             color: #15803d; background: transparent; text-decoration: none; font-weight: 700;
@@ -795,12 +795,12 @@ else
         .sel-save:hover { background:#15803d; }
         .sel-del { padding:8px 12px; border:1px solid #fecaca; border-radius:8px; background:#fef2f2; color:#b91c1c; font-weight:600; font-size:13px; cursor:pointer; }
         .sel-del:hover { background:#fee2e2; }
-        [data-theme="dark"] .sel-nome { background:#2a2a2a; color:#e0e0e0; border-color:#444; }
-        [data-theme="dark"] .sel-del { background:#3a1a1a; border-color:#7f1d1d; color:#fca5a5; }
+        [data-theme="dark"] .sel-nome { background:var(--p-4); color:var(--text); border-color:var(--line-strong); }
+        [data-theme="dark"] .sel-del { background:#3a1a1a; border-color:#7f1d1d; color:var(--bad); }
         .sel-msg { background:#dcfce7; color:#15803d; padding:8px 12px; border-radius:8px; margin-bottom:12px; font-size:13px; }
-        .sel-empty { padding:2rem; text-align:center; color:#9ca3af; font-size:14px; }
+        .sel-empty { padding:2rem; text-align:center; color:var(--text-muted); font-size:14px; }
         .sel-titulo { text-align:center; font-weight:800; font-size:1.15rem; color:#111827; margin:4px 0 12px; font-family:'Barlow Condensed', sans-serif; letter-spacing:.5px; text-transform:uppercase; }
-        [data-theme="dark"] .sel-titulo { color:#e5e7eb; }
+        [data-theme="dark"] .sel-titulo { color:var(--text); }
 
         .sel-pitch {
             position:relative; width:100%; max-width:520px; margin:0 auto; aspect-ratio:2/3;
@@ -834,7 +834,7 @@ else
         .sel-picker-head { display:flex; gap:8px; padding:12px; border-bottom:1px solid #eee; }
         .sel-picker-head input { flex:1; padding:8px 10px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; outline:none; }
         .sel-picker-head select { padding:8px 8px; border:1px solid #d1d5db; border-radius:8px; font-size:13px; outline:none; background:#fff; }
-        [data-theme="dark"] .sel-picker-head select { background:#2a2a2a; color:#e0e0e0; border-color:#444; }
+        [data-theme="dark"] .sel-picker-head select { background:var(--p-4); color:var(--text); border-color:var(--line-strong); }
         .sel-picker-close { border:none; background:#f3f4f6; border-radius:8px; padding:0 12px; cursor:pointer; font-size:14px; }
         .sel-picker-list { overflow-y:auto; padding:6px; }
         .sel-pick-item { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; cursor:pointer; }
@@ -844,17 +844,17 @@ else
         .sel-pick-photo img { width:100%; height:100%; object-fit:cover; }
         .sel-pick-info { display:flex; flex-direction:column; min-width:0; }
         .sel-pick-nome { font-size:13px; font-weight:600; color:#111827; }
-        .sel-pick-meta { font-size:11px; color:#6b7280; }
+        .sel-pick-meta { font-size:11px; color:var(--text-dim); }
 
-        [data-theme="dark"] .sel-bar label { color:#cbd5e1; }
-        [data-theme="dark"] .sel-bar select { background:#2a2a2a; color:#e0e0e0; border-color:#444; }
-        [data-theme="dark"] .sel-picker-box { background:#1a1a1a; }
-        [data-theme="dark"] .sel-picker-head { border-bottom-color:#333; }
-        [data-theme="dark"] .sel-picker-head input { background:#2a2a2a; color:#e0e0e0; border-color:#444; }
-        [data-theme="dark"] .sel-picker-close { background:#333; color:#e5e7eb; }
-        [data-theme="dark"] .sel-pick-item:hover { background:#202020; }
-        [data-theme="dark"] .sel-pick-nome { color:#e5e7eb; }
-        [data-theme="dark"] .sel-pick-photo { background:#2a2a2a; }
+        [data-theme="dark"] .sel-bar label { color:var(--text-2); }
+        [data-theme="dark"] .sel-bar select { background:var(--p-4); color:var(--text); border-color:var(--line-strong); }
+        [data-theme="dark"] .sel-picker-box { background:var(--p-2); }
+        [data-theme="dark"] .sel-picker-head { border-bottom-color:var(--line); }
+        [data-theme="dark"] .sel-picker-head input { background:var(--p-4); color:var(--text); border-color:var(--line-strong); }
+        [data-theme="dark"] .sel-picker-close { background:#333; color:var(--text); }
+        [data-theme="dark"] .sel-pick-item:hover { background:var(--p-3); }
+        [data-theme="dark"] .sel-pick-nome { color:var(--text); }
+        [data-theme="dark"] .sel-pick-photo { background:var(--p-4); }
     </style>
 
     <div class="cdm-bracket">
@@ -983,7 +983,7 @@ else
 
                         @if (!grupo.Times.Any())
                         {
-                            <div style="padding:14px;font-size:12px;color:#9ca3af;text-align:center;">
+                            <div style="padding:14px;font-size:12px;color:var(--text-muted);text-align:center">
                                 Nenhum jogo realizado ainda neste grupo.
                             </div>
                         }
@@ -1048,9 +1048,9 @@ else
                 <!-- Tabela de 3ºs colocados -->
                 <div style="margin-top:20px;">
                     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-                        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#6b7280;">🏅 Classificação dos 3ºs Colocados</div>
+                        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim)">🏅 Classificação dos 3ºs Colocados</div>
                         <div style="flex:1;height:1px;background:#e5e7eb;"></div>
-                        <span style="font-size:10px;color:#6b7280;background:#f3f4f6;border:0.5px solid #e5e7eb;border-radius:20px;padding:2px 9px;">Os 8 melhores avançam</span>
+                        <span style="font-size:10px;color:var(--text-dim);background:#f3f4f6;border:0.5px solid #e5e7eb;border-radius:20px;padding:2px 9px">Os 8 melhores avançam</span>
                     </div>
                     <div style="background:#fff;border:0.5px solid #e5e7eb;border-radius:12px;overflow:hidden;">
                         <div style="background:linear-gradient(90deg,#92400e,#d97706);color:#fff;padding:8px 14px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:8px;">
@@ -1108,14 +1108,14 @@ else
                                         <td>@time.GolsPro</td>
                                         <td>@time.GolsContra</td>
                                         <td>@time.SaldoGols</td>
-                                        <td style="color:#6b7280;font-size:11px;">@time.FairPlay</td>
+                                        <td style="color:var(--text-dim);font-size:11px">@time.FairPlay</td>
                                         <td class="lib-pts">@time.Pontos</td>
                                     </tr>
                                 }
                             </tbody>
                         </table>
                         </div>
-                        <div style="padding:8px 14px;font-size:10px;color:#9ca3af;border-top:0.5px solid #f3f4f6;">
+                        <div style="padding:8px 14px;font-size:10px;color:var(--text-muted);border-top:0.5px solid #f3f4f6">
                             Critérios: Pontos → Saldo de Gols → Gols Pró → Fair Play (amarelo=1pt · vermelho direto=3pt · 2º amarelo+vermelho=4pt)
                         </div>
                     </div>
@@ -1190,7 +1190,7 @@ else
                             <div class="lib-jogo-footer">
                                 @if (realizado)
                                 {
-                                    <span style="color:#22c55e;font-weight:600;">✔ Realizado</span>
+                                    <span style="color:var(--ok-2);font-weight:600">✔ Realizado</span>
                                 }
                                 else
                                 {
@@ -1278,7 +1278,7 @@ else
 
                     <div class="sel-titulo" id="sel-titulo">⭐ @(string.IsNullOrWhiteSpace(Model.SelecaoAtualNome) ? "Nova seleção" : Model.SelecaoAtualNome)</div>
 
-                    <div class="sel-pitch">
+                    <div class="sel-pitch theme-dark-zone">
                         @for (int i = 0; i < Model.SelecaoSlots.Count; i++)
                         {
                             var s = Model.SelecaoSlots[i];
@@ -1354,6 +1354,7 @@ else
         </div>
 
         <div class="cdm-panel" data-cdm-panel="estatisticas">
+            @await Html.PartialAsync("_LinksEstatisticasCompeticao", (7, temporadaCopaSel))
             @await Html.PartialAsync("_PainelEstatisticas", ViewBag.EstatisticasTimes as List<ControleFutebolWeb.Models.ViewModels.EstatisticaTimeViewModel>)
         </div>
     </div>

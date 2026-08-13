@@ -216,6 +216,8 @@
         medias: @Html.Raw(JsonSerializer.Serialize(
             Model.MediasPorJogador,
             new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })),
+        @* Temporada aplicada aos números do tooltip (0 = todas) — seletor "ℹ tooltip". *@
+        temporadaTooltip: @Model.TemporadaTooltip,
         titularCompeticao: @Html.Raw(JsonSerializer.Serialize(Model.TitularPorJogador)),
         golsTemporada: @Html.Raw(JsonSerializer.Serialize(Model.GolsTemporadaPorJogador)),
         assistsTemporada: @Html.Raw(JsonSerializer.Serialize(Model.AssistsTemporadaPorJogador)),
@@ -238,7 +240,7 @@
 
 @if (Model.Jogo.CompeticaoId == 1)
 {
-    <div class="cf-comp-hero">
+    <div class="cf-comp-hero theme-dark-zone">
         <div class="cf-comp-hero-content">
             <span class="cf-comp-badge">Competição nacional</span>
             <div class="cf-comp-title-wrap">
@@ -252,7 +254,7 @@
 
 
 <!-- ══ PLACAR BOARD ══════════════════════════════════════════════════════ -->
-<div class="match-board">
+<div class="match-board theme-dark-zone">
     <div class="mb-scoreline">
         <!-- Time Casa -->
         <div class="mb-team home">
@@ -362,6 +364,10 @@
         <div class="mb-toolbar-toggle" id="mbPosJogoToggle" onclick="abrirPosJogo(@Model.Jogo.Id)" style="margin:0; cursor:pointer;">
             <span>📝 Pós-jogo</span>
         </div>
+        <div class="mb-toolbar-toggle" id="mbCompartilharToggle" onclick="abrirCompartilhar(@Model.Jogo.Id)" style="margin:0; cursor:pointer;"
+             title="Gera um link público, somente leitura, para mostrar esta análise a quem não tem conta no sistema">
+            <span>🔗 Compartilhar</span>
+        </div>
         <div class="mb-toolbar-toggle" id="mbJogadasToggle" onclick="Jogadas.abrirModal(@Model.Jogo.Id)" style="margin:0; cursor:pointer;"
              title="Prancheta tática: desenhe passo a passo as jogadas de cada time e reproduza a animação">
             <span>🎬 Jogadas</span>
@@ -401,36 +407,36 @@
 
 <!-- ── Status de Análise ───────────────────────────────────────────── -->
 <div style="display:flex; align-items:center; gap:12px; margin-bottom:1rem; flex-wrap:wrap;
-            padding:.85rem 1.2rem; background:#161616; border:1px solid #262626;
+            padding:.85rem 1.2rem; background:var(--p-1); border:1px solid var(--line);
             border-radius:12px;">
     <div style="display:flex; align-items:center; gap:10px; flex:1;">
         <div id="statusIcon" style="width:36px; height:36px; border-radius:50%;
              display:flex; align-items:center; justify-content:center; font-size:18px;
              background:@(Model.Analisado ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.06)");
-             border:2px solid @(Model.Analisado ? "#22c55e" : "#333");">
+             border:2px solid @(Model.Analisado ? "#22c55e" : "var(--line)");">
             @(Model.Analisado ? "✅" : "⏳")
         </div>
         <div>
             <div id="statusLabel" style="font-size:13px; font-weight:600;
-                 color:@(Model.Analisado ? "#4ade80" : "#9ca3af");">
+                 color:@(Model.Analisado ? "var(--ok)" : "var(--text-muted)");">
                 @(Model.Analisado ? "Jogo analisado" : "Aguardando análise")
             </div>
-            <div style="font-size:11px; color:#6b7280;">
+            <div style="font-size:11px; color:var(--text-dim)">
                 Marque como analisado após revisar escalação final e eventos
             </div>
         </div>
     </div>
 
     <label style="display:flex; align-items:center; gap:8px; cursor:pointer;
-                  padding:8px 14px; border-radius:8px; border:1px solid #262626;
-                  background:#1a1a1a; user-select:none;"
+                  padding:8px 14px; border-radius:8px; border:1px solid var(--line);
+                  background:var(--p-2); user-select:none"
            title="Marcar/desmarcar jogo como analisado">
         <input type="checkbox"
                id="chkAnalisado"
                style="width:16px; height:16px; cursor:pointer; accent-color:#22c55e;"
                @(Model.Analisado ? "checked" : "")
                onchange="toggleAnalisado(this)" />
-        <span style="font-size:13px; font-weight:500; color:#9ca3af;">Marcar como analisado</span>
+        <span style="font-size:13px; font-weight:500; color:var(--text-muted)">Marcar como analisado</span>
     </label>
 
     @if (!string.IsNullOrWhiteSpace(Model.Jogo.LinkDetalhes))
@@ -442,7 +448,7 @@
             <button type="submit"
                     style="display:flex; align-items:center; gap:6px; padding:8px 14px;
                            border-radius:8px; border:1px solid rgba(245,158,11,0.4); background:rgba(245,158,11,0.08);
-                           color:#fbbf24; font-size:13px; font-weight:500; cursor:pointer;
+                           color:var(--warn); font-size:13px; font-weight:500; cursor:pointer;
                            white-space:nowrap;"
                     title="Apaga e reimporta escalação, gols e cartões deste jogo (não mexe nas suas observações)">
                 🔄 Reimportar dados
@@ -460,7 +466,7 @@
         <button type="submit"
                 style="display:flex; align-items:center; gap:6px; padding:8px 14px;
                        border-radius:8px; border:1px solid rgba(59,130,246,0.4); background:rgba(59,130,246,0.08);
-                       color:#60a5fa; font-size:13px; font-weight:500; cursor:pointer;
+                       color:var(--info); font-size:13px; font-weight:500; cursor:pointer;
                        white-space:nowrap;"
                 title="Sem escalação importada? Traz a última escalação de cada time (ou a padrão do time) para você ajustar">
             👥 Última escalação
@@ -594,7 +600,7 @@
             <div style="font-size:13px; font-weight:600; color:#93c5fd;">
                 Nenhum jogador escalado nesta fase
             </div>
-            <div style="font-size:11px; color:#9ca3af;">
+            <div style="font-size:11px; color:var(--text-muted)">
                 Arraste os jogadores da lista para o campo, ou carregue a escalação do último
                 jogo de cada time (ou a escalação padrão do time) para começar.
             </div>
@@ -646,7 +652,7 @@
 
 <!-- ── Fase tática da partida ─────────────────────────────────────── -->
 <div class="d-flex align-items-center gap-2 mb-2 p-2"
-     style="background:#0f172a; border-radius:8px; color:#e2e8f0; flex-wrap:wrap;">
+     style="background:var(--p-alt); border-radius:8px; color:var(--text-strong); flex-wrap:wrap">
     <button type="button" id="btnModoSeta" class="btn btn-sm btn-outline-warning"
             onclick="toggleModoSeta()"
             title="Ligue, clique num jogador e depois no ponto do campo para onde ele se movimentou. Clique duplo numa seta para removê-la.">
@@ -655,11 +661,37 @@
     <span id="modoSetaHint" style="font-size:11px; color:#facc15; display:none;">
         clique no jogador e depois no destino · duplo clique na seta remove · Esc sai
     </span>
+    @* Temporada dos números do tooltip de info (ℹ) do jogador. Padrão = a do jogo;
+       trocar recarrega só os dados do tooltip, sem recarregar a escalação. *@
+    <label for="tooltipTemporada" style="font-size:11px; color:var(--text-muted)"
+           title="De qual temporada vêm os gols, assistências, jogos como titular e as médias por jogo mostrados no tooltip ℹ dos jogadores.">
+        ℹ tooltip
+    </label>
+    <select id="tooltipTemporada" class="form-select form-select-sm" style="width:120px;"
+            onchange="trocarTemporadaTooltip(this.value)">
+        @foreach (var t in Model.TemporadasTooltip)
+        {
+            <option value="@t" selected="@(t == Model.TemporadaTooltip)">@t@(t == Model.Jogo.Temporada ? " (jogo)" : "")</option>
+        }
+        <option value="0" selected="@(Model.TemporadaTooltip == 0)">Todas</option>
+    </select>
+    <span id="tooltipTemporadaStatus" style="font-size:11px; color:var(--text-muted);"></span>
+    @* Como os titulares aparecem no campo: número da camisa (padrão) ou foto do
+       jogador com o número em badge. Só visual — a escolha fica no navegador. *@
+    <label for="campoVisual" style="font-size:11px; color:var(--text-muted)"
+           title="Como mostrar os jogadores em campo: o botão com o número da camisa ou a foto do jogador (com o número em badge).">
+        👤 campo
+    </label>
+    <select id="campoVisual" class="form-select form-select-sm" style="width:110px;"
+            onchange="trocarVisualCampo(this.value)">
+        <option value="numero">Números</option>
+        <option value="foto">Fotos</option>
+    </select>
     <div class="ms-auto d-flex align-items-center gap-1" style="flex-wrap:wrap;">
-        <label style="font-size:11px; color:#94a3b8;">nome</label>
+        <label style="font-size:11px; color:var(--text-muted)">nome</label>
         <input type="text" id="faseNome" maxlength="60" placeholder="ex: Fase de ataque"
                class="form-control form-control-sm" style="width:180px;" />
-        <label style="font-size:11px; color:#94a3b8;">min</label>
+        <label style="font-size:11px; color:var(--text-muted)">min</label>
         <input type="number" id="faseMinuto" min="0" max="130" value="0"
                class="form-control form-control-sm" style="width:64px;" />
         <button type="button" class="btn btn-sm btn-primary" onclick="salvarFaseTatica()" title="Salva a escalação atual como uma fase tática no minuto informado">
@@ -748,7 +780,7 @@
                     @if (treinadorCasa != null)
                     {
                         <div class="d-flex align-items-center gap-2 px-1 py-1 mb-1"
-                             style="background:#161616;border-radius:7px;border:1px solid #262626;">
+                             style="background:var(--p-1);border-radius:7px;border:1px solid var(--line)">
                             @if (!string.IsNullOrWhiteSpace(treinadorCasa.FotoUrl))
                             {
                                 <img src="@Url.FotoSrc(treinadorCasa.FotoUrl)"
@@ -760,8 +792,8 @@
                                 <span style="font-size:16px;">🧑‍💼</span>
                             }
                             <div>
-                                <div style="font-size:9px;color:#6b7280;text-transform:uppercase;line-height:1;">Treinador</div>
-                                <div style="font-size:12px;font-weight:600;color:#f1f5f9;">@treinadorCasa.Nome</div>
+                                <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;line-height:1">Treinador</div>
+                                <div style="font-size:12px;font-weight:600;color:var(--text-strong)">@treinadorCasa.Nome</div>
                             </div>
                         </div>
                     }
@@ -845,7 +877,7 @@
 
                 <!-- Campinho casa -->
                 <div class="col-7">
-                    <div id="campoCasa" class="campo"
+                    <div id="campoCasa" class="campo theme-dark-zone"
                          ondrop="dropNoCampo(event, 'campoCasa')"
                          ondragover="allowDrop(event)">
                         <div class="campo-linha-meio"></div>
@@ -890,7 +922,15 @@
                                  style="left:@Coord(esc.PosicaoX)%; top:@Coord(esc.PosicaoY)%;">
                                 @if (esc.Jogador != null)
                                 {
-                                    <div class="player-circle player-circle-casa">@(esc.Jogador.NumeroCamisa?.ToString() ?? "")</div>
+                                    @* A foto vai sempre no HTML; quem decide entre foto e número
+                                       é a classe .campo-foto no .an-root (seletor "👤 campo"). *@
+                                    <div class="player-circle player-circle-casa @(string.IsNullOrEmpty(esc.Jogador.FotoUrl) ? "" : "tem-foto")">
+                                        @if (!string.IsNullOrEmpty(esc.Jogador.FotoUrl))
+                                        {
+                                            <img class="player-foto" src="@esc.Jogador.FotoUrl" alt="" loading="lazy" />
+                                        }
+                                        <span class="player-num">@(esc.Jogador.NumeroCamisa?.ToString() ?? "")</span>
+                                    </div>
                                     @if (amareloCasa)
                                     {
                                         <span class="card-amarelo-badge" title="Cartão amarelo"></span>
@@ -994,7 +1034,7 @@
             <div class="row">
                 <!-- Campinho visitante -->
                 <div class="col-7">
-                    <div id="campoVisitante" class="campo"
+                    <div id="campoVisitante" class="campo theme-dark-zone"
                          ondrop="dropNoCampo(event, 'campoVisitante')"
                          ondragover="allowDrop(event)">
                         <div class="campo-linha-meio"></div>
@@ -1037,7 +1077,13 @@
                                  style="left:@Coord(esc.PosicaoX)%; top:@Coord(esc.PosicaoY)%;">
                                 @if (esc.Jogador != null)
                                 {
-                                    <div class="player-circle player-circle-vis">@(esc.Jogador.NumeroCamisa?.ToString() ?? "")</div>
+                                    <div class="player-circle player-circle-vis @(string.IsNullOrEmpty(esc.Jogador.FotoUrl) ? "" : "tem-foto")">
+                                        @if (!string.IsNullOrEmpty(esc.Jogador.FotoUrl))
+                                        {
+                                            <img class="player-foto" src="@esc.Jogador.FotoUrl" alt="" loading="lazy" />
+                                        }
+                                        <span class="player-num">@(esc.Jogador.NumeroCamisa?.ToString() ?? "")</span>
+                                    </div>
                                     @if (amareloVis)
                                     {
                                         <span class="card-amarelo-badge" title="Cartão amarelo"></span>
@@ -1136,7 +1182,7 @@
                     @if (treinadorVis != null)
                     {
                         <div class="d-flex align-items-center gap-2 px-1 py-1 mb-1"
-                             style="background:#161616;border-radius:7px;border:1px solid #262626;">
+                             style="background:var(--p-1);border-radius:7px;border:1px solid var(--line)">
                             @if (!string.IsNullOrWhiteSpace(treinadorVis.FotoUrl))
                             {
                                 <img src="@Url.FotoSrc(treinadorVis.FotoUrl)"
@@ -1148,8 +1194,8 @@
                                 <span style="font-size:16px;">🧑‍💼</span>
                             }
                             <div>
-                                <div style="font-size:9px;color:#6b7280;text-transform:uppercase;line-height:1;">Treinador</div>
-                                <div style="font-size:12px;font-weight:600;color:#f1f5f9;">@treinadorVis.Nome</div>
+                                <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;line-height:1">Treinador</div>
+                                <div style="font-size:12px;font-weight:600;color:var(--text-strong)">@treinadorVis.Nome</div>
                             </div>
                         </div>
                     }
@@ -1309,7 +1355,7 @@
 
         @if (statsCasa.Count == 0 && statsVis.Count == 0)
         {
-            <div style="padding:1.5rem;text-align:center;color:#9ca3af;font-size:13px;">
+            <div style="padding:1.5rem;text-align:center;color:var(--text-muted);font-size:13px">
                 Estatísticas ainda não disponíveis para esta partida.
             </div>
         }
@@ -1319,21 +1365,21 @@
                 <div style="display:flex;align-items:center;gap:8px;">
                     <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeCasa?.EscudoUrl })"
                          alt="@Model.Jogo.TimeCasa?.Nome" style="width:28px;height:28px;object-fit:contain;" />
-                    <span style="font-weight:700;color:#f1f5f9;">@Model.Jogo.TimeCasa?.Nome</span>
+                    <span style="font-weight:700;color:var(--text-strong)">@Model.Jogo.TimeCasa?.Nome</span>
                 </div>
-                <div style="font-size:12px;color:#9ca3af;text-transform:uppercase;font-weight:600;">Posse de bola</div>
+                <div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;font-weight:600">Posse de bola</div>
                 <div style="display:flex;align-items:center;gap:8px;">
-                    <span style="font-weight:700;color:#f1f5f9;">@Model.Jogo.TimeVisitante?.Nome</span>
+                    <span style="font-weight:700;color:var(--text-strong)">@Model.Jogo.TimeVisitante?.Nome</span>
                     <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeVisitante?.EscudoUrl })"
                          alt="@Model.Jogo.TimeVisitante?.Nome" style="width:28px;height:28px;object-fit:contain;" />
                 </div>
             </div>
 
-            <div style="display:flex;align-items:center;height:10px;border-radius:6px;overflow:hidden;margin-bottom:0.25rem;background:#222;">
+            <div style="display:flex;align-items:center;height:10px;border-radius:6px;overflow:hidden;margin-bottom:0.25rem;background:var(--p-3)">
                 <div style="height:100%;background:#dc2626;width:@(Coord(possCasa))%;"></div>
                 <div style="height:100%;background:#2563eb;width:@(Coord(possVis))%;"></div>
             </div>
-            <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:#f1f5f9;margin-bottom:1.5rem;">
+            <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:var(--text-strong);margin-bottom:1.5rem">
                 <span>@(possCasa)%</span>
                 <span>@(possVis)%</span>
             </div>
@@ -1349,12 +1395,12 @@
                 var pctVis = 100 - pctCasa;
 
                 <div style="margin-bottom:1rem;">
-                    <div style="display:flex;justify-content:space-between;font-size:13px;color:#e5e7eb;margin-bottom:4px;">
+                    <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text);margin-bottom:4px">
                         <span style="font-weight:700;">@valCasaStr</span>
-                        <span style="color:#9ca3af;">@label</span>
+                        <span style="color:var(--text-muted)">@label</span>
                         <span style="font-weight:700;">@valVisStr</span>
                     </div>
-                    <div style="display:flex;align-items:center;height:8px;border-radius:5px;overflow:hidden;background:#222;">
+                    <div style="display:flex;align-items:center;height:8px;border-radius:5px;overflow:hidden;background:var(--p-3)">
                         <div style="height:100%;background:#dc2626;width:@(Coord(pctCasa))%;"></div>
                         <div style="height:100%;background:#2563eb;width:@(Coord(pctVis))%;"></div>
                     </div>
@@ -1367,15 +1413,15 @@
 
 <input type="hidden" id="jogoId" value="@Model.Jogo.Id" />
 <!-- Modal de Avaliação -->
-<div id="modal-avaliacao" onclick="if (event.target === this) salvarAvaliacao();" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center;">
-    <div style="background:#1a1a1a; border:1px solid #2a2a2a; color:#e5e7eb; border-radius:12px; width:360px; max-width:95vw; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.5);">
+<div id="modal-avaliacao" onclick="if (event.target === this) salvarAvaliacao();" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center">
+    <div style="background:var(--p-2); border:1px solid var(--line-strong); color:var(--text); border-radius:12px; width:360px; max-width:95vw; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.5)">
         <!-- Cabeçalho fixo -->
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; padding:1.25rem 1.25rem 0.75rem; border-bottom:1px solid #262626; flex-shrink:0;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; padding:1.25rem 1.25rem 0.75rem; border-bottom:1px solid var(--line); flex-shrink:0">
             <div>
-                <h5 id="av-nome" style="margin:0; font-size:15px; font-weight:600; color:#f1f5f9;"></h5>
-                <small id="av-pos" style="color:#6b7280;"></small>
+                <h5 id="av-nome" style="margin:0; font-size:15px; font-weight:600; color:var(--text-strong)"></h5>
+                <small id="av-pos" style="color:var(--text-dim)"></small>
             </div>
-            <button type="button" onclick="fecharAvaliacao()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#6b7280;">&times;</button>
+            <button type="button" onclick="fecharAvaliacao()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-dim)">&times;</button>
         </div>
 
         <!-- Corpo rolável (somente as ações) -->
@@ -1384,35 +1430,35 @@
 
             <!-- Bônus automáticos -->
             <div id="av-bonus-bloco" style="display:none; margin-top:0.75rem; padding:0.6rem 0.75rem; background:rgba(59,130,246,0.08); border-radius:8px; border:1px solid rgba(59,130,246,0.25);">
-                <div style="font-size:11px; font-weight:600; color:#60a5fa; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">⚡ Bônus automáticos</div>
+                <div style="font-size:11px; font-weight:600; color:var(--info); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px">⚡ Bônus automáticos</div>
                 <div id="av-bonus-linhas" style="display:flex; flex-direction:column; gap:4px;"></div>
-                <div style="margin-top:6px; padding-top:6px; border-top:1px solid rgba(59,130,246,0.25); display:flex; justify-content:space-between; font-size:13px; font-weight:600; color:#e5e7eb;">
+                <div style="margin-top:6px; padding-top:6px; border-top:1px solid rgba(59,130,246,0.25); display:flex; justify-content:space-between; font-size:13px; font-weight:600; color:var(--text)">
                     <span>Subtotal bônus</span>
-                    <span id="av-bonus-subtotal" style="color:#60a5fa;">+0</span>
+                    <span id="av-bonus-subtotal" style="color:var(--info)">+0</span>
                 </div>
             </div>
         </div>
 
         <!-- Rodapé fixo: pontuação + observação + salvar -->
-        <div style="flex-shrink:0; padding:0.75rem 1.25rem 1.25rem; border-top:1px solid #262626; background:#1a1a1a;">
+        <div style="flex-shrink:0; padding:0.75rem 1.25rem 1.25rem; border-top:1px solid var(--line); background:var(--p-2)">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="color:#9ca3af; font-size:13px;">Pontuação total</span>
+                <span style="color:var(--text-muted); font-size:13px">Pontuação total</span>
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <span id="av-total" style="font-size:22px; font-weight:600; color:#f1f5f9;">0</span>
+                    <span id="av-total" style="font-size:22px; font-weight:600; color:var(--text-strong)">0</span>
                     <span id="av-nota" style="padding:3px 10px; border-radius:20px; font-size:12px; font-weight:500;">Regular</span>
                 </div>
             </div>
             <div style="margin-top:0.75rem; display:flex; align-items:center; gap:8px;">
-                <label for="av-nota-manual" style="font-size:12px; color:#9ca3af; flex:1;">
+                <label for="av-nota-manual" style="font-size:12px; color:var(--text-muted); flex:1">
                     Nota manual (opcional)
-                    <span style="display:block; font-size:10px; color:#6b7280;">Se preenchida, vale como nota final (ignora base + ações)</span>
+                    <span style="display:block; font-size:10px; color:var(--text-dim)">Se preenchida, vale como nota final (ignora base + ações)</span>
                 </label>
                 <input type="number" id="av-nota-manual" min="0" max="10" step="0.1" placeholder="—"
-                       style="width:70px; font-size:14px; text-align:center; border:1px solid #2a2a2a; border-radius:6px; padding:6px; background:#0f0f0f; color:#e5e7eb;">
+                       style="width:70px; font-size:14px; text-align:center; border:1px solid var(--line-strong); border-radius:6px; padding:6px; background:var(--p-0); color:var(--text)">
             </div>
             <div style="margin-top:0.75rem;">
-                <label style="font-size:12px; color:#9ca3af;">Observação:</label>
-                <textarea id="av-obs" rows="2" style="width:100%; margin-top:4px; font-size:13px; border:1px solid #2a2a2a; border-radius:6px; padding:6px; resize:vertical; background:#0f0f0f; color:#e5e7eb;"></textarea>
+                <label style="font-size:12px; color:var(--text-muted)">Observação:</label>
+                <textarea id="av-obs" rows="2" style="width:100%; margin-top:4px; font-size:13px; border:1px solid var(--line-strong); border-radius:6px; padding:6px; resize:vertical; background:var(--p-0); color:var(--text)"></textarea>
             </div>
             <button type="button" onclick="salvarAvaliacao()" style="width:100%; margin-top:10px; padding:8px; background:#d4a520; color:#141414; border:none; border-radius:6px; font-size:14px; font-weight:700; cursor:pointer;">Salvar</button>
         </div>
@@ -1426,11 +1472,11 @@
 <div id="modal-h2h" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:10000; align-items:center; justify-content:center;">
     <div style="background:#1e293b; border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:1.4rem; width:480px; max-width:96vw; max-height:88vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,.5);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-            <h5 style="margin:0; color:#e2e8f0; font-size:15px; font-weight:700;">⚔️ Últimos confrontos</h5>
-            <button onclick="fecharH2H()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1;">&times;</button>
+            <h5 style="margin:0; color:#f2f5fa; font-size:15px; font-weight:700">⚔️ Últimos confrontos</h5>
+            <button onclick="fecharH2H()" style="background:none;border:none;color:rgba(255,255,255,.65);font-size:22px;cursor:pointer;line-height:1">&times;</button>
         </div>
         <div id="h2h-corpo">
-            <div style="text-align:center; color:#94a3b8; padding:2rem 0;">Carregando...</div>
+            <div style="text-align:center; color:rgba(255,255,255,.6); padding:2rem 0">Carregando...</div>
         </div>
     </div>
 </div>
@@ -1441,27 +1487,27 @@
 <div id="modal-prejogo" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:10000; align-items:center; justify-content:center;">
     <div id="prejogo-box" style="background:#0f1b2d; border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:1.4rem; width:780px; max-width:96vw; max-height:90vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,.5); transition:width .2s;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem;">
-            <h5 style="margin:0; color:#e2e8f0; font-size:15px; font-weight:700;">🔍 Pré-jogo</h5>
-            <button onclick="fecharPreJogo()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1;">&times;</button>
+            <h5 style="margin:0; color:#f2f5fa; font-size:15px; font-weight:700">🔍 Pré-jogo</h5>
+            <button onclick="fecharPreJogo()" style="background:none;border:none;color:rgba(255,255,255,.65);font-size:22px;cursor:pointer;line-height:1">&times;</button>
         </div>
         <div class="pj-tabs">
             <button type="button" id="pj-tab-resumo" class="pj-tab active" onclick="mostrarAbaPreJogo('resumo')">📋 Resumo</button>
             <button type="button" id="pj-tab-matchup" class="pj-tab" onclick="mostrarAbaPreJogo('matchup')">⚔️ Match-up</button>
         </div>
         <div id="prejogo-corpo">
-            <div style="text-align:center; color:#94a3b8; padding:2rem 0;">Carregando...</div>
+            <div style="text-align:center; color:rgba(255,255,255,.6); padding:2rem 0">Carregando...</div>
         </div>
         <div id="prejogo-matchup" style="display:none;">
-            <div style="text-align:center; color:#94a3b8; padding:2rem 0;">Carregando...</div>
+            <div style="text-align:center; color:rgba(255,255,255,.6); padding:2rem 0">Carregando...</div>
         </div>
     </div>
 </div>
 
 <!-- ── Modal: Mapa de Calor ────────────────────────────────────────── -->
 <div id="modal-mapacalor" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:10000; align-items:center; justify-content:center;">
-    <div style="background:#0b0f16; border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:1.2rem 1.4rem; width:900px; max-width:97vw; max-height:93vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,.5); position:relative;">
-        <button onclick="fecharMapaCalor()" style="position:absolute; top:14px; right:16px; z-index:5; background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.15); color:#e2e8f0; font-size:18px; width:30px; height:30px; border-radius:50%; cursor:pointer; line-height:1;">&times;</button>
-        <h5 style="margin:0 0 1rem; color:#e2e8f0; font-size:15px; font-weight:700;">🔥 Mapa de Calor</h5>
+    <div style="background:var(--p-0); border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:1.2rem 1.4rem; width:900px; max-width:97vw; max-height:93vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,.5); position:relative">
+        <button onclick="fecharMapaCalor()" style="position:absolute; top:14px; right:16px; z-index:5; background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.15); color:var(--text-strong); font-size:18px; width:30px; height:30px; border-radius:50%; cursor:pointer; line-height:1">&times;</button>
+        <h5 style="margin:0 0 1rem; color:#f2f5fa; font-size:15px; font-weight:700">🔥 Mapa de Calor</h5>
         <div class="mc-grid">
             <div class="mc-col">
                 <div class="mc-col-head">@Model.Jogo.TimeCasa.Nome</div>
@@ -1469,7 +1515,7 @@
                     <option value="">— selecione —</option>
                     <option value="time">🔥 Todo o time</option>
                 </select>
-                <div id="mcCampoCasa" class="campo mc-campo">
+                <div id="mcCampoCasa" class="campo mc-campo theme-dark-zone">
                     <div class="campo-linha-meio"></div>
                     <div class="campo-circulo"></div>
                     <div class="campo-area-sup"></div>
@@ -1484,7 +1530,7 @@
                     <option value="">— selecione —</option>
                     <option value="time">🔥 Todo o time</option>
                 </select>
-                <div id="mcCampoVisitante" class="campo mc-campo">
+                <div id="mcCampoVisitante" class="campo mc-campo theme-dark-zone">
                     <div class="campo-linha-meio"></div>
                     <div class="campo-circulo"></div>
                     <div class="campo-area-sup"></div>
@@ -1499,7 +1545,7 @@
             <div style="width:160px; height:5px; border-radius:3px; background:linear-gradient(90deg, #4ade80, #facc15, #f97316, #ef4444);"></div>
             <span style="font-size:.6rem; color:#374151; font-weight:600;">Alta</span>
         </div>
-        <div style="font-size:11px; color:#64748b; margin-top:.6rem;">
+        <div style="font-size:11px; color:var(--text-dim); margin-top:.6rem">
             Só aparecem jogadores que entraram em campo. Baseado em todas as escalações salvas neste jogo (inicial, final e fases táticas).
         </div>
     </div>
@@ -1526,12 +1572,28 @@
     </div>
 </div>
 
+<!-- ── Modal Compartilhar análise ─────────────────────────────────────────
+     Gera/mostra o link público somente-leitura desta análise (/analise/{token}).
+     O link é sempre do usuário logado: quem abrir vê as notas e observações
+     DELE, sem poder alterar nada nem navegar para outras telas. -->
+<div id="modal-compartilhar" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:10000; align-items:center; justify-content:center;">
+    <div style="background:#0f1b2d; border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:1.4rem; width:560px; max-width:96vw; box-shadow:0 12px 40px rgba(0,0,0,.5);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem;">
+            <h5 style="margin:0; color:#f2f5fa; font-size:15px; font-weight:700">🔗 Compartilhar análise</h5>
+            <button onclick="fecharCompartilhar()" style="background:none;border:none;color:rgba(255,255,255,.65);font-size:22px;cursor:pointer;line-height:1">&times;</button>
+        </div>
+        <div id="compartilhar-corpo" style="color:var(--text-muted); font-size:13px;">
+            <div style="text-align:center; padding:1.5rem 0">Carregando...</div>
+        </div>
+    </div>
+</div>
+
 <!-- ── Modal Pós-jogo ─────────────────────────────────────────────────── -->
 <div id="modal-posjogo" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:10000; align-items:center; justify-content:center;">
-    <div style="background:#0b0f16; border:1px solid rgba(255,255,255,.12); border-radius:16px; width:1140px; max-width:97vw; max-height:93vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,.5); position:relative;">
-        <button onclick="fecharPosJogo()" style="position:absolute; top:14px; right:16px; z-index:5; background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.15); color:#e2e8f0; font-size:18px; width:30px; height:30px; border-radius:50%; cursor:pointer; line-height:1;">&times;</button>
+    <div style="background:var(--p-0); border:1px solid rgba(255,255,255,.12); border-radius:16px; width:1140px; max-width:97vw; max-height:93vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,.5); position:relative">
+        <button onclick="fecharPosJogo()" style="position:absolute; top:14px; right:16px; z-index:5; background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.15); color:var(--text-strong); font-size:18px; width:30px; height:30px; border-radius:50%; cursor:pointer; line-height:1">&times;</button>
         <div id="posjogo-corpo">
-            <div style="text-align:center; color:#94a3b8; padding:3rem 0;">Carregando...</div>
+            <div style="text-align:center; color:var(--text-muted); padding:3rem 0">Carregando...</div>
         </div>
     </div>
 </div>
@@ -1542,6 +1604,9 @@
 @section Scripts {
     <script src="~/js/mencao-jogador.js" asp-append-version="true"></script>
     <script src="~/js/jogadas.js" asp-append-version="true"></script>
+    @* painel-jogo.js antes de analisar.js: define window.PainelJogo, usado para
+       montar o modal Pós-jogo (e reaproveitado em /analise/{token}). *@
+    <script src="~/js/painel-jogo.js" asp-append-version="true"></script>
     <script src="~/js/analisar.js" asp-append-version="true"></script>
 }
 

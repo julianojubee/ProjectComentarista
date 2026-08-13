@@ -248,6 +248,35 @@
         ev.dataTransfer.setData("text/plain", String(jogadorId));
     }
 
+    // ── Jogador em campo: número ou foto ───────────────────────────────────
+    // O slot sempre carrega a foto (quando o jogador tem) E o número; quem
+    // escolhe o que aparece é a classe .campo-foto no .an-root, ligada pelo
+    // seletor "👤 campo" da barra — mesmo HTML que o Razor gera nos titulares.
+    function htmlCirculoCampo(jogadorId, numero, circleClass) {
+        const dados = DADOS_JOGADORES ? DADOS_JOGADORES[jogadorId] : null;
+        const foto = dados && dados.foto ? dados.foto : '';
+        return `<div class="player-circle ${circleClass}${foto ? ' tem-foto' : ''}">` +
+               (foto ? `<img class="player-foto" src="${foto}" alt="" loading="lazy">` : '') +
+               `<span class="player-num">${numero == null ? '' : numero}</span></div>`;
+    }
+
+    // Guarda a escolha no navegador: vale para as próximas partidas abertas
+    // nesta máquina (é preferência visual, não um dado da análise).
+    function trocarVisualCampo(modo) {
+        const root = document.querySelector('.an-root');
+        if (root) root.classList.toggle('campo-foto', modo === 'foto');
+        try { localStorage.setItem('analisar.campoVisual', modo); } catch (e) { /* navegação anônima */ }
+    }
+    window.trocarVisualCampo = trocarVisualCampo;
+
+    (function aplicarVisualCampoSalvo() {
+        let modo = 'numero';
+        try { modo = localStorage.getItem('analisar.campoVisual') || 'numero'; } catch (e) { /* idem */ }
+        const sel = document.getElementById('campoVisual');
+        if (sel) sel.value = modo;
+        trocarVisualCampo(modo);
+    })();
+
     // ── Drop em slot do campo ──────────────────────────────────────────────
     function dropEscalacao(ev, index) {
         ev.preventDefault();
@@ -280,7 +309,7 @@
         const circleClass = isCasa ? 'player-circle-casa' : 'player-circle-vis';
         posEl.innerHTML = `
             <span>${nomePosicao}</span>
-            <div class="player-circle ${circleClass}">${jogadorNumero}</div>
+            ${htmlCirculoCampo(jogadorId, jogadorNumero, circleClass)}
             <div class="player-name">${jogadorNome}</div>`;
         posEl.appendChild(criarBotaoInfo(jogadorId));
     }
@@ -573,16 +602,66 @@
     let jogadorAtual = null;
     let estatisticasAtuais = null;
 
-    // ── Cor do botão de avaliação conforme a nota do jogador ───────────────
-    const AV_NOTA_BASE = 4.0;   // base fixa
-    const AV_NOTA_MIN  = 4.0;   // nota mínima do cálculo automático
+    // jogadorId -> { minutos, goleiroDecisivo }, de /Notas/BuscarContextos.
+    let contextosNota = {};
 
-    function calcularNotaFinalJogador(av) {
+    async function carregarContextosNota() {
+        try {
+            const jogoId = parseInt(document.getElementById('jogoId').value);
+            const resp = await fetch(`/Notas/BuscarContextos?jogoId=${jogoId}`);
+            if (!resp.ok) return;
+            const lista = await resp.json();
+            contextosNota = {};
+            lista.forEach(c => { contextosNota[c.jogadorId] = c; });
+        } catch { }
+    }
+
+    // ── Cor do botão de avaliação conforme a nota do jogador ───────────────
+    const AV_NOTA_BASE = 4.0;         // base fixa
+    const AV_PISO_POSITIVO = 6.0;     // mais tipos de ação verde que vermelha vale ao menos isto
+    const AV_PISO_EQUILIBRADO = 5.0;  // mesmo número de verdes e vermelhas
+    const AV_MIN_PARTICIPACAO = 45;   // abaixo disso vale o piso de participação curta
+    const AV_PISO_PARTICIPACAO = 5.0;
+    const AV_BONUS_GOLEIRO = 2.0;     // 100% dos chutes no alvo defendidos
+    const AV_TETO_GOLEIRO = 7.0;
+    const AV_BONUS_GOL_VITORIA = 1.0; // marcou o gol que decidiu a partida
+
+    // Até onde a nota sobe pelo merecimento, como o CriteriosNotaHelper.PisoDeMerecimento:
+    // conta os TIPOS de ação marcados (cada um vale 1, sem olhar quantidade nem peso).
+    function pisoDeMerecimento(av) {
+        let verdes = 0, vermelhas = 0;
+        criterios.forEach(c => {
+            if (!(av[c.id] > 0)) return;
+            if (c.peso > 0) verdes++;
+            else if (c.peso < 0) vermelhas++;
+        });
+        if (verdes === 0 && vermelhas === 0) return av.total > 0 ? AV_PISO_POSITIVO : 0;
+        if (verdes > vermelhas) return AV_PISO_POSITIVO;
+        if (verdes === vermelhas) return AV_PISO_EQUILIBRADO;
+        return 0;
+    }
+
+    // Mesma régua do CriteriosNotaHelper.NotaFinalComBase (C#), na mesma ordem.
+    function calcularNotaFinalJogador(av, jogadorId) {
         if (!av) return null;
         if (av.notaManual !== null && av.notaManual !== undefined)
             return Math.max(0, Math.min(10, av.notaManual));            // override absoluto
         if (av.total === null || av.total === undefined) return null;   // sem nota salva
-        return Math.max(AV_NOTA_MIN, Math.min(10, AV_NOTA_BASE + av.total));
+
+        const ctx = contextosNota[jogadorId] || {};
+        let bruta = AV_NOTA_BASE + av.total;
+
+        const piso = pisoDeMerecimento(av);
+        if (bruta < piso) bruta = piso;
+
+        if (ctx.minutos > 0 && ctx.minutos < AV_MIN_PARTICIPACAO && bruta < AV_PISO_PARTICIPACAO)
+            bruta = AV_PISO_PARTICIPACAO;
+
+        if (ctx.goleiroDecisivo && bruta < AV_TETO_GOLEIRO) bruta += AV_BONUS_GOLEIRO;
+
+        if (ctx.golDaVitoria) bruta += AV_BONUS_GOL_VITORIA;
+
+        return Math.max(0, Math.min(10, bruta));
     }
 
     function corDaNota(notaFinal) {
@@ -595,7 +674,7 @@
     function atualizarCorAvaliacao(jogadorId) {
         const btn = document.getElementById('btn-avaliar-' + jogadorId);
         if (!btn) return;
-        const nf = calcularNotaFinalJogador(avaliacoes[jogadorId]);
+        const nf = calcularNotaFinalJogador(avaliacoes[jogadorId], jogadorId);
         const c = corDaNota(nf);
         btn.style.background = c.bg;
         btn.style.color = c.fg;
@@ -761,6 +840,9 @@
     // Carrega avaliações já salvas ao abrir a página
     (async function carregarAvaliacoesSalvas() {
         const jogoId = document.getElementById('jogoId').value;
+        // Antes das notas: os pisos de participação curta e de goleiro decisivo
+        // dependem do contexto, senão a primeira pintura sai com a cor errada.
+        await carregarContextosNota();
         try {
             const resp = await fetch(`/Notas/BuscarPorJogo?jogoId=${jogoId}`);
             if (!resp.ok) return;
@@ -1225,44 +1307,7 @@
     }
 
     function colunaPreJogo(t, lado) {
-        if (!t) return '';
-        var escudo = t.escudo ? '<img src="' + t.escudo + '" alt="">' : '';
-
-        var record = '<div class="pj-record">' +
-            '<div class="pj-rec-box pj-v"><div class="pj-rec-num">' + t.vitorias + '</div><div class="pj-rec-label">Vitórias</div></div>' +
-            '<div class="pj-rec-box pj-e"><div class="pj-rec-num">' + t.empates + '</div><div class="pj-rec-label">Empates</div></div>' +
-            '<div class="pj-rec-box pj-d"><div class="pj-rec-num">' + t.derrotas + '</div><div class="pj-rec-label">Derrotas</div></div>' +
-        '</div>';
-
-        var form = (t.form && t.form.length)
-            ? '<div class="pj-section-title">Últimos jogos</div><div class="pj-form">' +
-              t.form.map(function (f) { return '<span class="' + f + '">' + f + '</span>'; }).join('') + '</div>'
-            : '';
-
-        var players = '<div class="pj-section-title">Jogadores em destaque</div>';
-        if (t.destaques && t.destaques.length) {
-            players += t.destaques.map(function (p) {
-                var foto = p.foto ? '<img src="' + p.foto + '" alt="">' : '<div class="pj-noimg"></div>';
-                var stat = [];
-                if (p.gols) stat.push('⚽ ' + p.gols);
-                if (p.assists) stat.push('🅰 ' + p.assists);
-                return '<div class="pj-player">' + foto +
-                    '<span class="pj-player-nome">' + escHtml(p.nome) + '</span>' +
-                    '<span class="pj-player-stat">' + stat.join(' · ') + '</span></div>';
-            }).join('');
-        } else {
-            players += '<div class="pj-vazio">Sem gols/assistências registrados.</div>';
-        }
-
-        var obs = (t.observacoes && t.observacoes.length)
-            ? '<div class="pj-section-title">Observações</div><ul class="pj-obs">' +
-              t.observacoes.map(function (o) { return '<li>' + escHtml(o) + '</li>'; }).join('') + '</ul>'
-            : '';
-
-        return '<div class="pj-col ' + lado + '">' +
-            '<div class="pj-team-head">' + escudo + '<span class="pj-team-nome">' + escHtml(t.nome) + '</span></div>' +
-            record + form + players + obs +
-        '</div>';
+        return PainelJogo.colunaPreJogo(t, lado);
     }
 
     function fecharPreJogo() {
@@ -1382,7 +1427,7 @@
             '</div>' +
             '<div class="mu-layout">' +
                 muBancoHtml(1, t1.nome, t1.elenco) +
-                '<div id="muCampo" class="mu-campo" onclick="muCampoClick(event)" onpointerdown="muFormaPointerDown(event)" ondragover="event.preventDefault()" ondrop="muDropCampo(event)">' +
+                '<div id="muCampo" class="mu-campo theme-dark-zone" onclick="muCampoClick(event)" onpointerdown="muFormaPointerDown(event)" ondragover="event.preventDefault()" ondrop="muDropCampo(event)">' +
                     '<div class="mu-linha-meio"></div><div class="mu-circulo"></div>' +
                     '<div class="mu-area-esq"></div><div class="mu-area-dir"></div>' +
                     '<div class="mu-gol-esq"></div><div class="mu-gol-dir"></div>' +
@@ -1955,282 +2000,20 @@
         }
     }
 
-    function notaCor(n) {
-        if (n >= 8.5) return '#f59e0b';
-        if (n >= 7.5) return '#22c55e';
-        if (n >= 6.5) return '#3b82f6';
-        if (n >= 5.5) return '#6b7280';
-        return '#ef4444';
-    }
-
-    function abrevPosicaoParte(p) {
-        p = (p || '').trim().toLowerCase();
-        if (!p) return '';
-        if (p.indexOf('gol') === 0) return 'GOL';
-        if (p.indexOf('zag') === 0 || p === 'defensor') return 'ZAG';
-        if (p.indexOf('lateral') === 0) return p.indexOf('esq') >= 0 ? 'LE' : 'LD';
-        if (p.indexOf('ala') === 0) return p.indexOf('esq') >= 0 ? 'AE' : 'AD';
-        if (p.indexOf('volante') === 0) return 'VOL';
-        if (p.indexOf('meia') === 0 || p === 'meia') return p.indexOf('ofensiv') >= 0 ? 'MEO' : 'MEI';
-        if (p.indexOf('ponta') === 0) return p.indexOf('esq') >= 0 ? 'PE' : 'PD';
-        if (p.indexOf('centro') === 0) return 'CA';
-        if (p.indexOf('ata') === 0) return 'ATA';
-        return p.slice(0, 3).toUpperCase();
-    }
-
-    // Abrevia todas as posições (ex.: "Lateral Esquerdo/Ala Esquerdo" → "LE/AE").
+    // Notas, escalação, campinho e badges do pós-jogo: painel-jogo.js.
+    // abrevPosicao continua exposta aqui porque a lista de elenco e o painel de
+    // estatísticas desta tela também a usam.
     function abrevPosicao(pos) {
-        return (pos || '').split('/').map(abrevPosicaoParte).filter(Boolean).join('/');
+        return PainelJogo.abrevPosicao(pos);
     }
 
-    function iconesEventos(j) {
-        var partes = [];
-        if (j.gols > 0) partes.push('<span style="font-size:.72rem; font-weight:700; color:#4ade80; display:inline-flex; align-items:center; gap:2px;">⚽ ' + j.gols + '</span>');
-        if (j.assistencias > 0) partes.push('<span style="font-size:.72rem; font-weight:700; color:#fb923c; display:inline-flex; align-items:center; gap:2px;">👟 ' + j.assistencias + '</span>');
-        (j.cartoesAmarelos || []).forEach(function (m) {
-            partes.push('<span class="pgj-badge-amarelo">🟨 ' + m + "'</span>");
-        });
-        if (j.cartaoVermelho) partes.push('<span class="pgj-badge-vermelho">🟥 ' + j.cartaoVermelho + "'</span>");
-        if (j.saiuMinuto) partes.push('<span class="pgj-evt-saiu">↕ ' + j.saiuMinuto + "'</span>");
-        if (j.entrouMinuto) partes.push('<span class="pgj-evt-entrou">↑ ' + j.entrouMinuto + "'</span>");
-        return partes.join('');
-    }
-
-    function corTime(lado) {
-        return getComputedStyle(document.documentElement).getPropertyValue(lado === 'casa' ? '--cor-camisa-casa' : '--cor-camisa-vis').trim() || (lado === 'casa' ? '#dc2626' : '#2563eb');
-    }
-
-    // Camisas claras (branco, amarelo...) precisam de número escuro — senão o
-    // número some no fundo claro dos círculos (lista e campinho).
-    function isLightColor(hex) {
-        hex = (hex || '').replace('#', '');
-        if (hex.length !== 6) return false;
-        var r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16);
-        return (r * 299 + g * 587 + b * 114) / 1000 > 128;
-    }
-
-    function linhaJogador(j, lado, reserva) {
-        var nc = j.nota != null ? notaCor(j.nota) : '#2a2a2a';
-        var notaTxtCor = j.nota != null ? nc : '#4b5563';
-        var corNum = reserva ? '#374151' : corTime(lado);
-        var claro = !reserva && isLightColor(corNum);
-        var numStyle = 'background:' + corNum + ';' +
-            (claro ? 'color:#111111; text-shadow:0 0 3px rgba(0,0,0,.5); border:1.5px solid rgba(0,0,0,.25);' : 'color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.8);');
-        return '<div class="pgj-jog-row">' +
-            '<div class="pgj-jog-num" style="' + numStyle + '">' + (j.numero != null ? j.numero : '') + '</div>' +
-            '<div class="pgj-jog-info">' +
-                '<a class="pgj-jog-nome' + (reserva ? ' res' : '') + '" href="/Jogadores/Estatisticas/' + j.jogadorId + '" title="Ver estatísticas de ' + escHtml(j.nome) + '">' + escHtml(j.nome) + '</a>' +
-                '<div class="pgj-jog-meta">' +
-                    (j.posicao ? '<span class="pgj-jog-pos">' + abrevPosicao(j.posicao) + '</span>' : '') +
-                    iconesEventos(j) +
-                '</div>' +
-            '</div>' +
-            '<div class="pgj-jog-nota" style="border-color:' + nc + ';"><span style="color:' + notaTxtCor + ';">' + (j.nota != null ? j.nota.toFixed(1) : '–') + '</span></div>' +
-        '</div>';
-    }
-
-    function colunaNotas(d, lado) {
-        var time = lado === 'casa' ? d.casa : d.visitante;
-        var media = lado === 'casa' ? d.mediaCasa : d.mediaVisitante;
-        var titulares = lado === 'casa' ? d.lineup.casaTitulares : d.lineup.visTitulares;
-        var reservas = (lado === 'casa' ? d.lineup.casaReservas : d.lineup.visReservas).filter(function (j) { return j.entrouMinuto != null; });
-
-        var escudo = time && time.escudo ? '<img src="' + time.escudo + '" alt="">' : '';
-        var header = '<div class="pgj-team-col-header">' + escudo +
-            '<span class="pgj-team-col-nome">' + escHtml(time ? time.nome : '') + '</span>' +
-            (media != null ? '<span class="pgj-team-col-media">Média ' + media.toFixed(1) + '</span>' : '') +
-        '</div>';
-
-        var corpo = '<div class="pgj-subsection-label">Titulares</div>';
-        corpo += titulares && titulares.length
-            ? titulares.map(function (j) { return linhaJogador(j, lado, false); }).join('')
-            : '<div class="pgj-vazio">Escalação não registrada.</div>';
-
-        if (reservas.length) {
-            corpo += '<div class="pgj-subsection-label sep">Substitutos</div>' +
-                reservas.map(function (j) { return linhaJogador(j, lado, true); }).join('');
-        }
-
-        return '<div class="pgj-team-col">' + header + corpo + '</div>';
-    }
-
-    function jogadorCampo(j, lado) {
-        var nc = j.nota != null ? notaCor(j.nota) : '#374151';
-        var notaHtml = j.nota != null ? ('<div class="pgjc-nota" style="background:' + nc + ';">' + j.nota.toFixed(1) + '</div>') : '';
-
-        var corNum = corTime(lado);
-        var claro = isLightColor(corNum);
-        var circleStyle = 'background:' + corNum + ';' +
-            (claro ? 'color:#111111; text-shadow:0 0 3px rgba(0,0,0,.5); border:2px solid rgba(0,0,0,.3);' : 'color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.8); border:2px solid rgba(255,255,255,.7);');
-
-        var eventos = '';
-        for (var i = 0; i < (j.gols || 0); i++) eventos += '⚽';
-        for (var i2 = 0; i2 < (j.assistencias || 0); i2++) eventos += '👟';
-        var eventosHtml = eventos ? '<div style="position:absolute; top:-8px; left:50%; transform:translateX(-50%); font-size:10px; line-height:1; white-space:nowrap; filter:drop-shadow(0 1px 2px rgba(0,0,0,.8));">' + eventos + '</div>' : '';
-
-        return '<div class="pgjc-jog" style="left:' + j.posicaoX + '%; top:' + j.posicaoY + '%;">' +
-            '<div style="position:relative; display:inline-block; margin:0 auto;">' +
-                '<div class="pgjc-circle" style="' + circleStyle + '">' + (j.numero != null ? j.numero : '') + '</div>' +
-                eventosHtml +
-            '</div>' +
-            '<a class="pgjc-nome" href="/Jogadores/Estatisticas/' + j.jogadorId + '" title="Ver estatísticas de ' + escHtml(j.nome) + '">' + escHtml(j.nome) + '</a>' +
-            notaHtml +
-        '</div>';
-    }
-
-    function campoTime(lista, lado) {
-        var jogadores = (lista || []).map(function (j) { return jogadorCampo(j, lado); }).join('');
-        return '<div class="campo" style="position:relative; width:100%;">' +
-            '<div class="campo-linha-meio"></div><div class="campo-circulo"></div>' +
-            '<div class="campo-area-sup"></div><div class="campo-area-inf"></div>' +
-            '<div class="campo-gol-sup"></div><div class="campo-gol-inf"></div>' +
-            jogadores +
-        '</div>';
-    }
-
-    function formaBadges(forma) {
-        return (forma || []).map(function (f) {
-            var bg = f === 'V' ? '#22c55e' : f === 'E' ? '#6b7280' : '#ef4444';
-            return '<span style="background:' + bg + ';">' + f + '</span>';
-        }).join('');
-    }
-
+    // O HTML do pós-jogo é montado em painel-jogo.js, compartilhado com a página
+    // pública /analise/{token}. Aqui é sempre o modo de edição.
     function montarPosJogo(d) {
-        var escCasa = d.casa && d.casa.escudo ? '<img src="' + d.casa.escudo + '" alt="">' : '';
-        var escVis = d.visitante && d.visitante.escudo ? '<img src="' + d.visitante.escudo + '" alt="">' : '';
-
-        var pillComp = (d.competicao ? escHtml(d.competicao) : '') + (d.rodada ? ' · Rod. ' + d.rodada : '');
-        var hero = '<div class="pgj-hero">' +
-            (pillComp || d.data ? '<div class="pgj-hero-pills">' +
-                (pillComp ? '<span class="pgj-pill-comp">' + pillComp + '</span>' : '') +
-                (d.data ? '<span class="pgj-pill-date">' + escHtml(d.data) + '</span>' : '') +
-            '</div>' : '') +
-            '<div class="pgj-hero-teams">' +
-                '<div class="pgj-hero-team">' +
-                    '<div class="pgj-hero-escudo">' + escCasa + '</div>' +
-                    '<div class="pgj-hero-nome">' + escHtml(d.casa ? d.casa.nome : '') + '</div>' +
-                    '<div class="pgj-hero-forma">' + formaBadges(d.formaCasa) + '</div>' +
-                '</div>' +
-                '<div class="pgj-hero-center">' +
-                    '<div class="pgj-hero-placar">' + (d.placarCasa ?? '-') + ' &ndash; ' + (d.placarVisitante ?? '-') + '</div>' +
-                    (d.penaltisCasa != null && d.penaltisVisitante != null ? '<div class="pgj-hero-pen">Pênaltis: ' + d.penaltisCasa + '–' + d.penaltisVisitante + '</div>' : '') +
-                    '<div class="pgj-hero-medias">' +
-                        (d.mediaCasa != null ? '<div class="pgj-hero-media"><span class="val">' + d.mediaCasa.toFixed(1) + '</span><span class="lbl">Média Casa</span></div>' : '') +
-                        (d.mediaVisitante != null ? '<div class="pgj-hero-media"><span class="val">' + d.mediaVisitante.toFixed(1) + '</span><span class="lbl">Média Visit.</span></div>' : '') +
-                    '</div>' +
-                '</div>' +
-                '<div class="pgj-hero-team">' +
-                    '<div class="pgj-hero-escudo">' + escVis + '</div>' +
-                    '<div class="pgj-hero-nome">' + escHtml(d.visitante ? d.visitante.nome : '') + '</div>' +
-                    '<div class="pgj-hero-forma">' + formaBadges(d.formaVisitante) + '</div>' +
-                '</div>' +
-            '</div>' +
-        '</div>';
-
-        var tabs = '<div class="pgj-tabs">' +
-            '<button type="button" class="pgj-tab" data-pgj-tab="notas" onclick="ativarTabPosJogo(\'notas\')">⭐ Notas dos Jogadores</button>' +
-            '<button type="button" class="pgj-tab" data-pgj-tab="campo" onclick="ativarTabPosJogo(\'campo\')">🟩 Campo</button>' +
-            '<button type="button" class="pgj-tab" data-pgj-tab="stats" onclick="ativarTabPosJogo(\'stats\')">📊 Estatísticas</button>' +
-            '<button type="button" class="pgj-tab" data-pgj-tab="obs" onclick="ativarTabPosJogo(\'obs\')">📝 Observações</button>' +
-        '</div>';
-
-        var painelNotas = '<div class="pgj-panel" id="pgj-panel-notas"><div class="pgj-notas-grid">' +
-            colunaNotas(d, 'casa') + colunaNotas(d, 'vis') +
-        '</div></div>';
-
-        var painelCampo = '<div class="pgj-panel" id="pgj-panel-campo"><div class="pgj-campo-grid">' +
-            '<div><div class="pgj-campo-col-label">' + escCasa + '<span>' + escHtml(d.casa ? d.casa.nome : '') + ' · Escalação Inicial</span></div>' + campoTime(d.campo.casa, 'casa') + '</div>' +
-            '<div><div class="pgj-campo-col-label">' + escVis + '<span>' + escHtml(d.visitante ? d.visitante.nome : '') + ' · Escalação Inicial</span></div>' + campoTime(d.campo.visitante, 'vis') + '</div>' +
-        '</div></div>';
-
-        var statsRows = (d.estatisticas || []).map(function (m) {
-            var vc = parseFloat(String(m.casa).replace('%', '')) || 0;
-            var vv = parseFloat(String(m.vis).replace('%', '')) || 0;
-            var total = vc + vv;
-            var pc = total > 0 ? (vc / total * 100) : 50;
-            var pv = 100 - pc;
-            return '<div class="pgj-stat-row">' +
-                '<div class="pgj-stat-lbl">' + escHtml(m.label) + '</div>' +
-                '<div class="pgj-stat-vals">' +
-                    '<span class="num right">' + escHtml(m.casa) + '</span>' +
-                    '<div class="pgj-stat-bar"><div style="width:' + pc + '%; background:#dc2626;"></div><div style="width:' + pv + '%; background:#16a34a;"></div></div>' +
-                    '<span class="num">' + escHtml(m.vis) + '</span>' +
-                '</div>' +
-            '</div>';
-        }).join('');
-
-        var destaquesCards = (d.estatisticasJogador || []).map(function (m) {
-            var casaHtml = m.casa
-                ? '<div class="pgj-destaque-row">' + escCasa + '<span class="pgj-destaque-nome" style="color:#e5e7eb;">' + escHtml(m.casa.nome) + '</span><span class="pgj-destaque-val" style="color:#f1f5f9;">' + m.casa.valor + '</span></div>'
-                : '<div class="pgj-destaque-row"><span class="pgj-destaque-nome" style="color:#4b5563;">–</span></div>';
-            var visHtml = m.vis
-                ? '<div class="pgj-destaque-row">' + escVis + '<span class="pgj-destaque-nome" style="color:#9ca3af;">' + escHtml(m.vis.nome) + '</span><span class="pgj-destaque-val" style="color:#6b7280;">' + m.vis.valor + '</span></div>'
-                : '<div class="pgj-destaque-row"><span class="pgj-destaque-nome" style="color:#4b5563;">–</span></div>';
-            return '<div class="pgj-destaque-card"><div class="pgj-destaque-label">' + escHtml(m.label) + '</div>' + casaHtml + visHtml + '</div>';
-        }).join('');
-
-        var painelStats = '<div class="pgj-panel" id="pgj-panel-stats">' +
-            (statsRows ? '<div class="pgj-stats-card">' +
-                '<div class="pgj-stats-head">' +
-                    '<div class="pgj-stats-head-team">' + escCasa + '<span style="color:#dc2626;">' + escHtml(d.casa ? d.casa.nome : '') + '</span></div>' +
-                    '<span class="pgj-stats-title">Estatísticas da Partida</span>' +
-                    '<div class="pgj-stats-head-team"><span style="color:#16a34a;">' + escHtml(d.visitante ? d.visitante.nome : '') + '</span>' + escVis + '</div>' +
-                '</div>' + statsRows +
-            '</div>' : '') +
-            (destaquesCards ? '<div class="pgj-stats-card">' +
-                '<div class="pgj-stats-head"><span class="pgj-stats-title">Destaques Individuais</span></div>' +
-                '<div class="pgj-destaques-grid">' + destaquesCards + '</div>' +
-            '</div>' : '') +
-            (!statsRows && !destaquesCards ? '<div class="pgj-vazio">Estatísticas ainda não disponíveis para esta partida.</div>' : '') +
-        '</div>';
-
-        var painelObs = '<div class="pgj-panel" id="pgj-panel-obs">' + montarObservacoes(d) + '</div>';
-
-        return hero + tabs + '<div class="pgj-content">' + painelNotas + painelCampo + painelStats + painelObs + '</div>';
+        return PainelJogo.montarPosJogo(d, { somenteLeitura: false });
     }
 
-    function montarObservacoes(d) {
-        var jogadoresLineup = []
-            .concat(d.lineup.casaTitulares, d.lineup.casaReservas, d.lineup.visTitulares, d.lineup.visReservas)
-            .map(function (j) { return { id: j.jogadorId, nome: j.nome }; });
-        window._pgjJogadoresAtual = jogadoresLineup;
-
-        var rows = (d.observacoes && d.observacoes.length)
-            ? d.observacoes.map(function (o) {
-                var jogadorHtml = (o.tipo === 'JOGADOR' && o.jogadorNome) ? '<span class="pgj-obs-jogador">' + escHtml(o.jogadorNome) + '</span>' : '';
-                return '<div class="pgj-obs-row" data-obs-id="' + o.id + '">' +
-                    '<span class="pgj-obs-badge ' + o.tipo + '">' + rotuloTipoObs(o.tipo) + '</span>' +
-                    jogadorHtml +
-                    '<p class="pgj-obs-texto">' + renderizarTextoComMencoes(o.texto, jogadoresLineup) + '</p>' +
-                    '<button type="button" class="pgj-obs-editar" onclick="editarObsPosJogo(' + o.id + ')" title="Editar">&#9998;</button>' +
-                    '<button type="button" class="pgj-obs-remover" onclick="removerObsPosJogo(' + o.id + ')">✕</button>' +
-                '</div>';
-            }).join('')
-            : '<div class="pgj-vazio">Nenhuma observação registrada para esta partida.</div>';
-
-        var jogadorOpcoes = jogadoresLineup
-            .map(function (j) { return '<option value="' + j.id + '">' + escHtml(j.nome) + '</option>'; })
-            .join('');
-
-        var form = '<div class="pgj-obs-form">' +
-            '<div class="pgj-obs-form-row">' +
-                '<select id="pgjObsTipo" onchange="document.getElementById(\'pgjObsJogadorWrap\').style.display = this.value === \'JOGADOR\' ? \'\' : \'none\';">' +
-                    '<option value="MANDANTE">Mandante</option><option value="VISITANTE">Visitante</option><option value="COMPETICAO">Competição</option><option value="JOGADOR">Jogador</option><option value="MARCO">Marco</option>' +
-                '</select>' +
-                '<span id="pgjObsJogadorWrap" style="display:none;"><select id="pgjObsJogador">' + jogadorOpcoes + '</select></span>' +
-                '<button type="button" onclick="adicionarObsPosJogo()">Salvar</button>' +
-            '</div>' +
-            '<textarea id="pgjObsTexto" placeholder="Adicionar observação... use @ para mencionar um jogador" rows="3"></textarea>' +
-        '</div>';
-
-        return rows === '<div class="pgj-vazio">Nenhuma observação registrada para esta partida.</div>'
-            ? rows + form
-            : '<div style="margin-bottom:16px;">' + rows + '</div>' + form;
-    }
-
-    function rotuloTipoObs(tipo) {
-        return { MANDANTE: 'Mandante', VISITANTE: 'Visitante', COMPETICAO: 'Competição', JOGADOR: 'Jogador', MARCO: 'Marco' }[tipo] || tipo;
-    }
+    // (montarObservacoes/rotuloTipoObs vivem em painel-jogo.js)
 
     async function adicionarObsPosJogo() {
         var tipo = document.getElementById('pgjObsTipo').value;
@@ -2298,9 +2081,10 @@
         ativarMencaoJogador(document.getElementById('pgjObsTexto'), () => window._pgjJogadoresAtual || []);
     }
 
+    // Delegado para painel-jogo.js. Continua global porque os botões de aba do
+    // pós-jogo são gerados com onclick="ativarTabPosJogo('...')".
     function ativarTabPosJogo(tab) {
-        document.querySelectorAll('.pgj-tab').forEach(function (b) { b.classList.toggle('active', b.dataset.pgjTab === tab); });
-        document.querySelectorAll('.pgj-panel').forEach(function (p) { p.classList.toggle('active', p.id === 'pgj-panel-' + tab); });
+        PainelJogo.ativarTab(tab);
     }
 
     function fecharPosJogo() {
@@ -2310,6 +2094,99 @@
     document.getElementById('modal-posjogo').addEventListener('click', function (e) {
         if (e.target === this) fecharPosJogo();
     });
+
+    // ══════════════ COMPARTILHAR ANÁLISE ══════════════
+    // Link público somente-leitura desta análise (/analise/{token}), para mostrar
+    // a quem não tem conta. O servidor reaproveita o link ativo do jogo — clicar
+    // duas vezes no botão não gera dois tokens.
+
+    function fecharCompartilhar() {
+        document.getElementById('modal-compartilhar').style.display = 'none';
+    }
+
+    document.getElementById('modal-compartilhar').addEventListener('click', function (e) {
+        if (e.target === this) fecharCompartilhar();
+    });
+
+    async function abrirCompartilhar(jogoId) {
+        var modal = document.getElementById('modal-compartilhar');
+        var corpo = document.getElementById('compartilhar-corpo');
+        modal.style.display = 'flex';
+        modal.dataset.jogoId = jogoId;
+        corpo.innerHTML = '<div style="text-align:center; padding:1.5rem 0">Carregando...</div>';
+
+        try {
+            var resp = await fetch('/Jogos/LinkAnalise/' + jogoId);
+            if (!resp.ok) throw new Error();
+            renderCompartilhar(await resp.json());
+        } catch (e) {
+            corpo.innerHTML = '<div style="color:#f87171; text-align:center; padding:1rem;">Erro ao consultar o link de compartilhamento.</div>';
+        }
+    }
+
+    function renderCompartilhar(dados) {
+        var corpo = document.getElementById('compartilhar-corpo');
+        var jogoId = document.getElementById('modal-compartilhar').dataset.jogoId;
+
+        if (!dados || !dados.existe) {
+            corpo.innerHTML =
+                '<p style="margin:0 0 14px;">Gere um link público desta análise. Quem receber vê o placar, as notas, o campo, as estatísticas e as observações — <strong>sem poder alterar nada</strong> e sem acesso ao restante do sistema.</p>' +
+                '<button type="button" class="mb-btn" onclick="gerarLinkCompartilhado(' + jogoId + ')">🔗 Gerar link</button>';
+            return;
+        }
+
+        var visualizacoes = dados.visualizacoes || 0;
+        corpo.innerHTML =
+            '<p style="margin:0 0 10px;">Link ativo — qualquer pessoa com ele vê esta análise em modo leitura.</p>' +
+            '<div style="display:flex; gap:8px; margin-bottom:10px;">' +
+                '<input id="compartilharUrl" type="text" readonly value="' + PainelJogo.escHtml(dados.url) + '"' +
+                    ' onclick="this.select()" style="flex:1; min-width:0; background:#0b1220; border:1px solid rgba(255,255,255,.15); border-radius:8px; color:var(--text-strong); padding:8px 10px; font-size:12px;">' +
+                '<button type="button" class="mb-btn" onclick="copiarLinkCompartilhado()">Copiar</button>' +
+            '</div>' +
+            '<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">' +
+                '<span style="font-size:12px;">👁 ' + visualizacoes + ' visualização' + (visualizacoes === 1 ? '' : 'es') + '</span>' +
+                '<button type="button" class="mb-btn" style="border-color:#ef4444; color:#ef4444;" onclick="revogarLinkCompartilhado(' + jogoId + ')">Revogar link</button>' +
+            '</div>';
+    }
+
+    async function gerarLinkCompartilhado(jogoId) {
+        try {
+            var resp = await fetch('/Jogos/CompartilharAnalise', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ JogoId: parseInt(jogoId, 10) })
+            });
+            if (!resp.ok) { alert('Erro ao gerar o link.'); return; }
+            var dados = await resp.json();
+            renderCompartilhar({ existe: true, url: dados.url, visualizacoes: dados.visualizacoes });
+        } catch (e) { alert('Erro de conexão ao gerar o link.'); }
+    }
+
+    async function revogarLinkCompartilhado(jogoId) {
+        if (!confirm('Revogar o link? Quem já tem a URL deixa de conseguir abrir a análise.')) return;
+        try {
+            var resp = await fetch('/Jogos/RevogarAnaliseCompartilhada', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ JogoId: parseInt(jogoId, 10) })
+            });
+            if (!resp.ok) { alert('Erro ao revogar o link.'); return; }
+            renderCompartilhar({ existe: false });
+        } catch (e) { alert('Erro de conexão ao revogar o link.'); }
+    }
+
+    function copiarLinkCompartilhado() {
+        var input = document.getElementById('compartilharUrl');
+        if (!input) return;
+        input.select();
+        // navigator.clipboard só existe em contexto seguro (https/localhost);
+        // execCommand cobre o resto.
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(input.value);
+        } else {
+            document.execCommand('copy');
+        }
+    }
 
     // ══════════════ FASES TÁTICAS ══════════════
     const CRONO_JOGO_ID = ANALISAR.jogoId;
@@ -2491,15 +2368,49 @@
 
     // Médias por jogo das estatísticas importadas, por jogador (id → médias),
     // com as mesmas fórmulas de /Jogadores/Estatisticas.
-    const MEDIAS_JOGADORES = ANALISAR.medias;
+    let MEDIAS_JOGADORES = ANALISAR.medias;
     // Jogos como titular por id de jogador, na competição deste jogo.
-    const TITULAR_JOGADORES = ANALISAR.titularCompeticao;
-    // Dados da temporada deste jogo (todas as competições do mesmo ano) — linha
-    // "Temporada" do tooltip. TEMPORADA_JOGO 0 = sem temporada definida (oculta a linha).
-    const TEMPORADA_JOGO = ANALISAR.temporada;
-    const GOLS_TEMPORADA = ANALISAR.golsTemporada;
-    const ASSISTS_TEMPORADA = ANALISAR.assistsTemporada;
-    const TITULAR_TEMPORADA = ANALISAR.titularTemporada;
+    let TITULAR_JOGADORES = ANALISAR.titularCompeticao;
+    // Dados da temporada mostrada no tooltip (todas as competições do mesmo ano) —
+    // linha "Temporada". TEMPORADA_TOOLTIP 0 = "Todas as temporadas" (oculta a linha).
+    // Não são const porque o seletor "ℹ tooltip" troca a temporada em tempo de tela.
+    let TEMPORADA_TOOLTIP = ANALISAR.temporadaTooltip;
+    let GOLS_TEMPORADA = ANALISAR.golsTemporada;
+    let ASSISTS_TEMPORADA = ANALISAR.assistsTemporada;
+    let TITULAR_TEMPORADA = ANALISAR.titularTemporada;
+
+    // Troca a temporada dos números do tooltip (gols/assists/titular por competição
+    // e por temporada + médias por jogo). Recarrega só esses dicionários: a tela tem
+    // escalação em edição e não pode ser recarregada por causa de um filtro.
+    async function trocarTemporadaTooltip(valor) {
+        const status = document.getElementById('tooltipTemporadaStatus');
+        const temporada = parseInt(valor, 10) || 0;
+        if (status) status.textContent = 'carregando…';
+        try {
+            const resp = await fetch(`/Jogos/TooltipTemporada/${ANALISAR.jogoId}?temporada=${temporada}`);
+            if (!resp.ok) throw new Error(resp.status);
+            const d = await resp.json();
+
+            MEDIAS_JOGADORES = d.medias || {};
+            TITULAR_JOGADORES = d.titularCompeticao || {};
+            GOLS_TEMPORADA = d.golsTemporada || {};
+            ASSISTS_TEMPORADA = d.assistsTemporada || {};
+            TITULAR_TEMPORADA = d.titularTemporada || {};
+            TEMPORADA_TOOLTIP = d.temporada;
+
+            // Gols/assists da competição moram dentro de DADOS_JOGADORES (é de lá
+            // que o tooltip lê a linha "Competição").
+            Object.keys(DADOS_JOGADORES).forEach(function (id) {
+                DADOS_JOGADORES[id].gols = (d.gols || {})[id] || 0;
+                DADOS_JOGADORES[id].assists = (d.assists || {})[id] || 0;
+            });
+
+            if (status) status.textContent = '';
+        } catch (e) {
+            if (status) status.textContent = 'falhou';
+        }
+    }
+    window.trocarTemporadaTooltip = trocarTemporadaTooltip;
 
     // Um bloco de stats do tooltip (Competição/Temporada): rótulo em cima e,
     // logo abaixo, jogos como titular, gols e assists no escopo — vazio se
@@ -2551,8 +2462,8 @@
         // Stats separadas por escopo: competição do jogo e temporada (todas as
         // competições do mesmo ano). dados.gols/assists vêm da competição.
         html += ttLinhaStats('Competição', dados.gols, dados.assists, TITULAR_JOGADORES[dados.id]);
-        if (TEMPORADA_JOGO > 0)
-            html += ttLinhaStats(`Temporada ${TEMPORADA_JOGO}`,
+        if (TEMPORADA_TOOLTIP > 0)
+            html += ttLinhaStats(`Temporada ${TEMPORADA_TOOLTIP}`,
                 GOLS_TEMPORADA[dados.id] || 0, ASSISTS_TEMPORADA[dados.id] || 0, TITULAR_TEMPORADA[dados.id]);
         const md = MEDIAS_JOGADORES[dados.id];
         if (md) {

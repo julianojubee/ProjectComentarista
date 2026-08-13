@@ -30,6 +30,19 @@ namespace ControleFutebolWeb.Models
         public int PassesTotal { get; set; }
         public int PassesChave { get; set; }
 
+        // Passes concluídos (api-football manda em passes.accuracy, que é
+        // contagem e não percentual). A precisão em % é derivada daqui com
+        // PassesTotal — ver PrecisaoPasses.
+        public int PassesCertos { get; set; }
+
+        // "Precisão dos passes (%)" no padrão das estatísticas da FIFA. Null
+        // quando o jogador não tentou nenhum passe na partida — e também quando
+        // acertou zero com passes tentados, que na prática só acontece em jogo
+        // importado antes de PassesCertos existir. Sem isso a tela mostraria 0%
+        // e o dado ausente ficaria igual a um desempenho péssimo.
+        public double? PrecisaoPasses => PassesTotal > 0 && PassesCertos > 0
+            ? Math.Round(PassesCertos / (double)PassesTotal * 100, 1) : null;
+
         public int Desarmes { get; set; }
         public int Bloqueios { get; set; }
         public int Interceptacoes { get; set; }
@@ -51,5 +64,14 @@ namespace ControleFutebolWeb.Models
         public int PenaltiCometido { get; set; }
         public int PenaltiPerdido { get; set; }
         public int PenaltiDefendido { get; set; }
+        public int PenaltiConvertido { get; set; }
+
+        // Conversão de pênaltis (%): convertidos ÷ cobrados. Null sem cobrança.
+        public double? ConversaoPenaltis => (PenaltiConvertido + PenaltiPerdido) > 0
+            ? Math.Round(PenaltiConvertido / (double)(PenaltiConvertido + PenaltiPerdido) * 100, 1) : null;
+
+        // Entrou no decorrer do jogo (games.substitute da api-football). Evita
+        // cruzar com Escalacao só para saber se foi titular.
+        public bool EntrouDoBanco { get; set; }
     }
 }

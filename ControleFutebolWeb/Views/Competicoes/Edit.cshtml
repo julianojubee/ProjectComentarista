@@ -1,8 +1,23 @@
+@using ControleFutebolWeb.Helpers
 @model Competicao
 
 @{
     ViewData["Title"] = "Editar Competição";
     var fases = ViewBag.Fases as List<CompeticaoFase> ?? new List<CompeticaoFase>();
+
+    // Critérios marcados, na ordem salva; os não usados aparecem depois, desmarcados.
+    var criteriosSelecionados = ViewBag.CriteriosDesempate as List<string>
+        ?? CriteriosDesempateHelper.Parse(Model.CriteriosDesempate);
+
+    var criteriosOrdenados = criteriosSelecionados
+        .Select(c => (Codigo: c, Marcado: true))
+        .Concat(CriteriosDesempateHelper.Disponiveis
+            .Where(d => !criteriosSelecionados.Contains(d.Codigo))
+            .Select(d => (Codigo: d.Codigo, Marcado: false)))
+        .ToList();
+
+    string DescricaoDe(string codigo) =>
+        CriteriosDesempateHelper.Disponiveis.First(d => d.Codigo == codigo).Descricao;
 }
 
 <h2>Editar Competição</h2>
@@ -31,7 +46,12 @@
             <option value="PONTOS_CORRIDOS">Pontos Corridos</option>
             <option value="GRUPOS">Grupos</option>
             <option value="MATA_MATA">Mata-Mata</option>
+            <option value="JOGO_UNICO">Jogo Único (final única)</option>
         </select>
+        <small class="text-muted">
+            <strong>Jogo Único</strong>: competição decidida em uma só partida — o vencedor é o campeão
+            (Supercopa da UEFA, Supercopa do Brasil, Recopa...).
+        </small>
         <span asp-validation-for="Tipo" class="text-danger"></span>
     </div>
     <div class="form-group">
@@ -50,6 +70,43 @@
             É uma competição de seleções nacionais (Copa do Mundo, Eliminatórias, Copa América...)
         </label>
     </div>
+
+    <hr class="my-4" />
+
+    <h5>Critérios de desempate</h5>
+    <p class="text-muted" style="font-size:.9rem;">
+        Marque os critérios usados por esta competição e ordene-os com ↑ / ↓. A tabela de
+        classificação (e a de cada grupo/fase) é montada nessa ordem.
+        <strong>Pontos</strong> é sempre o 1º critério e não entra na lista.
+        Ex.: Brasileirão → vitórias, saldo de gols, gols pró, confronto direto,
+        menos vermelhos, menos amarelos, sorteio.
+    </p>
+
+    <div id="criterios-lista" class="mb-3">
+        @for (int i = 0; i < criteriosOrdenados.Count; i++)
+        {
+            var item = criteriosOrdenados[i];
+            <div class="criterio-row d-flex align-items-center mb-2" style="gap:8px;">
+                <span class="criterio-ordem badge bg-secondary" style="min-width:28px;">@(item.Marcado ? (i + 1).ToString() : "—")</span>
+                <div class="form-check mb-0" style="min-width:280px;">
+                    <input type="checkbox" class="form-check-input criterio-check" id="criterio-@item.Codigo"
+                           name="criterios" value="@item.Codigo" checked="@item.Marcado" />
+                    <label class="form-check-label" for="criterio-@item.Codigo">
+                        @CriteriosDesempateHelper.RotuloDe(item.Codigo)
+                    </label>
+                </div>
+                <small class="text-muted flex-grow-1">@DescricaoDe(item.Codigo)</small>
+                <button type="button" class="btn btn-outline-secondary btn-sm criterio-subir" title="Subir">↑</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm criterio-descer" title="Descer">↓</button>
+            </div>
+        }
+    </div>
+    <p class="text-muted" style="font-size:.85rem;">
+        <em>Confronto direto</em> só desempata quando restam exatamente duas equipes empatadas até ali
+        (regra da CBF). <em>Sorteio público</em> não é automático: se nada mais desempatar, a tabela
+        usa ordem alfabética. Sem nenhum critério marcado, vale a ordem padrão do Brasileirão.
+    </p>
+
     <button type="submit" class="btn btn-primary">Salvar</button>
 </form>
 
@@ -74,6 +131,7 @@
                     <option value="PONTOS_CORRIDOS" selected="@(fases[i].Tipo == "PONTOS_CORRIDOS")">Pontos Corridos</option>
                     <option value="GRUPOS" selected="@(fases[i].Tipo == "GRUPOS")">Grupos</option>
                     <option value="MATA_MATA" selected="@(fases[i].Tipo == "MATA_MATA")">Mata-Mata</option>
+                    <option value="JOGO_UNICO" selected="@(fases[i].Tipo == "JOGO_UNICO")">Jogo Único</option>
                 </select>
                 <input name="fases[@i].RoundsPattern" value="@fases[i].RoundsPattern" class="form-control" placeholder="Rounds (opcional, ex.: Quarter;Semi;Final)" title="Padrões separados por ';' para forçar jogos nesta fase quando a detecção automática não bastar (ex.: Apertura / Clausura)." />
                 <button type="button" class="btn btn-outline-secondary btn-sm fase-subir mt-1" title="Subir">↑</button>
@@ -91,6 +149,7 @@
                 <option value="PONTOS_CORRIDOS">Pontos Corridos</option>
                 <option value="GRUPOS">Grupos</option>
                 <option value="MATA_MATA">Mata-Mata</option>
+                <option value="JOGO_UNICO">Jogo Único</option>
             </select>
             <input data-campo="RoundsPattern" class="form-control" placeholder="Rounds (opcional, ex.: Quarter;Semi;Final)" title="Padrões separados por ';' para forçar jogos nesta fase quando a detecção automática não bastar (ex.: Apertura / Clausura)." />
             <button type="button" class="btn btn-outline-secondary btn-sm fase-subir mt-1" title="Subir">↑</button>
@@ -106,6 +165,40 @@
 </form>
 
 <script>
+    // Critérios de desempate: a ordem do POST é a ordem das linhas no DOM
+    // (só os marcados são enviados), então basta mover a linha e renumerar.
+    (function () {
+        var lista = document.getElementById('criterios-lista');
+        if (!lista) return;
+
+        function renumerar() {
+            var n = 0;
+            lista.querySelectorAll('.criterio-row').forEach(function (row) {
+                var marcado = row.querySelector('.criterio-check').checked;
+                row.querySelector('.criterio-ordem').textContent = marcado ? ++n : '—';
+            });
+        }
+
+        lista.addEventListener('click', function (e) {
+            var row = e.target.closest('.criterio-row');
+            if (!row) return;
+            if (e.target.classList.contains('criterio-subir') && row.previousElementSibling) {
+                lista.insertBefore(row, row.previousElementSibling);
+            } else if (e.target.classList.contains('criterio-descer') && row.nextElementSibling) {
+                lista.insertBefore(row.nextElementSibling, row);
+            } else {
+                return;
+            }
+            renumerar();
+        });
+
+        lista.addEventListener('change', function (e) {
+            if (e.target.classList.contains('criterio-check')) renumerar();
+        });
+
+        renumerar();
+    })();
+
     (function () {
         var lista = document.getElementById('fases-lista');
         var template = document.getElementById('fase-template');

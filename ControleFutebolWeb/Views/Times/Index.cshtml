@@ -129,6 +129,8 @@
     var timeSel = ViewBag.TimeIdsFiltro as List<int> ?? new List<int>();
     var jogadoresPorTime = ViewBag.JogadoresPorTime as Dictionary<int, int> ?? new Dictionary<int, int>();
     var formaPorTime = ViewBag.FormaPorTime as Dictionary<int, List<char>> ?? new Dictionary<int, List<char>>();
+    var titulosPorTime = ViewBag.TitulosPorTime as Dictionary<int, List<ControleFutebolWeb.Helpers.TitulosHelper.Titulo>>
+        ?? new Dictionary<int, List<ControleFutebolWeb.Helpers.TitulosHelper.Titulo>>();
 
     int totalTimesGlobal = ViewBag.TotalTimesGlobal ?? 0;
     int totalJogadoresGlobal = ViewBag.TotalJogadoresGlobal ?? 0;
@@ -138,7 +140,7 @@
     int exibidos = Model.Count();
     string subtitulo = temFiltro ? $"{exibidos} de {totalTimesGlobal} times" : $"{totalTimesGlobal} times cadastrados";
 
-    string CorForma(char r) => r switch { 'V' => "#22c55e", 'D' => "#ef4444", _ => "#6b7280" };
+    string CorForma(char r) => r switch { 'V' => "#22c55e", 'D' => "#ef4444", _ => "var(--text-dim)" };
 }
 
 <link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
@@ -148,8 +150,8 @@
 
     .cf-times {
         margin: 0 -12px;
-        background: #0f0f0f;
-        color: #e5e7eb;
+        background: var(--p-0);
+        color: var(--text);
         font-family: 'Barlow', Arial, sans-serif;
         border-radius: 14px;
         overflow: hidden;
@@ -189,7 +191,7 @@
     .cft-hero-kicker-line { height: 2px; width: 28px; background: #d4a520; }
     .cft-hero-kicker span {
         font-size: 0.68rem; font-weight: 700; letter-spacing: 0.24em;
-        color: #d4a520; text-transform: uppercase;
+        color: var(--gold-ink); text-transform: uppercase;
     }
 
     .cft-hero-row {
@@ -197,25 +199,25 @@
         flex-wrap: wrap; gap: 20px;
     }
 
-    .cft-hero h1 { font-size: 2.6rem; font-weight: 800; color: #f1f5f9; margin: 0 0 8px; line-height: 1; }
-    .cft-hero p { color: #94a3b8; font-size: 0.92rem; margin: 0; max-width: 480px; }
+    .cft-hero h1 { font-size: 2.6rem; font-weight: 800; color: var(--text-strong); margin: 0 0 8px; line-height: 1; }
+    .cft-hero p { color: var(--text-muted); font-size: 0.92rem; margin: 0; max-width: 480px; }
 
     .cft-kpis { display: flex; gap: 20px; flex-shrink: 0; }
     .cft-kpi { text-align: center; }
     .cft-kpi-num {
         font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 2.1rem;
-        font-weight: 800; color: #d4a520; line-height: 1;
+        font-weight: 800; color: var(--gold-ink); line-height: 1;
     }
     .cft-kpi-label {
         font-size: 0.63rem; font-weight: 700; letter-spacing: 0.1em;
-        color: #64748b; text-transform: uppercase; margin-top: 3px;
+        color: var(--text-dim); text-transform: uppercase; margin-top: 3px;
     }
     .cft-kpi-sep { width: 1px; background: #1e3a5f; align-self: stretch; }
 
     /* ── Filtros ─────────────────────────────────── */
     .cft-filters {
-        background: #141414;
-        border-bottom: 1px solid #262626;
+        background: var(--p-1);
+        border-bottom: 1px solid var(--line);
         padding: 16px 2.5rem;
         display: flex;
         align-items: flex-end;
@@ -225,24 +227,24 @@
 
     .cft-filter-label {
         font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
-        color: #6b7280; text-transform: uppercase; margin-bottom: 6px; display: block;
+        color: var(--text-dim); text-transform: uppercase; margin-bottom: 6px; display: block;
     }
 
-    .cft-subtitulo { margin-left: auto; font-size: 0.78rem; color: #6b7280; font-weight: 600; }
+    .cft-subtitulo { margin-left: auto; font-size: 0.78rem; color: var(--text-dim); font-weight: 600; }
 
     /* Tag selector — mesma lógica funcional, visual escuro */
     .ms-wrap { position: relative; min-width: 240px; }
     .ms-box {
         display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
         min-height: 40px; padding: 4px 30px 4px 10px; cursor: pointer;
-        border: 1px solid #333; border-radius: 8px; background: #1a1a1a; font-size: 13px;
+        border: 1px solid var(--line); border-radius: 8px; background: var(--p-2); font-size: 13px;
         position: relative;
     }
     .ms-box::after {
         content: "▾"; position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-        color: #6b7280; pointer-events: none;
+        color: var(--text-dim); pointer-events: none;
     }
-    .ms-placeholder { color: #6b7280; }
+    .ms-placeholder { color: var(--text-dim); }
     .ms-chip {
         display: inline-flex; align-items: center; gap: 4px;
         background: rgba(212,165,32,0.14); color: #eecb6c; border: 1px solid rgba(212,165,32,0.3);
@@ -252,21 +254,21 @@
     .ms-chip-x:hover { opacity: 1; }
     .ms-panel {
         position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50;
-        background: #1a1a1a; border: 1px solid #333; border-radius: 8px;
+        background: var(--p-2); border: 1px solid var(--line); border-radius: 8px;
         box-shadow: 0 8px 24px rgba(0,0,0,.5); max-height: 280px; overflow-y: auto;
         display: none; padding: 4px;
     }
     .ms-panel.open { display: block; }
     .ms-opt {
         display: flex; align-items: center; gap: 8px; padding: 7px 10px;
-        border-radius: 6px; cursor: pointer; font-size: 13px; color: #e5e7eb;
+        border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text);
     }
-    .ms-opt:hover { background: #262626; }
+    .ms-opt:hover { background: var(--p-4); }
     .ms-opt input { cursor: pointer; accent-color: #d4a520; }
     .ms-search {
         width: 100%; box-sizing: border-box; padding: 7px 10px; margin-bottom: 4px;
-        border: 1px solid #333; border-radius: 6px; font-size: 13px; outline: none;
-        position: sticky; top: 0; background: #141414; color: #e5e7eb;
+        border: 1px solid var(--line); border-radius: 6px; font-size: 13px; outline: none;
+        position: sticky; top: 0; background: var(--p-1); color: var(--text);
     }
     .ms-search::placeholder { color: #666; }
     .ms-search:focus { border-color: #d4a520; }
@@ -277,8 +279,8 @@
     }
     .cft-btn-primary { background: #d4a520; color: #141414; }
     .cft-btn-primary:hover { background: #c49918; }
-    .cft-btn-ghost { background: transparent; color: #9ca3af; border: 1px solid #333; }
-    .cft-btn-ghost:hover { color: #f1f5f9; border-color: #444; }
+    .cft-btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--line); }
+    .cft-btn-ghost:hover { color: var(--text-strong); border-color: var(--line-strong); }
 
     /* ── Grid de cards ───────────────────────────── */
     .cft-grid-wrap { padding: 28px 2.5rem 3rem; }
@@ -290,8 +292,8 @@
     }
 
     .cft-card {
-        background: #161616;
-        border: 1px solid #262626;
+        background: var(--p-1);
+        border: 1px solid var(--line);
         border-radius: 14px;
         padding: 20px;
         display: flex;
@@ -302,7 +304,7 @@
 
     .cft-card:hover {
         border-color: #d4a520;
-        background: #1a1a1a;
+        background: var(--p-2);
         transform: translateY(-2px);
         box-shadow: 0 8px 32px rgba(212,165,32,0.06);
     }
@@ -311,36 +313,46 @@
 
     .cft-badge {
         width: 58px; height: 58px; border-radius: 50%;
-        background: #0f0f0f; border: 1px solid #2a2a2a;
+        background: var(--p-0); border: 1px solid var(--line-strong);
         display: flex; align-items: center; justify-content: center;
         overflow: hidden; flex-shrink: 0;
     }
 
     .cft-badge img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
-    .cft-badge-abbr { font-size: 11px; font-weight: 700; color: #6b7280; }
+    .cft-badge-abbr { font-size: 11px; font-weight: 700; color: var(--text-dim); }
 
     .cft-card-info { flex: 1; min-width: 0; padding-top: 2px; }
 
     .cft-nome {
-        font-size: 1.05rem; font-weight: 700; color: #f1f5f9;
+        font-size: 1.05rem; font-weight: 700; color: var(--text-strong);
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px;
     }
 
     .cft-cidade { display: flex; align-items: center; gap: 5px; margin-bottom: 8px; }
-    .cft-cidade span { font-size: 0.75rem; color: #6b7280; }
+    .cft-cidade span { font-size: 0.75rem; color: var(--text-dim); }
 
     .cft-formacao {
         display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px;
         background: rgba(212,165,32,0.1); border: 1px solid rgba(212,165,32,0.22); border-radius: 6px;
     }
-    .cft-formacao span { font-size: 0.7rem; font-weight: 700; color: #d4a520; letter-spacing: 0.06em; }
+    .cft-formacao span { font-size: 0.7rem; font-weight: 700; color: var(--gold-ink); letter-spacing: 0.06em; }
 
-    .cft-divider { height: 1px; background: #1e1e1e; }
+    /* Troféus conquistados (uma taça por competição/temporada) */
+    .cft-trofeus { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+    .cft-trofeu {
+        display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px;
+        background: rgba(212,165,32,0.12); border: 1px solid rgba(212,165,32,0.3); border-radius: 6px;
+        font-size: 0.68rem; font-weight: 700; color: #eecb6c; white-space: nowrap;
+    }
+    .cft-trofeu img { width: 13px; height: 13px; object-fit: contain; }
+    .cft-trofeu-mais { color: var(--text-dim); font-size: 0.68rem; font-weight: 700; }
+
+    .cft-divider { height: 1px; background: var(--p-3); }
 
     .cft-card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .cft-stat-mini { display: flex; align-items: center; gap: 14px; }
     .cft-jogadores { display: flex; align-items: center; gap: 5px; }
-    .cft-jogadores span { font-size: 0.78rem; color: #9ca3af; font-weight: 600; }
+    .cft-jogadores span { font-size: 0.78rem; color: var(--text-muted); font-weight: 600; }
 
     .cft-forma { display: flex; gap: 3px; align-items: center; }
     .cft-forma-item {
@@ -349,13 +361,13 @@
     }
 
     .cft-cta {
-        font-size: 0.72rem; color: #d4a520; font-weight: 700;
+        font-size: 0.72rem; color: var(--gold-ink); font-weight: 700;
         display: flex; align-items: center; gap: 4px; flex-shrink: 0; white-space: nowrap;
     }
 
     .cft-empty {
-        text-align: center; padding: 3rem 1rem; color: #6b7280;
-        background: #161616; border: 1px solid #262626; border-radius: 14px;
+        text-align: center; padding: 3rem 1rem; color: var(--text-dim);
+        background: var(--p-1); border: 1px solid var(--line); border-radius: 14px;
     }
 
     @@media (max-width: 640px) {
@@ -368,7 +380,7 @@
 <div class="cf-times">
 
     <!-- Hero -->
-    <div class="cft-hero">
+    <div class="cft-hero theme-dark-zone">
         <img class="cft-hero-pattern" src="~/Images/banner/escudos-pattern.svg" alt="" />
         <div class="cft-hero-stripe"></div>
         <div class="cft-hero-content">
@@ -483,6 +495,11 @@
                 {
                     int qtdJogadores = jogadoresPorTime.TryGetValue(time.Id, out var qj) ? qj : 0;
                     var forma = formaPorTime.TryGetValue(time.Id, out var f) ? f : new List<char>();
+                    var titulos = titulosPorTime.TryGetValue(time.Id, out var tt) ? tt : new();
+                    // No card cabem poucas taças; o resto vira "+N" e a lista completa
+                    // fica no title (a página do time mostra todas).
+                    var titulosVisiveis = titulos.Take(3).ToList();
+                    var tituloResumo = string.Join(" · ", titulos.Select(t => $"{t.Competicao} {t.TemporadaRotulo}"));
 
                     <a asp-action="Details" asp-controller="Times" asp-route-id="@time.Id" class="cft-card">
                         <div class="cft-card-top">
@@ -509,6 +526,26 @@
                                     <div class="cft-formacao">
                                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#d4a520" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" /></svg>
                                         <span>@time.FormacaoPadrao.Nome</span>
+                                    </div>
+                                }
+                                @if (titulos.Any())
+                                {
+                                    <div class="cft-trofeus" title="@tituloResumo">
+                                        @foreach (var t in titulosVisiveis)
+                                        {
+                                            <span class="cft-trofeu">
+                                                <span>🏆</span>
+                                                @if (!string.IsNullOrEmpty(t.LogoUrl))
+                                                {
+                                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.LogoUrl })" alt="" />
+                                                }
+                                                <span>@t.TemporadaRotulo</span>
+                                            </span>
+                                        }
+                                        @if (titulos.Count > titulosVisiveis.Count)
+                                        {
+                                            <span class="cft-trofeu-mais">+@(titulos.Count - titulosVisiveis.Count)</span>
+                                        }
                                     </div>
                                 }
                             </div>

@@ -18,21 +18,21 @@
             foreach (var j in Model.Take(4))
             {
                 <div class="cd-mini-jogo">
-                    <div class="cd-mini-lado casa">
+                    <a class="cd-mini-lado casa" asp-controller="Times" asp-action="Details" asp-route-id="@j.TimeCasaId" title="Ver @j.TimeCasa?.Nome">
                         <span>@j.TimeCasa?.Nome</span>
                         @if (!string.IsNullOrEmpty(j.TimeCasa?.EscudoUrl))
                         {
                             <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.TimeCasa.EscudoUrl })" alt="" />
                         }
-                    </div>
+                    </a>
                     <span class="cd-mini-hora">@DateHelper.FormatarData(j.Data, "dd/MM")</span>
-                    <div class="cd-mini-lado">
+                    <a class="cd-mini-lado" asp-controller="Times" asp-action="Details" asp-route-id="@j.TimeVisitanteId" title="Ver @j.TimeVisitante?.Nome">
                         @if (!string.IsNullOrEmpty(j.TimeVisitante?.EscudoUrl))
                         {
                             <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.TimeVisitante.EscudoUrl })" alt="" />
                         }
                         <span>@j.TimeVisitante?.Nome</span>
-                    </div>
+                    </a>
                 </div>
             }
         }
@@ -46,7 +46,7 @@
         }
         else
         {
-            var rankColors = new[] { "#f59e0b", "#9ca3af", "#b45309", "#374151", "#374151" };
+            var rankColors = new[] { "var(--warn)", "var(--text-muted)", "#b45309", "#374151", "#374151" };
             for (int i = 0; i < artilheiros.Count; i++)
             {
                 var a = artilheiros[i];
@@ -60,13 +60,13 @@
                     </div>
                     <div style="flex:1; min-width:0;">
                         <div class="cd-art-nome">@a.Jogador.NomeExibicao</div>
-                        <div class="cd-art-clube">
+                        <a class="cd-art-clube" asp-controller="Times" asp-action="Details" asp-route-id="@a.Jogador.TimeId" title="Ver @a.Jogador.Time?.Nome">
                             @if (!string.IsNullOrEmpty(a.Jogador.Time?.EscudoUrl))
                             {
                                 <img src="@Url.Action("Imagem", "MediaProxy", new { url = a.Jogador.Time.EscudoUrl })" alt="" />
                             }
                             <span>@(a.Jogador.Time?.Nome ?? "—")</span>
-                        </div>
+                        </a>
                     </div>
                     <span class="cd-art-gols">@(a.Gols)⚽</span>
                 </div>

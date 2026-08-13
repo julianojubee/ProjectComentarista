@@ -1,0 +1,76 @@
+@{
+    // Layout PÚBLICO da análise compartilhada (/analise/{token}).
+    //
+    // Proposital: nenhum link de navegação, nenhum menu, nenhum atalho de login.
+    // Quem abre o link só pode ver esta página — o único controle é o botão de
+    // tema. Também não injeta UserManager nem FutebolContext: a página renderiza
+    // sem uma única query por usuário logado.
+    var tituloAba = (ViewData["TitleOverride"] as string) ?? "Análise de Craque";
+}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@tituloAba</title>
+    @* Link privado: não deve ser indexado nem seguido por buscador. *@
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/svg+xml" href="~/favicon.svg" />
+    <link rel="alternate icon" href="~/favicon.ico" />
+    <script>(function(){var t=localStorage.getItem('site-theme');if(t){document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-bs-theme',t);}})();</script>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/mencao-jogador.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/analisar.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/analise-publica.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="ap-topo">
+        <div class="ap-marca" aria-label="Análise de Craque">
+            <svg width="22" height="33" viewBox="0 0 80 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                <rect x="0" y="0" width="80" height="120" rx="8" fill="#161616" />
+                <rect x="10" y="10" width="60" height="100" rx="2" fill="#0b130b" stroke="#d4a520" stroke-width="2" />
+                <line x1="10" y1="60" x2="70" y2="60" stroke="#d4a520" stroke-width="1.5" />
+                <circle cx="40" cy="60" r="14" fill="none" stroke="#d4a520" stroke-width="1.5" />
+                <circle cx="40" cy="60" r="3" fill="#d4a520" />
+                <rect x="22" y="10" width="36" height="18" fill="none" stroke="#d4a520" stroke-width="1.5" />
+                <rect x="22" y="92" width="36" height="18" fill="none" stroke="#d4a520" stroke-width="1.5" />
+            </svg>
+            <span class="ap-marca-nome">ANÁLISE DE CRAQUE</span>
+        </div>
+        <button type="button" id="theme-toggle-btn" onclick="toggleThemeAnalise()"
+                title="Alternar modo escuro"
+                style="background:none;border:none;cursor:pointer;padding:4px 8px;font-size:18px;line-height:1;">
+            <span id="theme-toggle-icon">🌙</span>
+        </button>
+    </header>
+
+    <main role="main">
+        @RenderBody()
+    </main>
+
+    <footer class="ap-rodape">
+        Análise somente leitura, compartilhada por link.
+    </footer>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            var icon = document.getElementById('theme-toggle-icon');
+            if (icon) {
+                var t = document.documentElement.getAttribute('data-theme') || 'light';
+                icon.textContent = t === 'dark' ? '☀️' : '🌙';
+            }
+        });
+        function toggleThemeAnalise() {
+            var current = document.documentElement.getAttribute('data-theme') || 'light';
+            var next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            document.documentElement.setAttribute('data-bs-theme', next);
+            localStorage.setItem('site-theme', next);
+            var icon = document.getElementById('theme-toggle-icon');
+            if (icon) icon.textContent = next === 'dark' ? '☀️' : '🌙';
+        }
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

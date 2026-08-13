@@ -1,4 +1,4 @@
-// ControleFutebolWeb/Services/RelatoriosService.cs
+﻿// ControleFutebolWeb/Services/RelatoriosService.cs
 // Motor de agregação dos Relatórios (rankings de jogadores/times, totais, médias).
 // Extraído do RelatoriosController para ser reaproveitado pela API mobile
 // (api/v1/relatorios) sem duplicar regra de negócio.
@@ -28,7 +28,9 @@ namespace ControleFutebolWeb.Services
         public async Task<RelatoriosViewModel> MontarAsync(
             int[]? competicaoIds = null, int[]? timeIds = null, int? temporada = null,
             bool incluirNaoAnalisados = false, int minJogos = 1, string? usuarioId = null,
-            bool incluirEstatisticasCompeticoes = true, bool incluirMatchUp = true)
+            bool incluirEstatisticasCompeticoes = true, bool incluirMatchUp = true,
+            BaseEstatistica baseEstatistica = BaseEstatistica.PorJogo,
+            MandoJogador mando = MandoJogador.Todos)
         {
             // Mínimo de jogos no ranking de estatísticas individuais: configurável pelo
             // usuário (antes era fixo em 10) — 1 ou menos = sem filtro (ex.: na Copa do
@@ -123,6 +125,8 @@ namespace ControleFutebolWeb.Services
                 .AsNoTrackingWithIdentityResolution()
                 .Include(n => n.Jogador).ThenInclude(j => j!.Time)
                 .Include(n => n.Jogador).ThenInclude(j => j!.Selecao)
+                // Detalhes: o piso de merecimento conta os chips verdes x vermelhos.
+                .Include(n => n.Detalhes)
                 .Where(n => jogoIds.Contains(n.JogoId)
                          && (usuarioId == null || n.UsuarioId == usuarioId))
                 .ToListAsync();
@@ -183,10 +187,34 @@ namespace ControleFutebolWeb.Services
             // Lado (casa/visitante) de cada jogador em cada jogo, tirado da escalação
             // da época — usar o time ATUAL do jogador inverteria V/D/E dos jogos do
             // clube antigo depois de uma transferência (o adversário viraria "seu time").
-            var ladoPorJogadorJogo = escalacoes
-                .Where(e => e.JogadorId.HasValue)
-                .GroupBy(e => (e.JogadorId!.Value, e.JogoId))
-                .ToDictionary(g => g.Key, g => g.First().IsTimeCasa);
+            // Consulta própria (não reaproveita `escalacoes`, que é só de titulares):
+            // quem entrou no decorrer do jogo também precisa do lado certo.
+            var ladoPorJogadorJogo = await LadoJogadorHelper.CarregarAsync(_context, jogoIds, usuarioId);
+
+            // Minutos e goleiro decisivo por (jogador, jogo) — pisos de participação
+            // curta e bônus de 100% de defesas na nota de cada partida.
+            var contextosNota = await ContextoNotaHelper.CarregarAsync(_context, jogoIds, usuarioId, ladoPorJogadorJogo);
+
+            // Motor da nota automática escolhido pelo usuário em /CriteriosNota. Montado
+            // aqui porque CalcularRankingMisto é síncrono e não pode carregá-lo.
+            var calculadoraNota = await NotaAutomaticaHelper.CarregarAsync(
+                _context, jogoIds, usuarioId,
+                CriteriosNotaHelper.MergeCriterios(
+                    await _context.CriteriosNota.Where(c => c.UsuarioId == null).ToListAsync(),
+                    await _context.CriteriosNota.Where(c => c.UsuarioId == usuarioId).ToListAsync()),
+                ladoPorJogadorJogo, contextosNota);
+
+            // Recorte de mando dos rankings individuais. Aplica só a eles — a nota,
+            // os artilheiros e os recordes continuam cobrindo tudo, senão o filtro
+            // mudaria silenciosamente o significado de metade da tela.
+            // Sem escalação registrada não dá para saber o lado: a estatística fica
+            // de fora do recorte em vez de ser chutada para um dos lados.
+            var estatisticasParaRankings = mando == MandoJogador.Todos
+                ? estatisticasJogadores
+                : estatisticasJogadores
+                    .Where(e => ladoPorJogadorJogo.TryGetValue((e.JogadorId, e.JogoId), out var atuacao)
+                             && atuacao.IsTimeCasa == (mando == MandoJogador.Casa))
+                    .ToList();
 
             // ── Estatísticas de times ─────────────────────────────────────────────
             var statsTimes = CalcularEstatisticasTimes(jogos);
@@ -210,6 +238,8 @@ namespace ControleFutebolWeb.Services
                 ExibirSelecao = exibirSelecao,
                 IncluirNaoAnalisados = incluirNaoAnalisados,
                 MinJogos = minJogosEstat,
+                BaseFiltro = baseEstatistica,
+                MandoFiltro = mando,
                 Competicoes = competicoes,
                 Times = times,
                 TotalJogos = jogos.Count,
@@ -219,7 +249,7 @@ namespace ControleFutebolWeb.Services
                 TotalCartaoVermelho = cartoes.Count(c => c.Tipo == "Vermelho"),
 
                 // Jogadores
-                RankingNotas = CalcularRankingMisto(notas, estatisticasJogadores, resultadoPorJogoTime, jogos, 20, usuarioId, ladoPorJogadorJogo, minPartidas: minJogosEstat),
+                RankingNotas = CalcularRankingMisto(notas, estatisticasJogadores, resultadoPorJogoTime, jogos, 20, usuarioId, ladoPorJogadorJogo, minPartidas: minJogosEstat, contextos: contextosNota, calculadoraNota: calculadoraNota),
                 Artilheiros = RankGols(gols, false, 15),
                 GolsContraRanking = RankGols(gols, true, 10),
                 Assistencias = RankAssistencias(assistencias, 15),
@@ -243,6 +273,13 @@ namespace ControleFutebolWeb.Services
                 TimesPosseBola       = RankStatJogo(jogos, "Ball Possession",   isPct: true,  timesFiltro: timeIdsFiltro),
                 TimesExpectedGoals   = RankStatJogo(jogos, "expected_goals",    isPct: false, timesFiltro: timeIdsFiltro),
                 TimesGolsEvitados    = RankStatJogo(jogos, "goals_prevented",   isPct: false, timesFiltro: timeIdsFiltro),
+                TimesChutesArea      = RankStatJogo(jogos, "Shots insidebox",   isPct: false, timesFiltro: timeIdsFiltro),
+                TimesChutesForaArea  = RankStatJogo(jogos, "Shots outsidebox",  isPct: false, timesFiltro: timeIdsFiltro),
+                TimesPasses          = RankStatJogo(jogos, "Total passes",      isPct: false, timesFiltro: timeIdsFiltro),
+                TimesPrecisaoPasses  = RankStatJogo(jogos, "Passes %",          isPct: true,  timesFiltro: timeIdsFiltro),
+                TimesDefesasGoleiro  = RankStatJogo(jogos, "Goalkeeper Saves",  isPct: false, timesFiltro: timeIdsFiltro),
+                TimesFaltas          = RankStatJogo(jogos, "Fouls",             isPct: false, timesFiltro: timeIdsFiltro),
+                TimesImpedimentos    = RankStatJogo(jogos, "Offsides",          isPct: false, timesFiltro: timeIdsFiltro),
 
                 // Misc
                 GolsPorRodada = jogos
@@ -260,19 +297,24 @@ namespace ControleFutebolWeb.Services
                 MediasPorPosicao = new List<RelatoriosViewModel>()
                     .Select(x => new MediaPosicao()).ToList(), // placeholder, preenchido abaixo
 
-                RankImpedimentos        = RankEstatJogador(estatisticasJogadores, e => e.Offsides, minPartidas: minJogosEstat),
-                RankFinalizacoesNoGol   = RankEstatJogador(estatisticasJogadores, e => e.FinalizacoesNoGol, minPartidas: minJogosEstat),
-                RankPassesChave         = RankEstatJogador(estatisticasJogadores, e => e.PassesChave, minPartidas: minJogosEstat),
-                RankDesarmes            = RankEstatJogador(estatisticasJogadores, e => e.Desarmes, minPartidas: minJogosEstat),
-                RankBloqueios           = RankEstatJogador(estatisticasJogadores, e => e.Bloqueios, minPartidas: minJogosEstat),
-                RankInterceptacoes      = RankEstatJogador(estatisticasJogadores, e => e.Interceptacoes, minPartidas: minJogosEstat),
-                RankDrilesCertos        = RankEstatJogador(estatisticasJogadores, e => e.DriblesCertos, minPartidas: minJogosEstat),
-                RankPenaltisDefendidos  = RankEstatJogador(estatisticasJogadores, e => e.PenaltiDefendido, minPartidas: minJogosEstat, ordenarPorTotal: true),
-                RankVezesCapitao        = RankEstatJogador(estatisticasJogadores, e => e.Capitao ? 1 : 0, minPartidas: minJogosEstat, ordenarPorTotal: true),
+                RankImpedimentos        = RankEstatJogador(estatisticasParaRankings, e => e.Offsides, minPartidas: minJogosEstat, baseCalculo: baseEstatistica),
+                RankFinalizacoesNoGol   = RankEstatJogador(estatisticasParaRankings, e => e.FinalizacoesNoGol, minPartidas: minJogosEstat, baseCalculo: baseEstatistica),
+                RankPassesChave         = RankEstatJogador(estatisticasParaRankings, e => e.PassesChave, minPartidas: minJogosEstat, baseCalculo: baseEstatistica),
+                RankPassesCertos        = RankEstatJogador(estatisticasParaRankings, e => e.PassesCertos, minPartidas: minJogosEstat, baseCalculo: baseEstatistica),
+                RankPrecisaoPasses      = RankPrecisaoPassesJogador(estatisticasParaRankings, minPartidas: minJogosEstat),
+                RankDesarmes            = RankEstatJogador(estatisticasParaRankings, e => e.Desarmes, minPartidas: minJogosEstat, baseCalculo: baseEstatistica),
+                RankBloqueios           = RankEstatJogador(estatisticasParaRankings, e => e.Bloqueios, minPartidas: minJogosEstat, baseCalculo: baseEstatistica),
+                RankInterceptacoes      = RankEstatJogador(estatisticasParaRankings, e => e.Interceptacoes, minPartidas: minJogosEstat, baseCalculo: baseEstatistica),
+                RankDrilesCertos        = RankEstatJogador(estatisticasParaRankings, e => e.DriblesCertos, minPartidas: minJogosEstat, baseCalculo: baseEstatistica),
+                RankPenaltisDefendidos  = RankEstatJogador(estatisticasParaRankings, e => e.PenaltiDefendido, minPartidas: minJogosEstat, ordenarPorTotal: true),
+                RankVezesCapitao        = RankEstatJogador(estatisticasParaRankings, e => e.Capitao ? 1 : 0, minPartidas: minJogosEstat, ordenarPorTotal: true),
             };
 
+            vm.MelhoresJogadores = CalcularMelhoresJogadores(gols, assistencias, cartoes, estatisticasJogadores, top: 50);
+            vm.RecordesEmUmJogo  = CalcularRecordesEmUmJogo(gols, assistencias, estatisticasJogadores, jogos, top: 10);
+
             // Rankings por posição (usa ranking completo, sem limite de 20)
-            var rankingCompleto = CalcularRankingMisto(notas, estatisticasJogadores, resultadoPorJogoTime, jogos, int.MaxValue, usuarioId, ladoPorJogadorJogo, minPartidas: minJogosEstat);
+            var rankingCompleto = CalcularRankingMisto(notas, estatisticasJogadores, resultadoPorJogoTime, jogos, int.MaxValue, usuarioId, ladoPorJogadorJogo, minPartidas: minJogosEstat, contextos: contextosNota, calculadoraNota: calculadoraNota);
             vm.RankingGoleiros   = FiltrarRankingPorPosicao(rankingCompleto, "Goleiro");
             vm.RankingDefensores = FiltrarRankingPorPosicao(rankingCompleto, "Defensor");
             vm.RankingMeias      = FiltrarRankingPorPosicao(rankingCompleto, "Meia");
@@ -596,12 +638,22 @@ namespace ControleFutebolWeb.Services
             List<Jogo> jogos,
             int limite = 20,
             string? usuarioId = null,
-            Dictionary<(int jogadorId, int jogoId), bool>? ladoPorJogadorJogo = null,
-            int minPartidas = 1)
+            Dictionary<(int jogadorId, int jogoId), AtuacaoNoJogo>? ladoPorJogadorJogo = null,
+            int minPartidas = 1,
+            IReadOnlyDictionary<(int JogadorId, int JogoId), CriteriosNotaHelper.ContextoNota>? contextos = null,
+            CalculadoraNotaAutomatica? calculadoraNota = null)
         {
             var criteriosBanco = CriteriosNotaHelper.MergeCriterios(
                 _context.CriteriosNota.Where(c => c.UsuarioId == null).ToList(),
                 _context.CriteriosNota.Where(c => c.UsuarioId == usuarioId).ToList());
+
+            // Motor da nota automática. O chamador monta a calculadora (é ele que tem o
+            // contexto async); sem ela, cai no clássico — o comportamento de sempre.
+            var calculadora = calculadoraNota ?? new CalculadoraNotaAutomatica(
+                MotorNota.Classico, criteriosBanco, ladoPorJogadorJogo,
+                contextos ?? ContextoNotaHelper.Vazio,
+                new Dictionary<(int, int), Helpers.Rating.ContextoRating>(),
+                Helpers.Rating.BaselineRating.Padrao);
             var compPorJogo = jogos.ToDictionary(j => j.Id, j => j.CompeticaoId);
             var jogoPorId = jogos.ToDictionary(j => j.Id);
 
@@ -620,7 +672,8 @@ namespace ControleFutebolWeb.Services
                         valor: g.Average(n => n.Valor),
                         notaManual: g.Any(n => n.NotaManual.HasValue)
                             ? (double?)g.Where(n => n.NotaManual.HasValue).Average(n => n.NotaManual!.Value)
-                            : null));
+                            : null,
+                        detalhes: g.SelectMany(n => n.Detalhes).ToList()));
 
             var estatsPorJogadorJogo = estatisticas
                 .Where(e => e.Jogador != null)
@@ -682,6 +735,7 @@ namespace ControleFutebolWeb.Services
                 foreach (var jogoId in jogoIdList)
                 {
                     double notaFinalJogo;
+                    var ctxJogo = ContextoNotaHelper.De(contextos, jogador.Id, jogoId);
                     if (notasPorJogadorJogo.TryGetValue((jogador.Id, jogoId), out var notaInfo))
                     {
                         if (notaInfo.notaManual.HasValue)
@@ -691,15 +745,13 @@ namespace ControleFutebolWeb.Services
                         }
                         else
                         {
-                            notaFinalJogo = Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima,
-                                Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + notaInfo.valor)), 2);
+                            notaFinalJogo = CriteriosNotaHelper.NotaFinal(notaInfo.valor, criteriosBanco,
+                                ctxJogo with { Acoes = CriteriosNotaHelper.ContarAcoes(notaInfo.detalhes) });
                         }
                     }
                     else if (estatsPorJogadorJogo.TryGetValue((jogador.Id, jogoId), out var estats))
                     {
-                        var valorJogo = estats.Sum(e => Math.Round(CriteriosNotaHelper.CalcularPontuacao(e, criteriosBanco), 2));
-                        notaFinalJogo = Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima,
-                            Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + valorJogo)), 2);
+                        notaFinalJogo = calculadora.De(estats, jogador.Id, jogoId).Nota;
                     }
                     else continue;
 
@@ -711,10 +763,10 @@ namespace ControleFutebolWeb.Services
                     bool achouResultado;
                     // Prioriza o lado registrado na escalação daquele jogo (correto mesmo
                     // após transferência); só cai pro time atual sem escalação salva.
-                    if (ladoPorJogadorJogo != null && ladoPorJogadorJogo.TryGetValue((jogador.Id, jogoId), out var ladoCasa)
+                    if (ladoPorJogadorJogo != null && ladoPorJogadorJogo.TryGetValue((jogador.Id, jogoId), out var atuacaoNoJogo)
                         && jogoPorId.TryGetValue(jogoId, out var jogoDoLado))
                         achouResultado = resultadoPorJogoTime.TryGetValue(
-                            (jogoId, ladoCasa ? jogoDoLado.TimeCasaId : jogoDoLado.TimeVisitanteId), out res);
+                            (jogoId, atuacaoNoJogo.IsTimeCasa ? jogoDoLado.TimeCasaId : jogoDoLado.TimeVisitanteId), out res);
                     else
                         achouResultado = (jogador.TimeId > 0 && resultadoPorJogoTime.TryGetValue((jogoId, jogador.TimeId), out res))
                                       || (jogador.SelecaoId.HasValue && resultadoPorJogoTime.TryGetValue((jogoId, jogador.SelecaoId.Value), out res));
@@ -906,27 +958,176 @@ namespace ControleFutebolWeb.Services
                 .ToList();
         }
 
+        // ── "Melhores jogadores" ────────────────────────────────────────────────
+        // Um ranking por métrica (o usuário troca no seletor da view). Gols,
+        // assistências e cartões vêm das tabelas do sistema (fonte canônica, inclui
+        // o que foi lançado à mão); o resto vem das estatísticas importadas da API.
+        private static List<MelhoresJogadoresMetrica> CalcularMelhoresJogadores(
+            List<Gol> gols, List<Assistencia> assistencias, List<Cartao> cartoes,
+            List<EstatisticaJogador> estatisticas, int top)
+        {
+            var partidasPorJogador = estatisticas
+                .GroupBy(e => e.JogadorId)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            List<MelhorJogadorItem> Montar(IEnumerable<(Jogador? Jogador, int Valor)> fonte) => fonte
+                .Where(x => x.Jogador != null && x.Valor > 0)
+                .GroupBy(x => x.Jogador!.Id)
+                .Select(g => new MelhorJogadorItem
+                {
+                    Jogador  = g.First().Jogador!,
+                    Valor    = g.Sum(x => x.Valor),
+                    Partidas = partidasPorJogador.TryGetValue(g.Key, out var p) ? p : 0
+                })
+                .OrderByDescending(i => i.Valor)
+                .ThenBy(i => i.Jogador.Nome)
+                .Take(top)
+                .ToList();
+
+            var golsFonte   = gols.Where(g => !g.Contra).Select(g => ((Jogador?)g.Jogador, 1));
+            var assistFonte = assistencias.Select(a => ((Jogador?)a.Jogador, 1));
+
+            IEnumerable<(Jogador?, int)> Estat(Func<EstatisticaJogador, int> seletor) =>
+                estatisticas.Select(e => ((Jogador?)e.Jogador, seletor(e)));
+
+            var metricas = new List<MelhoresJogadoresMetrica>
+            {
+                new() { Chave = "participacoes", Nome = "Participações em gols", Itens = Montar(golsFonte.Concat(assistFonte)) },
+                new() { Chave = "gols",          Nome = "Gols",                  Itens = Montar(golsFonte) },
+                new() { Chave = "assistencias",  Nome = "Assistências",          Itens = Montar(assistFonte) },
+                new() { Chave = "finalizacoes",  Nome = "Finalizações no gol",   Itens = Montar(Estat(e => e.FinalizacoesNoGol)) },
+                new() { Chave = "passeschave",   Nome = "Passes-chave",          Itens = Montar(Estat(e => e.PassesChave)) },
+                new() { Chave = "dribles",       Nome = "Dribles certos",        Itens = Montar(Estat(e => e.DriblesCertos)) },
+                new() { Chave = "desarmes",      Nome = "Desarmes",              Itens = Montar(Estat(e => e.Desarmes)) },
+                new() { Chave = "interceptacoes",Nome = "Interceptações",        Itens = Montar(Estat(e => e.Interceptacoes)) },
+                new() { Chave = "duelos",        Nome = "Duelos vencidos",       Itens = Montar(Estat(e => e.DuelosVencidos)) },
+                new() { Chave = "defesas",       Nome = "Defesas",               Itens = Montar(Estat(e => e.Defesas)) },
+                new() { Chave = "amarelos",      Nome = "Cartões amarelos",      Itens = Montar(cartoes.Where(c => c.Tipo == "Amarelo").Select(c => ((Jogador?)c.Jogador, 1))) },
+            };
+
+            return metricas.Where(m => m.Itens.Any()).ToList();
+        }
+
+        // ── "Recordes em um jogo" ───────────────────────────────────────────────
+        // Maiores marcas individuais numa ÚNICA partida (não acumulado), com o jogo
+        // em que aconteceram para a view mostrar escudos/placar e linkar o detalhe.
+        private static List<RecordeJogoMetrica> CalcularRecordesEmUmJogo(
+            List<Gol> gols, List<Assistencia> assistencias,
+            List<EstatisticaJogador> estatisticas, List<Jogo> jogos, int top)
+        {
+            var jogosPorId = jogos.ToDictionary(j => j.Id);
+
+            List<RecordeJogoItem> Montar(IEnumerable<(Jogador? Jogador, int JogoId, int Valor)> fonte) => fonte
+                .Where(x => x.Jogador != null && x.Valor > 0 && jogosPorId.ContainsKey(x.JogoId))
+                .GroupBy(x => (x.Jogador!.Id, x.JogoId))
+                .Select(g => new RecordeJogoItem
+                {
+                    Jogador = g.First().Jogador!,
+                    Jogo    = jogosPorId[g.Key.JogoId],
+                    Valor   = g.Sum(x => x.Valor)
+                })
+                .OrderByDescending(i => i.Valor)
+                .ThenByDescending(i => i.Jogo.Data)
+                .Take(top)
+                .ToList();
+
+            var golsFonte   = gols.Where(g => !g.Contra).Select(g => ((Jogador?)g.Jogador, g.JogoId, 1));
+            var assistFonte = assistencias.Select(a => ((Jogador?)a.Jogador, a.JogoId, 1));
+
+            IEnumerable<(Jogador?, int, int)> Estat(Func<EstatisticaJogador, int> seletor) =>
+                estatisticas.Select(e => ((Jogador?)e.Jogador, e.JogoId, seletor(e)));
+
+            var metricas = new List<RecordeJogoMetrica>
+            {
+                new() { Chave = "gols",          Nome = "Gols",                Itens = Montar(golsFonte) },
+                new() { Chave = "assistencias",  Nome = "Assistências",        Itens = Montar(assistFonte) },
+                new() { Chave = "participacoes", Nome = "Participações em gols", Itens = Montar(golsFonte.Concat(assistFonte)) },
+                new() { Chave = "finalizacoes",  Nome = "Finalizações no gol", Itens = Montar(Estat(e => e.FinalizacoesNoGol)) },
+                new() { Chave = "passeschave",   Nome = "Passes-chave",        Itens = Montar(Estat(e => e.PassesChave)) },
+                new() { Chave = "dribles",       Nome = "Dribles certos",      Itens = Montar(Estat(e => e.DriblesCertos)) },
+                new() { Chave = "desarmes",      Nome = "Desarmes",            Itens = Montar(Estat(e => e.Desarmes)) },
+                new() { Chave = "interceptacoes",Nome = "Interceptações",      Itens = Montar(Estat(e => e.Interceptacoes)) },
+                new() { Chave = "defesas",       Nome = "Defesas",             Itens = Montar(Estat(e => e.Defesas)) },
+            };
+
+            return metricas.Where(m => m.Itens.Any()).ToList();
+        }
+
+        // Piso de minutos para o recorte "por 90". Sem ele quem somou 40 minutos
+        // em dez entradas curtas lidera todos os rankings: dividir um punhado de
+        // ações por um denominador minúsculo multiplica o valor por 2 ou 3.
+        // 270 = três jogos completos, que ainda deixa passar reserva utilizado.
+        private const int MinMinutosPara90 = 270;
+
         private static List<RankingEstatJogador> RankEstatJogador(
             List<EstatisticaJogador> estatisticas,
             Func<EstatisticaJogador, int> seletor,
             int minPartidas = 1,
             bool ordenarPorTotal = false,
-            int top = 10)
+            int top = 10,
+            BaseEstatistica baseCalculo = BaseEstatistica.PorJogo)
+        {
+            // ordenarPorTotal marca a métrica que só faz sentido acumulada
+            // (pênaltis defendidos, vezes capitão) — essa ignora a escolha do usuário.
+            var baseUsada = ordenarPorTotal ? BaseEstatistica.Total : baseCalculo;
+
+            return estatisticas
+                .Where(e => e.Jogador != null)
+                .GroupBy(e => e.JogadorId)
+                .Where(g => g.Count() >= minPartidas)
+                .Select(g =>
+                {
+                    var minutos = g.Sum(e => e.Minutos ?? 0);
+                    var total = g.Sum(seletor);
+                    return new RankingEstatJogador
+                    {
+                        Jogador  = g.First().Jogador,
+                        Partidas = g.Count(),
+                        Minutos  = minutos,
+                        Total    = total,
+                        Media    = Math.Round(g.Average(e => (double)seletor(e)), 2),
+                        Por90    = minutos > 0 ? Math.Round(total / (double)minutos * 90, 2) : 0
+                    };
+                })
+                .Where(r => r.Total > 0)
+                .Where(r => baseUsada != BaseEstatistica.Por90 || r.Minutos >= MinMinutosPara90)
+                .OrderByDescending(r => r.Valor(baseUsada))
+                .ThenByDescending(r => r.Partidas)
+                .Take(top)
+                .ToList();
+        }
+
+        // "Precisão dos passes (%)" no padrão da FIFA, agregada no período: soma
+        // dos passes certos ÷ soma dos tentados (e não a média das precisões por
+        // jogo, que daria o mesmo peso a um jogo de 5 passes e a um de 90).
+        // O piso de volume existe porque sem ele quem entrou nos acréscimos e
+        // acertou dois passes lidera o ranking com 100%.
+        private const int MinPassesParaPrecisao = 50;
+
+        private static List<RankingEstatJogador> RankPrecisaoPassesJogador(
+            List<EstatisticaJogador> estatisticas, int minPartidas = 1, int top = 10)
         {
             return estatisticas
                 .Where(e => e.Jogador != null)
                 .GroupBy(e => e.JogadorId)
                 .Where(g => g.Count() >= minPartidas)
-                .Select(g => new RankingEstatJogador
+                .Select(g => new
                 {
-                    Jogador  = g.First().Jogador,
-                    Partidas = g.Count(),
-                    Total    = g.Sum(seletor),
-                    Media    = Math.Round(g.Average(e => (double)seletor(e)), 2)
+                    Grupo    = g,
+                    Tentados = g.Sum(e => e.PassesTotal),
+                    Certos   = g.Sum(e => e.PassesCertos)
                 })
-                .Where(r => r.Total > 0)
-                .OrderByDescending(r => ordenarPorTotal ? r.Total : r.Media)
-                .ThenByDescending(r => r.Partidas)
+                .Where(x => x.Tentados >= MinPassesParaPrecisao)
+                .Select(x => new RankingEstatJogador
+                {
+                    Jogador  = x.Grupo.First().Jogador,
+                    Partidas = x.Grupo.Count(),
+                    Total    = x.Certos,
+                    Media    = Math.Round(x.Certos / (double)x.Tentados * 100, 1)
+                })
+                .Where(r => r.Media > 0)
+                .OrderByDescending(r => r.Media)
+                .ThenByDescending(r => r.Total)
                 .Take(top)
                 .ToList();
         }

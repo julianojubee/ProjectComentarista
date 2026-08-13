@@ -47,28 +47,28 @@
     /* Mesmo padrão visual das demais telas de competição (Copa do Brasil,
        Competições): tema escuro, acento dourado, fontes Barlow. */
     .ucl-root, .ucl-root *, .ucl-root *::before, .ucl-root *::after { box-sizing: border-box; }
-    .ucl-root { margin: 0 -12px; background: #0f0f0f; border-radius: 14px; overflow: hidden; color: #e5e7eb; font-family: 'Barlow', Arial, sans-serif; }
+    .ucl-root { margin: 0 -12px; background: var(--p-0); border-radius: 14px; overflow: hidden; color: var(--text); font-family: 'Barlow', Arial, sans-serif; }
     .ucl-root a { text-decoration: none; color: inherit; }
 
     /* ── Hero ── */
     .ucl-hero { position: relative; overflow: hidden; background: linear-gradient(135deg, #1a1200 0%, #2a1e00 55%, #1a1200 100%); padding: 38px 2.5rem 32px; }
     .ucl-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #d4a520; }
-    .ucl-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(to top, #0f0f0f, transparent); pointer-events: none; }
+    .ucl-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(to top, var(--page-bg), transparent); pointer-events: none; }
     .ucl-hero-inner { position: relative; z-index: 1; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
     .ucl-hero-icon { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,.08); border: 2px solid #d4a52048; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
     .ucl-hero-icon img { width: 78%; height: 78%; object-fit: contain; }
     .ucl-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
     .ucl-kicker-line { height: 2px; width: 24px; background: #d4a520; }
-    .ucl-kicker span { font-size: .65rem; font-weight: 700; letter-spacing: .24em; color: #d4a520; text-transform: uppercase; }
-    .ucl-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3rem; font-weight: 800; color: #f1f5f9; margin: 0 0 6px; line-height: 1; }
-    .ucl-hero-sub { color: #9ca3af; font-size: .85rem; margin: 0; }
+    .ucl-kicker span { font-size: .65rem; font-weight: 700; letter-spacing: .24em; color: var(--gold-ink); text-transform: uppercase; }
+    .ucl-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3rem; font-weight: 800; color: var(--text-strong); margin: 0 0 6px; line-height: 1; }
+    .ucl-hero-sub { color: var(--text-muted); font-size: .85rem; margin: 0; }
     .ucl-hero-right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; margin-left: auto; }
     .ucl-hero-temporada { display: flex; align-items: center; gap: 6px; }
-    .ucl-hero-temporada label { color: #9ca3af; font-size: .75rem; font-weight: 600; }
-    .ucl-hero-temporada select { appearance: none; padding: 5px 10px; border-radius: 7px; border: 1px solid #2a2a2a; background: #1a1a1a; color: #9ca3af; font-size: .8rem; font-weight: 600; cursor: pointer; }
+    .ucl-hero-temporada label { color: var(--text-muted); font-size: .75rem; font-weight: 600; }
+    .ucl-hero-temporada select { appearance: none; padding: 5px 10px; border-radius: 7px; border: 1px solid var(--line-strong); background: var(--p-2); color: var(--text-muted); font-size: .8rem; font-weight: 600; cursor: pointer; }
     .ucl-hero-stats { display: flex; gap: 8px; flex-wrap: wrap; }
-    .ucl-hero-stat { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 8px; padding: 4px 12px; font-size: .62rem; color: #9ca3af; text-align: center; }
-    .ucl-hero-stat strong { display: block; color: #f1f5f9; font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.05rem; font-weight: 800; line-height: 1.1; }
+    .ucl-hero-stat { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 8px; padding: 4px 12px; font-size: .62rem; color: var(--text-muted); text-align: center; }
+    .ucl-hero-stat strong { display: block; color: var(--text-strong); font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.05rem; font-weight: 800; line-height: 1.1; }
 
     /* ── Conteúdo ── */
     .ucl-content { padding: 24px 2.5rem 64px; max-width: 1500px; margin: 0 auto; }
@@ -80,125 +80,125 @@
     @@media (max-width: 992px) { .ucl-layout { grid-template-columns: 1fr; } }
 
     .ucl-section-header { display: flex; align-items: center; gap: 10px; margin: 0 0 1rem; }
-    .ucl-section-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.5rem; font-weight: 800; color: #f1f5f9; text-transform: uppercase; letter-spacing: .04em; margin: 0; }
-    .ucl-section-badge { background: #d4a5201a; border: 1px solid #d4a52048; color: #d4a520; font-size: .68rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+    .ucl-section-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--text-strong); text-transform: uppercase; letter-spacing: .04em; margin: 0; }
+    .ucl-section-badge { background: #d4a5201a; border: 1px solid #d4a52048; color: var(--gold-ink); font-size: .68rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
 
     /* ── Legenda ── */
-    .ucl-legenda { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 10px; font-size: .68rem; color: #9ca3af; }
+    .ucl-legenda { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 10px; font-size: .68rem; color: var(--text-muted); }
     .ucl-leg-dot { width: 9px; height: 9px; border-radius: 2px; display: inline-block; margin-right: 5px; }
 
     /* ── Tabela de classificação ── */
-    .ucl-ranking-card { background: #161616; border: 1px solid #262626; border-radius: 14px; overflow: hidden; }
-    .ucl-ranking-header { background: #111; border-bottom: 1px solid #1e1e1e; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; }
-    .ucl-ranking-header b { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .95rem; font-weight: 700; color: #d4a520; letter-spacing: .06em; text-transform: uppercase; }
-    .ucl-ranking-header span { font-size: .64rem; color: #6b7280; }
+    .ucl-ranking-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+    .ucl-ranking-header { background: var(--p-0); border-bottom: 1px solid var(--line-soft); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; }
+    .ucl-ranking-header b { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .95rem; font-weight: 700; color: var(--gold-ink); letter-spacing: .06em; text-transform: uppercase; }
+    .ucl-ranking-header span { font-size: .64rem; color: var(--text-dim); }
     .ucl-table { width: 100%; border-collapse: collapse; font-size: .75rem; }
-    .ucl-table thead tr { background: #111; border-bottom: 1px solid #1e1e1e; }
-    .ucl-table th { padding: 7px 8px; color: #6b7280; font-weight: 600; text-transform: uppercase; font-size: .6rem; letter-spacing: .5px; text-align: center; }
+    .ucl-table thead tr { background: var(--p-0); border-bottom: 1px solid var(--line-soft); }
+    .ucl-table th { padding: 7px 8px; color: var(--text-dim); font-weight: 600; text-transform: uppercase; font-size: .6rem; letter-spacing: .5px; text-align: center; }
     .ucl-table th:nth-child(2) { text-align: left; padding-left: 10px; }
-    .ucl-table td { padding: 6px 8px; border-bottom: 1px solid #1e1e1e; text-align: center; vertical-align: middle; color: #e5e7eb; }
+    .ucl-table td { padding: 6px 8px; border-bottom: 1px solid var(--line-soft); text-align: center; vertical-align: middle; color: var(--text); }
     .ucl-table td:nth-child(2) { text-align: left; padding-left: 10px; }
     .ucl-table tbody tr:last-child td { border-bottom: none; }
-    .ucl-table tbody tr:hover { background: #1a1a1a; }
+    .ucl-table tbody tr:hover { background: var(--p-2); }
 
     /* Faixas de posição */
     .ucl-row-r16 { border-left: 3px solid #d4a520; }
     .ucl-row-playoff { border-left: 3px solid #60a5fa; }
-    .ucl-row-out { border-left: 3px solid #262626; }
+    .ucl-row-out { border-left: 3px solid var(--line); }
     .ucl-sep-r16 td { border-bottom: 2px solid #d4a52080 !important; }
     .ucl-sep-playoff td { border-bottom: 2px solid #60a5fa66 !important; }
 
     .ucl-pos { width: 20px; height: 20px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: .62rem; font-weight: 700; }
     .ucl-pos-r16 { background: #d4a520; color: #141414; }
-    .ucl-pos-playoff { background: rgba(96,165,250,.18); border: 1px solid rgba(96,165,250,.4); color: #93c5fd; }
-    .ucl-pos-out { background: #262626; color: #6b7280; }
+    .ucl-pos-playoff { background: rgba(96,165,250,.18); border: 1px solid rgba(96,165,250,.4); color: var(--info); }
+    .ucl-pos-out { background: var(--p-4); color: var(--text-dim); }
 
     .ucl-team-cell { display: flex; align-items: center; gap: 7px; min-width: 140px; }
-    .ucl-team-cell img { width: 20px; height: 20px; object-fit: contain; border-radius: 50%; border: 1px solid #2a2a2a; background: #0f0f0f; flex-shrink: 0; }
-    .ucl-team-cell a { font-size: .75rem; font-weight: 600; color: #e5e7eb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
+    .ucl-team-cell img { width: 20px; height: 20px; object-fit: contain; border-radius: 50%; border: 1px solid var(--line-strong); background: var(--p-0); flex-shrink: 0; }
+    .ucl-team-cell a { font-size: .75rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
     .ucl-team-cell a:hover { text-decoration: underline; }
-    .ucl-pts { font-family: 'Barlow Condensed', Arial, sans-serif; font-weight: 800; font-size: .9rem; color: #d4a520; }
+    .ucl-pts { font-family: 'Barlow Condensed', Arial, sans-serif; font-weight: 800; font-size: .9rem; color: var(--gold-ink); }
 
     /* ── Mata-mata ── */
     .ucl-mata-section { margin-top: 28px; }
     .ucl-fase { margin-bottom: 22px; }
     .ucl-fase-header { display: flex; align-items: center; gap: 10px; margin-bottom: .8rem; }
-    .ucl-fase-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.15rem; font-weight: 800; color: #f1f5f9; text-transform: uppercase; letter-spacing: .04em; margin: 0; }
-    .ucl-fase-badge { background: #d4a5201a; border: 1px solid #d4a52048; color: #d4a520; font-size: .62rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; }
+    .ucl-fase-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.15rem; font-weight: 800; color: var(--text-strong); text-transform: uppercase; letter-spacing: .04em; margin: 0; }
+    .ucl-fase-badge { background: #d4a5201a; border: 1px solid #d4a52048; color: var(--gold-ink); font-size: .62rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; }
     .ucl-confrontos { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
 
     /* Card de confronto */
-    .ucl-card { background: #161616; border: 1px solid #262626; border-radius: 14px; overflow: hidden; transition: border-color .15s; }
-    .ucl-card:hover { border-color: #3a3a3a; }
-    .ucl-card-header { background: #111; border-bottom: 1px solid #1e1e1e; padding: 7px 14px; display: flex; justify-content: space-between; align-items: center; }
-    .ucl-card-header-left { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .8rem; font-weight: 700; color: #d4a520; letter-spacing: .06em; text-transform: uppercase; }
-    .ucl-card-header-right { font-size: .62rem; color: #6b7280; }
-    .ucl-card-header-right .ok { color: #22c55e; }
+    .ucl-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; transition: border-color .15s; }
+    .ucl-card:hover { border-color: var(--line-strong); }
+    .ucl-card-header { background: var(--p-0); border-bottom: 1px solid var(--line-soft); padding: 7px 14px; display: flex; justify-content: space-between; align-items: center; }
+    .ucl-card-header-left { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .8rem; font-weight: 700; color: var(--gold-ink); letter-spacing: .06em; text-transform: uppercase; }
+    .ucl-card-header-right { font-size: .62rem; color: var(--text-dim); }
+    .ucl-card-header-right .ok { color: var(--ok-2); }
 
-    .ucl-agregado { padding: 11px 14px; display: flex; justify-content: center; align-items: center; gap: 12px; border-bottom: 1px solid #1e1e1e; }
+    .ucl-agregado { padding: 11px 14px; display: flex; justify-content: center; align-items: center; gap: 12px; border-bottom: 1px solid var(--line-soft); }
     .ucl-agg-time { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 0; }
     .ucl-agg-time.right { justify-content: flex-end; flex-direction: row-reverse; }
-    .ucl-agg-time img { width: 26px; height: 26px; object-fit: contain; border-radius: 50%; border: 1px solid #2a2a2a; background: #0f0f0f; flex-shrink: 0; }
-    .ucl-agg-name { font-size: .78rem; font-weight: 600; color: #e5e7eb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ucl-agg-time img { width: 26px; height: 26px; object-fit: contain; border-radius: 50%; border: 1px solid var(--line-strong); background: var(--p-0); flex-shrink: 0; }
+    .ucl-agg-name { font-size: .78rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .ucl-agg-name:hover { text-decoration: underline; }
     .ucl-agg-score { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-    .ucl-agg-num { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.6rem; font-weight: 800; line-height: 1; color: #f1f5f9; min-width: 20px; text-align: center; }
-    .ucl-agg-num.leader { color: #22c55e; }
-    .ucl-agg-num.loser { color: #4b5563; }
+    .ucl-agg-num { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.6rem; font-weight: 800; line-height: 1; color: var(--text-strong); min-width: 20px; text-align: center; }
+    .ucl-agg-num.leader { color: var(--ok-2); }
+    .ucl-agg-num.loser { color: var(--text-dimmer); }
     .ucl-agg-sep { font-size: 17px; color: #374151; font-weight: 300; line-height: 1; }
-    .ucl-agg-vs { font-size: .72rem; color: #6b7280; font-weight: 600; }
+    .ucl-agg-vs { font-size: .72rem; color: var(--text-dim); font-weight: 600; }
 
-    .ucl-classificado-wrap { padding: 6px 14px; text-align: center; border-bottom: 1px solid #1e1e1e; }
-    .ucl-classificado { font-size: .64rem; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: #d4a5201a; border: 1px solid #d4a52048; color: #d4a520; white-space: nowrap; }
-    .ucl-classificado.pendente { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.12); color: #9ca3af; }
+    .ucl-classificado-wrap { padding: 6px 14px; text-align: center; border-bottom: 1px solid var(--line-soft); }
+    .ucl-classificado { font-size: .64rem; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: #d4a5201a; border: 1px solid #d4a52048; color: var(--gold-ink); white-space: nowrap; }
+    .ucl-classificado.pendente { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.12); color: var(--text-muted); }
 
     .ucl-jogos { padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
-    .ucl-jogo-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; background: #111; border: 1px solid #1e1e1e; font-size: .72rem; transition: border-color .15s; }
-    .ucl-jogo-row:hover { border-color: #3a3a3a; }
+    .ucl-jogo-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; background: var(--p-0); border: 1px solid var(--line-soft); font-size: .72rem; transition: border-color .15s; }
+    .ucl-jogo-row:hover { border-color: var(--line-strong); }
     .ucl-jogo-label { font-size: .58rem; font-weight: 700; color: #0f0f0f; background: #d4a520; padding: 2px 7px; border-radius: 4px; flex-shrink: 0; }
-    .ucl-jogo-label.volta { background: #374151; color: #e5e7eb; }
-    .ucl-jogo-date { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .66rem; font-weight: 700; color: #4b5563; flex-shrink: 0; }
-    .ucl-jogo-times { display: flex; align-items: center; gap: 5px; flex: 1; justify-content: center; color: #9ca3af; min-width: 0; }
+    .ucl-jogo-label.volta { background: var(--p-4); color: var(--text); }
+    .ucl-jogo-date { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .66rem; font-weight: 700; color: var(--text-dimmer); flex-shrink: 0; }
+    .ucl-jogo-times { display: flex; align-items: center; gap: 5px; flex: 1; justify-content: center; color: var(--text-muted); min-width: 0; }
     .ucl-jogo-times .nome { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .ucl-jogo-result { font-family: 'Barlow Condensed', Arial, sans-serif; font-weight: 700; font-size: .82rem; background: #262626; color: #f1f5f9; padding: 1px 8px; border-radius: 5px; flex-shrink: 0; }
-    .ucl-jogo-pen { font-size: .6rem; color: #9ca3af; font-weight: 500; }
-    .ucl-jogo-pending { font-size: .6rem; color: #6b7280; background: #1a1a1a; padding: 2px 8px; border-radius: 5px; flex-shrink: 0; }
-    .ucl-jogo-analisar { font-size: .66rem; color: #d4a520; font-weight: 700; flex-shrink: 0; border: 1px solid #d4a52048; padding: 2px 9px; border-radius: 5px; transition: background .15s, color .15s; }
+    .ucl-jogo-result { font-family: 'Barlow Condensed', Arial, sans-serif; font-weight: 700; font-size: .82rem; background: var(--p-4); color: var(--text-strong); padding: 1px 8px; border-radius: 5px; flex-shrink: 0; }
+    .ucl-jogo-pen { font-size: .6rem; color: var(--text-muted); font-weight: 500; }
+    .ucl-jogo-pending { font-size: .6rem; color: var(--text-dim); background: var(--p-2); padding: 2px 8px; border-radius: 5px; flex-shrink: 0; }
+    .ucl-jogo-analisar { font-size: .66rem; color: var(--gold-ink); font-weight: 700; flex-shrink: 0; border: 1px solid #d4a52048; padding: 2px 9px; border-radius: 5px; transition: background .15s, color .15s; }
     .ucl-jogo-analisar:hover { background: #d4a520; color: #0f0f0f; }
-    .ucl-jogo-vazio { justify-content: flex-start; color: #6b7280; }
+    .ucl-jogo-vazio { justify-content: flex-start; color: var(--text-dim); }
     .ucl-jogo-vazio span.txt { font-size: .66rem; margin-left: 4px; }
 
     /* ── Sidebar de jogos ── */
     .ucl-sidebar { position: sticky; top: 16px; }
-    .ucl-sidebar-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.15rem; font-weight: 800; color: #f1f5f9; text-transform: uppercase; letter-spacing: .04em; margin: 0 0 10px; }
-    .ucl-jogo-card { background: #161616; border: 1px solid #262626; border-radius: 12px; margin-bottom: 10px; overflow: hidden; transition: border-color .15s; }
-    .ucl-jogo-card:hover { border-color: #3a3a3a; }
-    .ucl-jogo-card-header { background: #111; border-bottom: 1px solid #1e1e1e; color: #6b7280; font-size: .6rem; font-weight: 600; padding: 5px 10px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
-    .ucl-fase-tag { background: #d4a5201a; border: 1px solid #d4a52048; color: #d4a520; font-size: .56rem; padding: 1px 7px; border-radius: 999px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+    .ucl-sidebar-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.15rem; font-weight: 800; color: var(--text-strong); text-transform: uppercase; letter-spacing: .04em; margin: 0 0 10px; }
+    .ucl-jogo-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; overflow: hidden; transition: border-color .15s; }
+    .ucl-jogo-card:hover { border-color: var(--line-strong); }
+    .ucl-jogo-card-header { background: var(--p-0); border-bottom: 1px solid var(--line-soft); color: var(--text-dim); font-size: .6rem; font-weight: 600; padding: 5px 10px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+    .ucl-fase-tag { background: #d4a5201a; border: 1px solid #d4a52048; color: var(--gold-ink); font-size: .56rem; padding: 1px 7px; border-radius: 999px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
     .ucl-jogo-body { padding: 10px 12px; }
     .ucl-jogo-teams { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
     .ucl-jogo-team { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 0; }
-    .ucl-jogo-team img { width: 30px; height: 30px; object-fit: contain; border-radius: 50%; border: 1px solid #2a2a2a; background: #0f0f0f; }
-    .ucl-jogo-team span { font-size: .66rem; font-weight: 500; color: #9ca3af; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 92px; }
-    .ucl-vs { font-size: .66rem; font-weight: 700; color: #4b5563; flex-shrink: 0; }
-    .ucl-score { display: inline-flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', Arial, sans-serif; background: #262626; color: #f1f5f9; font-weight: 800; font-size: .85rem; padding: 2px 10px; border-radius: 6px; min-width: 48px; }
-    .ucl-badge-agendado { font-size: .58rem; background: #1a1a1a; color: #6b7280; padding: 2px 8px; border-radius: 6px; font-weight: 500; }
-    .ucl-jogo-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding-top: 6px; border-top: 1px solid #1e1e1e; font-size: .58rem; color: #6b7280; }
-    .ucl-realizado { color: #22c55e; font-weight: 600; }
+    .ucl-jogo-team img { width: 30px; height: 30px; object-fit: contain; border-radius: 50%; border: 1px solid var(--line-strong); background: var(--p-0); }
+    .ucl-jogo-team span { font-size: .66rem; font-weight: 500; color: var(--text-muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 92px; }
+    .ucl-vs { font-size: .66rem; font-weight: 700; color: var(--text-dimmer); flex-shrink: 0; }
+    .ucl-score { display: inline-flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', Arial, sans-serif; background: var(--p-4); color: var(--text-strong); font-weight: 800; font-size: .85rem; padding: 2px 10px; border-radius: 6px; min-width: 48px; }
+    .ucl-badge-agendado { font-size: .58rem; background: var(--p-2); color: var(--text-dim); padding: 2px 8px; border-radius: 6px; font-weight: 500; }
+    .ucl-jogo-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line-soft); font-size: .58rem; color: var(--text-dim); }
+    .ucl-realizado { color: var(--ok-2); font-weight: 600; }
 
     /* ── Sem dados ── */
-    .ucl-empty { text-align: center; padding: 3.5rem 1rem; color: #6b7280; font-size: .8rem; background: #161616; border: 1px solid #262626; border-radius: 14px; }
+    .ucl-empty { text-align: center; padding: 3.5rem 1rem; color: var(--text-dim); font-size: .8rem; background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; }
     .ucl-empty-icon { font-size: 2.5rem; margin-bottom: 10px; }
 
     /* ── Abas por fase (Liga / cada fase eliminatória / Estatísticas) ── */
-    .ucl-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; border-bottom: 1px solid #262626; margin-bottom: 1.2rem; -webkit-overflow-scrolling: touch; }
+    .ucl-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; border-bottom: 1px solid var(--line); margin-bottom: 1.2rem; -webkit-overflow-scrolling: touch; }
     .ucl-tab {
-        flex: 0 0 auto; background: #161616; border: 1px solid #262626; border-radius: 999px;
-        padding: 7px 16px; font-size: 12px; font-weight: 700; color: #9ca3af; cursor: pointer; white-space: nowrap;
+        flex: 0 0 auto; background: var(--p-1); border: 1px solid var(--line); border-radius: 999px;
+        padding: 7px 16px; font-size: 12px; font-weight: 700; color: var(--text-muted); cursor: pointer; white-space: nowrap;
         font-family: 'Barlow', Arial, sans-serif; transition: border-color .15s, color .15s;
     }
-    .ucl-tab:hover { border-color: #d4a520; color: #d4a520; }
-    .ucl-tab.active { background: #d4a5201a; border-color: #d4a52080; color: #d4a520; }
+    .ucl-tab:hover { border-color: #d4a520; color: var(--gold-ink); }
+    .ucl-tab.active { background: #d4a5201a; border-color: #d4a52080; color: var(--gold-ink); }
     .ucl-panel { display: none; }
     .ucl-panel.active { display: block; }
 </style>
@@ -206,7 +206,7 @@
 <div class="ucl-root">
 
     <!-- ── Hero ── -->
-    <div class="ucl-hero">
+    <div class="ucl-hero theme-dark-zone">
         <div class="ucl-hero-stripe"></div>
         <div class="ucl-hero-fade"></div>
         <div class="ucl-hero-inner">
@@ -519,6 +519,7 @@
                     }
 
                     <div class="ucl-panel @(primeiraAba == "estatisticas" ? "active" : "")" data-ucl-panel="estatisticas">
+                        @await Html.PartialAsync("_LinksEstatisticasCompeticao", (6, Model.Temporada))
                         @await Html.PartialAsync("_PainelEstatisticas", ViewBag.EstatisticasTimes as List<ControleFutebolWeb.Models.ViewModels.EstatisticaTimeViewModel>)
                     </div>
                 </div>

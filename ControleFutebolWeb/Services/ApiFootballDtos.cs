@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -475,6 +476,28 @@ namespace ControleFutebolWeb.Services
 
         [JsonPropertyName("key")]
         public int? Key { get; set; }
+
+        // Apesar do nome, em fixtures/players "accuracy" é a CONTAGEM de passes
+        // certos, não um percentual — conferido contra fixtures/statistics do
+        // mesmo jogo, onde a soma dos jogadores bate exatamente com "Passes
+        // accurate" do time. Vem como número ou como string ("24") dependendo da
+        // partida, daí o JsonElement: com int? a desserialização do lineup
+        // inteiro quebraria quando viesse string.
+        [JsonPropertyName("accuracy")]
+        public JsonElement? Accuracy { get; set; }
+
+        public int? PassesCertos
+        {
+            get
+            {
+                if (Accuracy is not JsonElement el) return null;
+                if (el.ValueKind == JsonValueKind.Number) return el.TryGetInt32(out var n) ? n : null;
+                if (el.ValueKind == JsonValueKind.String)
+                    return int.TryParse(el.GetString(), NumberStyles.Integer,
+                        CultureInfo.InvariantCulture, out var s) ? s : null;
+                return null;
+            }
+        }
     }
 
     public class AfTackles
@@ -990,5 +1013,82 @@ namespace ControleFutebolWeb.Services
     {
         [JsonPropertyName("yellow")] public Dictionary<string, AfMinuteStat?> Yellow { get; set; } = new();
         [JsonPropertyName("red")]    public Dictionary<string, AfMinuteStat?> Red    { get; set; } = new();
+    }
+
+    // ── /transfers?team=X — histórico de transferências de um clube ───────────
+    // A API não aceita filtro de temporada: devolve TUDO o que existe do clube
+    // desde que há registro (centenas de jogadores). O recorte por janela de
+    // transferências é feito aqui (ver TimesController.TransferenciasApi).
+    public class AfTransfersEntry
+    {
+        [JsonPropertyName("player")]
+        public AfTransferPlayerRef Player { get; set; } = new();
+
+        [JsonPropertyName("transfers")]
+        public List<AfTransferItem> Transfers { get; set; } = new();
+    }
+
+    public class AfTransferPlayerRef
+    {
+        [JsonPropertyName("id")]   public long?   Id   { get; set; }
+        [JsonPropertyName("name")] public string? Name { get; set; }
+    }
+
+    public class AfTransferItem
+    {
+        // "2025-07-14"; em registros antigos pode vir nulo/vazio.
+        [JsonPropertyName("date")]  public string? Date { get; set; }
+        // Texto livre: "Loan", "Free", "€ 30M", "N/A", "Transfer", "-"...
+        [JsonPropertyName("type")]  public string? Type { get; set; }
+        [JsonPropertyName("teams")] public AfTransferTeams Teams { get; set; } = new();
+    }
+
+    public class AfTransferTeams
+    {
+        [JsonPropertyName("in")]  public AfTransferTeamRef? In  { get; set; }
+        [JsonPropertyName("out")] public AfTransferTeamRef? Out { get; set; }
+    }
+
+    // Id/logo podem vir nulos (clube sem cadastro na API, agente livre etc.),
+    // por isso nada aqui é obrigatório.
+    public class AfTransferTeamRef
+    {
+        [JsonPropertyName("id")]   public int?    Id   { get; set; }
+        [JsonPropertyName("name")] public string? Name { get; set; }
+        [JsonPropertyName("logo")] public string? Logo { get; set; }
+    }
+
+    // ── /teams?league=X&season=Y — catálogo de clubes de uma liga ─────────────
+    // Usado na transferência manual para clubes de fora das competições
+    // cadastradas (/Jogadores/Estatisticas → botão "Transferências").
+    public class AfTeamsEntry
+    {
+        [JsonPropertyName("team")]
+        public AfTeamCatalogo Team { get; set; } = new();
+
+        // A API devolve o estádio do clube junto do time neste endpoint — é a
+        // única fonte do estádio "do clube" (o venue do fixture é o da partida).
+        [JsonPropertyName("venue")]
+        public AfVenueCatalogo? Venue { get; set; }
+    }
+
+    public class AfVenueCatalogo
+    {
+        [JsonPropertyName("id")]       public int?    Id       { get; set; }
+        [JsonPropertyName("name")]     public string? Name     { get; set; }
+        [JsonPropertyName("address")]  public string? Address  { get; set; }
+        [JsonPropertyName("city")]     public string? City     { get; set; }
+        [JsonPropertyName("capacity")] public int?    Capacity { get; set; }
+        [JsonPropertyName("surface")]  public string? Surface  { get; set; }
+        [JsonPropertyName("image")]    public string? Image    { get; set; }
+    }
+
+    public class AfTeamCatalogo
+    {
+        [JsonPropertyName("id")]       public int     Id       { get; set; }
+        [JsonPropertyName("name")]     public string  Name     { get; set; } = "";
+        [JsonPropertyName("country")]  public string? Country  { get; set; }
+        [JsonPropertyName("logo")]     public string? Logo     { get; set; }
+        [JsonPropertyName("national")] public bool    National { get; set; }
     }
 }

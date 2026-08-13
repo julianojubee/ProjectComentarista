@@ -139,6 +139,23 @@ namespace ControleFutebolWeb.Helpers
             return string.Join("/", posicao.Split('/').Select(SiglaParte).Where(s => s.Length > 0).Distinct());
         }
 
+        // Setor do campo (GOL/DEF/MEI/ATA) a partir da posição cadastrada. Quem
+        // atuou em duas posições ("Lateral Direito/Volante") conta pela primeira,
+        // que é a mais frequente — é assim que RecalcularAsync monta a string.
+        // Null quando a posição não é reconhecível, para quem chama decidir.
+        public static string? Setor(string? posicao)
+        {
+            var sigla = SiglaParte((posicao ?? "").Split('/')[0]);
+            return sigla switch
+            {
+                "GOL" => "GOL",
+                "ZAG" or "LE" or "LD" => "DEF",
+                "AE" or "AD" or "VOL" or "MEI" or "MEO" => "MEI",
+                "PE" or "PD" or "CA" or "ATA" => "ATA",
+                _ => null
+            };
+        }
+
         private static string SiglaParte(string parte)
         {
             var p = parte.Trim().ToLowerInvariant();

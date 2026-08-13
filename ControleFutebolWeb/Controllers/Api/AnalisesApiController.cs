@@ -1,4 +1,4 @@
-using ControleFutebolWeb.Data;
+﻿using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.Api;
@@ -11,7 +11,7 @@ namespace ControleFutebolWeb.Controllers.Api
     // Espelho enxuto de NotasController + parte de JogosController.MarcarAnalisado,
     // para o app mobile avaliar jogadores durante a partida. Mesma semântica de
     // salvamento (delete + recreate da nota do usuário) e mesma fórmula de nota
-    // final (CriteriosNotaHelper.NotaBaseFixa/NotaMinima).
+    // final (CriteriosNotaHelper.NotaFinal, com o peso inicial do usuário).
     [Route("api/v1/analises")]
     public class AnalisesApiController : ApiControllerBase
     {
@@ -35,6 +35,9 @@ namespace ControleFutebolWeb.Controllers.Api
             var doUsuario = await _context.CriteriosNota.AsNoTracking()
                 .Where(c => c.UsuarioId == uid).ToListAsync();
 
+            // Inclui o critério "peso_inicial" (nota base do usuário): o app calcula a
+            // nota ao vivo antes de salvar e precisa da mesma base do servidor. Ele
+            // separa esse item da lista de ações — ver AnaliseJogoViewModel.
             var criterios = CriteriosNotaHelper.MergeCriterios(compartilhados, doUsuario)
                 .Select(c => new CriterioNotaDto { AcaoId = c.AcaoId, Label = c.Label, Peso = c.Peso, Ordem = c.Ordem });
 
@@ -58,12 +61,22 @@ namespace ControleFutebolWeb.Controllers.Api
                 .Where(n => n.JogoId == jogoId && n.UsuarioId == uid)
                 .ToListAsync();
 
+            var notaBase = await NotaBaseDoUsuarioAsync(uid);
+            var contextos = await ContextoNotaHelper.CarregarAsync(_context, new[] { jogoId }, uid);
+
             return Ok(new AnaliseJogoDto
             {
                 JogoId = jogoId,
                 AnalisadoPorMim = status?.Analisado ?? false,
                 Observacoes = status?.Observacoes,
-                Notas = notas.Select(ParaNotaDto).ToList()
+                Notas = notas.Select(n => ParaNotaDto(n, notaBase, contextos)).ToList(),
+                Contextos = contextos.Select(kv => new ContextoNotaDto
+                {
+                    JogadorId = kv.Key.JogadorId,
+                    Minutos = kv.Value.Minutos,
+                    GoleiroDecisivo = kv.Value.GoleiroDecisivo,
+                    GolDaVitoria = kv.Value.GolDaVitoria
+                }).ToList()
             });
         }
 
@@ -128,7 +141,8 @@ namespace ControleFutebolWeb.Controllers.Api
                 .Include(n => n.Detalhes)
                 .FirstAsync(n => n.Id == nota.Id);
 
-            return Ok(ParaNotaDto(salva));
+            return Ok(ParaNotaDto(salva, await NotaBaseDoUsuarioAsync(uid),
+                await ContextoNotaHelper.CarregarAsync(_context, new[] { jogoId }, uid)));
         }
 
         // DELETE api/v1/analises/jogo/5/nota/10
@@ -237,11 +251,26 @@ namespace ControleFutebolWeb.Controllers.Api
             });
         }
 
-        private static NotaJogadorDto ParaNotaDto(Nota n)
+        // Peso inicial configurado pelo usuário em /CriteriosNota (padrão 4,0).
+        private async Task<double> NotaBaseDoUsuarioAsync(string? uid)
+        {
+            var criterios = CriteriosNotaHelper.MergeCriterios(
+                await _context.CriteriosNota.AsNoTracking().Where(c => c.UsuarioId == null).ToListAsync(),
+                await _context.CriteriosNota.AsNoTracking().Where(c => c.UsuarioId == uid).ToListAsync());
+            return CriteriosNotaHelper.NotaBase(criterios);
+        }
+
+        // notaBase = peso inicial do usuário (CriteriosNotaHelper.NotaBase).
+        private static NotaJogadorDto ParaNotaDto(Nota n, double notaBase,
+            IReadOnlyDictionary<(int JogadorId, int JogoId), CriteriosNotaHelper.ContextoNota>? contextos = null)
         {
             double notaFinal = n.NotaManual.HasValue
                 ? Math.Round(Math.Max(0, Math.Min(10, n.NotaManual.Value)), 2)
-                : Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima, Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + n.Valor)), 2);
+                : CriteriosNotaHelper.NotaFinalComBase(n.Valor, notaBase,
+                    ContextoNotaHelper.De(contextos, n.JogadorId, n.JogoId) with
+                    {
+                        Acoes = CriteriosNotaHelper.ContarAcoes(n.Detalhes)
+                    });
 
             return new NotaJogadorDto
             {

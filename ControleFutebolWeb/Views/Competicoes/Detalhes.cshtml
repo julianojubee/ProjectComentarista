@@ -13,6 +13,7 @@
     {
         "GRUPOS"    => ("linear-gradient(135deg,#060d1a 0%,#0d1e35 55%,#060d1a 100%)", "#3b82f6", "Grupos"),
         "MATA_MATA" => ("linear-gradient(135deg,#1a1200 0%,#2a1e00 55%,#1a1200 100%)", "#d4a520", "Mata-Mata"),
+        "JOGO_UNICO" => ("linear-gradient(135deg,#1a0012 0%,#2a0020 55%,#1a0012 100%)", "#c026d3", "Jogo Único"),
         _           => ("linear-gradient(135deg,#0a1200 0%,#152000 55%,#0a1200 100%)", "#22c55e", "Pontos Corridos"),
     };
 
@@ -31,40 +32,45 @@
         ? $"fase-{Model.Fases[0].Fase.Id}"
         : tipoNorm switch
         {
-            "GRUPOS"    => "grupos",
-            "MATA_MATA" => "bracket",
-            _           => "classif",
+            "GRUPOS"     => "grupos",
+            "MATA_MATA"  => "bracket",
+            "JOGO_UNICO" => "bracket",
+            _            => "classif",
         };
 
     string IconeFase(string tipoFase) => tipoFase switch
     {
-        "GRUPOS"    => "🔢",
-        "MATA_MATA" => "⚔️",
-        _           => "📊",
+        "GRUPOS"     => "🔢",
+        "MATA_MATA"  => "⚔️",
+        "JOGO_UNICO" => "🏆",
+        _            => "📊",
     };
+
+    // Competição decidida em partida única: só existe o painel do confronto.
+    var ehJogoUnico = tipoNorm == "JOGO_UNICO";
 }
 
 <style>
     .cd-root, .cd-root *, .cd-root *::before, .cd-root *::after { box-sizing: border-box; }
-    .cd-root { margin: 0 -12px; background: #0f0f0f; border-radius: 14px; overflow: hidden; color: #e5e7eb; font-family: 'Barlow', Arial, sans-serif; }
+    .cd-root { margin: 0 -12px; background: var(--p-0); border-radius: 14px; overflow: hidden; color: var(--text); font-family: 'Barlow', Arial, sans-serif; }
     .cd-root a { text-decoration: none; color: inherit; }
 
     /* ── Hero ── */
     .cd-hero { position: relative; overflow: hidden; background: @heroGrad; padding: 38px 2.5rem 32px; }
     .cd-hero-pattern { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.05; pointer-events: none; }
     .cd-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: @accent; }
-    .cd-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(to top, #0f0f0f, transparent); pointer-events: none; }
+    .cd-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(to top, var(--page-bg), transparent); pointer-events: none; }
     .cd-hero-inner { position: relative; z-index: 1; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
     .cd-hero-icon { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,.08); border: 2px solid @(accent)48; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
     .cd-hero-icon img { width: 78%; height: 78%; object-fit: contain; }
     .cd-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
     .cd-kicker-line { height: 2px; width: 24px; background: @accent; }
     .cd-kicker span { font-size: .65rem; font-weight: 700; letter-spacing: .24em; color: @accent; text-transform: uppercase; }
-    .cd-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3rem; font-weight: 800; color: #f1f5f9; margin: 0 0 6px; line-height: 1; }
+    .cd-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3rem; font-weight: 800; color: var(--text-strong); margin: 0 0 6px; line-height: 1; }
     .cd-hero-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
     .cd-hero-temporada { display: flex; align-items: center; gap: 6px; }
-    .cd-hero-temporada select { appearance: none; padding: 5px 10px; border-radius: 7px; border: 1px solid #2a2a2a; background: #1a1a1a; color: #9ca3af; font-size: .8rem; font-weight: 600; cursor: pointer; }
-    .cd-pill { font-size: .75rem; padding: 4px 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; color: #9ca3af; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+    .cd-hero-temporada select { appearance: none; padding: 5px 10px; border-radius: 7px; border: 1px solid var(--line-strong); background: var(--p-2); color: var(--text-muted); font-size: .8rem; font-weight: 600; cursor: pointer; }
+    .cd-pill { font-size: .75rem; padding: 4px 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; color: var(--text-muted); font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
     .cd-pill:hover { border-color: @accent; color: @accent; }
     .cd-pill-accent { background: @(accent)1a; border-color: @(accent)48; color: @accent; }
     .cd-pill-accent:hover { background: @(accent)33; }
@@ -72,12 +78,12 @@
     .cd-stats { display: flex; gap: 20px; flex-shrink: 0; padding: 14px 20px; background: rgba(0,0,0,0.3); border: 1px solid @(accent)4d; border-radius: 10px; margin-left: auto; }
     .cd-stat { text-align: center; }
     .cd-stat .val { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.6rem; font-weight: 800; color: @accent; line-height: 1; }
-    .cd-stat .lbl { font-size: .58rem; color: #4b5563; text-transform: uppercase; letter-spacing: .08em; margin-top: 2px; }
+    .cd-stat .lbl { font-size: .58rem; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: .08em; margin-top: 2px; }
     .cd-stat-sep { width: 1px; background: @(accent)4d; align-self: stretch; }
 
     /* ── Tabs ── */
-    .cd-tabs { background: #111; border-bottom: 1px solid #1e1e1e; padding: 0 2.5rem; position: sticky; top: 0; z-index: 50; display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .cd-tab-btn { padding: 14px 18px; background: transparent; border: none; cursor: pointer; font-size: .82rem; font-weight: 600; color: #6b7280; border-bottom: 2px solid transparent; white-space: nowrap; transition: color .15s, border-color .15s; font-family: inherit; flex-shrink: 0; }
+    .cd-tabs { background: var(--p-0); border-bottom: 1px solid var(--line-soft); padding: 0 2.5rem; position: sticky; top: 0; z-index: 50; display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .cd-tab-btn { padding: 14px 18px; background: transparent; border: none; cursor: pointer; font-size: .82rem; font-weight: 600; color: var(--text-dim); border-bottom: 2px solid transparent; white-space: nowrap; transition: color .15s, border-color .15s; font-family: inherit; flex-shrink: 0; }
     .cd-tab-btn.active { font-weight: 700; color: @accent; border-bottom-color: @accent; }
 
     /* ── Conteúdo ── */
@@ -86,74 +92,77 @@
     @@media (max-width: 1000px) { .cd-layout { grid-template-columns: 1fr; } }
 
     /* ── Tabela classificação ── */
-    .cd-tablewrap { background: #161616; border: 1px solid #262626; border-radius: 14px; overflow: hidden; }
-    .cd-cols { display: grid; grid-template-columns: 4px 36px 28px 1fr 36px 36px 36px 36px 36px 44px 60px 80px; gap: 4px; padding: 10px 14px; padding-left: 0; background: #111; border-bottom: 1px solid #1e1e1e; align-items: center; }
+    .cd-tablewrap { background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+    .cd-cols { display: grid; grid-template-columns: 4px 36px 28px 1fr 36px 36px 36px 36px 36px 44px 60px 80px; gap: 4px; padding: 10px 14px; padding-left: 0; background: var(--p-0); border-bottom: 1px solid var(--line-soft); align-items: center; }
     .cd-cols span { font-size: .58rem; color: #374151; font-weight: 700; text-transform: uppercase; text-align: center; }
     .cd-cols span.left { text-align: left; }
-    .cd-row { display: grid; grid-template-columns: 4px 36px 28px 1fr 36px 36px 36px 36px 36px 44px 60px 80px; gap: 4px; padding: 9px 14px; padding-left: 0; border-bottom: 1px solid #111; align-items: center; transition: background .12s; }
+    .cd-row { display: grid; grid-template-columns: 4px 36px 28px 1fr 36px 36px 36px 36px 36px 44px 60px 80px; gap: 4px; padding: 9px 14px; padding-left: 0; border-bottom: 1px solid var(--line-soft); align-items: center; transition: background .12s; }
     .cd-row:last-child { border-bottom: none; }
-    .cd-row:hover { background: #1a1a1a; }
+    .cd-row:hover { background: var(--p-2); }
     .cd-zonebar { width: 4px; height: 100%; align-self: stretch; flex-shrink: 0; }
     .cd-pos { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1rem; font-weight: 700; text-align: center; }
-    .cd-escudo { width: 26px; height: 26px; border-radius: 50%; background: #0f0f0f; border: 1px solid #2a2a2a; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+    .cd-escudo { width: 26px; height: 26px; border-radius: 50%; background: var(--p-0); border: 1px solid var(--line-strong); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
     .cd-escudo img { width: 90%; height: 90%; object-fit: contain; }
-    .cd-nome { font-size: .86rem; font-weight: 600; color: #e5e7eb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+    .cd-nome { font-size: .86rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
     .cd-nome:hover { text-decoration: underline; }
-    .cd-cell { font-size: .8rem; color: #9ca3af; text-align: center; }
-    .cd-cell.v { color: #22c55e; font-weight: 600; }
-    .cd-cell.e { color: #f59e0b; }
-    .cd-cell.d { color: #ef4444; }
+    .cd-cell { font-size: .8rem; color: var(--text-muted); text-align: center; }
+    .cd-cell.v { color: var(--ok-2); font-weight: 600; }
+    .cd-cell.e { color: var(--warn); }
+    .cd-cell.d { color: var(--bad-2); }
     .cd-sg { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .88rem; font-weight: 700; text-align: center; }
     .cd-aprov { display: flex; flex-direction: column; gap: 2px; align-items: center; }
-    .cd-aprov span { font-size: .72rem; color: #9ca3af; font-weight: 600; }
-    .cd-aprov-bar { width: 40px; height: 3px; background: #222; border-radius: 2px; overflow: hidden; }
+    .cd-aprov span { font-size: .72rem; color: var(--text-muted); font-weight: 600; }
+    .cd-aprov-bar { width: 40px; height: 3px; background: var(--p-3); border-radius: 2px; overflow: hidden; }
     .cd-aprov-bar div { height: 100%; border-radius: 2px; }
     .cd-pts { display: flex; align-items: center; justify-content: center; }
     .cd-pts span { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.05rem; font-weight: 900; padding: 2px 8px; border-radius: 6px; }
-    .cd-legend { padding: 10px 18px; background: #111; border-top: 1px solid #1e1e1e; display: flex; gap: 14px; flex-wrap: wrap; }
+    .cd-legend { padding: 10px 18px; background: var(--p-0); border-top: 1px solid var(--line-soft); display: flex; gap: 14px; flex-wrap: wrap; }
     .cd-legend-item { display: flex; align-items: center; gap: 5px; }
     .cd-legend-dot { width: 10px; height: 3px; border-radius: 2px; }
-    .cd-legend-item span { font-size: .62rem; color: #4b5563; font-weight: 600; }
+    .cd-legend-item span { font-size: .62rem; color: var(--text-dimmer); font-weight: 600; }
 
     /* ── Sidebar ── */
     .cd-sidebar { display: flex; flex-direction: column; gap: 16px; }
-    .cd-side-card { background: #161616; border: 1px solid #262626; border-radius: 12px; overflow: hidden; }
-    .cd-side-header { padding: 12px 16px; background: #111; border-bottom: 1px solid #1e1e1e; }
-    .cd-side-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .88rem; font-weight: 700; color: #f1f5f9; text-transform: uppercase; }
-    .cd-mini-jogo { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-bottom: 1px solid #111; }
+    .cd-side-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+    .cd-side-header { padding: 12px 16px; background: var(--p-0); border-bottom: 1px solid var(--line-soft); }
+    .cd-side-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .88rem; font-weight: 700; color: var(--text-strong); text-transform: uppercase; }
+    .cd-mini-jogo { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-bottom: 1px solid var(--line-soft); }
     .cd-mini-jogo:last-child { border-bottom: none; }
-    .cd-mini-jogo:hover { background: #1e1e1e; }
+    .cd-mini-jogo:hover { background: var(--p-3); }
     .cd-mini-lado { flex: 1; display: flex; align-items: center; gap: 5px; min-width: 0; }
     .cd-mini-lado.casa { justify-content: flex-end; }
-    .cd-mini-lado span { font-size: .8rem; font-weight: 600; color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cd-mini-lado span { font-size: .8rem; font-weight: 600; color: var(--text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .cd-mini-lado img { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; }
-    .cd-mini-hora { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .7rem; color: #4b5563; flex-shrink: 0; font-weight: 700; }
-    .cd-artilheiro { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid #111; }
+    .cd-mini-hora { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .7rem; color: var(--text-dimmer); flex-shrink: 0; font-weight: 700; }
+    .cd-artilheiro { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--line-soft); }
     .cd-artilheiro:last-child { border-bottom: none; }
-    .cd-artilheiro:hover { background: #1e1e1e; }
+    .cd-artilheiro:hover { background: var(--p-3); }
     .cd-art-rank { font-size: .72rem; font-weight: 700; width: 14px; text-align: center; flex-shrink: 0; }
     .cd-art-avatar { width: 28px; height: 28px; border-radius: 50%; background: #1e293b; border: 1px solid #2a3a52; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
     .cd-art-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .cd-art-nome { font-size: .82rem; font-weight: 600; color: #e5e7eb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cd-art-nome { font-size: .82rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .cd-art-clube { display: flex; align-items: center; gap: 4px; margin-top: 1px; }
     .cd-art-clube img { width: 12px; height: 12px; object-fit: contain; }
-    .cd-art-clube span { font-size: .64rem; color: #4b5563; }
-    .cd-art-gols { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.05rem; font-weight: 800; color: #4ade80; flex-shrink: 0; }
-    .cd-vazio { text-align: center; color: #6b7280; padding: 1.6rem 1rem; font-size: .8rem; }
+    .cd-art-clube span { font-size: .64rem; color: var(--text-dimmer); }
+    /* Times da barra lateral levam à página do clube */
+    a.cd-mini-lado, a.cd-art-clube { text-decoration: none; }
+    a.cd-mini-lado:hover span, a.cd-art-clube:hover span { color: var(--gold-ink); text-decoration: underline; }
+    .cd-art-gols { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.05rem; font-weight: 800; color: var(--ok); flex-shrink: 0; }
+    .cd-vazio { text-align: center; color: var(--text-dim); padding: 1.6rem 1rem; font-size: .8rem; }
 
     /* ── Grupos ── */
     .cd-grupos-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
     @@media (max-width: 900px) { .cd-grupos-grid { grid-template-columns: 1fr; } }
-    .cd-grupo-card { background: #161616; border: 1px solid #262626; border-radius: 14px; overflow: hidden; }
-    .cd-grupo-header { padding: 12px 16px; background: #111; border-bottom: 1px solid #1e1e1e; display: flex; align-items: center; gap: 10px; }
+    .cd-grupo-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+    .cd-grupo-header { padding: 12px 16px; background: var(--p-0); border-bottom: 1px solid var(--line-soft); display: flex; align-items: center; gap: 10px; }
     .cd-grupo-letra { min-width: 28px; height: 28px; padding: 0 6px; border-radius: 8px; background: @(accent)26; border: 1px solid @(accent)4d; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .9rem; font-weight: 800; color: @accent; white-space: nowrap; flex-shrink: 0; }
-    .cd-grupo-nome { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .9rem; font-weight: 700; color: #f1f5f9; text-transform: uppercase; letter-spacing: .04em; }
-    .cd-grupo-cols { display: grid; grid-template-columns: 24px 28px 1fr 28px 28px 28px 28px 36px; gap: 4px; padding: 8px 14px; background: #0f0f0f; border-bottom: 1px solid #111; align-items: center; }
+    .cd-grupo-nome { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .9rem; font-weight: 700; color: var(--text-strong); text-transform: uppercase; letter-spacing: .04em; }
+    .cd-grupo-cols { display: grid; grid-template-columns: 24px 28px 1fr 28px 28px 28px 28px 36px; gap: 4px; padding: 8px 14px; background: var(--p-0); border-bottom: 1px solid var(--line-soft); align-items: center; }
     .cd-grupo-cols span { font-size: .56rem; color: #374151; font-weight: 700; text-align: center; }
-    .cd-grupo-row { display: grid; grid-template-columns: 24px 28px 1fr 28px 28px 28px 28px 36px; gap: 4px; padding: 9px 14px; border-bottom: 1px solid #111; align-items: center; transition: background .12s; }
+    .cd-grupo-row { display: grid; grid-template-columns: 24px 28px 1fr 28px 28px 28px 28px 36px; gap: 4px; padding: 9px 14px; border-bottom: 1px solid var(--line-soft); align-items: center; transition: background .12s; }
     .cd-grupo-row:last-child { border-bottom: none; }
-    .cd-grupo-row:hover { background: #1e1e1e; }
-    .cd-grupo-escudo { width: 24px; height: 24px; border-radius: 50%; background: #0f0f0f; border: 1px solid #2a2a2a; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+    .cd-grupo-row:hover { background: var(--p-3); }
+    .cd-grupo-escudo { width: 24px; height: 24px; border-radius: 50%; background: var(--p-0); border: 1px solid var(--line-strong); overflow: hidden; display: flex; align-items: center; justify-content: center; }
     .cd-grupo-escudo img { width: 90%; height: 90%; object-fit: contain; }
 
     /* ── Mata-mata ── */
@@ -163,45 +172,51 @@
     .cd-mm-fase-wrap { width: 240px; flex-shrink: 0; }
     .cd-mm-fase-nome { text-align: center; padding: 10px 0 16px; font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .82rem; font-weight: 800; color: @accent; text-transform: uppercase; letter-spacing: .1em; }
     .cd-mm-confrontos { display: flex; flex-direction: column; gap: 12px; padding: 0 12px; }
-    .cd-mm-confronto { background: #161616; border: 1px solid #262626; border-radius: 10px; overflow: hidden; transition: border-color .15s; }
-    .cd-mm-confronto:hover { border-color: #333; }
+    .cd-mm-confronto { background: var(--p-1); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; transition: border-color .15s; }
+    .cd-mm-confronto:hover { border-color: var(--line); }
     .cd-mm-time-row { padding: 9px 12px; display: flex; align-items: center; gap: 8px; }
-    .cd-mm-time-row.top { border-bottom: 1px solid #1a1a1a; }
+    .cd-mm-time-row.top { border-bottom: 1px solid var(--line-soft); }
     .cd-mm-time-lado { flex: 1; display: flex; align-items: center; gap: 6px; min-width: 0; }
     .cd-mm-time-lado img { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; }
     .cd-mm-time-lado span { font-size: .82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .cd-mm-placar { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.1rem; font-weight: 800; flex-shrink: 0; }
+    /* Times do chaveamento levam à página do clube */
+    a.cd-mm-time-lado { text-decoration: none; }
+    a.cd-mm-time-lado[href]:hover span { color: var(--gold-ink) !important; text-decoration: underline; }
     .cd-mm-classificado { padding: 5px 12px; background: rgba(34,197,94,0.08); border-top: 1px solid rgba(34,197,94,0.15); display: flex; align-items: center; gap: 5px; }
-    .cd-mm-classificado span { font-size: .64rem; color: #4ade80; font-weight: 700; }
+    .cd-mm-classificado span { font-size: .64rem; color: var(--ok); font-weight: 700; }
     .cd-mm-connector { width: 24px; flex-shrink: 0; align-self: stretch; position: relative; }
     .cd-mm-connector-arrow { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); color: #333; font-size: 14px; }
-    .cd-mm-datas { padding: 5px 12px; background: rgba(0,0,0,.2); font-size: .62rem; color: #4b5563; display: flex; gap: 8px; }
+    .cd-mm-datas { padding: 5px 12px; background: rgba(0,0,0,.2); font-size: .62rem; color: var(--text-dimmer); display: flex; gap: 8px; }
 
     /* ── Jogos (lista full-width) ── */
-    .cd-jogos-wrap { background: #161616; border: 1px solid #262626; border-radius: 14px; overflow: hidden; }
-    .cd-jogos-cols { display: grid; grid-template-columns: 90px 110px 1fr 100px 1fr 140px; gap: 12px; padding: 10px 16px; background: #111; border-bottom: 1px solid #1e1e1e; }
+    .cd-jogos-wrap { background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+    .cd-jogos-cols { display: grid; grid-template-columns: 90px 110px 1fr 100px 1fr 140px; gap: 12px; padding: 10px 16px; background: var(--p-0); border-bottom: 1px solid var(--line-soft); }
     .cd-jogos-cols span { font-size: .6rem; color: #374151; font-weight: 700; text-transform: uppercase; }
-    .cd-jogo-row { display: grid; grid-template-columns: 90px 110px 1fr 100px 1fr 140px; gap: 12px; padding: 10px 16px; border-bottom: 1px solid #111; align-items: center; transition: background .12s; }
+    .cd-jogo-row { display: grid; grid-template-columns: 90px 110px 1fr 100px 1fr 140px; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line-soft); align-items: center; transition: background .12s; }
     .cd-jogo-row:last-child { border-bottom: none; }
-    .cd-jogo-row:hover { background: #1a1a1a; }
-    .cd-jogo-row .data { font-size: .8rem; font-weight: 600; color: #e5e7eb; }
-    .cd-jogo-row .hora { font-size: .68rem; color: #4b5563; margin-top: 1px; }
-    .cd-jogo-row .rodada { font-size: .78rem; color: #6b7280; font-weight: 600; }
+    .cd-jogo-row:hover { background: var(--p-2); }
+    .cd-jogo-row .data { font-size: .8rem; font-weight: 600; color: var(--text); }
+    .cd-jogo-row .hora { font-size: .68rem; color: var(--text-dimmer); margin-top: 1px; }
+    .cd-jogo-row .rodada { font-size: .78rem; color: var(--text-dim); font-weight: 600; }
     .cd-jogo-time { display: flex; align-items: center; gap: 7px; min-width: 0; }
     .cd-jogo-time img { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
     .cd-jogo-time span { font-size: .86rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* Times das linhas de jogo levam à página do clube */
+    a.cd-jogo-time { text-decoration: none; }
+    a.cd-jogo-time:hover span { color: var(--gold-ink) !important; text-decoration: underline; }
     .cd-jogo-placar { text-align: center; }
-    .cd-jogo-placar span { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.1rem; font-weight: 800; color: #f1f5f9; background: #0f0f0f; padding: 2px 10px; border-radius: 6px; letter-spacing: .06em; }
-    .cd-jogo-pen { font-size: .62rem; color: #6b7280; display: block; margin-top: 2px; text-align: center; }
+    .cd-jogo-placar span { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.1rem; font-weight: 800; color: var(--text-strong); background: var(--p-0); padding: 2px 10px; border-radius: 6px; letter-spacing: .06em; }
+    .cd-jogo-pen { font-size: .62rem; color: var(--text-dim); display: block; margin-top: 2px; text-align: center; }
     .cd-jogo-acao { display: flex; gap: 6px; justify-content: flex-end; }
-    .cd-btn-analisar { font-size: .68rem; padding: 4px 10px; background: transparent; border: 1px solid #3b82f6; border-radius: 6px; color: #60a5fa; font-weight: 700; }
+    .cd-btn-analisar { font-size: .68rem; padding: 4px 10px; background: transparent; border: 1px solid #3b82f6; border-radius: 6px; color: var(--info); font-weight: 700; }
     .cd-btn-analisar:hover { background: rgba(59,130,246,0.1); }
 
-    .cd-sem-dados { text-align: center; padding: 3rem 1rem; color: #6b7280; }
+    .cd-sem-dados { text-align: center; padding: 3rem 1rem; color: var(--text-dim); }
     .cd-sem-dados .icon { font-size: 2.5rem; margin-bottom: .8rem; }
     .cd-sem-dados p { font-size: .9rem; margin: 0; }
 
-    .cd-alert { border-radius: 10px; padding: .8rem 1.1rem; margin: 0 2.5rem 1rem; font-size: .88rem; background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); color: #4ade80; }
+    .cd-alert { border-radius: 10px; padding: .8rem 1.1rem; margin: 0 2.5rem 1rem; font-size: .88rem; background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); color: var(--ok); }
 
     /* ── Responsivo ── */
     @@media (max-width: 768px) {
@@ -237,7 +252,7 @@
     }
 
     <!-- ── Hero ── -->
-    <div class="cd-hero">
+    <div class="cd-hero theme-dark-zone">
         <img src="~/Images/banner/escudos-pattern.svg" class="cd-hero-pattern" alt="" />
         <div class="cd-hero-stripe"></div>
         <div class="cd-hero-fade"></div>
@@ -317,6 +332,10 @@
                     <button type="button" class="cd-tab-btn" data-tab="bracket">⚔️ Mata-Mata</button>
                 }
             }
+            else if (ehJogoUnico)
+            {
+                <button type="button" class="cd-tab-btn @(tabInicial == "bracket" ? "active" : "")" data-tab="bracket">🏆 Decisão</button>
+            }
             else if (tipoNorm == "MATA_MATA")
             {
                 <button type="button" class="cd-tab-btn @(tabInicial == "bracket" ? "active" : "")" data-tab="bracket">⚔️ Chaveamento</button>
@@ -346,7 +365,7 @@
                         {
                             @await Html.PartialAsync("_PainelGrupos", f.Grupos)
                         }
-                        else if (f.Fase.Tipo == "MATA_MATA")
+                        else if (f.Fase.Tipo == "MATA_MATA" || f.Fase.Tipo == "JOGO_UNICO")
                         {
                             @await Html.PartialAsync("_PainelChaveamento", f.FasesMataMata)
                         }
@@ -362,7 +381,7 @@
             }
 
             <!-- ══════ CLASSIFICAÇÃO (PONTOS CORRIDOS) ══════ -->
-            @if (!temFases && tipoNorm != "GRUPOS" && tipoNorm != "MATA_MATA")
+            @if (!temFases && tipoNorm != "GRUPOS" && tipoNorm != "MATA_MATA" && !ehJogoUnico)
             {
                 <div class="cd-panel" id="cd-panel-classif" style="@(tabInicial == "classif" ? "" : "display:none;")">
                     <div class="cd-layout">
@@ -381,7 +400,7 @@
             }
 
             <!-- ══════ MATA-MATA (chaveamento próprio, ou fase eliminatória detectada nos jogos) ══════ -->
-            @if (!temFases && (tipoNorm == "MATA_MATA" || Model.FasesMataMata.Any()))
+            @if (!temFases && (tipoNorm == "MATA_MATA" || ehJogoUnico || Model.FasesMataMata.Any()))
             {
                 <div class="cd-panel" id="cd-panel-bracket" style="@(tabInicial == "bracket" ? "" : "display:none;")">
                     @await Html.PartialAsync("_PainelChaveamento", Model.FasesMataMata)
@@ -390,7 +409,17 @@
 
 
             <!-- ══════ ESTATÍSTICAS (compartilhado, todos os tipos/formatos) ══════ -->
-            <div class="cd-panel" id="cd-panel-estatisticas" style="display:none;">
+            <div class="cd-panel" id="cd-panel-estatisticas" style="display:none">
+                <div style="padding:16px 2.5rem 0; text-align:right">
+                    <a asp-action="EquipeDaRodada" asp-route-id="@Model.Competicao.Id" asp-route-temporada="@temporadaDetSel"
+                       style="background:var(--p-1);border:1px solid var(--line);color:var(--text-2);border-radius:8px;font-family:'Barlow',Arial,sans-serif;font-size:12px;font-weight:700;padding:.4rem .85rem;text-decoration:none;margin-right:6px">
+                        ⭐ Equipe da rodada
+                    </a>
+                    <a asp-action="Estatisticas" asp-route-id="@Model.Competicao.Id" asp-route-temporada="@temporadaDetSel"
+                       style="background:var(--p-1);border:1px solid var(--line);color:var(--text-2);border-radius:8px;font-family:'Barlow',Arial,sans-serif;font-size:12px;font-weight:700;padding:.4rem .85rem;text-decoration:none">
+                        ⛶ Abrir em tela cheia
+                    </a>
+                </div>
                 @await Html.PartialAsync("_PainelEstatisticas", ViewBag.EstatisticasTimes as List<ControleFutebolWeb.Models.ViewModels.EstatisticaTimeViewModel>)
             </div>
 
@@ -415,13 +444,13 @@
                                     <div class="hora">@DateHelper.FormatarData(jr.Data, "HH:mm")</div>
                                 </div>
                                 <span class="rodada">@(!string.IsNullOrEmpty(jr.Grupo) ? jr.Grupo : jr.Rodada > 0 ? $"Rod. {jr.Rodada}" : "-")</span>
-                                <div class="cd-jogo-time">
+                                <a class="cd-jogo-time" asp-controller="Times" asp-action="Details" asp-route-id="@jr.TimeCasaId" title="Ver @jr.TimeCasa?.Nome">
                                     @if (!string.IsNullOrEmpty(jr.TimeCasa?.EscudoUrl))
                                     {
                                         <img src="@Url.Action("Imagem", "MediaProxy", new { url = jr.TimeCasa.EscudoUrl })" alt="" />
                                     }
-                                    <span style="font-weight:@(casaW ? 700 : 500); color:@(casaW ? "#f1f5f9" : "#6b7280");">@jr.TimeCasa?.Nome</span>
-                                </div>
+                                    <span style="font-weight:@(casaW ? 700 : 500); color:@(casaW ? "var(--text-strong)" : "var(--text-dim)");">@jr.TimeCasa?.Nome</span>
+                                </a>
                                 <div class="cd-jogo-placar">
                                     <span>@jr.PlacarCasa–@jr.PlacarVisitante</span>
                                     @if (jr.PenaltisCasa.HasValue && jr.PenaltisVisitante.HasValue)
@@ -429,13 +458,13 @@
                                         <span class="cd-jogo-pen">pên. @jr.PenaltisCasa-@jr.PenaltisVisitante</span>
                                     }
                                 </div>
-                                <div class="cd-jogo-time">
+                                <a class="cd-jogo-time" asp-controller="Times" asp-action="Details" asp-route-id="@jr.TimeVisitanteId" title="Ver @jr.TimeVisitante?.Nome">
                                     @if (!string.IsNullOrEmpty(jr.TimeVisitante?.EscudoUrl))
                                     {
                                         <img src="@Url.Action("Imagem", "MediaProxy", new { url = jr.TimeVisitante.EscudoUrl })" alt="" />
                                     }
-                                    <span style="font-weight:@(visW ? 700 : 500); color:@(visW ? "#f1f5f9" : "#6b7280");">@jr.TimeVisitante?.Nome</span>
-                                </div>
+                                    <span style="font-weight:@(visW ? 700 : 500); color:@(visW ? "var(--text-strong)" : "var(--text-dim)");">@jr.TimeVisitante?.Nome</span>
+                                </a>
                                 <div class="cd-jogo-acao">
                                     <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jr.Id" class="cd-btn-analisar">Analisar</a>
                                 </div>
@@ -464,23 +493,23 @@
                                     <div class="data">@DateHelper.FormatarData(jp.Data, "dd/MM/yyyy")</div>
                                 </div>
                                 <span class="rodada">@(!string.IsNullOrEmpty(jp.Grupo) ? jp.Grupo : jp.Rodada > 0 ? $"Rod. {jp.Rodada}" : "-")</span>
-                                <div class="cd-jogo-time">
+                                <a class="cd-jogo-time" asp-controller="Times" asp-action="Details" asp-route-id="@jp.TimeCasaId" title="Ver @jp.TimeCasa?.Nome">
                                     @if (!string.IsNullOrEmpty(jp.TimeCasa?.EscudoUrl))
                                     {
                                         <img src="@Url.Action("Imagem", "MediaProxy", new { url = jp.TimeCasa.EscudoUrl })" alt="" />
                                     }
-                                    <span style="color:#f1f5f9;">@jp.TimeCasa?.Nome</span>
-                                </div>
+                                    <span style="color:var(--text-strong)">@jp.TimeCasa?.Nome</span>
+                                </a>
                                 <div class="cd-jogo-placar">
-                                    <span style="background:transparent; color:#d4a520;">@DateHelper.FormatarData(jp.Data, "HH:mm")</span>
+                                    <span style="background:transparent; color:var(--gold-ink)">@DateHelper.FormatarData(jp.Data, "HH:mm")</span>
                                 </div>
-                                <div class="cd-jogo-time">
+                                <a class="cd-jogo-time" asp-controller="Times" asp-action="Details" asp-route-id="@jp.TimeVisitanteId" title="Ver @jp.TimeVisitante?.Nome">
                                     @if (!string.IsNullOrEmpty(jp.TimeVisitante?.EscudoUrl))
                                     {
                                         <img src="@Url.Action("Imagem", "MediaProxy", new { url = jp.TimeVisitante.EscudoUrl })" alt="" />
                                     }
-                                    <span style="color:#f1f5f9;">@jp.TimeVisitante?.Nome</span>
-                                </div>
+                                    <span style="color:var(--text-strong)">@jp.TimeVisitante?.Nome</span>
+                                </a>
                                 <div></div>
                             </div>
                         }

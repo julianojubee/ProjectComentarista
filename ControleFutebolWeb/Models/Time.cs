@@ -23,6 +23,22 @@ public class Time
     public string? CamisaVisitanteUrl { get; set; }
     [System.ComponentModel.DataAnnotations.Schema.Column("linktransfermarket")]
     public string? LinkTransfermarket { get; set; }
+
+    // Liga da api-football em que o clube foi encontrado (id e país da liga),
+    // preenchido quando o time é criado pela transferência manual para um clube
+    // de fora das competições cadastradas (/Jogadores/Estatisticas → Transferências).
+    // Serve para reencontrar o clube já salvo numa próxima transferência da mesma
+    // liga, sem gastar chamada da API. Null nos times vindos da importação de jogos.
+    public int? LigaIdApi { get; set; }
+    public string? PaisApi { get; set; }
+    // Estádio do clube, vindo do nó "venue" de /teams da api-football
+    // (não confundir com Jogo.Estadio, que é o local de uma partida específica).
+    public string? EstadioNome { get; set; }
+    public string? EstadioCidade { get; set; }
+    public int? EstadioCapacidade { get; set; }
+    public string? EstadioGramado { get; set; }
+    public string? EstadioImagemUrl { get; set; }
+
     // FK para a formação padrão
     public int FormacaoPadraoId { get; set; }
     public Formacao FormacaoPadrao { get; set; }

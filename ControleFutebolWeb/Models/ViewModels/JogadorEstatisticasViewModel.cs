@@ -1,3 +1,5 @@
+using ControleFutebolWeb.Helpers;
+
 namespace ControleFutebolWeb.Models.ViewModels
 {
     public class JogadorEstatisticasViewModel
@@ -115,7 +117,11 @@ namespace ControleFutebolWeb.Models.ViewModels
         public List<Notadetalhe> Detalhes { get; set; } = new();
         public int GolsPro { get; set; }
         public int GolsContra { get; set; }
-        public double NotaBaseFixa { get; set; }     // 4.0 (base) — nota mínima 4.0
+        public double NotaBaseFixa { get; set; }     // peso inicial do usuário (padrão 4.0) — ponto de partida da nota
+
+        // Parcelas do cálculo (pisos e bônus aplicados sobre "base + ações"), para a
+        // tela conseguir mostrar a composição da nota. Só preenchida em nota calculada.
+        public CriteriosNotaHelper.ComposicaoNota Composicao { get; set; }
         public bool OrigemManual { get; set; }       // true = nota dada por um analista
         public double? NotaManual { get; set; }      // nota final informada manualmente (override)
 

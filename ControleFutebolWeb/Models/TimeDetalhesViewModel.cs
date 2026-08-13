@@ -20,6 +20,9 @@
         // (minutos, contribuição, defesa, disciplina) + o retrato do elenco em Resumo.
         public List<ViewModels.JogadorElencoStatViewModel> EstatisticasElenco { get; set; } = new();
         public ViewModels.ElencoResumoViewModel ElencoResumo { get; set; } = new();
+        // Títulos conquistados pelo time, da temporada mais recente para a mais antiga
+        // (calculados dos jogos por Helpers.TitulosHelper — não há cadastro de campeões).
+        public List<Helpers.TitulosHelper.Titulo> Titulos { get; set; } = new();
         // Temporadas com jogos realizados; o painel do elenco mostra uma de cada vez.
         public List<int> TemporadasElenco { get; set; } = new();
         public int TemporadaElencoSelecionada { get; set; }

@@ -29,11 +29,11 @@
     (string bg, string border, string text) CorCompeticao(string? nome)
     {
         var n = (nome ?? "").ToLowerInvariant();
-        if (n.Contains("brasileir"))      return ("rgba(34,197,94,0.12)",  "rgba(34,197,94,0.3)",  "#4ade80");
-        if (n.Contains("copa do brasil")) return ("rgba(255,215,0,0.12)",  "rgba(255,215,0,0.3)",  "#fbbf24");
-        if (n.Contains("libertadores"))   return ("rgba(59,130,246,0.12)","rgba(59,130,246,0.3)", "#60a5fa");
-        if (n.Contains("champions"))      return ("rgba(168,85,247,0.12)","rgba(168,85,247,0.3)", "#c084fc");
-        return ("rgba(107,114,128,0.12)", "rgba(107,114,128,0.3)", "#9ca3af");
+        if (n.Contains("brasileir"))      return ("rgba(34,197,94,0.12)",  "rgba(34,197,94,0.3)",  "var(--ok)");
+        if (n.Contains("copa do brasil")) return ("rgba(255,215,0,0.12)",  "rgba(255,215,0,0.3)",  "var(--warn)");
+        if (n.Contains("libertadores"))   return ("rgba(59,130,246,0.12)","rgba(59,130,246,0.3)", "var(--info)");
+        if (n.Contains("champions"))      return ("rgba(168,85,247,0.12)","rgba(168,85,247,0.3)", "var(--purple)");
+        return ("rgba(107,114,128,0.12)", "rgba(107,114,128,0.3)", "var(--text-muted)");
     }
 }
 
@@ -44,8 +44,8 @@
 
     .jgs {
         margin: 0 -12px;
-        background: #0f0f0f;
-        color: #e5e7eb;
+        background: var(--p-0);
+        color: var(--text);
         font-family: 'Barlow', Arial, sans-serif;
         border-radius: 14px;
         overflow: hidden;
@@ -62,7 +62,7 @@
     }
     .jgs-hero-pattern { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.05; pointer-events: none; }
     .jgs-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #d4a520; }
-    .jgs-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(to top, #0f0f0f, transparent); pointer-events: none; }
+    .jgs-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(to top, var(--page-bg), transparent); pointer-events: none; }
 
     .jgs-hero-scene { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 290px; z-index: 0; }
     .jgs-hero-scene img {
@@ -78,46 +78,46 @@
     }
     .jgs-hero-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
     .jgs-hero-kicker-line { height: 2px; width: 28px; background: #d4a520; }
-    .jgs-hero-kicker span { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.28em; color: #d4a520; text-transform: uppercase; }
-    .jgs-hero h1 { font-size: 3.4rem; font-weight: 800; color: #f1f5f9; margin: 0 0 8px; line-height: 1; }
-    .jgs-hero p { font-size: 0.9rem; color: #6b7280; margin: 0; }
+    .jgs-hero-kicker span { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.28em; color: var(--gold-ink); text-transform: uppercase; }
+    .jgs-hero h1 { font-size: 3.4rem; font-weight: 800; color: var(--text-strong); margin: 0 0 8px; line-height: 1; }
+    .jgs-hero p { font-size: 0.9rem; color: var(--text-dim); margin: 0; }
 
     .jgs-kpis { display: flex; gap: 28px; align-items: center; flex-shrink: 0; }
     .jgs-kpi-num { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 2.2rem; font-weight: 800; line-height: 1; }
-    .jgs-kpi-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; color: #4b5563; text-transform: uppercase; margin-top: 3px; }
+    .jgs-kpi-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; color: var(--text-dimmer); text-transform: uppercase; margin-top: 3px; }
     .jgs-kpi-sep { width: 1px; height: 36px; background: #1e2d45; }
 
     /* ── Filtros ─────────────────────────────────── */
-    .jgs-filters { background: #141414; border-bottom: 1px solid #222; padding: 14px 72px; position: sticky; top: 62px; z-index: 50; }
+    .jgs-filters { background: var(--p-1); border-bottom: 1px solid var(--line); padding: 14px 72px; position: sticky; top: 62px; z-index: 50; }
     .jgs-filters-row { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
     .jgs-select-wrap { position: relative; }
-    .jgs-select-chevron { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: #4b5563; pointer-events: none; }
+    .jgs-select-chevron { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: var(--text-dimmer); pointer-events: none; }
 
     .jgs-select {
-        appearance: none; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px;
-        color: #9ca3af; font-size: 0.83rem; padding: 9px 28px 9px 12px; cursor: pointer; outline: none;
+        appearance: none; background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 8px;
+        color: var(--text-muted); font-size: 0.83rem; padding: 9px 28px 9px 12px; cursor: pointer; outline: none;
         font-family: inherit;
     }
     .jgs-select:focus { border-color: #d4a520; }
 
     .jgs-date {
-        background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; color: #9ca3af;
+        background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 8px; color: var(--text-muted);
         font-size: 0.83rem; padding: 9px 12px; outline: none; cursor: pointer; font-family: inherit;
         color-scheme: dark;
     }
     .jgs-date:focus { border-color: #d4a520; }
-    .jgs-date-sep { color: #4b5563; font-size: 0.8rem; }
+    .jgs-date-sep { color: var(--text-dimmer); font-size: 0.8rem; }
 
-    .jgs-subtitulo { font-size: 0.75rem; color: #4b5563; font-weight: 600; }
+    .jgs-subtitulo { font-size: 0.75rem; color: var(--text-dimmer); font-weight: 600; }
 
     .jgs-btn { display: flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 8px; font-size: 0.82rem; font-weight: 800; border: none; cursor: pointer; flex-shrink: 0; }
     .jgs-btn-gold { background: #d4a520; color: #141414; }
     .jgs-btn-gold:hover { background: #c49918; }
     .jgs-btn-green { background: #16a34a; color: #fff; }
     .jgs-btn-green:hover { background: #15803d; }
-    .jgs-btn-ghost { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: #9ca3af; }
-    .jgs-btn-ghost:hover { border-color: #d4a520; color: #d4a520; }
+    .jgs-btn-ghost { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: var(--text-muted); }
+    .jgs-btn-ghost:hover { border-color: #d4a520; color: var(--gold-ink); }
 
     /* ── Lista ───────────────────────────────────── */
     .jgs-list-wrap { padding: 24px 72px 64px; max-width: 1544px; margin: 0 auto; }
@@ -130,13 +130,13 @@
 
     .jgs-row {
         display: grid; grid-template-columns: 100px 160px 1fr 120px 1fr 220px; gap: 12px; align-items: center;
-        padding: 11px 16px; background: #141414; border: 1px solid #1e1e1e; border-radius: 10px;
+        padding: 11px 16px; background: var(--p-1); border: 1px solid var(--line-soft); border-radius: 10px;
         margin-bottom: 6px; transition: border-color 0.15s, background 0.15s;
     }
-    .jgs-row:hover { background: #1a1a1a; border-color: #2a2a2a; }
+    .jgs-row:hover { background: var(--p-2); border-color: var(--line-strong); }
 
-    .jgs-data-dia { font-size: 0.8rem; font-weight: 600; color: #e5e7eb; }
-    .jgs-data-hora { font-size: 0.68rem; color: #4b5563; margin-top: 1px; }
+    .jgs-data-dia { font-size: 0.8rem; font-weight: 600; color: var(--text); }
+    .jgs-data-hora { font-size: 0.68rem; color: var(--text-dimmer); margin-top: 1px; }
 
     .jgs-comp-badge {
         display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 5px;
@@ -146,21 +146,21 @@
 
     .jgs-team-cell { display: flex; align-items: center; gap: 8px; min-width: 0; }
     .jgs-team-badge {
-        width: 28px; height: 28px; border-radius: 50%; background: #0f0f0f; border: 1px solid #2a2a2a;
+        width: 28px; height: 28px; border-radius: 50%; background: var(--p-0); border: 1px solid var(--line-strong);
         display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;
-        font-size: 9px; font-weight: 700; color: #6b7280;
+        font-size: 9px; font-weight: 700; color: var(--text-dim);
     }
     .jgs-team-badge img { width: 90%; height: 90%; object-fit: contain; }
     .jgs-team-cell span { font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     .jgs-score-wrap { text-align: center; }
     .jgs-score {
-        font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.2rem; font-weight: 800; color: #f1f5f9;
-        background: #0f0f0f; padding: 3px 12px; border-radius: 6px; letter-spacing: 0.08em; white-space: nowrap;
+        font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.2rem; font-weight: 800; color: var(--text-strong);
+        background: var(--p-0); padding: 3px 12px; border-radius: 6px; letter-spacing: 0.08em; white-space: nowrap;
     }
-    .jgs-pen { display: block; font-size: 0.6rem; color: #6b7280; margin-top: 2px; }
+    .jgs-pen { display: block; font-size: 0.6rem; color: var(--text-dim); margin-top: 2px; }
     .jgs-agendado {
-        font-size: 0.72rem; font-weight: 600; color: #60a5fa; background: rgba(59,130,246,0.1);
+        font-size: 0.72rem; font-weight: 600; color: var(--info); background: rgba(59,130,246,0.1);
         border: 1px solid rgba(59,130,246,0.25); padding: 3px 10px; border-radius: 6px; white-space: nowrap;
     }
 
@@ -168,31 +168,31 @@
     .jgs-actions a {
         font-size: 0.7rem; padding: 4px 10px; border-radius: 6px; font-weight: 700; flex-shrink: 0; white-space: nowrap;
     }
-    .jgs-act-detalhes { background: transparent; border: 1px solid #3b82f6; color: #6ea8fe; }
+    .jgs-act-detalhes { background: transparent; border: 1px solid #3b82f6; color: var(--info); }
     .jgs-act-detalhes:hover { background: rgba(59,130,246,0.1); }
     .jgs-badge-analisado {
         font-size: 0.65rem; padding: 3px 8px; background: rgba(34,197,94,0.1);
-        border: 1px solid rgba(34,197,94,0.25); border-radius: 5px; color: #4ade80; font-weight: 700;
+        border: 1px solid rgba(34,197,94,0.25); border-radius: 5px; color: var(--ok); font-weight: 700;
         white-space: nowrap;
     }
     .jgs-act-editar { background: #d97706; border: 1px solid #d97706; color: #fff; }
     .jgs-act-editar:hover { background: #b45309; }
-    .jgs-act-excluir { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: #f87171; }
+    .jgs-act-excluir { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: var(--bad); }
     .jgs-act-excluir:hover { background: rgba(239,68,68,0.15); }
 
-    .jgs-empty { text-align: center; color: #6b7280; padding: 3rem 1rem; font-size: 0.9rem; background: #161616; border: 1px solid #262626; border-radius: 12px; }
+    .jgs-empty { text-align: center; color: var(--text-dim); padding: 3rem 1rem; font-size: 0.9rem; background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; }
 
     /* ── Paginação ───────────────────────────────── */
     .jgs-pager { display: flex; align-items: center; justify-content: space-between; margin-top: 28px; flex-wrap: wrap; gap: 12px; }
-    .jgs-pager-info { font-size: 0.75rem; color: #4b5563; }
+    .jgs-pager-info { font-size: 0.75rem; color: var(--text-dimmer); }
     .jgs-pager-nav { display: flex; align-items: center; gap: 8px; }
     .jgs-pager-btn {
-        padding: 8px 16px; background: #161616; border: 1px solid #2a2a2a; border-radius: 8px;
-        color: #6b7280; font-size: 0.82rem; cursor: pointer; font-weight: 600;
+        padding: 8px 16px; background: var(--p-1); border: 1px solid var(--line-strong); border-radius: 8px;
+        color: var(--text-dim); font-size: 0.82rem; cursor: pointer; font-weight: 600;
     }
-    .jgs-pager-btn:hover { border-color: #d4a520; color: #d4a520; }
+    .jgs-pager-btn:hover { border-color: #d4a520; color: var(--gold-ink); }
     .jgs-pager-btn.disabled { opacity: 0.4; pointer-events: none; }
-    .jgs-pager-cur { font-size: 0.78rem; color: #4b5563; padding: 0 8px; }
+    .jgs-pager-cur { font-size: 0.78rem; color: var(--text-dimmer); padding: 0 8px; }
 
     @@media (max-width: 900px) {
         .jgs-row, .jgs-col-headers { grid-template-columns: 90px 1fr 100px; }
@@ -227,7 +227,7 @@
     }
 
     <!-- Hero -->
-    <div class="jgs-hero">
+    <div class="jgs-hero theme-dark-zone">
         <img class="jgs-hero-pattern" src="~/Images/banner/escudos-pattern.svg" alt="" />
         <div class="jgs-hero-stripe"></div>
         <div class="jgs-hero-fade"></div>
@@ -245,17 +245,17 @@
             </div>
             <div class="jgs-kpis">
                 <div>
-                    <div class="jgs-kpi-num" style="color:#d4a520;">@totalJogos</div>
+                    <div class="jgs-kpi-num" style="color:var(--gold-ink)">@totalJogos</div>
                     <div class="jgs-kpi-label">Total</div>
                 </div>
                 <div class="jgs-kpi-sep"></div>
                 <div>
-                    <div class="jgs-kpi-num" style="color:#22c55e;">@jogosFinalizados</div>
+                    <div class="jgs-kpi-num" style="color:var(--ok-2)">@jogosFinalizados</div>
                     <div class="jgs-kpi-label">Finalizados</div>
                 </div>
                 <div class="jgs-kpi-sep"></div>
                 <div>
-                    <div class="jgs-kpi-num" style="color:#60a5fa;">@jogosAgendados</div>
+                    <div class="jgs-kpi-num" style="color:var(--info)">@jogosAgendados</div>
                     <div class="jgs-kpi-label">Agendados</div>
                 </div>
             </div>
@@ -353,7 +353,7 @@
                                 @(jogo.TimeCasa?.Nome?.Length >= 3 ? jogo.TimeCasa.Nome.Substring(0, 3).ToUpper() : jogo.TimeCasa?.Nome)
                             }
                         </div>
-                        <span style="font-weight:@(casaVenceu ? "700" : "500"); color:@(casaVenceu ? "#f1f5f9" : "#6b7280");">@jogo.TimeCasa?.Nome</span>
+                        <span style="font-weight:@(casaVenceu ? "700" : "500"); color:@(casaVenceu ? "var(--text-strong)" : "var(--text-dim)");">@jogo.TimeCasa?.Nome</span>
                     </div>
 
                     <div class="jgs-score-wrap">
@@ -382,7 +382,7 @@
                                 @(jogo.TimeVisitante?.Nome?.Length >= 3 ? jogo.TimeVisitante.Nome.Substring(0, 3).ToUpper() : jogo.TimeVisitante?.Nome)
                             }
                         </div>
-                        <span style="font-weight:@(visVenceu ? "700" : "500"); color:@(visVenceu ? "#f1f5f9" : "#6b7280");">@jogo.TimeVisitante?.Nome</span>
+                        <span style="font-weight:@(visVenceu ? "700" : "500"); color:@(visVenceu ? "var(--text-strong)" : "var(--text-dim)");">@jogo.TimeVisitante?.Nome</span>
                     </div>
 
                     <div class="jgs-actions">

@@ -67,11 +67,15 @@ namespace ControleFutebolWeb.Filters
         // Account: usuário bloqueado precisa ver a tela de bloqueio/sair/redefinir senha.
         // Blog (leitura pública): é anônimo por design — um usuário logado e
         // inadimplente também pode ler o blog, como qualquer visitante.
+        // AnalisePublica (/analise/{token}): idem — quem abre o link não tem
+        // conta, e bloquear pela inadimplência de quem está logado no navegador
+        // derrubaria um link que nada tem a ver com ele.
         private static bool EhControllerIsento(ActionExecutingContext context)
         {
             if (context.ActionDescriptor is not ControllerActionDescriptor d) return false;
             return string.Equals(d.ControllerName, "Account", StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(d.ControllerName, "Blog", StringComparison.OrdinalIgnoreCase);
+                   string.Equals(d.ControllerName, "Blog", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(d.ControllerName, "AnalisePublica", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

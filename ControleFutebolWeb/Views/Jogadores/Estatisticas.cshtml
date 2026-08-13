@@ -10,7 +10,7 @@
         >= 8.5 => "#f59e0b",
         >= 7.5 => "#22c55e",
         >= 6.5 => "#3b82f6",
-        >= 5.5 => "#6b7280",
+        >= 5.5 => "var(--text-dim)",
         >= 4.5 => "#f97316",
         _      => "#ef4444"
     };
@@ -61,6 +61,11 @@
 
     var competicoes = ViewBag.Competicoes as List<Competicao> ?? new();
     var competicaoAtual = ViewBag.CompeticaoId as int?;
+
+    // Temporadas já vêm rotuladas pelo controller: "2025/26" nas ligas de calendário
+    // europeu, "2025" nas que coincidem com o ano civil (Brasileirão, Libertadores…).
+    var temporadas = ViewBag.Temporadas as List<(int Valor, string Rotulo)> ?? new();
+    var temporadaAtual = ViewBag.Temporada as int?;
 }
 
 <link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
@@ -69,8 +74,8 @@
 
     .je {
         margin: 0 -12px;
-        background: #0f0f0f;
-        color: #e5e7eb;
+        background: var(--p-0);
+        color: var(--text);
         font-family: 'Barlow', Arial, sans-serif;
         border-radius: 14px;
         overflow: hidden;
@@ -82,14 +87,14 @@
     .je-top { padding: 20px 2.5rem 0; }
     .je-voltar {
         display: inline-flex; align-items: center; gap: .4rem;
-        font-size: .8rem; color: #6b7280; margin-bottom: 14px;
+        font-size: .8rem; color: var(--text-dim); margin-bottom: 14px;
     }
-    .je-voltar:hover { color: #d4a520; }
+    .je-voltar:hover { color: var(--gold-ink); }
 
     /* ── Header do jogador ── */
     .je-header {
-        background: linear-gradient(135deg, #090909 0%, #141414 100%);
-        border-bottom: 1px solid #222;
+        background: linear-gradient(135deg, #090909 0%, #161616 100%);
+        border-bottom: 1px solid var(--line);
         padding: 32px 2.5rem 28px;
     }
     .je-header-inner {
@@ -99,15 +104,16 @@
 
     .je-escudo-wrap {
         width: 64px; height: 64px; border-radius: 50%;
-        background: #0f0f0f; border: 1px solid #2a2a2a;
+        background: var(--p-0); border: 1px solid var(--line-strong);
         display: flex; align-items: center; justify-content: center;
         overflow: hidden; flex-shrink: 0;
     }
     .je-escudo-wrap img { width: 82%; height: 82%; object-fit: contain; }
+    a.je-escudo-wrap:hover { border-color: var(--gold-ink); }
 
     .je-foto-wrap {
         width: 72px; height: 72px; border-radius: 12px;
-        background: #1e293b; border: 2px solid #2a3a52;
+        background: var(--p-alt-2); border: 2px solid var(--p-alt-3);
         display: flex; align-items: center; justify-content: center;
         overflow: hidden; flex-shrink: 0;
     }
@@ -115,72 +121,143 @@
 
     .je-info { flex: 1; min-width: 200px; }
     .je-nome {
-        font-size: 2.4rem; font-weight: 800; color: #f1f5f9;
+        font-size: 2.4rem; font-weight: 800; color: var(--text-strong);
         margin: 0 0 6px; line-height: 1;
     }
     .je-meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
     .je-pos-badge {
         display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 6px;
         background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.35);
-        color: #4ade80; font-size: .72rem; font-weight: 700; letter-spacing: .06em;
+        color: var(--ok); font-size: .72rem; font-weight: 700; letter-spacing: .06em;
     }
-    .je-meta-item { font-size: .8rem; color: #6b7280; display: flex; align-items: center; gap: 6px; }
+    .je-meta-item { font-size: .8rem; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
     .je-meta-item img { width: 16px; height: 16px; object-fit: contain; }
-    .je-meta-item.je-meta-clube { color: #9ca3af; }
+    .je-meta-item.je-meta-clube { color: var(--text-muted); }
+    /* Clube/seleção clicáveis → página do time */
+    a.je-meta-clube { text-decoration: none; }
+    a.je-meta-clube:hover { color: var(--gold-ink); text-decoration: underline; }
 
     .je-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; flex-wrap: wrap; }
     .je-select-wrap { position: relative; }
     .je-select {
-        appearance: none; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px;
-        color: #9ca3af; font-size: .82rem; padding: 8px 28px 8px 12px; cursor: pointer; outline: none;
+        appearance: none; background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 8px;
+        color: var(--text-muted); font-size: .82rem; padding: 8px 28px 8px 12px; cursor: pointer; outline: none;
     }
     .je-select:focus { border-color: #d4a520; }
     .je-select-arrow { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: #555; pointer-events: none; }
-    .je-clear { font-size: .75rem; color: #6b7280; }
-    .je-clear:hover { color: #d4a520; }
+    .je-clear { font-size: .75rem; color: var(--text-dim); }
+    .je-clear:hover { color: var(--gold-ink); }
 
     .je-btn-semelhantes {
         display: flex; align-items: center; gap: 7px; padding: 8px 16px;
         background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.28); border-radius: 8px;
-        color: #4ade80; font-size: .8rem; font-weight: 700; cursor: pointer;
+        color: var(--ok); font-size: .8rem; font-weight: 700; cursor: pointer;
     }
     .je-btn-semelhantes:hover { background: rgba(34,197,94,0.2); }
 
     .je-btn-observacoes {
         display: flex; align-items: center; gap: 7px; padding: 8px 16px;
         background: rgba(212,165,32,0.1); border: 1px solid rgba(212,165,32,0.28); border-radius: 8px;
-        color: #d4a520; font-size: .8rem; font-weight: 700; cursor: pointer;
+        color: var(--gold-ink); font-size: .8rem; font-weight: 700; cursor: pointer;
+        text-decoration: none;
     }
+    .je-btn-observacoes:hover { color: var(--gold-ink); text-decoration: none; }
     .je-btn-observacoes:hover { background: rgba(212,165,32,0.2); }
+
+    .je-btn-transferencias {
+        display: flex; align-items: center; gap: 7px; padding: 8px 16px;
+        background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.28); border-radius: 8px;
+        color: var(--purple); font-size: .8rem; font-weight: 700; cursor: pointer;
+    }
+    .je-btn-transferencias:hover { background: rgba(168,85,247,0.2); }
 
     /* ── Conteúdo principal ── */
     .je-main { padding: 28px 2.5rem 64px; max-width: 1244px; margin: 0 auto; }
 
     .je-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
     .je-resumo-card {
-        background: #161616; border: 1px solid #262626; border-radius: 12px;
+        background: var(--p-1); border: 1px solid var(--line); border-radius: 12px;
         padding: 18px 14px; text-align: center; position: relative; overflow: hidden;
     }
     .je-resumo-card::before {
         content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
         background: var(--je-cor, #22c55e);
     }
-    .je-resumo-valor { font-size: 2.4rem; font-weight: 800; line-height: 1; color: var(--je-cor, #22c55e); }
-    .je-resumo-label { font-size: .68rem; color: #4b5563; text-transform: uppercase; letter-spacing: .1em; font-weight: 700; margin-top: 4px; }
+    .je-resumo-valor { font-size: 2.4rem; font-weight: 800; line-height: 1; color: var(--je-cor, var(--ok-2)); }
+    .je-resumo-label { font-size: .68rem; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: .1em; font-weight: 700; margin-top: 4px; }
 
-    .je-perf { background: #161616; border: 1px solid #262626; border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; }
+    .je-perf { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; }
     .je-perf-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 6px; }
-    .je-perf-label { font-size: .68rem; font-weight: 700; letter-spacing: .14em; color: #6b7280; text-transform: uppercase; }
+    .je-perf-label { font-size: .68rem; font-weight: 700; letter-spacing: .14em; color: var(--text-dim); text-transform: uppercase; }
     .je-perf-valor { font-size: 1rem; font-weight: 800; }
-    .je-perf-track { background: #222; border-radius: 999px; height: 10px; overflow: hidden; }
+    .je-perf-track { background: var(--p-3); border-radius: 999px; height: 10px; overflow: hidden; }
     .je-perf-fill { height: 100%; border-radius: 999px; transition: width .8s ease; }
     .je-perf-escala { display: flex; justify-content: space-between; margin-top: 6px; font-size: .68rem; color: #374151; }
 
     .je-perfil-grid { display: grid; grid-template-columns: 280px 1fr 320px; gap: 16px; margin-bottom: 24px; align-items: start; }
     @@media (max-width: 1100px) { .je-perfil-grid { grid-template-columns: 1fr; } }
 
-    .je-card { background: #161616; border: 1px solid #262626; border-radius: 12px; padding: 20px; }
-    .je-card-titulo { font-size: .68rem; font-weight: 700; letter-spacing: .14em; color: #6b7280; text-transform: uppercase; margin-bottom: 16px; }
+    .je-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 20px; position: relative; }
+    /* padding-right reservado pro botão "Ampliar", que é posicionado no canto
+       (em vez de entrar no fluxo do título, que varia de card pra card). */
+    .je-card-titulo { font-size: .68rem; font-weight: 700; letter-spacing: .14em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 16px; padding-right: 92px; }
+
+    /* ── Ampliar card (tela cheia) ──────────────────────────────────────────
+       O card é movido para um overlay em document.body (position:fixed puro
+       quebraria dentro de ancestral com transform), com um placeholder
+       guardando o lugar dele no grid. */
+    .je-zoom {
+        position: absolute; top: 16px; right: 16px; z-index: 3; cursor: pointer;
+        background: var(--p-0); border: 1px solid var(--line-strong); color: var(--text-dim); border-radius: 8px;
+        font-family: 'Barlow', Arial, sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0;
+        text-transform: none; padding: .25rem .6rem; display: inline-flex; align-items: center; gap: 5px;
+    }
+    .je-zoom:hover { color: var(--text-strong); border-color: var(--line-strong); }
+
+    .je-overlay { position: fixed; inset: 0; z-index: 2000; background: rgba(6,6,6,.93); padding: 2.5vh 2.5vw; overflow: auto; }
+    .je-card.je-ampliado { margin: 0; height: 95vh; display: flex; flex-direction: column; overflow: auto; }
+    .je-ampliado > .je-card-titulo { flex-shrink: 0; font-size: .8rem; }
+
+    /* Posições em campo: no lugar dos 130px fixos, a largura vira uma fração da
+       tela (o aspect-ratio deriva a altura). Dimensionar pela largura — e não
+       por height:100% — garante que o campo nunca fique mais largo que o card
+       em telas baixas/estreitas, onde a altura disponível é maior que a
+       largura disponível. */
+    .je-ampliado .je-campo-row { flex: 1 1 auto; min-height: 0; gap: 28px; }
+    .je-ampliado .je-campo { width: min(45%, 50vh); height: auto; }
+    .je-ampliado .je-campo-dot { width: 44px; height: 44px; font-size: 13px; }
+    .je-ampliado .je-campo-circulo { width: 22%; height: 14.7%; }
+    .je-ampliado .je-pos-lista { gap: 14px; }
+    .je-ampliado .je-pos-sigla { width: 46px; font-size: .9rem; padding: 5px 0; }
+    .je-ampliado .je-pos-nome { font-size: 1rem; }
+    .je-ampliado .je-pos-sub { font-size: .8rem; }
+
+    /* Mapa de calor: idem — a altura manda e o canvas é redesenhado no tamanho novo. */
+    .je-ampliado .je-heatmap-body { flex: 1 1 auto; min-height: 0; justify-content: center; }
+    .je-ampliado .je-heatmap-pitch { width: min(100%, 52vh); max-width: none; height: auto; }
+    .je-ampliado .je-heatmap-legend { max-width: 420px; }
+    .je-ampliado .je-heatmap-legend span { font-size: .75rem; }
+
+    /* Médias por jogo: donuts e chips maiores; o que não couber rola no card. */
+    .je-ampliado .je-donuts { gap: 28px; margin-bottom: 28px; }
+    .je-ampliado .je-donut-ring { width: 150px; height: 150px; }
+    .je-ampliado .je-donut-hole { width: 110px; height: 110px; font-size: 1.7rem; }
+    .je-ampliado .je-donut-label { font-size: 1.05rem; margin-top: 10px; }
+    .je-ampliado .je-donut-sub { font-size: .82rem; }
+    .je-ampliado .je-chips { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+    .je-ampliado .je-chip { padding: 14px 8px; }
+    .je-ampliado .je-chip-valor { font-size: 1.6rem; }
+    .je-ampliado .je-chip-label { font-size: .7rem; }
+
+    @@media (max-width: 768px) {
+        .je-overlay { padding: 1rem .6rem; }
+        .je-card.je-ampliado { height: calc(100vh - 2rem); }
+        /* Lado a lado não cabe no celular: campo em cima, lista de posições embaixo. */
+        .je-ampliado .je-campo-row { flex-direction: column; align-items: center; }
+        .je-ampliado .je-campo { width: min(100%, 42vh); }
+        .je-ampliado .je-pos-lista { width: 100%; }
+        .je-ampliado .je-heatmap-pitch { width: min(100%, 42vh); }
+    }
 
     .je-campo-row { display: flex; gap: 16px; align-items: flex-start; }
     .je-campo {
@@ -208,7 +285,7 @@
 
     .je-heatmap-badge {
         font-size: .6rem; font-weight: 700; padding: 2px 8px; border-radius: 999px;
-        background: rgba(212,165,32,.12); color: #d4a520; border: 1px solid rgba(212,165,32,.25);
+        background: rgba(212,165,32,.12); color: var(--gold-ink); border: 1px solid rgba(212,165,32,.25);
         text-transform: none; letter-spacing: 0;
     }
     .je-heatmap-body { display: flex; flex-direction: column; align-items: center; }
@@ -221,118 +298,121 @@
     .je-pos-item { display: flex; align-items: center; gap: 8px; }
     .je-pos-sigla {
         flex-shrink: 0; width: 34px; text-align: center; padding: 2px 0; border-radius: 6px;
-        font-size: .72rem; font-weight: 800; background: #334155; color: #f1f5f9;
+        font-size: .72rem; font-weight: 800; background: var(--p-alt-3); color: var(--text-strong);
     }
     .je-pos-item-principal .je-pos-sigla { background: #facc15; color: #0f172a; }
-    .je-pos-nome { font-size: .82rem; font-weight: 600; color: #e5e7eb; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .je-pos-sub { font-size: .68rem; color: #6b7280; }
+    .je-pos-nome { font-size: .82rem; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .je-pos-sub { font-size: .68rem; color: var(--text-dim); }
 
-    .je-destaques-label { font-size: .6rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
+    .je-destaques-label { font-size: .6rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
     .je-donuts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
     .je-donut { text-align: center; min-width: 0; }
     .je-donut-ring { width: 74px; height: 74px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
-    .je-donut-hole { width: 54px; height: 54px; border-radius: 50%; background: #1a1a1a; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: .9rem; color: #f1f5f9; }
-    .je-donut-label { font-size: .82rem; font-weight: 600; color: #e5e7eb; margin-top: 6px; }
-    .je-donut-sub { font-size: .68rem; color: #6b7280; margin-top: 2px; }
+    .je-donut-hole { width: 54px; height: 54px; border-radius: 50%; background: var(--p-2); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: .9rem; color: var(--text-strong); }
+    .je-donut-label { font-size: .82rem; font-weight: 600; color: var(--text); margin-top: 6px; }
+    .je-donut-sub { font-size: .68rem; color: var(--text-dim); margin-top: 2px; }
 
     .je-chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
     @@media (max-width: 560px) { .je-chips { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-    .je-chip { background: rgba(255,255,255,.03); border: 1px solid #222; border-radius: 10px; padding: 8px 4px; text-align: center; min-width: 0; }
-    .je-chip-valor { font-size: 1.05rem; font-weight: 800; color: #f1f5f9; line-height: 1; }
-    .je-chip-label { font-size: .56rem; color: #6b7280; text-transform: uppercase; letter-spacing: .04em; margin-top: 3px; overflow-wrap: break-word; }
+    .je-chip { background: rgba(255,255,255,.03); border: 1px solid var(--line); border-radius: 10px; padding: 8px 4px; text-align: center; min-width: 0; }
+    .je-chip-valor { font-size: 1.05rem; font-weight: 800; color: var(--text-strong); line-height: 1; }
+    .je-chip-label { font-size: .56rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .04em; margin-top: 3px; overflow-wrap: break-word; }
 
     .je-section { margin-bottom: 24px; }
     .je-section-row { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; cursor: pointer; background: none; border: none; width: 100%; padding: 0 0 16px; border-bottom: 1px solid transparent; }
-    .je-section-row.je-com-linha { border-bottom-color: #222; }
-    .je-section-titulo { font-size: .7rem; font-weight: 700; letter-spacing: .18em; color: #6b7280; text-transform: uppercase; white-space: nowrap; }
-    .je-section-linha { flex: 1; height: 1px; background: #222; }
-    .je-section-badge { font-size: .68rem; padding: 2px 10px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 999px; color: #6b7280; font-weight: 600; }
-    .je-section-chevron { color: #6b7280; flex-shrink: 0; transition: transform .15s; }
+    .je-section-row.je-com-linha { border-bottom-color: var(--line); }
+    .je-section-titulo { font-size: .7rem; font-weight: 700; letter-spacing: .18em; color: var(--text-dim); text-transform: uppercase; white-space: nowrap; }
+    .je-section-linha { flex: 1; height: 1px; background: var(--p-3); }
+    .je-section-badge { font-size: .68rem; padding: 2px 10px; background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 999px; color: var(--text-dim); font-weight: 600; }
+    .je-section-chevron { color: var(--text-dim); flex-shrink: 0; transition: transform .15s; }
 
     .je-season-selector { display: flex; align-items: center; gap: .5rem; margin-bottom: 1rem; flex-wrap: wrap; }
     .je-season-btn {
-        background: #161616; border: 1px solid #262626; color: #9ca3af;
+        background: var(--p-1); border: 1px solid var(--line); color: var(--text-muted);
         font-size: .8rem; font-weight: 600; padding: 6px 14px; border-radius: 999px; cursor: pointer; transition: all .15s;
     }
     .je-season-btn.active, .je-season-btn:hover { background: #d4a520; border-color: #d4a520; color: #141414; }
 
     .je-temporada-grid { display: grid; gap: 1rem; }
-    .je-temporada-card { background: #161616; border: 1px solid #262626; border-radius: 12px; overflow: hidden; }
-    .je-temporada-header { display: flex; align-items: center; gap: .75rem; padding: 14px 20px; border-bottom: 1px solid #1e1e1e; background: #111; }
+    .je-temporada-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+    .je-temporada-header { display: flex; align-items: center; gap: .75rem; padding: 14px 20px; border-bottom: 1px solid var(--line-soft); background: var(--p-0); }
     .je-temporada-logo { width: 28px; height: 28px; object-fit: contain; }
-    .je-temporada-nome { font-size: 1rem; font-weight: 700; color: #f1f5f9; flex: 1; min-width: 0; }
-    .je-temporada-pais { font-size: .75rem; color: #6b7280; display: flex; align-items: center; gap: 5px; }
+    .je-temporada-nome { font-size: 1rem; font-weight: 700; color: var(--text-strong); flex: 1; min-width: 0; }
+    .je-temporada-pais { font-size: .75rem; color: var(--text-dim); display: flex; align-items: center; gap: 5px; }
     .je-rating-badge {
         font-size: .9rem; font-weight: 800; padding: 2px 10px; border-radius: 999px;
-        background: rgba(212,165,32,.12); color: #d4a520; border: 1px solid rgba(212,165,32,.25); flex-shrink: 0;
+        background: rgba(212,165,32,.12); color: var(--gold-ink); border: 1px solid rgba(212,165,32,.25); flex-shrink: 0;
     }
     .je-temporada-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
-    .je-stat-box { padding: 14px 8px; text-align: center; border-right: 1px solid #1e1e1e; border-bottom: 1px solid #1e1e1e; }
-    .je-stat-val { font-size: 1.5rem; font-weight: 800; line-height: 1; color: #f1f5f9; }
-    .je-stat-lbl { font-size: .58rem; color: #4b5563; text-transform: uppercase; letter-spacing: .06em; margin-top: 3px; font-weight: 700; }
-    .je-stat-val.hl-green  { color: #4ade80; }
-    .je-stat-val.hl-blue   { color: #60a5fa; }
-    .je-stat-val.hl-orange { color: #fb923c; }
-    .je-stat-val.hl-yellow { color: #facc15; }
-    .je-temporada-footer { display: flex; gap: .5rem; flex-wrap: wrap; padding: 10px 20px; background: rgba(0,0,0,.15); font-size: .72rem; color: #6b7280; }
+    .je-stat-box { padding: 14px 8px; text-align: center; border-right: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }
+    .je-stat-val { font-size: 1.5rem; font-weight: 800; line-height: 1; color: var(--text-strong); }
+    .je-stat-lbl { font-size: .58rem; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: .06em; margin-top: 3px; font-weight: 700; }
+    .je-stat-val.hl-green  { color: var(--ok); }
+    .je-stat-val.hl-blue   { color: var(--info); }
+    .je-stat-val.hl-orange { color: var(--warn); }
+    .je-stat-val.hl-yellow { color: var(--warn); }
+    .je-temporada-footer { display: flex; gap: .5rem; flex-wrap: wrap; padding: 10px 20px; background: rgba(0,0,0,.15); font-size: .72rem; color: var(--text-dim); }
     .je-temporada-chip { background: rgba(255,255,255,.06); border-radius: 999px; padding: 2px 10px; display: flex; align-items: center; gap: .3rem; }
 
     /* ── Histórico por jogo ── */
     .je-jogos-lista { display: flex; flex-direction: column; gap: 8px; }
-    .je-jogo-card { background: #161616; border: 1px solid #262626; border-radius: 12px; overflow: hidden; transition: border-color .15s; }
-    .je-jogo-card:hover { border-color: #2a2a2a; }
+    .je-jogo-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; transition: border-color .15s; }
+    .je-jogo-card:hover { border-color: var(--line-strong); }
     .je-jogo-row { display: flex; align-items: center; gap: 14px; padding: 14px 18px; flex-wrap: wrap; cursor: pointer; }
-    .je-jogo-row:hover .je-jogo-adv { color: #d4a520; }
+    .je-jogo-row:hover .je-jogo-adv { color: var(--gold-ink); }
     .je-jogo-badge { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #fff; flex-shrink: 0; }
     .je-jogo-info { flex: 1; min-width: 0; }
     .je-jogo-linha1 { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; flex-wrap: wrap; }
     .je-jogo-escudo { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; border-radius: 50%; }
-    .je-jogo-adv { font-size: .9rem; font-weight: 600; color: #f1f5f9; }
-    .je-jogo-placar { font-size: .82rem; color: #4b5563; font-weight: 500; margin-left: .3rem; }
+    /* Adversário clicável → página do time (sem disparar o clique do card) */
+    .je-jogo-adv-link { color: inherit; text-decoration: none; }
+    .je-jogo-adv-link:hover { color: var(--gold-ink); text-decoration: underline; }
+    .je-jogo-adv { font-size: .9rem; font-weight: 600; color: var(--text-strong); }
+    .je-jogo-placar { font-size: .82rem; color: var(--text-dimmer); font-weight: 500; margin-left: .3rem; }
     .je-tag { display: inline-flex; align-items: center; gap: 3px; font-size: .68rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; }
-    .je-tag-gol { background: rgba(34,197,94,.12); color: #4ade80; border: 1px solid rgba(34,197,94,.25); }
-    .je-tag-assist { background: rgba(251,146,60,.12); color: #fb923c; border: 1px solid rgba(251,146,60,.25); }
-    .je-tag-auto { font-size: .62rem; font-weight: 600; color: #38bdf8; padding: 1px 8px; border-radius: 999px; background: rgba(56,189,248,.1); border: 1px solid rgba(56,189,248,.25); }
-    .je-tag-sem { background: rgba(148,163,184,.12); color: #94a3b8; font-size: .62rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; border: 1px solid rgba(148,163,184,.25); }
-    .je-jogo-data { font-size: .68rem; color: #4b5563; }
+    .je-tag-gol { background: rgba(34,197,94,.12); color: var(--ok); border: 1px solid rgba(34,197,94,.25); }
+    .je-tag-assist { background: rgba(251,146,60,.12); color: var(--warn); border: 1px solid rgba(251,146,60,.25); }
+    .je-tag-auto { font-size: .62rem; font-weight: 600; color: var(--info); padding: 1px 8px; border-radius: 999px; background: rgba(56,189,248,.1); border: 1px solid rgba(56,189,248,.25); }
+    .je-tag-sem { background: rgba(148,163,184,.12); color: var(--text-muted); font-size: .62rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; border: 1px solid rgba(148,163,184,.25); }
+    .je-jogo-data { font-size: .68rem; color: var(--text-dimmer); }
 
     .je-nota-circle { width: 52px; height: 52px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; }
     .je-nota-val { font-size: 1rem; font-weight: 800; line-height: 1; }
     .je-nota-label { font-size: .52rem; font-weight: 600; opacity: .75; letter-spacing: .04em; margin-top: 1px; }
 
     .je-ver-analise {
-        font-size: .7rem; padding: 6px 12px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px;
-        color: #9ca3af; font-weight: 600; flex-shrink: 0; cursor: pointer;
+        font-size: .7rem; padding: 6px 12px; background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 8px;
+        color: var(--text-muted); font-weight: 600; flex-shrink: 0; cursor: pointer;
     }
-    .je-ver-analise:hover { border-color: #d4a520; color: #d4a520; }
-    .je-ver-analise.aberto { border-color: #d4a520; color: #d4a520; }
+    .je-ver-analise:hover { border-color: #d4a520; color: var(--gold-ink); }
+    .je-ver-analise.aberto { border-color: #d4a520; color: var(--gold-ink); }
 
-    .je-stats-mini { display: flex; gap: 0; padding: 8px 18px; background: #111; border-top: 1px solid #1e1e1e; flex-wrap: wrap; }
-    .je-stat-mini { flex: 1; text-align: center; padding: 0 4px; border-right: 1px solid #1e1e1e; min-width: 64px; }
+    .je-stats-mini { display: flex; gap: 0; padding: 8px 18px; background: var(--p-0); border-top: 1px solid var(--line-soft); flex-wrap: wrap; }
+    .je-stat-mini { flex: 1; text-align: center; padding: 0 4px; border-right: 1px solid var(--line-soft); min-width: 64px; }
     .je-stat-mini:last-child { border-right: none; }
-    .je-stat-mini-val { font-size: 1rem; font-weight: 800; color: #f1f5f9; line-height: 1; }
-    .je-stat-mini-lbl { font-size: .58rem; color: #4b5563; text-transform: uppercase; margin-top: 1px; }
+    .je-stat-mini-val { font-size: 1rem; font-weight: 800; color: var(--text-strong); line-height: 1; }
+    .je-stat-mini-lbl { font-size: .58rem; color: var(--text-dimmer); text-transform: uppercase; margin-top: 1px; }
 
-    .je-analise-panel { display: none; border-top: 1px solid #1e1e1e; background: #111; }
+    .je-analise-panel { display: none; border-top: 1px solid var(--line-soft); background: var(--p-0); }
     .je-analise-panel.aberto { display: block; }
-    .je-analise-comp { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; padding: 10px 18px; border-bottom: 1px solid #1e1e1e; font-size: 11px; }
+    .je-analise-comp { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; padding: 10px 18px; border-bottom: 1px solid var(--line-soft); font-size: 11px; }
     .je-analise-comp-titulo { color: rgba(255,255,255,.35); font-size: 10px; letter-spacing: .4px; text-transform: uppercase; width: 100%; margin-bottom: 2px; }
     .je-analise-comp span { color: rgba(255,255,255,.5); }
     .je-detalhes { padding: 10px 18px; display: flex; flex-wrap: wrap; gap: 6px; }
     .je-detalhe-chip { font-size: 10px; font-weight: 600; padding: 2px 9px; border-radius: 999px; border: 1px solid; }
-    .je-comentario { padding: 0 18px 10px; font-size: .78rem; color: #6b7280; font-style: italic; }
+    .je-comentario { padding: 0 18px 10px; font-size: .78rem; color: var(--text-dim); font-style: italic; }
     .je-obs { padding: 0 18px 10px; display: flex; flex-direction: column; gap: 4px; }
     .je-obs-item { font-size: 12.5px; color: #a7f3d0; background: rgba(5,150,105,.12); border: 1px solid rgba(5,150,105,.4); border-radius: 8px; padding: 6px 10px; }
 
     .je-historico-collapsed .je-jogo-card:nth-child(n+4) { display: none; }
     .je-btn-expand {
-        display: block; width: 100%; background: #161616; border: 1px dashed #262626; border-radius: 10px;
-        color: #6b7280; font-size: .85rem; padding: .65rem 1rem; cursor: pointer; text-align: center; margin-top: .4rem;
+        display: block; width: 100%; background: var(--p-1); border: 1px dashed var(--line); border-radius: 10px;
+        color: var(--text-dim); font-size: .85rem; padding: .65rem 1rem; cursor: pointer; text-align: center; margin-top: .4rem;
         transition: background .2s, color .2s;
     }
-    .je-btn-expand:hover { background: #262626; color: #e5e7eb; }
+    .je-btn-expand:hover { background: var(--p-4); color: var(--text); }
 
-    .je-sem-dados { text-align: center; color: #6b7280; padding: 3rem; font-size: .95rem; }
+    .je-sem-dados { text-align: center; color: var(--text-dim); padding: 3rem; font-size: .95rem; }
 
     /* ── Modal: jogadores semelhantes ── */
     .je-modal-overlay {
@@ -340,132 +420,162 @@
         display: none; align-items: flex-start; justify-content: center; z-index: 1000; padding: 2rem 1rem; overflow-y: auto;
     }
     .je-modal-overlay.open { display: flex; }
-    .je-modal-box { background: #0f0f0f; border: 1px solid #262626; border-radius: 16px; width: 100%; max-width: 720px; box-shadow: 0 20px 60px rgba(0,0,0,.6); overflow: hidden; font-family: 'Barlow', sans-serif; color: #e5e7eb; }
-    .je-modal-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.4rem; border-bottom: 1px solid #262626; }
+    .je-modal-box { background: var(--p-0); border: 1px solid var(--line); border-radius: 16px; width: 100%; max-width: 720px; box-shadow: 0 20px 60px rgba(0,0,0,.6); overflow: hidden; font-family: 'Barlow', sans-serif; color: var(--text); }
+    .je-modal-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.4rem; border-bottom: 1px solid var(--line); }
     .je-modal-titulo { font-size: 1.4rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; margin: 0; }
-    .je-modal-close { background: #161616; border: 1px solid #262626; color: #e5e7eb; width: 34px; height: 34px; border-radius: 8px; font-size: 1.1rem; cursor: pointer; flex-shrink: 0; }
-    .je-modal-close:hover { background: #262626; }
-    .je-modal-criterios { display: flex; flex-wrap: wrap; gap: .4rem; padding: .9rem 1.4rem; border-bottom: 1px solid #262626; background: rgba(0,0,0,.15); }
-    .je-criterio-chip { background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.3); color: #4ade80; font-size: .72rem; font-weight: 600; padding: .2rem .65rem; border-radius: 999px; }
+    .je-modal-close { background: var(--p-1); border: 1px solid var(--line); color: var(--text); width: 34px; height: 34px; border-radius: 8px; font-size: 1.1rem; cursor: pointer; flex-shrink: 0; }
+    .je-modal-close:hover { background: var(--p-4); }
+    .je-modal-criterios { display: flex; flex-wrap: wrap; gap: .4rem; padding: .9rem 1.4rem; border-bottom: 1px solid var(--line); background: rgba(0,0,0,.15); }
+    .je-criterio-chip { background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.3); color: var(--ok); font-size: .72rem; font-weight: 600; padding: .2rem .65rem; border-radius: 999px; }
     .je-modal-body { padding: 1rem 1.4rem 1.4rem; display: grid; gap: .6rem; }
-    .je-sem-card { display: flex; align-items: center; gap: .9rem; background: #161616; border: 1px solid #262626; border-radius: 12px; padding: .7rem .9rem; transition: border-color .2s, background .2s; }
-    .je-sem-card:hover { border-color: #4ade80; background: #1c1c1c; }
-    .je-sem-foto { width: 52px; height: 52px; border-radius: 10px; object-fit: cover; background: #262626; border: 1px solid #262626; flex-shrink: 0; }
+    .je-sem-card { display: flex; align-items: center; gap: .9rem; background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: .7rem .9rem; transition: border-color .2s, background .2s; }
+    .je-sem-card:hover { border-color: #4ade80; background: var(--p-2); }
+    .je-sem-foto { width: 52px; height: 52px; border-radius: 10px; object-fit: cover; background: var(--p-4); border: 1px solid var(--line); flex-shrink: 0; }
     .je-sem-info { flex: 1; min-width: 0; }
-    .je-sem-nome { font-size: 1.15rem; font-weight: 700; color: #f1f5f9; text-decoration: none; display: inline-flex; align-items: center; gap: .4rem; }
-    .je-sem-nome:hover { color: #4ade80; text-decoration: underline; }
-    .je-sem-meta { display: flex; flex-wrap: wrap; gap: .35rem .8rem; font-size: .75rem; color: #6b7280; margin-top: .2rem; }
+    .je-sem-nome { font-size: 1.15rem; font-weight: 700; color: var(--text-strong); text-decoration: none; display: inline-flex; align-items: center; gap: .4rem; }
+    .je-sem-nome:hover { color: var(--ok); text-decoration: underline; }
+    .je-sem-meta { display: flex; flex-wrap: wrap; gap: .35rem .8rem; font-size: .75rem; color: var(--text-dim); margin-top: .2rem; }
     .je-sem-meta span { display: inline-flex; align-items: center; gap: .25rem; }
     .je-sem-stats { display: flex; gap: .4rem; flex-shrink: 0; justify-content: flex-end; flex-wrap: wrap; max-width: 190px; }
     .je-sem-stat { text-align: center; min-width: 36px; }
-    .je-sem-stat-val { font-size: 1.2rem; font-weight: 800; line-height: 1; color: #f1f5f9; }
-    .je-sem-stat-lbl { font-size: .6rem; text-transform: uppercase; color: #6b7280; letter-spacing: .05em; margin-top: .15rem; }
+    .je-sem-stat-val { font-size: 1.2rem; font-weight: 800; line-height: 1; color: var(--text-strong); }
+    .je-sem-stat-lbl { font-size: .6rem; text-transform: uppercase; color: var(--text-dim); letter-spacing: .05em; margin-top: .15rem; }
     .je-sem-escudo { width: 14px; height: 14px; object-fit: contain; vertical-align: middle; }
-
-    /* ── Modal: observações que referenciam o jogador ── */
-    .je-obs-secao { margin-bottom: 1.4rem; }
-    .je-obs-secao:last-child { margin-bottom: 0; }
-    .je-obs-secao-titulo {
-        font-size: .68rem; font-weight: 700; letter-spacing: .14em; color: #6b7280;
-        text-transform: uppercase; margin-bottom: .6rem; display: flex; align-items: center; gap: .5rem;
-    }
-    .je-obs-secao-titulo .cnt { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 999px; padding: 1px 8px; letter-spacing: 0; }
-    .je-obs-card { background: #161616; border: 1px solid #262626; border-radius: 12px; padding: .8rem 1rem; margin-bottom: .55rem; }
-    .je-obs-card:hover { border-color: #333; }
-    .je-obs-card-head { display: flex; align-items: flex-start; gap: .6rem; margin-bottom: .4rem; flex-wrap: wrap; }
-    .je-obs-card-titulo { flex: 1; font-size: 1rem; font-weight: 700; color: #f1f5f9; line-height: 1.3; min-width: 0; }
-    .je-obs-cat {
-        font-size: .6rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
-        padding: 2px 9px; border-radius: 999px; flex-shrink: 0;
-        background: rgba(212,165,32,.12); border: 1px solid rgba(212,165,32,.3); color: #d4a520;
-    }
-    .je-obs-texto { font-size: .84rem; color: #9ca3af; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
-    .je-obs-card-foot {
-        display: flex; align-items: center; justify-content: space-between; gap: .6rem; flex-wrap: wrap;
-        margin-top: .6rem; padding-top: .5rem; border-top: 1px solid #1e1e1e; font-size: .68rem; color: #4b5563;
-    }
-    .je-obs-card-foot a { color: #6b7280; font-weight: 600; text-decoration: none; }
-    .je-obs-card-foot a:hover { color: #d4a520; }
-    .je-obs-clube { display: inline-flex; align-items: center; gap: .35rem; }
-    .je-obs-clube img { width: 14px; height: 14px; object-fit: contain; }
-    .je-obs-mencao { color: #d4a520; font-weight: 600; text-decoration: none; }
-    .je-obs-mencao:hover { text-decoration: underline; }
+    /* Clube clicável dentro dos modais (semelhantes / comparar) */
+    .je-clube-link { color: inherit; text-decoration: none; }
+    .je-clube-link:hover { color: var(--gold-ink); text-decoration: underline; }
 
     /* ── Modal: comparar jogadores ── */
     .je-btn-comparar {
         display: flex; align-items: center; gap: 7px; padding: 8px 16px;
         background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.28); border-radius: 8px;
-        color: #60a5fa; font-size: .8rem; font-weight: 700; cursor: pointer;
+        color: var(--info); font-size: .8rem; font-weight: 700; cursor: pointer;
     }
     .je-btn-comparar:hover { background: rgba(96,165,250,0.2); }
+
+    /* ── Modal: transferência para clube fora do sistema ── */
+    .je-tr-box { max-width: 760px; }
+    .je-tr-box .je-modal-body { display: block; }
+    .je-tr-atual {
+        padding: .9rem 1.4rem; border-bottom: 1px solid var(--line); background: rgba(0,0,0,.15);
+        font-size: .8rem; color: var(--text-muted); display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+    }
+    .je-tr-atual img { width: 18px; height: 18px; object-fit: contain; }
+    .je-tr-atual strong { color: var(--text); }
+    .je-tr-picker {
+        padding: .9rem 1.4rem; border-bottom: 1px solid var(--line);
+        display: flex; flex-wrap: wrap; align-items: center; gap: .6rem;
+    }
+    .je-tr-picker .je-select { max-width: 240px; }
+    .je-tr-buscar {
+        padding: 8px 16px; background: rgba(168,85,247,.12); border: 1px solid rgba(168,85,247,.32);
+        border-radius: 8px; color: var(--purple); font-size: .8rem; font-weight: 700; cursor: pointer; font-family: inherit;
+    }
+    .je-tr-buscar:hover:not(:disabled) { background: rgba(168,85,247,.22); }
+    .je-tr-buscar:disabled { opacity: .4; cursor: not-allowed; }
+    .je-tr-aposentou {
+        margin-left: auto; padding: 8px 16px; background: rgba(251,191,36,.1);
+        border: 1px solid rgba(251,191,36,.3); border-radius: 8px; color: var(--warn);
+        font-size: .8rem; font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap;
+    }
+    .je-tr-aposentou:hover:not(:disabled) { background: rgba(251,191,36,.2); }
+    .je-tr-aposentou:disabled { opacity: .45; cursor: not-allowed; }
+    .je-tr-badge-aposentado {
+        display: inline-flex; align-items: center; gap: .3rem; font-size: .72rem; font-weight: 700;
+        color: var(--warn); background: rgba(251,191,36,.1); border: 1px solid rgba(251,191,36,.28);
+        border-radius: 999px; padding: .1rem .55rem;
+    }
+    .je-tr-filtro {
+        width: 100%; background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 8px;
+        color: var(--text); font-size: .82rem; padding: 8px 12px; outline: none; font-family: inherit; margin-bottom: .8rem;
+    }
+    .je-tr-filtro:focus { border-color: #c084fc; }
+    .je-tr-lista { display: grid; gap: .5rem; max-height: 420px; overflow-y: auto; }
+    .je-tr-clube {
+        display: flex; align-items: center; gap: .8rem; background: var(--p-1); border: 1px solid var(--line);
+        border-radius: 10px; padding: .6rem .8rem; cursor: pointer; text-align: left; width: 100%;
+        font-family: inherit; color: inherit; transition: border-color .2s, background .2s;
+    }
+    .je-tr-clube:hover { border-color: #c084fc; background: var(--p-2); }
+    .je-tr-clube img { width: 30px; height: 30px; object-fit: contain; flex-shrink: 0; }
+    .je-tr-clube-nome { font-size: .92rem; font-weight: 700; color: var(--text-strong); }
+    .je-tr-clube-meta { font-size: .7rem; color: var(--text-dim); margin-top: .1rem; }
+    .je-tr-tag {
+        margin-left: auto; flex-shrink: 0; font-size: .65rem; font-weight: 700; padding: .18rem .55rem;
+        border-radius: 999px; text-transform: uppercase; letter-spacing: .04em;
+    }
+    .je-tr-tag.cadastrado { background: rgba(74,222,128,.12); border: 1px solid rgba(74,222,128,.3); color: var(--ok); }
+    .je-tr-tag.novo { background: rgba(168,85,247,.12); border: 1px solid rgba(168,85,247,.3); color: var(--purple); }
+    .je-tr-msg { text-align: center; color: var(--text-dim); padding: 2rem 1rem; font-size: .88rem; }
+    .je-tr-msg.erro { color: var(--bad); }
 
     .je-cmp-box { max-width: 880px; }
     .je-cmp-box .je-modal-body { display: block; }
     .je-cmp-picker {
-        padding: .9rem 1.4rem; border-bottom: 1px solid #262626; background: rgba(0,0,0,.15);
+        padding: .9rem 1.4rem; border-bottom: 1px solid var(--line); background: rgba(0,0,0,.15);
         display: flex; flex-wrap: wrap; align-items: center; gap: .6rem;
     }
     .je-cmp-picker .je-select { max-width: 210px; }
-    .je-cmp-ou { font-size: .68rem; color: #4b5563; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
+    .je-cmp-ou { font-size: .68rem; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
     .je-cmp-busca-wrap { position: relative; flex: 1; min-width: 190px; }
     .je-cmp-busca {
-        width: 100%; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px;
-        color: #e5e7eb; font-size: .82rem; padding: 8px 12px; outline: none; font-family: inherit;
+        width: 100%; background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 8px;
+        color: var(--text); font-size: .82rem; padding: 8px 12px; outline: none; font-family: inherit;
     }
     .je-cmp-busca:focus { border-color: #60a5fa; }
     .je-cmp-busca-resultados {
         position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 10;
-        background: #161616; border: 1px solid #2a2a2a; border-radius: 10px;
+        background: var(--p-1); border: 1px solid var(--line-strong); border-radius: 10px;
         max-height: 260px; overflow-y: auto; display: none; box-shadow: 0 12px 30px rgba(0,0,0,.5);
     }
     .je-cmp-busca-resultados.open { display: block; }
     .je-cmp-busca-item { display: flex; align-items: center; gap: .6rem; padding: .5rem .7rem; cursor: pointer; }
-    .je-cmp-busca-item:hover { background: #1f1f1f; }
-    .je-cmp-busca-item img { width: 30px; height: 30px; border-radius: 6px; object-fit: cover; background: #262626; flex-shrink: 0; }
-    .je-cmp-busca-nome { font-size: .85rem; font-weight: 600; color: #f1f5f9; }
-    .je-cmp-busca-sub { font-size: .68rem; color: #6b7280; }
+    .je-cmp-busca-item:hover { background: var(--p-3); }
+    .je-cmp-busca-item img { width: 30px; height: 30px; border-radius: 6px; object-fit: cover; background: var(--p-4); flex-shrink: 0; }
+    .je-cmp-busca-nome { font-size: .85rem; font-weight: 600; color: var(--text-strong); }
+    .je-cmp-busca-sub { font-size: .68rem; color: var(--text-dim); }
 
-    .je-cmp-vazio { text-align: center; color: #6b7280; padding: 2.5rem 1rem; font-size: .9rem; }
+    .je-cmp-vazio { text-align: center; color: var(--text-dim); padding: 2.5rem 1rem; font-size: .9rem; }
 
     .je-cmp-head { display: grid; grid-template-columns: 1fr auto 1fr; gap: .8rem; align-items: stretch; margin-bottom: 1rem; }
     @@media (max-width: 640px) { .je-cmp-head { grid-template-columns: 1fr; } .je-cmp-vs { text-align: center; } }
     .je-cmp-jog {
-        background: #161616; border: 1px solid #262626; border-radius: 12px; padding: .8rem;
+        background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: .8rem;
         display: flex; align-items: center; gap: .7rem; border-top: 3px solid var(--cor, #4b5563);
     }
-    .je-cmp-jog img.foto { width: 52px; height: 52px; border-radius: 10px; object-fit: cover; background: #262626; flex-shrink: 0; }
-    .je-cmp-jog-nome { font-size: 1.05rem; font-weight: 800; color: #f1f5f9; line-height: 1.15; }
-    .je-cmp-jog-nome:hover { color: var(--cor, #d4a520); text-decoration: underline; }
-    .je-cmp-jog-sub { font-size: .7rem; color: #6b7280; margin-top: .25rem; display: flex; flex-wrap: wrap; gap: .2rem .6rem; }
-    .je-cmp-vs { align-self: center; font-size: 1rem; font-weight: 800; color: #4b5563; }
+    .je-cmp-jog img.foto { width: 52px; height: 52px; border-radius: 10px; object-fit: cover; background: var(--p-4); flex-shrink: 0; }
+    .je-cmp-jog-nome { font-size: 1.05rem; font-weight: 800; color: var(--text-strong); line-height: 1.15; }
+    .je-cmp-jog-nome:hover { color: var(--cor, var(--gold-ink)); text-decoration: underline; }
+    .je-cmp-jog-sub { font-size: .7rem; color: var(--text-dim); margin-top: .25rem; display: flex; flex-wrap: wrap; gap: .2rem .6rem; }
+    .je-cmp-vs { align-self: center; font-size: 1rem; font-weight: 800; color: var(--text-dimmer); }
 
     .je-cmp-aviso {
-        font-size: .74rem; color: #fbbf24; background: rgba(251,191,36,.08);
+        font-size: .74rem; color: var(--warn); background: rgba(251,191,36,.08);
         border: 1px solid rgba(251,191,36,.25); border-radius: 8px; padding: .45rem .7rem; margin-bottom: .5rem;
     }
     .je-cmp-veredito {
         background: rgba(212,165,32,.08); border: 1px solid rgba(212,165,32,.3); border-radius: 12px;
-        padding: .8rem 1rem; font-size: .88rem; color: #e5e7eb; margin-bottom: .8rem;
+        padding: .8rem 1rem; font-size: .88rem; color: var(--text); margin-bottom: .8rem;
     }
-    .je-cmp-veredito strong { color: #d4a520; }
+    .je-cmp-veredito strong { color: var(--gold-ink); }
     .je-cmp-insights { display: grid; gap: .5rem; margin-bottom: .6rem; }
     .je-cmp-insight {
-        display: flex; gap: .6rem; align-items: flex-start; background: #161616;
-        border: 1px solid #262626; border-left: 3px solid #4b5563; border-radius: 10px;
-        padding: .6rem .8rem; font-size: .82rem; color: #cbd5e1; line-height: 1.45;
+        display: flex; gap: .6rem; align-items: flex-start; background: var(--p-1);
+        border: 1px solid var(--line); border-left: 3px solid #4b5563; border-radius: 10px;
+        padding: .6rem .8rem; font-size: .82rem; color: var(--text-2); line-height: 1.45;
     }
     .je-cmp-insight.vence-a { border-left-color: #facc15; }
     .je-cmp-insight.vence-b { border-left-color: #60a5fa; }
-    .je-cmp-insight strong { color: #f1f5f9; }
+    .je-cmp-insight strong { color: var(--text-strong); }
 
-    .je-cmp-grupo-titulo { font-size: .68rem; font-weight: 700; letter-spacing: .14em; color: #6b7280; text-transform: uppercase; margin: 1.1rem 0 .5rem; }
+    .je-cmp-grupo-titulo { font-size: .68rem; font-weight: 700; letter-spacing: .14em; color: var(--text-dim); text-transform: uppercase; margin: 1.1rem 0 .5rem; }
     .je-cmp-row { display: grid; grid-template-columns: 64px 1fr 64px; gap: .7rem; align-items: center; padding: .3rem 0; }
-    .je-cmp-val { font-size: .92rem; font-weight: 700; color: #6b7280; text-align: center; }
-    .je-cmp-val.vence.lado-a { color: #facc15; }
-    .je-cmp-val.vence.lado-b { color: #60a5fa; }
+    .je-cmp-val { font-size: .92rem; font-weight: 700; color: var(--text-dim); text-align: center; }
+    .je-cmp-val.vence.lado-a { color: var(--warn); }
+    .je-cmp-val.vence.lado-b { color: var(--info); }
     .je-cmp-mid { min-width: 0; }
-    .je-cmp-metrica-label { font-size: .72rem; color: #9ca3af; text-align: center; margin-bottom: .25rem; }
-    .je-cmp-bar { display: flex; height: 7px; border-radius: 999px; overflow: hidden; background: #222; }
+    .je-cmp-metrica-label { font-size: .72rem; color: var(--text-muted); text-align: center; margin-bottom: .25rem; }
+    .je-cmp-bar { display: flex; height: 7px; border-radius: 999px; overflow: hidden; background: var(--p-3); }
     .je-cmp-bar .seg-a { background: rgba(250,204,21,.3); }
     .je-cmp-bar .seg-b { background: rgba(96,165,250,.3); }
     .je-cmp-bar .seg-a.vence { background: #facc15; }
@@ -478,14 +588,14 @@
     </div>
 
     <!-- ── Header do jogador ─────────────────────────────────────────── -->
-    <div class="je-header">
+    <div class="je-header theme-dark-zone">
         <div class="je-header-inner">
 
             @if (Model.Jogador.Time?.EscudoUrl != null)
             {
-                <div class="je-escudo-wrap">
+                <a class="je-escudo-wrap" asp-controller="Times" asp-action="Details" asp-route-id="@Model.Jogador.TimeId" title="Ver @Model.Jogador.Time.Nome">
                     <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogador.Time.EscudoUrl })" alt="" />
-                </div>
+                </a>
             }
 
             <div class="je-foto-wrap">
@@ -518,13 +628,13 @@
                     }
                     @if (Model.Jogador.Time != null)
                     {
-                        <span class="je-meta-item je-meta-clube">
+                        <a class="je-meta-item je-meta-clube" asp-controller="Times" asp-action="Details" asp-route-id="@Model.Jogador.TimeId" title="Ver @Model.Jogador.Time.Nome">
                             @if (!string.IsNullOrEmpty(Model.Jogador.Time.EscudoUrl))
                             {
                                 <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogador.Time.EscudoUrl })" alt="" />
                             }
                             @Model.Jogador.Time.Nome
-                        </span>
+                        </a>
                     }
                     @if (Model.Jogador.Nacionalidade != null)
                     {
@@ -539,36 +649,65 @@
                     }
                     @if (Model.Jogador.Selecao != null)
                     {
-                        <span class="je-meta-item je-meta-clube" title="Seleção que defende: @Model.Jogador.Selecao.Nome">
+                        <a class="je-meta-item je-meta-clube" asp-controller="Times" asp-action="Details" asp-route-id="@Model.Jogador.SelecaoId" title="Seleção que defende: @Model.Jogador.Selecao.Nome">
                             @if (!string.IsNullOrEmpty(Model.Jogador.Selecao.EscudoUrl))
                             {
                                 <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogador.Selecao.EscudoUrl })" alt="" />
                             }
                             @Model.Jogador.Selecao.Nome
+                        </a>
+                    }
+                    @if (Model.Jogador.Aposentado)
+                    {
+                        <span class="je-tr-badge-aposentado"
+                              title="@(Model.Jogador.AposentadoEm.HasValue ? $"Marcado como aposentado em {Model.Jogador.AposentadoEm.Value.ToLocalTime():dd/MM/yyyy}" : "Marcado como aposentado")">
+                            🏁 Aposentado
                         </span>
                     }
                 </div>
             </div>
 
             <div class="je-actions">
-                @if (competicoes.Count > 1)
+                @if (competicoes.Count > 1 || temporadas.Count > 1)
                 {
                     <form method="get" style="display:flex; align-items:center; gap:8px;">
                         <input type="hidden" name="id" value="@Model.Jogador.Id" />
-                        <div class="je-select-wrap">
-                            <select name="competicaoId" class="je-select" onchange="this.form.submit()">
-                                <option value="">Todas as competições</option>
-                                @foreach (var c in competicoes)
-                                {
-                                    <option value="@c.Id" selected="@(competicaoAtual == c.Id)">@c.Nome</option>
-                                }
-                            </select>
-                            <div class="je-select-arrow">
-                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg>
+                        @if (competicoes.Count > 1)
+                        {
+                            <div class="je-select-wrap">
+                                <select name="competicaoId" class="je-select" onchange="this.form.submit()">
+                                    <option value="">Todas as competições</option>
+                                    @foreach (var c in competicoes)
+                                    {
+                                        <option value="@c.Id" selected="@(competicaoAtual == c.Id)">@c.Nome</option>
+                                    }
+                                </select>
+                                <div class="je-select-arrow">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg>
+                                </div>
                             </div>
-                        </div>
+                        }
+                        else if (competicaoAtual.HasValue)
+                        {
+                            <input type="hidden" name="competicaoId" value="@competicaoAtual" />
+                        }
+                        @if (temporadas.Count > 1)
+                        {
+                            <div class="je-select-wrap">
+                                <select name="temporada" class="je-select" onchange="this.form.submit()">
+                                    <option value="">Todas as temporadas</option>
+                                    @foreach (var t in temporadas)
+                                    {
+                                        <option value="@t.Valor" selected="@(temporadaAtual == t.Valor)">@t.Rotulo</option>
+                                    }
+                                </select>
+                                <div class="je-select-arrow">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg>
+                                </div>
+                            </div>
+                        }
                     </form>
-                    @if (competicaoAtual.HasValue)
+                    @if (competicaoAtual.HasValue || temporadaAtual.HasValue)
                     {
                         <a href="/Jogadores/Estatisticas/@Model.Jogador.Id" class="je-clear">✕ limpar</a>
                     }
@@ -577,13 +716,17 @@
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
                     Semelhantes
                 </button>
-                <button type="button" class="je-btn-observacoes" onclick="abrirObservacoes()">
+                <a href="/AnotacoesJogador?jogadorId=@Model.Jogador.Id" class="je-btn-observacoes">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
                     Observações
-                </button>
+                </a>
                 <button type="button" class="je-btn-comparar" onclick="abrirComparar()">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 11 21 7 17 3" /><line x1="21" y1="7" x2="9" y2="7" /><polyline points="7 21 3 17 7 13" /><line x1="15" y1="17" x2="3" y2="17" /></svg>
                     Comparar com
+                </button>
+                <button type="button" class="je-btn-transferencias" onclick="abrirTransferencias()">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8" /><line x1="21" y1="3" x2="13" y2="11" /><polyline points="8 21 3 21 3 16" /><line x1="3" y1="21" x2="11" y2="13" /></svg>
+                    Transferências
                 </button>
             </div>
         </div>
@@ -653,7 +796,7 @@
                     <div class="je-card">
                         <div class="je-card-titulo">Posições em Campo</div>
                         <div class="je-campo-row">
-                            <div class="je-campo">
+                            <div class="je-campo theme-dark-zone">
                                 <div class="je-campo-linha"></div>
                                 <div class="je-campo-circulo"></div>
                                 <div class="je-campo-area-sup"></div>
@@ -693,7 +836,7 @@
                             <span class="je-heatmap-badge">@competicaoNomeAtual</span>
                         </div>
                         <div class="je-heatmap-body">
-                        <div id="jeHeatmapCampo" class="je-heatmap-pitch">
+                        <div id="jeHeatmapCampo" class="je-heatmap-pitch theme-dark-zone">
                             <svg viewBox="0 0 680 1050" xmlns="http://www.w3.org/2000/svg" style="position:absolute; inset:0; width:100%; height:100%;">
                                 <rect width="680" height="1050" fill="#0d3d1f" />
                                 <rect x="0" y="0" width="680" height="75" fill="#0e4221" opacity="0.5" />
@@ -732,7 +875,7 @@
                 {
                     var m = Model.Medias;
                     <div class="je-card">
-                        <div class="je-card-titulo">Médias por Jogo <span style="text-transform:none; letter-spacing:0; font-weight:400; color:#4b5563;">(@m.Jogos jogo@(m.Jogos == 1 ? "" : "s") com estatísticas importadas)</span></div>
+                        <div class="je-card-titulo">Médias por Jogo <span style="text-transform:none; letter-spacing:0; font-weight:400; color:var(--text-dimmer)">(@m.Jogos jogo@(m.Jogos == 1 ? "" : "s") com estatísticas importadas)</span></div>
 
                         @{
                             // Os donuts são os 3 fundamentos em que o jogador melhor
@@ -845,6 +988,10 @@
                         ? item.Jogo.TimeVisitante?.EscudoUrl
                         : item.Jogo.TimeCasa?.EscudoUrl;
 
+                    var adversarioId = isCasaJogador
+                        ? item.Jogo.TimeVisitanteId
+                        : item.Jogo.TimeCasaId;
+
                     var placar = (item.Jogo.PlacarCasa.HasValue && item.Jogo.PlacarVisitante.HasValue)
                         ? $"{item.GolsPro} x {item.GolsContra}"
                         : "–";
@@ -865,6 +1012,22 @@
 
                     string notaColor = item.Analisado ? CorNota(item.NotaFinal) : "#334155";
                     string notaLabel = item.Analisado ? LabelNota(item.NotaFinal) : "Sem nota";
+                    // Parcelas que entraram por cima de "base + ações" (pisos e bônus).
+                    var ajustes = new List<(string Rotulo, double Valor, string Titulo)>
+                    {
+                        (item.Composicao.PisoMerecimento == CriteriosNotaHelper.PisoJogoEquilibrado
+                            ? "Jogo equilibrado" : "Merecimento",
+                            item.Composicao.Merecimento,
+                            item.Composicao.PisoMerecimento == CriteriosNotaHelper.PisoJogoEquilibrado
+                                ? $"Mesmo número de ações verdes e vermelhas: a nota sobe até {CriteriosNotaHelper.PisoJogoEquilibrado:0.0}"
+                                : $"Mais ações verdes do que vermelhas: a nota sobe até {CriteriosNotaHelper.PisoJogoPositivo:0.0}"),
+                        ("Pouco tempo", item.Composicao.ParticipacaoCurta,
+                            $"Menos de {CriteriosNotaHelper.MinutosParticipacaoCurta} minutos: a nota sobe até {CriteriosNotaHelper.PisoParticipacaoCurta:0.0}"),
+                        ("Goleiro decisivo", item.Composicao.GoleiroDecisivo,
+                            $"Defendeu 100% do que foi no alvo e estava abaixo de {CriteriosNotaHelper.TetoGoleiroDecisivo:0.0}"),
+                        ("Gol da vitória", item.Composicao.GolDaVitoria,
+                            "Marcou o gol que decidiu a partida"),
+                    }.Where(a => a.Valor > 0).ToList();
 
                     var temMinutagem = item.Minutos.HasValue;
                     var temPosicao = !string.IsNullOrWhiteSpace(item.Posicao);
@@ -885,9 +1048,11 @@
                                 <div class="je-jogo-linha1">
                                     @if (!string.IsNullOrEmpty(adversarioEscudo))
                                     {
-                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = adversarioEscudo })" class="je-jogo-escudo" alt="" />
+                                        <a href="/Times/Details/@adversarioId" onclick="event.stopPropagation()" title="Ver @adversario">
+                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = adversarioEscudo })" class="je-jogo-escudo" alt="" />
+                                        </a>
                                     }
-                                    <span class="je-jogo-adv">vs @adversario<span class="je-jogo-placar">@placar @penaltis</span></span>
+                                    <span class="je-jogo-adv">vs <a class="je-jogo-adv-link" href="/Times/Details/@adversarioId" onclick="event.stopPropagation()" title="Ver @adversario">@adversario</a><span class="je-jogo-placar">@placar @penaltis</span></span>
                                     @if (item.Gols > 0)
                                     {
                                         <span class="je-tag je-tag-gol">⚽ @item.Gols</span>
@@ -966,8 +1131,14 @@
                                         }
                                         else
                                         {
-                                            <span>Base <strong style="color:#e2e8f0;">@item.NotaBaseFixa.ToString("0.0")</strong></span>
-                                            <span>Ações <strong style="color:@(item.Nota >= 0 ? "#4ade80" : "#f87171");">@(item.Nota >= 0 ? "+" : "")@item.Nota.ToString("0.##")</strong></span>
+                                            <span>Base <strong style="color:var(--text-strong)">@item.NotaBaseFixa.ToString("0.0")</strong></span>
+                                            <span>Ações <strong style="color:@(item.Nota >= 0 ? "var(--ok)" : "var(--bad)");">@(item.Nota >= 0 ? "+" : "")@item.Nota.ToString("0.##")</strong></span>
+                                            @foreach (var ajuste in ajustes)
+                                            {
+                                                <span title="@ajuste.Titulo">
+                                                    @ajuste.Rotulo <strong style="color:var(--ok)">+@ajuste.Valor.ToString("0.##")</strong>
+                                                </span>
+                                            }
                                             <span>= <strong style="color:@notaColor;">@item.NotaFinal.ToString("0.00")</strong></span>
                                         }
                                     </div>
@@ -978,7 +1149,7 @@
                                     <div class="je-detalhes">
                                         @foreach (var d in item.Detalhes.Where(d => d.Quantidade > 0))
                                         {
-                                            var dColor = d.Peso > 0 ? "#4ade80" : "#f87171";
+                                            var dColor = d.Peso > 0 ? "var(--ok)" : "var(--bad)";
                                             var dBg = d.Peso > 0 ? "rgba(34,197,94,.1)" : "rgba(239,68,68,.1)";
                                             var sinal = d.Peso > 0 ? "+" : "";
                                             var pts = Math.Round(d.Peso * d.Quantidade, 2);
@@ -1038,17 +1209,6 @@
     </div>
 </div>
 
-<!-- ── Modal: Observações que referenciam o jogador ─────────────────────── -->
-<div class="je-modal-overlay" id="observacoesModal" onclick="if(event.target===this)fecharObservacoes()">
-    <div class="je-modal-box">
-        <div class="je-modal-header">
-            <h2 class="je-modal-titulo">Observações</h2>
-            <button type="button" class="je-modal-close" onclick="fecharObservacoes()">✕</button>
-        </div>
-        <div class="je-modal-body" id="observacoesBody"></div>
-    </div>
-</div>
-
 <!-- ── Modal: Comparar jogadores ────────────────────────────────────────── -->
 <div class="je-modal-overlay" id="compararModal" onclick="if(event.target===this)fecharComparar()">
     <div class="je-modal-box je-cmp-box">
@@ -1093,6 +1253,78 @@
     </div>
 </div>
 
+<!-- ── Modal: transferência para clube fora do sistema ──────────────────────
+     As transferências automáticas só acontecem quando o jogador aparece na
+     escalação de um jogo importado. Se ele foi para uma liga que ninguém
+     cadastrou, isso nunca ocorre — aqui o usuário escolhe país → liga → clube
+     (api-football) e a transferência entra no mesmo histórico. -->
+<div class="je-modal-overlay" id="transferenciasModal" onclick="if(event.target===this)fecharTransferencias()">
+    <div class="je-modal-box je-tr-box">
+        <div class="je-modal-header">
+            <h2 class="je-modal-titulo">Transferências</h2>
+            <button type="button" class="je-modal-close" onclick="fecharTransferencias()">✕</button>
+        </div>
+        <div class="je-tr-atual">
+            Clube atual:
+            @if (Model.Jogador.Time != null)
+            {
+                if (!string.IsNullOrEmpty(Model.Jogador.Time.EscudoUrl))
+                {
+                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogador.Time.EscudoUrl })" alt="" />
+                }
+                <a class="je-meta-clube" asp-controller="Times" asp-action="Details" asp-route-id="@Model.Jogador.TimeId" title="Ver @Model.Jogador.Time.Nome"><strong>@Model.Jogador.Time.Nome</strong></a>
+            }
+            else
+            {
+                <strong>sem clube</strong>
+            }
+            <span style="color:var(--text-dimmer)">·</span>
+            @if (Model.Jogador.Aposentado)
+            {
+                <span class="je-tr-badge-aposentado">🏁 Aposentado</span>
+                <span>escolha um clube se ele voltou a jogar</span>
+            }
+            else
+            {
+                <span>escolha o país e a liga do novo clube</span>
+            }
+            <a href="/Transferencias" style="margin-left:auto;color:var(--purple);font-weight:600;text-decoration:none">ver janela de transferências →</a>
+        </div>
+        <div class="je-tr-picker">
+            <div class="je-select-wrap">
+                <select id="trPais" class="je-select" onchange="trPaisMudou()">
+                    <option value="">Carregando países...</option>
+                </select>
+                <div class="je-select-arrow">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg>
+                </div>
+            </div>
+            <div class="je-select-wrap">
+                <select id="trLiga" class="je-select" disabled onchange="trLigaMudou()">
+                    <option value="">Liga...</option>
+                </select>
+                <div class="je-select-arrow">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg>
+                </div>
+            </div>
+            <button type="button" class="je-tr-buscar" id="trBtnBuscar" disabled onclick="trBuscarClubes()">Buscar clubes</button>
+            @* Nem toda saída de clube é transferência: quem parou de jogar não tem
+               destino, então a opção fica fora da cascata país → liga → clube. *@
+            <button type="button" class="je-tr-aposentou" onclick="trAposentar()"
+                    @(Model.Jogador.Aposentado ? "disabled" : "")>
+                🏁 @(Model.Jogador.Aposentado ? "Já aposentado" : "Aposentou")
+            </button>
+        </div>
+        <div class="je-modal-body">
+            @Html.AntiForgeryToken()
+            <input type="text" class="je-tr-filtro" id="trFiltro" placeholder="Filtrar clube pelo nome..." style="display:none" oninput="trAplicarFiltro()" />
+            <div id="trBody">
+                <div class="je-tr-msg">Escolha o país e a liga do novo clube e clique em <strong>Buscar clubes</strong>.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     @if (Model.PontosHeatmap.Any())
     {
@@ -1100,12 +1332,78 @@
         // site.js (com desenharMapaCalor) carrega depois do RenderBody no _Layout,
         // então só existe no fim do carregamento — espera o load pra não chamar
         // uma função ainda indefinida.
-        window.addEventListener('load', function () {
-            desenharMapaCalor('jeHeatmapCampo', @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
-                Model.PontosHeatmap.Select(p => new { x = p.X, y = p.Y, peso = p.Peso }))));
-        });
+        // Guardado em window: o canvas do heatmap é dimensionado em pixels a
+        // partir do tamanho do campo, então ao ampliar/fechar o card ele precisa
+        // ser redesenhado no tamanho novo (senão fica esticado e borrado).
+        window.jePontosHeatmap = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+            Model.PontosHeatmap.Select(p => new { x = p.X, y = p.Y, peso = p.Peso })));
+        window.jeRedesenharHeatmap = function () {
+            if (window.desenharMapaCalor) desenharMapaCalor('jeHeatmapCampo', window.jePontosHeatmap);
+        };
+        window.addEventListener('load', window.jeRedesenharHeatmap);
         </text>
     }
+
+    // ── "Ampliar" nos cards do perfil tático ─────────────────────────────────
+    (function () {
+        let ampliado = null;
+
+        function ajustarConteudo() {
+            // Único conteúdo desta tela que não é puro CSS: o canvas do heatmap
+            // é desenhado em pixels e precisa ser refeito no tamanho novo.
+            if (window.jeRedesenharHeatmap) window.jeRedesenharHeatmap();
+        }
+
+        function ajustarAposLayout() {
+            // 2 frames: o 1º aplica o novo layout, o 2º já tem o tamanho final.
+            // O timer cobre aba de fundo, onde o rAF não roda.
+            requestAnimationFrame(() => requestAnimationFrame(ajustarConteudo));
+            setTimeout(ajustarConteudo, 250);
+        }
+
+        function ampliar(card, botao) {
+            if (ampliado) restaurar();
+            const placeholder = document.createElement('div');
+            card.parentNode.insertBefore(placeholder, card);
+            const overlay = document.createElement('div');
+            overlay.className = 'je-overlay';
+            overlay.appendChild(card);
+            document.body.appendChild(overlay);
+            card.classList.add('je-ampliado');
+            document.body.style.overflow = 'hidden';
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) restaurar(); });
+            botao.innerHTML = '✕ Fechar';
+            ampliado = { card, placeholder, overlay, botao };
+            ajustarAposLayout();
+        }
+
+        function restaurar() {
+            if (!ampliado) return;
+            const { card, placeholder, overlay, botao } = ampliado;
+            ampliado = null;
+            card.classList.remove('je-ampliado');
+            placeholder.parentNode.insertBefore(card, placeholder);
+            placeholder.remove();
+            overlay.remove();
+            document.body.style.overflow = '';
+            botao.innerHTML = '⛶ Ampliar';
+            ajustarAposLayout();
+        }
+
+        document.querySelectorAll('.je-perfil-grid > .je-card').forEach((card) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'je-zoom';
+            b.title = 'Ampliar (Esc para fechar)';
+            b.innerHTML = '⛶ Ampliar';
+            b.addEventListener('click', () => {
+                if (ampliado && ampliado.card === card) restaurar();
+                else ampliar(card, b);
+            });
+            card.appendChild(b);
+        });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') restaurar(); });
+    })();
 
     // ── Histórico por jogo colapsável ─────────────────────────────────────────
     function toggleHistorico() {
@@ -1162,19 +1460,19 @@
 
         const container = document.getElementById('temporadaContainer');
         if (!container) return;
-        container.innerHTML = '<div style="text-align:center;color:#6b7280;padding:2rem;font-size:.9rem;">Carregando...</div>';
+        container.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:2rem;font-size:.9rem">Carregando...</div>';
 
         fetch(`/Jogadores/EstatisticasTemporada?id=${jogId}&season=${season}`)
             .then(r => r.json())
             .then(data => {
                 if (!data || data.error || data.length === 0) {
-                    container.innerHTML = '<div style="text-align:center;color:#6b7280;padding:2rem;font-size:.9rem;">Nenhuma estatística disponível para essa temporada.</div>';
+                    container.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:2rem;font-size:.9rem">Nenhuma estatística disponível para essa temporada.</div>';
                     return;
                 }
                 renderTemporada(data, container);
             })
             .catch(() => {
-                container.innerHTML = '<div style="text-align:center;color:#f87171;padding:2rem;font-size:.9rem;">Erro ao carregar estatísticas.</div>';
+                container.innerHTML = '<div style="text-align:center;color:var(--bad);padding:2rem;font-size:.9rem">Erro ao carregar estatísticas.</div>';
             });
     }
 
@@ -1259,20 +1557,20 @@
     }
 
     document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') { fecharSemelhantes(); fecharComparar(); fecharObservacoes(); }
+        if (e.key === 'Escape') { fecharSemelhantes(); fecharComparar(); fecharTransferencias(); }
     });
 
     function carregarSemelhantes() {
         const body = document.getElementById('semelhantesBody');
         const criterios = document.getElementById('semelhantesCriterios');
-        body.innerHTML = '<div style="text-align:center;color:#6b7280;padding:2rem;font-size:.9rem;">Buscando jogadores semelhantes...</div>';
+        body.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:2rem;font-size:.9rem">Buscando jogadores semelhantes...</div>';
         criterios.innerHTML = '';
 
         fetch(`/Jogadores/JogadoresSemelhantes?id=${jogadorId}`)
             .then(r => r.json())
             .then(data => renderSemelhantes(data))
             .catch(() => {
-                body.innerHTML = '<div style="text-align:center;color:#f87171;padding:2rem;font-size:.9rem;">Erro ao buscar jogadores semelhantes.</div>';
+                body.innerHTML = '<div style="text-align:center;color:var(--bad);padding:2rem;font-size:.9rem">Erro ao buscar jogadores semelhantes.</div>';
             });
     }
 
@@ -1299,7 +1597,7 @@
         const colunas = data.colunas || [];
         const jogadores = data.jogadores || [];
         if (jogadores.length === 0) {
-            body.innerHTML = '<div style="text-align:center;color:#6b7280;padding:2rem;font-size:.9rem;">Nenhum jogador com perfil semelhante foi encontrado na base.</div>';
+            body.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:2rem;font-size:.9rem">Nenhum jogador com perfil semelhante foi encontrado na base.</div>';
             return;
         }
 
@@ -1308,7 +1606,10 @@
             const escudo = p.escudoUrl
                 ? `<img src="${proxyBase}${encodeURIComponent(p.escudoUrl)}" class="je-sem-escudo" />`
                 : '';
-            const clube = p.clube ? `${escudo} ${p.clube}` : '';
+            // Clube leva para a página do time
+            const clube = p.clube
+                ? `<a class="je-clube-link" href="/Times/Details/${p.timeId}" title="Ver ${p.clube}">${escudo} ${p.clube}</a>`
+                : '';
             const idade = p.idade > 0 ? `📅 ${p.idade} anos` : '';
             const pais = p.pais ? `🌍 ${p.pais}` : '';
 
@@ -1333,124 +1634,6 @@
                 <div class="je-sem-stats">${statsHtml}</div>
             </div>`;
         }).join('');
-    }
-
-    // ── Observações que referenciam o jogador ────────────────────────────────
-    // Anotações do clube (/AnotacoesTime) e observações de jogo (/Jogos/Analisar)
-    // em que ele foi citado com "@@Nome".
-    const jogadorNome = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Jogador.NomeExibicao));
-    let observacoesCarregadas = false;
-
-    function abrirObservacoes() {
-        document.getElementById('observacoesModal').classList.add('open');
-        document.body.style.overflow = 'hidden';
-        if (!observacoesCarregadas) {
-            observacoesCarregadas = true;
-            carregarObservacoes();
-        }
-    }
-
-    function fecharObservacoes() {
-        document.getElementById('observacoesModal').classList.remove('open');
-        document.body.style.overflow = '';
-    }
-
-    function carregarObservacoes() {
-        const body = document.getElementById('observacoesBody');
-        body.innerHTML = '<div style="text-align:center;color:#6b7280;padding:2rem;font-size:.9rem;">Buscando observações...</div>';
-
-        fetch(`/Jogadores/ObservacoesJogador?id=${jogadorId}`)
-            .then(r => r.json())
-            .then(data => renderObservacoes(data))
-            .catch(() => {
-                body.innerHTML = '<div style="text-align:center;color:#f87171;padding:2rem;font-size:.9rem;">Erro ao buscar as observações.</div>';
-            });
-    }
-
-    function escHtmlObsJog(s) {
-        return String(s == null ? '' : s)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    }
-
-    // Destaca a própria menção "@@Nome" dentro do texto, para o trecho relevante saltar aos olhos.
-    function destacarMencaoPropria(texto) {
-        const html = escHtmlObsJog(texto);
-        const alvo = escHtmlObsJog('@@' + jogadorNome).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        return html.replace(new RegExp(alvo, 'gi'), m => `<span class="je-obs-mencao">${m}</span>`);
-    }
-
-    function dataBr(iso) {
-        if (!iso) return '';
-        const d = new Date(iso);
-        return isNaN(d) ? '' : d.toLocaleDateString('pt-BR');
-    }
-
-    function renderObservacoes(data) {
-        const body = document.getElementById('observacoesBody');
-        const anotacoes = data.anotacoes || [];
-        const jogos = data.observacoesJogo || [];
-
-        if (!anotacoes.length && !jogos.length) {
-            body.innerHTML = `<div style="text-align:center;color:#6b7280;padding:2rem;font-size:.9rem;">
-                Nenhuma observação referencia este jogador ainda.<br />
-                <span style="font-size:.8rem;">Use <strong>@@${escHtmlObsJog(jogadorNome)}</strong> nas anotações do clube ou nas observações de jogo.</span>
-            </div>`;
-            return;
-        }
-
-        let html = '';
-
-        if (anotacoes.length) {
-            const cards = anotacoes.map(a => {
-                const escudo = a.timeEscudo
-                    ? `<img src="/MediaProxy/Imagem?url=${encodeURIComponent(a.timeEscudo)}" alt="" />`
-                    : '';
-                const cat = a.categoria
-                    ? `<span class="je-obs-cat">${escHtmlObsJog(a.categoria)}</span>`
-                    : '';
-                return `
-                <div class="je-obs-card">
-                    <div class="je-obs-card-head">
-                        <div class="je-obs-card-titulo">${destacarMencaoPropria(a.titulo)}</div>
-                        ${cat}
-                    </div>
-                    <div class="je-obs-texto">${destacarMencaoPropria(a.texto)}</div>
-                    <div class="je-obs-card-foot">
-                        <span class="je-obs-clube">${escudo}${escHtmlObsJog(a.timeNome)} · ${dataBr(a.data)}</span>
-                        <a href="/AnotacoesTime?timeId=${a.timeId}">Ver anotações do clube →</a>
-                    </div>
-                </div>`;
-            }).join('');
-
-            html += `<div class="je-obs-secao">
-                <div class="je-obs-secao-titulo">Anotações do clube <span class="cnt">${anotacoes.length}</span></div>
-                ${cards}
-            </div>`;
-        }
-
-        if (jogos.length) {
-            const cards = jogos.map(o => {
-                const placar = (o.placarCasa != null && o.placarVisitante != null)
-                    ? `${o.placarCasa} – ${o.placarVisitante}`
-                    : '×';
-                const comp = o.competicao ? `${escHtmlObsJog(o.competicao)} · ` : '';
-                return `
-                <div class="je-obs-card">
-                    <div class="je-obs-texto">${destacarMencaoPropria(o.texto)}</div>
-                    <div class="je-obs-card-foot">
-                        <span>${comp}${escHtmlObsJog(o.casa)} ${placar} ${escHtmlObsJog(o.visitante)} · ${dataBr(o.data)}</span>
-                        <a href="/Jogos/Analisar/${o.jogoId}">Ver análise do jogo →</a>
-                    </div>
-                </div>`;
-            }).join('');
-
-            html += `<div class="je-obs-secao">
-                <div class="je-obs-secao-titulo">Observações de jogos <span class="cnt">${jogos.length}</span></div>
-                ${cards}
-            </div>`;
-        }
-
-        body.innerHTML = html;
     }
 
     // ── Comparar com ──────────────────────────────────────────────────────────
@@ -1566,7 +1749,7 @@
                 renderComparacao(data);
             })
             .catch(() => {
-                body.innerHTML = '<div class="je-cmp-vazio" style="color:#f87171;">Erro ao montar a comparação.</div>';
+                body.innerHTML = '<div class="je-cmp-vazio" style="color:var(--bad)">Erro ao montar a comparação.</div>';
             });
     }
 
@@ -1577,7 +1760,8 @@
             : '';
         const sub = [];
         if (p.posicao) sub.push(`🎽 ${p.posicao}`);
-        if (p.clube) sub.push(`${escudo}${p.clube}`);
+        // Clube leva para a página do time
+        if (p.clube) sub.push(`<a class="je-clube-link" href="/Times/Details/${p.timeId}" title="Ver ${p.clube}">${escudo}${p.clube}</a>`);
         if (p.idade > 0) sub.push(`📅 ${p.idade} anos`);
         sub.push(`🏟️ ${p.jogos} jogo${p.jogos === 1 ? '' : 's'}`);
         if (p.notaMedia != null) sub.push(`⭐ nota ${p.notaMedia.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`);
@@ -1648,4 +1832,213 @@
         }
         requestAnimationFrame(tick);
     });
+
+    // ── Transferência para clube fora do sistema ──────────────────────────────
+    // País → liga (catálogo estático da api-football, o mesmo de
+    // /Competicoes/CompeticoesApi) → clubes (consulta /teams na API). O clube
+    // escolhido é criado no banco se ainda não existir, com a liga gravada, e a
+    // transferência entra no mesmo histórico das automáticas.
+    const trClubeAtual = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Jogador.Time?.Nome ?? "sem clube"));
+    const trJogadorNome = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Jogador.NomeExibicao));
+    let trPaisesCarregados = false;
+    let trClubes = [];
+
+    function abrirTransferencias() {
+        document.getElementById('transferenciasModal').classList.add('open');
+        document.body.style.overflow = 'hidden';
+        if (!trPaisesCarregados) {
+            trPaisesCarregados = true;
+            carregarTrPaises();
+        }
+    }
+
+    function fecharTransferencias() {
+        document.getElementById('transferenciasModal').classList.remove('open');
+        document.body.style.overflow = '';
+    }
+
+    function carregarTrPaises() {
+        const sel = document.getElementById('trPais');
+        fetch('/Transferencias/ApiPaises')
+            .then(r => r.json())
+            .then(paises => {
+                sel.innerHTML = '<option value="">Selecione o país...</option>' +
+                    paises.map(p => `<option value="${escapeAttr(p.nome)}">${escapeHtml(p.nome)} (${p.ligas})</option>`).join('');
+            })
+            .catch(() => { sel.innerHTML = '<option value="">Erro ao carregar países</option>'; });
+    }
+
+    function trPaisMudou() {
+        const pais = document.getElementById('trPais').value;
+        const selLiga = document.getElementById('trLiga');
+        const btn = document.getElementById('trBtnBuscar');
+
+        trResetLista('Escolha a liga do novo clube e clique em <strong>Buscar clubes</strong>.');
+        btn.disabled = true;
+
+        if (!pais) {
+            selLiga.disabled = true;
+            selLiga.innerHTML = '<option value="">Liga...</option>';
+            return;
+        }
+
+        selLiga.disabled = true;
+        selLiga.innerHTML = '<option value="">Carregando ligas...</option>';
+
+        fetch('/Transferencias/ApiLigas?pais=' + encodeURIComponent(pais))
+            .then(r => r.json())
+            .then(ligas => {
+                selLiga.innerHTML = '<option value="">Selecione a liga...</option>' +
+                    ligas.map(l => `<option value="${l.id}">${escapeHtml(l.nome)} (${escapeHtml(l.tipo || '')})</option>`).join('');
+                selLiga.disabled = false;
+            })
+            .catch(() => { selLiga.innerHTML = '<option value="">Erro ao carregar ligas</option>'; });
+    }
+
+    function trLigaMudou() {
+        document.getElementById('trBtnBuscar').disabled = !document.getElementById('trLiga').value;
+        trResetLista('Clique em <strong>Buscar clubes</strong> para listar os clubes da liga.');
+    }
+
+    function trResetLista(mensagem) {
+        trClubes = [];
+        document.getElementById('trFiltro').style.display = 'none';
+        document.getElementById('trFiltro').value = '';
+        document.getElementById('trBody').innerHTML = `<div class="je-tr-msg">${mensagem}</div>`;
+    }
+
+    function trBuscarClubes() {
+        const leagueId = document.getElementById('trLiga').value;
+        if (!leagueId) return;
+
+        const body = document.getElementById('trBody');
+        body.innerHTML = '<div class="je-tr-msg">Consultando os clubes da liga na api-football...</div>';
+
+        fetch('/Transferencias/ApiClubes?leagueId=' + encodeURIComponent(leagueId))
+            .then(r => r.json())
+            .then(data => {
+                if (data.erro) {
+                    body.innerHTML = `<div class="je-tr-msg erro">${escapeHtml(data.erro)}</div>`;
+                    return;
+                }
+                trClubes = data.clubes || [];
+                if (!trClubes.length) {
+                    body.innerHTML = '<div class="je-tr-msg">Nenhum clube retornado para essa liga nesta temporada.</div>';
+                    return;
+                }
+                document.getElementById('trFiltro').style.display = 'block';
+                trRenderClubes(trClubes);
+            })
+            .catch(() => {
+                body.innerHTML = '<div class="je-tr-msg erro">Erro ao consultar os clubes da liga.</div>';
+            });
+    }
+
+    function trAplicarFiltro() {
+        const termo = document.getElementById('trFiltro').value.trim().toLowerCase();
+        trRenderClubes(termo ? trClubes.filter(c => (c.nome || '').toLowerCase().includes(termo)) : trClubes);
+    }
+
+    function trRenderClubes(lista) {
+        const body = document.getElementById('trBody');
+        if (!lista.length) {
+            body.innerHTML = '<div class="je-tr-msg">Nenhum clube com esse nome.</div>';
+            return;
+        }
+
+        const cards = lista.map(c => {
+            const logo = c.logo
+                ? `<img src="/MediaProxy/Imagem?url=${encodeURIComponent(c.logo)}" alt="" />`
+                : '<div style="width:30px;height:30px;flex-shrink:0"></div>';
+            const tag = c.timeId
+                ? '<span class="je-tr-tag cadastrado">já cadastrado</span>'
+                : '<span class="je-tr-tag novo">novo clube</span>';
+            return `
+                <button type="button" class="je-tr-clube" onclick="trTransferir(${c.idApi}, this)"
+                        data-nome="${escapeAttr(c.nome)}" data-logo="${escapeAttr(c.logo || '')}"
+                        data-pais="${escapeAttr(c.pais || '')}">
+                    ${logo}
+                    <div style="min-width:0">
+                        <div class="je-tr-clube-nome">${escapeHtml(c.nome)}</div>
+                        <div class="je-tr-clube-meta">${escapeHtml(c.pais || '')} · id ${c.idApi}</div>
+                    </div>
+                    ${tag}
+                </button>`;
+        }).join('');
+
+        body.innerHTML = `<div class="je-tr-lista">${cards}</div>`;
+    }
+
+    function trTransferir(idApi, btnEl) {
+        const nome = btnEl.dataset.nome;
+        if (!confirm(`Transferir ${trJogadorNome} de ${trClubeAtual} para ${nome}?`)) return;
+
+        const leagueId = document.getElementById('trLiga').value;
+        const token = document.querySelector('#transferenciasModal input[name="__RequestVerificationToken"]').value;
+
+        const dados = new FormData();
+        dados.append('jogadorId', jogadorId);
+        dados.append('idApi', idApi);
+        dados.append('nome', nome);
+        dados.append('logo', btnEl.dataset.logo);
+        dados.append('leagueId', leagueId);
+        dados.append('pais', btnEl.dataset.pais);
+        dados.append('__RequestVerificationToken', token);
+
+        document.getElementById('trBody').innerHTML = '<div class="je-tr-msg">Registrando a transferência...</div>';
+
+        fetch('/Transferencias/TransferirParaClubeApi', { method: 'POST', body: dados })
+            .then(r => r.json())
+            .then(res => {
+                if (res.ok) {
+                    // Recarrega para o cabeçalho já mostrar o novo clube.
+                    window.location.reload();
+                } else {
+                    document.getElementById('trBody').innerHTML =
+                        `<div class="je-tr-msg erro">${escapeHtml(res.mensagem || 'Não foi possível transferir.')}</div>`;
+                }
+            })
+            .catch(() => {
+                document.getElementById('trBody').innerHTML =
+                    '<div class="je-tr-msg erro">Erro ao registrar a transferência.</div>';
+            });
+    }
+
+    // Aposentadoria: sai do futebol em vez de trocar de clube. Vai para o mesmo
+    // histórico, com destino vazio, e o jogador fica marcado como aposentado.
+    function trAposentar() {
+        if (!confirm(`Marcar ${trJogadorNome} como aposentado? Ele continua no histórico de ${trClubeAtual}, mas deixa de contar como jogador em atividade.`)) return;
+
+        const token = document.querySelector('#transferenciasModal input[name="__RequestVerificationToken"]').value;
+        const dados = new FormData();
+        dados.append('jogadorId', jogadorId);
+        dados.append('__RequestVerificationToken', token);
+
+        document.getElementById('trBody').innerHTML = '<div class="je-tr-msg">Registrando a aposentadoria...</div>';
+
+        fetch('/Transferencias/Aposentar', { method: 'POST', body: dados })
+            .then(r => r.json())
+            .then(res => {
+                if (res.ok) {
+                    window.location.reload();
+                } else {
+                    document.getElementById('trBody').innerHTML =
+                        `<div class="je-tr-msg erro">${escapeHtml(res.mensagem || 'Não foi possível marcar como aposentado.')}</div>`;
+                }
+            })
+            .catch(() => {
+                document.getElementById('trBody').innerHTML =
+                    '<div class="je-tr-msg erro">Erro ao registrar a aposentadoria.</div>';
+            });
+    }
+
+    function escapeHtml(txt) {
+        const d = document.createElement('div');
+        d.textContent = txt == null ? '' : txt;
+        return d.innerHTML;
+    }
+
+    function escapeAttr(txt) {
+        return escapeHtml(txt).replace(/"/g, '&quot;');
+    }
 </script>

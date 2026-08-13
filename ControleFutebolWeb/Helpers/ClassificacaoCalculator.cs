@@ -13,13 +13,26 @@ namespace ControleFutebolWeb.Helpers
     public static class ClassificacaoCalculator
     {
         /// <summary>
-        /// Acumula pontos/gols e ordena por Pontos → Saldo → Gols pró → Vitórias.
+        /// Acumula pontos/gols e ordena por Pontos → Saldo → Gols pró → Vitórias, ou pelos
+        /// critérios de desempate da competição quando <paramref name="criterios"/> é informado.
         /// </summary>
         /// <param name="timesParticipantes">
         /// Opcional: times que devem aparecer zerados mesmo sem jogo realizado. Usado pelo
         /// simulador, onde a tabela precisa listar o campeonato inteiro desde a rodada 1.
         /// </param>
-        public static List<Classificacao> Calcular(List<Jogo> jogos, IEnumerable<Time>? timesParticipantes = null)
+        /// <param name="criterios">
+        /// Critérios de desempate (Competicao.CriteriosDesempate já passado pelo
+        /// <see cref="CriteriosDesempateHelper.Parse"/>). Nulo mantém a ordenação clássica.
+        /// </param>
+        /// <param name="dados">
+        /// Contexto para critérios que precisam de mais que a linha da tabela (confronto
+        /// direto, cartões). Nulo = esses critérios são pulados.
+        /// </param>
+        public static List<Classificacao> Calcular(
+            List<Jogo> jogos,
+            IEnumerable<Time>? timesParticipantes = null,
+            IReadOnlyList<string>? criterios = null,
+            DadosDesempate? dados = null)
         {
             var tabela = new Dictionary<int, Classificacao>();
 
@@ -58,6 +71,13 @@ namespace ControleFutebolWeb.Helpers
                 else
                 { casa.Empates++; vis.Empates++; casa.Pontos++; vis.Pontos++; }
             }
+
+            foreach (var item in tabela.Values)
+                item.Saldo = item.GolsPro - item.GolsContra;
+
+            if (criterios != null)
+                return CriteriosDesempateHelper.Ordenar(
+                    tabela.Values, criterios, dados ?? DadosDesempate.Construir(jogos));
 
             var lista = tabela.Values
                 .OrderByDescending(t => t.Pontos)

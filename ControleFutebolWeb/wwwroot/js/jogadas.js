@@ -206,7 +206,7 @@
         host.innerHTML =
             '<div class="jgd-trave jgd-trave-esq"></div>' +
             '<div class="jgd-trave jgd-trave-dir"></div>' +
-            '<div class="jgd-campo">' +
+            '<div class="jgd-campo theme-dark-zone">' +
                 '<div class="jgd-linha-meio"></div><div class="jgd-circulo"></div>' +
                 '<div class="jgd-area-esq"></div><div class="jgd-area-dir"></div>' +
                 '<div class="jgd-gol-esq"></div><div class="jgd-gol-dir"></div>' +

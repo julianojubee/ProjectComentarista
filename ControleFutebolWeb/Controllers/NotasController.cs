@@ -118,10 +118,30 @@ namespace ControleFutebolWeb.Controllers
                 .Where(c => c.UsuarioId == null).ToListAsync();
             var doUsuario = await _context.CriteriosNota
                 .Where(c => c.UsuarioId == uid).ToListAsync();
-            var criterios = CriteriosNotaHelper.MergeCriterios(compartilhados, doUsuario)
+            // SomenteAcoes: o "peso inicial" é a nota base do usuário, não uma ação do modal.
+            var criterios = CriteriosNotaHelper
+                .SomenteAcoes(CriteriosNotaHelper.MergeCriterios(compartilhados, doUsuario))
                 .Select(c => new { id = c.AcaoId, label = c.Label, peso = c.Peso })
                 .ToList();
             return Ok(criterios);
+        }
+
+        // Contexto de nota de cada jogador da partida (minutos em campo, goleiro que
+        // pegou 100% do que foi no alvo e autor do gol da vitória) — o modal de
+        // avaliação em Analisar.cshtml usa para reproduzir a mesma nota do servidor.
+        [HttpGet]
+        public async Task<IActionResult> BuscarContextos(int jogoId)
+        {
+            var contextos = await ContextoNotaHelper.CarregarAsync(
+                _context, new[] { jogoId }, _userManager.GetUserId(User));
+
+            return Ok(contextos.Select(kv => new
+            {
+                jogadorId = kv.Key.JogadorId,
+                minutos = kv.Value.Minutos,
+                goleiroDecisivo = kv.Value.GoleiroDecisivo,
+                golDaVitoria = kv.Value.GolDaVitoria
+            }));
         }
 
         [HttpGet]

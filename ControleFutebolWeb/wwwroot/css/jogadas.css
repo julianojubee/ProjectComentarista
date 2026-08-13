@@ -16,7 +16,7 @@
 }
 
 .jgd-box {
-    background: #0b0f16;
+    background: var(--p-0);
     border: 1px solid rgba(255,255,255,.12);
     border-radius: 16px;
     width: 1180px;
@@ -38,7 +38,7 @@
 
 .jgd-titulo {
     margin: 0;
-    color: #e2e8f0;
+    color: var(--text-strong);
     font-size: 15px;
     font-weight: 700;
     white-space: nowrap;
@@ -48,7 +48,7 @@
     margin-left: auto;
     background: none;
     border: none;
-    color: #94a3b8;
+    color: var(--text-muted);
     font-size: 24px;
     line-height: 1;
     cursor: pointer;
@@ -59,14 +59,14 @@
     background: rgba(255,255,255,.05);
     border: 1px solid rgba(255,255,255,.14);
     border-radius: 7px;
-    color: #94a3b8;
+    color: var(--text-muted);
     font-size: 15px;
     line-height: 1;
     padding: 4px 9px;
     cursor: pointer;
 }
 
-.jgd-max-btn:hover { background: rgba(255,255,255,.12); color: #e2e8f0; }
+.jgd-max-btn:hover { background: rgba(255,255,255,.12); color: var(--text-strong); }
 
 /* Quando o botão existe, é ELE que empurra o grupo para a direita — sem esta
    regra as duas margens automáticas dividiriam o espaço entre os dois. */
@@ -110,7 +110,7 @@
     border: 1px solid rgba(255,255,255,.1);
     border-radius: 9px;
     padding: 5px 12px;
-    color: #94a3b8;
+    color: var(--text-muted);
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
@@ -119,8 +119,8 @@
 
 .jgd-aba img { width: 20px; height: 20px; object-fit: contain; }
 .jgd-aba span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.jgd-aba:hover { color: #e2e8f0; }
-.jgd-aba.ativa { background: rgba(250,204,21,.14); border-color: rgba(250,204,21,.5); color: #facc15; }
+.jgd-aba:hover { color: var(--text-strong); }
+.jgd-aba.ativa { background: rgba(250,204,21,.14); border-color: rgba(250,204,21,.5); color: var(--warn); }
 .jgd-aba-contagem { font-size: 11px; opacity: .7; }
 
 .jgd-corpo {
@@ -144,7 +144,7 @@
 .jgd-btn-nova {
     background: rgba(34,197,94,.12);
     border: 1px solid rgba(34,197,94,.4);
-    color: #4ade80;
+    color: var(--ok);
     border-radius: 8px;
     padding: 8px;
     font-size: 13px;
@@ -162,14 +162,14 @@
     border-radius: 8px;
     padding: 7px 10px;
     cursor: pointer;
-    color: #cbd5e1;
+    color: var(--text-2);
 }
 
 .jgd-item:hover { background: rgba(255,255,255,.07); }
-.jgd-item.ativa { border-left-color: #facc15; background: rgba(250,204,21,.1); color: #fde68a; }
+.jgd-item.ativa { border-left-color: #facc15; background: rgba(250,204,21,.1); color: var(--warn); }
 .jgd-item-nome { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.jgd-item-meta { font-size: 11px; color: #64748b; margin-top: 2px; }
-.jgd-lista-vazia { color: #64748b; font-size: 12px; text-align: center; padding: 1.2rem .4rem; line-height: 1.5; }
+.jgd-item-meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+.jgd-lista-vazia { color: var(--text-dim); font-size: 12px; text-align: center; padding: 1.2rem .4rem; line-height: 1.5; }
 
 /* ══ Editor ═════════════════════════════════════════════════════════ */
 .jgd-editor { padding: .8rem 1.1rem 1rem; overflow-y: auto; min-width: 0; }
@@ -181,7 +181,7 @@
     justify-content: center;
     height: 100%;
     min-height: 320px;
-    color: #64748b;
+    color: var(--text-dim);
     font-size: 13px;
     text-align: center;
     line-height: 1.7;
@@ -202,7 +202,7 @@
     background: #111827;
     border: 1px solid rgba(255,255,255,.14);
     border-radius: 7px;
-    color: #e2e8f0;
+    color: var(--text-strong);
     font-size: 13px;
     font-weight: 600;
     padding: 5px 10px;
@@ -215,7 +215,7 @@
     background: rgba(255,255,255,.05);
     border: 1px solid rgba(255,255,255,.14);
     border-radius: 7px;
-    color: #cbd5e1;
+    color: var(--text-2);
     font-size: 12px;
     font-weight: 600;
     padding: 5px 10px;
@@ -226,11 +226,11 @@
 .jgd-btn:hover:not(:disabled) { background: rgba(255,255,255,.1); color: #fff; }
 .jgd-btn:disabled { opacity: .35; cursor: not-allowed; }
 .jgd-btn.ativo { background: #facc15; border-color: #facc15; color: #0b0f16; }
-.jgd-btn.jgd-btn-play { background: rgba(250,204,21,.14); border-color: rgba(250,204,21,.5); color: #facc15; }
+.jgd-btn.jgd-btn-play { background: rgba(250,204,21,.14); border-color: rgba(250,204,21,.5); color: var(--warn); }
 .jgd-btn.jgd-btn-play:hover { background: rgba(250,204,21,.24); }
-.jgd-btn.jgd-btn-salvar { background: rgba(59,130,246,.15); border-color: rgba(59,130,246,.45); color: #93c5fd; }
+.jgd-btn.jgd-btn-salvar { background: rgba(59,130,246,.15); border-color: rgba(59,130,246,.45); color: var(--info); }
 .jgd-btn.jgd-btn-salvar:hover:not(:disabled) { background: rgba(59,130,246,.28); }
-.jgd-btn.jgd-btn-perigo { border-color: rgba(239,68,68,.4); color: #f87171; }
+.jgd-btn.jgd-btn-perigo { border-color: rgba(239,68,68,.4); color: var(--bad); }
 .jgd-btn.jgd-btn-perigo:hover:not(:disabled) { background: rgba(239,68,68,.15); }
 
 .jgd-sep { width: 1px; align-self: stretch; background: rgba(255,255,255,.1); margin: 0 3px; }
@@ -249,7 +249,7 @@
 .jgd-passo-nav button {
     background: none;
     border: none;
-    color: #cbd5e1;
+    color: var(--text-2);
     font-size: 14px;
     line-height: 1;
     padding: 3px 6px;
@@ -257,20 +257,20 @@
 }
 
 .jgd-passo-nav button:disabled { opacity: .3; cursor: not-allowed; }
-.jgd-passo-nav span { font-size: 12px; color: #facc15; font-weight: 700; min-width: 46px; text-align: center; }
+.jgd-passo-nav span { font-size: 12px; color: var(--warn); font-weight: 700; min-width: 46px; text-align: center; }
 
 .jgd-vel {
     background: #111827;
     border: 1px solid rgba(255,255,255,.14);
     border-radius: 7px;
-    color: #cbd5e1;
+    color: var(--text-2);
     font-size: 12px;
     padding: 5px 6px;
 }
 
 .jgd-dica-modo {
     font-size: 11px;
-    color: #facc15;
+    color: var(--warn);
     width: 100%;
     margin: -2px 0 4px;
 }
@@ -296,7 +296,7 @@
     text-transform: uppercase; color: #67e8f9;
 }
 
-.jgd-motor-desc { font-size: 11px; color: #94a3b8; flex: 1 1 240px; min-width: 0; line-height: 1.4; }
+.jgd-motor-desc { font-size: 11px; color: var(--text-muted); flex: 1 1 240px; min-width: 0; line-height: 1.4; }
 
 .jgd-seg {
     display: flex;
@@ -308,11 +308,11 @@
 
 .jgd-seg button {
     background: none; border: none;
-    color: #94a3b8; font-size: 11.5px; font-weight: 700;
+    color: var(--text-muted); font-size: 11.5px; font-weight: 700;
     padding: 5px 12px; cursor: pointer;
 }
 
-.jgd-seg button:hover { color: #e2e8f0; }
+.jgd-seg button:hover { color: var(--text-strong); }
 .jgd-seg button.ativo { background: #22d3ee; color: #062a30; }
 
 .jgd-btn.jgd-btn-ciano.ativo { background: #67e8f9; border-color: #67e8f9; color: #062a30; }
@@ -321,7 +321,7 @@
 .jgd-scrub-linha { display: flex; align-items: center; gap: 9px; margin-top: .6rem; }
 .jgd-scrub { flex: 1; height: 4px; accent-color: #facc15; cursor: pointer; }
 .jgd-scrub:disabled { opacity: .4; cursor: not-allowed; }
-.jgd-scrub-tempo { font-size: 10.5px; font-weight: 700; color: #64748b; min-width: 44px; }
+.jgd-scrub-tempo { font-size: 10.5px; font-weight: 700; color: var(--text-dim); min-width: 44px; }
 .jgd-scrub-total { font-weight: 400; min-width: 52px; text-align: right; }
 
 /* ══ Painéis do passo e da peça selecionada ═════════════════════════ */
@@ -336,15 +336,15 @@
 
 .jgd-painel-tit {
     font-size: 10px; font-weight: 700; letter-spacing: .05em;
-    text-transform: uppercase; color: #facc15; margin-bottom: 6px;
+    text-transform: uppercase; color: var(--warn); margin-bottom: 6px;
 }
 
 .jgd-painel-tit.jgd-tit-ciano { color: #67e8f9; }
-.jgd-painel-nome { font-size: 12px; color: #e2e8f0; font-weight: 600; margin-bottom: 6px; }
+.jgd-painel-nome { font-size: 12px; color: var(--text-strong); font-weight: 600; margin-bottom: 6px; }
 .jgd-painel-linha { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.jgd-painel-rot { font-size: 11px; color: #94a3b8; }
-.jgd-painel-dur { font-size: 11px; color: #64748b; }
-.jgd-painel-val { font-size: 11px; color: #facc15; font-weight: 700; min-width: 30px; }
+.jgd-painel-rot { font-size: 11px; color: var(--text-muted); }
+.jgd-painel-dur { font-size: 11px; color: var(--text-dim); }
+.jgd-painel-val { font-size: 11px; color: var(--warn); font-weight: 700; min-width: 30px; }
 .jgd-atraso { width: 96px; height: 4px; accent-color: #22d3ee; cursor: pointer; }
 .jgd-atraso:disabled { opacity: .4; cursor: not-allowed; }
 
@@ -370,7 +370,7 @@
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
-    color: #64748b;
+    color: var(--text-dim);
     font-size: 10.5px;
     font-weight: 700;
     text-transform: uppercase;
@@ -382,29 +382,29 @@
     white-space: nowrap;
 }
 
-.jgd-elenco-aba:hover { color: #cbd5e1; }
-.jgd-elenco-aba.ativa { color: #facc15; border-bottom-color: #facc15; }
-.jgd-elenco-aba.jgd-aba-adv.ativa { color: #60a5fa; border-bottom-color: #60a5fa; }
+.jgd-elenco-aba:hover { color: var(--text-2); }
+.jgd-elenco-aba.ativa { color: var(--warn); border-bottom-color: #facc15; }
+.jgd-elenco-aba.jgd-aba-adv.ativa { color: var(--info); border-bottom-color: #60a5fa; }
 
 .jgd-elenco-todos {
     background: rgba(255,255,255,.05);
     border: none;
     border-top: 1px solid rgba(255,255,255,.08);
-    color: #94a3b8;
+    color: var(--text-muted);
     font-size: 11px;
     font-weight: 700;
     padding: 6px;
     cursor: pointer;
 }
 
-.jgd-elenco-todos:hover:not(:disabled) { background: rgba(255,255,255,.1); color: #e2e8f0; }
+.jgd-elenco-todos:hover:not(:disabled) { background: rgba(255,255,255,.1); color: var(--text-strong); }
 .jgd-elenco-todos:disabled { opacity: .35; cursor: not-allowed; }
 
 .jgd-elenco-busca {
     background: #111827;
     border: none;
     border-bottom: 1px solid rgba(255,255,255,.08);
-    color: #e2e8f0;
+    color: var(--text-strong);
     font-size: 12px;
     padding: 6px 9px;
     width: 100%;
@@ -424,12 +424,12 @@
 
 .jgd-elenco-item:hover { background: rgba(250,204,21,.1); }
 .jgd-lista-adv .jgd-elenco-item:hover { background: rgba(59,130,246,.14); }
-.jgd-lista-adv .jgd-elenco-num { color: #60a5fa; }
+.jgd-lista-adv .jgd-elenco-num { color: var(--info); }
 .jgd-elenco-item.jgd-em-campo { opacity: .35; cursor: default; }
 .jgd-elenco-item.jgd-em-campo:hover { background: none; }
-.jgd-elenco-num { font-size: 11px; font-weight: 700; color: #facc15; min-width: 18px; text-align: center; }
-.jgd-elenco-nome { font-size: 12px; color: #cbd5e1; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.jgd-elenco-sigla { font-size: 10px; color: #64748b; font-weight: 700; }
+.jgd-elenco-num { font-size: 11px; font-weight: 700; color: var(--warn); min-width: 18px; text-align: center; }
+.jgd-elenco-nome { font-size: 12px; color: var(--text-2); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jgd-elenco-sigla { font-size: 10px; color: var(--text-dim); font-weight: 700; }
 
 /* A margem lateral existe para as traves: elas ficam fora da linha de fundo,
    e não sobre o gramado, mantendo .jgd-campo intocado como caixa de coordenadas. */
@@ -643,7 +643,7 @@
     position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
     background: rgba(0,0,0,.72); border: 1px solid rgba(255,255,255,.14);
     border-radius: 8px; padding: 5px 14px;
-    color: #fde68a; font-size: 12px; font-weight: 600;
+    color: var(--warn); font-size: 12px; font-weight: 600;
     max-width: 82%; text-align: center; pointer-events: none;
     z-index: 30; display: none;
 }
@@ -660,26 +660,26 @@
     background: rgba(255,255,255,.05);
     border: 1px solid rgba(255,255,255,.12);
     border-radius: 7px;
-    color: #94a3b8;
+    color: var(--text-muted);
     font-size: 11px; font-weight: 700;
     padding: 4px 9px; cursor: pointer;
     max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-.jgd-chip:hover { color: #e2e8f0; border-color: rgba(255,255,255,.25); }
+.jgd-chip:hover { color: var(--text-strong); border-color: rgba(255,255,255,.25); }
 .jgd-chip.ativo { background: #facc15; border-color: #facc15; color: #0b0f16; }
 
 .jgd-legenda-input {
     background: #111827;
     border: 1px solid rgba(255,255,255,.14);
     border-radius: 7px;
-    color: #e2e8f0; font-size: 12px;
+    color: var(--text-strong); font-size: 12px;
     padding: 6px 10px; width: 100%; margin-top: .55rem;
 }
 
 .jgd-legenda-input:focus { outline: none; border-color: #facc15; }
 
-.jgd-rodape-dica { font-size: 11px; color: #64748b; margin-top: .5rem; line-height: 1.6; }
+.jgd-rodape-dica { font-size: 11px; color: var(--text-dim); margin-top: .5rem; line-height: 1.6; }
 
 /* ══ Arsenal em /Times/Details ══════════════════════════════════════ */
 .jgd-arsenal-grid {
@@ -696,11 +696,11 @@
 }
 
 .jgd-arsenal-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: .55rem; }
-.jgd-arsenal-nome { font-size: 14px; font-weight: 700; color: #f1f5f9; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.jgd-arsenal-meta { font-size: 11px; color: #64748b; white-space: nowrap; }
-.jgd-arsenal-desc { font-size: 12px; color: #94a3b8; margin: .5rem 0 0; line-height: 1.5; }
+.jgd-arsenal-nome { font-size: 14px; font-weight: 700; color: var(--text-strong); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jgd-arsenal-meta { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+.jgd-arsenal-desc { font-size: 12px; color: var(--text-muted); margin: .5rem 0 0; line-height: 1.5; }
 .jgd-arsenal-acoes { display: flex; align-items: center; gap: 6px; margin-top: .55rem; flex-wrap: wrap; }
-.jgd-arsenal-vazio { color: #64748b; font-size: 13px; padding: 1.5rem 0; text-align: center; line-height: 1.7; }
+.jgd-arsenal-vazio { color: var(--text-dim); font-size: 13px; padding: 1.5rem 0; text-align: center; line-height: 1.7; }
 
 /* Card do arsenal é mais estreito: encolhe as peças para o nome não virar sopa */
 .jgd-arsenal-card .jgd-peca { width: 60px; }

@@ -7,16 +7,18 @@
 <style>
     @@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500&display=swap');
 
+    /* Apelidos locais apontando para os tokens globais — assim estas telas
+       acompanham o toggle claro/escuro sem mudar nenhuma regra abaixo. */
     :root {
-        --cinza1: #0f172a;
-        --cinza2: #1e293b;
-        --cinza3: #334155;
-        --texto: #f1f5f9;
-        --muted: #94a3b8;
+        --cinza1: var(--p-alt);
+        --cinza2: var(--p-alt-2);
+        --cinza3: var(--p-alt-3);
+        --texto: var(--text-strong);
+        --muted: var(--text-muted);
         --verde: #16a34a;
-        --verde2: #22c55e;
-        --amarelo: #eab308;
-        --vermelho: #ef4444;
+        --verde2: var(--ok-2);
+        --amarelo: var(--warn);
+        --vermelho: var(--bad-2);
     }
 
     .estat-page {
@@ -126,16 +128,16 @@
     }
 
     .aviso-box {
-        background: #422006;
+        background: var(--warn-surface);
         border: 1px solid var(--amarelo);
-        color: #fde68a;
+        color: var(--warn);
         border-radius: 8px;
         padding: .8rem 1rem;
         margin-bottom: 1.2rem;
         font-size: .85rem;
     }
-    .aviso-box.aviso-ok { background: #052e1a; border-color: var(--verde2); color: #bbf7d0; }
-    .aviso-box.aviso-erro { background: #3a0d0d; border-color: var(--vermelho); color: #fecaca; }
+    .aviso-box.aviso-ok { background: var(--ok-surface); border-color: var(--verde2); color: var(--ok); }
+    .aviso-box.aviso-erro { background: var(--bad-surface); border-color: var(--vermelho); color: var(--bad); }
 
     .sem-dados {
         color: var(--muted);

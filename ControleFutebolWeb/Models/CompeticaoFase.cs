@@ -28,7 +28,7 @@ namespace ControleFutebolWeb.Models
         [Required]
         public string Nome { get; set; } = string.Empty;
 
-        // Mesmos valores de Competicao.Tipo: PONTOS_CORRIDOS | GRUPOS | MATA_MATA
+        // Mesmos valores de Competicao.Tipo: PONTOS_CORRIDOS | GRUPOS | MATA_MATA | JOGO_UNICO
         [Required]
         public string Tipo { get; set; } = string.Empty;
 

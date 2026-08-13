@@ -1,6 +1,9 @@
+@using ControleFutebolWeb.Helpers
 @model List<ControleFutebolWeb.Models.Classificacao>
 
 @{
+    // Critérios de desempate cadastrados em Competicoes/Edit (null nas telas que não os passam).
+    var criteriosDesempate = ViewBag.CriteriosDesempate as List<string>;
     string ZonaCor(int pos, int total)
     {
         if (pos == 1) return "#3b82f6";
@@ -17,13 +20,13 @@
         <span></span>
         <span class="left">Clube</span>
         <span>J</span>
-        <span style="color:#22c55e;">V</span>
-        <span style="color:#f59e0b;">E</span>
-        <span style="color:#ef4444;">D</span>
+        <span style="color:var(--ok-2)">V</span>
+        <span style="color:var(--warn);">E</span>
+        <span style="color:var(--bad-2)">D</span>
         <span>GP</span>
         <span>SG</span>
         <span>%</span>
-        <span style="color:#d4a520;">Pts</span>
+        <span style="color:var(--gold-ink)">Pts</span>
     </div>
     @{ var total = Model.Count; }
     @foreach (var c in Model)
@@ -33,13 +36,13 @@
         var aprovColor = aprov >= 60 ? "#22c55e" : aprov >= 40 ? "#f59e0b" : "#ef4444";
         <div class="cd-row">
             <div class="cd-zonebar" style="background:@zc;"></div>
-            <span class="cd-pos" style="color:@(c.Posicao <= 3 ? "#d4a520" : "#6b7280");">@c.Posicao</span>
-            <div class="cd-escudo">
+            <span class="cd-pos" style="color:@(c.Posicao <= 3 ? "var(--gold-ink)" : "var(--text-dim)");">@c.Posicao</span>
+            <a class="cd-escudo" asp-controller="Times" asp-action="Details" asp-route-id="@c.Time?.Id" title="Ver @c.Time?.Nome">
                 @if (!string.IsNullOrEmpty(c.Time?.EscudoUrl))
                 {
                     <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.Time.EscudoUrl })" alt="" />
                 }
-            </div>
+            </a>
             <div style="min-width:0;">
                 <a asp-controller="Times" asp-action="Details" asp-route-id="@c.Time?.Id" class="cd-nome">@c.Time?.Nome</a>
             </div>
@@ -48,13 +51,13 @@
             <span class="cd-cell e">@c.Empates</span>
             <span class="cd-cell d">@c.Derrotas</span>
             <span class="cd-cell">@c.GolsPro</span>
-            <span class="cd-sg" style="color:@(c.SaldoGols > 0 ? "#4ade80" : c.SaldoGols < 0 ? "#f87171" : "#6b7280");">@(c.SaldoGols > 0 ? "+" : "")@c.SaldoGols</span>
+            <span class="cd-sg" style="color:@(c.SaldoGols > 0 ? "var(--ok)" : c.SaldoGols < 0 ? "var(--bad)" : "var(--text-dim)");">@(c.SaldoGols > 0 ? "+" : "")@c.SaldoGols</span>
             <div class="cd-aprov">
                 <span>@(aprov)%</span>
                 <div class="cd-aprov-bar"><div style="width:@(aprov)%; background:@aprovColor;"></div></div>
             </div>
             <div class="cd-pts">
-                <span style="color:@(c.Posicao == 1 ? "#d4a520" : "#f1f5f9"); background:@(c.Posicao == 1 ? "rgba(212,165,32,0.12)" : "transparent");">@c.Pontos</span>
+                <span style="color:@(c.Posicao == 1 ? "var(--gold-ink)" : "var(--text-strong)"); background:@(c.Posicao == 1 ? "rgba(212,165,32,0.12)" : "transparent");">@c.Pontos</span>
             </div>
         </div>
     }
@@ -63,4 +66,11 @@
         <div class="cd-legend-item"><div class="cd-legend-dot" style="background:#22c55e;"></div><span>Classificação</span></div>
         <div class="cd-legend-item"><div class="cd-legend-dot" style="background:#ef4444;"></div><span>Zona de risco</span></div>
     </div>
+    @if (criteriosDesempate != null && criteriosDesempate.Count > 0)
+    {
+        <div class="cd-legend" style="display:block; font-size:.78rem; color:var(--text-dim);">
+            <strong>Desempate:</strong>
+            pontos › @string.Join(" › ", criteriosDesempate.Select(c => CriteriosDesempateHelper.RotuloDe(c).ToLowerInvariant()))
+        </div>
+    }
 </div>

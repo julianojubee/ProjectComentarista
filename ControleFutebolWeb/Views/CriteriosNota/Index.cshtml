@@ -1,9 +1,22 @@
+@using ControleFutebolWeb.Helpers
+@using ControleFutebolWeb.Helpers.Rating
 @model List<ControleFutebolWeb.Models.CriterioNota>
 @{
     ViewData["Title"] = "Critérios de Nota";
 
     var acoesPersonalizadas = (HashSet<string>)(ViewBag.AcoesPersonalizadas ?? new HashSet<string>());
     var acaoIdsCompartilhados = (HashSet<string>)(ViewBag.AcaoIdsCompartilhados ?? new HashSet<string>());
+
+    double pesoInicial = ViewBag.PesoInicial ?? CriteriosNotaHelper.NotaBasePadrao;
+    bool pesoInicialPersonalizado = ViewBag.PesoInicialPersonalizado ?? false;
+
+    double bonusSemSofrerGol = ViewBag.BonusSemSofrerGol ?? CriteriosNotaHelper.BonusGoleiroSemSofrerGol;
+    var posicoesSemSofrerGol = ViewBag.PosicoesSemSofrerGol as List<string>
+        ?? CriteriosNotaHelper.PosicoesSemSofrerGolPadrao.ToList();
+    bool semSofrerGolPersonalizado = ViewBag.SemSofrerGolPersonalizado ?? false;
+
+    MotorNota motorNota = ViewBag.MotorNota ?? MotorNota.Classico;
+    bool motorPersonalizado = ViewBag.MotorPersonalizado ?? false;
 }
 
 <style>
@@ -11,10 +24,10 @@
 
     .cn-root {
         margin: 0 -12px;
-        background: #0f0f0f;
+        background: var(--p-0);
         border-radius: 14px;
         overflow: hidden;
-        color: #e5e7eb;
+        color: var(--text);
         font-family: 'Barlow', Arial, sans-serif;
     }
     .cn-root a { text-decoration: none; color: inherit; }
@@ -27,81 +40,113 @@
     }
     .cn-hero-pattern { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.04; pointer-events: none; }
     .cn-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #d4a520; }
-    .cn-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: linear-gradient(to top, #0f0f0f, transparent); pointer-events: none; }
+    .cn-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: linear-gradient(to top, var(--page-bg), transparent); pointer-events: none; }
     .cn-hero-inner { position: relative; z-index: 1; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
     .cn-hero-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
     .cn-hero-kicker-line { height: 2px; width: 28px; background: #d4a520; }
-    .cn-hero-kicker span { font-size: .68rem; font-weight: 700; letter-spacing: .28em; color: #d4a520; text-transform: uppercase; }
-    .cn-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3rem; font-weight: 800; color: #f1f5f9; margin: 0 0 8px; line-height: 1; }
-    .cn-hero p { font-size: .9rem; color: #6b7280; margin: 0; max-width: 480px; }
+    .cn-hero-kicker span { font-size: .68rem; font-weight: 700; letter-spacing: .28em; color: var(--gold-ink); text-transform: uppercase; }
+    .cn-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3rem; font-weight: 800; color: var(--text-strong); margin: 0 0 8px; line-height: 1; }
+    .cn-hero p { font-size: .9rem; color: var(--text-dim); margin: 0; max-width: 480px; }
     .cn-btn-novo {
         display: flex; align-items: center; gap: 7px; padding: 9px 16px;
         background: rgba(168,85,247,0.12); border: 1px solid rgba(168,85,247,0.3); border-radius: 8px;
-        color: #c084fc; font-size: .82rem; font-weight: 700; flex-shrink: 0;
+        color: var(--purple); font-size: .82rem; font-weight: 700; flex-shrink: 0;
     }
-    .cn-btn-novo:hover { background: rgba(168,85,247,0.2); color: #c084fc; }
+    .cn-btn-novo:hover { background: rgba(168,85,247,0.2); color: var(--purple); }
 
     /* ── Banner informativo ── */
     .cn-infobar { background: rgba(212,165,32,0.06); border-bottom: 1px solid rgba(212,165,32,0.15); padding: 10px 2.5rem; }
     .cn-infobar-inner { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; gap: 10px; }
-    .cn-infobar span.txt { font-size: .78rem; color: #9ca3af; }
-    .cn-infobar b.gold { color: #d4a520; font-weight: 700; }
-    .cn-infobar b.blue { color: #60a5fa; font-weight: 700; }
+    .cn-infobar span.txt { font-size: .78rem; color: var(--text-muted); }
+    .cn-infobar b.gold { color: var(--gold-ink); font-weight: 700; }
+    .cn-infobar b.blue { color: var(--info); font-weight: 700; }
 
     /* ── Conteúdo ── */
     .cn-content { padding: 28px 2.5rem 64px; max-width: 1200px; margin: 0 auto; }
 
     .cn-resumo { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
     @@media (max-width: 700px) { .cn-resumo { grid-template-columns: repeat(2, 1fr); } }
-    .cn-resumo-card { background: #161616; border: 1px solid #262626; border-radius: 12px; padding: 16px; text-align: center; }
+    .cn-resumo-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 16px; text-align: center; }
     .cn-resumo-val { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 2rem; font-weight: 800; line-height: 1; }
-    .cn-resumo-label { font-size: .68rem; color: #4b5563; text-transform: uppercase; letter-spacing: .1em; margin-top: 4px; font-weight: 700; }
+    .cn-resumo-label { font-size: .68rem; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: .1em; margin-top: 4px; font-weight: 700; }
 
-    .cn-table-wrap { background: #161616; border: 1px solid #262626; border-radius: 14px; overflow: hidden; }
+    .cn-table-wrap { background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
     .cn-thead {
         display: grid; grid-template-columns: 1fr 90px 90px 130px 220px; gap: 12px;
-        padding: 10px 20px; background: #111; border-bottom: 1px solid #1e1e1e; align-items: center;
+        padding: 10px 20px; background: var(--p-0); border-bottom: 1px solid var(--line-soft); align-items: center;
     }
     .cn-thead span { font-size: .62rem; color: #374151; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
 
     .cn-row {
         display: grid; grid-template-columns: 1fr 90px 90px 130px 220px; gap: 12px;
-        padding: 11px 20px; border-bottom: 1px solid #111; align-items: center; transition: background .12s;
+        padding: 11px 20px; border-bottom: 1px solid var(--line-soft); align-items: center; transition: background .12s;
     }
     .cn-row:last-child { border-bottom: none; }
-    .cn-row:hover { background: #1a1a1a; }
+    .cn-row:hover { background: var(--p-2); }
 
-    .cn-label { font-size: .88rem; font-weight: 600; color: #f1f5f9; margin-bottom: 2px; }
-    .cn-acaoid { font-size: .68rem; color: #4b5563; font-family: monospace; }
+    .cn-label { font-size: .88rem; font-weight: 600; color: var(--text-strong); margin-bottom: 2px; }
+    .cn-acaoid { font-size: .68rem; color: var(--text-dimmer); font-family: monospace; }
 
     .cn-peso { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 6px; font-size: .78rem; font-weight: 700; font-family: 'Barlow Condensed', Arial, sans-serif; }
-    .cn-peso-pos { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); color: #22c55e; }
-    .cn-peso-neg { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: #f87171; }
-    .cn-peso-zer { background: rgba(107,114,128,0.12); border: 1px solid rgba(107,114,128,0.3); color: #9ca3af; }
+    .cn-peso-pos { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); color: var(--ok-2); }
+    .cn-peso-neg { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: var(--bad); }
+    .cn-peso-zer { background: rgba(107,114,128,0.12); border: 1px solid rgba(107,114,128,0.3); color: var(--text-muted); }
 
     .cn-ativo { font-size: .72rem; font-weight: 700; padding: 2px 8px; border-radius: 5px; }
-    .cn-ativo-sim { color: #4ade80; background: rgba(34,197,94,0.1); }
-    .cn-ativo-nao { color: #6b7280; background: rgba(107,114,128,0.1); }
+    .cn-ativo-sim { color: var(--ok); background: rgba(34,197,94,0.1); }
+    .cn-ativo-nao { color: var(--text-dim); background: rgba(107,114,128,0.1); }
 
     .cn-origem { font-size: .68rem; font-weight: 700; padding: 2px 8px; border-radius: 5px; }
-    .cn-origem-padrao { color: #60a5fa; background: rgba(59,130,246,0.1); }
-    .cn-origem-override { color: #fbbf24; background: rgba(251,191,36,0.1); }
-    .cn-origem-proprio { color: #c084fc; background: rgba(168,85,247,0.1); }
+    .cn-origem-padrao { color: var(--info); background: rgba(59,130,246,0.1); }
+    .cn-origem-override { color: var(--warn); background: rgba(251,191,36,0.1); }
+    .cn-origem-proprio { color: var(--purple); background: rgba(168,85,247,0.1); }
 
     .cn-actions { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
-    .cn-btn-editar { font-size: .7rem; padding: 4px 10px; background: #1e1e1e; border: 1px solid #2a2a2a; border-radius: 6px; color: #9ca3af; font-weight: 600; }
-    .cn-btn-editar:hover { border-color: #d4a520; color: #d4a520; }
-    .cn-btn-resetar { font-size: .7rem; padding: 4px 10px; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.22); border-radius: 6px; color: #60a5fa; font-weight: 600; cursor: pointer; }
+    .cn-btn-editar { font-size: .7rem; padding: 4px 10px; background: var(--p-3); border: 1px solid var(--line-strong); border-radius: 6px; color: var(--text-muted); font-weight: 600; }
+    .cn-btn-editar:hover { border-color: #d4a520; color: var(--gold-ink); }
+    .cn-btn-resetar { font-size: .7rem; padding: 4px 10px; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.22); border-radius: 6px; color: var(--info); font-weight: 600; cursor: pointer; }
     .cn-btn-resetar:hover { background: rgba(59,130,246,0.15); }
-    .cn-btn-excluir { font-size: .7rem; padding: 4px 10px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); border-radius: 6px; color: #f87171; font-weight: 600; cursor: pointer; }
+    .cn-btn-excluir { font-size: .7rem; padding: 4px 10px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); border-radius: 6px; color: var(--bad); font-weight: 600; cursor: pointer; }
     .cn-btn-excluir:hover { background: rgba(239,68,68,0.15); }
 
-    .cn-alert { border-radius: 8px; padding: .7rem 1rem; margin: 0 2.5rem 1rem; font-size: .88rem; background: rgba(34,197,94,.12); color: #4ade80; border: 1px solid rgba(34,197,94,.25); }
+    .cn-alert { border-radius: 8px; padding: .7rem 1rem; margin: 0 2.5rem 1rem; font-size: .88rem; background: rgba(34,197,94,.12); color: var(--ok); border: 1px solid rgba(34,197,94,.25); }
+    .cn-alert-erro { background: rgba(239,68,68,.12); color: var(--bad); border-color: rgba(239,68,68,.25); }
+
+    /* ── Card do peso inicial (nota base) ── */
+    .cn-base { background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin-bottom: 20px; }
+    .cn-base-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+    .cn-base-titulo { font-size: .95rem; font-weight: 700; color: var(--text-strong); }
+    .cn-base-desc { font-size: .78rem; color: var(--text-muted); margin: 0 0 14px; max-width: 720px; }
+    .cn-base-form { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .cn-base-input {
+        width: 110px; padding: 7px 10px; background: var(--p-0); border: 1px solid var(--line-strong);
+        border-radius: 8px; color: var(--text-strong); font-size: 1rem; font-weight: 700;
+        font-family: 'Barlow Condensed', Arial, sans-serif;
+    }
+    .cn-btn-salvar {
+        font-size: .78rem; padding: 7px 16px; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3);
+        border-radius: 8px; color: var(--ok); font-weight: 700; cursor: pointer;
+    }
+    .cn-btn-salvar:hover { background: rgba(34,197,94,0.18); }
+
+    /* Grade de posições do bônus por não sofrer gol */
+    .cn-pos-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 16px; margin: 0 0 14px; }
+    @@media (max-width: 700px) { .cn-pos-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .cn-pos-item { display: flex; align-items: center; gap: 7px; font-size: .84rem; color: var(--text-strong); }
+
+    .cn-motor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0 0 14px; }
+    @@media (max-width: 700px) { .cn-motor-grid { grid-template-columns: 1fr; } }
+    .cn-motor-item { display: flex; align-items: flex-start; gap: 9px; padding: 12px 14px; cursor: pointer;
+                     background: var(--p-1); border: 1px solid var(--line); border-radius: 10px; }
+    .cn-motor-item:has(input:checked) { border-color: var(--accent, #2f81f7); background: var(--p-2, var(--p-1)); }
+    .cn-motor-item input { margin-top: 3px; flex: none; }
+    .cn-motor-item strong { display: block; font-size: .88rem; color: var(--text-strong); margin-bottom: 3px; }
+    .cn-motor-item small { display: block; font-size: .78rem; line-height: 1.45; color: var(--text-muted); }
 </style>
 
 <div class="cn-root">
     <!-- ── Hero ── -->
-    <div class="cn-hero">
+    <div class="cn-hero theme-dark-zone">
         <img src="~/Images/banner/escudos-pattern.svg" class="cn-hero-pattern" alt="" />
         <div class="cn-hero-stripe"></div>
         <div class="cn-hero-fade"></div>
@@ -133,6 +178,10 @@
     {
         <div class="cn-alert">@TempData["Sucesso"]</div>
     }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="cn-alert cn-alert-erro">@TempData["Erro"]</div>
+    }
 
     <!-- ── Conteúdo ── -->
     <div class="cn-content">
@@ -147,21 +196,202 @@
         <!-- Resumo -->
         <div class="cn-resumo">
             <div class="cn-resumo-card">
-                <div class="cn-resumo-val" style="color:#94a3b8;">@totalCriterios</div>
+                <div class="cn-resumo-val" style="color:var(--text-muted)">@totalCriterios</div>
                 <div class="cn-resumo-label">Total critérios</div>
             </div>
             <div class="cn-resumo-card">
-                <div class="cn-resumo-val" style="color:#4ade80;">@ativos</div>
+                <div class="cn-resumo-val" style="color:var(--ok)">@ativos</div>
                 <div class="cn-resumo-label">Ativos</div>
             </div>
             <div class="cn-resumo-card">
-                <div class="cn-resumo-val" style="color:#fbbf24;">@personalizadosCount</div>
+                <div class="cn-resumo-val" style="color:var(--warn)">@personalizadosCount</div>
                 <div class="cn-resumo-label">Personalizados</div>
             </div>
             <div class="cn-resumo-card">
-                <div class="cn-resumo-val" style="color:#c084fc;">@propriosCount</div>
+                <div class="cn-resumo-val" style="color:var(--purple)">@propriosCount</div>
                 <div class="cn-resumo-label">Seus critérios</div>
             </div>
+        </div>
+
+        <!-- Motor da nota automática -->
+        <div class="cn-base">
+            <div class="cn-base-top">
+                <span class="cn-base-titulo">Como calcular a nota dos jogos que você não avaliou</span>
+                @if (motorPersonalizado)
+                {
+                    <span class="cn-origem cn-origem-override">✏ Sua escolha</span>
+                }
+                else
+                {
+                    <span class="cn-origem cn-origem-padrao">⭐ Padrão</span>
+                }
+            </div>
+            <p class="cn-base-desc">
+                Vale só para os jogos <strong>sem avaliação sua</strong>: quando você marca as ações na tela
+                de análise ou informa a nota final à mão, a sua nota vence sempre. Trocar aqui muda os
+                rankings, os relatórios, o pós-jogo e o app — só para você.
+            </p>
+
+            <form method="post" asp-action="SalvarMotorNota">
+                @Html.AntiForgeryToken()
+
+                <div class="cn-motor-grid">
+                    <label class="cn-motor-item" for="motor-classico">
+                        <input type="radio" id="motor-classico" name="motor" value="@nameof(MotorNota.Classico)"
+                               checked="@(motorNota == MotorNota.Classico)" />
+                        <span>
+                            <strong>Por pesos (clássico)</strong>
+                            <small>
+                                Peso inicial + soma de "quantidade × peso" de cada ação, com os ajustes de
+                                merecimento configurados abaixo. Você controla cada peso.
+                            </small>
+                        </span>
+                    </label>
+
+                    <label class="cn-motor-item" for="motor-automatico">
+                        <input type="radio" id="motor-automatico" name="motor" value="@nameof(MotorNota.Automatico)"
+                               checked="@(motorNota == MotorNota.Automatico)" />
+                        <span>
+                            <strong>Por posição (automático)</strong>
+                            <small>
+                                Parte de @RatingAutomaticoHelper.NotaNeutra.ToString("0.0") e compara cada número
+                                com a média da <em>posição que o jogador fez naquele jogo</em>. Quem tenta muito e
+                                erra perde pontos, volume alto satura, e gols e cartões entram com valor próprio.
+                                Faixa de @RatingAutomaticoHelper.NotaMinima.ToString("0.0") a
+                                @RatingAutomaticoHelper.NotaMaxima.ToString("0.0"). Os pesos abaixo não são usados.
+                            </small>
+                        </span>
+                    </label>
+                </div>
+
+                <div class="cn-base-form">
+                    <button type="submit" class="cn-btn-salvar">Salvar forma de cálculo</button>
+                    @if (motorPersonalizado)
+                    {
+                        <button type="submit" class="cn-btn-resetar" formaction="@Url.Action("ResetarMotorNota")"
+                                formnovalidate onclick="return confirm('Voltar para o cálculo por pesos (clássico)?')">
+                            Resetar
+                        </button>
+                    }
+                </div>
+            </form>
+        </div>
+
+        <!-- Peso inicial (nota base) -->
+        <div class="cn-base" style="@(motorNota == MotorNota.Automatico ? "opacity:.55;" : "")">
+            <div class="cn-base-top">
+                <span class="cn-base-titulo">Peso inicial</span>
+                @if (motorNota == MotorNota.Automatico)
+                {
+                    <span class="cn-origem cn-origem-padrao">Sem efeito no cálculo por posição</span>
+                }
+                @if (pesoInicialPersonalizado)
+                {
+                    <span class="cn-origem cn-origem-override">✏ Seu valor</span>
+                }
+                else
+                {
+                    <span class="cn-origem cn-origem-padrao">⭐ Padrão</span>
+                }
+            </div>
+            <p class="cn-base-desc">
+                É de onde toda nota parte: a nota final é <strong>peso inicial + soma das ações</strong>,
+                limitada a 10. Alterar aqui muda só as <em>suas</em> notas —
+                rankings, relatórios, pós-jogo e o app. O padrão é @CriteriosNotaHelper.NotaBasePadrao.ToString("0.0").
+            </p>
+            <p class="cn-base-desc">
+                <strong>Nota por merecimento.</strong> Depois de somar as ações, a nota passa por três
+                ajustes automáticos, nesta ordem:
+            </p>
+            <ul class="cn-base-desc" style="margin:0 0 4px 18px; padding:0;">
+                <li>
+                    <strong>Contagem de ações verdes x vermelhas.</strong> Cada ação conta uma vez, sem olhar
+                    quantidade nem peso: <em>mais verdes</em> nunca fica abaixo de
+                    @CriteriosNotaHelper.PisoJogoPositivo.ToString("0.0") (3 verdes contra 2 vermelhas é um jogo
+                    ok mesmo quando os pontos fecham negativo); <em>empate</em> nunca fica abaixo de
+                    @CriteriosNotaHelper.PisoJogoEquilibrado.ToString("0.0"); <em>mais vermelhas</em> mantém a
+                    nota calculada, mesmo abaixo do peso inicial.
+                </li>
+                <li>
+                    <strong>Menos de @CriteriosNotaHelper.MinutosParticipacaoCurta minutos</strong> em campo não
+                    fica abaixo de @CriteriosNotaHelper.PisoParticipacaoCurta.ToString("0.0"): quem entrou no fim
+                    não teve jogo para justificar nota baixa. Acima disso, a nota calculada vale.
+                </li>
+                <li>
+                    <strong>Goleiro decisivo</strong>: defendeu 100% do que o adversário mandou no alvo e ainda
+                    estava abaixo de @CriteriosNotaHelper.TetoGoleiroDecisivo.ToString("0.0") ganha
+                    @CriteriosNotaHelper.BonusGoleiroDecisivo.ToString("+0.0") ponto(s).
+                </li>
+                <li>
+                    <strong>Gol da vitória</strong>: quem marcou o gol que decidiu a partida ganha
+                    @CriteriosNotaHelper.BonusGolDaVitoria.ToString("+0.0") ponto, sem teto. Num jogo que
+                    terminou 3 x 1 é o autor do segundo gol do vencedor; em 1 x 0, o do primeiro.
+                </li>
+            </ul>
+            <form method="post" asp-action="SalvarPesoInicial" class="cn-base-form">
+                @Html.AntiForgeryToken()
+                <input type="number" name="peso" class="cn-base-input" required
+                       step="0.1" min="0" max="10" value="@pesoInicial.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)" />
+                <button type="submit" class="cn-btn-salvar">Salvar peso inicial</button>
+                @if (pesoInicialPersonalizado)
+                {
+                    <button type="submit" class="cn-btn-resetar" formaction="@Url.Action("ResetarPesoInicial")"
+                            formnovalidate onclick="return confirm('Voltar o peso inicial para o padrão (4,0)?')">
+                        Resetar
+                    </button>
+                }
+            </form>
+        </div>
+
+        <!-- Bônus por não sofrer gol -->
+        <div class="cn-base">
+            <div class="cn-base-top">
+                <span class="cn-base-titulo">Posições que recebem pontos quando não tomam gol</span>
+                @if (semSofrerGolPersonalizado)
+                {
+                    <span class="cn-origem cn-origem-override">✏ Seu valor</span>
+                }
+                else
+                {
+                    <span class="cn-origem cn-origem-padrao">⭐ Padrão</span>
+                }
+            </div>
+            <p class="cn-base-desc">
+                Quando o time do jogador não sofre gol na partida, quem atuou numa das posições marcadas
+                ganha esse bônus. Vale a posição <strong>daquele jogo</strong> (pela escalação), não a
+                posição do cadastro. O padrão é @CriteriosNotaHelper.BonusGoleiroSemSofrerGol.ToString("+0.0")
+                para goleiro, zagueiro, lateral e ala. Sem nenhuma posição marcada, o bônus fica desligado.
+            </p>
+
+            <form method="post" asp-action="SalvarSemSofrerGol">
+                @Html.AntiForgeryToken()
+
+                <div class="cn-pos-grid">
+                    @foreach (var (codigo, rotulo) in CriteriosNotaHelper.GruposPosicao)
+                    {
+                        <label class="cn-pos-item" for="pos-@codigo">
+                            <input type="checkbox" id="pos-@codigo" name="posicoes" value="@codigo"
+                                   checked="@posicoesSemSofrerGol.Contains(codigo)" />
+                            @rotulo
+                        </label>
+                    }
+                </div>
+
+                <div class="cn-base-form">
+                    <label for="bonus-peso" style="font-size:.8rem; color:var(--text-muted);">Pontos por jogo sem sofrer gol</label>
+                    <input type="number" id="bonus-peso" name="peso" class="cn-base-input" required
+                           step="0.1" min="-10" max="10"
+                           value="@bonusSemSofrerGol.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)" />
+                    <button type="submit" class="cn-btn-salvar">Salvar bônus</button>
+                    @if (semSofrerGolPersonalizado)
+                    {
+                        <button type="submit" class="cn-btn-resetar" formaction="@Url.Action("ResetarSemSofrerGol")"
+                                formnovalidate onclick="return confirm('Voltar o bônus por não sofrer gol para o padrão?')">
+                            Resetar
+                        </button>
+                    }
+                </div>
+            </form>
         </div>
 
         <!-- Tabela -->

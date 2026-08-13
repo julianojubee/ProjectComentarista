@@ -13,13 +13,24 @@
         <dt class="col-sm-2">Número</dt>
         <dd class="col-sm-10">@Model.NumeroCamisa</dd>
         <dt class="col-sm-2">Time</dt>
-        <dd class="col-sm-10">@Model.Time?.Nome</dd>
+        <dd class="col-sm-10">
+            @if (Model.Time != null)
+            {
+                <a asp-controller="Times" asp-action="Details" asp-route-id="@Model.TimeId">@Model.Time.Nome</a>
+            }
+        </dd>
     </dl>
 </div>
+
+@{
+    // Preserva os filtros da listagem de origem ao excluir/cancelar.
+    var returnUrl = ViewData["ReturnUrl"] as string;
+}
 
 <form asp-action="Delete" method="post">
     @Html.AntiForgeryToken()
     <input type="hidden" asp-for="Id" />
+    <input type="hidden" name="returnUrl" value="@returnUrl" />
     <input type="submit" value="Excluir" class="btn btn-danger" />
-    <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
+    <a href="@(string.IsNullOrEmpty(returnUrl) ? Url.Action("Index") : returnUrl)" class="btn btn-secondary">Cancelar</a>
 </form>

@@ -19,41 +19,50 @@ else
                         <div class="cd-mm-confrontos">
                             @foreach (var cf in fase.Confrontos)
                             {
-                                bool aVence = cf.Completo && cf.TotalA > cf.TotalB;
-                                bool bVence = cf.Completo && cf.TotalB > cf.TotalA;
+                                bool aVence = cf.VenceA;
+                                bool bVence = cf.VenceB;
                                 <div class="cd-mm-confronto">
                                     <div class="cd-mm-time-row top">
-                                        <div class="cd-mm-time-lado">
+                                        <a class="cd-mm-time-lado" href="@(cf.TimeA != null ? Url.Action("Details", "Times", new { id = cf.TimeA.Id }) : null)" title="@(cf.TimeA != null ? $"Ver {cf.TimeA.Nome}" : null)">
                                             @if (!string.IsNullOrEmpty(cf.TimeA?.EscudoUrl))
                                             {
                                                 <img src="@Url.Action("Imagem", "MediaProxy", new { url = cf.TimeA.EscudoUrl })" alt="" />
                                             }
-                                            <span style="font-weight:@(aVence ? 700 : 500); color:@(aVence ? "#f1f5f9" : "#9ca3af");">@cf.TimeA?.Nome</span>
-                                        </div>
-                                        <span class="cd-mm-placar" style="color:@(aVence ? "#4ade80" : "#f1f5f9");">@(cf.SoIda ? cf.GolsAIda.ToString() : cf.TotalA.ToString())</span>
+                                            <span style="font-weight:@(aVence ? 700 : 500); color:@(aVence ? "var(--text-strong)" : "var(--text-muted)");">@cf.TimeA?.Nome</span>
+                                        </a>
+                                        <span class="cd-mm-placar" style="color:@(aVence ? "var(--ok)" : "var(--text-strong)");">@(cf.SoIda ? cf.GolsAIda.ToString() : cf.TotalA.ToString())</span>
                                     </div>
                                     <div class="cd-mm-time-row">
-                                        <div class="cd-mm-time-lado">
+                                        <a class="cd-mm-time-lado" href="@(cf.TimeB != null ? Url.Action("Details", "Times", new { id = cf.TimeB.Id }) : null)" title="@(cf.TimeB != null ? $"Ver {cf.TimeB.Nome}" : null)">
                                             @if (!string.IsNullOrEmpty(cf.TimeB?.EscudoUrl))
                                             {
                                                 <img src="@Url.Action("Imagem", "MediaProxy", new { url = cf.TimeB.EscudoUrl })" alt="" />
                                             }
-                                            <span style="font-weight:@(bVence ? 700 : 500); color:@(bVence ? "#f1f5f9" : "#9ca3af");">@cf.TimeB?.Nome</span>
-                                        </div>
-                                        <span class="cd-mm-placar" style="color:@(bVence ? "#4ade80" : "#f1f5f9");">@(cf.SoIda ? cf.GolsBIda.ToString() : cf.TotalB.ToString())</span>
+                                            <span style="font-weight:@(bVence ? 700 : 500); color:@(bVence ? "var(--text-strong)" : "var(--text-muted)");">@cf.TimeB?.Nome</span>
+                                        </a>
+                                        <span class="cd-mm-placar" style="color:@(bVence ? "var(--ok)" : "var(--text-strong)");">@(cf.SoIda ? cf.GolsBIda.ToString() : cf.TotalB.ToString())</span>
                                     </div>
                                     @if (cf.JogoIda != null || cf.JogoVolta != null)
                                     {
                                         <div class="cd-mm-datas">
-                                            @if (cf.JogoIda != null) { <span>Ida: @DateHelper.FormatarData(cf.JogoIda.Data, "dd/MM")</span> }
+                                            @if (cf.JogoIda != null) { <span>@(cf.SoIda ? "" : "Ida: ")@DateHelper.FormatarData(cf.JogoIda.Data, "dd/MM")</span> }
                                             @if (cf.JogoVolta != null) { <span>Volta: @DateHelper.FormatarData(cf.JogoVolta.Data, "dd/MM")</span> }
+                                            @if (cf.DecididoNosPenaltis) { <span>Pên.: @cf.PenaltisA x @cf.PenaltisB</span> }
                                         </div>
                                     }
-                                    @if (cf.Completo)
+                                    @if (aVence || bVence)
                                     {
                                         <div class="cd-mm-classificado">
-                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                                            <span>@((aVence ? cf.TimeA?.Nome : cf.TimeB?.Nome) ?? "") classificado</span>
+                                            @if (fase.DecideTitulo)
+                                            {
+                                                <span style="font-size:11px;">🏆</span>
+                                                <span>@((aVence ? cf.TimeA?.Nome : cf.TimeB?.Nome) ?? "") campeão</span>
+                                            }
+                                            else
+                                            {
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                                                <span>@((aVence ? cf.TimeA?.Nome : cf.TimeB?.Nome) ?? "") classificado</span>
+                                            }
                                         </div>
                                     }
                                 </div>

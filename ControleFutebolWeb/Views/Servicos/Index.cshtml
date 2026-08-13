@@ -7,7 +7,7 @@
 
 <style>
     .srv-card {
-        background: #1e293b;
+        background: var(--p-alt-2);
         border-radius: 12px;
         padding: 1.4rem 1.6rem;
         margin-bottom: 1.2rem;
@@ -22,12 +22,12 @@
     .srv-nome {
         font-size: 1.1rem;
         font-weight: 700;
-        color: #e2e8f0;
+        color: var(--text-strong);
         flex: 1;
     }
     .srv-desc {
         font-size: .82rem;
-        color: #94a3b8;
+        color: var(--text-muted);
         margin-bottom: 1rem;
     }
     .badge-estado {
@@ -38,9 +38,9 @@
         letter-spacing: .4px;
         text-transform: uppercase;
     }
-    .badge-rodando  { background: rgba(34,197,94,.15);  color: #4ade80; border: 1px solid rgba(34,197,94,.3); }
-    .badge-aguardando { background: rgba(251,191,36,.12); color: #fbbf24; border: 1px solid rgba(251,191,36,.3); }
-    .badge-parado   { background: rgba(148,163,184,.1); color: #94a3b8; border: 1px solid rgba(148,163,184,.2); }
+    .badge-rodando  { background: rgba(34,197,94,.15);  color: var(--ok); border: 1px solid rgba(34,197,94,.3); }
+    .badge-aguardando { background: rgba(251,191,36,.12); color: var(--warn); border: 1px solid rgba(251,191,36,.3); }
+    .badge-parado   { background: rgba(148,163,184,.1); color: var(--text-muted); border: 1px solid rgba(148,163,184,.2); }
     .srv-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -54,7 +54,7 @@
     }
     .srv-stat-label {
         font-size: 10px;
-        color: #64748b;
+        color: var(--text-dim);
         text-transform: uppercase;
         letter-spacing: .4px;
         margin-bottom: 2px;
@@ -62,16 +62,16 @@
     .srv-stat-val {
         font-size: .9rem;
         font-weight: 600;
-        color: #cbd5e1;
+        color: var(--text-2);
     }
     .srv-atividade {
         font-size: .82rem;
-        color: #64748b;
+        color: var(--text-dim);
         border-top: 1px solid rgba(255,255,255,.05);
         padding-top: .7rem;
         margin-top: .3rem;
     }
-    .srv-atividade span { color: #94a3b8; }
+    .srv-atividade span { color: var(--text-muted); }
     .btn-srv {
         border: none;
         border-radius: 7px;
@@ -82,14 +82,14 @@
         transition: opacity .15s;
     }
     .btn-srv:hover { opacity: .8; }
-    .btn-parar     { background: rgba(239,68,68,.15);  color: #f87171; border: 1px solid rgba(239,68,68,.25); }
-    .btn-reiniciar { background: rgba(59,130,246,.15); color: #60a5fa; border: 1px solid rgba(59,130,246,.25); }
+    .btn-parar     { background: rgba(239,68,68,.15);  color: var(--bad); border: 1px solid rgba(239,68,68,.25); }
+    .btn-reiniciar { background: rgba(59,130,246,.15); color: var(--info); border: 1px solid rgba(59,130,246,.25); }
 </style>
 
 <div style="max-width:860px; margin: 0 auto; padding: 1.5rem 1rem;">
 
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.4rem;">
-        <h2 style="margin:0; color:#e2e8f0; font-size:1.4rem; font-weight:700;">
+        <h2 style="margin:0; color:var(--text-strong); font-size:1.4rem; font-weight:700">
             ⚙️ Serviços em Segundo Plano
         </h2>
         <span style="font-size:.8rem; color:#475569;">
@@ -99,7 +99,7 @@
 
     @if (TempData["Sucesso"] != null)
     {
-        <div style="background:rgba(34,197,94,.12); color:#4ade80; border:1px solid rgba(34,197,94,.25);
+        <div style="background:rgba(34,197,94,.12); color:var(--ok); border:1px solid rgba(34,197,94,.25);
                     border-radius:8px; padding:.7rem 1rem; margin-bottom:1rem; font-size:.88rem;">
             ✅ @TempData["Sucesso"]
         </div>
@@ -201,7 +201,7 @@
                     </div>
                     <div class="srv-stat">
                         <div class="srv-stat-label">Falhas</div>
-                        <div class="srv-stat-val stat-falhas" style="color:@(s.Falhas > 0 ? "#f87171" : "inherit")">
+                        <div class="srv-stat-val stat-falhas" style="color:@(s.Falhas > 0 ? "var(--bad)" : "inherit")">
                             @s.Falhas
                         </div>
                     </div>

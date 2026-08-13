@@ -1,0 +1,25 @@
+@model (int CompeticaoId, int? Temporada)
+@*
+    Atalhos para as duas telas de estatística que valem para qualquer competição
+    (Competicoes/Estatisticas e Competicoes/EquipeDaRodada). Ficam num partial
+    porque as competições com página própria — Brasileirão, Libertadores, Copa do
+    Brasil, Sul-Americana, Champions, Copa do Mundo — precisam exatamente do mesmo
+    par de links, e só mudam no id e na temporada selecionada.
+*@
+<div class="lec-links">
+    <a asp-controller="Competicoes" asp-action="EquipeDaRodada"
+       asp-route-id="@Model.CompeticaoId" asp-route-temporada="@Model.Temporada">⭐ Equipe da rodada</a>
+    <a asp-controller="Competicoes" asp-action="Estatisticas"
+       asp-route-id="@Model.CompeticaoId" asp-route-temporada="@Model.Temporada">📊 Estatísticas em tela cheia</a>
+</div>
+
+<style>
+    .lec-links { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; padding: 16px 2.5rem 0; }
+    .lec-links a {
+        background: var(--p-1); border: 1px solid var(--line); color: var(--text-2); border-radius: 8px;
+        font-family: 'Barlow', Arial, sans-serif; font-size: 12px; font-weight: 700;
+        padding: .4rem .85rem; text-decoration: none; white-space: nowrap;
+    }
+    .lec-links a:hover { color: var(--text-strong); border-color: var(--line-strong); }
+    @@media (max-width: 768px) { .lec-links { padding: 12px 1.1rem 0; justify-content: flex-start; } }
+</style>

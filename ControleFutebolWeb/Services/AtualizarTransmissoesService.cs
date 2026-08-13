@@ -83,17 +83,18 @@ namespace ControleFutebolWeb.Services
             {
                 s.Estado = EstadoServico.Rodando;
                 s.UltimoCicloEm = DateTime.Now;
-                s.UltimaAtividade = "Buscando transmissões dos jogos de hoje...";
+                s.UltimaAtividade = "Buscando transmissões dos jogos de hoje e dos próximos dias...";
             });
 
             using var scope = _serviceProvider.CreateScope();
             var transmissao = scope.ServiceProvider.GetRequiredService<TransmissaoJogoService>();
 
-            var diaBrasil = TransmissaoJogoService.HojeBrasil();
-            var atualizados = await transmissao.AtualizarTransmissoesDoDiaAsync(diaBrasil, ct);
+            var atualizados = 0;
+            foreach (var diaBrasil in TransmissaoJogoService.DiasDaJanela())
+                atualizados += await transmissao.AtualizarTransmissoesDoDiaAsync(diaBrasil, ct);
 
             _logger.LogInformation(
-                "[AtualizarTransmissoes] Ciclo concluído: {A} jogo(s) atualizado(s) no dia.", atualizados);
+                "[AtualizarTransmissoes] Ciclo concluído: {A} jogo(s) atualizado(s) na janela.", atualizados);
 
             _monitor.Atualizar(Chave, s =>
             {

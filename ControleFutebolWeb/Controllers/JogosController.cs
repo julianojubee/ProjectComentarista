@@ -309,11 +309,12 @@ namespace ControleFutebolWeb.Controllers
 
                 await _context.SaveChangesAsync();
 
-                // Jogo de hoje: busca a transmissão na hora em vez de esperar o próximo
-                // ciclo do AtualizarTransmissoesService (até 3h depois). Falha aqui não
-                // pode derrubar o cadastro do jogo — só fica sem a transmissão por ora.
+                // Jogo dentro da janela que o futnatv já publica: busca a transmissão na hora
+                // em vez de esperar o próximo ciclo do AtualizarTransmissoesService (até 3h
+                // depois). Falha aqui não pode derrubar o cadastro do jogo — só fica sem a
+                // transmissão por ora.
                 var diaBrasilDoJogo = TransmissaoJogoService.DiaBrasilDoJogo(jogo.Data);
-                if (diaBrasilDoJogo == TransmissaoJogoService.HojeBrasil())
+                if (TransmissaoJogoService.EstaNaJanela(diaBrasilDoJogo))
                 {
                     try
                     {
@@ -868,8 +869,14 @@ namespace ControleFutebolWeb.Controllers
         // linha "Competição" (gols/assists/titular na competição deste jogo) e
         // linha "Temporada" (mesmos números na temporada, todas as competições),
         // além das médias por jogo. Usado pelos dois caminhos do Analisar.
+        //
+        // temporadaFiltro = rótulo da temporada (o mesmo de Jogo.Temporada) que
+        // define o recorte de TODAS as seções; 0 = carreira inteira ("Todas").
+        // Null usa a temporada do próprio jogo — sem isso o tooltip do primeiro
+        // jogo de uma temporada nova mostrava os números da temporada anterior.
         private async Task PreencherDadosTooltipAsync(
-            AnalisarViewModel vm, Jogo jogo, IEnumerable<Escalacao> escalacoes, string usuarioId)
+            AnalisarViewModel vm, Jogo jogo, IEnumerable<Escalacao> escalacoes, string usuarioId,
+            int? temporadaFiltro = null)
         {
             // Universo de jogadores que a tela realmente mostra: quem está escalado
             // (campo/banco) mais os elencos das listas laterais — o mesmo conjunto
@@ -891,86 +898,193 @@ namespace ControleFutebolWeb.Controllers
 
             if (idsTooltip.Count == 0) return;
 
-            vm.GolsPorJogador = await _context.Gols
-                .Where(g => g.Jogo.CompeticaoId == jogo.CompeticaoId && !g.Contra
-                         && idsTooltip.Contains(g.JogadorId))
-                .GroupBy(g => g.JogadorId)
-                .Select(g => new { JogadorId = g.Key, Total = g.Count() })
-                .ToDictionaryAsync(x => x.JogadorId, x => x.Total);
+            var temporadaSel = temporadaFiltro ?? jogo.Temporada;
+            var dados = await CalcularTooltipAsync(idsTooltip, jogo, usuarioId, temporadaSel);
 
-            vm.AssistsPorJogador = await _context.Assistencias
-                .Where(a => a.Jogo.CompeticaoId == jogo.CompeticaoId
-                         && idsTooltip.Contains(a.JogadorId))
-                .GroupBy(a => a.JogadorId)
-                .Select(a => new { JogadorId = a.Key, Total = a.Count() })
-                .ToDictionaryAsync(x => x.JogadorId, x => x.Total);
+            vm.GolsPorJogador = dados.Gols;
+            vm.AssistsPorJogador = dados.Assists;
+            vm.GolsTemporadaPorJogador = dados.GolsTemporada;
+            vm.AssistsTemporadaPorJogador = dados.AssistsTemporada;
+            vm.MediasPorJogador = dados.Medias;
+            vm.TitularPorJogador = dados.TitularCompeticao;
+            vm.TitularTemporadaPorJogador = dados.TitularTemporada;
+            vm.TemporadaTooltip = temporadaSel;
+            vm.TemporadasTooltip = await TemporadasDoTooltipAsync(idsTooltip, jogo.Temporada);
+        }
 
-            // Temporada 0 = jogo sem temporada definida; a linha "Temporada" do
-            // tooltip fica oculta nesse caso (ver TEMPORADA_JOGO na view).
-            if (jogo.Temporada > 0)
+        // Temporadas que o seletor do tooltip oferece: todas em que os jogadores da
+        // tela têm estatística importada, mais a do próprio jogo (que pode ainda não
+        // ter estatística nenhuma — caso do primeiro jogo da temporada).
+        private async Task<List<int>> TemporadasDoTooltipAsync(
+            IReadOnlyCollection<int> ids, int temporadaJogo)
+        {
+            var temporadas = await _context.EstatisticasJogador
+                .Where(e => ids.Contains(e.JogadorId) && e.Jogo.Temporada > 0)
+                .Select(e => e.Jogo.Temporada)
+                .Distinct()
+                .ToListAsync();
+
+            if (temporadaJogo > 0 && !temporadas.Contains(temporadaJogo))
+                temporadas.Add(temporadaJogo);
+
+            return temporadas.OrderByDescending(t => t).ToList();
+        }
+
+        // Calcula as três seções do tooltip (Competição, Temporada e médias por jogo)
+        // com o mesmo recorte de temporada. temporada = rótulo (Jogo.Temporada);
+        // 0 = sem recorte (carreira inteira).
+        private async Task<TooltipJogadorDados> CalcularTooltipAsync(
+            IReadOnlyCollection<int> ids, Jogo jogo, string usuarioId, int temporada)
+        {
+            var dados = new TooltipJogadorDados { Temporada = temporada };
+
+            // O rótulo Temporada segue a api-football: ligas européias usam o ano de
+            // INÍCIO (2025 = 2025/26) e competições de ano civil (Brasileirão, Copa do
+            // Mundo) o próprio ano. Comparar o int direto deixava de fora os jogos de
+            // clube do jogador (Bayern Temporada 2025 vs Copa Temporada 2026) e a linha
+            // "Temporada" ficava igual à "Competição". Normaliza pelo ANO DE TÉRMINO:
+            // uma (competição, temporada) "cruza o ano" quando tem jogos em ano civil
+            // maior que o rótulo — nesse caso termina em Temporada+1. Dois jogos são da
+            // mesma temporada quando terminam no mesmo ano.
+            int? anoTermino = null;
+            var compsCruzadasAnterior = new List<int>();
+            var compsCruzadasAtual = new List<int>();
+
+            if (temporada > 0)
             {
-                // O rótulo Temporada segue a api-football: ligas européias usam o ano de
-                // INÍCIO (2025 = 2025/26) e competições de ano civil (Brasileirão, Copa do
-                // Mundo) o próprio ano. Comparar o int direto deixava de fora os jogos de
-                // clube do jogador (Bayern Temporada 2025 vs Copa Temporada 2026) e a linha
-                // "Temporada" ficava igual à "Competição". Normaliza pelo ANO DE TÉRMINO:
-                // uma (competição, temporada) "cruza o ano" quando tem jogos em ano civil
-                // maior que o rótulo — nesse caso termina em Temporada+1. Dois jogos são da
-                // mesma temporada quando terminam no mesmo ano.
                 var refCruzaAno = await _context.Jogos.AnyAsync(j =>
-                    j.CompeticaoId == jogo.CompeticaoId && j.Temporada == jogo.Temporada &&
+                    j.CompeticaoId == jogo.CompeticaoId && j.Temporada == temporada &&
                     j.Data != null && j.Data.Value.Year > j.Temporada);
-                var anoTermino = jogo.Temporada + (refCruzaAno ? 1 : 0);
+                anoTermino = temporada + (refCruzaAno ? 1 : 0);
 
                 // Competições cujo rótulo (anoTermino-1) cruza o ano → terminam em anoTermino (entram)
-                var compsCruzadasAnterior = await _context.Jogos
+                compsCruzadasAnterior = await _context.Jogos
                     .Where(j => j.Temporada == anoTermino - 1 && j.Data != null && j.Data.Value.Year > j.Temporada)
                     .Select(j => j.CompeticaoId).Distinct().ToListAsync();
 
                 // Competições cujo rótulo anoTermino cruza o ano → terminam em anoTermino+1 (saem)
-                var compsCruzadasAtual = await _context.Jogos
+                compsCruzadasAtual = await _context.Jogos
                     .Where(j => j.Temporada == anoTermino && j.Data != null && j.Data.Value.Year > j.Temporada)
                     .Select(j => j.CompeticaoId).Distinct().ToListAsync();
+            }
 
-                vm.GolsTemporadaPorJogador = await _context.Gols
-                    .Where(g => !g.Contra && idsTooltip.Contains(g.JogadorId) &&
-                        ((g.Jogo.Temporada == anoTermino && !compsCruzadasAtual.Contains(g.Jogo.CompeticaoId)) ||
-                         (g.Jogo.Temporada == anoTermino - 1 && compsCruzadasAnterior.Contains(g.Jogo.CompeticaoId))))
+            // Recorte de temporada repetido nas consultas abaixo — inline porque o
+            // EF não traduz chamada de função local dentro da árvore de expressão.
+            // semFiltro = "Todas as temporadas".
+            var semFiltro = anoTermino == null;
+            var ano = anoTermino ?? 0;
+
+            // ── Linha "Competição": só esta competição, dentro da temporada ────
+            dados.Gols = await _context.Gols
+                .Where(g => g.Jogo.CompeticaoId == jogo.CompeticaoId && !g.Contra
+                         && ids.Contains(g.JogadorId)
+                         && (semFiltro
+                             || (g.Jogo.Temporada == ano && !compsCruzadasAtual.Contains(g.Jogo.CompeticaoId))
+                             || (g.Jogo.Temporada == ano - 1 && compsCruzadasAnterior.Contains(g.Jogo.CompeticaoId))))
+                .GroupBy(g => g.JogadorId)
+                .Select(g => new { JogadorId = g.Key, Total = g.Count() })
+                .ToDictionaryAsync(x => x.JogadorId, x => x.Total);
+
+            dados.Assists = await _context.Assistencias
+                .Where(a => a.Jogo.CompeticaoId == jogo.CompeticaoId
+                         && ids.Contains(a.JogadorId)
+                         && (semFiltro
+                             || (a.Jogo.Temporada == ano && !compsCruzadasAtual.Contains(a.Jogo.CompeticaoId))
+                             || (a.Jogo.Temporada == ano - 1 && compsCruzadasAnterior.Contains(a.Jogo.CompeticaoId))))
+                .GroupBy(a => a.JogadorId)
+                .Select(a => new { JogadorId = a.Key, Total = a.Count() })
+                .ToDictionaryAsync(x => x.JogadorId, x => x.Total);
+
+            dados.TitularCompeticao = await CalcularTitularesPorJogadorAsync(
+                ids, usuarioId, competicaoId: jogo.CompeticaoId,
+                temporadaAnoTermino: anoTermino,
+                compsCruzadasAnterior: compsCruzadasAnterior,
+                compsCruzadasAtual: compsCruzadasAtual);
+
+            // ── Linha "Temporada": todas as competições do mesmo ano ──────────
+            // Temporada 0 (jogo sem temporada, ou "Todas") esconde a linha na view.
+            if (anoTermino != null)
+            {
+                dados.GolsTemporada = await _context.Gols
+                    .Where(g => !g.Contra && ids.Contains(g.JogadorId)
+                             && ((g.Jogo.Temporada == ano && !compsCruzadasAtual.Contains(g.Jogo.CompeticaoId))
+                              || (g.Jogo.Temporada == ano - 1 && compsCruzadasAnterior.Contains(g.Jogo.CompeticaoId))))
                     .GroupBy(g => g.JogadorId)
                     .Select(g => new { JogadorId = g.Key, Total = g.Count() })
                     .ToDictionaryAsync(x => x.JogadorId, x => x.Total);
 
-                vm.AssistsTemporadaPorJogador = await _context.Assistencias
-                    .Where(a => idsTooltip.Contains(a.JogadorId) &&
-                        ((a.Jogo.Temporada == anoTermino && !compsCruzadasAtual.Contains(a.Jogo.CompeticaoId)) ||
-                         (a.Jogo.Temporada == anoTermino - 1 && compsCruzadasAnterior.Contains(a.Jogo.CompeticaoId))))
+                dados.AssistsTemporada = await _context.Assistencias
+                    .Where(a => ids.Contains(a.JogadorId)
+                             && ((a.Jogo.Temporada == ano && !compsCruzadasAtual.Contains(a.Jogo.CompeticaoId))
+                              || (a.Jogo.Temporada == ano - 1 && compsCruzadasAnterior.Contains(a.Jogo.CompeticaoId))))
                     .GroupBy(a => a.JogadorId)
                     .Select(a => new { JogadorId = a.Key, Total = a.Count() })
                     .ToDictionaryAsync(x => x.JogadorId, x => x.Total);
 
-                vm.TitularTemporadaPorJogador = await CalcularTitularesPorJogadorAsync(
-                    idsTooltip, usuarioId,
+                dados.TitularTemporada = await CalcularTitularesPorJogadorAsync(
+                    ids, usuarioId,
                     temporadaAnoTermino: anoTermino,
                     compsCruzadasAnterior: compsCruzadasAnterior,
                     compsCruzadasAtual: compsCruzadasAtual);
             }
 
-            vm.MediasPorJogador = await CalcularMediasPorJogadorAsync(idsTooltip);
-            vm.TitularPorJogador = await CalcularTitularesPorJogadorAsync(
-                idsTooltip, usuarioId, competicaoId: jogo.CompeticaoId);
+            dados.Medias = await CalcularMediasPorJogadorAsync(
+                ids, anoTermino, compsCruzadasAnterior, compsCruzadasAtual);
+
+            return dados;
+        }
+
+        // GET: Jogos/TooltipTemporada/5?temporada=2025 — recalcula os dados do tooltip
+        // para outra temporada (0 = todas) sem recarregar a tela de análise, que tem
+        // escalação em edição e não pode ser recarregada só para trocar um filtro.
+        [HttpGet]
+        public async Task<IActionResult> TooltipTemporada(int id, int temporada)
+        {
+            var usuarioId = _userManager.GetUserId(User)!;
+            var jogo = await _context.Jogos.FirstOrDefaultAsync(j => j.Id == id);
+            if (jogo == null) return NotFound();
+
+            // Mesmo universo de jogadores da tela: escalados + elencos dos dois times.
+            var idsEscalados = await _context.Escalacoes
+                .Where(e => e.JogoId == id && e.JogadorId != null
+                         && (e.UsuarioId == usuarioId || e.UsuarioId == null))
+                .Select(e => e.JogadorId!.Value)
+                .ToListAsync();
+
+            var idsElenco = await _context.Jogadores
+                .Where(j => j.TimeId == jogo.TimeCasaId || j.SelecaoId == jogo.TimeCasaId
+                         || j.TimeId == jogo.TimeVisitanteId || j.SelecaoId == jogo.TimeVisitanteId)
+                .Select(j => j.Id)
+                .ToListAsync();
+
+            var ids = idsEscalados.Concat(idsElenco).Distinct().ToList();
+            if (ids.Count == 0) return Json(new TooltipJogadorDados { Temporada = temporada });
+
+            return Json(await CalcularTooltipAsync(ids, jogo, usuarioId, temporada));
         }
 
         // Médias por jogo das estatísticas importadas, em lote, para os jogadores
         // exibidos na tela — mesmas fórmulas de /Jogadores/Estatisticas (inclusive
         // o filtro Minutos > 0, que exclui reservas não utilizados). Alimenta o
         // tooltip de info do jogador em /Jogos/Analisar.
+        // anoTermino recorta as médias na temporada escolhida no tooltip (null =
+        // carreira inteira, que era o comportamento antigo e fixo).
         private async Task<Dictionary<int, MediasPorJogo>> CalcularMediasPorJogadorAsync(
-            IReadOnlyCollection<int> ids)
+            IReadOnlyCollection<int> ids, int? anoTermino = null,
+            List<int>? compsCruzadasAnterior = null, List<int>? compsCruzadasAtual = null)
         {
             if (ids.Count == 0) return new();
 
+            var semFiltro = anoTermino == null;
+            var ano = anoTermino ?? 0;
+            var cruzAnt = compsCruzadasAnterior ?? new List<int>();
+            var cruzAtu = compsCruzadasAtual ?? new List<int>();
+
             var agregados = await _context.EstatisticasJogador
-                .Where(e => ids.Contains(e.JogadorId) && e.Minutos != null && e.Minutos > 0)
+                .Where(e => ids.Contains(e.JogadorId) && e.Minutos != null && e.Minutos > 0
+                         && (semFiltro
+                             || (e.Jogo.Temporada == ano && !cruzAtu.Contains(e.Jogo.CompeticaoId))
+                             || (e.Jogo.Temporada == ano - 1 && cruzAnt.Contains(e.Jogo.CompeticaoId))))
                 .GroupBy(e => e.JogadorId)
                 .Select(g => new
                 {

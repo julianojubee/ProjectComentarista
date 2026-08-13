@@ -29,10 +29,25 @@ namespace ControleFutebolWeb.Controllers
         }
 
         // GET: /Relatorios
-        public async Task<IActionResult> Index(int[]? competicaoIds, int[]? timeIds, int? temporada, bool incluirNaoAnalisados = false, int? minJogos = null)
+        public async Task<IActionResult> Index(int[]? competicaoIds, int[]? timeIds, int? temporada,
+            bool incluirNaoAnalisados = false, int? minJogos = null, string? baseEstat = null, string? mando = null)
         {
             var usuarioId = _userManager.GetUserId(User)!;
-            var vm = await _relatorios.MontarAsync(competicaoIds, timeIds, temporada, incluirNaoAnalisados, minJogos ?? 1, usuarioId);
+            // "total" | "jogo" | "90" — valor inválido cai no padrão (por jogo).
+            var baseCalculo = baseEstat switch
+            {
+                "total" => BaseEstatistica.Total,
+                "90"    => BaseEstatistica.Por90,
+                _       => BaseEstatistica.PorJogo
+            };
+            var mandoSel = mando switch
+            {
+                "casa" => MandoJogador.Casa,
+                "fora" => MandoJogador.Fora,
+                _      => MandoJogador.Todos
+            };
+            var vm = await _relatorios.MontarAsync(competicaoIds, timeIds, temporada, incluirNaoAnalisados,
+                minJogos ?? 1, usuarioId, baseEstatistica: baseCalculo, mando: mandoSel);
             return View(vm);
         }
 
@@ -159,6 +174,10 @@ namespace ControleFutebolWeb.Controllers
 
             var estatisticas = await _context.EstatisticasJogador
                 .AsNoTracking()
+                // Jogo e Jogador: usados pelo bônus "não sofreu gol"
+                // (CriteriosNotaHelper). Sem tracking não há fixup entre consultas.
+                .Include(e => e.Jogo)
+                .Include(e => e.Jogador)
                 // Exclui reservas não utilizados (Minutos 0/null) — ver comentário
                 // equivalente em MontarViewModel.
                 .Where(e => jogoIds.Contains(e.JogoId) && jogadorIds.Contains(e.JogadorId)
@@ -175,6 +194,19 @@ namespace ControleFutebolWeb.Controllers
             var criteriosBanco = CriteriosNotaHelper.MergeCriterios(
                 await _context.CriteriosNota.Where(c => c.UsuarioId == null).ToListAsync(),
                 await _context.CriteriosNota.Where(c => c.UsuarioId == usuarioId).ToListAsync());
+
+            // Lado (casa/visitante) por jogador/jogo, da escalação da época — o bônus
+            // "não sofreu gol" precisa dele para não errar os jogos pré-transferência.
+            var lados = await LadoJogadorHelper.CarregarAsync(_context, jogoIds, usuarioId);
+
+            // Minutos e goleiro decisivo por (jogador, jogo) — pisos de participação
+            // curta e bônus de 100% de defesas.
+            var contextos = await ContextoNotaHelper.CarregarAsync(_context, jogoIds, usuarioId, lados);
+
+            // Motor da nota automática escolhido em /CriteriosNota. Só vale para os
+            // jogos sem avaliação manual — os avaliados usam a nota do próprio usuário.
+            var calculadora = await NotaAutomaticaHelper.CarregarAsync(
+                _context, jogoIds, usuarioId, criteriosBanco, lados, contextos);
 
             // Dicionários de agregação
             var golsPorJogador      = gols.GroupBy(g => g.JogadorId).ToDictionary(g => g.Key, g => g.Count());
@@ -202,9 +234,10 @@ namespace ControleFutebolWeb.Controllers
                 int amarelo  = amareloPorJogador.GetValueOrDefault(jId, 0);
                 int vermelho = vermelhoPorJogador.GetValueOrDefault(jId, 0);
 
-                int passesChave = 0, desarmes = 0, bloqueios = 0, interceptacoes = 0, duelosVencidos = 0, finNoGol = 0, driles = 0;
+                int passesChave = 0, desarmes = 0, bloqueios = 0, interceptacoes = 0, duelosVencidos = 0, finNoGol = 0, driles = 0, minutos = 0;
                 if (estatsPorJogador.TryGetValue(jId, out var estats))
                 {
+                    minutos        = estats.Sum(e => e.Minutos ?? 0);
                     passesChave    = estats.Sum(e => e.PassesChave);
                     desarmes       = estats.Sum(e => e.Desarmes);
                     bloqueios      = estats.Sum(e => e.Bloqueios);
@@ -213,6 +246,10 @@ namespace ControleFutebolWeb.Controllers
                     finNoGol       = estats.Sum(e => e.FinalizacoesNoGol);
                     driles         = estats.Sum(e => e.DriblesCertos);
                 }
+
+                // Somas que alimentam o seletor de colunas da tabela do Scout.
+                var estatsDoJogador = estatsPorJogador.GetValueOrDefault(jId);
+                int Soma(Func<EstatisticaJogador, int> f) => estatsDoJogador == null ? 0 : estatsDoJogador.Sum(f);
 
                 // Nota média (mesma lógica do ranking misto)
                 double? notaMedia = null;
@@ -228,7 +265,8 @@ namespace ControleFutebolWeb.Controllers
                             valor: g.Average(n => n.Valor),
                             manual: g.Any(n => n.NotaManual.HasValue)
                                 ? (double?)g.Where(n => n.NotaManual.HasValue).Average(n => n.NotaManual!.Value)
-                                : null));
+                                : null,
+                            detalhes: g.SelectMany(n => n.Detalhes).ToList()));
                     var estatsDict = (estatsPorJogador.GetValueOrDefault(jId) ?? new())
                         .GroupBy(e => e.JogoId)
                         .ToDictionary(g => g.Key, g => g.ToList());
@@ -237,13 +275,14 @@ namespace ControleFutebolWeb.Controllers
                     foreach (var jogoId in jogoIdSet)
                     {
                         double nj;
+                        var ctxJogo = ContextoNotaHelper.De(contextos, jId, jogoId);
                         if (notasDict.TryGetValue(jogoId, out var ni))
                             nj = ni.manual.HasValue
                                 ? Math.Round(Math.Max(0, Math.Min(10, ni.manual.Value)), 2)
-                                : Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima, Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + ni.valor)), 2);
+                                : CriteriosNotaHelper.NotaFinal(ni.valor, criteriosBanco,
+                                    ctxJogo with { Acoes = CriteriosNotaHelper.ContarAcoes(ni.detalhes) });
                         else if (estatsDict.TryGetValue(jogoId, out var es))
-                            nj = Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima,
-                                    Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + es.Sum(e => CriteriosNotaHelper.CalcularPontuacao(e, criteriosBanco)))), 2);
+                            nj = calculadora.De(es, jId, jogoId).Nota;
                         else continue;
                         soma += nj; comp++;
                     }
@@ -285,6 +324,7 @@ namespace ControleFutebolWeb.Controllers
                 {
                     Jogador          = jogador,
                     Jogos            = jogosCount,
+                    Minutos          = minutos,
                     Gols             = gol,
                     Assistencias     = ass,
                     CartaoAmarelo    = amarelo,
@@ -297,6 +337,24 @@ namespace ControleFutebolWeb.Controllers
                     DuelosVencidos    = duelosVencidos,
                     FinalizacoesNoGol = finNoGol,
                     DrilesCertos      = driles,
+
+                    FinalizacoesTotal = Soma(e => e.FinalizacoesTotal),
+                    PassesTotal       = Soma(e => e.PassesTotal),
+                    PassesCertos      = Soma(e => e.PassesCertos),
+                    DriblesTentados   = Soma(e => e.DriblesTentados),
+                    DriblesSofridos   = Soma(e => e.DriblesSofridos),
+                    DuelosTotal       = Soma(e => e.DuelosTotal),
+                    FaltasCometidas   = Soma(e => e.FaltasCometidas),
+                    FaltasSofridas    = Soma(e => e.FaltasSofridas),
+                    Impedimentos      = Soma(e => e.Offsides),
+                    Defesas           = Soma(e => e.Defesas),
+                    GolsSofridos      = Soma(e => e.GolsSofridos),
+                    PenaltiSofrido    = Soma(e => e.PenaltiSofrido),
+                    PenaltiCometido   = Soma(e => e.PenaltiCometido),
+                    PenaltiDefendido  = Soma(e => e.PenaltiDefendido),
+                    PenaltiPerdido    = Soma(e => e.PenaltiPerdido),
+                    PenaltiConvertido = Soma(e => e.PenaltiConvertido),
+                    VezesReserva      = Soma(e => e.EntrouDoBanco ? 1 : 0),
                 });
             }
 
@@ -560,22 +618,34 @@ namespace ControleFutebolWeb.Controllers
                     .Where(a => jogoIds.Contains(a.JogoId) && idsJogadores.Contains(a.JogadorId))
                     .ToListAsync();
                 var notasConfronto = await _context.Notas.AsNoTracking()
+                    // Detalhes: o piso de merecimento conta os chips verdes x vermelhos.
+                    .Include(n => n.Detalhes)
                     .Where(n => jogoIds.Contains(n.JogoId) && idsJogadores.Contains(n.JogadorId) && n.UsuarioId == uid)
                     .ToListAsync();
                 var estatsConfronto = await _context.EstatisticasJogador.AsNoTracking()
+                    // Jogo e Jogador: usados pelo bônus "não sofreu gol" (CriteriosNotaHelper).
+                    .Include(e => e.Jogo)
+                    .Include(e => e.Jogador)
                     .Where(e => jogoIds.Contains(e.JogoId) && idsJogadores.Contains(e.JogadorId) && e.Minutos != null && e.Minutos > 0)
                     .ToListAsync();
+                var ladosConfronto = await LadoJogadorHelper.CarregarAsync(_context, jogoIds, uid, idsJogadores);
+                // Lados próprios: ladosConfronto está filtrado nos dois jogadores do
+                // comparativo e não fecharia as finalizações do elenco adversário.
+                var contextosConfronto = await ContextoNotaHelper.CarregarAsync(_context, jogoIds, uid);
+                var calculadoraConfronto = await NotaAutomaticaHelper.CarregarAsync(
+                    _context, jogoIds, uid, criterios, ladosConfronto, contextosConfronto);
 
                 double? NotaDoJogo(int jogadorId, int jogoId)
                 {
+                    var ctxJogo = ContextoNotaHelper.De(contextosConfronto, jogadorId, jogoId);
                     var n = notasConfronto.FirstOrDefault(x => x.JogadorId == jogadorId && x.JogoId == jogoId);
                     if (n != null)
                         return n.NotaManual.HasValue
                             ? Math.Round(Math.Max(0, Math.Min(10, n.NotaManual.Value)), 2)
-                            : Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima, Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + n.Valor)), 2);
+                            : CriteriosNotaHelper.NotaFinal(n.Valor, criterios,
+                                ctxJogo with { Acoes = CriteriosNotaHelper.ContarAcoes(n.Detalhes) });
                     var e = estatsConfronto.FirstOrDefault(x => x.JogadorId == jogadorId && x.JogoId == jogoId);
-                    if (e != null)
-                        return Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima, Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + CriteriosNotaHelper.CalcularPontuacao(e, criterios))), 2);
+                    if (e != null) return calculadoraConfronto.De(e).Nota;
                     return null;
                 }
 

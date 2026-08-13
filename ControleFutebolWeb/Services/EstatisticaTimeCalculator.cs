@@ -47,18 +47,37 @@ namespace ControleFutebolWeb.Services
                 return vm;
             }
 
-            // Acumuladores das médias por jogo vindas do JSON (soma + quantas partidas tinham o dado).
-            var somaPosse = new Dictionary<int, (double soma, int n)>();
-            var somaFin = new Dictionary<int, (double soma, int n)>();
-            var somaFinGol = new Dictionary<int, (double soma, int n)>();
-            var somaEsc = new Dictionary<int, (double soma, int n)>();
-            var somaPasses = new Dictionary<int, (double soma, int n)>();
-            var somaXg = new Dictionary<int, (double soma, int n)>();
-
-            void Acumular(Dictionary<int, (double soma, int n)> dic, int timeId, double v)
+            // Chaves lidas de Jogo.EstatisticasJson (nomes vindos da api-football).
+            // Todas já são gravadas por ApiFootballService.MontarEstatisticasJson —
+            // basta lê-las aqui. isPct só indica que o valor vem como "48%".
+            var CHAVES = new (string Json, bool Pct)[]
             {
+                ("Ball Possession", true),  ("Total Shots", false),     ("Shots on Goal", false),
+                ("Shots off Goal", false),  ("Shots insidebox", false), ("Shots outsidebox", false),
+                ("Blocked Shots", false),   ("Corner Kicks", false),    ("Total passes", false),
+                ("Passes accurate", false), ("Passes %", true),         ("Fouls", false),
+                ("Offsides", false),        ("Goalkeeper Saves", false),
+                ("expected_goals", false),  ("goals_prevented", false)
+            };
+
+            // chave -> timeId -> (soma dos valores, nº de partidas que tinham o dado).
+            var somas = new Dictionary<string, Dictionary<int, (double soma, int n)>>();
+
+            // Gols marcados pelo time apenas nas partidas em que a chave veio
+            // importada — denominador e numerador precisam cobrir os mesmos jogos
+            // para "conversão" e "eficiência em GE" fazerem sentido.
+            var golsComChave = new Dictionary<string, Dictionary<int, int>>();
+
+            void Acumular(string chave, int timeId, double v, int golsNaPartida)
+            {
+                if (!somas.TryGetValue(chave, out var dic))
+                    somas[chave] = dic = new Dictionary<int, (double, int)>();
                 var cur = dic.GetValueOrDefault(timeId);
                 dic[timeId] = (cur.soma + v, cur.n + 1);
+
+                if (!golsComChave.TryGetValue(chave, out var g))
+                    golsComChave[chave] = g = new Dictionary<int, int>();
+                g[timeId] = g.GetValueOrDefault(timeId) + golsNaPartida;
             }
 
             double? Ler(JsonElement stats, string chave, bool isPct)
@@ -84,9 +103,9 @@ namespace ControleFutebolWeb.Services
                 vmCasa.J++; vmCasa.JCasa++; vmCasa.Gp += pc; vmCasa.Gc += pv; vmCasa.GpCasa += pc; vmCasa.GcCasa += pv;
                 vmVis.J++; vmVis.JFora++; vmVis.Gp += pv; vmVis.Gc += pc; vmVis.GpFora += pv; vmVis.GcFora += pc;
 
-                if (pc > pv) { vmCasa.V++; vmCasa.Pts += 3; vmCasa.PtsCasa += 3; vmVis.D++; }
+                if (pc > pv) { vmCasa.V++; vmCasa.VCasa++; vmCasa.Pts += 3; vmCasa.PtsCasa += 3; vmVis.D++; }
                 else if (pc < pv) { vmVis.V++; vmVis.Pts += 3; vmVis.PtsFora += 3; vmCasa.D++; }
-                else { vmCasa.E++; vmCasa.Pts += 1; vmCasa.PtsCasa += 1; vmVis.E++; vmVis.Pts += 1; vmVis.PtsFora += 1; }
+                else { vmCasa.E++; vmCasa.ECasa++; vmCasa.Pts += 1; vmCasa.PtsCasa += 1; vmVis.E++; vmVis.Pts += 1; vmVis.PtsFora += 1; }
 
                 if (pv == 0) vmCasa.CleanSheets++;
                 if (pc == 0) vmVis.CleanSheets++;
@@ -101,25 +120,18 @@ namespace ControleFutebolWeb.Services
                             if (!entry.TryGetProperty("TimeId", out var tidEl)) continue;
                             int apiId = tidEl.GetInt32();
 
-                            int internalId;
-                            if (jogo.TimeCasa.IdApi == apiId) internalId = jogo.TimeCasaId;
-                            else if (jogo.TimeVisitante.IdApi == apiId) internalId = jogo.TimeVisitanteId;
+                            int internalId, golsNaPartida;
+                            if (jogo.TimeCasa.IdApi == apiId) { internalId = jogo.TimeCasaId; golsNaPartida = pc; }
+                            else if (jogo.TimeVisitante.IdApi == apiId) { internalId = jogo.TimeVisitanteId; golsNaPartida = pv; }
                             else continue;
 
                             if (!entry.TryGetProperty("Stats", out var stats)) continue;
 
-                            var posse = Ler(stats, "Ball Possession", isPct: true);
-                            if (posse.HasValue) Acumular(somaPosse, internalId, posse.Value);
-                            var fin = Ler(stats, "Total Shots", isPct: false);
-                            if (fin.HasValue) Acumular(somaFin, internalId, fin.Value);
-                            var finGol = Ler(stats, "Shots on Goal", isPct: false);
-                            if (finGol.HasValue) Acumular(somaFinGol, internalId, finGol.Value);
-                            var esc = Ler(stats, "Corner Kicks", isPct: false);
-                            if (esc.HasValue) Acumular(somaEsc, internalId, esc.Value);
-                            var passes = Ler(stats, "Passes accurate", isPct: false);
-                            if (passes.HasValue) Acumular(somaPasses, internalId, passes.Value);
-                            var xg = Ler(stats, "expected_goals", isPct: false);
-                            if (xg.HasValue) Acumular(somaXg, internalId, xg.Value);
+                            foreach (var (chave, pct) in CHAVES)
+                            {
+                                var v = Ler(stats, chave, isPct: pct);
+                                if (v.HasValue) Acumular(chave, internalId, v.Value, golsNaPartida);
+                            }
                         }
                     }
                     catch { /* ignora JSON malformado */ }
@@ -148,17 +160,60 @@ namespace ControleFutebolWeb.Services
                 else vm.Amarelos++;
             }
 
-            double? Media(Dictionary<int, (double soma, int n)> dic, int timeId) =>
-                dic.TryGetValue(timeId, out var v) && v.n > 0 ? Math.Round(v.soma / v.n, 1) : (double?)null;
+            double? Media(string chave, int timeId) =>
+                somas.TryGetValue(chave, out var dic) && dic.TryGetValue(timeId, out var v) && v.n > 0
+                    ? Math.Round(v.soma / v.n, 1) : (double?)null;
+
+            double? Total(string chave, int timeId) =>
+                somas.TryGetValue(chave, out var dic) && dic.TryGetValue(timeId, out var v) && v.n > 0
+                    ? v.soma : (double?)null;
+
+            int GolsCom(string chave, int timeId) =>
+                golsComChave.TryGetValue(chave, out var dic) ? dic.GetValueOrDefault(timeId) : 0;
+
+            // Estatísticas de contagem que ganham versão "total" no painel. As de
+            // percentual/razão ficam de fora de propósito (ver Totais no ViewModel).
+            var CONTAGEM = new (string Json, string Nome)[]
+            {
+                ("Total Shots", "fin"),          ("Shots on Goal", "finGol"),
+                ("Shots off Goal", "chutesFora"), ("Shots insidebox", "chutesArea"),
+                ("Shots outsidebox", "chutesForaArea"), ("Blocked Shots", "chutesBloqueados"),
+                ("Corner Kicks", "esc"),         ("Total passes", "passes"),
+                ("Passes accurate", "passesCertos"), ("Fouls", "faltas"),
+                ("Offsides", "impedimentos"),    ("Goalkeeper Saves", "defesasGoleiro"),
+                ("expected_goals", "xg"),        ("goals_prevented", "golsEvitados")
+            };
 
             foreach (var vm in mapa.Values)
             {
-                vm.Posse = Media(somaPosse, vm.TimeId);
-                vm.Fin = Media(somaFin, vm.TimeId);
-                vm.FinGol = Media(somaFinGol, vm.TimeId);
-                vm.Esc = Media(somaEsc, vm.TimeId);
-                vm.PassesCertos = Media(somaPasses, vm.TimeId);
-                vm.Xg = Media(somaXg, vm.TimeId);
+                vm.Posse = Media("Ball Possession", vm.TimeId);
+                vm.Fin = Media("Total Shots", vm.TimeId);
+                vm.FinGol = Media("Shots on Goal", vm.TimeId);
+                vm.Esc = Media("Corner Kicks", vm.TimeId);
+                vm.PassesCertos = Media("Passes accurate", vm.TimeId);
+                vm.Xg = Media("expected_goals", vm.TimeId);
+
+                vm.ChutesFora = Media("Shots off Goal", vm.TimeId);
+                vm.ChutesArea = Media("Shots insidebox", vm.TimeId);
+                vm.ChutesForaArea = Media("Shots outsidebox", vm.TimeId);
+                vm.ChutesBloqueados = Media("Blocked Shots", vm.TimeId);
+                vm.Passes = Media("Total passes", vm.TimeId);
+                vm.PrecisaoPasses = Media("Passes %", vm.TimeId);
+                vm.Faltas = Media("Fouls", vm.TimeId);
+                vm.Impedimentos = Media("Offsides", vm.TimeId);
+                vm.DefesasGoleiro = Media("Goalkeeper Saves", vm.TimeId);
+                vm.GolsEvitados = Media("goals_prevented", vm.TimeId);
+
+                vm.FinTotal = Total("Total Shots", vm.TimeId);
+                vm.GolsComFin = GolsCom("Total Shots", vm.TimeId);
+                vm.XgTotal = Total("expected_goals", vm.TimeId);
+                vm.GolsComXg = GolsCom("expected_goals", vm.TimeId);
+
+                foreach (var (json, nome) in CONTAGEM)
+                {
+                    var t = Total(json, vm.TimeId);
+                    if (t.HasValue) vm.Totais[nome] = Math.Round(t.Value, 1);
+                }
             }
 
             return mapa.Values.OrderByDescending(v => v.Pts).ThenByDescending(v => v.Sg).ToList();

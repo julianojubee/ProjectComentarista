@@ -17,7 +17,18 @@ data class AnaliseJogoDto(
     val jogoId: Int,
     val analisadoPorMim: Boolean = false,
     val observacoes: String? = null,
-    val notas: List<NotaJogadorDto> = emptyList()
+    val notas: List<NotaJogadorDto> = emptyList(),
+    val contextos: List<ContextoNotaDto> = emptyList()
+)
+
+// Minutos e goleiro decisivo de cada jogador da partida — entram no cálculo da nota
+// do rascunho (ver RascunhoNota.notaFinal).
+@Serializable
+data class ContextoNotaDto(
+    val jogadorId: Int,
+    val minutos: Int? = null,
+    val goleiroDecisivo: Boolean = false,
+    val golDaVitoria: Boolean = false
 )
 
 @Serializable

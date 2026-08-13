@@ -15,8 +15,11 @@ namespace ControleFutebolWeb.Models
         public int? TimeOrigemId { get; set; }
         public Time? TimeOrigem { get; set; }
 
-        public int TimeDestinoId { get; set; }
-        public Time TimeDestino { get; set; } = null!;
+        // null = aposentadoria: o jogador saiu do futebol em vez de trocar de clube.
+        // O TimeId dele continua no último clube (o histórico de jogos precisa dele);
+        // quem marca que parou de jogar é Jogador.Aposentado.
+        public int? TimeDestinoId { get; set; }
+        public Time? TimeDestino { get; set; }
 
         // Jogo em que a transferência foi detectada (fonte da competição no filtro).
         public int? JogoId { get; set; }

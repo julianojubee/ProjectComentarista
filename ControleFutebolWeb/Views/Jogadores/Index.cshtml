@@ -6,12 +6,12 @@
     (string bg, string border, string text) CorPosicao(string? posRaw)
     {
         var p = (posRaw ?? "").ToLowerInvariant();
-        if (p.Contains("gol"))       return ("rgba(245,158,11,0.15)", "rgba(245,158,11,0.35)", "#fbbf24");
-        if (p.StartsWith("zag") || p.StartsWith("def")) return ("rgba(59,130,246,0.15)", "rgba(59,130,246,0.35)", "#60a5fa");
-        if (p.StartsWith("lateral") || p.StartsWith("ala")) return ("rgba(59,130,246,0.15)", "rgba(59,130,246,0.35)", "#60a5fa");
-        if (p.StartsWith("volante") || p.StartsWith("meia")) return ("rgba(168,85,247,0.15)", "rgba(168,85,247,0.35)", "#c084fc");
-        if (p.StartsWith("ponta") || p.StartsWith("centro") || p.StartsWith("ata")) return ("rgba(34,197,94,0.15)", "rgba(34,197,94,0.35)", "#4ade80");
-        return ("rgba(107,114,128,0.15)", "rgba(107,114,128,0.3)", "#9ca3af");
+        if (p.Contains("gol"))       return ("rgba(245,158,11,0.15)", "rgba(245,158,11,0.35)", "var(--warn)");
+        if (p.StartsWith("zag") || p.StartsWith("def")) return ("rgba(59,130,246,0.15)", "rgba(59,130,246,0.35)", "var(--info)");
+        if (p.StartsWith("lateral") || p.StartsWith("ala")) return ("rgba(59,130,246,0.15)", "rgba(59,130,246,0.35)", "var(--info)");
+        if (p.StartsWith("volante") || p.StartsWith("meia")) return ("rgba(168,85,247,0.15)", "rgba(168,85,247,0.35)", "var(--purple)");
+        if (p.StartsWith("ponta") || p.StartsWith("centro") || p.StartsWith("ata")) return ("rgba(34,197,94,0.15)", "rgba(34,197,94,0.35)", "var(--ok)");
+        return ("rgba(107,114,128,0.15)", "rgba(107,114,128,0.3)", "var(--text-muted)");
     }
 
     int paginaAtual = Model.PaginaAtual;
@@ -39,6 +39,15 @@
         return d;
     };
 
+    // URL da listagem com os filtros/página atuais. Vai junto nas ações (editar,
+    // excluir, atualizar) para que o redirect volte exatamente para esta visão.
+    var rotaRetorno = new Microsoft.AspNetCore.Routing.RouteValueDictionary();
+    foreach (var kv in rotaComPagina(paginaAtual))
+    {
+        if (!string.IsNullOrEmpty(kv.Value)) rotaRetorno[kv.Key] = kv.Value;
+    }
+    var returnUrl = Url.Action("Index", "Jogadores", rotaRetorno);
+
     bool temFiltro = !string.IsNullOrEmpty(Model.Nome) || !string.IsNullOrEmpty(Model.FiltroPosicao)
         || !string.IsNullOrEmpty(Model.FiltroNacionalidade) || Model.FiltroTimeId.HasValue
         || Model.IdadeMin.HasValue || Model.IdadeMax.HasValue || Model.SemIdade;
@@ -51,8 +60,8 @@
 
     .jg {
         margin: 0 -12px;
-        background: #0f0f0f;
-        color: #e5e7eb;
+        background: var(--p-0);
+        color: var(--text);
         font-family: 'Barlow', Arial, sans-serif;
         border-radius: 14px;
         overflow: hidden;
@@ -84,25 +93,25 @@
     .jg-hero-content { position: relative; z-index: 3; padding: 2rem 2.5rem; }
     .jg-hero-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
     .jg-hero-kicker-line { height: 2px; width: 28px; background: #d4a520; }
-    .jg-hero-kicker span { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.28em; color: #d4a520; text-transform: uppercase; }
-    .jg-hero h1 { font-size: 2.9rem; font-weight: 800; color: #f1f5f9; margin: 0 0 8px; line-height: 1; }
-    .jg-hero p { font-size: 0.88rem; color: #6b7280; margin: 0 0 20px; max-width: 380px; }
+    .jg-hero-kicker span { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.28em; color: var(--gold-ink); text-transform: uppercase; }
+    .jg-hero h1 { font-size: 2.9rem; font-weight: 800; color: var(--text-strong); margin: 0 0 8px; line-height: 1; }
+    .jg-hero p { font-size: 0.88rem; color: var(--text-dim); margin: 0 0 20px; max-width: 380px; }
 
     .jg-kpis { display: flex; gap: 22px; align-items: center; }
-    .jg-kpi-num { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.7rem; font-weight: 800; color: #d4a520; line-height: 1; }
-    .jg-kpi-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; color: #4b5563; text-transform: uppercase; display: block; margin-top: 2px; }
+    .jg-kpi-num { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.7rem; font-weight: 800; color: var(--gold-ink); line-height: 1; }
+    .jg-kpi-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; color: var(--text-dimmer); text-transform: uppercase; display: block; margin-top: 2px; }
     .jg-kpi-sep { width: 1px; height: 30px; background: #1e2d45; }
 
     /* ── Filtros ─────────────────────────────────── */
     .jg-filters {
-        background: #141414; border-bottom: 1px solid #222; padding: 14px 2.5rem;
+        background: var(--p-1); border-bottom: 1px solid var(--line); padding: 14px 2.5rem;
         position: sticky; top: 62px; z-index: 50;
         display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap;
     }
     .jg-field { display: flex; flex-direction: column; gap: 4px; }
-    .jg-field label { font-size: 0.62rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.06em; }
+    .jg-field label { font-size: 0.62rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
     .jg-input, .jg-select {
-        background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; color: #e5e7eb;
+        background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 8px; color: var(--text);
         font-size: 0.83rem; padding: 8px 12px; outline: none; font-family: inherit;
     }
     .jg-input:focus, .jg-select:focus { border-color: #d4a520; }
@@ -110,28 +119,28 @@
     .jg-input-narrow { width: 100px; }
     .jg-check { display: flex; align-items: center; gap: 6px; padding-bottom: 8px; }
     .jg-check input { accent-color: #d4a520; cursor: pointer; }
-    .jg-check label { font-size: 0.78rem; color: #9ca3af; cursor: pointer; }
+    .jg-check label { font-size: 0.78rem; color: var(--text-muted); cursor: pointer; }
 
     .jg-btn { padding: 8px 18px; border-radius: 8px; font-size: 0.82rem; font-weight: 800; border: none; cursor: pointer; letter-spacing: 0.02em; }
     .jg-btn-gold { background: #d4a520; color: #141414; }
     .jg-btn-gold:hover { background: #c49918; }
-    .jg-btn-ghost { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: #9ca3af; }
-    .jg-btn-ghost:hover { border-color: #d4a520; color: #d4a520; }
+    .jg-btn-ghost { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: var(--text-muted); }
+    .jg-btn-ghost:hover { border-color: #d4a520; color: var(--gold-ink); }
 
     /* ── Lista ───────────────────────────────────── */
     .jg-list-wrap { padding: 20px 2.5rem 3rem; max-width: 1544px; margin: 0 auto; }
 
-    .jg-summary { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; color: #6b7280; font-size: 0.8rem; }
-    .jg-summary strong { color: #9ca3af; }
+    .jg-summary { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; color: var(--text-dim); font-size: 0.8rem; }
+    .jg-summary strong { color: var(--text-muted); }
 
     .jg-bulk-btn { margin-bottom: 14px; }
 
     .jg-row {
         display: grid; grid-template-columns: 42px 1fr 200px auto; gap: 16px; align-items: center;
-        padding: 11px 16px; background: #141414; border: 1px solid #1e1e1e; border-radius: 10px;
+        padding: 11px 16px; background: var(--p-1); border: 1px solid var(--line-soft); border-radius: 10px;
         margin-bottom: 6px; transition: border-color 0.15s, background 0.15s;
     }
-    .jg-row:hover { background: #1a1a1a; border-color: #2a2a2a; }
+    .jg-row:hover { background: var(--p-2); border-color: var(--line-strong); }
 
     .jg-photo {
         width: 42px; height: 42px; border-radius: 50%; background: #1e293b; border: 1px solid #2a3a52;
@@ -144,45 +153,48 @@
         font-size: 0.9rem; font-weight: 700; color: #eecb6c;
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; margin-bottom: 4px;
     }
-    .jg-name:hover { color: #d4a520; text-decoration: underline; }
+    .jg-name:hover { color: var(--gold-ink); text-decoration: underline; }
     .jg-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .jg-pos-badge {
         display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 6px;
         font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; white-space: nowrap;
     }
-    .jg-meta span.idade { font-size: 0.72rem; color: #6b7280; }
+    .jg-meta span.idade { font-size: 0.72rem; color: var(--text-dim); }
     .jg-meta span.flag { font-size: 0.9rem; line-height: 1; }
 
     .jg-club { display: flex; align-items: center; gap: 8px; min-width: 0; }
     .jg-club img { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
-    .jg-club span { font-size: 0.83rem; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .jg-club span { font-size: 0.83rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* Clube clicável → página do time */
+    .jg-club a { display: flex; align-items: center; gap: 8px; min-width: 0; text-decoration: none; }
+    .jg-club a:hover span { color: var(--gold-ink); text-decoration: underline; }
 
     .jg-actions { display: flex; align-items: center; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
     .jg-actions a, .jg-actions button {
         font-size: 0.7rem; padding: 4px 10px; border-radius: 6px; font-weight: 700; flex-shrink: 0;
         cursor: pointer; white-space: nowrap;
     }
-    .jg-act-detalhes { background: transparent; border: 1px solid #3b82f6; color: #6ea8fe; }
+    .jg-act-detalhes { background: transparent; border: 1px solid #3b82f6; color: var(--info); }
     .jg-act-detalhes:hover { background: rgba(59,130,246,0.12); }
     .jg-act-editar { background: #d97706; border: 1px solid #d97706; color: #fff; }
     .jg-act-editar:hover { background: #b45309; }
     .jg-act-excluir { background: #dc2626; border: 1px solid #dc2626; color: #fff; }
     .jg-act-excluir:hover { background: #b91c1c; }
-    .jg-act-atualizar { background: transparent; border: 1px solid #16a34a; color: #4ade80; display: inline-flex; align-items: center; gap: 4px; }
+    .jg-act-atualizar { background: transparent; border: 1px solid #16a34a; color: var(--ok); display: inline-flex; align-items: center; gap: 4px; }
     .jg-act-atualizar:hover { background: rgba(22,163,74,0.12); }
 
     /* ── Paginação ───────────────────────────────── */
     .jg-pagination { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 28px; flex-wrap: wrap; }
     .jg-page-btn {
-        padding: 8px 14px; background: #161616; border: 1px solid #2a2a2a; border-radius: 8px;
-        color: #6b7280; font-size: 0.82rem; cursor: pointer; text-decoration: none;
+        padding: 8px 14px; background: var(--p-1); border: 1px solid var(--line-strong); border-radius: 8px;
+        color: var(--text-dim); font-size: 0.82rem; cursor: pointer; text-decoration: none;
     }
-    .jg-page-btn:hover { border-color: #d4a520; color: #d4a520; }
+    .jg-page-btn:hover { border-color: #d4a520; color: var(--gold-ink); }
     .jg-page-btn.ativo { background: #d4a520; border-color: #d4a520; color: #141414; font-weight: 800; }
     .jg-page-btn.disabled { opacity: 0.4; pointer-events: none; }
-    .jg-page-ellipsis { color: #4b5563; font-size: 0.82rem; padding: 0 4px; }
+    .jg-page-ellipsis { color: var(--text-dimmer); font-size: 0.82rem; padding: 0 4px; }
 
-    .jg-empty { text-align: center; color: #6b7280; padding: 3rem 1rem; font-size: 0.9rem; background: #161616; border: 1px solid #262626; border-radius: 12px; }
+    .jg-empty { text-align: center; color: var(--text-dim); padding: 3rem 1rem; font-size: 0.9rem; background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; }
 
     @@media (max-width: 900px) {
         .jg-hero-scene { display: none; }
@@ -214,7 +226,7 @@
     }
 
     <!-- Hero -->
-    <div class="jg-hero">
+    <div class="jg-hero theme-dark-zone">
         <img class="jg-hero-pattern" src="~/Images/banner/escudos-pattern.svg" alt="" />
         <div class="jg-hero-fade"></div>
         <div class="jg-hero-stripe"></div>
@@ -294,6 +306,7 @@
         {
             <form asp-action="AtualizarInfoTodosSemIdade" method="post" class="jg-bulk-btn">
                 @Html.AntiForgeryToken()
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
                 <button type="submit" class="jg-btn jg-btn-ghost"
                         onclick="return confirm('Atualizar pela API todos os @Model.TotalJogadores jogadores sem idade? Isso pode levar alguns segundos.')">
                     🔄 Atualizar todos sem idade (@Model.TotalJogadores)
@@ -323,11 +336,11 @@
                             <img src="@Url.FotoSrc(jogador.FotoUrl)" alt="@jogador.Nome"
                                  loading="lazy" decoding="async" width="42" height="42"
                                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-                            <span style="display:none; color:#64748b; font-size:18px;">👤</span>
+                            <span style="display:none; color:var(--text-dim); font-size:18px">👤</span>
                         }
                         else
                         {
-                            <span style="color:#64748b;font-size:18px;">👤</span>
+                            <span style="color:var(--text-dim);font-size:18px">👤</span>
                         }
                     </div>
 
@@ -348,11 +361,13 @@
                     <div class="jg-club">
                         @if (jogador.Time != null)
                         {
-                            @if (!string.IsNullOrEmpty(jogador.Time.EscudoUrl))
-                            {
-                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogador.Time.EscudoUrl })" alt="@jogador.Time.Nome" loading="lazy" decoding="async" />
-                            }
-                            <span>@jogador.Time.Nome</span>
+                            <a asp-controller="Times" asp-action="Details" asp-route-id="@jogador.TimeId" title="Ver @jogador.Time.Nome">
+                                @if (!string.IsNullOrEmpty(jogador.Time.EscudoUrl))
+                                {
+                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogador.Time.EscudoUrl })" alt="@jogador.Time.Nome" loading="lazy" decoding="async" />
+                                }
+                                <span>@jogador.Time.Nome</span>
+                            </a>
                         }
                         else
                         {
@@ -362,10 +377,11 @@
 
                     <div class="jg-actions">
                         <a asp-action="Details" asp-route-id="@jogador.Id" class="jg-act-detalhes">Detalhes</a>
-                        <a asp-action="Edit" asp-route-id="@jogador.Id" class="jg-act-editar">Editar</a>
-                        <a asp-action="Delete" asp-route-id="@jogador.Id" class="jg-act-excluir">Excluir</a>
+                        <a asp-action="Edit" asp-route-id="@jogador.Id" asp-route-returnUrl="@returnUrl" class="jg-act-editar">Editar</a>
+                        <a asp-action="Delete" asp-route-id="@jogador.Id" asp-route-returnUrl="@returnUrl" class="jg-act-excluir">Excluir</a>
                         <form asp-action="AtualizarInfo" asp-route-id="@jogador.Id" method="post" style="display:inline;">
                             @Html.AntiForgeryToken()
+                            <input type="hidden" name="returnUrl" value="@returnUrl" />
                             <button type="submit" class="jg-act-atualizar" title="Atualizar nacionalidade, idade e foto pela API"
                                     onclick="return confirm('Atualizar informações de @jogador.Nome pela API?')">
                                 🔄 Atualizar
@@ -409,7 +425,7 @@
                 }
 
                 <a class="jg-page-btn @(paginaAtual >= totalPaginas ? "disabled" : "")" asp-action="Index" asp-all-route-data="rotaComPagina(paginaAtual + 1)">»</a>
-                <span style="font-size:0.75rem;color:#4b5563;margin-left:8px;">Página @paginaAtual de @totalPaginas</span>
+                <span style="font-size:0.75rem;color:var(--text-dimmer);margin-left:8px">Página @paginaAtual de @totalPaginas</span>
             </nav>
         }
 
@@ -442,11 +458,13 @@
                     <td>
                         @if (jogador.Time != null)
                         {
-                            @if (!string.IsNullOrEmpty(jogador.Time.EscudoUrl))
-                            {
-                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogador.Time.EscudoUrl })" style="height:20px;width:20px;object-fit:contain;border-radius:50%;border:0.5px solid #e5e7eb;margin-right:6px;" />
-                            }
-                            @jogador.Time.Nome
+                            <a asp-controller="Times" asp-action="Details" asp-route-id="@jogador.TimeId" class="link-normal" title="Ver @jogador.Time.Nome">
+                                @if (!string.IsNullOrEmpty(jogador.Time.EscudoUrl))
+                                {
+                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogador.Time.EscudoUrl })" style="height:20px;width:20px;object-fit:contain;border-radius:50%;border:0.5px solid #e5e7eb;margin-right:6px;" />
+                                }
+                                @jogador.Time.Nome
+                            </a>
                         }
                         else
                         {

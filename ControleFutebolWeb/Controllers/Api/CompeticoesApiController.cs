@@ -68,21 +68,21 @@ namespace ControleFutebolWeb.Controllers.Api
                 .ToListAsync();
 
             // Jogos de mata-mata/playoffs não entram na tabela de pontos corridos
-            // (mesma regra da tela /Competicoes/Detalhes). Em competição MATA_MATA pura
-            // (por tipo ou porque todas as fases declaradas são MATA_MATA) mantém tudo:
+            // (mesma regra da tela /Competicoes/Detalhes). Em competição eliminatória pura
+            // (MATA_MATA/JOGO_UNICO, por tipo ou por todas as fases declaradas) mantém tudo:
             // a tabela funciona como quadro de campanha.
             var fasesDeclaradas = await _context.CompeticaoFases.AsNoTracking()
                 .Where(f => f.CompeticaoId == id)
                 .OrderBy(f => f.Ordem).ThenBy(f => f.Id)
                 .ToListAsync();
 
-            if (fasesDeclaradas.Any(f => f.Tipo != "MATA_MATA"))
+            if (fasesDeclaradas.Any(f => !FaseJogoClassifier.EhEliminatoria(f.Tipo)))
             {
                 var jogosPorFase = FaseJogoClassifier.DistribuirPorFases(fasesDeclaradas, jogos);
-                var faseTabela = fasesDeclaradas.First(f => f.Tipo != "MATA_MATA");
+                var faseTabela = fasesDeclaradas.First(f => !FaseJogoClassifier.EhEliminatoria(f.Tipo));
                 jogos = jogosPorFase[faseTabela.Id];
             }
-            else if (!fasesDeclaradas.Any() && competicao.Tipo != "MATA_MATA")
+            else if (!fasesDeclaradas.Any() && !FaseJogoClassifier.EhEliminatoria(competicao.Tipo))
             {
                 jogos = jogos
                     .Where(j => FaseJogoClassifier.Classificar(j.Grupo) != FaseCategoria.MataMata)

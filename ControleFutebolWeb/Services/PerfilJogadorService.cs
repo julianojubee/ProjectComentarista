@@ -1,4 +1,4 @@
-// ControleFutebolWeb/Services/PerfilJogadorService.cs
+﻿// ControleFutebolWeb/Services/PerfilJogadorService.cs
 // Agregação de estatísticas de temporada de um jogador (jogos, gols, passes,
 // duelos, desarmes etc., com a mesma régua de nota manual/automática usada em
 // /Jogadores/Estatisticas). Extraído de JogadoresController para ser
@@ -27,7 +27,7 @@ namespace ControleFutebolWeb.Services
         public double MinutosMedio;
 
         // Somatórios das estatísticas importadas (Minutos > 0)
-        public int Finalizacoes, FinNoGol, Passes, PassesChave;
+        public int Finalizacoes, FinNoGol, Passes, PassesChave, PassesCertos;
         public int DriblesTentados, DriblesCertos, DuelosTotal, DuelosVencidos;
         public int Desarmes, Interceptacoes, Bloqueios, Defesas, GolsSofridos;
         public int FaltasSofridas, FaltasCometidas, Cartoes;
@@ -111,9 +111,19 @@ namespace ControleFutebolWeb.Services
             // Exclui reservas não utilizados (Minutos 0/null), mesmo critério da tela.
             var estatisticas = await _context.EstatisticasJogador
                 .AsNoTracking()
+                // Jogo e Jogador precisam vir juntos: o bônus "não sofreu gol"
+                // (CriteriosNotaHelper) lê o placar da partida e a posição/time do
+                // jogador. Sem tracking não há fixup, então sem Include sai errado.
+                .Include(e => e.Jogo)
+                .Include(e => e.Jogador)
                 .Where(e => e.JogadorId == jogadorId && e.Minutos != null && e.Minutos > 0
                          && (!temporada.HasValue || e.Jogo.Temporada == temporada.Value))
                 .ToListAsync();
+
+            // Lado (casa/visitante) por jogo, da escalação da época — usado pelo bônus
+            // "não sofreu gol"; o time atual erraria os jogos pré-transferência.
+            var lados = await LadoJogadorHelper.CarregarAsync(
+                _context, estatisticas.Select(e => e.JogoId).Distinct().ToList(), uid, new[] { jogadorId });
 
             var jogosEscalado = await _context.Escalacoes
                 .Where(e => e.JogadorId == jogadorId && (e.UsuarioId == uid || e.UsuarioId == null)
@@ -142,18 +152,37 @@ namespace ControleFutebolWeb.Services
             // quando existe; senão base fixa + ações calculadas sobre a estatística.
             var notas = await _context.Notas
                 .AsNoTracking()
+                // Detalhes: o piso de merecimento conta os chips verdes x vermelhos.
+                .Include(n => n.Detalhes)
                 .Where(n => n.JogadorId == jogadorId && n.UsuarioId == uid
                          && (!temporada.HasValue || n.Jogo.Temporada == temporada.Value))
                 .ToListAsync();
 
             var jogosComNotaManual = notas.Select(n => n.JogoId).ToHashSet();
+
+            // Minutos e goleiro decisivo por jogo. Carrega os próprios lados: `lados`
+            // acima está filtrado neste jogador e não fecharia as finalizações no alvo
+            // do elenco adversário.
+            var jogoIdsDoPerfil = notas.Select(n => n.JogoId)
+                .Concat(estatisticas.Select(e => e.JogoId)).Distinct().ToList();
+            var contextos = await ContextoNotaHelper.CarregarAsync(_context, jogoIdsDoPerfil, uid);
+
+            // Motor da nota automática escolhido em /CriteriosNota — só para os jogos
+            // sem avaliação manual.
+            var calculadora = await NotaAutomaticaHelper.CarregarAsync(
+                _context, jogoIdsDoPerfil, uid, criterios, lados, contextos);
+
             var notasFinais = notas
                 .Select(n => n.NotaManual.HasValue
                     ? Math.Round(Math.Max(0, Math.Min(10, n.NotaManual.Value)), 2)
-                    : Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima, Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + n.Valor)), 2))
+                    : CriteriosNotaHelper.NotaFinal(n.Valor, criterios,
+                        ContextoNotaHelper.De(contextos, jogadorId, n.JogoId) with
+                        {
+                            Acoes = CriteriosNotaHelper.ContarAcoes(n.Detalhes)
+                        }))
                 .Concat(estatisticas
                     .Where(e => !jogosComNotaManual.Contains(e.JogoId))
-                    .Select(e => Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima, Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + CriteriosNotaHelper.CalcularPontuacao(e, criterios))), 2)))
+                    .Select(e => calculadora.De(e).Nota))
                 .ToList();
 
             var ratings = estatisticas.Where(e => e.Rating.HasValue).Select(e => e.Rating!.Value).ToList();
@@ -176,6 +205,7 @@ namespace ControleFutebolWeb.Services
                 FinNoGol = estatisticas.Sum(e => e.FinalizacoesNoGol),
                 Passes = estatisticas.Sum(e => e.PassesTotal),
                 PassesChave = estatisticas.Sum(e => e.PassesChave),
+                PassesCertos = estatisticas.Sum(e => e.PassesCertos),
                 DriblesTentados = estatisticas.Sum(e => e.DriblesTentados),
                 DriblesCertos = estatisticas.Sum(e => e.DriblesCertos),
                 DuelosTotal = estatisticas.Sum(e => e.DuelosTotal),

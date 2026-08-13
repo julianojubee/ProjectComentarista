@@ -45,6 +45,8 @@ namespace ControleFutebolWeb.Models.ViewModels
     {
         public Jogador Jogador { get; set; } = null!;
         public int Jogos { get; set; }
+        // Minutos somados no recorte — denominador do "por 90 min" da tabela.
+        public int Minutos { get; set; }
         public int Gols { get; set; }
         public int Assistencias { get; set; }
         public int CartaoAmarelo { get; set; }
@@ -57,6 +59,38 @@ namespace ControleFutebolWeb.Models.ViewModels
         public int DuelosVencidos { get; set; }
         public int FinalizacoesNoGol { get; set; }
         public int DrilesCertos { get; set; }
+
+        // Demais campos que EstatisticaJogador já grava e que o Scout não expunha.
+        // Cobrem os grupos Ataque/Defesa/Passe/Goleiro/Outros do seletor de colunas.
+        public int FinalizacoesTotal { get; set; }
+        public int PassesTotal { get; set; }
+        public int PassesCertos { get; set; }
+        public int DriblesTentados { get; set; }
+        public int DriblesSofridos { get; set; }   // "Driblado": quantas vezes foi passado
+        public int DuelosTotal { get; set; }
+        public int FaltasCometidas { get; set; }
+        public int FaltasSofridas { get; set; }
+        public int Impedimentos { get; set; }
+        public int Defesas { get; set; }
+        public int GolsSofridos { get; set; }
+        public int PenaltiSofrido { get; set; }
+        public int PenaltiCometido { get; set; }
+        public int PenaltiDefendido { get; set; }
+        public int PenaltiPerdido { get; set; }
+        public int PenaltiConvertido { get; set; }
+        // Jogos em que entrou do banco — o complemento de "titular".
+        public int VezesReserva { get; set; }
+        public int Titularidades => Jogos - VezesReserva;
+
+        // Percentuais derivados — null quando não houve tentativa, para a tabela
+        // mostrar "—" em vez de um 0% que pareceria desempenho ruim.
+        // Zero acertos com passes tentados = jogo importado antes de PassesCertos
+        // existir, não passe ruim; vira "—" para não mentir. Ver EstatisticaJogador.
+        public double? PrecisaoPasses => PassesTotal > 0 && PassesCertos > 0
+            ? Math.Round(PassesCertos / (double)PassesTotal * 100, 1) : null;
+        public double? PctDribles => DriblesTentados > 0 ? Math.Round(DrilesCertos / (double)DriblesTentados * 100, 1) : null;
+        public double? PctDuelos => DuelosTotal > 0 ? Math.Round(DuelosVencidos / (double)DuelosTotal * 100, 1) : null;
+        public double? Conversao => FinalizacoesTotal > 0 ? Math.Round(Gols / (double)FinalizacoesTotal * 100, 1) : null;
     }
 
     public class ScoutViewModel

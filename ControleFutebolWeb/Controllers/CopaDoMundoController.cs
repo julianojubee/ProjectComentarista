@@ -1,4 +1,4 @@
-using ControleFutebolWeb.Data;
+﻿using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
@@ -216,7 +216,7 @@ namespace ControleFutebolWeb.Controllers
 
             // Nota média de cada jogador do pool na competição, usada para ranquear o picker.
             // Mesma lógica do relatório: por jogo usa a nota manual (override) ou a calculada
-            // (NotaBaseFixa + Valor); para jogos NÃO analisados (sem Nota) cai na pontuação
+            // (peso inicial + Valor); para jogos NÃO analisados (sem Nota) cai na pontuação
             // derivada das estatísticas importadas (EstatisticaJogador). Média entre os jogos.
             if (uid != null)
             {
@@ -231,11 +231,16 @@ namespace ControleFutebolWeb.Controllers
                     .Where(n => n.UsuarioId == uid
                                 && jogoIdsComp.Contains(n.JogoId)
                                 && poolIds.Contains(n.JogadorId))
-                    .Select(n => new { n.JogadorId, n.JogoId, n.Valor, n.NotaManual })
+                    // Detalhes: o piso de merecimento conta os chips verdes x vermelhos.
+                    .Select(n => new { n.JogadorId, n.JogoId, n.Valor, n.NotaManual, Detalhes = n.Detalhes.ToList() })
                     .ToList();
 
                 var estatisticas = _context.EstatisticasJogador
                     .AsNoTracking()
+                    // Jogo e Jogador: usados pelo bônus "não sofreu gol"
+                    // (CriteriosNotaHelper). Sem tracking não há fixup entre consultas.
+                    .Include(e => e.Jogo)
+                    .Include(e => e.Jogador)
                     // Exclui reservas não utilizados (Minutos 0/null): sem isso o jogador
                     // que ficou no banco ganharia a nota base (4.0) em jogo que não atuou.
                     .Where(e => jogoIdsComp.Contains(e.JogoId) && poolIds.Contains(e.JogadorId)
@@ -245,6 +250,19 @@ namespace ControleFutebolWeb.Controllers
                 var criteriosBanco = CriteriosNotaHelper.MergeCriterios(
                     _context.CriteriosNota.Where(c => c.UsuarioId == null).ToList(),
                     _context.CriteriosNota.Where(c => c.UsuarioId == uid).ToList());
+
+                // Lado (casa/visitante) por jogador/jogo, da escalação da época — o bônus
+                // "não sofreu gol" precisa dele para não errar os jogos pré-transferência.
+                var lados = LadoJogadorHelper.Carregar(_context, jogoIdsComp, uid, poolIds);
+
+                // Minutos e goleiro decisivo por (jogador, jogo). Lados próprios: o
+                // mapa acima está filtrado no pool e não fecharia as finalizações no
+                // alvo do elenco adversário.
+                var contextos = ContextoNotaHelper.Carregar(_context, jogoIdsComp, uid);
+
+                // Motor da nota automática escolhido em /CriteriosNota.
+                var calculadora = NotaAutomaticaHelper.Carregar(
+                    _context, jogoIdsComp, uid, criteriosBanco, lados, contextos);
 
                 var notasPorJogador = notas.GroupBy(n => n.JogadorId)
                     .ToDictionary(g => g.Key, g => g.ToList());
@@ -264,7 +282,8 @@ namespace ControleFutebolWeb.Controllers
                             valor: g.Average(n => n.Valor),
                             manual: g.Any(n => n.NotaManual.HasValue)
                                 ? (double?)g.Where(n => n.NotaManual.HasValue).Average(n => n.NotaManual!.Value)
-                                : null));
+                                : null,
+                            detalhes: g.SelectMany(n => n.Detalhes).ToList()));
                     var estatsDict = (estatsPorJogador.GetValueOrDefault(jId) ?? new())
                         .GroupBy(e => e.JogoId)
                         .ToDictionary(g => g.Key, g => g.ToList());
@@ -273,13 +292,14 @@ namespace ControleFutebolWeb.Controllers
                     foreach (var jogoId in jogoIdSet)
                     {
                         double nj;
+                        var ctxJogo = ContextoNotaHelper.De(contextos, jId, jogoId);
                         if (notasDict.TryGetValue(jogoId, out var ni))
                             nj = ni.manual.HasValue
                                 ? Math.Round(Math.Max(0, Math.Min(10, ni.manual.Value)), 2)
-                                : Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima, Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + ni.valor)), 2);
+                                : CriteriosNotaHelper.NotaFinal(ni.valor, criteriosBanco,
+                                    ctxJogo with { Acoes = CriteriosNotaHelper.ContarAcoes(ni.detalhes) });
                         else if (estatsDict.TryGetValue(jogoId, out var es))
-                            nj = Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima,
-                                    Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + es.Sum(e => CriteriosNotaHelper.CalcularPontuacao(e, criteriosBanco)))), 2);
+                            nj = calculadora.De(es, jId, jogoId).Nota;
                         else continue;
                         soma += nj; comp++;
                     }

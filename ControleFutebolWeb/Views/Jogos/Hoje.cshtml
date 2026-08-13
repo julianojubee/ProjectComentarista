@@ -31,12 +31,12 @@
 
     Func<int?, (string bg, string border, string text)> corComp = (id) => id switch
     {
-        1 => ("rgba(34,197,94,0.12)", "rgba(34,197,94,0.3)", "#4ade80"),
-        2 => ("rgba(59,130,246,0.12)", "rgba(59,130,246,0.3)", "#60a5fa"),
-        3 => ("rgba(212,165,32,0.12)", "rgba(212,165,32,0.3)", "#fbbf24"),
+        1 => ("rgba(34,197,94,0.12)", "rgba(34,197,94,0.3)", "var(--ok)"),
+        2 => ("rgba(59,130,246,0.12)", "rgba(59,130,246,0.3)", "var(--info)"),
+        3 => ("rgba(212,165,32,0.12)", "rgba(212,165,32,0.3)", "var(--warn)"),
         4 => ("rgba(249,115,22,0.12)", "rgba(249,115,22,0.3)", "#fb923c"),
-        5 => ("rgba(168,85,247,0.12)", "rgba(168,85,247,0.3)", "#c084fc"),
-        _ => ("rgba(107,114,128,0.12)", "rgba(107,114,128,0.3)", "#9ca3af"),
+        5 => ("rgba(168,85,247,0.12)", "rgba(168,85,247,0.3)", "var(--purple)"),
+        _ => ("rgba(107,114,128,0.12)", "rgba(107,114,128,0.3)", "var(--text-muted)"),
     };
 
     var vivos = new List<ControleFutebolWeb.Models.Jogo>();
@@ -63,9 +63,9 @@
 
     var grupos = new List<(string label, string icone, string cor, List<ControleFutebolWeb.Models.Jogo> jogos)>
     {
-        ("Ao Vivo", "🔴", "#f87171", vivos),
-        ("Agendados", "⏳", "#60a5fa", agendados),
-        ("Encerrados", "✓", "#4ade80", encerrados),
+        ("Ao Vivo", "🔴", "var(--bad)", vivos),
+        ("Agendados", "⏳", "var(--info)", agendados),
+        ("Encerrados", "✓", "var(--ok)", encerrados),
     };
 }
 
@@ -74,10 +74,10 @@
 
     .hj-root {
         margin: 0 -12px;
-        background: #0f0f0f;
+        background: var(--p-0);
         border-radius: 14px;
         overflow: hidden;
-        color: #e5e7eb;
+        color: var(--text);
         font-family: 'Barlow', Arial, sans-serif;
     }
     .hj-root a { text-decoration: none; color: inherit; }
@@ -91,31 +91,31 @@
         padding: 40px 2.5rem 34px;
     }
     .hj-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #d4a520; }
-    .hj-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: linear-gradient(to top, #0f0f0f, transparent); pointer-events: none; }
+    .hj-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: linear-gradient(to top, var(--page-bg), transparent); pointer-events: none; }
     .hj-hero-inner { position: relative; z-index: 1; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
     .hj-hero-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
     .hj-hero-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; animation: hjPulse 1.5s ease infinite; }
-    .hj-hero-kicker span { font-size: .68rem; font-weight: 700; letter-spacing: .28em; color: #ef4444; text-transform: uppercase; }
-    .hj-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3rem; font-weight: 800; color: #f1f5f9; margin: 0 0 6px; line-height: 1; }
-    .hj-hero p { font-size: .9rem; color: #6b7280; margin: 0; }
+    .hj-hero-kicker span { font-size: .68rem; font-weight: 700; letter-spacing: .28em; color: var(--bad-2); text-transform: uppercase; }
+    .hj-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3rem; font-weight: 800; color: var(--text-strong); margin: 0 0 6px; line-height: 1; }
+    .hj-hero p { font-size: .9rem; color: var(--text-dim); margin: 0; }
 
     .hj-nav { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
     .hj-nav-btn {
         display: inline-flex; align-items: center; gap: 4px;
-        background: rgba(255,255,255,0.06); color: #e5e7eb;
+        background: rgba(255,255,255,0.06); color: var(--text);
         border: 1px solid rgba(255,255,255,0.14);
         border-radius: 8px; padding: 6px 13px;
         font-size: .78rem; font-weight: 600;
         transition: background .15s, border-color .15s;
     }
-    .hj-nav-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(212,165,32,0.4); color: #e5e7eb; }
-    .hj-nav-hoje { background: rgba(212,165,32,0.18); border-color: rgba(212,165,32,0.5); color: #d4a520; }
+    .hj-nav-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(212,165,32,0.4); color: var(--text); }
+    .hj-nav-hoje { background: rgba(212,165,32,0.18); border-color: rgba(212,165,32,0.5); color: var(--gold-ink); }
 
     .hj-stats { display: flex; gap: 20px; flex-shrink: 0; margin-left: auto; }
     .hj-stat { text-align: center; }
     .hj-stat-num { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 2rem; font-weight: 800; line-height: 1; display: flex; align-items: center; gap: 6px; justify-content: center; }
     .hj-stat-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; animation: hjPulse 1.5s ease infinite; display: inline-block; }
-    .hj-stat-label { font-size: .62rem; color: #4b5563; text-transform: uppercase; letter-spacing: .1em; margin-top: 3px; }
+    .hj-stat-label { font-size: .62rem; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: .1em; margin-top: 3px; }
     .hj-stat-sep { width: 1px; background: #1e2d45; align-self: stretch; }
 
     /* ── Conteúdo ── */
@@ -123,42 +123,42 @@
 
     .hj-grupo-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
     .hj-grupo-label { font-size: .65rem; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; white-space: nowrap; }
-    .hj-grupo-divider { flex: 1; height: 1px; background: #222; }
-    .hj-grupo-count { font-size: .68rem; color: #4b5563; font-weight: 600; }
+    .hj-grupo-divider { flex: 1; height: 1px; background: var(--p-3); }
+    .hj-grupo-count { font-size: .68rem; color: var(--text-dimmer); font-weight: 600; }
 
     .hj-lista { display: flex; flex-direction: column; gap: 8px; }
 
-    .hj-card { background: #161616; border: 1px solid #262626; border-radius: 12px; padding: 16px 20px; transition: border-color .15s; }
+    .hj-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; transition: border-color .15s; }
     .hj-card.hj-live { border-color: rgba(239,68,68,0.25); box-shadow: 0 0 20px rgba(239,68,68,0.08); }
     .hj-card.hj-analisado { border-color: rgba(74,222,128,0.35); }
 
     .hj-card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
     .hj-comp-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 5px; font-size: .65rem; font-weight: 700; letter-spacing: .04em; white-space: nowrap; }
     .hj-status-badge { font-size: .65rem; font-weight: 700; padding: 2px 8px; border-radius: 5px; }
-    .hj-status-live { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
-    .hj-status-enc { background: rgba(34,197,94,0.1); color: #4ade80; border: 1px solid rgba(34,197,94,0.25); }
-    .hj-status-ag { background: rgba(96,165,250,0.1); color: #93c5fd; border: 1px solid rgba(96,165,250,0.25); }
-    .hj-hora { font-size: .72rem; color: #4b5563; margin-left: auto; }
+    .hj-status-live { background: rgba(239,68,68,0.15); color: var(--bad); border: 1px solid rgba(239,68,68,0.3); }
+    .hj-status-enc { background: rgba(34,197,94,0.1); color: var(--ok); border: 1px solid rgba(34,197,94,0.25); }
+    .hj-status-ag { background: rgba(96,165,250,0.1); color: var(--info); border: 1px solid rgba(96,165,250,0.25); }
+    .hj-hora { font-size: .72rem; color: var(--text-dimmer); margin-left: auto; }
 
     .hj-times { display: flex; align-items: center; gap: 16px; }
     .hj-time-lado { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; }
     .hj-time-lado.hj-casa { justify-content: flex-end; }
-    .hj-escudo { width: 36px; height: 36px; border-radius: 50%; background: #0f0f0f; border: 1px solid #2a2a2a; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; font-size: .8rem; font-weight: 700; color: #6b7280; }
+    .hj-escudo { width: 36px; height: 36px; border-radius: 50%; background: var(--p-0); border: 1px solid var(--line-strong); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; font-size: .8rem; font-weight: 700; color: var(--text-dim); }
     .hj-escudo img { width: 80%; height: 80%; object-fit: contain; }
-    .hj-time-nome { font-size: .95rem; font-weight: 500; color: #9ca3af; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+    .hj-time-nome { font-size: .95rem; font-weight: 500; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
     .hj-time-nome.hj-casa { text-align: right; }
-    .hj-time-nome.hj-vencedor { font-weight: 800; color: #f1f5f9; }
-    .hj-placar { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.8rem; font-weight: 900; color: #f1f5f9; flex-shrink: 0; letter-spacing: .06em; min-width: 80px; text-align: center; }
+    .hj-time-nome.hj-vencedor { font-weight: 800; color: var(--text-strong); }
+    .hj-placar { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.8rem; font-weight: 900; color: var(--text-strong); flex-shrink: 0; letter-spacing: .06em; min-width: 80px; text-align: center; }
 
-    .hj-card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding-top: 10px; border-top: 1px solid #1e1e1e; }
-    .hj-estadio { font-size: .68rem; color: #4b5563; }
-    .hj-transmissao { font-size: .68rem; color: #d4a520; margin-left: 10px; }
-    .hj-btn-analisar { font-size: .72rem; padding: 4px 12px; background: rgba(212,165,32,0.1); border: 1px solid rgba(212,165,32,0.28); border-radius: 6px; color: #d4a520; font-weight: 700; }
-    .hj-btn-analisar:hover { background: rgba(212,165,32,0.2); color: #d4a520; }
-    .hj-status-analisado { font-size: .72rem; font-weight: 700; color: #4ade80; display: flex; align-items: center; gap: 4px; text-decoration: none; }
-    .hj-status-analisado:hover { color: #22c55e; text-decoration: underline; }
+    .hj-card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
+    .hj-estadio { font-size: .68rem; color: var(--text-dimmer); }
+    .hj-transmissao { font-size: .68rem; color: var(--gold-ink); margin-left: 10px; }
+    .hj-btn-analisar { font-size: .72rem; padding: 4px 12px; background: rgba(212,165,32,0.1); border: 1px solid rgba(212,165,32,0.28); border-radius: 6px; color: var(--gold-ink); font-weight: 700; }
+    .hj-btn-analisar:hover { background: rgba(212,165,32,0.2); color: var(--gold-ink); }
+    .hj-status-analisado { font-size: .72rem; font-weight: 700; color: var(--ok); display: flex; align-items: center; gap: 4px; text-decoration: none; }
+    .hj-status-analisado:hover { color: var(--ok-2); text-decoration: underline; }
 
-    .hj-empty { text-align: center; color: #6b7280; padding: 3rem 1rem; background: #141414; border: 1px dashed #262626; border-radius: 12px; }
+    .hj-empty { text-align: center; color: var(--text-dim); padding: 3rem 1rem; background: var(--p-1); border: 1px dashed var(--line); border-radius: 12px; }
 
     /* ── Responsivo ── */
     @@media (max-width: 768px) {
@@ -173,7 +173,7 @@
 
 <div class="hj-root">
     <!-- ── Hero ── -->
-    <div class="hj-hero">
+    <div class="hj-hero theme-dark-zone">
         <div class="hj-hero-stripe"></div>
         <div class="hj-hero-fade"></div>
         <div class="hj-hero-inner">
@@ -197,17 +197,17 @@
 
             <div class="hj-stats">
                 <div class="hj-stat">
-                    <div class="hj-stat-num" style="color:#ef4444;"><span class="hj-stat-dot"></span>@vivos.Count</div>
+                    <div class="hj-stat-num" style="color:var(--bad-2)"><span class="hj-stat-dot"></span>@vivos.Count</div>
                     <div class="hj-stat-label">Ao vivo</div>
                 </div>
                 <div class="hj-stat-sep"></div>
                 <div class="hj-stat">
-                    <div class="hj-stat-num" style="color:#60a5fa;">@agendados.Count</div>
+                    <div class="hj-stat-num" style="color:var(--info)">@agendados.Count</div>
                     <div class="hj-stat-label">Agendados</div>
                 </div>
                 <div class="hj-stat-sep"></div>
                 <div class="hj-stat">
-                    <div class="hj-stat-num" style="color:#4ade80;">@encerrados.Count</div>
+                    <div class="hj-stat-num" style="color:var(--ok)">@encerrados.Count</div>
                     <div class="hj-stat-label">Encerrados</div>
                 </div>
             </div>

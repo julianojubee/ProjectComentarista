@@ -131,6 +131,220 @@ namespace ControleFutebolWeb.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        // GET: Competicoes/EquipeDaRodada/5?temporada=2025&rodada=22
+        // Os melhores por setor numa rodada, montados num 4-3-3. A nota é a mesma
+        // que o resto do sistema usa: a manual do usuário quando existe, senão a
+        // calculada pelos critérios dele em cima da estatística importada.
+        public async Task<IActionResult> EquipeDaRodada(int id, int? temporada = null, int? rodada = null)
+        {
+            var competicao = await _context.Competicoes.FindAsync(id);
+            if (competicao == null) return NotFound();
+
+            var usuarioId = _userManager.GetUserId(User);
+
+            var temporadas = await _context.Jogos.AsNoTracking()
+                .Where(j => j.CompeticaoId == id)
+                .Select(j => j.Temporada).Distinct()
+                .OrderByDescending(t => t).ToListAsync();
+            int? temporadaSel = temporada ?? (temporadas.Any() ? temporadas.First() : (int?)null);
+
+            // Só rodadas com jogo terminado: oferecer uma rodada futura devolveria
+            // uma seleção vazia sem explicar o motivo.
+            var rodadas = await _context.Jogos.AsNoTracking()
+                .Where(j => j.CompeticaoId == id && j.Rodada > 0
+                         && (temporadaSel == null || j.Temporada == temporadaSel)
+                         && j.PlacarCasa != null && j.PlacarVisitante != null)
+                .Select(j => j.Rodada).Distinct()
+                .OrderByDescending(r => r).ToListAsync();
+
+            var vm = new EquipeDaRodadaViewModel
+            {
+                Competicao = competicao,
+                Temporada = temporadaSel,
+                TemporadasDisponiveis = temporadas,
+                RodadasDisponiveis = rodadas,
+                Rodada = rodada ?? (rodadas.Any() ? rodadas.First() : 0)
+            };
+            if (vm.Rodada == 0) return View(vm);
+
+            var jogos = await _context.Jogos.AsNoTracking()
+                .Include(j => j.TimeCasa).Include(j => j.TimeVisitante)
+                .Where(j => j.CompeticaoId == id && j.Rodada == vm.Rodada
+                         && (temporadaSel == null || j.Temporada == temporadaSel)
+                         && j.PlacarCasa != null && j.PlacarVisitante != null)
+                .ToListAsync();
+            vm.JogosNaRodada = jogos.Count;
+            if (jogos.Count == 0) return View(vm);
+
+            var jogoIds = jogos.Select(j => j.Id).ToHashSet();
+
+            // Mesma régua de nota do resto do sistema (ver JogosPreJogo/Analisar):
+            // peso inicial do usuário + ações, limitado entre esse peso e 10.
+            var criterios = CriteriosNotaHelper.MergeCriterios(
+                await _context.CriteriosNota.Where(c => c.UsuarioId == null).ToListAsync(),
+                await _context.CriteriosNota.Where(c => c.UsuarioId == usuarioId).ToListAsync());
+            var notaBase = CriteriosNotaHelper.NotaBase(criterios);
+
+            // Minutos e goleiro decisivo por (jogador, jogo) — os ajustes de
+            // participação curta e de 100% de defesas dependem deles.
+            var contextos = await ContextoNotaHelper.CarregarAsync(_context, jogoIds.ToList(), usuarioId);
+
+            // Detalhes: o piso de merecimento conta os chips verdes x vermelhos.
+            double NotaFinal(double valor, int jogadorId, int jogoId, IEnumerable<Notadetalhe>? detalhes) =>
+                CriteriosNotaHelper.NotaFinalComBase(valor, notaBase,
+                    ContextoNotaHelper.De(contextos, jogadorId, jogoId) with
+                    {
+                        Acoes = CriteriosNotaHelper.ContarAcoes(detalhes)
+                    }, 1);
+
+            var notasManuais = await _context.Notas.AsNoTracking()
+                .Include(n => n.Detalhes)
+                .Where(n => jogoIds.Contains(n.JogoId) && n.UsuarioId == usuarioId)
+                .ToListAsync();
+
+            // (jogador, jogo) -> (nota, veio de cálculo). A manual sempre vence.
+            var notaPorChave = notasManuais.ToDictionary(
+                n => (n.JogadorId, n.JogoId),
+                n => (Nota: NotaFinal(n.Valor, n.JogadorId, n.JogoId, n.Detalhes), Automatica: false));
+
+            // Minutos > 0 exclui o reserva que a api-football relaciona sem entrar:
+            // ele receberia a nota base e disputaria vaga com quem jogou 90.
+            var estatisticas = await _context.EstatisticasJogador.AsNoTracking()
+                .Include(e => e.Jogo).Include(e => e.Jogador)
+                .Where(e => jogoIds.Contains(e.JogoId) && e.Minutos > 0)
+                .ToListAsync();
+
+            if (estatisticas.Count > 0)
+            {
+                var lados = await LadoJogadorHelper.CarregarAsync(_context, jogoIds.ToList(), usuarioId);
+
+                // Motor da nota automática escolhido em /CriteriosNota.
+                var calculadora = await NotaAutomaticaHelper.CarregarAsync(
+                    _context, jogoIds.ToList(), usuarioId, criterios, lados, contextos);
+
+                foreach (var e in estatisticas)
+                {
+                    var chave = (e.JogadorId, e.JogoId);
+                    if (notaPorChave.ContainsKey(chave)) continue;
+                    // 1 casa: a régua desta tela sempre exibiu assim.
+                    notaPorChave[chave] = (Math.Round(calculadora.De(e).Nota, 1), true);
+                }
+            }
+
+            vm.JogadoresAvaliados = notaPorChave.Count;
+            if (notaPorChave.Count == 0) return View(vm);
+
+            var jogadorIds = notaPorChave.Keys.Select(k => k.Item1).Distinct().ToList();
+            var jogadores = await _context.Jogadores.AsNoTracking()
+                .Include(j => j.Time).Include(j => j.Selecao)
+                .Where(j => jogadorIds.Contains(j.Id))
+                .ToDictionaryAsync(j => j.Id);
+
+            var jogoPorId = jogos.ToDictionary(j => j.Id);
+            var lado = await LadoJogadorHelper.CarregarAsync(_context, jogoIds.ToList(), usuarioId);
+
+            var golsRodada = await _context.Gols.AsNoTracking()
+                .Where(g => jogoIds.Contains(g.JogoId) && !g.Contra)
+                .ToListAsync();
+            var assistRodada = await _context.Assistencias.AsNoTracking()
+                .Where(a => jogoIds.Contains(a.JogoId))
+                .ToListAsync();
+
+            var candidatos = new List<(string Setor, JogadorDaRodada Item)>();
+            foreach (var ((jogadorId, jogoId), nota) in notaPorChave)
+            {
+                if (!jogadores.TryGetValue(jogadorId, out var jogador)) continue;
+                if (!jogoPorId.TryGetValue(jogoId, out var jogo)) continue;
+
+                var setor = PosicaoJogadorHelper.Setor(jogador.Posicao);
+                // Sem posição reconhecível não dá para dizer em que vaga ele entra;
+                // ficar de fora é melhor que ocupar a vaga errada na escalação.
+                if (setor == null) continue;
+
+                bool? emCasa = lado.TryGetValue((jogadorId, jogoId), out var atuacao) ? atuacao.IsTimeCasa : null;
+                var adversario = emCasa switch
+                {
+                    true => jogo.TimeVisitante?.Nome,
+                    false => jogo.TimeCasa?.Nome,
+                    _ => $"{jogo.TimeCasa?.Nome} × {jogo.TimeVisitante?.Nome}"
+                };
+
+                candidatos.Add((setor, new JogadorDaRodada
+                {
+                    Jogador = jogador,
+                    Time = emCasa == true ? jogo.TimeCasa : emCasa == false ? jogo.TimeVisitante : jogador.Time,
+                    JogoId = jogoId,
+                    Nota = nota.Nota,
+                    NotaAutomatica = nota.Automatica,
+                    Adversario = adversario ?? "",
+                    Placar = $"{jogo.PlacarCasa}×{jogo.PlacarVisitante}",
+                    Gols = golsRodada.Count(g => g.JogadorId == jogadorId && g.JogoId == jogoId),
+                    Assistencias = assistRodada.Count(a => a.JogadorId == jogadorId && a.JogoId == jogoId)
+                }));
+            }
+
+            // 4-3-3. Um jogador só ocupa uma vaga mesmo que tenha jogado duas vezes
+            // na rodada (jogo adiado da rodada anterior, por exemplo): fica com a
+            // melhor nota das duas.
+            List<JogadorDaRodada> Melhores(string setor, int quantos) => candidatos
+                .Where(c => c.Setor == setor)
+                .GroupBy(c => c.Item.Jogador.Id)
+                .Select(g => g.OrderByDescending(x => x.Item.Nota).First().Item)
+                .OrderByDescending(i => i.Nota)
+                .ThenByDescending(i => i.Gols + i.Assistencias)
+                .Take(quantos)
+                .ToList();
+
+            vm.Goleiros = Melhores("GOL", 1);
+            vm.Defensores = Melhores("DEF", 4);
+            vm.MeioCampo = Melhores("MEI", 3);
+            vm.Atacantes = Melhores("ATA", 3);
+
+            return View(vm);
+        }
+
+        // GET: Competicoes/Estatisticas/5?temporada=2025
+        // Painel de estatísticas da competição em tela cheia. A aba "Estatísticas"
+        // de Detalhes mostra o mesmo painel; esta rota existe para abrir só ele,
+        // com URL própria, sem o resto da tela em volta.
+        public IActionResult Estatisticas(int id, int? temporada = null)
+        {
+            var competicao = _context.Competicoes
+                .Include(c => c.Jogos).ThenInclude(j => j.TimeCasa)
+                .Include(c => c.Jogos).ThenInclude(j => j.TimeVisitante)
+                .FirstOrDefault(c => c.Id == id);
+
+            if (competicao == null) return NotFound();
+
+            var temporadasDisponiveis = competicao.Jogos
+                .Select(j => j.Temporada).Distinct()
+                .OrderByDescending(t => t).ToList();
+            int? temporadaSel = temporada
+                ?? (temporadasDisponiveis.Any() ? temporadasDisponiveis.First() : (int?)null);
+
+            var jogosRealizados = competicao.Jogos
+                .Where(j => temporadaSel == null || j.Temporada == temporadaSel)
+                .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue)
+                .ToList();
+
+            var jogoIds = jogosRealizados.Select(j => j.Id).ToHashSet();
+            var gols = _context.Gols.AsNoTracking()
+                .Include(g => g.Jogador)
+                .Where(g => jogoIds.Contains(g.JogoId))
+                .ToList();
+            var cartoes = _context.Cartoes.AsNoTracking()
+                .Include(c => c.Jogador)
+                .Where(c => jogoIds.Contains(c.JogoId))
+                .ToList();
+
+            ViewBag.Competicao = competicao;
+            ViewBag.Temporada = temporadaSel;
+            ViewBag.TemporadasDisponiveis = temporadasDisponiveis;
+            ViewBag.TotalJogos = jogosRealizados.Count;
+
+            return View(EstatisticaTimeCalculator.Calcular(jogosRealizados, gols, cartoes));
+        }
+
         public IActionResult Detalhes(int id, int? temporada = null)
         {
             var competicao = _context.Competicoes
@@ -172,6 +386,17 @@ namespace ControleFutebolWeb.Controllers
                 JogosRealizados = jogosRealizados,
             };
 
+            // ── Critérios de desempate da competição (Competicoes/Edit) ───────
+            // Os cartões são carregados antes da tabela porque os critérios
+            // "menos vermelhos/amarelos" e "fair play" dependem deles.
+            var criterios = CriteriosDesempateHelper.Parse(competicao.CriteriosDesempate);
+            var jogoIdsRealizados = jogosRealizados.Select(j => j.Id).ToHashSet();
+            var cartoes = _context.Cartoes.AsNoTracking()
+                .Include(c => c.Jogador)
+                .Where(c => jogoIdsRealizados.Contains(c.JogoId))
+                .ToList();
+            ViewBag.CriteriosDesempate = criterios;
+
             var fasesDeclaradas = _context.CompeticaoFases
                 .Where(f => f.CompeticaoId == id)
                 .OrderBy(f => f.Ordem).ThenBy(f => f.Id)
@@ -193,15 +418,20 @@ namespace ControleFutebolWeb.Controllers
                     return new FaseDetalheViewModel
                     {
                         Fase = fase,
-                        Classificacao = fase.Tipo == "PONTOS_CORRIDOS" ? CalcularTabela(realizadosFase) : new(),
-                        Grupos = fase.Tipo == "GRUPOS" ? MontarGrupos(realizadosFase) : new(),
-                        FasesMataMata = fase.Tipo == "MATA_MATA" ? MontarMataMata(jogosFase) : new(),
+                        Classificacao = fase.Tipo == "PONTOS_CORRIDOS" ? CalcularTabela(realizadosFase, criterios, cartoes) : new(),
+                        Grupos = fase.Tipo == "GRUPOS" ? MontarGrupos(realizadosFase, criterios, cartoes) : new(),
+                        FasesMataMata = fase.Tipo is "MATA_MATA" or "JOGO_UNICO"
+                            ? MontarMataMata(jogosFase, fase.Tipo == "JOGO_UNICO")
+                            : new(),
                     };
                 }).ToList();
             }
-            else if (competicao.Tipo == "MATA_MATA")
+            else if (competicao.Tipo == "MATA_MATA" || competicao.Tipo == "JOGO_UNICO")
             {
-                vm.FasesMataMata = MontarMataMata(jogosDaTemporada);
+                // JOGO_UNICO: a competição é decidida numa partida só (Supercopa da UEFA,
+                // Recopa...). O confronto é montado como um chaveamento de uma chave só e
+                // o vencedor da partida é anunciado como campeão, não como "classificado".
+                vm.FasesMataMata = MontarMataMata(jogosDaTemporada, competicao.Tipo == "JOGO_UNICO");
             }
             else if (competicao.Tipo == "GRUPOS")
             {
@@ -215,7 +445,7 @@ namespace ControleFutebolWeb.Controllers
                     .Where(j => !string.IsNullOrEmpty(j.Grupo) && !EhNomeDeGrupo(j.Grupo))
                     .ToList();
 
-                vm.Grupos = MontarGrupos(jogosFaseGruposRealizados);
+                vm.Grupos = MontarGrupos(jogosFaseGruposRealizados, criterios, cartoes);
                 vm.FasesMataMata = MontarMataMata(jogosFaseEliminatoria);
             }
             else
@@ -228,7 +458,7 @@ namespace ControleFutebolWeb.Controllers
 
                 vm.Classificacao = CalcularTabela(jogosRealizados
                     .Where(j => FaseJogoClassifier.Classificar(j.Grupo) != FaseCategoria.MataMata)
-                    .ToList());
+                    .ToList(), criterios, cartoes);
                 vm.FasesMataMata = jogosEliminatorios.Any() ? MontarMataMata(jogosEliminatorios) : new();
             }
 
@@ -260,16 +490,11 @@ namespace ControleFutebolWeb.Controllers
                 .ToList();
 
             // ── Aba "Estatísticas" ─────────────────────────────────────────────
-            var jogoIdsEstat = jogosRealizados.Select(j => j.Id).ToHashSet();
             var golsEstat = _context.Gols.AsNoTracking()
                 .Include(g => g.Jogador)
-                .Where(g => jogoIdsEstat.Contains(g.JogoId))
+                .Where(g => jogoIdsRealizados.Contains(g.JogoId))
                 .ToList();
-            var cartoesEstat = _context.Cartoes.AsNoTracking()
-                .Include(c => c.Jogador)
-                .Where(c => jogoIdsEstat.Contains(c.JogoId))
-                .ToList();
-            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(jogosRealizados, golsEstat, cartoesEstat);
+            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(jogosRealizados, golsEstat, cartoes);
 
             return View(vm);
         }
@@ -316,6 +541,8 @@ namespace ControleFutebolWeb.Controllers
                 .OrderBy(f => f.Ordem).ThenBy(f => f.Id)
                 .ToListAsync();
 
+            ViewBag.CriteriosDesempate = CriteriosDesempateHelper.Parse(competicao.CriteriosDesempate);
+
             return View(competicao);
         }
 
@@ -323,11 +550,16 @@ namespace ControleFutebolWeb.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id,
-            [Bind("Id,Nome,Regiao,Tipo,EhSelecaoNacional,LinkTransfermarket,IdApi")] Competicao competicao)
+            [Bind("Id,Nome,Regiao,Tipo,EhSelecaoNacional,LinkTransfermarket,IdApi")] Competicao competicao,
+            List<string>? criterios = null)
         {
             if (id != competicao.Id) return NotFound();
 
-            if (!ModelState.IsValid) return View(competicao);
+            if (!ModelState.IsValid)
+            {
+                ViewBag.CriteriosDesempate = CriteriosDesempateHelper.Parse(string.Join(';', criterios ?? new()));
+                return View(competicao);
+            }
 
             // Atualiza só os campos do formulário para não apagar
             // TopTier, LogoUrl e demais colunas que não estão na tela.
@@ -340,6 +572,7 @@ namespace ControleFutebolWeb.Controllers
             existente.EhSelecaoNacional = competicao.EhSelecaoNacional;
             existente.LinkTransfermarket = competicao.LinkTransfermarket;
             existente.IdApi = competicao.IdApi;
+            existente.CriteriosDesempate = CriteriosDesempateHelper.Serializar(criterios);
 
             await _context.SaveChangesAsync();
 
@@ -394,7 +627,10 @@ namespace ControleFutebolWeb.Controllers
         }
         // Ação Index e Detalhes...
 
-        private List<Classificacao> CalcularTabela(ICollection<Jogo> jogos)
+        private List<Classificacao> CalcularTabela(
+            ICollection<Jogo> jogos,
+            IReadOnlyList<string>? criterios = null,
+            IEnumerable<Cartao>? cartoes = null)
         {
             var tabela = new Dictionary<int, Classificacao>();
 
@@ -443,18 +679,11 @@ namespace ControleFutebolWeb.Controllers
                 item.Saldo = item.GolsPro - item.GolsContra;
             }
 
-            var lista = tabela.Values
-                .OrderByDescending(t => t.Pontos)
-                .ThenByDescending(t => t.Saldo)
-                .ThenByDescending(t => t.GolsPro)
-                .ToList();
-
-            for (int i = 0; i < lista.Count; i++)
-            {
-                lista[i].Posicao = i + 1;
-            }
-
-            return lista;
+            // Critérios de desempate cadastrados na competição (Competicoes/Edit).
+            return CriteriosDesempateHelper.Ordenar(
+                tabela.Values,
+                criterios ?? CriteriosDesempateHelper.Padrao,
+                DadosDesempate.Construir(jogos, cartoes));
         }
 
         // Distingue uma "fase de grupos" real (pontos corridos, rotulada "Group X"/"Grupo X")
@@ -464,7 +693,10 @@ namespace ControleFutebolWeb.Controllers
         private static bool EhNomeDeGrupo(string? nomeGrupo)
             => FaseJogoClassifier.Classificar(nomeGrupo) == FaseCategoria.Grupos;
 
-        private List<GrupoViewModel> MontarGrupos(ICollection<Jogo> jogos)
+        private List<GrupoViewModel> MontarGrupos(
+            ICollection<Jogo> jogos,
+            IReadOnlyList<string>? criterios = null,
+            IEnumerable<Cartao>? cartoes = null)
         {
             var grupos = new List<GrupoViewModel>();
 
@@ -478,7 +710,7 @@ namespace ControleFutebolWeb.Controllers
             foreach (var nome in nomesGrupos)
             {
                 var jogosDoGrupo = jogos.Where(j => j.Grupo == nome).ToList();
-                var classificacao = CalcularTabela(jogosDoGrupo);
+                var classificacao = CalcularTabela(jogosDoGrupo, criterios, cartoes);
 
                 grupos.Add(new GrupoViewModel
                 {
@@ -490,7 +722,9 @@ namespace ControleFutebolWeb.Controllers
             return grupos;
         }
 
-        private List<FaseMataMataViewModel> MontarMataMata(List<Jogo> jogos)
+        // decideTitulo = a fase decide o título (competição/fase de JOGO_UNICO):
+        // o vencedor é anunciado como campeão em vez de "classificado".
+        private List<FaseMataMataViewModel> MontarMataMata(List<Jogo> jogos, bool decideTitulo = false)
         {
             // Ordena fases conhecidas; fases desconhecidas vão para o final
             var ordemFases = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
@@ -507,8 +741,12 @@ namespace ControleFutebolWeb.Controllers
                 ["3rd Place Final"] = 7,
             };
 
+            // Jogo sem round vindo da API: numa competição de jogo único a partida É a final.
+            var nomePadrao = decideTitulo ? "Final" : "Fase Única";
+            string NomeFaseDe(Jogo j) => string.IsNullOrWhiteSpace(j.Grupo) ? nomePadrao : j.Grupo;
+
             var faseNomes = jogos
-                .Select(j => j.Grupo ?? "Fase Única")
+                .Select(NomeFaseDe)
                 .Distinct()
                 .OrderBy(n => ordemFases.TryGetValue(n, out var o) ? o : 99)
                 .ToList();
@@ -517,7 +755,7 @@ namespace ControleFutebolWeb.Controllers
 
             foreach (var fase in faseNomes)
             {
-                var jogosFase = jogos.Where(j => (j.Grupo ?? "Fase Única") == fase).ToList();
+                var jogosFase = jogos.Where(j => NomeFaseDe(j) == fase).ToList();
 
                 // Agrupa pares de times (ida e volta) pelo par de IDs ordenado
                 var pares = jogosFase
@@ -546,6 +784,7 @@ namespace ControleFutebolWeb.Controllers
                     Nome      = fase,
                     Ordem     = ordemFases.TryGetValue(fase, out var ord) ? ord : 99,
                     Confrontos = confrontos,
+                    DecideTitulo = decideTitulo,
                 });
             }
 

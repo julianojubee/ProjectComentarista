@@ -17,6 +17,9 @@ namespace ControleFutebolWeb.Models
         [Required]
         public string Regiao { get; set; } = string.Empty;
 
+        // Formato da competição: PONTOS_CORRIDOS | GRUPOS | MATA_MATA | JOGO_UNICO.
+        // JOGO_UNICO = decidida em partida única (Supercopa da UEFA, Supercopa do Brasil
+        // em jogo único, Recopa em jogo só): o vencedor da partida já é o campeão.
         [Required]
         public string Tipo { get; set; } = string.Empty;
 
@@ -40,6 +43,12 @@ namespace ControleFutebolWeb.Models
 
         // URL do escudo/logo da competição (sobrepõe o logo padrão do helper)
         public string? LogoUrl { get; set; }
+
+        // Ordem dos critérios de desempate da tabela, códigos separados por ';'
+        // (ex.: "VITORIAS;SALDO_GOLS;GOLS_PRO;CONFRONTO_DIRETO;CARTOES_VERMELHOS;CARTOES_AMARELOS;SORTEIO").
+        // Pontos é sempre o 1º critério e não entra na lista. Nulo = ordem padrão
+        // (ver Helpers.CriteriosDesempateHelper.Padrao).
+        public string? CriteriosDesempate { get; set; }
     }
 
 }

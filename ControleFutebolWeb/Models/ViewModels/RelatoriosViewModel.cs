@@ -3,6 +3,26 @@ using ControleFutebolWeb.Models;
 
 namespace ControleFutebolWeb.Models.ViewModels
 {
+    // Base de comparação dos rankings individuais, no mesmo recorte que o
+    // Sofascore chama de "Acumulado". Por90 é o padrão de scouting: sem ele um
+    // reserva que entra aos 80' nunca aparece ao lado de quem joga os 90.
+    public enum BaseEstatistica
+    {
+        Total,
+        PorJogo,
+        Por90
+    }
+
+    // Recorte de mando dos rankings individuais. O lado vem da escalação da
+    // época, não do time atual do jogador — depois de uma transferência o time
+    // atual apontaria para o lado errado nos jogos antigos.
+    public enum MandoJogador
+    {
+        Todos,
+        Casa,
+        Fora
+    }
+
     // ── ViewModel principal ──────────────────────────────────────────────────
     public class RelatoriosViewModel
     {
@@ -15,6 +35,9 @@ namespace ControleFutebolWeb.Models.ViewModels
         // Aba "Estatísticas Jogadores": só lista jogadores com pelo menos esse número de jogos.
         // 1 = sem filtro (todo jogador com estatística já tem >= 1 jogo).
         public int MinJogos { get; set; } = 1;
+        // Base e mando dos rankings individuais da aba "Estatísticas Jogadores".
+        public BaseEstatistica BaseFiltro { get; set; } = BaseEstatistica.PorJogo;
+        public MandoJogador MandoFiltro { get; set; } = MandoJogador.Todos;
         // true quando a competição filtrada é de seleções → exibe a seleção no lugar do clube
         public bool ExibirSelecao { get; set; }
         public List<Competicao> Competicoes { get; set; } = new();
@@ -58,16 +81,36 @@ namespace ControleFutebolWeb.Models.ViewModels
         public List<TimeStatJogo> TimesExpectedGoals { get; set; } = new();
         public List<TimeStatJogo> TimesGolsEvitados { get; set; } = new();
 
+        // Demais chaves que a api-football já grava em Jogo.EstatisticasJson e que
+        // não eram lidas — equivalem às abas Ataque/Distribuição/Disciplina/Goleiro
+        // das estatísticas de seleção da FIFA.
+        public List<TimeStatJogo> TimesChutesArea { get; set; } = new();
+        public List<TimeStatJogo> TimesChutesForaArea { get; set; } = new();
+        public List<TimeStatJogo> TimesPasses { get; set; } = new();
+        public List<TimeStatJogo> TimesPrecisaoPasses { get; set; } = new();
+        public List<TimeStatJogo> TimesDefesasGoleiro { get; set; } = new();
+        public List<TimeStatJogo> TimesFaltas { get; set; } = new();
+        public List<TimeStatJogo> TimesImpedimentos { get; set; } = new();
+
         // Rankings de estatísticas individuais de jogadores
         public List<RankingEstatJogador> RankImpedimentos { get; set; } = new();
         public List<RankingEstatJogador> RankFinalizacoesNoGol { get; set; } = new();
         public List<RankingEstatJogador> RankPassesChave { get; set; } = new();
+        public List<RankingEstatJogador> RankPassesCertos { get; set; } = new();
+        // Media = precisão em %, Total = passes certos no período.
+        public List<RankingEstatJogador> RankPrecisaoPasses { get; set; } = new();
         public List<RankingEstatJogador> RankDesarmes { get; set; } = new();
         public List<RankingEstatJogador> RankBloqueios { get; set; } = new();
         public List<RankingEstatJogador> RankInterceptacoes { get; set; } = new();
         public List<RankingEstatJogador> RankDrilesCertos { get; set; } = new();
         public List<RankingEstatJogador> RankPenaltisDefendidos { get; set; } = new();
         public List<RankingEstatJogador> RankVezesCapitao { get; set; } = new();
+
+        // Aba "Estatísticas Jogadores": cards com seletor de métrica.
+        // MelhoresJogadores = acumulado no filtro; RecordesEmUmJogo = melhor marca
+        // individual numa única partida.
+        public List<MelhoresJogadoresMetrica> MelhoresJogadores { get; set; } = new();
+        public List<RecordeJogoMetrica> RecordesEmUmJogo { get; set; } = new();
 
         // Extras
         public List<GolsPorRodada> GolsPorRodada { get; set; } = new();
@@ -216,6 +259,38 @@ namespace ControleFutebolWeb.Models.ViewModels
         public double Valor { get; set; }
     }
 
+    // ── "Melhores jogadores": um ranking acumulado por métrica selecionável ──
+    public class MelhoresJogadoresMetrica
+    {
+        // Chave sem acento/espaço — usada no <select> e no id dos blocos da view.
+        public string Chave { get; set; } = "";
+        public string Nome { get; set; } = "";
+        public List<MelhorJogadorItem> Itens { get; set; } = new();
+    }
+
+    public class MelhorJogadorItem
+    {
+        public Jogador Jogador { get; set; } = null!;
+        public int Valor { get; set; }
+        // Jogos com estatística importada; 0 quando a métrica veio só de gol/assistência.
+        public int Partidas { get; set; }
+    }
+
+    // ── "Recordes em um jogo": maiores marcas individuais numa única partida ─
+    public class RecordeJogoMetrica
+    {
+        public string Chave { get; set; } = "";
+        public string Nome { get; set; } = "";
+        public List<RecordeJogoItem> Itens { get; set; } = new();
+    }
+
+    public class RecordeJogoItem
+    {
+        public Jogador Jogador { get; set; } = null!;
+        public Jogo Jogo { get; set; } = null!;
+        public int Valor { get; set; }
+    }
+
     // ── Ranking de estatística individual de jogador ─────────────────────────
     public class RankingEstatJogador
     {
@@ -223,6 +298,18 @@ namespace ControleFutebolWeb.Models.ViewModels
         public int Partidas { get; set; }
         public double Media { get; set; }
         public int Total { get; set; }
+
+        // Minutos somados no período; base do Por90 e o motivo de ele existir —
+        // sem minutos não dá para comparar quem joga 90 com quem entra aos 80.
+        public int Minutos { get; set; }
+        public double Por90 { get; set; }
+
+        public double Valor(BaseEstatistica b) => b switch
+        {
+            BaseEstatistica.Total => Total,
+            BaseEstatistica.Por90 => Por90,
+            _ => Media
+        };
     }
 
     // ── Estatísticas por competição ──────────────────────────────────────────

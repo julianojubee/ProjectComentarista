@@ -206,9 +206,25 @@ namespace ControleFutebolWeb.Controllers
             return View(jogador);
         }
 
-        // GET: Jogadores/Edit/5
-        public async Task<IActionResult> Edit(int id)
+        /// <summary>
+        /// Volta para a listagem preservando os filtros de origem (returnUrl vindo do
+        /// Index). Se não houver returnUrl válido, cai no comportamento antigo.
+        /// </summary>
+        private IActionResult VoltarParaLista(string? returnUrl, object? routeValues = null)
         {
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+                return Redirect(returnUrl);
+
+            return routeValues == null
+                ? RedirectToAction(nameof(Index))
+                : RedirectToAction(nameof(Index), routeValues);
+        }
+
+        // GET: Jogadores/Edit/5
+        public async Task<IActionResult> Edit(int id, string? returnUrl = null)
+        {
+            ViewData["ReturnUrl"] = returnUrl;
+
             var jogador = await _context.Jogadores
                 .Include(j => j.Nacionalidade)
                 .Include(j => j.Time)
@@ -238,9 +254,11 @@ namespace ControleFutebolWeb.Controllers
         // POST: Jogadores/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, Jogador jogador)
+        public async Task<IActionResult> Edit(int id, Jogador jogador, string? returnUrl = null)
         {
             if (id != jogador.Id) return NotFound();
+
+            ViewData["ReturnUrl"] = returnUrl;
 
             _logger.LogInformation(
                 "POST Edit recebido: Id={Id}, Nome={Nome}, Posicao={Posicao}, TimeId={TimeId}, NacionalidadeId={NacionalidadeId}, DataNascimento={DataNascimento}",
@@ -317,7 +335,7 @@ namespace ControleFutebolWeb.Controllers
                     TempData["Mensagem"] = "Jogador atualizado com sucesso!";
                     TempData["MensagemTipo"] = "sucesso";
 
-                    return RedirectToAction("Index", new { timeId = jogador.TimeId });
+                    return VoltarParaLista(returnUrl, new { timeId = jogador.TimeId });
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -338,9 +356,11 @@ namespace ControleFutebolWeb.Controllers
 
 
         // GET: Jogadores/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        public async Task<IActionResult> Delete(int? id, string? returnUrl = null)
         {
             if (id == null) return NotFound();
+
+            ViewData["ReturnUrl"] = returnUrl;
 
             var jogador = await _context.Jogadores
                 .Include(j => j.Time)
@@ -355,7 +375,7 @@ namespace ControleFutebolWeb.Controllers
         // POST: Jogadores/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
+        public async Task<IActionResult> DeleteConfirmed(int id, string? returnUrl = null)
         {
             var jogador = await _context.Jogadores.FindAsync(id);
             if (jogador != null)
@@ -363,7 +383,7 @@ namespace ControleFutebolWeb.Controllers
                 _context.Jogadores.Remove(jogador);
                 await _context.SaveChangesAsync();
             }
-            return RedirectToAction(nameof(Index));
+            return VoltarParaLista(returnUrl);
         }
 
         private void LogModelStateErrors(string contextAction)
@@ -377,7 +397,7 @@ namespace ControleFutebolWeb.Controllers
                 _logger.LogWarning("ModelState inválido em Jogadores/{Action}. Erros: {@Errors}", contextAction, errors);
         }
 
-        public async Task<IActionResult> Estatisticas(int id, int? competicaoId)
+        public async Task<IActionResult> Estatisticas(int id, int? competicaoId, int? temporada)
         {
             var uid = _userManager.GetUserId(User);
 
@@ -389,18 +409,20 @@ namespace ControleFutebolWeb.Controllers
 
             if (jogador == null) return NotFound();
 
-            // IDs de competições em que o jogador participou (para o dropdown)
-            var competicaoIds = await _context.Notas
+            // Competição + temporada de cada jogo em que o jogador participou (dropdowns)
+            var participacoes = await _context.Notas
                 .Where(n => n.JogadorId == id)
-                .Select(n => n.Jogo.CompeticaoId)
+                .Select(n => new { n.Jogo.CompeticaoId, n.Jogo.Temporada })
                 .Union(_context.EstatisticasJogador
                     .Where(e => e.JogadorId == id)
-                    .Select(e => e.Jogo.CompeticaoId))
+                    .Select(e => new { e.Jogo.CompeticaoId, e.Jogo.Temporada }))
                 .Union(_context.Escalacoes
                     .Where(e => e.JogadorId == id)
-                    .Select(e => e.Jogo.CompeticaoId))
+                    .Select(e => new { e.Jogo.CompeticaoId, e.Jogo.Temporada }))
                 .Distinct()
                 .ToListAsync();
+
+            var competicaoIds = participacoes.Select(p => p.CompeticaoId).Distinct().ToList();
 
             var competicoesDoJogador = await _context.Competicoes
                 .Where(c => competicaoIds.Contains(c.Id))
@@ -409,6 +431,37 @@ namespace ControleFutebolWeb.Controllers
 
             ViewBag.Competicoes = competicoesDoJogador;
             ViewBag.CompeticaoId = competicaoId;
+
+            // Temporadas do dropdown — respeitam a competição escolhida (filtros em cascata).
+            var participacoesFiltradas = competicaoId.HasValue
+                ? participacoes.Where(p => p.CompeticaoId == competicaoId.Value).ToList()
+                : participacoes;
+
+            var temporadasDoJogador = participacoesFiltradas
+                .Select(p => p.Temporada).Distinct()
+                .OrderByDescending(t => t).ToList();
+
+            // Temporada escolhida numa competição, ao trocar para outra competição que
+            // não a tem, deixaria a tela vazia sem explicação — melhor cair em "todas".
+            if (temporada.HasValue && !temporadasDoJogador.Contains(temporada.Value))
+                temporada = null;
+
+            // Rótulo por temporada: europeu ("2025/26") ou ano cheio ("2025"). O jogador
+            // pode ter jogado competições de calendários diferentes na mesma temporada
+            // (um sul-americano na Libertadores 2025 e na Champions 2025) — vale o
+            // formato da maioria das competições dele naquela temporada.
+            var calendarioEuropeu = await TemporadaHelper.CompeticoesDeCalendarioEuropeuAsync(
+                _context, competicaoIds);
+
+            ViewBag.Temporadas = temporadasDoJogador
+                .Select(t =>
+                {
+                    var comps = participacoesFiltradas.Where(p => p.Temporada == t).ToList();
+                    var europeias = comps.Count(p => calendarioEuropeu.Contains(p.CompeticaoId));
+                    return (Valor: t, Rotulo: TemporadaHelper.Rotulo(t, europeias * 2 >= comps.Count));
+                })
+                .ToList();
+            ViewBag.Temporada = temporada;
 
             // ── Dados de eventos ──────────────────────────────────────────
             var notasQuery = _context.Notas
@@ -419,6 +472,8 @@ namespace ControleFutebolWeb.Controllers
 
             if (competicaoId.HasValue)
                 notasQuery = notasQuery.Where(n => n.Jogo.CompeticaoId == competicaoId);
+            if (temporada.HasValue)
+                notasQuery = notasQuery.Where(n => n.Jogo.Temporada == temporada);
 
             var notas = await notasQuery.ToListAsync();
 
@@ -430,26 +485,37 @@ namespace ControleFutebolWeb.Controllers
             var estatisticasQuery = _context.EstatisticasJogador
                 .Include(e => e.Jogo).ThenInclude(j => j.TimeCasa)
                 .Include(e => e.Jogo).ThenInclude(j => j.TimeVisitante)
+                // Jogador precisa vir junto: o bônus "não sofreu gol" (CriteriosNotaHelper)
+                // lê a posição e o time do jogador para saber de que lado ele jogou.
+                .Include(e => e.Jogador)
                 .Where(e => e.JogadorId == id && e.Minutos != null && e.Minutos > 0);
 
             if (competicaoId.HasValue)
                 estatisticasQuery = estatisticasQuery.Where(e => e.Jogo.CompeticaoId == competicaoId);
+            if (temporada.HasValue)
+                estatisticasQuery = estatisticasQuery.Where(e => e.Jogo.Temporada == temporada);
 
             var estatisticas = await estatisticasQuery.ToListAsync();
 
             var golsQuery = _context.Gols.Where(g => g.JogadorId == id && !g.Contra);
             if (competicaoId.HasValue)
                 golsQuery = golsQuery.Where(g => g.Jogo.CompeticaoId == competicaoId);
+            if (temporada.HasValue)
+                golsQuery = golsQuery.Where(g => g.Jogo.Temporada == temporada);
             var gols = await golsQuery.ToListAsync();
 
             var assistenciasQuery = _context.Assistencias.Where(a => a.JogadorId == id);
             if (competicaoId.HasValue)
                 assistenciasQuery = assistenciasQuery.Where(a => a.Jogo.CompeticaoId == competicaoId);
+            if (temporada.HasValue)
+                assistenciasQuery = assistenciasQuery.Where(a => a.Jogo.Temporada == temporada);
             var assistencias = await assistenciasQuery.ToListAsync();
 
             var cartoesQuery = _context.Cartoes.Where(c => c.JogadorId == id);
             if (competicaoId.HasValue)
                 cartoesQuery = cartoesQuery.Where(c => c.Jogo.CompeticaoId == competicaoId);
+            if (temporada.HasValue)
+                cartoesQuery = cartoesQuery.Where(c => c.Jogo.Temporada == temporada);
             var cartoes = await cartoesQuery.ToListAsync();
 
             // ── Escalações (inclui jogos sem análise) ─────────────────────
@@ -462,6 +528,8 @@ namespace ControleFutebolWeb.Controllers
 
             if (competicaoId.HasValue)
                 escalacoesQuery = escalacoesQuery.Where(e => e.Jogo.CompeticaoId == competicaoId);
+            if (temporada.HasValue)
+                escalacoesQuery = escalacoesQuery.Where(e => e.Jogo.Temporada == temporada);
 
             var escalacoes = await escalacoesQuery.ToListAsync();
 
@@ -490,6 +558,17 @@ namespace ControleFutebolWeb.Controllers
             var slotsPorFormacao = (await _context.PosicoesFormacao.ToListAsync())
                 .GroupBy(p => p.FormacaoId)
                 .ToDictionary(g => g.Key, g => g.ToList());
+
+            var formacoesPorJogo = escalacoes
+                .Select(e => e.Jogo)
+                .GroupBy(j => j.Id)
+                .ToDictionary(g => g.Key, g => (g.First().FormacaoCasaId, g.First().FormacaoVisitanteId));
+
+            // Lado e posição por jogo, da escalação da época — o bônus "não sofreu gol"
+            // precisa dos dois: do lado para não olhar o placar invertido nos jogos
+            // anteriores a uma transferência, e da posição daquele jogo para não premiar
+            // quem atuou adiantado só porque é lateral no cadastro.
+            var lados = LadoJogadorHelper.Montar(escalacoes, slotsPorFormacao, formacoesPorJogo);
 
             string? PosicaoGranularDe(Escalacao e)
             {
@@ -521,9 +600,22 @@ namespace ControleFutebolWeb.Controllers
                 .Where(c => c.UsuarioId == uid).ToListAsync();
             var criteriosBanco = CriteriosNotaHelper.MergeCriterios(criteriosCompartilhados, criteriosUsuario);
 
+            // Minutos e goleiro decisivo por jogo. Carrega os próprios lados (lados
+            // acima está filtrado neste jogador, e o aproveitamento do goleiro precisa
+            // das finalizações do elenco adversário inteiro).
+            var jogoIdsDoJogador = jogosComNotaManualIds.Concat(jogosComEstatisticaIds).Distinct().ToList();
+            var contextos = await ContextoNotaHelper.CarregarAsync(_context, jogoIdsDoJogador, uid);
+
+            // Motor da nota automática escolhido pelo usuário em /CriteriosNota. Vale
+            // só para os jogos que ele NÃO avaliou à mão — os manuais seguem abaixo
+            // pela nota que ele mesmo deu.
+            var calculadora = await NotaAutomaticaHelper.CarregarAsync(
+                _context, jogoIdsDoJogador, uid, criteriosBanco, lados, contextos);
+
             // ── Helper: monta item a partir de um jogo ────────────────────
             NotaJogoItem MontarItem(Jogo jogo, double notaValor, string? comentario,
-                List<Notadetalhe> detalhes, bool analisado, bool origemManual = false, double? notaManual = null)
+                List<Notadetalhe> detalhes, bool analisado, bool origemManual = false, double? notaManual = null,
+                NotaAutomatica? automatica = null)
             {
                 var pc = jogo.PlacarCasa ?? 0;
                 var pv = jogo.PlacarVisitante ?? 0;
@@ -543,6 +635,16 @@ namespace ControleFutebolWeb.Controllers
                 else if ((isCasa && pc > pv) || (!isCasa && pv > pc)) resultado = "V";
                 else                                                resultado = "D";
 
+                var contexto = ContextoNotaHelper.De(contextos, id, jogo.Id) with
+                {
+                    Acoes = CriteriosNotaHelper.ContarAcoes(detalhes)
+                };
+                // No motor automático a composição clássica não descreve a conta: a
+                // nota vem do rating, e as parcelas dele são outras. Fica vazia, e a
+                // tela simplesmente não exibe as parcelas de merecimento.
+                var composicao = automatica?.Classica
+                    ?? CriteriosNotaHelper.Compor(notaValor, criteriosBanco, contexto);
+
                 double notaFinal;
                 if (!analisado)
                     notaFinal = 0;
@@ -550,7 +652,7 @@ namespace ControleFutebolWeb.Controllers
                     // Override: nota final absoluta (0–10), sem somar base.
                     notaFinal = Math.Round(Math.Max(0, Math.Min(10, notaManual.Value)), 2);
                 else
-                    notaFinal = Math.Round(Math.Max(CriteriosNotaHelper.NotaMinima, Math.Min(10, CriteriosNotaHelper.NotaBaseFixa + notaValor)), 2);
+                    notaFinal = automatica?.Nota ?? composicao.Nota;
 
                 return new NotaJogoItem
                 {
@@ -570,7 +672,9 @@ namespace ControleFutebolWeb.Controllers
                     Detalhes = detalhes,
                     GolsPro = golsPro,
                     GolsContra = golsContra,
-                    NotaBaseFixa = analisado && !notaManual.HasValue ? CriteriosNotaHelper.NotaBaseFixa : 0,
+                    NotaBaseFixa = analisado && !notaManual.HasValue
+                        ? (automatica?.NotaBase ?? CriteriosNotaHelper.NotaBase(criteriosBanco)) : 0,
+                    Composicao = analisado && !notaManual.HasValue ? composicao : default,
                     OrigemManual = origemManual,
                     NotaManual = notaManual,
                 };
@@ -583,12 +687,12 @@ namespace ControleFutebolWeb.Controllers
             // ── Jogos sem nota manual, mas com estatísticas importadas ────
             var itensEstatisticas = estatisticas
                 .Where(e => !jogosComNotaManualIds.Contains(e.JogoId))
-                .Select(e => MontarItem(
-                    e.Jogo,
-                    Math.Round(CriteriosNotaHelper.CalcularPontuacao(e, criteriosBanco), 2),
-                    null,
-                    CriteriosNotaHelper.ConstruirDetalhes(e, criteriosBanco),
-                    true));
+                .Select(e =>
+                {
+                    var automatica = calculadora.De(e);
+                    return MontarItem(e.Jogo, automatica.ValorAcoes, null, automatica.Detalhes, true,
+                        automatica: automatica);
+                });
 
             // ── Jogos sem nota manual nem estatística importada ───────────
             var itensNaoAnalisados = escalacoes
@@ -928,69 +1032,6 @@ namespace ControleFutebolWeb.Controllers
             return View(vm);
         }
 
-        // GET: /Jogadores/ObservacoesJogador?id=X
-        // Tudo que o usuário já escreveu referenciando este jogador: anotações do
-        // clube (/AnotacoesTime) e observações de jogo (/Jogos/Analisar) em que ele
-        // foi mencionado com "@Nome" — mais as observações marcadas com a tag Jogador.
-        [HttpGet]
-        public async Task<IActionResult> ObservacoesJogador(int id)
-        {
-            var uid = _userManager.GetUserId(User);
-
-            var anotacoes = await _context.AnotacoesTimeMencoes
-                .AsNoTracking()
-                .Where(m => m.JogadorId == id && m.AnotacaoTime.UsuarioId == uid)
-                .Select(m => new
-                {
-                    id = m.AnotacaoTime.Id,
-                    titulo = m.AnotacaoTime.Titulo,
-                    texto = m.AnotacaoTime.Conteudo,
-                    categoria = m.AnotacaoTime.Categoria,
-                    data = m.AnotacaoTime.DtInc,
-                    timeId = m.AnotacaoTime.TimeId,
-                    timeNome = m.AnotacaoTime.Time.Nome,
-                    timeEscudo = m.AnotacaoTime.Time.EscudoUrl
-                })
-                .ToListAsync();
-
-            var obsDiretas = await _context.ObservacoesJogoTag
-                .AsNoTracking()
-                .Where(o => o.Tipo == "JOGADOR" && o.JogadorId == id && o.UsuarioId == uid)
-                .Select(o => o.Id)
-                .ToListAsync();
-
-            var obsMencionadas = await _context.ObservacoesJogoTagMencoes
-                .AsNoTracking()
-                .Where(m => m.JogadorId == id && m.ObservacaoJogoTag.UsuarioId == uid)
-                .Select(m => m.ObservacaoJogoTagId)
-                .ToListAsync();
-
-            var idsObs = obsDiretas.Concat(obsMencionadas).Distinct().ToList();
-
-            var observacoesJogo = await _context.ObservacoesJogoTag
-                .AsNoTracking()
-                .Where(o => idsObs.Contains(o.Id))
-                .Select(o => new
-                {
-                    id = o.Id,
-                    texto = o.Texto,
-                    jogoId = o.JogoId,
-                    data = o.Jogo.Data,
-                    competicao = o.Jogo.Competicao != null ? o.Jogo.Competicao.Nome : null,
-                    casa = o.Jogo.TimeCasa.Nome,
-                    visitante = o.Jogo.TimeVisitante.Nome,
-                    placarCasa = o.Jogo.PlacarCasa,
-                    placarVisitante = o.Jogo.PlacarVisitante
-                })
-                .ToListAsync();
-
-            return Json(new
-            {
-                anotacoes = anotacoes.OrderByDescending(a => a.data),
-                observacoesJogo = observacoesJogo.OrderByDescending(o => o.data ?? DateTime.MinValue)
-            });
-        }
-
         // GET: /Jogadores/JogadoresSemelhantes?id=X
         // Retorna até 10 jogadores com perfil parecido ao jogador informado.
         // Critérios derivados do próprio jogador (posição, idade, jogos, gols, assistências);
@@ -1179,6 +1220,7 @@ namespace ControleFutebolWeb.Controllers
                     id        = r.j.Id,
                     nome      = r.j.NomeExibicao,
                     clube     = r.j.Time?.Nome,
+                    timeId    = r.j.TimeId,
                     escudoUrl = r.j.Time?.EscudoUrl,
                     fotoUrl   = r.j.FotoUrl,
                     idade     = r.idade,
@@ -1326,6 +1368,7 @@ namespace ControleFutebolWeb.Controllers
                 posicao = p.J.Posicao,
                 idade = p.J.Idade,
                 clube = p.J.Time?.Nome,
+                timeId = p.J.TimeId,
                 escudoUrl = p.J.Time?.EscudoUrl,
                 pais = p.J.Nacionalidade?.Nome,
                 jogos = p.JogosTotal,
@@ -1739,7 +1782,7 @@ namespace ControleFutebolWeb.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AtualizarInfo(int id)
+        public async Task<IActionResult> AtualizarInfo(int id, string? returnUrl = null)
         {
             var jogador = await _context.Jogadores.FindAsync(id);
             if (jogador == null) return NotFound();
@@ -1747,7 +1790,7 @@ namespace ControleFutebolWeb.Controllers
             if (!(jogador.IdApi > 0))
             {
                 TempData["Erro"] = $"{jogador.Nome} não possui IdApi cadastrado — não é possível atualizar pela API.";
-                return RedirectToAction(nameof(Index));
+                return VoltarParaLista(returnUrl);
             }
 
             try
@@ -1756,7 +1799,7 @@ namespace ControleFutebolWeb.Controllers
                 if (info == null)
                 {
                     TempData["Erro"] = $"Não foi possível obter os dados de {jogador.Nome} na API.";
-                    return RedirectToAction(nameof(Index));
+                    return VoltarParaLista(returnUrl);
                 }
 
                 var alteracoes = new List<string>();
@@ -1817,7 +1860,7 @@ namespace ControleFutebolWeb.Controllers
                 TempData["Erro"] = $"Erro ao atualizar {jogador.Nome}: {ex.Message}";
             }
 
-            return RedirectToAction(nameof(Index));
+            return VoltarParaLista(returnUrl);
         }
 
         [HttpPost]
@@ -1860,7 +1903,7 @@ namespace ControleFutebolWeb.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AtualizarInfoTodosSemIdade()
+        public async Task<IActionResult> AtualizarInfoTodosSemIdade(string? returnUrl = null)
         {
             var jogadores = await _context.Jogadores
                 .Where(j => j.DataNascimento == null && j.IdApi != null && j.IdApi > 0)
@@ -1937,7 +1980,7 @@ namespace ControleFutebolWeb.Controllers
                 $"Atualizados com idade: {atualizados} ✅  |  Ainda sem data na API: {semData} ⚠️  |  Falhas: {falhas} ❌  " +
                 $"(total sem idade verificado: {jogadores.Count})";
 
-            return RedirectToAction(nameof(Index), new { semIdade = true });
+            return VoltarParaLista(returnUrl, new { semIdade = true });
         }
 
         [HttpPost]

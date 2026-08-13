@@ -3,6 +3,7 @@ using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -19,17 +20,20 @@ namespace ControleFutebolWeb.Controllers
         private readonly ILogger<TimesController> _logger;
         private readonly IWebHostEnvironment _env;
         private readonly ControleFutebolWeb.Services.ApiFootballService _apiFootballService;
+        private readonly UserManager<ApplicationUser> _userManager;
 
         public TimesController(
             FutebolContext context,
             ILogger<TimesController> logger,
             IWebHostEnvironment env,
-            ControleFutebolWeb.Services.ApiFootballService apiFootballService)
+            ControleFutebolWeb.Services.ApiFootballService apiFootballService,
+            UserManager<ApplicationUser> userManager)
         {
             _context = context;
             _logger = logger;
             _env = env;
             _apiFootballService = apiFootballService;
+            _userManager = userManager;
         }
 
         // GET: Times
@@ -102,6 +106,7 @@ namespace ControleFutebolWeb.Controllers
             ViewBag.TimeIdsFiltro = timeIds;
             ViewBag.JogadoresPorTime = jogadoresPorTime;
             ViewBag.FormaPorTime = formaPorTime;
+            ViewBag.TitulosPorTime = await TitulosHelper.PorTimeAsync(_context);
 
             // KPIs do topo da página (totais globais, independentes do filtro aplicado)
             ViewBag.TotalTimesGlobal = await _context.Times.CountAsync();
@@ -218,8 +223,9 @@ namespace ControleFutebolWeb.Controllers
                 .ToList();
 
             // Painel "Estatísticas do Elenco": agrega tudo o que EstatisticaJogador guarda
-            // (minutos, finalizações, passes, duelos, dribles, defesa, disciplina, rating)
+            // (minutos, finalizações, passes, duelos, dribles, defesa, disciplina)
             // nos jogos já realizados do time, mais as titularidades de Escalacao.
+            // A nota de cada jogador vem à parte, de CalcularNotaMediaElencoAsync.
             var jogosRealizados = jogos
                 .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue)
                 .ToList();
@@ -254,9 +260,6 @@ namespace ControleFutebolWeb.Controllers
                         Minutos = g.Sum(e => e.Minutos ?? 0),
                         // Só conta como "jogo disputado" quem entrou em campo.
                         Jogos = g.Count(e => (e.Minutos ?? 0) > 0),
-                        // Rating vem só de quem jogou; sem nenhum, fica null (não vira 0).
-                        SomaRating = g.Sum(e => (e.Minutos ?? 0) > 0 ? (e.Rating ?? 0) : 0),
-                        JogosComRating = g.Count(e => (e.Minutos ?? 0) > 0 && e.Rating != null),
                         Gols = g.Sum(e => e.Gols),
                         Assistencias = g.Sum(e => e.Assistencias),
                         FinalizacoesTotal = g.Sum(e => e.FinalizacoesTotal),
@@ -291,6 +294,10 @@ namespace ControleFutebolWeb.Controllers
                 .GroupBy(x => x.JogadorId)
                 .ToDictionary(g => g.Key, g => g.Count());
 
+            // Coluna "Rating" da tabela: é a nota do SISTEMA (a mesma régua de
+            // /Relatorios e do perfil do jogador), não o rating da API-Football.
+            var notasMedias = await CalcularNotaMediaElencoAsync(elencoIds, jogosRealizadosIds);
+
             var estatisticasElenco = elenco
                 .Where(j => agregadoPorJogador.ContainsKey(j.Id) && agregadoPorJogador[j.Id].Minutos > 0)
                 .Select(j =>
@@ -313,7 +320,7 @@ namespace ControleFutebolWeb.Controllers
                             : 0,
                         Jogos = a.Jogos,
                         Titularidades = titularidades.GetValueOrDefault(j.Id),
-                        RatingMedio = a.JogosComRating > 0 ? Math.Round(a.SomaRating / a.JogosComRating, 2) : null,
+                        RatingMedio = notasMedias.TryGetValue(j.Id, out var notaMedia) ? notaMedia : null,
                         Gols = a.Gols,
                         Assistencias = a.Assistencias,
                         FinalizacoesTotal = a.FinalizacoesTotal,
@@ -355,11 +362,106 @@ namespace ControleFutebolWeb.Controllers
                 Nacionalidades = nacionalidades,
                 EstatisticasElenco = estatisticasElenco,
                 ElencoResumo = elencoResumo,
+                Titulos = (await TitulosHelper.PorTimeAsync(_context))
+                    .GetValueOrDefault(id, new List<TitulosHelper.Titulo>()),
                 TemporadasElenco = temporadasDisponiveis,
                 TemporadaElencoSelecionada = temporadaSelecionada
             };
 
             return View(viewModel);
+        }
+
+        // Nota média do sistema por jogador, nos jogos informados — mesma régua do
+        // Scout/Relatórios: nota manual quando o usuário avaliou o jogo (com o override
+        // de nota final, se houver) e nota automática (motor escolhido em /CriteriosNota)
+        // quando só existe a estatística importada. Jogos sem nenhum dos dois ficam fora
+        // da média em vez de virar zero.
+        private async Task<Dictionary<int, double>> CalcularNotaMediaElencoAsync(
+            List<int> jogadorIds, List<int> jogoIds)
+        {
+            var medias = new Dictionary<int, double>();
+            if (jogadorIds.Count == 0 || jogoIds.Count == 0) return medias;
+
+            var usuarioId = _userManager.GetUserId(User);
+
+            var notas = await _context.Notas
+                .AsNoTracking()
+                .Include(n => n.Detalhes)
+                .Where(n => jogoIds.Contains(n.JogoId) && jogadorIds.Contains(n.JogadorId)
+                         && n.UsuarioId == usuarioId)
+                .ToListAsync();
+
+            // Reservas não utilizados (Minutos 0/null) ficam de fora: a API-Football
+            // grava uma linha para todo o elenco relacionado, mesmo quem não entrou.
+            var estatisticas = await _context.EstatisticasJogador
+                .AsNoTracking()
+                // Jogo e Jogador alimentam o bônus "não sofreu gol" do CriteriosNotaHelper.
+                .Include(e => e.Jogo)
+                .Include(e => e.Jogador)
+                .Where(e => jogoIds.Contains(e.JogoId) && jogadorIds.Contains(e.JogadorId)
+                         && e.Minutos != null && e.Minutos > 0)
+                .ToListAsync();
+
+            if (notas.Count == 0 && estatisticas.Count == 0) return medias;
+
+            var criteriosBanco = CriteriosNotaHelper.MergeCriterios(
+                await _context.CriteriosNota.Where(c => c.UsuarioId == null).ToListAsync(),
+                await _context.CriteriosNota.Where(c => c.UsuarioId == usuarioId).ToListAsync());
+
+            var lados = await LadoJogadorHelper.CarregarAsync(_context, jogoIds, usuarioId);
+            var contextos = await ContextoNotaHelper.CarregarAsync(_context, jogoIds, usuarioId, lados);
+            var calculadora = await NotaAutomaticaHelper.CarregarAsync(
+                _context, jogoIds, usuarioId, criteriosBanco, lados, contextos);
+
+            var notasPorJogador = notas.GroupBy(n => n.JogadorId).ToDictionary(g => g.Key, g => g.ToList());
+            var estatsPorJogador = estatisticas.GroupBy(e => e.JogadorId).ToDictionary(g => g.Key, g => g.ToList());
+
+            foreach (var jogadorId in jogadorIds)
+            {
+                var notasDoJogador = notasPorJogador.GetValueOrDefault(jogadorId) ?? new List<Nota>();
+                var estatsDoJogador = estatsPorJogador.GetValueOrDefault(jogadorId) ?? new List<EstatisticaJogador>();
+                if (notasDoJogador.Count == 0 && estatsDoJogador.Count == 0) continue;
+
+                // Uma nota por jogo: mais de uma linha do mesmo jogo (importação em
+                // partes, avaliação regravada) não pode pesar duas vezes na média.
+                var notasPorJogo = notasDoJogador
+                    .GroupBy(n => n.JogoId)
+                    .ToDictionary(g => g.Key, g => (
+                        valor: g.Average(n => n.Valor),
+                        manual: g.Any(n => n.NotaManual.HasValue)
+                            ? (double?)g.Where(n => n.NotaManual.HasValue).Average(n => n.NotaManual!.Value)
+                            : null,
+                        detalhes: g.SelectMany(n => n.Detalhes).ToList()));
+                var estatsPorJogo = estatsDoJogador
+                    .GroupBy(e => e.JogoId)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+
+                double soma = 0;
+                int computados = 0;
+                foreach (var jogoId in notasPorJogo.Keys.Union(estatsPorJogo.Keys))
+                {
+                    double nota;
+                    if (notasPorJogo.TryGetValue(jogoId, out var n))
+                        nota = n.manual.HasValue
+                            ? Math.Round(Math.Max(0, Math.Min(10, n.manual.Value)), 2)
+                            : CriteriosNotaHelper.NotaFinal(n.valor, criteriosBanco,
+                                ContextoNotaHelper.De(contextos, jogadorId, jogoId) with
+                                {
+                                    Acoes = CriteriosNotaHelper.ContarAcoes(n.detalhes)
+                                });
+                    else if (estatsPorJogo.TryGetValue(jogoId, out var es))
+                        nota = calculadora.De(es, jogadorId, jogoId).Nota;
+                    else continue;
+
+                    soma += nota;
+                    computados++;
+                }
+
+                if (computados > 0)
+                    medias[jogadorId] = Math.Round(soma / computados, 2);
+            }
+
+            return medias;
         }
 
         // Retrato do elenco em números únicos para o cabeçalho do painel de estatísticas.
@@ -408,7 +510,7 @@ namespace ControleFutebolWeb.Controllers
 
             var comRating = stats.Where(s => s.RatingMedio.HasValue).ToList();
             if (comRating.Count > 0)
-                // Ponderada pelos minutos: o rating de quem joga sempre pesa mais.
+                // Ponderada pelos minutos: a nota de quem joga sempre pesa mais.
                 resumo.RatingMedio = Math.Round(
                     comRating.Sum(s => s.RatingMedio!.Value * s.MinutosJogados) /
                     Math.Max(1, comRating.Sum(s => s.MinutosJogados)), 2);
@@ -654,6 +756,48 @@ namespace ControleFutebolWeb.Controllers
             return RedirectToAction(nameof(Details), new { id });
         }
 
+        // Busca na api-football (/teams?id=X) o estádio do clube — nome, cidade,
+        // capacidade, tipo de gramado e foto — e salva no perfil do time.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AtualizarEstadio(int id)
+        {
+            var time = await _context.Times.FindAsync(id);
+            if (time == null) return NotFound();
+
+            if (time.IdApi <= 0)
+            {
+                TempData["Mensagem"] = "Este time não está vinculado à api-football, então não há estádio para buscar.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            try
+            {
+                var entrada = await _apiFootballService.BuscarTimeApiAsync(time.IdApi);
+
+                if (entrada?.Venue == null || string.IsNullOrWhiteSpace(entrada.Venue.Name))
+                {
+                    TempData["Mensagem"] = "A api-football não informou o estádio deste clube.";
+                }
+                else if (Services.ApiFootballService.AplicarEstadio(time, entrada.Venue))
+                {
+                    await _context.SaveChangesAsync();
+                    TempData["Mensagem"] = $"Estádio de {time.Nome} atualizado: {time.EstadioNome}.";
+                }
+                else
+                {
+                    TempData["Mensagem"] = "O estádio do clube já estava cadastrado.";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[AtualizarEstadio] Falha ao buscar estádio do time {Id} (IdApi={IdApi})", time.Id, time.IdApi);
+                TempData["Mensagem"] = "Não foi possível consultar o estádio na api-football.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         [HttpPost]
         public async Task<IActionResult> ImportarUniforme(int id, IFormFile arquivo, string tipo = "casa")
         {
@@ -818,6 +962,422 @@ namespace ControleFutebolWeb.Controllers
                 lineups  = stats.Lineups,
                 cards    = stats.Cards,
             });
+        }
+
+        // Uma movimentação de mercado do clube já normalizada (ver MontarMovimentos).
+        private sealed class MovimentoTransferencia
+        {
+            public bool Chegada { get; init; }
+            public DateTime Data { get; init; }
+            public string Tipo { get; init; } = "";
+            public int Peso { get; init; }
+            public long? JogadorIdApi { get; init; }
+            public string Jogador { get; init; } = "";
+            public int? ClubeIdApi { get; init; }
+            public string Clube { get; init; } = "";
+            public string? ClubeLogo { get; init; }
+
+            // Preenchido ao aplicar no banco (ver AplicarMovimentoAsync):
+            // "aplicada" (mudou o clube agora), "ok" (o cadastro já refletia),
+            // "sem-cadastro" / "sem-clube" (não dava para aplicar).
+            public string Situacao { get; set; } = "ok";
+            public string? Motivo { get; set; }
+        }
+
+        // POST: Times/TransferenciasApi (timeId, season, janela)
+        // Chegadas e saídas do clube na temporada escolhida, vindas de
+        // /transfers?team=X da api-football. A API não filtra por data: devolve o
+        // histórico inteiro do clube (centenas de jogadores, desde os anos 90),
+        // então a janela é recortada aqui.
+        //
+        //   janela=civil    → 01/jan a 31/dez da temporada (Brasil, Argentina, MLS…)
+        //   janela=europeia → 01/jul da temporada a 30/jun da seguinte (Europa)
+        //
+        // A consulta também SINCRONIZA o cadastro: quem chegou e ainda não está no
+        // clube é transferido para cá, quem saiu e ainda consta aqui vai para o
+        // clube de destino (criado se não existir), e cada troca vira registro na
+        // Janela de Transferências (/Transferencias). Rodar de novo não duplica
+        // nada — o que já bate com a API só aparece para conferência. Por mexer no
+        // banco é POST com antiforgery, não GET.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> TransferenciasApi(int timeId, int season, string? janela = null)
+        {
+            var time = await _context.Times.FirstOrDefaultAsync(t => t.Id == timeId);
+            if (time == null || time.IdApi == 0)
+                return Json(new { erro = "Time não encontrado ou sem IdApi configurado." });
+            if (time.EhSelecao)
+                return Json(new { erro = "Seleções não têm janela de transferências — só clubes." });
+
+            var europeia = string.Equals(janela, "europeia", StringComparison.OrdinalIgnoreCase);
+            var inicio = europeia ? new DateTime(season, 7, 1) : new DateTime(season, 1, 1);
+            var fim = europeia ? new DateTime(season + 1, 6, 30) : new DateTime(season, 12, 31);
+
+            List<ControleFutebolWeb.Services.AfTransfersEntry> entradas;
+            try
+            {
+                entradas = await _apiFootballService.BuscarTransferenciasTimeAsync(time.IdApi);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Transferências] Falha ao consultar a API para o time {Id}.", timeId);
+                return Json(new { erro = "Não foi possível consultar as transferências na API-Football." });
+            }
+
+            var movimentos = MontarMovimentos(entradas, time.IdApi, inicio, fim);
+
+            // Jogadores do cadastro local envolvidos, pelo id da API.
+            var idsApi = movimentos.Where(m => m.JogadorIdApi.HasValue)
+                                   .Select(m => m.JogadorIdApi!.Value).Distinct().ToList();
+            var jogadores = await _context.Jogadores
+                .Include(j => j.Time)
+                .Where(j => j.IdApi != null && idsApi.Contains(j.IdApi.Value))
+                .ToListAsync();
+            var jogadorPorIdApi = jogadores
+                .GroupBy(j => j.IdApi!.Value)
+                .ToDictionary(g => g.Key, g => g.First());
+
+            // Registros que já existem no histórico da janela (desta sincronização
+            // ou da detecção pela escalação) — evita gravar o mesmo negócio duas vezes.
+            var jogadorIds = jogadores.Select(j => j.Id).ToList();
+            var inicioUtc = DateTime.SpecifyKind(inicio, DateTimeKind.Utc);
+            var fimUtc = DateTime.SpecifyKind(fim.AddDays(1), DateTimeKind.Utc);
+            var jaRegistradas = (await _context.Transferencias
+                    .AsNoTracking()
+                    .Where(t => jogadorIds.Contains(t.JogadorId) && t.Data >= inicioUtc && t.Data < fimUtc)
+                    .Select(t => new { t.JogadorId, t.TimeDestinoId, t.Data })
+                    .ToListAsync())
+                .Select(t => (t.JogadorId, t.TimeDestinoId, t.Data.Date))
+                .ToHashSet();
+
+            var usuarioId = _userManager.GetUserId(User);
+            int aplicadas = 0, clubesCriados = 0, jogadoresCriados = 0;
+
+            // O cadastro é reconciliado com o ESTADO FINAL da janela, não com o
+            // histórico refeito passo a passo. Um jogador emprestado e devolvido
+            // dentro da mesma janela termina onde a última movimentação diz; se a
+            // sincronização repetisse cada passo, a segunda busca partiria do
+            // estado final e ficaria movendo o jogador de um lado para o outro a
+            // cada execução. Vale a última movimentação de cada jogador — as
+            // anteriores continuam na lista, só para conferência.
+            foreach (var grupo in movimentos
+                         .Where(m => m.JogadorIdApi.HasValue)
+                         .GroupBy(m => m.JogadorIdApi!.Value))
+            {
+                var ordenadas = grupo
+                    .OrderBy(m => m.Data)
+                    // Chegada e saída no mesmo dia: a chegada é o estado final.
+                    .ThenBy(m => m.Chegada ? 1 : 0)
+                    .ToList();
+
+                foreach (var anterior in ordenadas.Take(ordenadas.Count - 1))
+                {
+                    anterior.Situacao = "anterior";
+                    anterior.Motivo = "movimentação anterior da janela — vale a última";
+                }
+
+                var (mudou, criouClube, criouJogador) = await AplicarMovimentoAsync(
+                    ordenadas[^1], time, jogadorPorIdApi, jaRegistradas, usuarioId);
+                if (mudou) aplicadas++;
+                if (criouClube) clubesCriados++;
+                if (criouJogador) jogadoresCriados++;
+            }
+
+            // Movimentação sem id de jogador na API: não há como identificar quem é.
+            foreach (var m in movimentos.Where(m => !m.JogadorIdApi.HasValue))
+            {
+                m.Situacao = "sem-cadastro";
+                m.Motivo = "movimentação sem id de jogador na API";
+            }
+
+            if (aplicadas > 0 || clubesCriados > 0 || jogadoresCriados > 0)
+                await _context.SaveChangesAsync();
+
+            object Montar(IEnumerable<MovimentoTransferencia> lista) =>
+                lista.OrderByDescending(m => m.Data).Select(m =>
+                {
+                    var local = m.JogadorIdApi.HasValue &&
+                                jogadorPorIdApi.TryGetValue(m.JogadorIdApi.Value, out var j) ? j : null;
+                    return new
+                    {
+                        jogador = local?.NomeExibicao ?? m.Jogador,
+                        jogadorId = local?.Id,
+                        fotoUrl = local?.FotoUrl,
+                        posicao = local?.Posicao,
+                        clube = m.Clube,
+                        clubeLogo = m.ClubeLogo,
+                        tipo = m.Tipo,
+                        data = m.Data.ToString("dd/MM/yyyy"),
+                        situacao = m.Situacao,
+                        motivo = m.Motivo
+                    };
+                }).ToList();
+
+            return Json(new
+            {
+                janela = europeia ? "europeia" : "civil",
+                periodo = $"{inicio:dd/MM/yyyy} a {fim:dd/MM/yyyy}",
+                aplicadas,
+                clubesCriados,
+                jogadoresCriados,
+                chegadas = Montar(movimentos.Where(m => m.Chegada)),
+                saidas = Montar(movimentos.Where(m => !m.Chegada))
+            });
+        }
+
+        // Achata a resposta de /transfers em movimentações do clube dentro da
+        // janela, com o vocabulário traduzido e sem os registros repetidos.
+        private static List<MovimentoTransferencia> MontarMovimentos(
+            List<ControleFutebolWeb.Services.AfTransfersEntry> entradas,
+            int idApiClube, DateTime inicio, DateTime fim)
+        {
+            // Vocabulário da API traduzido; valores em dinheiro ("€ 30M") passam direto.
+            static string TraduzirTipo(string? tipo)
+            {
+                var t = (tipo ?? "").Trim();
+                if (t.Length == 0 || t == "-" || t.Equals("N/A", StringComparison.OrdinalIgnoreCase))
+                    return "—";
+                if (t.Equals("Loan", StringComparison.OrdinalIgnoreCase)) return "Empréstimo";
+                if (t.Contains("Return from loan", StringComparison.OrdinalIgnoreCase) ||
+                    t.Contains("Back from Loan", StringComparison.OrdinalIgnoreCase)) return "Volta de empréstimo";
+                if (t.Contains("Free", StringComparison.OrdinalIgnoreCase)) return "Livre";
+                if (t.Equals("Transfer", StringComparison.OrdinalIgnoreCase)) return "Transferência";
+                if (t.Equals("Raise", StringComparison.OrdinalIgnoreCase)) return "Promoção da base";
+                return t;
+            }
+
+            // Quanto o "type" informa: dinheiro > rótulo > "—". Entre registros
+            // duplicados do mesmo negócio, fica o mais informativo.
+            static int PesoTipo(string? tipo)
+            {
+                var t = (tipo ?? "").Trim();
+                if (t.Length == 0 || t == "-" || t.Equals("N/A", StringComparison.OrdinalIgnoreCase)) return 0;
+                if (t.Any(char.IsDigit)) return 2;
+                return 1;
+            }
+
+            var itens = new List<MovimentoTransferencia>();
+
+            foreach (var e in entradas)
+            {
+                foreach (var t in e.Transfers)
+                {
+                    if (!DateTime.TryParse(t.Date, System.Globalization.CultureInfo.InvariantCulture,
+                            System.Globalization.DateTimeStyles.None, out var data))
+                        continue;
+                    if (data < inicio || data > fim) continue;
+
+                    var entrou = t.Teams.In;
+                    var saiu = t.Teams.Out;
+                    bool chegada = entrou?.Id == idApiClube;
+                    bool saida = saiu?.Id == idApiClube;
+
+                    // Nem uma ponta é este clube (não deveria acontecer) ou as duas
+                    // são ("Raise" = subida da base, movimento interno): fora.
+                    if (chegada == saida) continue;
+
+                    var outroLado = chegada ? saiu : entrou;
+                    var clube = outroLado?.Name?.Trim();
+
+                    itens.Add(new MovimentoTransferencia
+                    {
+                        Chegada = chegada,
+                        Data = data,
+                        Tipo = TraduzirTipo(t.Type),
+                        Peso = PesoTipo(t.Type),
+                        JogadorIdApi = e.Player.Id,
+                        Jogador = e.Player.Name?.Trim() ?? "—",
+                        ClubeIdApi = outroLado?.Id,
+                        Clube = string.IsNullOrWhiteSpace(clube) ? "—" : clube,
+                        ClubeLogo = outroLado?.Logo
+                    });
+                }
+            }
+
+            // Um negócio por jogador + direção + clube da ponta: o registro mais
+            // informativo e, no empate, o mais antigo (data do anúncio).
+            return itens
+                .GroupBy(i => (i.Chegada, i.JogadorIdApi, i.Jogador, Clube: i.Clube.ToLowerInvariant()))
+                .Select(g => g.OrderByDescending(i => i.Peso).ThenBy(i => i.Data).First())
+                .ToList();
+        }
+
+        // Deixa o cadastro local igual ao que a API diz sobre esta movimentação.
+        // Não chama SaveChanges: quem orquestra salva uma vez só no fim.
+        // Retorna se algo mudou e se um clube novo precisou ser criado.
+        private async Task<(bool mudou, bool clubeCriado, bool jogadorCriado)> AplicarMovimentoAsync(
+            MovimentoTransferencia m, Time clube,
+            Dictionary<long, Jogador> jogadorPorIdApi,
+            HashSet<(int JogadorId, int? TimeDestinoId, DateTime Dia)> jaRegistradas,
+            string? usuarioId)
+        {
+            if (!m.JogadorIdApi.HasValue)
+            {
+                m.Situacao = "sem-cadastro";
+                m.Motivo = "movimentação sem id de jogador na API";
+                return (false, false, false);
+            }
+
+            bool clubeCriado = false, jogadorCriado = false;
+
+            if (!jogadorPorIdApi.TryGetValue(m.JogadorIdApi.Value, out var jogador))
+            {
+                // Só cria em chegada: o reforço vai mesmo entrar em campo por este
+                // clube e seria criado na próxima importação de jogo. Em saída, o
+                // jogador que nunca esteve no cadastro não tem o que ser movido —
+                // ele será criado pelo clube de destino, se esse clube for seguido.
+                if (!m.Chegada)
+                {
+                    m.Situacao = "sem-cadastro";
+                    m.Motivo = "jogador não cadastrado no sistema";
+                    return (false, false, false);
+                }
+
+                // Nasce no clube de origem para que a chegada vire um registro de
+                // verdade na Janela de Transferências ("veio de X"). Sem clube de
+                // origem identificável, entra direto neste clube.
+                var (origem, origemCriada) = await ResolverOuCriarClubeTransferenciaAsync(m);
+                clubeCriado = origemCriada;
+
+                var criado = await _apiFootballService.CriarJogadorDeTransferenciaAsync(
+                    _context, m.JogadorIdApi.Value, m.Jogador, origem ?? clube);
+
+                if (criado == null)
+                {
+                    m.Situacao = "sem-cadastro";
+                    m.Motivo = "não foi possível criar o jogador a partir da API";
+                    return (false, clubeCriado, false);
+                }
+
+                jogador = criado;
+                jogadorCriado = true;
+                jogadorPorIdApi[m.JogadorIdApi.Value] = jogador;
+
+                // Criado já neste clube (sem origem conhecida): nada a transferir.
+                if (jogador.TimeId == clube.Id)
+                {
+                    m.Situacao = "criado";
+                    m.Motivo = "jogador criado a partir da API, já neste clube";
+                    return (false, clubeCriado, true);
+                }
+            }
+
+            // Chegada → destino é este clube; saída → destino é o clube da outra ponta.
+            Time destino;
+
+            if (m.Chegada)
+            {
+                if (jogador.TimeId == clube.Id) return (false, clubeCriado, jogadorCriado);   // já está aqui
+                destino = clube;
+            }
+            else
+            {
+                if (jogador.TimeId != clube.Id) return (false, clubeCriado, jogadorCriado);   // já saiu daqui
+                var (resolvido, criadoClube) = await ResolverOuCriarClubeTransferenciaAsync(m);
+                if (resolvido == null)
+                {
+                    m.Situacao = "sem-clube";
+                    m.Motivo = "clube de destino não identificado na API";
+                    return (false, clubeCriado, jogadorCriado);
+                }
+                destino = resolvido;
+                clubeCriado = clubeCriado || criadoClube;
+            }
+
+            // Se este negócio já está no histórico (detecção pela escalação, por
+            // exemplo), o clube ainda é corrigido, mas sem duplicar o registro.
+            var registrar = jaRegistradas.Add((jogador.Id, (int?)destino.Id, m.Data.Date));
+
+            var origemId = jogador.TimeId;
+            // O nome precisa ser lido antes da troca: a navegação Time continua
+            // apontando para o clube antigo, mas só até alguém recarregar a entidade.
+            // Jogador recém-criado vem sem a navegação carregada — busca pelo id.
+            var origemNome = jogador.Time?.Nome
+                ?? await _context.Times.Where(t => t.Id == origemId).Select(t => t.Nome).FirstOrDefaultAsync()
+                ?? "clube anterior";
+
+            if (registrar)
+            {
+                _context.Transferencias.Add(new Transferencia
+                {
+                    JogadorId = jogador.Id,
+                    TimeOrigemId = origemId,
+                    TimeDestinoId = destino.Id,
+                    JogoId = null,
+                    // A coluna é timestamptz: a data do anúncio entra como UTC.
+                    Data = DateTime.SpecifyKind(m.Data, DateTimeKind.Utc),
+                    // Preenchido (e não null como na detecção por escalação) para que
+                    // quem rodou a sincronização possa desfazer em /Transferencias.
+                    UsuarioId = usuarioId
+                });
+            }
+
+            jogador.TimeId = destino.Id;
+            // Voltou a ter clube: se estava marcado como aposentado, deixa de estar.
+            jogador.Aposentado = false;
+            jogador.AposentadoEm = null;
+
+            m.Situacao = "aplicada";
+            m.Motivo = (m.Chegada ? $"veio de {origemNome}" : $"foi para {destino.Nome}")
+                + (jogadorCriado ? " · jogador criado a partir da API" : "");
+
+            _logger.LogInformation(
+                "[Transferências] {Jogador}: {Origem} → {Destino} (api-football, {Data:dd/MM/yyyy})",
+                jogador.Nome, origemNome, destino.Nome, m.Data);
+
+            return (true, clubeCriado, jogadorCriado);
+        }
+
+        // Clube da outra ponta da transferência: procura pelo id da API, depois
+        // pelo nome, e cria se ainda não existir — clube de liga que ninguém
+        // cadastrou nunca chegaria aqui pela importação de jogos.
+        private async Task<(Time? clube, bool criado)> ResolverOuCriarClubeTransferenciaAsync(
+            MovimentoTransferencia m)
+        {
+            if (m.ClubeIdApi is > 0)
+            {
+                var porIdApi = await _context.Times.FirstOrDefaultAsync(t => t.IdApi == m.ClubeIdApi);
+                if (porIdApi != null) return (porIdApi, false);
+            }
+
+            var nome = ControleFutebolWeb.Services.ApiFootballService.TraduzirNomeClube(m.Clube.Trim());
+            if (string.IsNullOrWhiteSpace(nome) || nome == "—") return (null, false);
+
+            var porNome = await _context.Times
+                .FirstOrDefaultAsync(t => t.Nome.ToLower() == nome.ToLower() && !t.EhSelecao);
+            if (porNome != null)
+            {
+                // Aproveita para completar o id da API do clube já cadastrado.
+                if (porNome.IdApi == 0 && m.ClubeIdApi is > 0) porNome.IdApi = m.ClubeIdApi.Value;
+                return (porNome, false);
+            }
+
+            // Sem id da API não se cria clube: nesses registros ("Free agent",
+            // "Return from loan" incompletos) a API costuma repetir o NOME DO
+            // JOGADOR no lugar do clube — criar viraria lixo no cadastro.
+            if (m.ClubeIdApi is not > 0) return (null, false);
+
+            var formacaoPadrao = await _context.Formacoes.FirstOrDefaultAsync();
+            if (formacaoPadrao == null) return (null, false);
+
+            var novo = new Time
+            {
+                Nome = nome,
+                IdApi = m.ClubeIdApi.Value,
+                EscudoUrl = m.ClubeLogo ?? "",
+                Cidade = "Importado",
+                CorPrincipal = "#000000",
+                CorSecundaria = "#FFFFFF",
+                FormacaoPadraoId = formacaoPadrao.Id,
+                EhSelecao = false
+            };
+            _context.Times.Add(novo);
+            // Precisa do Id agora: a Transferencia deste mesmo movimento aponta para ele.
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("[Transferências] Clube criado a partir da API: {Nome} (idApi {IdApi}).",
+                novo.Nome, novo.IdApi);
+            return (novo, true);
         }
 
         // GET: Times/EstatisticasLocaisApi?timeId=1&leagueId=71&season=2026

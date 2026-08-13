@@ -953,6 +953,110 @@ namespace ControleFutebolWeb.Services
             return resp?.Response;
         }
 
+        // Transferências de um clube (/transfers?team=X). A API ignora qualquer
+        // filtro de data — devolve o histórico inteiro do clube — então o recorte
+        // por temporada é feito por quem consome (TimesController.TransferenciasApi).
+        // Cache de 6h: é uma resposta grande (centenas de jogadores) e o mercado
+        // não muda de minuto em minuto.
+        public async Task<List<AfTransfersEntry>> BuscarTransferenciasTimeAsync(
+            int teamId, CancellationToken ct = default)
+        {
+            if (teamId <= 0) return new();
+            var url = $"transfers?team={teamId}";
+            var json = await GetStringCachedAsync(url, TimeSpan.FromHours(6), ct);
+            var resp = JsonSerializer.Deserialize<ApiFootballResponse<AfTransfersEntry>>(json, _json);
+            return resp?.Response ?? new();
+        }
+
+        // Clubes de uma liga na temporada informada (/teams?league=X&season=Y).
+        // Cacheado por 12h: o elenco de clubes de uma liga praticamente não muda
+        // dentro da temporada e a tela de transferência manual repete a consulta.
+        public async Task<List<AfTeamCatalogo>> BuscarClubesDaLigaAsync(
+            int leagueId, int season, CancellationToken ct = default)
+        {
+            var entradas = await BuscarEntradasClubesDaLigaAsync(leagueId, season, ct);
+            return entradas
+                .Select(e => e.Team)
+                .Where(t => !t.National)   // seleções não entram em transferência de clube
+                .OrderBy(t => t.Name)
+                .ToList();
+        }
+
+        // Mesma consulta, mas devolvendo a entrada completa (time + estádio).
+        // Como o cache é compartilhado, aproveitar o estádio daqui não gasta
+        // requisição extra depois de a lista de clubes já ter sido carregada.
+        public async Task<List<AfTeamsEntry>> BuscarEntradasClubesDaLigaAsync(
+            int leagueId, int season, CancellationToken ct = default)
+        {
+            var url = $"teams?league={leagueId}&season={season}";
+            var json = await GetStringCachedAsync(url, TimeSpan.FromHours(12), ct);
+            var resp = JsonSerializer.Deserialize<ApiFootballResponse<AfTeamsEntry>>(json, _json);
+            return resp?.Response ?? new();
+        }
+
+        // Ficha de um clube pelo id da api-football (/teams?id=X). É o único
+        // endpoint que traz o estádio DO CLUBE (nó "venue"); o venue do fixture
+        // é o local daquela partida. Cacheado por 7 dias: estádio quase não muda.
+        public async Task<AfTeamsEntry?> BuscarTimeApiAsync(int idApi, CancellationToken ct = default)
+        {
+            if (idApi <= 0) return null;
+            var url = $"teams?id={idApi}";
+            var json = await GetStringCachedAsync(url, TimeSpan.FromDays(7), ct);
+            var resp = JsonSerializer.Deserialize<ApiFootballResponse<AfTeamsEntry>>(json, _json);
+            return resp?.Response?.FirstOrDefault();
+        }
+
+        // Preenche o estádio do time a partir da API, sem sobrescrever o que já
+        // estiver salvo (o usuário pode ter ajustado à mão). Retorna true se
+        // algo mudou — quem chamou é responsável pelo SaveChanges.
+        public static bool AplicarEstadio(Time time, AfVenueCatalogo? venue)
+        {
+            if (venue == null || string.IsNullOrWhiteSpace(venue.Name)) return false;
+
+            var alterado = false;
+
+            if (string.IsNullOrWhiteSpace(time.EstadioNome))
+            {
+                time.EstadioNome = venue.Name!.Trim();
+                alterado = true;
+            }
+            if (string.IsNullOrWhiteSpace(time.EstadioCidade) && !string.IsNullOrWhiteSpace(venue.City))
+            {
+                time.EstadioCidade = venue.City!.Trim();
+                alterado = true;
+            }
+            if (time.EstadioCapacidade == null && venue.Capacity is > 0)
+            {
+                time.EstadioCapacidade = venue.Capacity;
+                alterado = true;
+            }
+            if (string.IsNullOrWhiteSpace(time.EstadioGramado) && !string.IsNullOrWhiteSpace(venue.Surface))
+            {
+                time.EstadioGramado = venue.Surface!.Trim();
+                alterado = true;
+            }
+            if (string.IsNullOrWhiteSpace(time.EstadioImagemUrl) && !string.IsNullOrWhiteSpace(venue.Image))
+            {
+                time.EstadioImagemUrl = venue.Image!.Trim();
+                alterado = true;
+            }
+
+            // A cidade do clube nasce como "Importado" na criação automática:
+            // aproveita a cidade do estádio para deixar o perfil apresentável.
+            if (!string.IsNullOrWhiteSpace(time.EstadioCidade) &&
+                (string.IsNullOrWhiteSpace(time.Cidade) || time.Cidade == "Importado"))
+            {
+                time.Cidade = time.EstadioCidade!;
+                alterado = true;
+            }
+
+            return alterado;
+        }
+
+        // Traduz o nome do clube da API para o padrão usado no banco — mesma
+        // regra da importação de jogos, para não criar "Al Sadd" e "Al-Sadd".
+        public static string TraduzirNomeClube(string nomeOriginal) => TraduzirNomeTIme(nomeOriginal);
+
         public async Task<List<AfFixture>> BuscarH2HAsync(
             int teamId1, int teamId2, int last = 5, CancellationToken ct = default)
         {
@@ -992,6 +1096,11 @@ namespace ControleFutebolWeb.Services
                 var json = await _http.GetStringAsync(url, ct);
                 var resp = JsonSerializer.Deserialize<ApiFootballResponse<AfStandingsEntry>>(json, _json);
                 var grupos = resp?.Response.FirstOrDefault()?.League.Standings ?? new();
+
+                // Liga de tabela única (Bundesliga, Brasileirão...) devolve UM standings cujo
+                // "group" é o nome da própria competição. Usar isso como Jogo.Grupo faria a
+                // liga inteira parecer uma fase à parte — só mapeia quando há grupos de verdade.
+                if (grupos.Count < 2) return mapa;
 
                 foreach (var grupo in grupos)
                     foreach (var entrada in grupo)
@@ -1076,9 +1185,14 @@ namespace ControleFutebolWeb.Services
                 var grupoStaleDeGrupos = !EhFaseDeGrupos(fx.League.Round) &&
                     existente.Grupo != null &&
                     existente.Grupo.StartsWith("Group", StringComparison.OrdinalIgnoreCase);
+                // Jogo de liga que ficou com o nome da competição em Grupo ("Bundesliga") por
+                // causa do standings de tabela única — não é rodada nem grupo reconhecível,
+                // então é substituído pelo round atual da API ("Regular Season - 15").
+                var grupoStaleDeLiga = !string.IsNullOrWhiteSpace(existente.Grupo) &&
+                    FaseJogoClassifier.Classificar(existente.Grupo) == FaseCategoria.Indefinida;
                 var grupoDesatualizado = string.IsNullOrWhiteSpace(existente.Grupo) ||
                     existente.Grupo.Equals("Group Stage", StringComparison.OrdinalIgnoreCase) ||
-                    grupoStaleDeGrupos;
+                    grupoStaleDeGrupos || grupoStaleDeLiga;
                 if (grupoDesatualizado && !string.IsNullOrWhiteSpace(grupo))
                     existente.Grupo = grupo;
 
@@ -2022,6 +2136,45 @@ namespace ControleFutebolWeb.Services
             }
         }
 
+        // Cria um jogador que apareceu só numa transferência (ver
+        // TimesController.TransferenciasApi) — ele ainda não entrou em campo por
+        // nenhum clube cadastrado, então a importação de jogos nunca o criou.
+        // Mesmo caminho da importação: grava o mínimo e completa foto, nascimento,
+        // nacionalidade, altura e peso pela API. Salva por conta própria porque
+        // o Id do jogador é necessário logo em seguida (registro da transferência).
+        public async Task<Jogador?> CriarJogadorDeTransferenciaAsync(
+            FutebolContext context, long idApi, string nome, Time clube,
+            CancellationToken ct = default)
+        {
+            if (idApi <= 0 || idApi > int.MaxValue || string.IsNullOrWhiteSpace(nome))
+                return null;
+
+            var existente = await context.Jogadores
+                .Include(j => j.Time)
+                .FirstOrDefaultAsync(j => j.IdApi == idApi, ct);
+            if (existente != null) return existente;
+
+            var jogador = new Jogador
+            {
+                Nome = nome.Trim(),
+                Posicao = "",
+                TimeId = clube.Id,
+                SelecaoId = clube.EhSelecao ? clube.Id : null,
+                IdApi = idApi,
+                DtInc = DateTime.UtcNow
+            };
+            context.Jogadores.Add(jogador);
+            await context.SaveChangesAsync(ct);
+
+            await PreencherDadosApiJogadorAsync(context, jogador, (int)idApi, ct);
+
+            _logger.LogInformation(
+                "[ApiFoot] Jogador {Nome} criado a partir de transferência (IdApi={Id}, clube inicial {Clube}).",
+                jogador.Nome, idApi, clube.Nome);
+
+            return jogador;
+        }
+
         // ── Jogadores sem id da API ──────────────────────────────────────────
 
         private static string ChaveSemId(int timeId, string nome) =>
@@ -2261,6 +2414,7 @@ namespace ControleFutebolWeb.Services
                         Defesas           = s.Goals?.Saves ?? 0,
                         PassesTotal       = s.Passes?.Total ?? 0,
                         PassesChave       = s.Passes?.Key ?? 0,
+                        PassesCertos      = s.Passes?.PassesCertos ?? 0,
                         Desarmes          = s.Tackles?.Total ?? 0,
                         Bloqueios         = s.Tackles?.Blocks ?? 0,
                         Interceptacoes    = s.Tackles?.Interceptions ?? 0,
@@ -2276,7 +2430,9 @@ namespace ControleFutebolWeb.Services
                         PenaltiSofrido    = s.Penalty?.Won ?? 0,
                         PenaltiCometido   = s.Penalty?.Commited ?? 0,
                         PenaltiPerdido    = s.Penalty?.Missed ?? 0,
-                        PenaltiDefendido  = s.Penalty?.Saved ?? 0
+                        PenaltiDefendido  = s.Penalty?.Saved ?? 0,
+                        PenaltiConvertido = s.Penalty?.Scored ?? 0,
+                        EntrouDoBanco     = s.Games?.Substitute ?? false
                     });
                 }
 

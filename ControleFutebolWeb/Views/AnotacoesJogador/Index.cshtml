@@ -1,0 +1,586 @@
+@model List<ControleFutebolWeb.Models.AnotacaoJogador>
+@using ControleFutebolWeb.Helpers
+@{
+    var jogador = (ControleFutebolWeb.Models.Jogador)ViewBag.Jogador;
+    var q       = (string?)ViewBag.Q;
+    ViewData["Title"] = $"Anotações — {jogador.NomeExibicao}";
+
+    var obsJogos = ViewBag.ObservacoesJogos as List<ControleFutebolWeb.Models.ViewModels.ObservacaoJogoJogadorViewModel>
+        ?? new List<ControleFutebolWeb.Models.ViewModels.ObservacaoJogoJogadorViewModel>();
+    var anotacoesClube = ViewBag.AnotacoesClube as List<ControleFutebolWeb.Models.AnotacaoTime>
+        ?? new List<ControleFutebolWeb.Models.AnotacaoTime>();
+    var contagemCategorias = ViewBag.ContagemCategorias as Dictionary<string, int> ?? new Dictionary<string, int>();
+
+    int TotalAnotacoes() => contagemCategorias.Values.Sum();
+
+    (string bg, string border, string text, string line) CorCategoria(string? categoria) => categoria switch
+    {
+        "Lesão"       => ("rgba(239,68,68,0.12)",  "rgba(239,68,68,0.3)",  "var(--bad)", "#ef4444"),
+        "Contrato"    => ("rgba(168,85,247,0.12)", "rgba(168,85,247,0.3)", "var(--purple)", "#a855f7"),
+        "Desempenho"  => ("rgba(96,165,250,0.12)", "rgba(96,165,250,0.3)", "#60a5fa", "#60a5fa"),
+        "Curiosidade" => ("rgba(245,158,11,0.12)", "rgba(245,158,11,0.3)", "var(--warn)", "#f59e0b"),
+        "Informação"  => ("rgba(34,197,94,0.12)",  "rgba(34,197,94,0.3)",  "var(--ok)", "#22c55e"),
+        _             => ("rgba(107,114,128,0.12)","rgba(107,114,128,0.3)","var(--text-muted)", "var(--text-dim)")
+    };
+
+    // Destaca o termo pesquisado dentro de um texto (escapando o HTML).
+    string Realcar(string texto)
+    {
+        if (string.IsNullOrWhiteSpace(q)) return System.Web.HttpUtility.HtmlEncode(texto);
+        var idx = texto.IndexOf(q, StringComparison.OrdinalIgnoreCase);
+        if (idx < 0) return System.Web.HttpUtility.HtmlEncode(texto);
+        var sb = new System.Text.StringBuilder();
+        int pos = 0;
+        while (idx >= 0)
+        {
+            sb.Append(System.Web.HttpUtility.HtmlEncode(texto[pos..idx]));
+            sb.Append($"<mark class='an-highlight'>{System.Web.HttpUtility.HtmlEncode(texto.Substring(idx, q.Length))}</mark>");
+            pos = idx + q.Length;
+            idx = texto.IndexOf(q, pos, StringComparison.OrdinalIgnoreCase);
+        }
+        sb.Append(System.Web.HttpUtility.HtmlEncode(texto[pos..]));
+        return sb.ToString();
+    }
+
+    // Realça a menção "@Nome" ao próprio jogador nos textos vindos de jogos e do clube.
+    string ComMencaoPropria(string html)
+    {
+        var alvo = System.Text.RegularExpressions.Regex.Escape(
+            System.Web.HttpUtility.HtmlEncode("@" + jogador.NomeExibicao));
+        return System.Text.RegularExpressions.Regex.Replace(
+            html, alvo, m => $"<span class=\"an-mencao-propria\">{m.Value}</span>",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    }
+
+    string Formatar(string texto) => ComMencaoPropria(Realcar(texto));
+
+    string[] categorias = { "Lesão", "Contrato", "Desempenho", "Curiosidade", "Informação" };
+}
+
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+
+<style>
+    .an * { box-sizing: border-box; }
+
+    .an {
+        margin: 0 -12px;
+        background: var(--p-0);
+        color: var(--text);
+        font-family: 'Barlow', Arial, sans-serif;
+        border-radius: 14px;
+        overflow: hidden;
+    }
+
+    .an a { text-decoration: none; color: inherit; }
+    .an h1 { font-family: 'Barlow Condensed', Arial, sans-serif; }
+
+    /* ── Hero ────────────────────────────────────── */
+    .an-hero {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #0a0f1a 0%, #111827 55%, #0a0f1a 100%);
+        padding: 2rem 2.5rem 1.7rem;
+    }
+    .an-hero-pattern { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.05; pointer-events: none; }
+    .an-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #d4a520; }
+
+    .an-hero-row { position: relative; z-index: 1; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+
+    .an-foto {
+        width: 66px; height: 66px; border-radius: 50%;
+        background: rgba(255,255,255,0.07); border: 2px solid rgba(255,255,255,0.12);
+        display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;
+    }
+    .an-foto img { width: 100%; height: 100%; object-fit: cover; }
+    .an-foto span { font-size: 1.1rem; font-weight: 700; color: var(--text-muted); }
+
+    .an-hero-info { flex: 1; min-width: 180px; }
+    .an-hero-kicker { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+    .an-hero-kicker-line { height: 2px; width: 20px; background: #d4a520; }
+    .an-hero-kicker span { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.24em; color: var(--gold-ink); text-transform: uppercase; }
+    .an-hero-info h1 { font-size: 2.1rem; font-weight: 800; color: var(--text-strong); margin: 0 0 4px; line-height: 1; }
+    .an-hero-info p { font-size: 0.8rem; color: var(--text-dim); margin: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .an-hero-info p img { width: 15px; height: 15px; object-fit: contain; }
+    /* Clube clicável → página do time */
+    .an-clube-link { display: inline-flex; align-items: center; gap: 6px; color: inherit; text-decoration: none; }
+    .an-clube-link:hover { color: var(--gold-ink); text-decoration: underline; }
+
+    .an-hero-actions { display: flex; gap: 10px; flex-shrink: 0; flex-wrap: wrap; }
+    .an-btn {
+        display: flex; align-items: center; gap: 7px; padding: 9px 16px;
+        background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px; color: #c9c5bb; font-size: 0.8rem; font-weight: 700; white-space: nowrap;
+    }
+    .an-btn:hover { border-color: #d4a520; color: var(--gold-ink); }
+    .an-btn.gold { background: #d4a520; color: #141414; border: none; }
+    .an-btn.gold:hover { background: #c49918; color: #141414; }
+
+    /* ── Grid principal ──────────────────────────── */
+    .an-grid { padding: 26px 2.5rem 3rem; display: grid; grid-template-columns: 1fr 336px; gap: 26px; align-items: start; }
+    @@media (max-width: 1000px) { .an-grid { grid-template-columns: 1fr; } }
+
+    .an-alert-ok {
+        background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); color: var(--ok);
+        border-radius: 10px; padding: 10px 14px; margin-bottom: 1rem; font-size: 0.85rem;
+    }
+
+    /* ── Busca + filtros ─────────────────────────── */
+    .an-search-box {
+        display: flex; align-items: center; background: var(--p-1); border: 1px solid var(--line);
+        border-radius: 10px; overflow: hidden; margin-bottom: 14px;
+    }
+    .an-search-box:focus-within { border-color: #d4a520; }
+    .an-search-box .icon { padding: 0 14px; color: #555; display: flex; align-items: center; flex-shrink: 0; }
+    .an-search-box input {
+        flex: 1; padding: 11px 4px; background: transparent; border: none;
+        color: var(--text-strong); font-size: 0.87rem; outline: none; font-family: inherit;
+    }
+    .an-search-box .cnt { padding: 0 16px; font-size: 0.72rem; color: var(--text-dimmer); font-weight: 600; flex-shrink: 0; border-left: 1px solid var(--line); white-space: nowrap; }
+    .an-search-box button.buscar { padding: 0 18px; background: #d4a520; color: #141414; font-weight: 700; font-size: 0.8rem; border: none; cursor: pointer; flex-shrink: 0; }
+    .an-search-box button.buscar:hover { background: #c49918; }
+    .an-search-box a.limpar { padding: 0 14px; color: var(--text-dim); font-size: 1.1rem; flex-shrink: 0; }
+    .an-search-box a.limpar:hover { color: var(--gold-ink); }
+
+    .an-shortcut { font-size: 0.7rem; color: var(--text-dimmer); margin-bottom: 16px; display: flex; align-items: center; gap: 4px; }
+    .an-shortcut kbd { background: var(--p-3); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; font-size: 0.62rem; color: var(--text-muted); }
+
+    .an-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+    .an-chip {
+        display: flex; align-items: center; gap: 5px; padding: 5px 14px; border-radius: 999px;
+        font-size: 0.75rem; font-weight: 700; border: 1px solid var(--line-strong); background: transparent; color: var(--text-dim);
+    }
+    .an-chip:hover { border-color: var(--line-strong); color: var(--text); }
+    .an-chip.ativo { border-color: #d4a520; background: #d4a520; color: #141414; }
+    .an-chip span.cnt { font-size: 0.68rem; opacity: 0.75; }
+
+    /* ── Card de anotação ────────────────────────── */
+    .an-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
+    .an-card-inner { display: flex; gap: 0; align-items: stretch; }
+    .an-bar { width: 4px; flex-shrink: 0; align-self: stretch; }
+    .an-card-body { flex: 1; padding: 16px 18px; min-width: 0; }
+
+    .an-card-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+    .an-card-title { flex: 1; font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.1rem; font-weight: 700; color: var(--text-strong); line-height: 1.25; }
+    .an-card-cat {
+        display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 999px;
+        font-size: 0.62rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; flex-shrink: 0; white-space: nowrap;
+    }
+
+    .an-card-content { font-size: 0.85rem; color: var(--text-muted); line-height: 1.65; margin: 0 0 14px; white-space: pre-wrap; word-break: break-word; }
+
+    .an-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line-soft); flex-wrap: wrap; }
+    .an-card-date { font-size: 0.68rem; color: var(--text-dimmer); display: flex; align-items: center; gap: 5px; }
+    .an-card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .an-card-actions a, .an-card-actions button {
+        font-size: 0.68rem; padding: 3px 10px; border-radius: 6px; border: 1px solid var(--line);
+        background: var(--p-3); color: var(--text-muted); cursor: pointer; font-weight: 600;
+    }
+    .an-card-actions a:hover { background: var(--p-4); color: var(--text-strong); }
+    .an-card-actions .del { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.2); color: var(--bad); }
+    .an-card-actions .del:hover { background: rgba(239,68,68,0.16); }
+
+    .an-highlight { background: #d4a52055; border-radius: 3px; padding: 0 2px; color: #fff; }
+    .an-mencao-propria { color: var(--gold-ink); font-weight: 600; }
+
+    .an-empty { text-align: center; color: var(--text-dim); padding: 3rem 1rem; font-size: 0.9rem; background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; }
+
+    /* ── Seções puxadas (jogos / clube) ──────────── */
+    .an-obs-toggle {
+        display: flex; align-items: center; gap: 10px; width: 100%; background: transparent; border: none;
+        cursor: pointer; padding: 0 0 16px; border-bottom: 1px solid var(--line); margin: 32px 0 20px; color: inherit;
+    }
+    .an-obs-toggle span.lbl {
+        font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 0.7rem; font-weight: 700;
+        letter-spacing: 0.18em; color: var(--text-dim); text-transform: uppercase;
+    }
+    .an-obs-toggle .line { flex: 1; height: 1px; background: transparent; }
+    .an-obs-toggle .badge { font-size: 0.68rem; padding: 2px 10px; background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 999px; color: var(--text-dim); font-weight: 600; }
+
+    .an-game-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 12px; }
+    .an-game-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+    .an-game-teams { display: flex; align-items: center; gap: 7px; flex: 1; flex-wrap: wrap; }
+    .an-game-teams img { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
+    .an-game-teams span.time { font-size: 0.84rem; font-weight: 500; color: var(--text-muted); white-space: nowrap; }
+    .an-game-score { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.1rem; font-weight: 800; color: var(--text-strong); background: var(--p-0); padding: 1px 8px; border-radius: 5px; flex-shrink: 0; }
+    .an-game-meta { display: flex; gap: 8px; flex-shrink: 0; }
+    .an-game-meta span.comp { font-size: 0.65rem; font-weight: 700; color: var(--gold-ink); text-transform: uppercase; letter-spacing: 0.08em; }
+    .an-game-meta span.data { font-size: 0.65rem; color: var(--text-dimmer); }
+
+    .an-game-obs-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+    .an-game-obs-item { display: flex; gap: 10px; align-items: flex-start; }
+    .an-game-obs-dot { width: 5px; height: 5px; border-radius: 50%; background: #d4a520; margin-top: 7px; flex-shrink: 0; }
+    .an-game-obs-text { font-size: 0.84rem; color: var(--text-muted); line-height: 1.6; }
+
+    .an-game-footer { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line-soft); display: flex; justify-content: flex-end; }
+    .an-analisar-link { font-size: 0.68rem; color: var(--text-dim); font-weight: 600; display: flex; align-items: center; gap: 3px; }
+    .an-analisar-link:hover { color: var(--gold-ink); }
+
+    .an-clube-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+    .an-clube-head img { width: 16px; height: 16px; object-fit: contain; }
+    .an-clube-head span.nome { font-size: 0.72rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
+
+    /* ── Sidebar: nova anotação ──────────────────── */
+    .an-sidebar { position: sticky; top: 78px; }
+
+    .an-form-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+    .an-form-head {
+        padding: 14px 18px; background: var(--p-0); border-bottom: 1px solid var(--line);
+        display: flex; align-items: center; gap: 8px;
+    }
+    .an-form-dot { width: 8px; height: 8px; border-radius: 50%; background: #d4a520; flex-shrink: 0; }
+    .an-form-head span {
+        font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 0.88rem; font-weight: 700;
+        color: var(--text-strong); letter-spacing: 0.05em; text-transform: uppercase;
+    }
+    .an-form-body { padding: 18px; }
+    .an-field { margin-bottom: 14px; }
+    .an-field label {
+        display: block; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em;
+        color: var(--text-dim); text-transform: uppercase; margin-bottom: 6px;
+    }
+    .an-field input, .an-field select, .an-field textarea {
+        width: 100%; padding: 9px 11px; background: var(--p-0); border: 1px solid var(--line-strong);
+        border-radius: 8px; color: var(--text-strong); font-size: 0.85rem; outline: none; font-family: inherit;
+    }
+    .an-field input:focus, .an-field select:focus, .an-field textarea:focus { border-color: #d4a520; }
+    .an-field textarea { resize: vertical; min-height: 120px; line-height: 1.6; }
+    .an-field select { appearance: none; cursor: pointer; }
+
+    .an-form-save {
+        width: 100%; padding: 11px; background: #d4a520; color: #141414; font-size: 0.85rem;
+        font-weight: 800; border: none; border-radius: 8px; cursor: pointer; letter-spacing: 0.04em;
+    }
+    .an-form-save:hover { background: #c49918; }
+
+    /* ── Resumo ──────────────────────────────────── */
+    .an-resumo { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-top: 16px; }
+    .an-resumo-title { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.14em; color: var(--text-dimmer); text-transform: uppercase; margin-bottom: 14px; }
+    .an-resumo-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+    .an-resumo-row:last-child { border-bottom: none; }
+    .an-resumo-label { display: flex; align-items: center; gap: 8px; }
+    .an-resumo-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .an-resumo-label span { font-size: 0.8rem; color: var(--text-muted); }
+    .an-resumo-count { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.2rem; font-weight: 700; color: var(--text-strong); }
+
+    @@media (max-width: 640px) {
+        .an-hero, .an-grid { padding-left: 1.2rem; padding-right: 1.2rem; }
+        .an-hero-info h1 { font-size: 1.7rem; }
+    }
+</style>
+
+<div class="an">
+
+    <!-- Hero -->
+    <div class="an-hero theme-dark-zone">
+        <img class="an-hero-pattern" src="~/Images/banner/escudos-pattern.svg" alt="" />
+        <div class="an-hero-stripe"></div>
+        <div class="an-hero-row">
+            <div class="an-foto">
+                @if (!string.IsNullOrEmpty(jogador.FotoUrl))
+                {
+                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogador.FotoUrl })" alt="@jogador.NomeExibicao" />
+                }
+                else
+                {
+                    <span>@(jogador.NomeExibicao.Length >= 2 ? jogador.NomeExibicao.Substring(0, 2).ToUpper() : jogador.NomeExibicao)</span>
+                }
+            </div>
+            <div class="an-hero-info">
+                <div class="an-hero-kicker">
+                    <div class="an-hero-kicker-line"></div>
+                    <span>Anotações</span>
+                </div>
+                <h1>@jogador.NomeExibicao</h1>
+                <p>
+                    @if (jogador.Time != null)
+                    {
+                        <a class="an-clube-link" asp-controller="Times" asp-action="Details" asp-route-id="@jogador.TimeId" title="Ver @jogador.Time.Nome">
+                            @if (!string.IsNullOrEmpty(jogador.Time.EscudoUrl))
+                            {
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogador.Time.EscudoUrl })" alt="" />
+                            }
+                            <span>@jogador.Time.Nome</span>
+                        </a>
+                        <span>·</span>
+                    }
+                    <span>@jogador.Posicao</span>
+                </p>
+            </div>
+            <div class="an-hero-actions">
+                <a href="/Jogadores/Estatisticas/@jogador.Id" class="an-btn">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6" /></svg>
+                    Voltar ao jogador
+                </a>
+                <a href="#form-nova-anotacao" class="an-btn gold">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                    Nova anotação
+                </a>
+            </div>
+        </div>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="an-alert-ok m-3">@TempData["Sucesso"]</div>
+    }
+
+    <div class="an-grid">
+
+        <!-- ── Esquerda: lista ──────────────────────── -->
+        <div>
+            <form method="get" id="form-search" class="an-search-box">
+                <input type="hidden" name="jogadorId" value="@jogador.Id" />
+                <span class="icon">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                </span>
+                <input id="inp-search" type="text" name="q" value="@q" placeholder="Pesquisar anotações… (título, conteúdo)" autocomplete="off" />
+                @if (!string.IsNullOrWhiteSpace(q))
+                {
+                    <a href="@Url.Action("Index", new { jogadorId = jogador.Id })" class="limpar">×</a>
+                }
+                <span class="cnt">@Model.Count resultado(s)</span>
+                <button type="submit" class="buscar">Buscar</button>
+            </form>
+            <div class="an-shortcut"><kbd>Ctrl</kbd>+<kbd>F</kbd> foca na busca</div>
+
+            <!-- Chips de categoria (reaproveita a busca por texto, que já casa com a categoria) -->
+            <div class="an-chips">
+                <a href="@Url.Action("Index", new { jogadorId = jogador.Id })" class="an-chip @(string.IsNullOrWhiteSpace(q) ? "ativo" : "")">
+                    Todas <span class="cnt">(@TotalAnotacoes())</span>
+                </a>
+                @foreach (var cat in categorias)
+                {
+                    <a href="@Url.Action("Index", new { jogadorId = jogador.Id, q = cat })" class="an-chip @(string.Equals(q, cat, StringComparison.OrdinalIgnoreCase) ? "ativo" : "")">
+                        @cat <span class="cnt">(@(contagemCategorias.TryGetValue(cat, out var qtd) ? qtd : 0))</span>
+                    </a>
+                }
+            </div>
+
+            @if (!Model.Any())
+            {
+                <div class="an-empty">
+                    @if (!string.IsNullOrWhiteSpace(q))
+                    {
+                        <div>Nenhuma anotação encontrada para "<strong>@q</strong>".</div>
+                    }
+                    else
+                    {
+                        <div>Nenhuma anotação cadastrada ainda.</div>
+                        <div style="margin-top:.5rem;font-size:0.8rem;">Use o formulário ao lado para criar a primeira.</div>
+                    }
+                </div>
+            }
+            else
+            {
+                @foreach (var a in Model)
+                {
+                    var cor = CorCategoria(a.Categoria);
+
+                    <div class="an-card">
+                        <div class="an-card-inner">
+                            <div class="an-bar" style="background:@cor.line;"></div>
+                            <div class="an-card-body">
+                                <div class="an-card-head">
+                                    <div class="an-card-title">@Html.Raw(Formatar(a.Titulo))</div>
+                                    @if (!string.IsNullOrEmpty(a.Categoria))
+                                    {
+                                        <span class="an-card-cat" style="background:@cor.bg;border:1px solid @cor.border;color:@cor.text;">@a.Categoria</span>
+                                    }
+                                </div>
+                                <div class="an-card-content">@Html.Raw(Formatar(a.Conteudo))</div>
+                                <div class="an-card-footer">
+                                    <span class="an-card-date">
+                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+                                        @DateHelper.FormatarData(a.DtInc, "dd/MM/yyyy HH:mm")
+                                        @if (a.DtAlt.HasValue)
+                                        {
+                                            <span style="margin-left:6px;color:#334155;">· editado @DateHelper.FormatarData(a.DtAlt, "dd/MM/yyyy HH:mm")</span>
+                                        }
+                                    </span>
+                                    <div class="an-card-actions">
+                                        <a asp-action="Editar" asp-route-id="@a.Id">✏️ Editar</a>
+                                        <form asp-action="Excluir" asp-route-id="@a.Id" method="post" style="display:inline;" onsubmit="return confirm('Excluir esta anotação?')">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="del">🗑️ Excluir</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+
+            @if (obsJogos.Any())
+            {
+                <button type="button" class="an-obs-toggle" onclick="var b=document.getElementById('obs-body'); var v=document.getElementById('obs-chevron'); var open = b.style.display !== 'none'; b.style.display = open ? 'none' : 'block'; v.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';">
+                    <span class="lbl">Observações dos Jogos</span>
+                    <div class="line"></div>
+                    <span class="badge">@obsJogos.Count jogo(s)</span>
+                    <svg id="obs-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2.5" style="transition: transform .15s;"><polyline points="9 18 15 12 9 6" /></svg>
+                </button>
+
+                <div id="obs-body">
+                    @foreach (var oj in obsJogos)
+                    {
+                        var j = oj.Jogo;
+                        <div class="an-game-card">
+                            <div class="an-game-head">
+                                <div class="an-game-teams">
+                                    <a class="an-clube-link" asp-controller="Times" asp-action="Details" asp-route-id="@j.TimeCasaId" title="Ver @j.TimeCasa?.Nome">
+                                        @if (!string.IsNullOrEmpty(j.TimeCasa?.EscudoUrl))
+                                        {
+                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.TimeCasa.EscudoUrl })" alt="@j.TimeCasa.Nome" />
+                                        }
+                                        <span class="time">@j.TimeCasa?.Nome</span>
+                                    </a>
+                                    <span class="an-game-score">@(j.PlacarCasa?.ToString() ?? "–") &ndash; @(j.PlacarVisitante?.ToString() ?? "–")</span>
+                                    <a class="an-clube-link" asp-controller="Times" asp-action="Details" asp-route-id="@j.TimeVisitanteId" title="Ver @j.TimeVisitante?.Nome">
+                                        <span class="time">@j.TimeVisitante?.Nome</span>
+                                        @if (!string.IsNullOrEmpty(j.TimeVisitante?.EscudoUrl))
+                                        {
+                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.TimeVisitante.EscudoUrl })" alt="@j.TimeVisitante.Nome" />
+                                        }
+                                    </a>
+                                    @if (j.PenaltisCasa.HasValue && j.PenaltisVisitante.HasValue)
+                                    {
+                                        <span style="font-size:0.65rem;color:var(--text-dim)">(@j.PenaltisCasa-@j.PenaltisVisitante pên.)</span>
+                                    }
+                                </div>
+                                <div class="an-game-meta">
+                                    @if (j.Competicao != null)
+                                    {
+                                        <span class="comp">@j.Competicao.Nome</span>
+                                    }
+                                    @if (j.Data.HasValue)
+                                    {
+                                        <span class="data">@DateHelper.FormatarData(j.Data, "dd/MM/yyyy")</span>
+                                    }
+                                </div>
+                            </div>
+                            <ul class="an-game-obs-list">
+                                @foreach (var linha in oj.Observacoes)
+                                {
+                                    <li class="an-game-obs-item">
+                                        <div class="an-game-obs-dot"></div>
+                                        <span class="an-game-obs-text">@Html.Raw(Formatar(linha))</span>
+                                    </li>
+                                }
+                            </ul>
+                            <div class="an-game-footer">
+                                <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@j.Id" class="an-analisar-link">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                                    Ver análise do jogo
+                                </a>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
+            @if (anotacoesClube.Any())
+            {
+                <button type="button" class="an-obs-toggle" onclick="var b=document.getElementById('clube-body'); var v=document.getElementById('clube-chevron'); var open = b.style.display !== 'none'; b.style.display = open ? 'none' : 'block'; v.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';">
+                    <span class="lbl">Anotações do Clube</span>
+                    <div class="line"></div>
+                    <span class="badge">@anotacoesClube.Count anotação(ões)</span>
+                    <svg id="clube-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2.5" style="transition: transform .15s;"><polyline points="9 18 15 12 9 6" /></svg>
+                </button>
+
+                <div id="clube-body">
+                    @foreach (var a in anotacoesClube)
+                    {
+                        <div class="an-game-card">
+                            <div class="an-clube-head">
+                                <a class="an-clube-link" asp-controller="Times" asp-action="Details" asp-route-id="@a.TimeId" title="Ver @a.Time?.Nome">
+                                    @if (!string.IsNullOrEmpty(a.Time?.EscudoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = a.Time.EscudoUrl })" alt="" />
+                                    }
+                                    <span class="nome">@a.Time?.Nome</span>
+                                </a>
+                                @if (!string.IsNullOrEmpty(a.Categoria))
+                                {
+                                    <span class="an-card-cat" style="background:rgba(107,114,128,0.12);border:1px solid rgba(107,114,128,0.3);color:var(--text-muted);">@a.Categoria</span>
+                                }
+                                <span style="margin-left:auto;font-size:0.65rem;color:var(--text-dimmer);">@DateHelper.FormatarData(a.DtInc, "dd/MM/yyyy")</span>
+                            </div>
+                            <div class="an-card-title" style="margin-bottom:6px;">@Html.Raw(Formatar(a.Titulo))</div>
+                            <div class="an-card-content" style="margin-bottom:0;">@Html.Raw(Formatar(a.Conteudo))</div>
+                            <div class="an-game-footer">
+                                <a asp-controller="AnotacoesTime" asp-action="Index" asp-route-timeId="@a.TimeId" class="an-analisar-link">
+                                    Ver anotações do clube
+                                </a>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- ── Direita: nova anotação + resumo ──────── -->
+        <div class="an-sidebar">
+            <div class="an-form-card" id="form-nova-anotacao">
+                <div class="an-form-head">
+                    <div class="an-form-dot"></div>
+                    <span>Nova Anotação</span>
+                </div>
+                <form asp-action="Nova" asp-controller="AnotacoesJogador" method="post" class="an-form-body">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="JogadorId" value="@jogador.Id" />
+
+                    <div class="an-field">
+                        <label>Título</label>
+                        <input type="text" id="nova-titulo" name="Titulo" placeholder="Ex: Lesão na coxa, renovação até 2028…" autocomplete="off" required />
+                    </div>
+
+                    <div class="an-field">
+                        <label>Categoria</label>
+                        <select name="Categoria">
+                            <option value="">— Sem categoria —</option>
+                            @foreach (var cat in categorias)
+                            {
+                                <option value="@cat">@cat</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="an-field">
+                        <label>Conteúdo</label>
+                        <textarea id="nova-conteudo" name="Conteudo" placeholder="Escreva a anotação sobre o jogador…" required></textarea>
+                    </div>
+
+                    <button type="submit" class="an-form-save">Salvar Anotação</button>
+                </form>
+            </div>
+
+            <div class="an-resumo">
+                <div class="an-resumo-title">Resumo</div>
+                @foreach (var cat in categorias)
+                {
+                    var cor = CorCategoria(cat);
+                    <div class="an-resumo-row">
+                        <div class="an-resumo-label">
+                            <div class="an-resumo-dot" style="background:@cor.line;"></div>
+                            <span>@cat</span>
+                        </div>
+                        <span class="an-resumo-count">@(contagemCategorias.TryGetValue(cat, out var qtd) ? qtd : 0)</span>
+                    </div>
+                }
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // Ctrl+F foca na busca em vez de abrir o browser
+    document.addEventListener('keydown', e => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+            e.preventDefault();
+            const inp = document.getElementById('inp-search');
+            inp.focus();
+            inp.select();
+        }
+    });
+</script>

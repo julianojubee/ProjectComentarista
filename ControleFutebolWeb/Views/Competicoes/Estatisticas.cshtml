@@ -1,0 +1,71 @@
+@model List<ControleFutebolWeb.Models.ViewModels.EstatisticaTimeViewModel>
+@{
+    var competicao = (ControleFutebolWeb.Models.Competicao)ViewBag.Competicao;
+    var temporadas = ViewBag.TemporadasDisponiveis as List<int> ?? new List<int>();
+    var temporadaSel = ViewBag.Temporada as int?;
+    int totalJogos = ViewBag.TotalJogos ?? 0;
+    ViewData["Title"] = $"Estatísticas — {competicao.Nome}";
+}
+
+<style>
+    .ce-hero {
+        background: linear-gradient(135deg,#0a1200 0%,#152000 55%,#0a1200 100%);
+        border-bottom: 1px solid var(--line-soft); padding: 26px 2.5rem 22px;
+        display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    }
+    .ce-hero-escudo { width: 58px; height: 58px; border-radius: 12px; background: var(--p-0); border: 1px solid var(--line-strong); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+    .ce-hero-escudo img { width: 82%; height: 82%; object-fit: contain; }
+    .ce-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 2rem; font-weight: 800; color: var(--text-strong); margin: 0; line-height: 1.1; letter-spacing: .01em; }
+    .ce-hero .sub { font-size: .78rem; color: var(--text-dim); margin-top: 3px; }
+    .ce-acoes { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .ce-acoes a, .ce-acoes select {
+        background: var(--p-1); border: 1px solid var(--line); color: var(--text-2); border-radius: 8px;
+        font-family: 'Barlow', Arial, sans-serif; font-size: 12px; font-weight: 700;
+        padding: .4rem .85rem; text-decoration: none;
+    }
+    .ce-acoes a:hover { color: var(--text-strong); border-color: var(--line-strong); }
+    .ce-vazio { padding: 3rem 2.5rem; color: var(--text-dim); font-size: .9rem; }
+
+    @@media (max-width: 768px) {
+        .ce-hero { padding: 18px 1.1rem; }
+        .ce-acoes { margin-left: 0; width: 100%; }
+    }
+</style>
+
+<div class="ce-hero theme-dark-zone">
+    <div class="ce-hero-escudo">
+        @if (!string.IsNullOrWhiteSpace(competicao.LogoUrl))
+        {
+            <img src="@Url.Action("Imagem", "MediaProxy", new { url = competicao.LogoUrl })" alt="" />
+        }
+    </div>
+    <div>
+        <h1>@competicao.Nome</h1>
+        <div class="sub">
+            Estatísticas da competição@(temporadaSel.HasValue ? $" · temporada {temporadaSel}" : "") ·
+            @totalJogos jogo(s) com placar
+        </div>
+    </div>
+    <div class="ce-acoes">
+        @if (temporadas.Count > 1)
+        {
+            <select onchange="location.href = this.value;">
+                @foreach (var t in temporadas)
+                {
+                    <option value="@Url.Action("Estatisticas", new { id = competicao.Id, temporada = t })"
+                            selected="@(t == temporadaSel)">Temporada @t</option>
+                }
+            </select>
+        }
+        <a asp-action="Detalhes" asp-route-id="@competicao.Id" asp-route-temporada="@temporadaSel">← Voltar à competição</a>
+    </div>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="ce-vazio">Nenhum jogo com placar cadastrado nesta temporada — não há o que calcular ainda.</div>
+}
+else
+{
+    @await Html.PartialAsync("_PainelEstatisticas", Model)
+}

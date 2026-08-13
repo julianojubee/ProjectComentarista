@@ -24,8 +24,23 @@ namespace ControleFutebolWeb.Services
             _logger = logger;
         }
 
+        // O futnatv já publica a grade dos próximos dias, então olhamos hoje + DiasAFrente:
+        // sem isso o jogo só ganhava canal no próprio dia, e a tela de amanhã ficava vazia.
+        public const int DiasAFrente = 1;
+
         public static DateOnly HojeBrasil()
             => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, FusoBrasil));
+
+        // Dias (em Brasília) que vale a pena consultar no futnatv agora.
+        public static IEnumerable<DateOnly> DiasDaJanela()
+        {
+            var hoje = HojeBrasil();
+            for (var i = 0; i <= DiasAFrente; i++)
+                yield return hoje.AddDays(i);
+        }
+
+        public static bool EstaNaJanela(DateOnly? diaBrasil)
+            => diaBrasil.HasValue && DiasDaJanela().Contains(diaBrasil.Value);
 
         // Converte um Jogo.Data (UTC) pro dia civil em Brasília — usado para decidir
         // se vale a pena buscar transmissão agora (só faz sentido para jogos de hoje).

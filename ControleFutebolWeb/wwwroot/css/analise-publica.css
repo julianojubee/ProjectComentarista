@@ -1,0 +1,90 @@
+/* Página pública somente-leitura de uma análise (/analise/{token}).
+   Só a moldura: cabeçalho, rodapé e o cartão que envolve o painel. O conteúdo
+   em si (classes .pgj-* e .pj-*) reaproveita analisar.css sem alteração. */
+
+.ap-topo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--line);
+    background: var(--p-1);
+}
+
+.ap-marca {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ap-marca-nome {
+    font-family: 'Barlow Condensed', Arial, sans-serif;
+    font-size: .9rem;
+    font-weight: 800;
+    letter-spacing: .16em;
+    color: var(--gold-ink);
+}
+
+.ap-root {
+    /* .an-root é pensado para dentro do .container do app (margin negativa);
+       aqui a página é a própria moldura. */
+    margin: 18px auto;
+    max-width: 1180px;
+    padding: 0 0 24px;
+}
+
+.ap-cabecalho {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 16px 24px;
+}
+
+.ap-confronto {
+    font-family: 'Barlow Condensed', Arial, sans-serif;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-strong);
+    line-height: 1.1;
+}
+
+.ap-autor {
+    font-size: .78rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.ap-btn {
+    border: 1px solid var(--line-strong);
+    background: var(--p-2);
+    color: var(--text-muted);
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-size: .8rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.ap-btn:hover { border-color: #d4a520; color: var(--gold-ink); }
+
+/* O painel do pós-jogo já tem fundo próprio (hero escuro + abas); aqui só
+   arredonda a caixa e esconde o estouro do hero nos cantos. */
+.ap-painel {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.ap-rodape {
+    text-align: center;
+    font-size: .78rem;
+    color: var(--text-dimmer);
+    padding: 20px 12px 32px;
+}
+
+@media (max-width: 640px) {
+    .ap-cabecalho { padding: 14px 16px; }
+    .ap-confronto { font-size: 1.2rem; }
+}

@@ -1,8 +1,59 @@
 @model ControleFutebolWeb.Models.ViewModels.ScoutViewModel
 @using ControleFutebolWeb.Helpers
+@using ControleFutebolWeb.Models.ViewModels
 @{
     ViewData["Title"] = "Scout de Jogadores";
     var f = Model.Filtro;
+
+    // Colunas da tabela de resultados, agrupadas como no construtor de
+    // estatísticas do Sofascore. Tudo aqui já vem de EstatisticaJogador — o
+    // cabeçalho, as células e o seletor de grupos saem desta única lista.
+    // Pct = percentual, que o seletor "Acumulado" não reescala.
+    var colunasScout = new (string Grupo, string Sigla, string Titulo, Func<ScoutResultItem, double?> Valor, bool Pct)[]
+    {
+        ("Ataque",     "G",    "Gols",                     r => r.Gols,              false),
+        ("Ataque",     "FIN",  "Finalizações",             r => r.FinalizacoesTotal, false),
+        ("Ataque",     "FNG",  "Finalizações no gol",      r => r.FinalizacoesNoGol, false),
+        ("Ataque",     "CNV%", "Conversão de gols",        r => r.Conversao,         true),
+        ("Ataque",     "DRC",  "Dribles certos",           r => r.DrilesCertos,      false),
+        ("Ataque",     "DRT",  "Dribles tentados",         r => r.DriblesTentados,   false),
+        ("Ataque",     "DRI%", "Acerto no drible",         r => r.PctDribles,        true),
+        ("Ataque",     "PSF",  "Pênaltis sofridos",        r => r.PenaltiSofrido,    false),
+        ("Ataque",     "GPN",  "Gols de pênalti",          r => r.PenaltiConvertido, false),
+        ("Ataque",     "PPE",  "Pênaltis perdidos",        r => r.PenaltiPerdido,    false),
+
+        ("Passe",      "ASS",  "Assistências",             r => r.Assistencias,      false),
+        ("Passe",      "PCH",  "Passes-chave",             r => r.PassesChave,       false),
+        ("Passe",      "PAS",  "Passes tentados",          r => r.PassesTotal,       false),
+        ("Passe",      "PAC",  "Passes certos",            r => r.PassesCertos,      false),
+        ("Passe",      "PAS%", "Precisão de passe",        r => r.PrecisaoPasses,    true),
+
+        ("Defesa",     "DSR",  "Desarmes",                 r => r.Desarmes,          false),
+        ("Defesa",     "INT",  "Interceptações",           r => r.Interceptacoes,    false),
+        ("Defesa",     "BLQ",  "Bloqueios",                r => r.Bloqueios,         false),
+        ("Defesa",     "DUV",  "Duelos vencidos",          r => r.DuelosVencidos,    false),
+        ("Defesa",     "DUT",  "Duelos disputados",        r => r.DuelosTotal,       false),
+        ("Defesa",     "DUE%", "Duelos vencidos %",        r => r.PctDuelos,         true),
+        ("Defesa",     "DBD",  "Driblado (foi passado)",   r => r.DriblesSofridos,   false),
+        ("Defesa",     "PCM",  "Pênaltis cometidos",       r => r.PenaltiCometido,   false),
+
+        ("Goleiro",    "DEF",  "Defesas",                  r => r.Defesas,           false),
+        ("Goleiro",    "GS",   "Gols sofridos",            r => r.GolsSofridos,      false),
+        ("Goleiro",    "PDF",  "Pênaltis defendidos",      r => r.PenaltiDefendido,  false),
+
+        ("Disciplina", "🟨",   "Cartões amarelos",         r => r.CartaoAmarelo,     false),
+        ("Disciplina", "🟥",   "Cartões vermelhos",        r => r.CartaoVermelho,    false),
+        ("Disciplina", "FCM",  "Faltas cometidas",         r => r.FaltasCometidas,   false),
+        ("Disciplina", "FSF",  "Faltas sofridas",          r => r.FaltasSofridas,    false),
+        ("Disciplina", "IMP",  "Impedimentos",             r => r.Impedimentos,      false),
+
+        ("Uso",        "TIT",  "Jogos como titular",       r => r.Titularidades,     false),
+        ("Uso",        "RES",  "Jogos entrando do banco",  r => r.VezesReserva,      false),
+    };
+
+    // Goleiro fica fora por padrão: são 3 colunas vazias para 90% do elenco.
+    var gruposScout = new[] { "Ataque", "Passe", "Defesa", "Goleiro", "Disciplina", "Uso" };
+    var gruposPadrao = new[] { "Ataque", "Passe", "Defesa", "Disciplina" };
 }
 
 <style>
@@ -245,7 +296,7 @@
 
     .cmp-graficos-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; margin-bottom: 1rem; }
     .cmp-chart-wrap { height: 300px; position: relative; }
-    .cmp-panel-subtitle { font-weight: 600; letter-spacing: 0; text-transform: none; color: #9ca3af; }
+    .cmp-panel-subtitle { font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text-muted); }
     .cmp-legenda { display: flex; gap: 12px; margin-left: auto; flex-wrap: wrap; }
     .cmp-legenda-item { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: var(--text-2); }
     .cmp-legenda-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
@@ -293,11 +344,25 @@
         .sc-pname { max-width: 132px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .sc-pmeta { max-width: 132px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     }
+
+    .sc-acumulado { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 10px; font-size: 12px; color: var(--text-muted); }
+    .sc-seg { display: inline-flex; border: .5px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .sc-seg button {
+        border: none; cursor: pointer; background: transparent; color: var(--text-muted);
+        font-family: inherit; font-size: 12px; font-weight: 600; padding: .35rem .8rem;
+    }
+    .sc-seg button + button { border-left: .5px solid var(--border); }
+    .sc-seg button.active { background: var(--surface-3); color: var(--text); }
+    .sc-acumulado-nota { font-size: 11px; }
+    .sc-grupos { display: inline-flex; gap: 10px; flex-wrap: wrap; }
+    .sc-grupos label { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    /* coluna desligada some da tabela inteira (cabeçalho + células) */
+    .sc-col-off { display: none; }
 </style>
 
 <div class="sc-root">
 
-    <div class="sc-hero">
+    <div class="sc-hero theme-dark-zone">
         <div class="sc-badge">Relatórios</div>
         <h1>🔍 Scout de Jogadores</h1>
         <p>Encontre jogadores por critérios combinados de desempenho e perfil.</p>
@@ -553,8 +618,29 @@
         }
         else
         {
+            @* Acumulado: reescala as colunas de contagem no cliente. Só é correto
+               fazer isso aqui porque o Scout devolve todos os resultados — não há
+               corte de top-N que a mudança de base tornaria inválido. *@
+            <div class="sc-acumulado">
+                <span>Acumulado:</span>
+                <div class="sc-seg" id="sc-base">
+                    <button type="button" data-b="total" class="active">Totais</button>
+                    <button type="button" data-b="jogo">Por jogo</button>
+                    <button type="button" data-b="90">Por 90 min</button>
+                </div>
+                <span class="sc-acumulado-nota" id="sc-base-nota"></span>
+
+                <span style="margin-left:auto">Colunas:</span>
+                <div class="sc-grupos" id="sc-grupos">
+                    @foreach (var g in gruposScout)
+                    {
+                        <label><input type="checkbox" data-g="@g" @(gruposPadrao.Contains(g) ? "checked" : "") /> @g</label>
+                    }
+                </div>
+            </div>
+
             <div class="sc-table-wrap">
-                <table class="sc-table">
+                <table class="sc-table" id="sc-tabela">
                     <thead>
                         <tr>
                             <th>#</th>
@@ -563,17 +649,12 @@
                             <th>Idade</th>
                             <th>Time</th>
                             <th title="Jogos">JG</th>
-                            <th title="Gols">G</th>
-                            <th title="Assistências">ASS</th>
-                            <th title="Passes-chave">PCH</th>
-                            <th title="Finalizações no gol">FNG</th>
-                            <th title="Desarmes">DSR</th>
-                            <th title="Bloqueios">BLQ</th>
-                            <th title="Interceptações">INT</th>
-                            <th title="Duelos vencidos">DUE</th>
-                            <th title="Dribles certos">DRI</th>
-                            <th title="Cartões amarelos">🟨</th>
-                            <th title="Cartões vermelhos">🟥</th>
+                            <th title="Minutos jogados">MIN</th>
+                            @foreach (var c in colunasScout)
+                            {
+                                <th title="@c.Titulo" data-grupo="@c.Grupo"
+                                    class="@(gruposPadrao.Contains(c.Grupo) ? "" : "sc-col-off")">@c.Sigla</th>
+                            }
                             <th>Nota</th>
                         </tr>
                     </thead>
@@ -588,12 +669,13 @@
                                 >= 8.5 => "#f59e0b",
                                 >= 7.5 => "#22c55e",
                                 >= 6.5 => "#3b82f6",
-                                >= 5.5 => "#6b7280",
+                                >= 5.5 => "var(--text-dim)",
                                 >= 4.5 => "#f97316",
                                 _ => "#ef4444"
                             };
-                            <tr>
-                                <td style="color:var(--text-muted);font-size:12px;">@idx</td>
+                            @* jogos e minutos ficam na linha: são os denominadores da reescala *@
+                            <tr data-jogos="@r.Jogos" data-min="@r.Minutos">
+                                <td style="color:var(--text-muted);font-size:12px">@idx</td>
                                 <td>
                                     <div class="sc-player-cell">
                                         <div class="sc-photo">
@@ -630,18 +712,22 @@
                                     }
                                     else { <span>—</span> }
                                 </td>
-                                <td style="font-weight:600;">@r.Jogos</td>
-                                <td>@r.Gols</td>
-                                <td>@r.Assistencias</td>
-                                <td>@r.PassesChave</td>
-                                <td>@r.FinalizacoesNoGol</td>
-                                <td>@r.Desarmes</td>
-                                <td>@r.Bloqueios</td>
-                                <td>@r.Interceptacoes</td>
-                                <td>@r.DuelosVencidos</td>
-                                <td>@r.DrilesCertos</td>
-                                <td>@(r.CartaoAmarelo > 0 ? r.CartaoAmarelo.ToString() : "—")</td>
-                                <td>@(r.CartaoVermelho > 0 ? r.CartaoVermelho.ToString() : "—")</td>
+                                <td style="font-weight:600">@r.Jogos</td>
+                                <td>@(r.Minutos > 0 ? r.Minutos.ToString() : "—")</td>
+                                @foreach (var c in colunasScout)
+                                {
+                                    var v = c.Valor(r);
+                                    var oculta = gruposPadrao.Contains(c.Grupo) ? "" : " sc-col-off";
+                                    if (c.Pct)
+                                    {
+                                        @* percentual não se divide por jogos nem por minutos *@
+                                        <td class="sc-pct@(oculta)" data-grupo="@c.Grupo">@(v.HasValue ? v.Value.ToString("0.#", System.Globalization.CultureInfo.GetCultureInfo("pt-BR")) + "%" : "—")</td>
+                                    }
+                                    else
+                                    {
+                                        <td class="sc-num@(oculta)" data-grupo="@c.Grupo" data-total="@((int)(v ?? 0))">@((int)(v ?? 0))</td>
+                                    }
+                                }
                                 <td>
                                     @if (r.NotaMedia.HasValue)
                                     {
@@ -654,6 +740,63 @@
                     </tbody>
                 </table>
             </div>
+
+            <script>
+            // Reescala as colunas de contagem entre total, por jogo e por 90 min.
+            // O valor original fica em data-total de cada célula, então alternar de
+            // base não perde precisão nem depende de reconsultar o servidor.
+            (function () {
+                const seg = document.getElementById('sc-base');
+                const tabela = document.getElementById('sc-tabela');
+                const nota = document.getElementById('sc-base-nota');
+                if (!seg || !tabela) return;
+
+                // Piso igual ao dos rankings de Relatórios: dividir poucas ações por
+                // um punhado de minutos infla o número a ponto de virar ruído.
+                const MIN_MINUTOS_90 = 270;
+
+                function aplicar(base) {
+                    let ocultos = 0;
+                    tabela.querySelectorAll('tbody tr').forEach((tr) => {
+                        const jogos = +tr.dataset.jogos || 0;
+                        const min = +tr.dataset.min || 0;
+                        const semAmostra = base === '90' && min < MIN_MINUTOS_90;
+                        if (semAmostra) ocultos++;
+                        tr.style.opacity = semAmostra ? '.35' : '';
+
+                        tr.querySelectorAll('td.sc-num').forEach((td) => {
+                            const total = +td.dataset.total || 0;
+                            let v;
+                            if (base === 'jogo') v = jogos > 0 ? total / jogos : 0;
+                            else if (base === '90') v = min > 0 ? total / min * 90 : 0;
+                            else v = total;
+                            td.textContent = base === 'total' ? String(total) : v.toFixed(2);
+                        });
+                    });
+                    nota.textContent = base === '90'
+                        ? `dividido pelos minutos em campo · ${ocultos} jogador(es) abaixo de ${MIN_MINUTOS_90} min em cinza`
+                        : base === 'jogo' ? 'dividido pelo número de jogos' : '';
+                }
+
+                seg.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+                    seg.querySelectorAll('button').forEach((x) => x.classList.remove('active'));
+                    b.classList.add('active');
+                    aplicar(b.dataset.b);
+                }));
+
+                // Seletor de grupos de colunas: liga/desliga cabeçalho e células de
+                // uma vez, pelo data-grupo que o servidor já escreveu em cada uma.
+                const grupos = document.getElementById('sc-grupos');
+                if (grupos) {
+                    grupos.querySelectorAll('input[data-g]').forEach((cb) => cb.addEventListener('change', () => {
+                        const g = cb.dataset.g;
+                        tabela.querySelectorAll(`[data-grupo="${g}"]`).forEach((el) => {
+                            el.classList.toggle('sc-col-off', !cb.checked);
+                        });
+                    }));
+                }
+            })();
+            </script>
         }
     }
     </div>

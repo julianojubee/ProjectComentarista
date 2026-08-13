@@ -72,5 +72,12 @@ namespace ControleFutebolWeb.Models
         public string? LinkTransfermarket { get; set; }
         public string? Observacoes { get; set; }
 
+        // Jogador que encerrou a carreira (marcado à mão em /Jogadores/Estatisticas →
+        // "Transferências" → "Aposentou"). O TimeId continua apontando para o último
+        // clube — o histórico de jogos e escalações depende dele —, essa flag é só o
+        // estado atual, para não ficar parecendo que ele ainda defende aquele clube.
+        public bool Aposentado { get; set; } = false;
+        public DateTime? AposentadoEm { get; set; }
+
     }
 }

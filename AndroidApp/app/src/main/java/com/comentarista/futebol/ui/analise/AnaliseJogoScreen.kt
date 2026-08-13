@@ -48,6 +48,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.comentarista.futebol.data.remote.dto.ContextoNotaDto
 import com.comentarista.futebol.data.remote.dto.CriterioNotaDto
 import com.comentarista.futebol.data.remote.dto.EscalacaoJogadorDto
 import com.comentarista.futebol.data.remote.dto.JogoDetalheDto
@@ -179,6 +180,8 @@ private fun PainelEscalados(
                 selecionado = uiState.jogadorSelecionadoId == jogador.jogadorId,
                 rascunho = uiState.rascunhos[jogador.jogadorId],
                 criterios = uiState.criterios,
+                notaBase = uiState.notaBase,
+                contexto = uiState.contextos[jogador.jogadorId],
                 onClick = { onSelecionar(jogador.jogadorId) }
             )
         }
@@ -190,6 +193,8 @@ private fun PainelEscalados(
                 selecionado = uiState.jogadorSelecionadoId == jogador.jogadorId,
                 rascunho = uiState.rascunhos[jogador.jogadorId],
                 criterios = uiState.criterios,
+                notaBase = uiState.notaBase,
+                contexto = uiState.contextos[jogador.jogadorId],
                 onClick = { onSelecionar(jogador.jogadorId) }
             )
         }
@@ -216,6 +221,8 @@ private fun JogadorEscaladoLinha(
     selecionado: Boolean,
     rascunho: RascunhoNota?,
     criterios: List<CriterioNotaDto>,
+    notaBase: Double,
+    contexto: ContextoNotaDto?,
     onClick: () -> Unit
 ) {
     Card(
@@ -245,7 +252,7 @@ private fun JogadorEscaladoLinha(
                         modifier = Modifier.padding(end = 6.dp)
                     )
                 }
-                NotaChip(rascunho.notaFinal(criterios))
+                NotaChip(rascunho.notaFinal(criterios, notaBase, contexto))
             }
         }
     }
@@ -288,7 +295,7 @@ private fun PainelAvaliacao(
                         Text(text = it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                     }
                 }
-                NotaChip(rascunho.notaFinal(criterios))
+                NotaChip(rascunho.notaFinal(criterios, uiState.notaBase, uiState.contextos[jogadorId]))
             }
 
             Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

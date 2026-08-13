@@ -2,6 +2,7 @@ package com.comentarista.futebol.ui.analise
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.comentarista.futebol.data.remote.dto.ContextoNotaDto
 import com.comentarista.futebol.data.remote.dto.CriterioNotaDto
 import com.comentarista.futebol.data.remote.dto.JogoDetalheDto
 import com.comentarista.futebol.data.remote.dto.NotaDetalheDto
@@ -15,13 +16,29 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import kotlin.math.max
 import kotlin.math.round
 
-// NotaBaseFixa/NotaMinima do CriteriosNotaHelper (backend) — ambas 4.0. Mesma
-// fórmula usada para a nota "ao vivo" no cliente, antes de salvar.
-private const val NOTA_BASE_FIXA = 4.0
-private const val NOTA_MINIMA = 4.0
+// Peso inicial (nota base) do usuário, configurável em /CriteriosNota na web e
+// entregue pelo endpoint de critérios como o item "peso_inicial". Mesma fórmula do
+// CriteriosNotaHelper do backend: nota = base + ações, e sobre isso os mesmos ajustes
+// da web, na mesma ordem — piso de merecimento, piso de participação curta e bônus de
+// goleiro decisivo.
+private const val ACAO_PESO_INICIAL = "peso_inicial"
+private const val NOTA_BASE_PADRAO = 4.0
+private const val PISO_JOGO_POSITIVO = 6.0
+private const val PISO_JOGO_EQUILIBRADO = 5.0
+private const val MINUTOS_PARTICIPACAO_CURTA = 45
+private const val PISO_PARTICIPACAO_CURTA = 5.0
+private const val BONUS_GOLEIRO_DECISIVO = 2.0
+private const val TETO_GOLEIRO_DECISIVO = 7.0
+private const val BONUS_GOL_DA_VITORIA = 1.0
+
+fun notaBaseDe(criterios: List<CriterioNotaDto>): Double =
+    criterios.find { it.acaoId == ACAO_PESO_INICIAL }?.peso?.takeIf { it in 0.0..10.0 }
+        ?: NOTA_BASE_PADRAO
+
+fun apenasAcoes(criterios: List<CriterioNotaDto>): List<CriterioNotaDto> =
+    criterios.filter { it.acaoId != ACAO_PESO_INICIAL }
 
 data class RascunhoNota(
     // AcaoId -> quantidade
@@ -38,11 +55,47 @@ data class RascunhoNota(
         return quantidades.entries.sumOf { (acaoId, qtd) -> qtd * (pesoPorAcao[acaoId] ?: 0.0) }
     }
 
-    fun notaFinal(criterios: List<CriterioNotaDto>): Double {
+    // Até onde a nota sobe pelo merecimento, como o CriteriosNotaHelper.PisoDeMerecimento:
+    // conta os TIPOS de ação marcados (cada um vale 1, sem olhar quantidade nem peso).
+    fun pisoDeMerecimento(criterios: List<CriterioNotaDto>): Double {
+        val pesoPorAcao = criterios.associateBy({ it.acaoId }, { it.peso })
+        val marcadas = quantidades.filterValues { it > 0 }.keys.mapNotNull { pesoPorAcao[it] }
+        val verdes = marcadas.count { it > 0 }
+        val vermelhas = marcadas.count { it < 0 }
+
+        if (verdes == 0 && vermelhas == 0)
+            return if (total(criterios) > 0) PISO_JOGO_POSITIVO else 0.0
+        return when {
+            verdes > vermelhas -> PISO_JOGO_POSITIVO
+            verdes == vermelhas -> PISO_JOGO_EQUILIBRADO
+            else -> 0.0
+        }
+    }
+
+    fun notaFinal(
+        criterios: List<CriterioNotaDto>,
+        notaBase: Double = NOTA_BASE_PADRAO,
+        contexto: ContextoNotaDto? = null
+    ): Double {
         val manual = notaManual
         if (manual != null) return arredondar(manual.coerceIn(0.0, 10.0))
-        val bruta = NOTA_BASE_FIXA + total(criterios)
-        return arredondar(max(NOTA_MINIMA, bruta.coerceAtMost(10.0)))
+
+        val acoes = total(criterios)
+        var bruta = notaBase + acoes
+
+        val piso = pisoDeMerecimento(criterios)
+        if (bruta < piso) bruta = piso
+
+        val minutos = contexto?.minutos ?: 0
+        if (minutos in 1 until MINUTOS_PARTICIPACAO_CURTA && bruta < PISO_PARTICIPACAO_CURTA)
+            bruta = PISO_PARTICIPACAO_CURTA
+
+        if (contexto?.goleiroDecisivo == true && bruta < TETO_GOLEIRO_DECISIVO)
+            bruta += BONUS_GOLEIRO_DECISIVO
+
+        if (contexto?.golDaVitoria == true) bruta += BONUS_GOL_DA_VITORIA
+
+        return arredondar(bruta.coerceIn(0.0, 10.0))
     }
 
     private fun arredondar(v: Double): Double = round(v * 100) / 100
@@ -52,10 +105,14 @@ data class AnaliseJogoUiState(
     val carregando: Boolean = true,
     val jogo: JogoDetalheDto? = null,
     val criterios: List<CriterioNotaDto> = emptyList(),
+    // Peso inicial do usuário; o item "peso_inicial" não entra em `criterios`.
+    val notaBase: Double = NOTA_BASE_PADRAO,
     val analisadoPorMim: Boolean = false,
     val observacoesGerais: String? = null,
     // JogadorId -> rascunho (jogadores sem rascunho ainda não têm entrada aqui)
     val rascunhos: Map<Int, RascunhoNota> = emptyMap(),
+    // JogadorId -> minutos e goleiro decisivo naquela partida
+    val contextos: Map<Int, ContextoNotaDto> = emptyMap(),
     val jogadorSelecionadoId: Int? = null,
     val salvando: Boolean = false,
     val erro: String? = null
@@ -88,7 +145,9 @@ class AnaliseJogoViewModel @Inject constructor(
                 return@launch
             }
 
-            val criterios = criteriosResult.getOrDefault(emptyList())
+            val criteriosApi = criteriosResult.getOrDefault(emptyList())
+            val notaBase = notaBaseDe(criteriosApi)
+            val criterios = apenasAcoes(criteriosApi)
             val analise = analiseResult.getOrNull()
 
             val rascunhos = analise?.notas.orEmpty().associate { nota ->
@@ -105,9 +164,11 @@ class AnaliseJogoViewModel @Inject constructor(
                     carregando = false,
                     jogo = jogoResult.getOrNull(),
                     criterios = criterios,
+                    notaBase = notaBase,
                     analisadoPorMim = analise?.analisadoPorMim ?: false,
                     observacoesGerais = analise?.observacoes,
-                    rascunhos = rascunhos
+                    rascunhos = rascunhos,
+                    contextos = analise?.contextos.orEmpty().associateBy { it.jogadorId }
                 )
             }
         }

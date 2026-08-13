@@ -15,8 +15,8 @@
 
     .cf-home {
         margin: 0 -12px; /* compensa o .container do layout pra ocupar a largura toda */
-        background: #0f0f0f;
-        color: #e5e7eb;
+        background: var(--p-0);
+        color: var(--text);
         font-family: 'Barlow', Arial, sans-serif;
         border-radius: 14px;
         overflow: hidden;
@@ -163,7 +163,7 @@
         font-size: 0.68rem;
         font-weight: 700;
         letter-spacing: 0.24em;
-        color: #d4a520;
+        color: var(--gold-ink);
         text-transform: uppercase;
     }
 
@@ -171,15 +171,15 @@
         font-size: 2.8rem;
         font-weight: 800;
         line-height: 1.05;
-        color: #f1f5f9;
+        color: var(--text-strong);
         margin: 0 0 14px;
         letter-spacing: -0.01em;
     }
 
-    .cf-hero h1 .gold { color: #d4a520; }
+    .cf-hero h1 .gold { color: var(--gold-ink); }
 
     .cf-hero p {
-        color: #9ca3af;
+        color: var(--text-muted);
         font-size: 0.95rem;
         margin: 0 0 26px;
         max-width: 420px;
@@ -192,8 +192,8 @@
     .cf-search-box {
         display: flex;
         align-items: stretch;
-        background: #1a1a1a;
-        border: 1px solid #333;
+        background: var(--p-2);
+        border: 1px solid var(--line);
         border-radius: 9px;
         overflow: hidden;
         transition: border-color 0.15s;
@@ -214,7 +214,7 @@
         padding: 13px 4px;
         background: transparent;
         border: none;
-        color: #f1f5f9;
+        color: var(--text-strong);
         font-size: 0.88rem;
         outline: none;
         font-family: inherit;
@@ -243,8 +243,8 @@
        (posicionarDropdown) a partir do retângulo da caixa de busca. */
     .cf-search-dropdown {
         position: fixed;
-        background: #1a1a1a;
-        border: 1px solid #333;
+        background: var(--p-2);
+        border: 1px solid var(--line);
         border-radius: 10px;
         box-shadow: 0 8px 24px rgba(0,0,0,.4);
         z-index: 999;
@@ -261,14 +261,14 @@
         gap: 10px;
         padding: 8px 14px;
         text-decoration: none;
-        color: #e5e7eb;
+        color: var(--text);
         font-size: 13px;
-        border-bottom: 1px solid #262626;
+        border-bottom: 1px solid var(--line);
         transition: background .1s;
     }
 
     .cf-search-item:last-child { border-bottom: none; }
-    .cf-search-item:hover { background: #222; text-decoration: none; color: inherit; }
+    .cf-search-item:hover { background: var(--p-3); text-decoration: none; color: inherit; }
 
     .cf-search-avatar {
         position: relative;
@@ -277,8 +277,8 @@
         flex-shrink: 0;
         display: flex; align-items: center; justify-content: center;
         overflow: hidden;
-        background: #262626;
-        border: 1px solid #333;
+        background: var(--p-4);
+        border: 1px solid var(--line);
     }
     .cf-search-avatar img {
         position: absolute; inset: 0;
@@ -287,7 +287,7 @@
     .cf-avatar-time img    { object-fit: contain; padding: 3px; }
     .cf-avatar-jogador img { object-fit: cover; }
     .cf-avatar-fallback {
-        font-size: 11px; color: #6b7280; display: flex; align-items: center; justify-content: center;
+        font-size: 11px; color: var(--text-dim); display: flex; align-items: center; justify-content: center;
     }
 
     .cf-search-badge {
@@ -305,14 +305,14 @@
     .cf-badge-competicao { background: rgba(212,165,32,0.18);  color: #eecb6c; }
 
     .cf-search-nome  { flex: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .cf-search-extra { font-size: 11px; color: #6b7280; }
-    .cf-search-empty { padding: 14px; text-align: center; color: #6b7280; font-size: 13px; }
+    .cf-search-extra { font-size: 11px; color: var(--text-dim); }
+    .cf-search-empty { padding: 14px; text-align: center; color: var(--text-dim); font-size: 13px; }
 
     /* ── Stats bar ───────────────────────────────── */
     .cf-stats {
-        background: #141414;
-        border-top: 1px solid #262626;
-        border-bottom: 1px solid #262626;
+        background: var(--p-1);
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
         display: grid;
         grid-template-columns: repeat(4, 1fr);
     }
@@ -322,12 +322,12 @@
         display: flex;
         align-items: center;
         gap: 14px;
-        border-right: 1px solid #262626;
+        border-right: 1px solid var(--line);
         transition: background 0.15s;
     }
 
     .cf-stat-card:last-child { border-right: none; }
-    .cf-stat-card:hover { background: #191919; }
+    .cf-stat-card:hover { background: var(--p-2); }
 
     .cf-stat-icon {
         width: 40px;
@@ -344,7 +344,7 @@
     .cf-stat-num {
         font-size: 1.9rem;
         font-weight: 800;
-        color: #d4a520;
+        color: var(--gold-ink);
         line-height: 1;
     }
 
@@ -352,7 +352,7 @@
         font-size: 0.68rem;
         font-weight: 600;
         letter-spacing: 0.1em;
-        color: #6b7280;
+        color: var(--text-dim);
         text-transform: uppercase;
         margin-top: 3px;
     }
@@ -369,23 +369,23 @@
         font-size: 0.7rem;
         font-weight: 700;
         letter-spacing: 0.16em;
-        color: #6b7280;
+        color: var(--text-dim);
         text-transform: uppercase;
         white-space: nowrap;
     }
 
-    .cf-section-label .line { flex: 1; height: 1px; background: #222; }
+    .cf-section-label .line { flex: 1; height: 1px; background: var(--p-3); }
 
     .cf-section-link {
         font-size: 0.72rem;
-        color: #d4a520;
+        color: var(--gold-ink);
         font-weight: 700;
         letter-spacing: 0.04em;
         white-space: nowrap;
         flex-shrink: 0;
     }
 
-    .cf-section-link:hover { color: #f0c040; }
+    .cf-section-link:hover { color: var(--gold-ink); }
 
     /* ── Acesso rápido ───────────────────────────── */
     .cf-quick-grid {
@@ -402,21 +402,21 @@
         align-items: center;
         gap: 9px;
         padding: 18px 10px 16px;
-        background: #161616;
-        border: 1px solid #262626;
+        background: var(--p-1);
+        border: 1px solid var(--line);
         border-radius: 12px;
         transition: all 0.18s;
     }
 
     .cf-quick-card:hover {
-        background: #1e1e1e;
+        background: var(--p-3);
         border-color: #d4a520;
         transform: translateY(-2px);
     }
 
     .cf-quick-card .icon { font-size: 1.6rem; line-height: 1; }
-    .cf-quick-card .label { font-size: 0.82rem; font-weight: 700; color: #f1f5f9; text-align: center; }
-    .cf-quick-card .desc  { font-size: 0.68rem; color: #6b7280; font-weight: 500; text-align: center; }
+    .cf-quick-card .label { font-size: 0.82rem; font-weight: 700; color: var(--text-strong); text-align: center; }
+    .cf-quick-card .desc  { font-size: 0.68rem; color: var(--text-dim); font-weight: 500; text-align: center; }
 
     /* ── Main grid ───────────────────────────────── */
     .cf-main-grid {
@@ -435,14 +435,14 @@
     }
 
     .cf-game-card {
-        background: #161616;
-        border: 1px solid #262626;
+        background: var(--p-1);
+        border: 1px solid var(--line);
         border-radius: 12px;
         padding: 14px 16px;
         transition: border-color 0.18s;
     }
 
-    .cf-game-card:hover { border-color: #3a3a3a; }
+    .cf-game-card:hover { border-color: var(--line-strong); }
 
     .cf-game-top {
         display: flex;
@@ -454,7 +454,7 @@
     .cf-game-comp {
         font-size: 0.65rem;
         font-weight: 700;
-        color: #d4a520;
+        color: var(--gold-ink);
         text-transform: uppercase;
         letter-spacing: 0.08em;
         overflow: hidden;
@@ -462,7 +462,7 @@
         white-space: nowrap;
     }
 
-    .cf-game-date { font-size: 0.65rem; color: #4b5563; font-weight: 600; flex-shrink: 0; }
+    .cf-game-date { font-size: 0.65rem; color: var(--text-dimmer); font-weight: 600; flex-shrink: 0; }
 
     .cf-game-teams { display: flex; align-items: center; gap: 7px; }
 
@@ -470,14 +470,14 @@
         width: 22px; height: 22px;
         border-radius: 50%;
         overflow: hidden;
-        background: #0f0f0f;
-        border: 1px solid #333;
+        background: var(--p-0);
+        border: 1px solid var(--line);
         display: flex; align-items: center; justify-content: center;
         flex-shrink: 0;
     }
 
     .cf-team-badge img { width: 100%; height: 100%; object-fit: contain; }
-    .cf-team-badge-abbr { font-size: 8px; font-weight: 700; color: #6b7280; }
+    .cf-team-badge-abbr { font-size: 8px; font-weight: 700; color: var(--text-dim); }
 
     .cf-team-name {
         flex: 1;
@@ -492,8 +492,8 @@
         font-family: 'Barlow Condensed', Arial, sans-serif;
         font-size: 1.25rem;
         font-weight: 800;
-        color: #f1f5f9;
-        background: #0f0f0f;
+        color: var(--text-strong);
+        background: var(--p-0);
         padding: 2px 11px;
         border-radius: 7px;
         flex-shrink: 0;
@@ -504,35 +504,35 @@
     .cf-game-footer {
         margin-top: 12px;
         padding-top: 10px;
-        border-top: 1px solid #222;
+        border-top: 1px solid var(--line);
     }
 
     .cf-analisar-link {
         font-size: 0.7rem;
-        color: #6b7280;
+        color: var(--text-dim);
         font-weight: 600;
         display: flex;
         align-items: center;
         gap: 4px;
     }
 
-    .cf-analisar-link:hover { color: #d4a520; }
+    .cf-analisar-link:hover { color: var(--gold-ink); }
 
     .cf-empty {
         grid-column: 1 / -1;
         font-size: 12px;
-        color: #6b7280;
+        color: var(--text-dim);
         text-align: center;
         padding: 1.5rem 0;
-        background: #161616;
-        border: 1px solid #262626;
+        background: var(--p-1);
+        border: 1px solid var(--line);
         border-radius: 12px;
     }
 
     /* ── Classificação ───────────────────────────── */
     .cf-classif-panel {
-        background: #161616;
-        border: 1px solid #262626;
+        background: var(--p-1);
+        border: 1px solid var(--line);
         border-radius: 12px;
         overflow: hidden;
     }
@@ -541,13 +541,13 @@
         display: flex;
         align-items: center;
         padding: 10px 16px;
-        background: #111;
-        border-bottom: 1px solid #222;
+        background: var(--p-0);
+        border-bottom: 1px solid var(--line);
     }
 
     .cf-classif-head span {
         font-size: 0.6rem;
-        color: #4b5563;
+        color: var(--text-dimmer);
         font-weight: 700;
         text-transform: uppercase;
     }
@@ -556,24 +556,24 @@
         display: flex;
         align-items: center;
         padding: 9px 16px;
-        border-bottom: 1px solid #1e1e1e;
+        border-bottom: 1px solid var(--line-soft);
         transition: background 0.15s;
     }
 
     .cf-classif-row:last-child { border-bottom: none; }
-    .cf-classif-row:hover { background: #1e1e1e; }
+    .cf-classif-row:hover { background: var(--p-3); }
 
     .cf-classif-bar { width: 3px; height: 26px; border-radius: 2px; flex-shrink: 0; margin-right: 10px; }
 
     .cf-classif-pos { width: 20px; font-size: 0.78rem; font-weight: 700; flex-shrink: 0; }
-    .cf-classif-pos.top  { color: #d4a520; }
-    .cf-classif-pos.mid  { color: #6b7280; }
-    .cf-classif-pos.drop { color: #ef4444; }
+    .cf-classif-pos.top  { color: var(--gold-ink); }
+    .cf-classif-pos.mid  { color: var(--text-dim); }
+    .cf-classif-pos.drop { color: var(--bad-2); }
 
     .cf-classif-time {
         flex: 1;
         font-size: 0.82rem;
-        color: #e5e7eb;
+        color: var(--text);
         font-weight: 600;
         white-space: nowrap;
         overflow: hidden;
@@ -583,8 +583,8 @@
     }
 
     .cf-classif-cols { display: flex; gap: 0; flex-shrink: 0; }
-    .cf-classif-cols span { width: 26px; font-size: 0.75rem; color: #6b7280; text-align: center; }
-    .cf-classif-cols .pts { width: 32px; font-size: 0.82rem; color: #d4a520; font-weight: 800; }
+    .cf-classif-cols span { width: 26px; font-size: 0.75rem; color: var(--text-dim); text-align: center; }
+    .cf-classif-cols .pts { width: 32px; font-size: 0.82rem; color: var(--gold-ink); font-weight: 800; }
 
     /* ── Responsivo ──────────────────────────────── */
     @@media (max-width: 1023px) {
@@ -613,7 +613,7 @@
 <div class="cf-home">
 
     <!-- Hero -->
-    <div class="cf-hero">
+    <div class="cf-hero theme-dark-zone">
         <img class="cf-hero-pattern" src="~/Images/banner/escudos-pattern.svg" alt="" />
         <div class="cf-hero-fade-left"></div>
         <div class="cf-hero-stripe"></div>
@@ -837,11 +837,11 @@
                                         </span>
                                     }
                                 </div>
-                                <span class="cf-team-name" style="font-weight:@(casaVenceu ? "700" : "500"); color:@(casaVenceu ? "#f1f5f9" : "#9ca3af");">@jogo.TimeCasa?.Nome</span>
+                                <span class="cf-team-name" style="font-weight:@(casaVenceu ? "700" : "500"); color:@(casaVenceu ? "var(--text-strong)" : "var(--text-muted)");">@jogo.TimeCasa?.Nome</span>
                                 <span class="cf-score">
                                     @jogo.PlacarCasa &ndash; @jogo.PlacarVisitante
                                 </span>
-                                <span class="cf-team-name" style="text-align:right; font-weight:@(visVenceu ? "700" : "500"); color:@(visVenceu ? "#f1f5f9" : "#9ca3af");">@jogo.TimeVisitante?.Nome</span>
+                                <span class="cf-team-name" style="text-align:right; font-weight:@(visVenceu ? "700" : "500"); color:@(visVenceu ? "var(--text-strong)" : "var(--text-muted)");">@jogo.TimeVisitante?.Nome</span>
                                 <div class="cf-team-badge">
                                     @if (!string.IsNullOrEmpty(jogo.TimeVisitante?.EscudoUrl))
                                     {
@@ -857,7 +857,7 @@
                             </div>
                             @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
                             {
-                                <div style="text-align:center; font-size:0.65rem; color:#6b7280; margin-top:4px;">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</div>
+                                <div style="text-align:center; font-size:0.65rem; color:var(--text-dim); margin-top:4px">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</div>
                             }
                             <div class="cf-game-footer">
                                 <span class="cf-analisar-link">
