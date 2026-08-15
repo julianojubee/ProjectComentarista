@@ -1164,13 +1164,18 @@ namespace ControleFutebolWeb.Services
             var fixtureIdStr = $"apifoot:{fx.Fixture.Id}";
             var finalizado = StatusFinalizados.Contains(fx.Fixture.Status.Short);
 
-            // Anti-duplicata
+            // Anti-duplicata. O fixture id é único na api-football e identifica a partida
+            // sozinho; o casamento por confronto só vale dentro da MESMA temporada — sem
+            // isso, trocar o link da competição de 2025 para 2026 fazia o mesmo confronto
+            // na mesma rodada casar com o jogo do ano anterior e reescrevê-lo como 2026.
             var existente = await context.Jogos
                 .FirstOrDefaultAsync(j =>
                     j.CompeticaoId == competicao.Id &&
-                    j.TimeCasaId == timeCasa.Id &&
-                    j.TimeVisitanteId == timeVis.Id &&
-                    (j.Rodada == rodada || j.LinkDetalhes == fixtureIdStr), ct);
+                    (j.LinkDetalhes == fixtureIdStr ||
+                        (j.Temporada == season &&
+                         j.TimeCasaId == timeCasa.Id &&
+                         j.TimeVisitanteId == timeVis.Id &&
+                         j.Rodada == rodada)), ct);
 
             if (existente != null)
             {
