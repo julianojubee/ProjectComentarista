@@ -1,0 +1,77 @@
+/* Select buscável — visual do gatilho vem das classes do <select> original
+   (jg-select, jgs-select…), então aqui só entra o que é do componente. */
+
+.sb-wrap { position: relative; display: inline-flex; }
+
+.sb-trigger {
+    text-align: left;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.sb-label { overflow: hidden; text-overflow: ellipsis; }
+.sb-trigger.sb-vazio .sb-label { color: var(--text-dimmer); }
+
+.sb-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 1000;
+    min-width: 100%;
+    max-width: 320px;
+    background: var(--p-2);
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
+    padding: 8px;
+}
+
+.sb-wrap.sb-aberto .sb-panel { display: block; }
+
+.sb-busca {
+    width: 100%;
+    background: var(--p-1);
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: .8rem;
+    font-family: inherit;
+    padding: 6px 10px;
+    outline: none;
+}
+
+.sb-busca:focus { border-color: var(--gold); }
+
+.sb-opts {
+    margin-top: 6px;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.sb-opt {
+    padding: 6px 9px;
+    border-radius: 6px;
+    font-size: .82rem;
+    color: var(--text);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sb-opt:hover,
+.sb-opt.sb-ativa { background: var(--p-1); }
+
+.sb-opt.sb-selecionada { color: var(--gold-ink); font-weight: 700; }
+
+.sb-vazio-msg {
+    padding: 8px 9px;
+    font-size: .78rem;
+    color: var(--text-dimmer);
+}

@@ -1,7 +1,9 @@
 ﻿using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
 using ControleFutebolWeb.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -12,13 +14,16 @@ namespace ControleFutebolWeb.Controllers
     {
         private readonly FutebolContext _context;
         private readonly ApiFootballService _apiFootball;
+        private readonly UserManager<ApplicationUser> _userManager;
 
         public TreinadoresController(
             FutebolContext context,
-            ApiFootballService apiFootball)
+            ApiFootballService apiFootball,
+            UserManager<ApplicationUser> userManager)
         {
             _context = context;
             _apiFootball = apiFootball;
+            _userManager = userManager;
         }
 
         // GET: Treinadores
@@ -157,6 +162,18 @@ namespace ControleFutebolWeb.Controllers
 
             if (treinador == null) return NotFound();
 
+            // Prévia das anotações do usuário sobre esse treinador — a lista completa
+            // e o formulário ficam em /AnotacoesTreinador.
+            var uid = _userManager.GetUserId(User);
+            ViewBag.TotalAnotacoes = await _context.AnotacoesTreinador
+                .CountAsync(a => a.TreinadorId == id && a.UsuarioId == uid);
+            ViewBag.UltimasAnotacoes = await _context.AnotacoesTreinador
+                .AsNoTracking()
+                .Where(a => a.TreinadorId == id && a.UsuarioId == uid)
+                .OrderByDescending(a => a.DtInc)
+                .Take(3)
+                .ToListAsync();
+
             return View(treinador);
         }
 
@@ -173,6 +190,7 @@ namespace ControleFutebolWeb.Controllers
         {
             var treinador = await _context.Treinadores
                 .Include(t => t.Time)
+                .Include(t => t.Nacionalidade)   // o cabeçalho mostra a bandeira
                 .FirstOrDefaultAsync(t => t.Id == id);
 
             if (treinador == null) return NotFound();
@@ -577,6 +595,10 @@ namespace ControleFutebolWeb.Controllers
                 }).ToList()
             };
 
+            // Mesma correção aplicada no salvamento — senão a pré-visualização prometeria
+            // duas passagens "Atual" e o banco receberia outra coisa.
+            AplicarFimInferido(vm.Itens);
+
             return View("HistoricoPreVisualizacaoApi", vm);
         }
 
@@ -655,8 +677,15 @@ namespace ControleFutebolWeb.Controllers
             // passagem da pré-visualização, em vez de só um total agregado.
             var detalhes = new List<string>();
 
-            foreach (var item in carreira)
+            // A API devolve end = null tanto para a passagem atual quanto, às vezes, para
+            // passagens antigas que ela não fechou — o que fazia o técnico aparecer dirigindo
+            // dois clubes ao mesmo tempo. Corrige antes de gravar.
+            var finsCorrigidos = TreinadorHistoricoNormalizador.FecharPassagensAbertasAntigas(
+                carreira.Select(c => (ParseDataCarreiraApi(c.Start), ParseDataCarreiraApi(c.End))).ToList());
+
+            for (var idx = 0; idx < carreira.Count; idx++)
             {
+                var item = carreira[idx];
                 var nomeExibicao = item.Team?.Name ?? "(desconhecido)";
 
                 // Team.Id null = seleção/clube fora da base da API — sem como casar com um time local.
@@ -707,7 +736,7 @@ namespace ControleFutebolWeb.Controllers
                     continue;
                 }
 
-                var fim = ParseDataCarreiraApi(item.End);
+                var fim = finsCorrigidos[idx];
 
                 // Dedupe contra histórico já salvo (mesmo time + mesmo mês/ano de início).
                 var duplicado = await _context.TreinadoresHistorico.AnyAsync(h =>
@@ -759,6 +788,18 @@ namespace ControleFutebolWeb.Controllers
         private static DateTime? ParseDataCarreiraApi(string? data) =>
             DateTime.TryParse(data, System.Globalization.CultureInfo.InvariantCulture,
                 System.Globalization.DateTimeStyles.None, out var dt) ? dt : null;
+
+        // Fecha as passagens que a API deixou sem data de fim mas que já terminaram
+        // (ver TreinadorHistoricoNormalizador). A lista vem ordenada da mais recente
+        // para a mais antiga, que é o que o normalizador espera.
+        private static void AplicarFimInferido(List<HistoricoApiItemViewModel> itens)
+        {
+            var fins = TreinadorHistoricoNormalizador.FecharPassagensAbertasAntigas(
+                itens.Select(i => (i.DtInicio, i.DtFim)).ToList());
+
+            for (var i = 0; i < itens.Count; i++)
+                itens[i].DtFim = fins[i];
+        }
 
     }
 }

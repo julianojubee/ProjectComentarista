@@ -1,0 +1,101 @@
+/* Listas de passagens das telas de histórico de treinador (histórico salvo e
+   pré-visualização da importação). Complementa css/anotacoes.css, que traz o
+   hero e o grid. Substitui o antigo _HistoricoEstilos.cshtml. */
+
+.th-sec-title {
+    display: flex; align-items: center; gap: 10px; margin: 0 0 16px;
+    padding-bottom: 12px; border-bottom: 1px solid var(--line);
+}
+
+.th-sec-title span.lbl {
+    font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .72rem; font-weight: 700;
+    letter-spacing: .18em; color: var(--text-dim); text-transform: uppercase;
+}
+
+.th-sec-title .line { flex: 1; }
+
+.th-sec-title .badge {
+    font-size: .68rem; padding: 2px 10px; background: var(--p-2); border: 1px solid var(--line-strong);
+    border-radius: 999px; color: var(--text-dim); font-weight: 600;
+}
+
+/* ── Linha de passagem ───────────────────────── */
+.th-linha {
+    display: flex; align-items: center; gap: 12px; background: var(--p-1);
+    border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; margin-bottom: 10px;
+}
+
+.th-linha img { width: 26px; height: 26px; object-fit: contain; flex-shrink: 0; }
+.th-linha-compacta { padding: 9px 14px; margin-bottom: 7px; }
+.th-linha-info { flex: 1; min-width: 0; }
+.th-linha-nome { flex: 1; font-size: .9rem; font-weight: 600; color: var(--text-strong); min-width: 0; }
+.th-linha-data { font-size: .72rem; color: var(--text-dimmer); margin-top: 2px; }
+.th-obs { font-size: .72rem; color: var(--text-dim); font-weight: 400; margin-left: 5px; }
+
+/* Estados previstos da importação */
+.th-linha.nao-cadastrado { border-style: dashed; opacity: .75; }
+.th-linha.ja-salva { opacity: .7; }
+
+/* ── Tags de status ──────────────────────────── */
+.th-tag {
+    font-size: .6rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    border-radius: 999px; padding: 2px 9px; white-space: nowrap; flex-shrink: 0;
+}
+
+.th-tag-ok { background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.3); color: var(--ok); }
+.th-tag-info { background: rgba(107,114,128,.12); border: 1px solid rgba(107,114,128,.3); color: var(--text-muted); }
+.th-tag-aviso { background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.3); color: var(--warn); text-transform: none; letter-spacing: 0; }
+
+/* ── Alertas ─────────────────────────────────── */
+.th-alerta { border-radius: 10px; padding: 12px 16px; margin-bottom: 1rem; font-size: .85rem; line-height: 1.6; }
+.th-alerta-info { background: var(--p-1); border: 1px solid var(--line); color: var(--text-muted); }
+.th-alerta-ok { background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.3); color: var(--ok); }
+.th-alerta-aviso { background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.3); color: var(--warn); }
+.th-alerta-erro { background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.3); color: var(--bad); }
+.th-alerta b { color: inherit; }
+
+/* ── Sidebar de ações ────────────────────────── */
+.th-acoes { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-top: 16px; }
+.th-acoes form { margin: 0; }
+
+.th-btn-perigo {
+    width: 100%; padding: 10px 13px; background: var(--p-0); border: 1px solid rgba(239,68,68,.25);
+    border-radius: 9px; color: var(--bad); font-size: .82rem; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+}
+
+.th-btn-perigo:hover { border-color: var(--bad); background: rgba(239,68,68,.08); }
+
+.th-btn-salvar {
+    width: 100%; padding: 11px; background: #d4a520; color: #141414; font-size: .85rem;
+    font-weight: 800; border: none; border-radius: 8px; cursor: pointer; letter-spacing: .04em;
+    font-family: inherit;
+}
+
+.th-btn-salvar:hover { background: #c49918; }
+.th-btn-salvar:disabled { background: var(--p-3); color: var(--text-dimmer); cursor: not-allowed; }
+
+/* ── Escolha entre homônimos ─────────────────── */
+.th-candidato { display: flex; align-items: center; gap: 14px; background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
+.th-candidato img { width: 52px; height: 52px; border-radius: 10px; object-fit: cover; background: var(--p-0); flex-shrink: 0; }
+.th-candidato-info { flex: 1; min-width: 0; }
+.th-candidato-nome { font-size: .95rem; font-weight: 700; color: var(--text-strong); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.th-candidato-meta { font-size: .74rem; color: var(--text-dim); margin-top: 3px; line-height: 1.5; }
+.th-candidato-clubes { font-size: .72rem; color: var(--text-dimmer); margin-top: 3px; }
+
+.th-btn-escolher {
+    padding: 8px 16px; background: #d4a520; color: #141414; border: none; border-radius: 8px;
+    font-size: .8rem; font-weight: 800; white-space: nowrap; flex-shrink: 0; text-decoration: none;
+}
+
+.th-btn-escolher:hover { background: #c49918; color: #141414; }
+
+.th-check {
+    display: flex; align-items: flex-start; gap: .55rem; font-size: .8rem; color: var(--text-muted);
+    line-height: 1.5; margin-bottom: .9rem; cursor: pointer;
+}
+
+.th-check input { width: 15px; height: 15px; margin-top: 2px; flex-shrink: 0; accent-color: #d4a520; cursor: pointer; }
+
+.th-previsao { font-size: .82rem; color: var(--text-muted); line-height: 1.65; margin-bottom: 16px; }
+.th-previsao b { color: var(--text-strong); }

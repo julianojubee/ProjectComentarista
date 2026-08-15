@@ -1,0 +1,53 @@
+@model ControleFutebolWeb.Models.AnotacaoTreinador
+@{
+    var treinador = (ControleFutebolWeb.Models.Treinador)ViewBag.Treinador;
+    var isEdicao = Model.Id > 0;
+    var action = isEdicao ? "Editar" : "Nova";
+}
+
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+
+<link rel="stylesheet" href="~/css/form-card.css" asp-append-version="true" />
+
+<div class="af">
+    <div class="af-card">
+        <div class="af-title">
+            @(isEdicao ? "✏️ Editar anotação" : "📝 Nova anotação") — @treinador.Nome
+        </div>
+
+        <form asp-action="@action" asp-route-id="@(isEdicao ? Model.Id : null)" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" asp-for="TreinadorId" />
+
+            <div class="af-field">
+                <label class="af-label">Título *</label>
+                <input asp-for="Titulo" class="af-input" placeholder="Ex: Prefere 4-3-3, contrato até 2027…" autofocus />
+                <span asp-validation-for="Titulo" class="text-danger" style="font-size:12px;"></span>
+            </div>
+
+            <div class="af-field">
+                <label class="af-label">Categoria</label>
+                <select asp-for="Categoria" class="af-select">
+                    <option value="">— Sem categoria —</option>
+                    @foreach (var cat in ControleFutebolWeb.Helpers.CategoriaAnotacaoTreinador.Todas)
+                    {
+                        <option value="@cat">@cat</option>
+                    }
+                </select>
+            </div>
+
+            <div class="af-field">
+                <label class="af-label">Conteúdo *</label>
+                <textarea asp-for="Conteudo" class="af-textarea" placeholder="Escreva livremente sobre o treinador…"></textarea>
+                <div class="af-hint">Suporta texto livre com quebras de linha.</div>
+                <span asp-validation-for="Conteudo" class="text-danger" style="font-size:12px;"></span>
+            </div>
+
+            <div class="af-actions">
+                <button type="submit" class="af-save">💾 Salvar</button>
+                <a asp-action="Index" asp-route-treinadorId="@Model.TreinadorId" class="af-cancel">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>

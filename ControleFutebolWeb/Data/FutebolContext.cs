@@ -35,6 +35,7 @@ namespace ControleFutebolWeb.Data
         public DbSet<AnotacaoTime> AnotacoesTime { get; set; }
         public DbSet<AnotacaoTimeMencao> AnotacoesTimeMencoes { get; set; }
         public DbSet<AnotacaoJogador> AnotacoesJogador { get; set; }
+        public DbSet<AnotacaoTreinador> AnotacoesTreinador { get; set; }
         public DbSet<JogoAnalisadoUsuario> JogosAnalisadosUsuario { get; set; }
         public DbSet<ObservacaoJogoUsuario> ObservacoesJogoUsuario { get; set; }
         public DbSet<ObservacaoJogoTag> ObservacoesJogoTag { get; set; }
@@ -320,6 +321,14 @@ namespace ControleFutebolWeb.Data
                     .HasForeignKey(a => a.JogadorId)
                     .OnDelete(DeleteBehavior.Cascade);
                 entity.HasIndex(a => new { a.JogadorId, a.UsuarioId });
+            });
+
+            modelBuilder.Entity<AnotacaoTreinador>(entity =>
+            {
+                entity.HasOne(a => a.Treinador).WithMany()
+                    .HasForeignKey(a => a.TreinadorId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(a => new { a.TreinadorId, a.UsuarioId });
             });
 
             // Transferências: apagar time/jogo não apaga o histórico (FK vira null);

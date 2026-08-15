@@ -1,127 +1,286 @@
-﻿@model ControleFutebolWeb.Models.Treinador
+@model ControleFutebolWeb.Models.Treinador
+@using ControleFutebolWeb.Helpers
+@using ControleFutebolWeb.Models.ViewModels
 @{
     ViewData["Title"] = $"Detalhes — {Model.Nome}";
+
+    var historicos = Model.Historicos.OrderByDescending(h => h.DtInicio).ToList();
+    var totalAnotacoes = (int)(ViewBag.TotalAnotacoes ?? 0);
+    var ultimasAnotacoes = ViewBag.UltimasAnotacoes as List<ControleFutebolWeb.Models.AnotacaoTreinador>
+        ?? new List<ControleFutebolWeb.Models.AnotacaoTreinador>();
+
+    // Clubes distintos por onde passou — mais informativo que contar passagens,
+    // porque uma volta ao mesmo clube gera duas passagens.
+    var clubesDistintos = historicos.Select(h => h.TimeId).Distinct().Count();
+
+    var hero = new TreinadorHeroViewModel
+    {
+        Treinador = Model,
+        Kicker = "Treinador",
+        Acoes = new List<TreinadorHeroAcao>
+        {
+            new() { Texto = "Treinadores", Icone = "voltar", Url = Url.Action("Index")! },
+            new() { Texto = "Editar", Icone = "editar", Url = Url.Action("Edit", new { id = Model.Id })! },
+            new()
+            {
+                Texto = totalAnotacoes > 0 ? $"Anotações ({totalAnotacoes})" : "Anotações",
+                Icone = "anotacoes",
+                Destaque = true,
+                Url = Url.Action("Index", "AnotacoesTreinador", new { treinadorId = Model.Id })!
+            }
+        }
+    };
 }
 
-<partial name="_HistoricoEstilos" />
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/anotacoes.css" asp-append-version="true" />
 
-<div class="estat-page">
-    <div class="container" style="max-width:860px;">
+<style>
+    /* Reaproveita o hero e o grid de .an (css/anotacoes.css); aqui só o que é
+       específico da ficha do treinador. */
+    .td-kpis { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 22px; }
+    .td-kpi {
+        flex: 1; min-width: 120px; background: var(--p-1); border: 1px solid var(--line);
+        border-radius: 12px; padding: 14px 16px;
+    }
+    .td-kpi-num { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.7rem; font-weight: 800; color: var(--text-strong); line-height: 1; }
+    .td-kpi-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; color: var(--text-dimmer); text-transform: uppercase; margin-top: 5px; }
 
-        <a href="javascript:history.back()" class="btn-voltar">← Voltar</a>
+    .td-sec-title {
+        display: flex; align-items: center; gap: 10px; margin: 0 0 16px;
+        padding-bottom: 12px; border-bottom: 1px solid var(--line);
+    }
+    .td-sec-title span.lbl {
+        font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 0.72rem; font-weight: 700;
+        letter-spacing: 0.18em; color: var(--text-dim); text-transform: uppercase;
+    }
+    .td-sec-title .line { flex: 1; }
+    .td-sec-title .badge {
+        font-size: 0.68rem; padding: 2px 10px; background: var(--p-2); border: 1px solid var(--line-strong);
+        border-radius: 999px; color: var(--text-dim); font-weight: 600;
+    }
 
-        @if (TempData["Sucesso"] != null)
-        {
-            <div class="aviso-box aviso-ok">@TempData["Sucesso"]</div>
-        }
-        @if (TempData["Erro"] != null)
-        {
-            <div class="aviso-box aviso-erro">@TempData["Erro"]</div>
-        }
-        @if (TempData["Info"] != null)
-        {
-            <div class="aviso-box">@TempData["Info"]</div>
-        }
-        @if (TempData["Avisos"] != null)
-        {
-            <div class="aviso-box">⚠️ @TempData["Avisos"]</div>
-        }
+    .td-passagem {
+        display: flex; align-items: center; gap: 12px; background: var(--p-1);
+        border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; margin-bottom: 10px;
+    }
+    .td-passagem img { width: 26px; height: 26px; object-fit: contain; flex-shrink: 0; }
+    .td-passagem-nome { flex: 1; font-size: 0.9rem; font-weight: 600; color: var(--text-strong); min-width: 0; }
+    .td-passagem-periodo { font-size: 0.72rem; color: var(--text-dimmer); white-space: nowrap; }
+    .td-passagem-atual {
+        font-size: 0.6rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+        background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); color: var(--ok);
+        border-radius: 999px; padding: 2px 9px; white-space: nowrap;
+    }
 
-        <!-- Header -->
-        <div class="jogador-header">
-            @if (!string.IsNullOrWhiteSpace(Model.FotoUrl))
+    .td-verlink { display: inline-flex; align-items: center; gap: 4px; font-size: 0.72rem; font-weight: 700; color: var(--text-dim); margin-top: 4px; }
+    .td-verlink:hover { color: var(--gold-ink); }
+
+    /* Card de ações da barra lateral */
+    .td-acoes { background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+    .td-acoes-body { padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+    .td-acao {
+        display: flex; align-items: center; gap: 9px; width: 100%; padding: 10px 13px;
+        background: var(--p-0); border: 1px solid var(--line-strong); border-radius: 9px;
+        color: var(--text-muted); font-size: 0.82rem; font-weight: 700; cursor: pointer;
+        text-align: left; font-family: inherit;
+    }
+    .td-acao:hover { border-color: #d4a520; color: var(--gold-ink); }
+    .td-acao.perigo { color: var(--bad); border-color: rgba(239,68,68,0.25); }
+    .td-acao.perigo:hover { border-color: var(--bad); color: var(--bad); background: rgba(239,68,68,0.08); }
+    .td-acoes form { margin: 0; }
+
+    .td-nota {
+        font-size: 0.7rem; color: var(--text-dimmer); line-height: 1.55;
+        padding: 12px 18px; background: var(--p-0); border-top: 1px solid var(--line);
+    }
+
+    /* Prévia das anotações */
+    .td-anot-item { padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+    .td-anot-item:last-child { border-bottom: none; }
+    .td-anot-titulo { font-size: 0.82rem; font-weight: 600; color: var(--text-strong); margin-bottom: 3px; }
+    .td-anot-meta { font-size: 0.66rem; color: var(--text-dimmer); }
+    .td-anot-vazio { font-size: 0.78rem; color: var(--text-dim); line-height: 1.6; }
+</style>
+
+<div class="an">
+
+    <partial name="_TreinadorHero" model="hero" />
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="an-alert-ok m-3">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="an-alert-ok m-3" style="background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.3);color:var(--bad);">@TempData["Erro"]</div>
+    }
+    @if (TempData["Info"] != null)
+    {
+        <div class="an-alert-ok m-3" style="background:var(--p-1);border-color:var(--line);color:var(--text-muted);">@TempData["Info"]</div>
+    }
+    @if (TempData["Avisos"] != null)
+    {
+        <div class="an-alert-ok m-3" style="background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.3);color:var(--warn);">⚠️ @TempData["Avisos"]</div>
+    }
+
+    <div class="an-grid">
+
+        <!-- ── Esquerda: histórico ──────────────────── -->
+        <div>
+            <div class="td-kpis">
+                <div class="td-kpi">
+                    <div class="td-kpi-num">@historicos.Count</div>
+                    <div class="td-kpi-label">Passagens</div>
+                </div>
+                <div class="td-kpi">
+                    <div class="td-kpi-num">@clubesDistintos</div>
+                    <div class="td-kpi-label">Clubes</div>
+                </div>
+                <div class="td-kpi">
+                    <div class="td-kpi-num">@(Model.Idade > 0 ? Model.Idade.ToString() : "–")</div>
+                    <div class="td-kpi-label">Idade</div>
+                </div>
+                <div class="td-kpi">
+                    <div class="td-kpi-num">@totalAnotacoes</div>
+                    <div class="td-kpi-label">Anotações</div>
+                </div>
+            </div>
+
+            <!-- Só um resumo: a lista completa vive em ConsultarHistorico, pra não
+                 duplicar a mesma informação em duas telas. -->
+            <div class="td-sec-title">
+                <span class="lbl">Histórico no Banco</span>
+                <div class="line"></div>
+                @if (historicos.Any())
+                {
+                    <span class="badge">@historicos.Count passagem(ns)</span>
+                }
+            </div>
+
+            @if (!historicos.Any())
             {
-                <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.FotoUrl })" class="jogador-foto" />
+                <div class="an-empty">
+                    <div>Nenhum histórico salvo ainda.</div>
+                    <div style="margin-top:.5rem;font-size:0.8rem;">Use “Importar Histórico (API)” ao lado para trazer as passagens.</div>
+                </div>
             }
             else
             {
-                <img src="/images/placeholder-treinador.png" class="jogador-foto" />
+                @foreach (var h in historicos.Take(3))
+                {
+                    <div class="td-passagem">
+                        @if (!string.IsNullOrEmpty(h.Time?.EscudoUrl))
+                        {
+                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = h.Time.EscudoUrl })" alt="@h.Time.Nome" />
+                        }
+                        <span class="td-passagem-nome">@h.Time?.Nome</span>
+                        @if (h.DtFim == null)
+                        {
+                            <span class="td-passagem-atual">Atual</span>
+                        }
+                        <span class="td-passagem-periodo">
+                            @h.DtInicio.ToString("dd/MM/yyyy") — @(h.DtFim != null ? h.DtFim.Value.ToString("dd/MM/yyyy") : "hoje")
+                        </span>
+                    </div>
+                }
+
+                <a asp-action="ConsultarHistorico" asp-route-id="@Model.Id" class="td-verlink">
+                    Ver histórico completo
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6" /></svg>
+                </a>
             }
 
-            <div>
-                <h1 class="jogador-nome">@Model.Nome</h1>
-                <div class="jogador-meta">
-                    <span>📅 @Model.Idade anos</span>
-                    @if (Model.Time != null)
+            <!-- Prévia das anotações -->
+            <div class="td-sec-title" style="margin-top:32px;">
+                <span class="lbl">Observações sobre o Treinador</span>
+                <div class="line"></div>
+                @if (totalAnotacoes > 0)
+                {
+                    <span class="badge">@totalAnotacoes anotação(ões)</span>
+                }
+            </div>
+
+            @if (!ultimasAnotacoes.Any())
+            {
+                <div class="an-empty">
+                    <div class="td-anot-vazio">
+                        Nenhuma observação ainda.<br />
+                        Registre estilo de jogo, contrato, desempenho e o que mais achar relevante.
+                    </div>
+                    <a asp-controller="AnotacoesTreinador" asp-action="Index" asp-route-treinadorId="@Model.Id"
+                       class="an-btn gold" style="display:inline-flex;margin-top:1rem;">
+                        Escrever a primeira
+                    </a>
+                </div>
+            }
+            else
+            {
+                <div class="an-card">
+                    <div class="an-card-inner">
+                        <div class="an-bar" style="background:#d4a520;"></div>
+                        <div class="an-card-body">
+                            @foreach (var a in ultimasAnotacoes)
+                            {
+                                <div class="td-anot-item">
+                                    <div class="td-anot-titulo">@a.Titulo</div>
+                                    <div class="td-anot-meta">
+                                        @if (!string.IsNullOrEmpty(a.Categoria))
+                                        {
+                                            <text>@a.Categoria · </text>
+                                        }
+                                        @DateHelper.FormatarData(a.DtInc, "dd/MM/yyyy HH:mm")
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <a asp-controller="AnotacoesTreinador" asp-action="Index" asp-route-treinadorId="@Model.Id" class="td-verlink">
+                    Ver todas as anotações
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6" /></svg>
+                </a>
+            }
+        </div>
+
+        <!-- ── Direita: ações ───────────────────────── -->
+        <div class="an-sidebar">
+            <div class="td-acoes">
+                <div class="an-form-head">
+                    <div class="an-form-dot"></div>
+                    <span>Ações</span>
+                </div>
+                <div class="td-acoes-body">
+                    <form asp-action="BuscarFoto" asp-route-id="@Model.Id" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="voltarParaDetalhes" value="true" />
+                        <button type="submit" class="td-acao"
+                                onclick="return confirm('Buscar foto de @Model.Nome ?')">
+                            📷 Buscar Foto
+                        </button>
+                    </form>
+
+                    <a asp-action="PreVisualizarHistoricoApi" asp-route-id="@Model.Id" class="td-acao">
+                        📊 Importar Histórico (API)
+                    </a>
+
+                    @if (historicos.Any())
                     {
-                        <span>🏟️ @Model.Time.Nome</span>
+                        <form asp-action="LimparHistorico" asp-route-id="@Model.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="td-acao perigo"
+                                    onclick="return confirm('Apagar todas as @historicos.Count passagem(ns) do histórico de @Model.Nome? Essa ação não pode ser desfeita.')">
+                                🗑️ Limpar Histórico
+                            </button>
+                        </form>
                     }
-                    @if (Model.Nacionalidade != null)
-                    {
-                        <span>🌍 @Model.Nacionalidade.Nome</span>
-                    }
+                </div>
+                <div class="td-nota">
+                    <b>Importar Histórico</b> abre uma pré-visualização antes de salvar — nada é
+                    gravado até você confirmar lá. <b>Limpar Histórico</b> apaga na hora.
                 </div>
             </div>
         </div>
 
-        <!-- Histórico atual: só um resumo — a lista completa vive em ConsultarHistorico,
-             pra não duplicar a mesma informação em duas telas diferentes. -->
-        <div class="jogos-titulo">
-            Histórico no Banco
-            @if (Model.Historicos.Any())
-            {
-                <span style="font-size:.8rem; font-weight:400; color:var(--muted); text-transform:none;">
-                    (@Model.Historicos.Count() passagem(ns))
-                </span>
-            }
-        </div>
-        @if (!Model.Historicos.Any())
-        {
-            <div class="sem-dados">Nenhum histórico salvo ainda — use uma das opções abaixo para importar.</div>
-        }
-        else
-        {
-            foreach (var h in Model.Historicos.OrderByDescending(h => h.DtInicio).Take(3))
-            {
-                <div class="jogo-item">
-                    <div>
-                        <div class="jogo-adversario">@h.Time.Nome</div>
-                        <div class="jogo-data">
-                            @h.DtInicio.ToString("dd/MM/yyyy")
-                            até @(h.DtFim != null ? h.DtFim.Value.ToString("dd/MM/yyyy") : "Atual")
-                        </div>
-                    </div>
-                </div>
-            }
-            <a asp-action="ConsultarHistorico" asp-route-id="@Model.Id"
-               style="display:inline-block; margin:.2rem 0 .5rem; font-size:.8rem; color:var(--verde2); text-decoration:none;">
-                Ver histórico completo →
-            </a>
-        }
-
-        <!-- Ações: importar busca os dados numa tela de pré-visualização — nada é salvo até
-             clicar em "Salvar Histórico" lá. Limpar Histórico é imediato (com confirmação). -->
-        <div class="resumo-contagem" style="margin-top:1.5rem;">
-            "Importar Histórico" abre uma <b>pré-visualização</b> antes de salvar — nada é
-            gravado até você confirmar lá. "Limpar Histórico" apaga na hora.
-        </div>
-        <div class="cf-card-actions">
-            <form asp-action="BuscarFoto" asp-route-id="@Model.Id" method="post" style="display:inline;">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="voltarParaDetalhes" value="true" />
-                <button type="submit" class="btn btn-outline-secondary btn-sm cf-small-btn"
-                        title="Buscar foto"
-                        onclick="return confirm('Buscar foto de @Model.Nome ?')">
-                    📷 Buscar Foto
-                </button>
-            </form>
-
-            <a asp-action="PreVisualizarHistoricoApi" asp-route-id="@Model.Id"
-               class="btn btn-primary btn-sm cf-small-btn">
-                📊 Importar Histórico (API)
-            </a>
-
-            @if (Model.Historicos.Any())
-            {
-                <form asp-action="LimparHistorico" asp-route-id="@Model.Id" method="post" style="display:inline;">
-                    @Html.AntiForgeryToken()
-                    <button type="submit" class="btn btn-outline-danger btn-sm cf-small-btn"
-                            title="Apagar todo o histórico salvo"
-                            onclick="return confirm('Apagar todas as @Model.Historicos.Count() passagem(ns) do histórico de @Model.Nome? Essa ação não pode ser desfeita.')">
-                        🗑️ Limpar Histórico
-                    </button>
-                </form>
-            }
-        </div>
     </div>
 </div>

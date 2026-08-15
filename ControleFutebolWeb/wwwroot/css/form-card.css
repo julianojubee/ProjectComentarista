@@ -1,0 +1,67 @@
+/* Formulário em card no padrão atual (cadastro/edição/confirmação).
+   Nasceu inline em /AnotacoesJogador/_Form; saiu pra cá quando as telas de
+   treinador passaram a usar o mesmo desenho. */
+
+.af * { box-sizing: border-box; }
+
+.af {
+    background: var(--p-0);
+    color: var(--text);
+    font-family: 'Barlow', Arial, sans-serif;
+    border-radius: 14px;
+    padding: 2rem;
+    margin: 0 -12px;
+}
+
+.af-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; padding: 1.8rem 2rem; max-width: 720px; margin: 0 auto; }
+.af-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--text-strong); margin-bottom: 1.5rem; }
+.af-sub { font-size: .82rem; color: var(--text-dim); margin: -1rem 0 1.5rem; line-height: 1.6; }
+.af-field { margin-bottom: 1.25rem; }
+.af-label { font-size: .68rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: .1em; display: block; margin-bottom: .5rem; }
+
+.af-input, .af-textarea, .af-select {
+    width: 100%; background: var(--p-0); border: 1px solid var(--line-strong);
+    border-radius: 8px; color: var(--text-strong); font-size: .87rem;
+    padding: .65rem .85rem; outline: none; font-family: inherit;
+}
+
+.af-input:focus, .af-textarea:focus, .af-select:focus { border-color: #d4a520; }
+.af-textarea { resize: vertical; min-height: 200px; line-height: 1.6; }
+.af-select { appearance: none; cursor: pointer; }
+
+.af-actions { display: flex; gap: .75rem; margin-top: 1.5rem; flex-wrap: wrap; }
+
+.af-save { background: #d4a520; color: #141414; border: none; border-radius: 8px; padding: .65rem 1.5rem; font-size: .85rem; font-weight: 800; cursor: pointer; letter-spacing: .03em; }
+.af-save:hover { background: #c49918; }
+
+.af-danger { background: var(--bad); color: #fff; border: none; border-radius: 8px; padding: .65rem 1.5rem; font-size: .85rem; font-weight: 800; cursor: pointer; letter-spacing: .03em; }
+.af-danger:hover { filter: brightness(.92); }
+
+.af-cancel {
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); color: var(--text-muted);
+    border-radius: 8px; padding: .65rem 1.2rem; font-size: .85rem; font-weight: 700;
+    cursor: pointer; text-decoration: none; display: inline-flex; align-items: center;
+}
+
+.af-cancel:hover { border-color: #d4a520; color: var(--gold-ink); }
+
+.af-hint { font-size: .68rem; color: var(--text-dimmer); margin-top: .4rem; }
+
+/* Caixa de alerta dentro do card (confirmação de exclusão) */
+.af-alerta {
+    background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); color: var(--bad);
+    border-radius: 10px; padding: 1rem 1.2rem; margin-bottom: 1.5rem; font-size: .88rem; line-height: 1.6;
+}
+
+.af-alerta strong { color: var(--bad); }
+
+/* Resumo do registro afetado (Delete) */
+.af-resumo { display: flex; align-items: center; gap: 14px; background: var(--p-0); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 1.5rem; }
+.af-resumo img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 1px solid var(--line-strong); background: var(--p-1); flex-shrink: 0; }
+.af-resumo-nome { font-size: 1rem; font-weight: 700; color: var(--text-strong); }
+.af-resumo-meta { font-size: .75rem; color: var(--text-dim); margin-top: 2px; }
+
+/* Pré-visualização de imagem (campo Foto) */
+.af-preview { margin-top: .7rem; max-height: 120px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--p-0); }
+
+.af-validation { color: var(--bad); font-size: .75rem; }

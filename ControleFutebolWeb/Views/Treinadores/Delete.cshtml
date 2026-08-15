@@ -1,14 +1,48 @@
-﻿@model ControleFutebolWeb.Models.Treinador
+@model ControleFutebolWeb.Models.Treinador
+@using ControleFutebolWeb.Helpers
+@{ ViewData["Title"] = $"Excluir — {Model.Nome}"; }
 
-<h2>Excluir Treinador</h2>
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/form-card.css" asp-append-version="true" />
 
-<div class="alert alert-danger">
-    Tem certeza que deseja excluir o treinador <strong>@Model.Nome</strong>?
+<div class="af">
+    <div class="af-card">
+        <div class="af-title">🗑️ Excluir Treinador</div>
+
+        <div class="af-alerta">
+            Tem certeza que deseja excluir <strong>@Model.Nome</strong>?
+            O histórico de passagens e as anotações desse treinador são apagados junto.
+            Essa ação não pode ser desfeita.
+        </div>
+
+        <div class="af-resumo">
+            <img src="@(Url.FotoSrc(Model.FotoUrl) ?? Url.Content("~/images/placeholder-treinador.png"))" alt="@Model.Nome" />
+            <div>
+                <div class="af-resumo-nome">@Model.Nome</div>
+                <div class="af-resumo-meta">
+                    @if (Model.Time != null)
+                    {
+                        <text>@Model.Time.Nome</text>
+                    }
+                    @if (Model.Nacionalidade != null)
+                    {
+                        <text> · @Model.Nacionalidade.Nome</text>
+                    }
+                    @if (Model.Idade > 0)
+                    {
+                        <text> · @Model.Idade anos</text>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <form asp-action="DeleteConfirmed" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Id" />
+            <div class="af-actions">
+                <button type="submit" class="af-danger">Excluir definitivamente</button>
+                <a asp-action="Details" asp-route-id="@Model.Id" class="af-cancel">Cancelar</a>
+            </div>
+        </form>
+    </div>
 </div>
-
-<form asp-action="DeleteConfirmed" method="post">
-    @Html.AntiForgeryToken()
-    <input type="hidden" asp-for="Id" />
-    <button type="submit" class="btn btn-danger">Excluir</button>
-    <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
-</form>

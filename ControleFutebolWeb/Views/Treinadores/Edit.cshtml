@@ -1,49 +1,81 @@
-﻿@model ControleFutebolWeb.Models.Treinador
+@model ControleFutebolWeb.Models.Treinador
+@using ControleFutebolWeb.Helpers
+@{ ViewData["Title"] = $"Editar — {Model.Nome}"; }
 
-<h2>Editar Treinador</h2>
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/form-card.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/select-buscavel.css" asp-append-version="true" />
 
-<form asp-action="Edit" method="post">
-    @Html.AntiForgeryToken()
-    <input type="hidden" asp-for="Id" />
+<div class="af">
+    <div class="af-card">
+        <div class="af-title">✏️ Editar Treinador</div>
 
-    <div class="mb-3">
-        <label class="form-label">Nome</label>
-        <input asp-for="Nome" class="form-control" />
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label">Nacionalidade</label>
-        @Html.DropDownList("NacionalidadeId", (SelectList)ViewBag.Nacionalidades, "Selecione", new { @class = "form-select" })
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label">Data de Nascimento</label>
-        <input asp-for="DataNascimento" type="date" class="form-control" />
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label">Time Atual</label>
-        @Html.DropDownList("TimeId", (SelectList)ViewBag.Times, "Selecione", new { @class = "form-select" })
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label">Foto (URL)</label>
-        <input asp-for="FotoUrl" id="fotoUrl" class="form-control"
-               placeholder="https://.../foto.png" />
-        <small class="text-muted">
-            Cole a URL da foto do treinador — útil quando a API não tem informações dele.
-        </small>
-        <div class="mt-2">
-            <img id="fotoPreview"
-                 src="@Model.FotoUrl"
-                 alt="Pré-visualização da foto"
-                 style="max-height:120px; border-radius:8px; border:1px solid #e5e7eb; @(string.IsNullOrWhiteSpace(Model.FotoUrl) ? "display:none;" : "")" />
+        <div class="af-resumo">
+            <img src="@(Url.FotoSrc(Model.FotoUrl) ?? Url.Content("~/images/placeholder-treinador.png"))" alt="@Model.Nome" />
+            <div>
+                <div class="af-resumo-nome">@Model.Nome</div>
+                <div class="af-resumo-meta">
+                    @if (Model.Time != null)
+                    {
+                        <text>@Model.Time.Nome</text>
+                    }
+                    @if (Model.Idade > 0)
+                    {
+                        <text> · @Model.Idade anos</text>
+                    }
+                </div>
+            </div>
         </div>
-    </div>
 
-    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
-    <a asp-action="Index" class="btn btn-secondary">Voltar</a>
-</form>
+        <div asp-validation-summary="All" class="af-validation" style="margin-bottom:1rem;"></div>
+
+        <form asp-action="Edit" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Id" />
+
+            <div class="af-field">
+                <label class="af-label">Nome *</label>
+                <input asp-for="Nome" class="af-input" autofocus />
+                <span asp-validation-for="Nome" class="af-validation"></span>
+            </div>
+
+            <div class="af-field">
+                <label class="af-label">Nacionalidade</label>
+                @Html.DropDownList("NacionalidadeId", (SelectList)ViewBag.Nacionalidades, "Selecione",
+                    new { @class = "af-select", data_buscavel = "Buscar nacionalidade…" })
+            </div>
+
+            <div class="af-field">
+                <label class="af-label">Data de Nascimento</label>
+                <input asp-for="DataNascimento" type="date" class="af-input" />
+            </div>
+
+            <div class="af-field">
+                <label class="af-label">Time Atual *</label>
+                @Html.DropDownList("TimeId", (SelectList)ViewBag.Times, "Selecione",
+                    new { @class = "af-select", data_buscavel = "Buscar time…" })
+                <span asp-validation-for="TimeId" class="af-validation"></span>
+            </div>
+
+            <div class="af-field">
+                <label class="af-label">Foto (URL)</label>
+                <input asp-for="FotoUrl" id="fotoUrl" class="af-input" placeholder="https://.../foto.png" />
+                <div class="af-hint">
+                    Cole a URL da foto do treinador — útil quando a API não tem informações dele.
+                </div>
+                <img id="fotoPreview" class="af-preview"
+                     src="@Url.FotoSrc(Model.FotoUrl)"
+                     alt="Pré-visualização da foto"
+                     style="@(string.IsNullOrWhiteSpace(Model.FotoUrl) ? "display:none;" : "")" />
+            </div>
+
+            <div class="af-actions">
+                <button type="submit" class="af-save">💾 Salvar Alterações</button>
+                <a asp-action="Details" asp-route-id="@Model.Id" class="af-cancel">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
 
 @section Scripts {
     <script>

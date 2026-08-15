@@ -1,32 +1,52 @@
-﻿@model ControleFutebolWeb.Models.Treinador
+@model ControleFutebolWeb.Models.Treinador
+@{ ViewData["Title"] = "Novo Treinador"; }
 
-<h2>Novo Treinador</h2>
-<div asp-validation-summary="All" class="text-danger"></div>
-<form asp-action="Create" method="post">
-    @Html.AntiForgeryToken()
-    
-    <div class="mb-3">
-        <label class="form-label">Nome</label>
-        <input asp-for="Nome" class="form-control" />
-    </div>
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/form-card.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/select-buscavel.css" asp-append-version="true" />
 
-    <div class="mb-3">
-        <label class="form-label">Data de Nascimento</label>
-        <input asp-for="DataNascimento" type="date" class="form-control" />
-    </div>
+<div class="af">
+    <div class="af-card">
+        <div class="af-title">📝 Novo Treinador</div>
+        <div class="af-sub">
+            Depois de salvar dá pra importar o histórico de passagens pela API e buscar a foto,
+            na ficha do treinador.
+        </div>
 
-    <div class="mb-3">
-        <label class="form-label">Nacionalidade</label>
-        @Html.DropDownList("NacionalidadeId", (SelectList)ViewBag.Nacionalidades, "Selecione", new { @class = "form-select" })
-    </div>
+        <div asp-validation-summary="All" class="af-validation" style="margin-bottom:1rem;"></div>
 
-    <div class="mb-3">
-        <label class="form-label">Time Atual</label>
-        @Html.DropDownList("TimeId", (SelectList)ViewBag.Times, "Selecione", new { @class = "form-select" })
-    </div>
+        <form asp-action="Create" method="post">
+            @Html.AntiForgeryToken()
 
-    <div class="form-group mt-2">
-        <input type="submit" value="Salvar" class="btn btn-primary" />
-        <a asp-action="Index" class="btn btn-secondary">Voltar</a>
+            <div class="af-field">
+                <label class="af-label">Nome *</label>
+                <input asp-for="Nome" class="af-input" placeholder="Ex: Abel Ferreira" autofocus />
+                <span asp-validation-for="Nome" class="af-validation"></span>
+            </div>
+
+            <div class="af-field">
+                <label class="af-label">Data de Nascimento</label>
+                <input asp-for="DataNascimento" type="date" class="af-input" />
+                <div class="af-hint">Opcional — a importação pela API costuma preencher isso depois.</div>
+            </div>
+
+            <div class="af-field">
+                <label class="af-label">Nacionalidade</label>
+                @Html.DropDownList("NacionalidadeId", (SelectList)ViewBag.Nacionalidades, "Selecione",
+                    new { @class = "af-select", data_buscavel = "Buscar nacionalidade…" })
+            </div>
+
+            <div class="af-field">
+                <label class="af-label">Time Atual *</label>
+                @Html.DropDownList("TimeId", (SelectList)ViewBag.Times, "Selecione",
+                    new { @class = "af-select", data_buscavel = "Buscar time…" })
+                <span asp-validation-for="TimeId" class="af-validation"></span>
+            </div>
+
+            <div class="af-actions">
+                <button type="submit" class="af-save">💾 Salvar</button>
+                <a asp-action="Index" class="af-cancel">Cancelar</a>
+            </div>
+        </form>
     </div>
-</form>
+</div>

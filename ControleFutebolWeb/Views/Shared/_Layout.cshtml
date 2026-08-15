@@ -80,6 +80,7 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/ControleFutebolWeb.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/select-buscavel.css" asp-append-version="true" />
     @* CSS específico de tela (ex.: /Jogos/Analisar). Fica por último para vencer
        o bootstrap e o site.css na cascata, como acontecia com o <style> inline. *@
     @await RenderSectionAsync("Styles", required: false)
@@ -283,6 +284,7 @@
        validação client-side precisam dele — carregado em _ValidationScriptsPartial. *@
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/select-buscavel.js" asp-append-version="true"></script>
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {

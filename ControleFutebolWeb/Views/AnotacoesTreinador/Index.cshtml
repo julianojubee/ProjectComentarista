@@ -1,0 +1,220 @@
+@model List<ControleFutebolWeb.Models.AnotacaoTreinador>
+@using ControleFutebolWeb.Helpers
+@{
+    var treinador = (ControleFutebolWeb.Models.Treinador)ViewBag.Treinador;
+    var q = (string?)ViewBag.Q;
+    ViewData["Title"] = $"Anotações — {treinador.Nome}";
+
+    var contagemCategorias = ViewBag.ContagemCategorias as Dictionary<string, int> ?? new Dictionary<string, int>();
+
+    int TotalAnotacoes() => contagemCategorias.Values.Sum();
+
+    (string bg, string border, string text, string line) CorCategoria(string? categoria) => categoria switch
+    {
+        "Estilo de Jogo" => ("rgba(96,165,250,0.12)", "rgba(96,165,250,0.3)", "#60a5fa", "#60a5fa"),
+        "Contrato"       => ("rgba(168,85,247,0.12)", "rgba(168,85,247,0.3)", "var(--purple)", "#a855f7"),
+        "Desempenho"     => ("rgba(34,197,94,0.12)",  "rgba(34,197,94,0.3)",  "var(--ok)", "#22c55e"),
+        "Curiosidade"    => ("rgba(245,158,11,0.12)", "rgba(245,158,11,0.3)", "var(--warn)", "#f59e0b"),
+        "Informação"     => ("rgba(239,68,68,0.12)",  "rgba(239,68,68,0.3)",  "var(--bad)", "#ef4444"),
+        _                => ("rgba(107,114,128,0.12)","rgba(107,114,128,0.3)","var(--text-muted)", "var(--text-dim)")
+    };
+
+    // Destaca o termo pesquisado dentro de um texto (escapando o HTML).
+    string Realcar(string texto)
+    {
+        if (string.IsNullOrWhiteSpace(q)) return System.Web.HttpUtility.HtmlEncode(texto);
+        var idx = texto.IndexOf(q, StringComparison.OrdinalIgnoreCase);
+        if (idx < 0) return System.Web.HttpUtility.HtmlEncode(texto);
+        var sb = new System.Text.StringBuilder();
+        int pos = 0;
+        while (idx >= 0)
+        {
+            sb.Append(System.Web.HttpUtility.HtmlEncode(texto[pos..idx]));
+            sb.Append($"<mark class='an-highlight'>{System.Web.HttpUtility.HtmlEncode(texto.Substring(idx, q.Length))}</mark>");
+            pos = idx + q.Length;
+            idx = texto.IndexOf(q, pos, StringComparison.OrdinalIgnoreCase);
+        }
+        sb.Append(System.Web.HttpUtility.HtmlEncode(texto[pos..]));
+        return sb.ToString();
+    }
+
+    string[] categorias = ControleFutebolWeb.Helpers.CategoriaAnotacaoTreinador.Todas;
+
+    var hero = new ControleFutebolWeb.Models.ViewModels.TreinadorHeroViewModel
+    {
+        Treinador = treinador,
+        Kicker = "Anotações",
+        Acoes = new List<ControleFutebolWeb.Models.ViewModels.TreinadorHeroAcao>
+        {
+            new() { Texto = "Voltar ao treinador", Icone = "voltar", Url = Url.Action("Details", "Treinadores", new { id = treinador.Id })! },
+            new() { Texto = "Nova anotação", Icone = "mais", Destaque = true, Url = "#form-nova-anotacao" }
+        }
+    };
+}
+
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/anotacoes.css" asp-append-version="true" />
+
+<div class="an">
+
+    <partial name="_TreinadorHero" model="hero" />
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="an-alert-ok m-3">@TempData["Sucesso"]</div>
+    }
+
+    <div class="an-grid">
+
+        <!-- ── Esquerda: lista ──────────────────────── -->
+        <div>
+            <form method="get" id="form-search" class="an-search-box">
+                <input type="hidden" name="treinadorId" value="@treinador.Id" />
+                <span class="icon">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                </span>
+                <input id="inp-search" type="text" name="q" value="@q" placeholder="Pesquisar anotações… (título, conteúdo)" autocomplete="off" />
+                @if (!string.IsNullOrWhiteSpace(q))
+                {
+                    <a href="@Url.Action("Index", new { treinadorId = treinador.Id })" class="limpar">×</a>
+                }
+                <span class="cnt">@Model.Count resultado(s)</span>
+                <button type="submit" class="buscar">Buscar</button>
+            </form>
+            <div class="an-shortcut"><kbd>Ctrl</kbd>+<kbd>F</kbd> foca na busca</div>
+
+            <!-- Chips de categoria (reaproveitam a busca por texto, que já casa com a categoria) -->
+            <div class="an-chips">
+                <a href="@Url.Action("Index", new { treinadorId = treinador.Id })" class="an-chip @(string.IsNullOrWhiteSpace(q) ? "ativo" : "")">
+                    Todas <span class="cnt">(@TotalAnotacoes())</span>
+                </a>
+                @foreach (var cat in categorias)
+                {
+                    <a href="@Url.Action("Index", new { treinadorId = treinador.Id, q = cat })" class="an-chip @(string.Equals(q, cat, StringComparison.OrdinalIgnoreCase) ? "ativo" : "")">
+                        @cat <span class="cnt">(@(contagemCategorias.TryGetValue(cat, out var qtd) ? qtd : 0))</span>
+                    </a>
+                }
+            </div>
+
+            @if (!Model.Any())
+            {
+                <div class="an-empty">
+                    @if (!string.IsNullOrWhiteSpace(q))
+                    {
+                        <div>Nenhuma anotação encontrada para "<strong>@q</strong>".</div>
+                    }
+                    else
+                    {
+                        <div>Nenhuma anotação cadastrada ainda.</div>
+                        <div style="margin-top:.5rem;font-size:0.8rem;">Use o formulário ao lado para criar a primeira.</div>
+                    }
+                </div>
+            }
+            else
+            {
+                @foreach (var a in Model)
+                {
+                    var cor = CorCategoria(a.Categoria);
+
+                    <div class="an-card">
+                        <div class="an-card-inner">
+                            <div class="an-bar" style="background:@cor.line;"></div>
+                            <div class="an-card-body">
+                                <div class="an-card-head">
+                                    <div class="an-card-title">@Html.Raw(Realcar(a.Titulo))</div>
+                                    @if (!string.IsNullOrEmpty(a.Categoria))
+                                    {
+                                        <span class="an-card-cat" style="background:@cor.bg;border:1px solid @cor.border;color:@cor.text;">@a.Categoria</span>
+                                    }
+                                </div>
+                                <div class="an-card-content">@Html.Raw(Realcar(a.Conteudo))</div>
+                                <div class="an-card-footer">
+                                    <span class="an-card-date">
+                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+                                        @DateHelper.FormatarData(a.DtInc, "dd/MM/yyyy HH:mm")
+                                        @if (a.DtAlt.HasValue)
+                                        {
+                                            <span style="margin-left:6px;color:#334155;">· editado @DateHelper.FormatarData(a.DtAlt, "dd/MM/yyyy HH:mm")</span>
+                                        }
+                                    </span>
+                                    <div class="an-card-actions">
+                                        <a asp-action="Editar" asp-route-id="@a.Id">✏️ Editar</a>
+                                        <form asp-action="Excluir" asp-route-id="@a.Id" method="post" style="display:inline;" onsubmit="return confirm('Excluir esta anotação?')">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="del">🗑️ Excluir</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+        <!-- ── Direita: nova anotação + resumo ──────── -->
+        <div class="an-sidebar">
+            <div class="an-form-card" id="form-nova-anotacao">
+                <div class="an-form-head">
+                    <div class="an-form-dot"></div>
+                    <span>Nova Anotação</span>
+                </div>
+                <form asp-action="Nova" asp-controller="AnotacoesTreinador" method="post" class="an-form-body">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="TreinadorId" value="@treinador.Id" />
+
+                    <div class="an-field">
+                        <label>Título</label>
+                        <input type="text" id="nova-titulo" name="Titulo" placeholder="Ex: Prefere 4-3-3, contrato até 2027…" autocomplete="off" required />
+                    </div>
+
+                    <div class="an-field">
+                        <label>Categoria</label>
+                        <select name="Categoria">
+                            <option value="">— Sem categoria —</option>
+                            @foreach (var cat in categorias)
+                            {
+                                <option value="@cat">@cat</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="an-field">
+                        <label>Conteúdo</label>
+                        <textarea id="nova-conteudo" name="Conteudo" placeholder="Escreva a anotação sobre o treinador…" required></textarea>
+                    </div>
+
+                    <button type="submit" class="an-form-save">Salvar Anotação</button>
+                </form>
+            </div>
+
+            <div class="an-resumo">
+                <div class="an-resumo-title">Resumo</div>
+                @foreach (var cat in categorias)
+                {
+                    var cor = CorCategoria(cat);
+                    <div class="an-resumo-row">
+                        <div class="an-resumo-label">
+                            <div class="an-resumo-dot" style="background:@cor.line;"></div>
+                            <span>@cat</span>
+                        </div>
+                        <span class="an-resumo-count">@(contagemCategorias.TryGetValue(cat, out var qtd) ? qtd : 0)</span>
+                    </div>
+                }
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // Ctrl+F foca na busca em vez de abrir o do browser
+    document.addEventListener('keydown', e => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+            e.preventDefault();
+            const inp = document.getElementById('inp-search');
+            inp.focus();
+            inp.select();
+        }
+    });
+</script>
