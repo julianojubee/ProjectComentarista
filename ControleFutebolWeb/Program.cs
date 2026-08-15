@@ -94,6 +94,7 @@ internal class Program
         builder.Services.AddScoped<RatingAutomaticoService>();
         builder.Services.AddScoped<TransmissaoJogoService>();
         builder.Services.AddScoped<PainelJogoService>();
+        builder.Services.AddSingleton<CatalogoLigasApi>();
 
         builder.Services.ConfigureApplicationCookie(options =>
         {

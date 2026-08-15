@@ -34,7 +34,12 @@
     </div>
     <div class="form-group">
         <label asp-for="LinkTransfermarket">Link Transfermarkt</label>
-        <input asp-for="LinkTransfermarket" class="form-control" />
+        <input asp-for="LinkTransfermarket" class="form-control" placeholder="apifoot:128:2026" />
+        <small class="text-muted">
+            No formato <code>apifoot:CODIGO:TEMPORADA</code>, o código é conferido no catálogo da API e o
+            escudo da competição vem de lá automaticamente.
+            <a asp-action="CompeticoesApi">Ver competições da API</a>.
+        </small>
         <span asp-validation-for="LinkTransfermarket" class="text-danger"></span>
     </div>
     <div class="form-check">

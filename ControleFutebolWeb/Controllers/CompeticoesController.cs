@@ -18,19 +18,73 @@ namespace ControleFutebolWeb.Controllers
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IMemoryCache _cache;
+        private readonly CatalogoLigasApi _catalogoLigas;
 
         public CompeticoesController(
             FutebolContext context,
             ILogger<CompeticoesController> logger,
             IServiceScopeFactory scopeFactory,
             UserManager<ApplicationUser> userManager,
-            IMemoryCache cache)
+            IMemoryCache cache,
+            CatalogoLigasApi catalogoLigas)
         {
             _context = context;
             _logger = logger;
             _scopeFactory = scopeFactory;
             _userManager = userManager;
             _cache = cache;
+            _catalogoLigas = catalogoLigas;
+        }
+
+        /// <summary>
+        /// Confere o link "apifoot:LEAGUE_ID:SEASON" contra o catálogo da api-football e,
+        /// quando o código existe, grava IdApi e adota o escudo publicado pela API (evita
+        /// subir um logo por competição). Devolve false com erro no ModelState quando o
+        /// link está malformado ou o código não existe no catálogo.
+        ///
+        /// Mesma regra usada em massa por <see cref="SincronizarEscudos"/>.
+        ///
+        /// Link vazio ou de outra fonte não é validado — o campo continua opcional.
+        /// </summary>
+        private async Task<bool> AplicarCatalogoApiAsync(Competicao competicao, string? logoAtual)
+        {
+            var link = competicao.LinkTransfermarket?.Trim();
+            competicao.LinkTransfermarket = string.IsNullOrWhiteSpace(link) ? null : link;
+
+            // LogoUrl não vem no formulário: parte sempre do que já está salvo, para que
+            // salvar sem link (ou com link de outra fonte) não apague o escudo atual.
+            competicao.LogoUrl = logoAtual;
+
+            if (!ApiFootballService.IsApiFootballLink(link)) return true;
+
+            int leagueId, season;
+            try
+            {
+                (leagueId, season) = ApiFootballService.ParseLink(link!);
+            }
+            catch (ArgumentException)
+            {
+                ModelState.AddModelError(nameof(Competicao.LinkTransfermarket),
+                    "Formato inválido. Use apifoot:LEAGUE_ID:SEASON (ex.: apifoot:128:2026).");
+                return false;
+            }
+
+            var liga = await _catalogoLigas.BuscarLigaAsync(leagueId, season);
+            if (liga == null)
+            {
+                ModelState.AddModelError(nameof(Competicao.LinkTransfermarket),
+                    $"O código {leagueId} não existe no catálogo da api-football. " +
+                    "Confira em Competições da API.");
+                return false;
+            }
+
+            competicao.IdApi = leagueId;
+
+            // O escudo é sempre o do catálogo: com código de API válido, a fonte do logo é
+            // a própria API (um logo salvo à mão em SalvarLogo é substituído no próximo save).
+            competicao.LogoUrl = liga.Logo;
+
+            return true;
         }
 
         [HttpPost]
@@ -425,6 +479,24 @@ namespace ControleFutebolWeb.Controllers
                             : new(),
                     };
                 }).ToList();
+
+                // Tabela acumulada de todas as fases não-eliminatórias (a "tabela anual" do
+                // Argentino: Apertura + Clausura somados definem o Campeão da Liga e as vagas
+                // continentais). Só faz sentido com duas ou mais fases somáveis — com uma só,
+                // a tabela geral seria a cópia da aba da própria fase.
+                var fasesSomaveis = fasesDeclaradas
+                    .Where(f => !FaseJogoClassifier.EhEliminatoria(f.Tipo))
+                    .ToList();
+
+                if (fasesSomaveis.Count >= 2)
+                {
+                    var jogosSomaveis = fasesSomaveis
+                        .SelectMany(f => jogosPorFase[f.Id])
+                        .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue)
+                        .ToList();
+
+                    vm.Classificacao = CalcularTabela(jogosSomaveis, criterios, cartoes);
+                }
             }
             else if (competicao.Tipo == "MATA_MATA" || competicao.Tipo == "JOGO_UNICO")
             {
@@ -513,6 +585,9 @@ namespace ControleFutebolWeb.Controllers
             _logger.LogInformation("POST Create chamado: Nome={Nome}, Regiao={Regiao}, Tipo={Tipo}",
                 competicao.Nome, competicao.Regiao, competicao.Tipo);
 
+            // Valida o código da API e já traz IdApi + escudo do catálogo.
+            await AplicarCatalogoApiAsync(competicao, logoAtual: null);
+
             if (!ModelState.IsValid)
             {
                 foreach (var erro in ModelState.Values.SelectMany(v => v.Errors))
@@ -555,17 +630,26 @@ namespace ControleFutebolWeb.Controllers
         {
             if (id != competicao.Id) return NotFound();
 
-            if (!ModelState.IsValid)
-            {
-                ViewBag.CriteriosDesempate = CriteriosDesempateHelper.Parse(string.Join(';', criterios ?? new()));
-                return View(competicao);
-            }
-
             // Atualiza só os campos do formulário para não apagar
-            // TopTier, LogoUrl e demais colunas que não estão na tela.
+            // TopTier e demais colunas que não estão na tela.
             var existente = await _context.Competicoes.FindAsync(id);
             if (existente == null) return NotFound();
 
+            // Valida o código da API e já traz IdApi + escudo do catálogo, preservando
+            // um logo que tenha sido escolhido à mão.
+            await AplicarCatalogoApiAsync(competicao, existente.LogoUrl);
+
+            if (!ModelState.IsValid)
+            {
+                ViewBag.CriteriosDesempate = CriteriosDesempateHelper.Parse(string.Join(';', criterios ?? new()));
+                ViewBag.Fases = await _context.CompeticaoFases
+                    .Where(f => f.CompeticaoId == id)
+                    .OrderBy(f => f.Ordem).ThenBy(f => f.Id)
+                    .ToListAsync();
+                return View(competicao);
+            }
+
+            existente.LogoUrl = competicao.LogoUrl;
             existente.Nome = competicao.Nome;
             existente.Regiao = competicao.Regiao;
             existente.Tipo = competicao.Tipo;
@@ -800,10 +884,87 @@ namespace ControleFutebolWeb.Controllers
 
             competicao.LinkTransfermarket = linkCompeticao;
 
+            // Mesma validação da tela de edição: código inexistente não é salvo, e o
+            // código válido já traz IdApi e escudo.
+            if (!await AplicarCatalogoApiAsync(competicao, competicao.LogoUrl))
+            {
+                TempData["Erro"] = string.Join(" ", ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage));
+                return RedirectToAction(nameof(Index));
+            }
+
             _context.Update(competicao);
             await _context.SaveChangesAsync();
 
             TempData["Mensagem"] = "Link da competição atualizado com sucesso!";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // POST: Competicoes/SincronizarEscudos — adota o escudo da api-football em todas as
+        // competições que apontam para uma liga da API (pelo link apifoot: ou só pelo IdApi),
+        // substituindo o logo atual (inclusive os informados à mão) para que a fonte do
+        // escudo seja uma só.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SincronizarEscudos()
+        {
+            var competicoes = await _context.Competicoes
+                .Where(c => c.IdApi != null ||
+                            (c.LinkTransfermarket != null && c.LinkTransfermarket.StartsWith("apifoot:")))
+                .ToListAsync();
+
+            int atualizadas = 0;
+            var semCodigo = new List<string>();
+
+            foreach (var competicao in competicoes)
+            {
+                int leagueId;
+                int? season = null;
+
+                if (ApiFootballService.IsApiFootballLink(competicao.LinkTransfermarket))
+                {
+                    try
+                    {
+                        (leagueId, var s) = ApiFootballService.ParseLink(competicao.LinkTransfermarket!);
+                        season = s;
+                    }
+                    catch (ArgumentException)
+                    {
+                        semCodigo.Add(competicao.Nome);
+                        continue;
+                    }
+                }
+                else
+                {
+                    // Sem link da API, o IdApi cadastrado à mão já identifica a liga.
+                    leagueId = competicao.IdApi!.Value;
+                }
+
+                var liga = await _catalogoLigas.BuscarLigaAsync(leagueId, season);
+                if (liga == null)
+                {
+                    semCodigo.Add(competicao.Nome);
+                    continue;
+                }
+
+                competicao.IdApi = leagueId;
+
+                if (competicao.LogoUrl != liga.Logo)
+                {
+                    competicao.LogoUrl = liga.Logo;
+                    atualizadas++;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = $"{atualizadas} escudo(s) atualizado(s) a partir da api-football " +
+                $"({competicoes.Count} competição(ões) ligadas à API).";
+
+            if (semCodigo.Any())
+                TempData["Erro"] = "Sem código válido no catálogo: " + string.Join(", ", semCodigo) + ".";
+
             return RedirectToAction(nameof(Index));
         }
 
@@ -830,22 +991,30 @@ namespace ControleFutebolWeb.Controllers
         [HttpGet]
         public async Task<IActionResult> CompeticoesApi()
         {
-            var env = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>();
-            var caminho = Path.Combine(env.WebRootPath, "data", "competicoes-api-2026.json");
-            if (!System.IO.File.Exists(caminho))
+            var itens = await _catalogoLigas.CarregarAsync();
+            if (itens.Count == 0)
                 return NotFound("Arquivo de competições da API não encontrado.");
 
-            var json = await System.IO.File.ReadAllTextAsync(caminho);
-            var itens = System.Text.Json.JsonSerializer.Deserialize<List<CompeticaoApiLiga>>(json,
-                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
-
-            // Marca as ligas que já têm competição cadastrada apontando pra elas
+            // Marca as ligas que já têm competição cadastrada apontando pra elas. A lista do
+            // catálogo é cacheada e compartilhada entre requisições, então "Registrada" é
+            // escrita em cópias — nunca nos itens do cache.
             var idsRegistrados = (await _context.Competicoes
                 .Where(c => c.IdApi != null)
                 .Select(c => c.IdApi!.Value)
                 .ToListAsync()).ToHashSet();
-            foreach (var item in itens)
-                item.Registrada = idsRegistrados.Contains(item.Id);
+
+            itens = itens
+                .Select(l => new CompeticaoApiLiga
+                {
+                    Id = l.Id,
+                    Nome = l.Nome,
+                    Tipo = l.Tipo,
+                    Logo = l.Logo,
+                    Pais = l.Pais,
+                    Bandeira = l.Bandeira,
+                    Registrada = idsRegistrados.Contains(l.Id),
+                })
+                .ToList();
 
             var vm = new CompeticoesApiViewModel
             {

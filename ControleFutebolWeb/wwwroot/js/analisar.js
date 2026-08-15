@@ -2600,8 +2600,16 @@
         ancora.append(circulo, criarBotaoInfo(j.id));
         tdNum.appendChild(ancora);
 
+        // Mesmo link de perfil das linhas renderizadas pelo servidor. draggable=false
+        // deixa o arrasto para a linha inteira, em vez de o navegador arrastar a âncora.
         const tdNome = document.createElement('td');
-        tdNome.textContent = j.nome;
+        const linkNome = document.createElement('a');
+        linkNome.className = 'jog-nome-link';
+        linkNome.draggable = false;
+        linkNome.href = `/Jogadores/Estatisticas/${j.id}`;
+        linkNome.title = `Ver perfil de ${j.nome}`;
+        linkNome.textContent = j.nome;
+        tdNome.appendChild(linkNome);
 
         const tdPos = document.createElement('td');
         tdPos.textContent = j.posicao ?? '';

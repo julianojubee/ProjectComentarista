@@ -27,8 +27,14 @@
     // quando existem, cada fase vira uma aba própria e os painéis por Tipo não são usados.
     var temFases = Model.Fases.Any();
 
-    // Aba inicial: primeira fase declarada, ou o painel do tipo da competição
-    string tabInicial = temFases
+    // Com fases declaradas, o controller ainda soma as fases não-eliminatórias numa tabela
+    // acumulada (ex.: Apertura + Clausura = tabela anual do Argentino) — ela vira a 1ª aba.
+    var temTabelaGeral = temFases && Model.Classificacao.Any();
+
+    // Aba inicial: tabela geral, senão a primeira fase declarada, senão o painel do tipo
+    string tabInicial = temTabelaGeral
+        ? "classif"
+        : temFases
         ? $"fase-{Model.Fases[0].Fase.Id}"
         : tipoNorm switch
         {
@@ -145,8 +151,10 @@
     .cd-art-clube img { width: 12px; height: 12px; object-fit: contain; }
     .cd-art-clube span { font-size: .64rem; color: var(--text-dimmer); }
     /* Times da barra lateral levam à página do clube */
-    a.cd-mini-lado, a.cd-art-clube { text-decoration: none; }
+    a.cd-mini-lado, a.cd-art-clube, a.cd-art-nome { text-decoration: none; }
     a.cd-mini-lado:hover span, a.cd-art-clube:hover span { color: var(--gold-ink); text-decoration: underline; }
+    a.cd-art-nome { display: block; }
+    a.cd-art-nome:hover { color: var(--gold-ink); text-decoration: underline; }
     .cd-art-gols { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.05rem; font-weight: 800; color: var(--ok); flex-shrink: 0; }
     .cd-vazio { text-align: center; color: var(--text-dim); padding: 1.6rem 1rem; font-size: .8rem; }
 
@@ -319,6 +327,10 @@
         <div class="cd-tabs">
             @if (temFases)
             {
+                if (temTabelaGeral)
+                {
+                    <button type="button" class="cd-tab-btn @(tabInicial == "classif" ? "active" : "")" data-tab="classif">🏆 Tabela Geral</button>
+                }
                 foreach (var f in Model.Fases)
                 {
                     <button type="button" class="cd-tab-btn @(tabInicial == $"fase-{f.Fase.Id}" ? "active" : "")" data-tab="fase-@f.Fase.Id">@IconeFase(f.Fase.Tipo) @f.Fase.Nome</button>
@@ -380,8 +392,8 @@
                 }
             }
 
-            <!-- ══════ CLASSIFICAÇÃO (PONTOS CORRIDOS) ══════ -->
-            @if (!temFases && tipoNorm != "GRUPOS" && tipoNorm != "MATA_MATA" && !ehJogoUnico)
+            <!-- ══════ CLASSIFICAÇÃO (pontos corridos, ou tabela geral acumulada das fases) ══════ -->
+            @if (temTabelaGeral || (!temFases && tipoNorm != "GRUPOS" && tipoNorm != "MATA_MATA" && !ehJogoUnico))
             {
                 <div class="cd-panel" id="cd-panel-classif" style="@(tabInicial == "classif" ? "" : "display:none;")">
                     <div class="cd-layout">

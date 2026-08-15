@@ -267,15 +267,15 @@
         </div>
         <div class="jg-field">
             <label for="posicao">Posição</label>
-            @Html.DropDownList("posicao", Model.Posicoes, "Todas", new { @class = "jg-select" })
+            @Html.DropDownList("posicao", Model.Posicoes, "Todas", new { @class = "jg-select", data_buscavel = "Buscar posição…" })
         </div>
         <div class="jg-field">
             <label for="nacionalidade">Nacionalidade</label>
-            @Html.DropDownList("nacionalidade", Model.Nacionalidades, "Todas", new { @class = "jg-select" })
+            @Html.DropDownList("nacionalidade", Model.Nacionalidades, "Todas", new { @class = "jg-select", data_buscavel = "Buscar nacionalidade…" })
         </div>
         <div class="jg-field">
             <label for="timeId">Time</label>
-            @Html.DropDownList("timeId", Model.Times, "Todos", new { @class = "jg-select" })
+            @Html.DropDownList("timeId", Model.Times, "Todos", new { @class = "jg-select", data_buscavel = "Buscar time…" })
         </div>
         <div class="jg-field">
             <label for="idadeMin">Idade mín.</label>

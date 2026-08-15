@@ -47,6 +47,11 @@ namespace ControleFutebolWeb.Tests.Helpers
         [InlineData("Universidad Católica", "U. Católica")]
         [InlineData("Deportivo A Coruña", "Dep. A Coruña")]
         [InlineData("Estudiantes L.P.", "Estudiantes")]
+        [InlineData("São Bernardo", "São Bernardo FC")]   // sigla de agremiação só de um lado
+        [InlineData("Çorum FK", "Corum")]
+        [InlineData("Cruzeiro EC", "Cruzeiro")]
+        [InlineData("Nautico Recife", "Náutico")]         // Série B: futnatv tira a cidade
+        [InlineData("Sport Recife", "Sport")]
         public void TimesEquivalentes_Correspondem(string nomeBanco, string nomeFutnatv)
         {
             Assert.True(TimeNomeMatcher.SaoMesmoTime(nomeBanco, nomeFutnatv));
@@ -59,6 +64,9 @@ namespace ControleFutebolWeb.Tests.Helpers
         [InlineData("Atlético-MG", "Atlético Madrid")]        // abreviação não pode virar vale-tudo
         [InlineData("Sporting CP", "Sporting Cristal")]
         [InlineData("Independiente Medellín", "Ind. Rivadavia")]
+        [InlineData("Botafogo SP", "Botafogo")]               // apelido do RJ não pode puxar o SP
+        [InlineData("Atlético-GO", "Atlético")]               // sigla de estado não é de agremiação
+        [InlineData("Sport Recife", "Sport Huancayo")]
         public void TimesDiferentes_NaoCorrespondem(string nomeBanco, string nomeFutnatv)
         {
             Assert.False(TimeNomeMatcher.SaoMesmoTime(nomeBanco, nomeFutnatv));

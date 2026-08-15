@@ -64,10 +64,16 @@ namespace ControleFutebolWeb.Helpers
 
         /// <summary>
         /// Distribui os jogos entre as fases declaradas:
-        /// 1. RoundsPattern (padrões ";"-separados, Contains case-insensitive) sempre vence;
-        /// 2. senão, a categoria heurística vai para a primeira fase (por Ordem) de Tipo
+        /// 1. Jogo eliminatório pela heurística ("Semi-finals", "Quarter-finals"...) só entra
+        ///    em fase eliminatória, quando a competição tem alguma — senão o pattern largo de
+        ///    uma fase de liga ("Clausura", que casa também com "Clausura - Semi-finals")
+        ///    jogaria a semifinal para dentro da tabela de pontos;
+        /// 2. RoundsPattern (padrões ";"-separados, Contains case-insensitive) decide entre as
+        ///    fases candidatas — vence o padrão MAIS ESPECÍFICO (o mais longo que casa), de modo
+        ///    que "Apertura - Semi" ganhe de "Apertura"; empate desempata pela Ordem;
+        /// 3. sem pattern, a categoria heurística vai para a primeira fase (por Ordem) de Tipo
         ///    correspondente (Grupos→GRUPOS, Liga→PONTOS_CORRIDOS, MataMata→MATA_MATA/JOGO_UNICO);
-        /// 3. Indefinida ou categoria sem fase correspondente cai na primeira fase
+        /// 4. Indefinida ou categoria sem fase correspondente cai na primeira fase
         ///    não-eliminatória (ou na primeira fase, se todas forem eliminatórias) — assim
         ///    nenhum jogo desaparece da tela.
         /// </summary>
@@ -79,26 +85,56 @@ namespace ControleFutebolWeb.Helpers
             if (ordenadas.Count == 0) return resultado;
 
             var fasePadrao = ordenadas.FirstOrDefault(f => !EhEliminatoria(f.Tipo)) ?? ordenadas[0];
+            var eliminatorias = ordenadas.Where(f => EhEliminatoria(f.Tipo)).ToList();
 
             foreach (var jogo in jogos)
             {
-                var fase = FasePorPattern(ordenadas, jogo.Grupo)
-                    ?? FasePorCategoria(ordenadas, Classificar(jogo.Grupo))
-                    ?? fasePadrao;
+                var categoria = Classificar(jogo.Grupo);
+
+                // Restrição só na direção que estraga a tabela: round eliminatório nunca cai
+                // numa fase de pontos corridos/grupos quando existe fase eliminatória. O caminho
+                // inverso continua livre (round "Playoff - 1" pode ser roteado por pattern para
+                // uma fase MATA_MATA, mesmo a heurística lendo-o como rodada de liga).
+                var candidatas = categoria == FaseCategoria.MataMata && eliminatorias.Count > 0
+                    ? eliminatorias
+                    : ordenadas;
+
+                var fase = FasePorPattern(candidatas, jogo.Grupo)
+                    ?? FasePorCategoria(candidatas, categoria)
+                    ?? (candidatas == eliminatorias ? eliminatorias[0] : fasePadrao);
                 resultado[fase.Id].Add(jogo);
             }
 
             return resultado;
         }
 
+        /// <summary>
+        /// Fase cujo RoundsPattern casa com o round do jogo. Com mais de uma casando, vence a do
+        /// padrão mais longo (o mais específico); persistindo o empate, a de menor Ordem.
+        /// </summary>
         private static CompeticaoFase? FasePorPattern(List<CompeticaoFase> fases, string? grupo)
         {
             if (string.IsNullOrWhiteSpace(grupo)) return null;
 
-            return fases.FirstOrDefault(f =>
-                !string.IsNullOrWhiteSpace(f.RoundsPattern) &&
-                f.RoundsPattern.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .Any(p => grupo.Contains(p, StringComparison.OrdinalIgnoreCase)));
+            return fases
+                .Select(f => (Fase: f, Tamanho: MaiorPatternQueCasa(f.RoundsPattern, grupo)))
+                .Where(x => x.Tamanho > 0)
+                .OrderByDescending(x => x.Tamanho)
+                .Select(x => x.Fase)
+                .FirstOrDefault();
+        }
+
+        // Comprimento do padrão mais longo da fase que aparece no round (0 = nenhum casa).
+        private static int MaiorPatternQueCasa(string? roundsPattern, string grupo)
+        {
+            if (string.IsNullOrWhiteSpace(roundsPattern)) return 0;
+
+            return roundsPattern
+                .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(p => grupo.Contains(p, StringComparison.OrdinalIgnoreCase))
+                .Select(p => p.Length)
+                .DefaultIfEmpty(0)
+                .Max();
         }
 
         private static CompeticaoFase? FasePorCategoria(List<CompeticaoFase> fases, FaseCategoria categoria)

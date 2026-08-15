@@ -32,6 +32,11 @@ namespace ControleFutebolWeb.Services
             new[] { "chapecoense", "chapecoense af", "chapecoense sc" },
             new[] { "remo", "clube do remo" },
             new[] { "mirassol", "mirassol fc" },
+            // Série B: o futnatv encurta o nome tirando a cidade. "Sport" sozinho é seguro
+            // porque a competição também é comparada. (O "FC" de "São Bernardo FC" já sai
+            // sozinho em NormalizarTime, então não precisa de de-para.)
+            new[] { "nautico recife", "nautico" },
+            new[] { "sport recife", "sport" },
             // Sul-Americana / Libertadores: o futnatv encurta o nome dos clubes sul-americanos.
             new[] { "deportivo recoleta", "recoleta" },
             new[] { "independiente rivadavia", "ind rivadavia" },
@@ -103,11 +108,26 @@ namespace ControleFutebolWeb.Services
         private static readonly string[] SufixosCategoria =
             { "sub 17", "sub 20", "sub 15", "u17", "u20", "u15", "w", "f" };
 
+        // Sigla de tipo de clube no fim do nome ("Çorum FK", "São Bernardo FC", "Cruzeiro EC"):
+        // um lado põe, o outro não, e isso sozinho já quebrava o casamento. Só siglas de
+        // agremiação entram aqui — sigla de estado ("Botafogo SP", "Atlético GO") fica de fora
+        // de propósito, porque lá ela é justamente o que distingue dois clubes homônimos.
+        private static readonly string[] SufixosAgremiacao =
+            { "fc", "fk", "cf", "ec", "sk", "afc" };
+
         private static string NormalizarTime(string? nomeTime)
         {
             var normalizado = Normalizar(nomeTime);
             // Exige o espaço antes do sufixo para não mutilar nomes que só terminam na mesma letra.
             foreach (var sufixo in SufixosCategoria)
+            {
+                if (normalizado.EndsWith(" " + sufixo, StringComparison.Ordinal))
+                {
+                    normalizado = normalizado[..^(sufixo.Length + 1)].TrimEnd();
+                    break;
+                }
+            }
+            foreach (var sufixo in SufixosAgremiacao)
             {
                 if (normalizado.EndsWith(" " + sufixo, StringComparison.Ordinal))
                 {

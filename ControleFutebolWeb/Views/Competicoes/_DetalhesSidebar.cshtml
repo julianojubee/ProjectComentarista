@@ -52,14 +52,16 @@
                 var a = artilheiros[i];
                 <div class="cd-artilheiro">
                     <span class="cd-art-rank" style="color:@rankColors[Math.Min(i, rankColors.Length - 1)];">@(i + 1)</span>
-                    <div class="cd-art-avatar">
+                    <a class="cd-art-avatar" asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@a.Jogador.Id"
+                       title="Ver estatísticas de @a.Jogador.NomeExibicao">
                         @if (!string.IsNullOrEmpty(a.Jogador.FotoUrl))
                         {
                             <img src="@Url.FotoSrc(a.Jogador.FotoUrl)" alt="" />
                         }
-                    </div>
+                    </a>
                     <div style="flex:1; min-width:0;">
-                        <div class="cd-art-nome">@a.Jogador.NomeExibicao</div>
+                        <a class="cd-art-nome" asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@a.Jogador.Id"
+                           title="Ver estatísticas de @a.Jogador.NomeExibicao">@a.Jogador.NomeExibicao</a>
                         <a class="cd-art-clube" asp-controller="Times" asp-action="Details" asp-route-id="@a.Jogador.TimeId" title="Ver @a.Jogador.Time?.Nome">
                             @if (!string.IsNullOrEmpty(a.Jogador.Time?.EscudoUrl))
                             {

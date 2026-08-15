@@ -266,14 +266,14 @@
     <div class="jgs-filters">
         <form method="get" asp-action="Index" class="jgs-filters-row">
             <div class="jgs-select-wrap">
-                <select id="competicaoId" name="competicaoId" asp-items="Model.CompeticaoList" class="jgs-select">
+                <select id="competicaoId" name="competicaoId" asp-items="Model.CompeticaoList" class="jgs-select" data-buscavel="Buscar campeonato…">
                     <option value="">Todos os campeonatos</option>
                 </select>
                 <div class="jgs-select-chevron"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg></div>
             </div>
 
             <div class="jgs-select-wrap">
-                <select id="teamId" name="teamId" asp-items="Model.TimeList" class="jgs-select">
+                <select id="teamId" name="teamId" asp-items="Model.TimeList" class="jgs-select" data-buscavel="Buscar time…">
                     <option value="">Todos os times</option>
                 </select>
                 <div class="jgs-select-chevron"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg></div>

@@ -836,7 +836,10 @@
                                             </button>
                                         </div>
                                     </td>
-                                    <td>@jogador.Nome</td>
+                                    <td>
+                                        <a class="jog-nome-link" draggable="false" title="Ver perfil de @jogador.Nome"
+                                           asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@jogador.Id">@jogador.Nome</a>
+                                    </td>
                                     <td>@AbreviarPosicao(jogador.Posicao)</td>
                                 </tr>
                             }
@@ -861,7 +864,8 @@
                                         </div>
                                     </td>
                                     <td>
-                                        @jogador.Nome
+                                        <a class="jog-nome-link" draggable="false" title="Ver perfil de @jogador.Nome"
+                                           asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@jogador.Id">@jogador.Nome</a>
                                         @if (!faseEhInicial && jogadoresSairamCasa.Contains(jogador.Id))
                                         {
                                             <span class="sub-badge-out" title="Jogador saiu">↓</span>
@@ -1238,7 +1242,10 @@
                                             </button>
                                         </div>
                                     </td>
-                                    <td>@jogador.Nome</td>
+                                    <td>
+                                        <a class="jog-nome-link" draggable="false" title="Ver perfil de @jogador.Nome"
+                                           asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@jogador.Id">@jogador.Nome</a>
+                                    </td>
                                     <td>@AbreviarPosicao(jogador.Posicao)</td>
                                 </tr>
                             }
@@ -1263,7 +1270,8 @@
                                         </div>
                                     </td>
                                     <td>
-                                        @jogador.Nome
+                                        <a class="jog-nome-link" draggable="false" title="Ver perfil de @jogador.Nome"
+                                           asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@jogador.Id">@jogador.Nome</a>
                                         @if (!faseEhInicial && jogadoresSairamVisitante.Contains(jogador.Id))
                                         {
                                             <span class="sub-badge-out" title="Jogador saiu">↓</span>
