@@ -10,8 +10,11 @@ namespace ControleFutebolWeb.Models.ViewModels
         [Required(ErrorMessage = "Informe o login")]
         public string UserName { get; set; } = string.Empty;
 
-        [EmailAddress]
-        public string? Email { get; set; }
+        // Obrigatório: sem e-mail o usuário não consegue usar o "esqueci minha senha"
+        // e a redefinição vira tarefa manual do admin (Account/RedefinirSenha).
+        [Required(ErrorMessage = "Informe o e-mail")]
+        [EmailAddress(ErrorMessage = "E-mail inválido")]
+        public string Email { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Informe a senha")]
         [MinLength(6, ErrorMessage = "Mínimo 6 caracteres")]
