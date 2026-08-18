@@ -1,0 +1,342 @@
+@model ControleFutebolWeb.Models.ViewModels.ConferenciaEscalacaoViewModel
+@using ControleFutebolWeb.Models.ViewModels
+
+@{
+    ViewData["Title"] = "Conferir escalação com a ESPN";
+}
+
+<style>
+    .ce-wrap { max-width: 980px; margin: 0 auto; padding: 1.5rem 1rem; }
+    .ce-card {
+        background: var(--p-alt-2);
+        border-radius: 12px;
+        padding: 1.2rem 1.4rem;
+        margin-bottom: 1.2rem;
+        border: 1px solid rgba(255,255,255,.07);
+    }
+    .ce-desc { font-size: .84rem; color: var(--text-muted); line-height: 1.55; }
+    .ce-time { font-size: 1.05rem; font-weight: 700; color: var(--text-strong); margin-bottom: .2rem; }
+    .ce-formacao { font-size: .8rem; color: var(--text-dim); margin-bottom: .9rem; }
+    .ce-tabela { width: 100%; border-collapse: collapse; font-size: .86rem; }
+    .ce-tabela th {
+        text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .4px;
+        color: var(--text-dim); padding: .45rem .6rem; border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .ce-tabela td { padding: .45rem .6rem; border-bottom: 1px solid rgba(255,255,255,.04); color: var(--text-2); }
+    .ce-num { width: 44px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+    .tag { padding: 2px 9px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: .3px; white-space: nowrap; }
+    .tag-ok    { background: rgba(34,197,94,.14);  color: var(--ok); }
+    .tag-entra { background: rgba(251,191,36,.14); color: var(--warn); }
+    .tag-criar { background: rgba(59,130,246,.15); color: var(--info); }
+    .tag-sai   { background: rgba(239,68,68,.13);  color: var(--bad); }
+    .tag-nao   { background: rgba(148,163,184,.12); color: var(--text-muted); }
+    .tag-nota  { background: rgba(167,139,250,.15); color: #a78bfa; }
+    .ce-chip {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 7px 12px; border-radius: 9px; text-decoration: none;
+        background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.09);
+        color: var(--text-2); font-size: .86rem; font-weight: 600;
+        transition: border-color .15s, background .15s;
+    }
+    .ce-chip:hover { background: rgba(255,255,255,.07); }
+    .ce-chip-on {
+        border-color: rgba(59,130,246,.55);
+        background: rgba(59,130,246,.1);
+        color: var(--text-strong);
+    }
+    .btn-srv { border: none; border-radius: 7px; font-size: 12px; font-weight: 600;
+        padding: 6px 16px; cursor: pointer; transition: opacity .15s; }
+    .btn-srv:hover { opacity: .85; }
+    .btn-aplicar { background: rgba(59,130,246,.15); color: var(--info); border: 1px solid rgba(59,130,246,.25); }
+    .aviso { border-radius: 8px; padding: .7rem 1rem; margin-bottom: 1rem; font-size: .88rem; }
+    .aviso-ok  { background: rgba(34,197,94,.12); color: var(--ok); border: 1px solid rgba(34,197,94,.25); }
+    .aviso-err { background: rgba(239,68,68,.12); color: var(--bad); border: 1px solid rgba(239,68,68,.25); }
+    .aviso-info{ background: rgba(251,191,36,.1); color: var(--warn); border: 1px solid rgba(251,191,36,.22); }
+</style>
+
+<div class="ce-wrap">
+
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.2rem; gap:12px; flex-wrap:wrap;">
+        <div>
+            <h2 style="margin:0; color:var(--text-strong); font-size:1.35rem; font-weight:700">
+                📋 Conferir escalação com a ESPN
+            </h2>
+            <div style="font-size:.85rem; color:var(--text-muted); margin-top:.25rem;">
+                @Model.Partida @(Model.Data.HasValue ? $"— {Model.Data:dd/MM/yyyy}" : "")
+                @if (Model.Ok)
+                {
+                    <text> · escalação de <strong>@Model.UsuarioSelecionadoNome</strong></text>
+                }
+            </div>
+        </div>
+        <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@Model.JogoId"
+           style="font-size:.82rem; color:var(--info); text-decoration:none;">Abrir análise →</a>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="aviso aviso-ok">✅ @TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="aviso aviso-err">⚠️ @TempData["Erro"]</div>
+    }
+
+    @if (!Model.Ok)
+    {
+        <div class="ce-card">
+            <div class="aviso aviso-err" style="margin:0">⚠️ @Model.Erro</div>
+        </div>
+        return;
+    }
+
+    @if (Model.Usuarios.Count > 0)
+    {
+        <div class="ce-card">
+            <div style="font-size:10px; text-transform:uppercase; letter-spacing:.4px;
+                        color:var(--text-dim); margin-bottom:.6rem;">
+                Escalação de quem conferir
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                @foreach (var u in Model.Usuarios)
+                {
+                    var selecionado = u.Id == Model.UsuarioSelecionadoId;
+                    <a asp-action="ConferirEscalacao" asp-route-jogoId="@Model.JogoId" asp-route-usuarioId="@u.Id"
+                       class="ce-chip @(selecionado ? "ce-chip-on" : "")">
+                        <span>@u.Nome</span>
+                        @if (u.Divergencias > 0)
+                        {
+                            <span class="tag tag-entra">@u.Divergencias divergência(s)</span>
+                        }
+                        else
+                        {
+                            <span class="tag tag-ok">ok</span>
+                        }
+                        @if (u.SemEscalacaoPropria)
+                        {
+                            <span class="tag tag-nao">sem escalação própria</span>
+                        }
+                        @if (u.Notas > 0)
+                        {
+                            <span class="tag tag-nota">@u.Notas nota(s)</span>
+                        }
+                    </a>
+                }
+            </div>
+            <div style="font-size:.78rem; color:var(--text-dim); margin-top:.7rem;">
+                Cada analista tem a sua escalação do mesmo jogo. A correção é aplicada só na do
+                usuário selecionado — os outros ficam como estão.
+                @if (Model.Usuarios.Any(u => u.SemEscalacaoPropria))
+                {
+                    <text>
+                        Quem está marcado como “sem escalação própria” ainda enxerga a escalação
+                        compartilhada; aplicar cria a cópia dele.
+                    </text>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="ce-card">
+        <div class="ce-desc">
+            Quando a api-football não manda a escalação, a tela de análise preenche o campo com a
+            escalação do <strong>último jogo</strong> de cada time — e nada indica que aquilo é um
+            palpite. Esta conferência compara o que está salvo com o XI que a ESPN publicou.
+            O casamento é por nome e, quando o nome não bate, pelo <strong>número da camisa</strong>.
+            @if (!Model.TudoIgual)
+            {
+                <br />
+                <br />
+                <text>
+                    Aplicar substitui a escalação inicial <strong>deste usuário</strong> pela da ESPN,
+                    cadastrando no elenco quem ainda não existe (sem vínculo com a API — a importação
+                    completa os dados depois). A escalação dos outros usuários não é tocada.
+                </text>
+            }
+        </div>
+    </div>
+
+    @if (Model.TudoIgual)
+    {
+        <div class="ce-card">
+            <div class="aviso aviso-ok" style="margin:0">
+                ✅ A escalação de <strong>@Model.UsuarioSelecionadoNome</strong> bate com a da ESPN nos
+                dois times. Nada a corrigir.
+                @if (Model.Usuarios.Any(u => u.Divergencias > 0))
+                {
+                    <text>
+                        Outros usuários ainda têm divergência — selecione acima para conferir.
+                    </text>
+                }
+            </div>
+        </div>
+    }
+
+    @foreach (var lado in Model.Lados)
+    {
+        <div class="ce-card">
+            <div class="ce-time">@lado.Time @(lado.IsTimeCasa ? "(casa)" : "(visitante)")</div>
+            <div class="ce-formacao">
+                Formação salva: <strong>@(lado.FormacaoSalva ?? "—")</strong> ·
+                ESPN: <strong>@(lado.FormacaoEspn ?? "—")</strong>
+                @if (lado.FormacaoDiverge)
+                {
+                    <span class="tag tag-entra" style="margin-left:6px">diverge</span>
+                }
+            </div>
+
+            <table class="ce-tabela">
+                <thead>
+                    <tr>
+                        <th class="ce-num">#</th>
+                        <th>Jogador na ESPN</th>
+                        <th>Posição</th>
+                        <th>Situação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var t in lado.Titulares)
+                    {
+                        <tr>
+                            <td class="ce-num">@(t.Numero?.ToString() ?? "—")</td>
+                            <td>
+                                @t.Nome
+                                @if (t.NomeNoCadastro != null)
+                                {
+                                    <span style="color:var(--text-dim); font-size:.8rem">
+                                        — cadastrado como “@t.NomeNoCadastro”@(t.CasadoPor == "camisa" ? ", casado pela camisa" : "")
+                                    </span>
+                                }
+                            </td>
+                            <td style="color:var(--text-dim)">@t.Posicao</td>
+                            <td>
+                                @switch (t.Situacao)
+                                {
+                                    case SituacaoEscalacao.Confere:
+                                        <span class="tag tag-ok">confere</span>
+                                        break;
+                                    case SituacaoEscalacao.Entra:
+                                        <span class="tag tag-entra">falta escalar</span>
+                                        break;
+                                    case SituacaoEscalacao.Criar:
+                                        <span class="tag tag-criar">criar no elenco</span>
+                                        break;
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @foreach (var nome in lado.Saem)
+                    {
+                        <tr>
+                            <td class="ce-num">—</td>
+                            <td style="color:var(--text-dim)">@nome</td>
+                            <td style="color:var(--text-dim)">—</td>
+                            <td><span class="tag tag-sai">não jogou</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    @if (Model.NotasSuspeitas.Count > 0)
+    {
+        <div class="ce-card">
+            <div class="ce-time">📝 Notas de quem não entrou em campo</div>
+            <div class="ce-desc" style="margin-bottom:1rem">
+                <strong>@Model.UsuarioSelecionadoNome</strong> avaliou estes jogadores, mas a ESPN não
+                registra que eles entraram na partida — o caso típico de nota dada sobre a escalação
+                errada. Marque as que quiser remover; nenhuma sai sozinha ao aplicar a escalação.
+            </div>
+
+            <form method="post" asp-action="RemoverNotasSuspeitas"
+                  onsubmit="return confirm('Remover as notas marcadas? A ação não tem desfazer.');">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="jogoId" value="@Model.JogoId" />
+                <input type="hidden" name="usuarioId" value="@Model.UsuarioSelecionadoId" />
+
+                <table class="ce-tabela">
+                    <thead>
+                        <tr>
+                            <th style="width:34px"></th>
+                            <th>Jogador</th>
+                            <th style="width:70px">Nota</th>
+                            <th>Comentário</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var n in Model.NotasSuspeitas)
+                        {
+                            <tr>
+                                <td><input type="checkbox" name="notaIds" value="@n.NotaId" /></td>
+                                <td>
+                                    @n.Jogador
+                                    @if (n.EhAutomatica)
+                                    {
+                                        <span class="tag tag-nao" style="margin-left:6px">automática</span>
+                                    }
+                                    @if (n.JogadorNaoLocalizadoNaEspn)
+                                    {
+                                        <span class="tag tag-entra" style="margin-left:6px"
+                                              title="Este jogador não casou com ninguém do elenco publicado pela ESPN. Pode ser só diferença de nome — confira antes de apagar.">
+                                            não localizado na ESPN
+                                        </span>
+                                    }
+                                </td>
+                                <td>@((n.NotaManual ?? n.Valor).ToString("0.##"))</td>
+                                <td style="color:var(--text-dim)">
+                                    @(string.IsNullOrWhiteSpace(n.Comentario) ? "—" : n.Comentario)
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+
+                <button type="submit" class="btn-srv"
+                        style="margin-top:1rem; background:rgba(239,68,68,.13); color:var(--bad);
+                               border:1px solid rgba(239,68,68,.25);">
+                    🗑 Remover as marcadas
+                </button>
+            </form>
+        </div>
+    }
+
+    @if (!Model.TudoIgual)
+    {
+        <div class="ce-card">
+            <div class="ce-desc" style="margin-bottom:1rem">
+                <strong>O que aplicar preserva:</strong> notas e comentários que você deu (ficam ligados
+                ao jogador e ao jogo, não à escalação), observações e tags da partida, jogadas,
+                fases táticas, gols, cartões, substituições e as estatísticas importadas.
+            </div>
+            @if (Model.SetasAfetadas > 0)
+            {
+                <div class="aviso aviso-info">
+                    ⚠️ Este jogo tem <strong>@Model.SetasAfetadas seta(s) tática(s)</strong> desenhadas sobre a
+                    escalação inicial. Elas estão presas às posições atuais e <strong>serão apagadas</strong> —
+                    é o único dado que se perde aqui. Vale conferir o campo antes.
+                </div>
+            }
+            @if (Model.TemFaseFinal)
+            {
+                <div class="aviso aviso-info">
+                    ℹ️ Você tem uma escalação da fase <strong>FINAL</strong> montada a partir da inicial antiga.
+                    Ela não é alterada, mas vai continuar refletindo a escalação errada — depois de aplicar,
+                    reconstrua a FINAL na tela de análise.
+                </div>
+            }
+            <form method="post" asp-action="AplicarEscalacaoEspn"
+                  onsubmit="return confirm('Substituir a escalação inicial de @Model.UsuarioSelecionadoNome nos dois times pela da ESPN?\n\nO que tiver sido ajustado à mão nesta fase será perdido.');">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="jogoId" value="@Model.JogoId" />
+                <input type="hidden" name="usuarioId" value="@Model.UsuarioSelecionadoId" />
+                <button type="submit" class="btn-srv btn-aplicar">
+                    📋 Aplicar a escalação da ESPN em @Model.UsuarioSelecionadoNome
+                </button>
+                <span style="font-size:.78rem; color:var(--text-dim); margin-left:10px;">
+                    Só a fase INICIAL e só a escalação deste usuário. A fase FINAL e os outros ficam como estão.
+                </span>
+            </form>
+        </div>
+    }
+</div>

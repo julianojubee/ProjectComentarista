@@ -10,6 +10,10 @@ namespace ControleFutebolWeb.Models.ViewModels
         public int TotalJogadores { get; set; }
         public int TotalJogos { get; set; }
         public int TotalCompeticoes { get; set; }
+
+        // Quantas competições o usuário marcou como "Home" — 0 significa que a tabela
+        // de classificação está vazia por falta de marcação, não por falta de jogos.
+        public int CompeticoesHomeSelecionadas { get; set; }
     }
 
     public class ClassificacaoResumo

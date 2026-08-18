@@ -277,16 +277,6 @@
         object-fit: contain; flex-shrink: 0;
     }
 
-    /* ── Métrica explicativa ──────────────────────────────────────────────── */
-    .rpt-metric-box {
-        background: rgba(245,158,11,.08);
-        border: 1px solid rgba(245,158,11,.25); border-radius: 12px;
-        padding: 1rem 1.2rem; margin-bottom: 1.2rem;
-        display: flex; gap: 12px; align-items: flex-start;
-    }
-    .rpt-metric-icon { font-size: 24px; flex-shrink: 0; line-height: 1; }
-    .rpt-metric-text h4 { font-size: 13px; font-weight: 700; color: var(--warn); margin: 0 0 4px; }
-    .rpt-metric-text p  { font-size: 12px; color: var(--text-2); margin: 0; line-height: 1.5; }
     .rpt-chip {
         display: inline-flex; align-items: center; gap: 4px;
         padding: 2px 8px; border-radius: 999px;
@@ -836,22 +826,6 @@
 
     <!-- ══ SEÇÃO: NOTAS ══════════════════════════════════════════════════════ -->
     <div id="sec-notas" class="rpt-section visible">
-
-        <!-- Explicação da métrica -->
-        <div class="rpt-metric-box">
-            <div class="rpt-metric-icon">📐</div>
-            <div class="rpt-metric-text">
-                <h4>Como a Nota Final é calculada</h4>
-                <p>
-                    Cada jogador começa com <strong>4 pontos</strong> de base.<br />
-                    A isso se somam as <strong>ações avaliadas</strong> no jogo
-                    (passes, dribles, gols, etc.), cada uma multiplicada pelo peso definido em
-                    <strong>Cadastros &gt; Critérios de Nota</strong>.
-                    Goleiros e defensores ganham ainda <strong>+2 pts</strong> quando o time não sofre gol.
-                    Nota final limitada entre 4 e 10.
-                </p>
-            </div>
-        </div>
 
         <div class="rpt-grid">
             <!-- Ranking de Notas -->

@@ -101,15 +101,18 @@ namespace ControleFutebolWeb.Helpers.Rating
         // FatorRepeticao. Dois gols valem mais que um, mas não o dobro.
         public const double FatorRepeticao = 0.75;
 
-        private static readonly (string Label, double Valor, Func<EstatisticaJogador, int> Quantidade)[] Eventos =
+        // O Id é o que FonteEstatistica consulta para saber se a fonte publica aquele
+        // evento — os quatro de pênalti não vêm da ESPN, e somá-los como zero seria
+        // afirmar que não houve pênalti nenhum.
+        private static readonly (string Id, string Label, double Valor, Func<EstatisticaJogador, int> Quantidade)[] Eventos =
         {
-            ("Gol",               +1.20, e => e.Gols),
-            ("Assistência",       +0.80, e => e.Assistencias),
-            ("Pênalti defendido", +1.00, e => e.PenaltiDefendido),
-            ("Pênalti sofrido",   +0.40, e => e.PenaltiSofrido),
-            ("Pênalti perdido",   -0.80, e => e.PenaltiPerdido),
-            ("Pênalti cometido",  -0.80, e => e.PenaltiCometido),
-            ("Cartão vermelho",   -1.50, e => e.CartoesVermelhos),
+            ("evento_gol",               "Gol",               +1.20, e => e.Gols),
+            ("evento_assistencia",       "Assistência",       +0.80, e => e.Assistencias),
+            ("evento_penalti_defendido", "Pênalti defendido", +1.00, e => e.PenaltiDefendido),
+            ("evento_penalti_sofrido",   "Pênalti sofrido",   +0.40, e => e.PenaltiSofrido),
+            ("evento_penalti_perdido",   "Pênalti perdido",   -0.80, e => e.PenaltiPerdido),
+            ("evento_penalti_cometido",  "Pênalti cometido",  -0.80, e => e.PenaltiCometido),
+            ("evento_cartao_vermelho",   "Cartão vermelho",   -1.50, e => e.CartoesVermelhos),
         };
 
         public const double ValorGolContra = -1.20;
@@ -221,8 +224,9 @@ namespace ControleFutebolWeb.Helpers.Rating
             var detalhe = new List<ContribuicaoEvento>();
             double total = 0;
 
-            foreach (var (label, valor, quantidade) in Eventos)
+            foreach (var (id, label, valor, quantidade) in Eventos)
             {
+                if (!FonteEstatistica.Cobre(e.Fonte, id)) continue;
                 var n = quantidade(e);
                 if (n <= 0) continue;
                 var pontos = Saturar(n, valor);

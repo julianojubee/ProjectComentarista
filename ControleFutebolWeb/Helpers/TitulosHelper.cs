@@ -12,8 +12,9 @@ namespace ControleFutebolWeb.Helpers
     ///
     /// • mata-mata, jogo único ou fase de grupos com eliminatória: vencedor do confronto
     ///   da fase "Final", pelo agregado e, no empate, pelos pênaltis;
-    /// • pontos corridos: líder da tabela, e só com a temporada inteira jogada — do
-    ///   contrário o primeiro colocado da rodada 5 já apareceria com a taça.
+    /// • pontos corridos: líder da tabela, com o calendário inteiro importado e a
+    ///   temporada jogada até o fim — ou, faltando jogo, com o líder já matematicamente
+    ///   inalcançável. Sem isso o primeiro colocado da rodada 5 apareceria com a taça.
     ///
     /// Na dúvida não há título: é melhor uma taça faltando do que um campeão inventado.
     /// </summary>
@@ -133,17 +134,41 @@ namespace ControleFutebolWeb.Helpers
 
             var tabela = ClassificacaoCalculator.Calcular(doPontosCorridos, criterios: criterios);
 
-            // Tabela fecha o campeonato quando a temporada inteira foi jogada: nada
-            // pendente e turno completo — mesmo número de jogos para todo mundo e pelo
-            // menos um confronto contra cada rival. Sem isso, o líder da rodada 5 (ou de
-            // uma temporada importada pela metade) já apareceria com a taça.
-            bool temporadaFechada =
-                doPontosCorridos.All(j => j.PlacarCasa != null && j.PlacarVisitante != null)
-                && tabela.Count >= 2
-                && tabela.All(t => t.Jogos == tabela[0].Jogos)
-                && tabela[0].Jogos >= tabela.Count - 1;
+            // Partidas marcadas de cada time (jogadas ou não). É o que distingue uma
+            // temporada de verdade de uma importada pela metade — a tabela só conta as
+            // já jogadas, então sozinha ela não sabe quanto ainda falta.
+            var marcadasPorTime = doPontosCorridos
+                .SelectMany(j => new[] { j.TimeCasaId, j.TimeVisitanteId })
+                .GroupBy(id => id)
+                .ToDictionary(g => g.Key, g => g.Count());
 
-            if (temporadaFechada) return tabela[0].TimeId;
+            int Marcadas(int timeId) => marcadasPorTime.GetValueOrDefault(timeId);
+
+            // Calendário inteiro importado: mesmo número de partidas marcadas para todo
+            // mundo e pelo menos um confronto contra cada rival. Sem essa checagem, uma
+            // temporada importada só até a rodada 5 pareceria decidida — lá ninguém tem
+            // jogo marcado sobrando, e o líder da rodada 5 sairia campeão.
+            bool calendarioCompleto =
+                tabela.Count >= 2
+                && tabela.All(t => Marcadas(t.TimeId) == Marcadas(tabela[0].TimeId))
+                && Marcadas(tabela[0].TimeId) >= tabela.Count - 1;
+
+            if (calendarioCompleto)
+            {
+                // Temporada inteira jogada: a tabela é final e o líder é o campeão.
+                if (doPontosCorridos.All(j => j.PlacarCasa != null && j.PlacarVisitante != null))
+                    return tabela[0].TimeId;
+
+                // Ainda falta jogo, mas o título pode já estar resolvido: campeão é o líder
+                // que ninguém mais alcança nem vencendo tudo o que tem pela frente. É o caso
+                // do PSG na Ligue 1 2025/26, com uma partida da última rodada sem placar na
+                // base — esperar o campeonato inteiro deixaria a taça de fora para sempre.
+                var lider = tabela[0];
+                bool inalcancavel = tabela.Skip(1).All(t =>
+                    t.Pontos + 3 * (Marcadas(t.TimeId) - t.Jogos) < lider.Pontos);
+
+                if (inalcancavel) return lider.TimeId;
+            }
 
             // Sem tabela fechada, a final decide — é o caso da Champions, cadastrada como
             // pontos corridos (formato de liga) mas com o título entregue na final. Exige

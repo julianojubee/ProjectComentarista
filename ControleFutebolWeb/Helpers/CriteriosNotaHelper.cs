@@ -407,8 +407,12 @@ namespace ControleFutebolWeb.Helpers
             LadoPorJogadorJogo? lados = null)
         {
             var criterios = ResolverCriterios(criteriosBanco);
+            // Critério que a fonte não informa fica de fora em vez de somar zero. Sem
+            // isso a nota da ESPN cairia de um jeito enviesado: os critérios ausentes
+            // são quase todos positivos (desarme, interceptação, passe-chave, drible),
+            // enquanto cartão e falta, que puxam para baixo, vêm todos.
             var total = criterios.Sum(c =>
-                Extratores.TryGetValue(c.AcaoId, out var extrator)
+                Extratores.TryGetValue(c.AcaoId, out var extrator) && FonteEstatistica.Cobre(e.Fonte, c.AcaoId)
                     ? extrator(e) * c.Peso
                     : 0);
             if (TemJogoSemSofrerGol(e, lados, criterios)) total += BonusSemSofrerGol(criterios);
@@ -419,8 +423,10 @@ namespace ControleFutebolWeb.Helpers
             LadoPorJogadorJogo? lados = null)
         {
             var criterios = ResolverCriterios(criteriosBanco);
+            // Mesmo filtro de CalcularPontuacao, para o detalhamento na tela bater com
+            // o total: o que a fonte não informa não vira linha.
             var detalhes = criterios
-                .Where(c => Extratores.ContainsKey(c.AcaoId))
+                .Where(c => Extratores.ContainsKey(c.AcaoId) && FonteEstatistica.Cobre(e.Fonte, c.AcaoId))
                 .Select(c => new Notadetalhe
                 {
                     AcaoId    = c.AcaoId,

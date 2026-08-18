@@ -21,7 +21,9 @@ namespace ControleFutebolWeb.Helpers
             };
         }
 
-        // Mapa competicaoId → nome (para tooltip, legendas, etc.)
+        // Mapa competicaoId → nome, só como último recurso: ele cobre apenas as cinco
+        // competições do começo do projeto, então qualquer outra (Ligue 1, Campeonato Turco...)
+        // cai no "desconhecida". Quem tem a entidade em mãos deve passar o nome do banco.
         private static readonly Dictionary<int, string> compMap = new()
         {
             { 1, "Campeonato Brasileiro" },
@@ -31,9 +33,12 @@ namespace ControleFutebolWeb.Helpers
             { 5, "Premier League" }
         };
 
-        // Retorna o nome da competição
-        public static string GetNomeCompeticao(int competicaoId)
+        // Retorna o nome da competição (usa o nome do banco se disponível)
+        public static string GetNomeCompeticao(int competicaoId, string? nomeBanco = null)
         {
+            if (!string.IsNullOrWhiteSpace(nomeBanco))
+                return nomeBanco;
+
             return compMap.TryGetValue(competicaoId, out var nome)
                 ? nome
                 : "Competição desconhecida";

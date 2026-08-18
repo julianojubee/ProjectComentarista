@@ -13,77 +13,187 @@
 }
 
 <style>
-    /* ── Banner ──────────────────────────────────────────────── */
+    /* ── Paleta da tela: preto + dourado ─────────────────────────
+       Tokens locais em cima dos globais do site.css. Os valores do
+       claro escurecem o dourado (o da marca não contrasta em fundo
+       branco); no escuro voltam ao dourado cheio. As faixas escuras
+       (cabeçalhos, badges) são iguais nos dois temas — é a identidade
+       da competição, como no hero. */
+    :root {
+        --lib-gold: #d4a520;
+        --lib-gold-ink: #8a6a0a; /* dourado como texto/borda no claro */
+        --lib-gold-soft: rgba(212,165,32,0.12);
+        --lib-gold-line: #e7d6a3;
+        --lib-bronze: #a16207; /* repescagem */
+        --lib-strip: linear-gradient(90deg, #0d0b06 0%, #241c08 55%, #0d0b06 100%);
+        --lib-strip-ink: #f0d693;
+    }
+
+    [data-theme="dark"] {
+        --lib-gold-ink: #e8c766;
+        --lib-gold-soft: rgba(212,165,32,0.14);
+        --lib-gold-line: #4a3c14;
+    }
+
+    /* ── Banner "A Glória Eterna" ────────────────────────────── */
     .lib-hero {
         position: relative;
         border-radius: 14px;
-        padding: 1.5rem 1.6rem;
+        padding: 2.6rem 1.6rem 2.4rem;
         margin-bottom: 1.4rem;
         overflow: hidden;
-        background: linear-gradient(135deg, #1a0533 0%, #3b0764 50%, #1a0533 100%);
+        isolation: isolate;
+        background: radial-gradient(ellipse 70% 90% at 50% 42%, #120c02 0%, #060402 55%, #000 100%);
     }
 
+        /* brilho dourado subindo das laterais, como na arte */
         .lib-hero::before {
             content: "";
             position: absolute;
-            inset: 0;
-            opacity: 0.10;
-            background-image: radial-gradient(circle at 50% 50%, transparent 28%, #fff 28.5%, #fff 29.2%, transparent 29.8%), linear-gradient(90deg, transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%), linear-gradient(transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%);
+            inset: -30% -10%;
+            z-index: 0;
+            pointer-events: none;
+            background: radial-gradient(ellipse 38% 62% at 4% 34%, rgba(212,160,42,0.55) 0%, rgba(160,110,20,0.22) 38%, transparent 70%), radial-gradient(ellipse 38% 62% at 96% 34%, rgba(212,160,42,0.55) 0%, rgba(160,110,20,0.22) 38%, transparent 70%), radial-gradient(ellipse 55% 45% at 50% 118%, rgba(190,140,35,0.35) 0%, transparent 68%);
+            filter: blur(2px);
         }
 
+        /* poeira/bokeh dourado */
         .lib-hero::after {
             content: "";
             position: absolute;
             inset: 0;
-            background: radial-gradient(ellipse at 60% 50%, rgba(250,204,21,0.08) 0%, transparent 70%);
+            z-index: 0;
             pointer-events: none;
+            opacity: 0.55;
+            background-image: radial-gradient(circle, rgba(255,214,120,0.85) 0%, transparent 60%), radial-gradient(circle, rgba(255,214,120,0.55) 0%, transparent 60%), radial-gradient(circle, rgba(255,226,160,0.7) 0%, transparent 60%), radial-gradient(circle, rgba(255,205,100,0.5) 0%, transparent 60%), radial-gradient(circle, rgba(255,226,160,0.45) 0%, transparent 60%), radial-gradient(circle, rgba(255,214,120,0.6) 0%, transparent 60%), radial-gradient(circle, rgba(255,236,190,0.5) 0%, transparent 60%), radial-gradient(circle, rgba(255,205,100,0.45) 0%, transparent 60%);
+            background-repeat: no-repeat;
+            background-size: 8px 8px, 14px 14px, 5px 5px, 20px 20px, 10px 10px, 6px 6px, 4px 4px, 16px 16px;
+            background-position: 12% 22%, 22% 68%, 34% 14%, 68% 26%, 78% 72%, 88% 40%, 56% 82%, 8% 84%;
         }
+
+    /* arcos dourados dos cantos inferiores (alças da taça) */
+    .lib-hero-arc {
+        position: absolute;
+        bottom: -62%;
+        width: 62%;
+        aspect-ratio: 1 / 1;
+        border-radius: 50%;
+        z-index: 0;
+        pointer-events: none;
+        border: 3px solid transparent;
+        background: conic-gradient(from 180deg, rgba(255,222,140,0.95), rgba(196,142,36,0.85), rgba(120,80,10,0.15), rgba(255,222,140,0.9)) border-box;
+        -webkit-mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+        mask-composite: exclude;
+        box-shadow: 0 0 26px rgba(212,160,42,0.45);
+    }
+
+        .lib-hero-arc.left {
+            left: -22%;
+        }
+
+        .lib-hero-arc.right {
+            right: -22%;
+        }
+
+        .lib-hero-arc.inner {
+            width: 44%;
+            bottom: -48%;
+            border-width: 2px;
+            opacity: 0.65;
+        }
+
+            .lib-hero-arc.inner.left {
+                left: -8%;
+            }
+
+            .lib-hero-arc.inner.right {
+                right: -8%;
+            }
 
     .lib-hero-content {
         position: relative;
         z-index: 1;
+        text-align: center;
     }
 
     .lib-badge {
         display: inline-block;
-        background: rgba(250, 204, 21, 0.15);
-        color: var(--warn);
+        background: rgba(212, 160, 42, 0.12);
+        color: #f3d38a;
         font-size: 10px;
         font-weight: 700;
         letter-spacing: 1px;
         text-transform: uppercase;
         padding: 4px 12px;
         border-radius: 999px;
-        border: 1px solid rgba(250, 204, 21, 0.3);
-        margin-bottom: 0.55rem;
+        border: 1px solid rgba(212, 160, 42, 0.38);
+        margin-bottom: 1.1rem;
     }
 
     .lib-title-wrap {
         display: flex;
+        flex-direction: column;
         align-items: center;
-        gap: 12px;
-        margin-bottom: 0.2rem;
+        gap: 10px;
+        margin-bottom: 0.35rem;
     }
 
     .lib-logo {
-        width: 42px;
-        height: 42px;
+        width: 88px;
+        height: 88px;
         object-fit: contain;
-        filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
+        filter: drop-shadow(0 0 18px rgba(212,160,42,0.55)) drop-shadow(0 2px 8px rgba(0,0,0,0.6));
     }
 
     .lib-title {
         color: #fff;
-        font-size: 1.5rem;
-        font-weight: 700;
+        font-size: 2rem;
+        font-weight: 800;
         margin: 0;
-        letter-spacing: -0.3px;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        text-shadow: 0 0 24px rgba(255,214,120,0.35);
+    }
+
+    .lib-tagline {
+        margin: 0.35rem 0 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        letter-spacing: 6px;
+        text-transform: uppercase;
+        background: linear-gradient(180deg, #f8e3ac 0%, #d4a02a 55%, #9a6c12 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
     }
 
     .lib-sub {
-        color: rgba(255,255,255,0.7);
-        font-size: 0.88rem;
-        margin: 0;
+        color: rgba(255,255,255,0.62);
+        font-size: 0.85rem;
+        margin: 0.7rem 0 0;
+    }
+
+    @@media (max-width: 700px) {
+        .lib-hero {
+            padding: 2rem 1rem 1.9rem;
+        }
+
+        .lib-logo {
+            width: 64px;
+            height: 64px;
+        }
+
+        .lib-title {
+            font-size: 1.35rem;
+            letter-spacing: 2px;
+        }
+
+        .lib-tagline {
+            font-size: 0.78rem;
+            letter-spacing: 3px;
+        }
     }
 
     /* ── Layout principal ────────────────────────────────────── */
@@ -108,15 +218,16 @@
     }
 
     .lib-grupo-card {
-        background: #fff;
-        border: 0.5px solid #e5e7eb;
+        background: var(--surface);
+        border: 0.5px solid var(--border);
         border-radius: 12px;
         overflow: hidden;
     }
 
     .lib-grupo-header {
-        background: linear-gradient(90deg, var(--purple-surface), var(--purple-surface));
-        color: #fff;
+        background: var(--lib-strip);
+        color: var(--lib-strip-ink);
+        border-bottom: 1px solid var(--lib-gold-line);
         padding: 8px 14px;
         font-size: 13px;
         font-weight: 700;
@@ -139,8 +250,8 @@
     }
 
         .lib-table thead tr {
-            background: #f9fafb;
-            border-bottom: 1px solid #e5e7eb;
+            background: var(--surface-2);
+            border-bottom: 1px solid var(--border);
         }
 
         .lib-table th {
@@ -161,10 +272,10 @@
 
         .lib-table td {
             padding: 7px 8px;
-            border-bottom: 0.5px solid #f3f4f6;
+            border-bottom: 0.5px solid var(--line-soft);
             text-align: center;
             vertical-align: middle;
-            color: #111827;
+            color: var(--text);
         }
 
         .lib-table tbody tr:last-child td {
@@ -172,7 +283,7 @@
         }
 
         .lib-table tbody tr:hover {
-            background: #fafbff;
+            background: var(--lib-gold-soft);
         }
 
     .lib-pos {
@@ -188,15 +299,16 @@
     }
 
     .lib-pos-1, .lib-pos-2 {
-        background: #7c3aed;
+        background: linear-gradient(135deg, #f0cf78, #b8860b);
+        color: #2a1e00;
     }
     /* classificados oitavas */
     .lib-pos-3 {
-        background: #f59e0b;
+        background: var(--lib-bronze);
     }
     /* repescagem */
     .lib-pos-4, .lib-pos-default {
-        background: #d1d5db;
+        background: var(--surface-3);
         color: var(--text-dim);
     }
 
@@ -212,15 +324,15 @@
             height: 20px;
             object-fit: contain;
             border-radius: 50%;
-            border: 0.5px solid #e5e7eb;
-            background: #f9f9f9;
+            border: 0.5px solid var(--border);
+            background: var(--surface-2);
             flex-shrink: 0;
         }
 
         .lib-team-cell span {
             font-size: 12px;
             font-weight: 500;
-            color: #111827;
+            color: var(--text);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -229,7 +341,7 @@
 
     .lib-pts {
         font-weight: 700;
-        color: #7c3aed;
+        color: var(--lib-gold-ink);
     }
 
     /* ── Legenda ─────────────────────────────────────────────── */
@@ -260,7 +372,7 @@
     .lib-sidebar-title {
         font-size: 13px;
         font-weight: 700;
-        color: #111827;
+        color: var(--text);
         margin-bottom: 10px;
         display: flex;
         align-items: center;
@@ -268,8 +380,9 @@
     }
 
     .lib-rodada-badge {
-        background: linear-gradient(90deg, var(--purple-surface), var(--purple-surface));
-        color: #fff;
+        background: var(--lib-strip);
+        color: var(--lib-strip-ink);
+        border: 1px solid var(--lib-gold-line);
         font-size: 11px;
         font-weight: 700;
         padding: 3px 10px;
@@ -277,8 +390,8 @@
     }
 
     .lib-jogo-card {
-        background: #fff;
-        border: 0.5px solid #e5e7eb;
+        background: var(--surface);
+        border: 0.5px solid var(--border);
         border-radius: 10px;
         margin-bottom: 10px;
         overflow: hidden;
@@ -286,12 +399,12 @@
     }
 
         .lib-jogo-card:hover {
-            box-shadow: 0 2px 10px rgba(124,58,237,0.1);
+            box-shadow: 0 2px 10px rgba(212,165,32,0.22);
         }
 
     .lib-jogo-header {
-        background: linear-gradient(90deg, var(--purple-surface), var(--purple-surface));
-        color: var(--warn);
+        background: var(--lib-strip);
+        color: var(--lib-strip-ink);
         font-size: 10px;
         font-weight: 600;
         padding: 5px 10px;
@@ -325,14 +438,14 @@
             height: 32px;
             object-fit: contain;
             border-radius: 50%;
-            border: 0.5px solid #e5e7eb;
-            background: #f9f9f9;
+            border: 0.5px solid var(--border);
+            background: var(--surface-2);
         }
 
         .lib-jogo-team span {
             font-size: 11px;
             font-weight: 500;
-            color: #374151;
+            color: var(--text-2);
             text-align: center;
             white-space: nowrap;
             overflow: hidden;
@@ -351,8 +464,9 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: #7c3aed;
-        color: #fff;
+        background: var(--lib-strip);
+        color: var(--lib-strip-ink);
+        border: 1px solid var(--lib-gold-line);
         font-weight: 700;
         font-size: 13px;
         padding: 2px 10px;
@@ -362,7 +476,7 @@
 
     .lib-badge-agendado {
         font-size: 10px;
-        background: #f3f4f6;
+        background: var(--surface-3);
         color: var(--text-dim);
         padding: 2px 8px;
         border-radius: 6px;
@@ -375,7 +489,7 @@
         align-items: center;
         margin-top: 8px;
         padding-top: 6px;
-        border-top: 0.5px solid #f3f4f6;
+        border-top: 0.5px solid var(--line-soft);
         font-size: 10px;
         color: var(--text-muted);
     }
@@ -384,8 +498,8 @@
         font-size: 10px;
         padding: 3px 10px;
         border-radius: 6px;
-        border: 1px solid #7c3aed;
-        color: #7c3aed;
+        border: 1px solid var(--lib-gold-ink);
+        color: var(--lib-gold-ink);
         background: transparent;
         text-decoration: none;
         font-weight: 600;
@@ -393,14 +507,14 @@
     }
 
         .lib-analisar-btn:hover {
-            background: #7c3aed;
-            color: #fff;
+            background: var(--lib-gold-ink);
+            color: var(--surface);
             text-decoration: none;
         }
 
     .lib-grupo-tag {
-        background: rgba(255,255,255,0.15);
-        color: var(--warn);
+        background: rgba(212,165,32,0.18);
+        color: var(--lib-strip-ink);
         font-size: 9px;
         padding: 1px 6px;
         border-radius: 999px;
@@ -413,8 +527,8 @@
         padding: 3rem 1rem;
         color: var(--text-muted);
         font-size: 13px;
-        background: #fff;
-        border: 0.5px solid #e5e7eb;
+        background: var(--surface);
+        border: 0.5px solid var(--border);
         border-radius: 12px;
     }
 
@@ -423,23 +537,24 @@
         display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
         margin-bottom: 10px;
     }
-    .cdm-bracket-head h3 { font-size: 1.05rem; font-weight: 700; color: #111827; margin: 0; }
+    .cdm-bracket-head h3 { font-size: 1.05rem; font-weight: 700; color: var(--text); margin: 0; }
     .cdm-bracket-head small { color: var(--text-dim); font-size: 11px; }
 
     .cdm-tabs {
         display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px;
-        border-bottom: 1px solid #e5e7eb; margin-bottom: 14px; scrollbar-width: thin;
+        border-bottom: 1px solid var(--border); margin-bottom: 14px; scrollbar-width: thin;
     }
     .cdm-tab {
         flex: 0 0 auto;
-        background: #fff; border: 1px solid #e5e7eb; border-radius: 999px;
+        background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
         padding: 7px 16px; font-size: 12px; font-weight: 600; color: var(--text-dim);
         cursor: pointer; white-space: nowrap; transition: all .15s;
     }
-    .cdm-tab:hover { border-color: #7c3aed; color: #6b21a8; }
+    .cdm-tab:hover { border-color: var(--lib-gold-ink); color: var(--lib-gold-ink); }
     .cdm-tab.active {
-        background: linear-gradient(135deg, var(--purple-surface), var(--purple-surface));
-        color: #fff; border-color: transparent; box-shadow: 0 2px 8px rgba(124,58,237,.25);
+        background: var(--lib-strip);
+        color: var(--lib-strip-ink); border-color: var(--lib-gold-line);
+        box-shadow: 0 2px 8px rgba(212,165,32,.28);
     }
     .cdm-panel { display: none; }
     .cdm-panel.active { display: block; animation: cdmfade .2s ease; }
@@ -448,11 +563,11 @@
     /* ── Chaveamento em árvore (bracket) ─────────────────────── */
     .bkt-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11px; color: var(--text-dim); margin-bottom: 14px; }
     .bkt-leg-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; vertical-align: middle; }
-    .bkt-leg-box { width: 11px; height: 11px; border-radius: 3px; display: inline-block; margin-right: 5px; vertical-align: middle; border: 1px solid #e5e7eb; background: #fff; }
+    .bkt-leg-box { width: 11px; height: 11px; border-radius: 3px; display: inline-block; margin-right: 5px; vertical-align: middle; border: 1px solid var(--border); background: var(--surface); }
 
     .bkt-scroll { overflow-x: auto; padding-bottom: 12px; }
     .bkt-tree {
-        --bkt-gap: 34px; --bkt-line: #d1c4e9; --bkt-w: 200px;
+        --bkt-gap: 34px; --bkt-line: var(--lib-gold-line); --bkt-w: 200px;
         display: flex; align-items: stretch; gap: var(--bkt-gap);
         min-width: max-content; padding: 4px 2px;
     }
@@ -469,34 +584,34 @@
     .bkt-cell { flex: 1 1 0; display: flex; align-items: center; position: relative; min-height: 140px; }
 
     .bkt-match {
-        width: 100%; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+        width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
         overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.04); position: relative; z-index: 1;
     }
-    .bkt-match.done { border-color: #d8b4fe; }
+    .bkt-match.done { border-color: var(--lib-gold-line); }
     .bkt-match.vazio { opacity: .85; }
     .bkt-match-no {
         display: flex; justify-content: space-between; align-items: center;
-        background: linear-gradient(90deg,var(--purple-surface),var(--purple-surface)); color: #e9d5ff;
+        background: var(--lib-strip); color: var(--lib-strip-ink);
         font-size: 9px; font-weight: 700; padding: 3px 8px; letter-spacing: .3px;
     }
-    .bkt-team { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-bottom: 1px solid #f3f4f6; }
+    .bkt-team { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--line-soft); }
     .bkt-team:last-of-type { border-bottom: none; }
-    .bkt-team img { width: 20px; height: 20px; object-fit: contain; border-radius: 50%; border: .5px solid #e5e7eb; background: #f9f9f9; flex-shrink: 0; }
-    .bkt-flag-ph { width: 20px; height: 20px; border-radius: 50%; background: repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 4px,#e5e7eb 4px,#e5e7eb 8px); flex-shrink: 0; }
-    .bkt-tname { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bkt-team img { width: 20px; height: 20px; object-fit: contain; border-radius: 50%; border: .5px solid var(--border); background: var(--surface-2); flex-shrink: 0; }
+    .bkt-flag-ph { width: 20px; height: 20px; border-radius: 50%; background: repeating-linear-gradient(45deg,var(--surface-3),var(--surface-3) 4px,var(--border) 4px,var(--border) 8px); flex-shrink: 0; }
+    .bkt-tname { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .bkt-tname.placeholder { font-weight: 500; font-style: italic; color: var(--text-muted); }
-    .bkt-team.win .bkt-tname { color: #6b21a8; }
-    .bkt-team.win { background: rgba(124,58,237,.06); }
-    .bkt-score { font-size: 13px; font-weight: 800; color: #111827; min-width: 18px; text-align: center; flex-shrink: 0; }
-    .bkt-foot { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 4px 8px; border-top: 1px solid #f3f4f6; background: #fafafa; }
+    .bkt-team.win .bkt-tname { color: var(--lib-gold-ink); }
+    .bkt-team.win { background: var(--lib-gold-soft); }
+    .bkt-score { font-size: 13px; font-weight: 800; color: var(--text); min-width: 18px; text-align: center; flex-shrink: 0; }
+    .bkt-foot { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 4px 8px; border-top: 1px solid var(--line-soft); background: var(--surface-2); }
     .bkt-date { font-size: 9px; color: var(--text-muted); }
     .bkt-leglinks { display: flex; gap: 5px; }
     .bkt-analisar {
-        font-size: 9px; padding: 2px 8px; border-radius: 5px; border: 1px solid #7c3aed;
-        color: #7c3aed; background: transparent; text-decoration: none; font-weight: 700;
+        font-size: 9px; padding: 2px 8px; border-radius: 5px; border: 1px solid var(--lib-gold-ink);
+        color: var(--lib-gold-ink); background: transparent; text-decoration: none; font-weight: 700;
         transition: background .15s,color .15s; white-space: nowrap;
     }
-    .bkt-analisar:hover { background: #7c3aed; color: #fff; text-decoration: none; }
+    .bkt-analisar:hover { background: var(--lib-gold-ink); color: var(--surface); text-decoration: none; }
 
     /* Conectores — lado esquerdo (linhas saem à direita) */
     .bkt-left .bkt-col:not(.bkt-sf) .bkt-cell::after {
@@ -528,14 +643,14 @@
 
     /* Centro: Final */
     .bkt-center { width: var(--bkt-w); display: flex; flex-direction: column; }
-    .bkt-center .bkt-col-label { color: #b45309; }
+    .bkt-center .bkt-col-label { color: var(--lib-gold-ink); }
     .bkt-final-wrap { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; }
     .bkt-center .bkt-cell { flex: 0 0 auto; min-height: 0; width: 100%; }
     .bkt-trophy { font-size: 30px; line-height: 1; filter: drop-shadow(0 2px 6px rgba(0,0,0,.2)); }
-    .bkt-final-cell .bkt-match { border-color: #fbbf24; box-shadow: 0 2px 10px rgba(251,191,36,.25); }
-    .bkt-final-cell .bkt-match-no { background: linear-gradient(90deg,#b45309,#f59e0b); color: #fff; }
-    .bkt-final-cell .bkt-team.win .bkt-tname { color: #b45309; }
-    .bkt-final-cell .bkt-team.win { background: rgba(245,158,11,.08); }
+    .bkt-final-cell .bkt-match { border-color: var(--lib-gold); box-shadow: 0 2px 14px rgba(212,165,32,.35); }
+    .bkt-final-cell .bkt-match-no { background: linear-gradient(90deg,#8a6a0a,#f0cf78 50%,#8a6a0a); color: #2a1e00; }
+    .bkt-final-cell .bkt-team.win .bkt-tname { color: var(--lib-gold-ink); }
+    .bkt-final-cell .bkt-team.win { background: rgba(212,165,32,.16); }
 
     @@media (max-width: 700px) {
         .bkt-tree { --bkt-w: 172px; --bkt-gap: 26px; }
@@ -544,11 +659,16 @@
 
 <!-- ── Banner ── -->
 <div class="lib-hero theme-dark-zone">
+    <span class="lib-hero-arc left"></span>
+    <span class="lib-hero-arc right"></span>
+    <span class="lib-hero-arc inner left"></span>
+    <span class="lib-hero-arc inner right"></span>
     <div class="lib-hero-content">
         <span class="lib-badge">Competição Continental</span>
         <div class="lib-title-wrap">
             <img src="~/images/background/libertadores.png" alt="Libertadores" class="lib-logo" />
-            <h2 class="lib-title">CONMEBOL Libertadores</h2>
+            <h2 class="lib-title">Libertadores</h2>
+            <p class="lib-tagline">A Glória Eterna</p>
         </div>
         <p class="lib-sub">Classificação por grupos e calendário de jogos</p>
         @{
@@ -676,9 +796,9 @@ else
         <div>
             <!-- Legenda -->
             <div class="lib-legenda">
-                <span><span class="lib-leg-dot" style="background:#7c3aed;"></span>Classificado para Oitavas</span>
-                <span><span class="lib-leg-dot" style="background:#f59e0b;"></span>Repescagem Sul-Americana</span>
-                <span><span class="lib-leg-dot" style="background:#d1d5db;"></span>Eliminado</span>
+                <span><span class="lib-leg-dot" style="background:linear-gradient(135deg,#f0cf78,#b8860b);"></span>Classificado para Oitavas</span>
+                <span><span class="lib-leg-dot" style="background:var(--lib-bronze);"></span>Repescagem Sul-Americana</span>
+                <span><span class="lib-leg-dot" style="background:var(--surface-3);border:1px solid var(--border);"></span>Eliminado</span>
             </div>
 
             <div class="lib-grupos">
@@ -843,7 +963,7 @@ else
         {
             <div class="cdm-panel @(!temGrupos ? "active" : "")" data-cdm-panel="chave">
                 <div class="bkt-legend">
-                    <span><span class="bkt-leg-dot" style="background:#7c3aed;"></span>Classificado para a próxima fase</span>
+                    <span><span class="bkt-leg-dot" style="background:linear-gradient(135deg,#f0cf78,#b8860b);"></span>Classificado para a próxima fase</span>
                     <span><span class="bkt-leg-box"></span>A definir</span>
                 </div>
 

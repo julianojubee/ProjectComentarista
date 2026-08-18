@@ -136,6 +136,8 @@ internal class Program
         builder.Services.AddHttpClient<ApiFootballDataService>();
         builder.Services.AddHttpClient<ApiFootballService>();
         builder.Services.AddHttpClient<FutnatvService>();
+        builder.Services.AddHttpClient<EspnEstatisticasService>();
+        builder.Services.AddScoped<EspnEscalacaoService>();
         builder.Services.AddHttpClient("MediaProxy", c =>
         {
             c.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");

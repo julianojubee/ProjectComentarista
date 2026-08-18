@@ -944,8 +944,8 @@
                     string resCor = vitoria ? "#22c55e" : empate ? "var(--text-dim)" : "#ef4444";
                     bool casaVenceu = jogo.PlacarCasa > jogo.PlacarVisitante;
                     bool visVenceu = jogo.PlacarVisitante > jogo.PlacarCasa;
-                    var logoComp = CompeticaoHelper.GetLogoCompeticao(jogo.CompeticaoId);
-                    var nomeComp = CompeticaoHelper.GetNomeCompeticao(jogo.CompeticaoId);
+                    var logoComp = CompeticaoHelper.GetLogoCompeticao(jogo.CompeticaoId, jogo.Competicao?.LogoUrl);
+                    var nomeComp = CompeticaoHelper.GetNomeCompeticao(jogo.CompeticaoId, jogo.Competicao?.Nome);
 
                     <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id" class="ctd-match-card" style="display:block;">
                         <div class="ctd-match-top">
@@ -995,8 +995,8 @@
 
                 @foreach (var jogo in Model.JogosFuturos)
                 {
-                    var logoComp = CompeticaoHelper.GetLogoCompeticao(jogo.CompeticaoId);
-                    var nomeComp = CompeticaoHelper.GetNomeCompeticao(jogo.CompeticaoId);
+                    var logoComp = CompeticaoHelper.GetLogoCompeticao(jogo.CompeticaoId, jogo.Competicao?.LogoUrl);
+                    var nomeComp = CompeticaoHelper.GetNomeCompeticao(jogo.CompeticaoId, jogo.Competicao?.Nome);
 
                     <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id" class="ctd-match-card" style="display:block;">
                         <div class="ctd-match-top">

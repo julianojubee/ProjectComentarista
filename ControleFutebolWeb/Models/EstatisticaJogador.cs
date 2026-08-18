@@ -7,6 +7,14 @@ namespace ControleFutebolWeb.Models
     {
         public int Id { get; set; }
 
+        // De onde a linha veio. Importa porque as fontes não cobrem os mesmos campos:
+        // a api-football manda a linha completa, a ESPN não publica passes, desarmes,
+        // duelos, dribles nem pênaltis por jogador. Sem essa marca um zero de "não
+        // desarmou" ficaria igual a um zero de "a fonte não informa", e a nota
+        // automática puniria zagueiro e volante por um dado que nunca existiu.
+        // Ver FonteEstatistica, que diz o que cada fonte cobre.
+        public string Fonte { get; set; } = FonteEstatistica.ApiFootball;
+
         public int JogoId { get; set; }
         public Jogo Jogo { get; set; } = null!;
 

@@ -13,6 +13,12 @@
     int totalJogos    = Model.TotalJogos;
     int realizados    = Model.JogosRealizados;
 
+    // Escudo do hero: o cadastrado na competição (api-sports passa pelo MediaProxy);
+    // sem cadastro, cai no logo padrão do helper.
+    var logoCompeticao = !string.IsNullOrWhiteSpace(Model.LogoCompeticao)
+        ? Url.FotoSrc(Model.LogoCompeticao)
+        : ControleFutebolWeb.Helpers.CompeticaoHelper.GetLogoCompeticao(6);
+
     string DataJogo(Jogo j, string fmt) => ControleFutebolWeb.Helpers.DateHelper.FormatarData(j.Data, fmt);
 
     // Vencedor do confronto considerando pênaltis (agregado empatado → decisão na volta;
@@ -50,25 +56,36 @@
     .ucl-root { margin: 0 -12px; background: var(--p-0); border-radius: 14px; overflow: hidden; color: var(--text); font-family: 'Barlow', Arial, sans-serif; }
     .ucl-root a { text-decoration: none; color: inherit; }
 
-    /* ── Hero ── */
-    .ucl-hero { position: relative; overflow: hidden; background: linear-gradient(135deg, #1a1200 0%, #2a1e00 55%, #1a1200 100%); padding: 38px 2.5rem 32px; }
-    .ucl-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #d4a520; }
-    .ucl-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(to top, var(--page-bg), transparent); pointer-events: none; }
-    .ucl-hero-inner { position: relative; z-index: 1; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
-    .ucl-hero-icon { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,.08); border: 2px solid #d4a52048; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+    /* ── Hero (identidade visual UEFA Champions League) ──
+       Azul-noite → índigo com brilho magenta/violeta no centro-direita e o
+       grafismo de estrelas em linha, como a arte oficial da competição. */
+    .ucl-hero {
+        position: relative; overflow: hidden; padding: 44px 2.5rem 38px;
+        background:
+            radial-gradient(120% 150% at 62% 115%, rgba(226, 63, 213, .38) 0%, rgba(226, 63, 213, 0) 55%),
+            radial-gradient(90% 130% at 18% 110%, rgba(45, 106, 255, .40) 0%, rgba(45, 106, 255, 0) 60%),
+            linear-gradient(120deg, #0a0f45 0%, #131a6b 45%, #1b1152 72%, #0b0a2e 100%);
+    }
+    .ucl-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(180deg, #4f7cff 0%, #a44cff 50%, #e23fd5 100%); }
+    /* Grafismo de estrelas em traço: fica atrás do conteúdo, sangrando pela direita. */
+    .ucl-hero-art { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+    .ucl-hero-art svg { position: absolute; left: -4%; top: 50%; transform: translateY(-50%); width: 78%; height: 240%; min-width: 620px; opacity: .55; }
+    .ucl-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(to top, var(--page-bg), transparent); pointer-events: none; z-index: 1; }
+    .ucl-hero-inner { position: relative; z-index: 2; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+    .ucl-hero-icon { width: 68px; height: 68px; border-radius: 50%; background: rgba(255,255,255,.10); border: 2px solid rgba(255,255,255,.35); box-shadow: 0 0 22px rgba(120,110,255,.45); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
     .ucl-hero-icon img { width: 78%; height: 78%; object-fit: contain; }
     .ucl-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-    .ucl-kicker-line { height: 2px; width: 24px; background: #d4a520; }
-    .ucl-kicker span { font-size: .65rem; font-weight: 700; letter-spacing: .24em; color: var(--gold-ink); text-transform: uppercase; }
-    .ucl-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3rem; font-weight: 800; color: var(--text-strong); margin: 0 0 6px; line-height: 1; }
-    .ucl-hero-sub { color: var(--text-muted); font-size: .85rem; margin: 0; }
+    .ucl-kicker-line { height: 2px; width: 24px; background: linear-gradient(90deg, #4f7cff, #e23fd5); }
+    .ucl-kicker span { font-size: .65rem; font-weight: 700; letter-spacing: .24em; color: #c9d4ff; text-transform: uppercase; }
+    .ucl-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3rem; font-weight: 800; color: #fff; margin: 0 0 6px; line-height: 1; letter-spacing: .02em; text-shadow: 0 2px 26px rgba(90,80,255,.55); }
+    .ucl-hero-sub { color: rgba(220,228,255,.78); font-size: .85rem; margin: 0; }
     .ucl-hero-right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; margin-left: auto; }
     .ucl-hero-temporada { display: flex; align-items: center; gap: 6px; }
-    .ucl-hero-temporada label { color: var(--text-muted); font-size: .75rem; font-weight: 600; }
-    .ucl-hero-temporada select { appearance: none; padding: 5px 10px; border-radius: 7px; border: 1px solid var(--line-strong); background: var(--p-2); color: var(--text-muted); font-size: .8rem; font-weight: 600; cursor: pointer; }
+    .ucl-hero-temporada label { color: rgba(220,228,255,.78); font-size: .75rem; font-weight: 600; }
+    .ucl-hero-temporada select { appearance: none; padding: 5px 10px; border-radius: 7px; border: 1px solid rgba(255,255,255,.25); background: rgba(10,15,60,.55); color: #e6ecff; font-size: .8rem; font-weight: 600; cursor: pointer; }
     .ucl-hero-stats { display: flex; gap: 8px; flex-wrap: wrap; }
-    .ucl-hero-stat { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 8px; padding: 4px 12px; font-size: .62rem; color: var(--text-muted); text-align: center; }
-    .ucl-hero-stat strong { display: block; color: var(--text-strong); font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.05rem; font-weight: 800; line-height: 1.1; }
+    .ucl-hero-stat { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.20); border-radius: 8px; padding: 4px 12px; font-size: .62rem; color: rgba(220,228,255,.80); text-align: center; backdrop-filter: blur(2px); }
+    .ucl-hero-stat strong { display: block; color: #fff; font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.05rem; font-weight: 800; line-height: 1.1; }
 
     /* ── Conteúdo ── */
     .ucl-content { padding: 24px 2.5rem 64px; max-width: 1500px; margin: 0 auto; }
@@ -208,10 +225,45 @@
     <!-- ── Hero ── -->
     <div class="ucl-hero theme-dark-zone">
         <div class="ucl-hero-stripe"></div>
+        <div class="ucl-hero-art" aria-hidden="true">
+            <svg viewBox="0 0 700 400" preserveAspectRatio="xMinYMid slice" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <polygon id="ucl-star"
+                             points="0,-100 22.45,-30.9 95.11,-30.9 36.33,11.81 58.78,80.9 0,38.2 -58.78,80.9 -36.33,11.81 -95.11,-30.9 -22.45,-30.9" />
+                    <linearGradient id="ucl-line-a" x1="0" y1="1" x2="1" y2="0">
+                        <stop offset="0%" stop-color="#2d6aff" stop-opacity=".95" />
+                        <stop offset="60%" stop-color="#7b5bff" stop-opacity=".55" />
+                        <stop offset="100%" stop-color="#e23fd5" stop-opacity=".15" />
+                    </linearGradient>
+                    <linearGradient id="ucl-line-b" x1="0" y1="1" x2="1" y2="0">
+                        <stop offset="0%" stop-color="#e23fd5" stop-opacity=".85" />
+                        <stop offset="70%" stop-color="#8b5cff" stop-opacity=".35" />
+                        <stop offset="100%" stop-color="#2d6aff" stop-opacity=".10" />
+                    </linearGradient>
+                </defs>
+
+                <g fill="none" stroke-linejoin="round">
+                    <!-- Estrelas em traço, giradas e sobrepostas -->
+                    <use href="#ucl-star" transform="translate(150 250) rotate(-14) scale(2.35)"
+                         stroke="url(#ucl-line-a)" stroke-width="1.2" />
+                    <use href="#ucl-star" transform="translate(300 205) rotate(22) scale(1.85)"
+                         stroke="url(#ucl-line-b)" stroke-width="1.1" />
+                    <use href="#ucl-star" transform="translate(470 265) rotate(-8) scale(2.9)"
+                         stroke="url(#ucl-line-a)" stroke-width="1" />
+                    <use href="#ucl-star" transform="translate(60 120) rotate(38) scale(1.15)"
+                         stroke="#5b7dff" stroke-opacity=".5" stroke-width="1" />
+
+                    <!-- Arcos amplos do grafismo oficial -->
+                    <path d="M-40 400 C 120 250, 260 120, 520 60" stroke="url(#ucl-line-a)" stroke-width="1.1" />
+                    <path d="M20 400 C 200 270, 330 150, 610 90" stroke="url(#ucl-line-b)" stroke-width="1" />
+                    <path d="M120 400 C 300 300, 430 190, 690 150" stroke="#7b5bff" stroke-opacity=".35" stroke-width="1" />
+                </g>
+            </svg>
+        </div>
         <div class="ucl-hero-fade"></div>
         <div class="ucl-hero-inner">
             <div class="ucl-hero-icon">
-                <img src="~/images/background/championsleague.png" alt="Champions League"
+                <img src="@logoCompeticao" alt="@Model.NomeCompeticao"
                      onerror="this.parentElement.style.display='none'" />
             </div>
             <div>
@@ -219,7 +271,7 @@
                     <div class="ucl-kicker-line"></div>
                     <span>Competição Europeia · Liga + Mata-Mata</span>
                 </div>
-                <h1>Champions League</h1>
+                <h1>@Model.NomeCompeticao</h1>
                 <p class="ucl-hero-sub">Fase de Liga · Fase Eliminatória</p>
             </div>
             <div class="ucl-hero-right">

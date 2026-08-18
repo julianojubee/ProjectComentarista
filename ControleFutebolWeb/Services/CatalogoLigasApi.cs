@@ -17,11 +17,21 @@ namespace ControleFutebolWeb.Services
     {
         private readonly IWebHostEnvironment _env;
         private readonly IMemoryCache _cache;
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly ILogger<CatalogoLigasApi> _logger;
 
-        public CatalogoLigasApi(IWebHostEnvironment env, IMemoryCache cache)
+        public CatalogoLigasApi(
+            IWebHostEnvironment env,
+            IMemoryCache cache,
+            IServiceScopeFactory scopeFactory,
+            ILogger<CatalogoLigasApi> logger)
         {
             _env = env;
             _cache = cache;
+            // Este serviço é singleton e o ApiFootballService vem de AddHttpClient:
+            // resolver por escopo evita prender um HttpClient para sempre.
+            _scopeFactory = scopeFactory;
+            _logger = logger;
         }
 
         /// <summary>
@@ -50,9 +60,51 @@ namespace ControleFutebolWeb.Services
             return ligas;
         }
 
-        /// <summary>Liga do catálogo com esse id, ou null se o código não existe.</summary>
-        public async Task<CompeticaoApiLiga?> BuscarLigaAsync(int leagueId, int? temporada = null)
-            => (await CarregarAsync(temporada)).FirstOrDefault(l => l.Id == leagueId);
+        /// <summary>
+        /// Liga com esse id, ou null se o código não existe nem no dump nem na API.
+        ///
+        /// O dump é um recorte (hoje ~512 ligas, contra 733 que a API lista na temporada),
+        /// então um código ausente dele não significa código inválido — ex.: 308 (Division 1
+        /// da Arábia Saudita) existe na API e era recusado no cadastro. Só quando o dump não
+        /// tem é que consulta /leagues?id=X, e o resultado fica em cache por 7 dias.
+        /// </summary>
+        public async Task<CompeticaoApiLiga?> BuscarLigaAsync(
+            int leagueId, int? temporada = null, CancellationToken ct = default)
+        {
+            var doDump = (await CarregarAsync(temporada)).FirstOrDefault(l => l.Id == leagueId);
+            if (doDump != null) return doDump;
+
+            return await BuscarNaApiAsync(leagueId, ct);
+        }
+
+        // Falha de rede/quota não pode virar exceção na tela de cadastro: sem resposta,
+        // o código continua sendo tratado como inexistente (mesmo comportamento de antes).
+        private async Task<CompeticaoApiLiga?> BuscarNaApiAsync(int leagueId, CancellationToken ct)
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var api = scope.ServiceProvider.GetRequiredService<ApiFootballService>();
+
+                var entrada = await api.BuscarLigaApiAsync(leagueId, ct);
+                if (entrada == null || entrada.League.Id == 0) return null;
+
+                return new CompeticaoApiLiga
+                {
+                    Id = entrada.League.Id,
+                    Nome = entrada.League.Name,
+                    Tipo = entrada.League.Type,
+                    Logo = entrada.League.Logo,
+                    Pais = entrada.Country.Name,
+                    Bandeira = entrada.Country.Flag ?? "",
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[CatalogoLigas] Falha ao consultar a liga {Id} na api-football.", leagueId);
+                return null;
+            }
+        }
 
         private string? ResolverCaminho(int? temporada)
         {

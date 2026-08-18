@@ -30,6 +30,24 @@
 }
 
 <style>
+    /* Identidade do Brasileirão: azul-marinho facetado da arte oficial com o
+       verde-limão do escudo. O limão só funciona como preenchimento (com texto
+       escuro em cima); como TEXTO ele precisa virar azul no tema claro — daí os
+       dois valores de --br-ink. */
+    :root {
+        --br-navy: #0f2a6e;
+        --br-lime: #c6f000;
+        --br-ink: #1d4ed8; /* acento como texto no tema claro */
+        --br-soft: rgba(29,78,216,0.08);
+        --br-line: #bfd0f7;
+    }
+
+    [data-theme="dark"] {
+        --br-ink: #c6f000;
+        --br-soft: rgba(198,240,0,0.10);
+        --br-line: #2b3f6b;
+    }
+
     .br-root, .br-root *, .br-root *::before, .br-root *::after { box-sizing: border-box; }
 
     .br-root {
@@ -45,38 +63,53 @@
     /* ── Hero ── */
     .br-hero {
         position: relative; overflow: hidden;
-        background: linear-gradient(135deg, #0a1200 0%, #152000 55%, #0a1200 100%);
-        padding: 38px 2.5rem 32px;
+        background: linear-gradient(120deg, #16357f 0%, #10276a 45%, #0a1a4d 100%);
+        padding: 40px 2.5rem 34px;
     }
-    .br-hero-pattern { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.06; pointer-events: none; }
-    .br-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #22c55e; }
-    .br-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(to top, var(--page-bg), transparent); pointer-events: none; }
+    /* facetas diagonais da arte: feixes de luz cruzando o azul */
+    .br-hero-facets { position: absolute; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+    .br-hero-facets::before {
+        content: ""; position: absolute; inset: -40% -20%;
+        background: repeating-linear-gradient(64deg, rgba(255,255,255,.055) 0 2px, transparent 2px 26px), repeating-linear-gradient(112deg, rgba(255,255,255,.04) 0 1px, transparent 1px 38px);
+    }
+    .br-hero-facets::after {
+        content: ""; position: absolute; inset: -30% -10%;
+        background: linear-gradient(72deg, transparent 18%, rgba(255,255,255,.07) 26%, transparent 34%), linear-gradient(72deg, transparent 52%, rgba(198,240,0,.10) 60%, transparent 68%), radial-gradient(ellipse 45% 70% at 88% 10%, rgba(255,255,255,.10), transparent 70%);
+    }
+    .br-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--br-lime); z-index: 1; }
+    .br-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 46px; background: linear-gradient(to top, var(--page-bg), transparent); pointer-events: none; z-index: 2; }
     .br-hero-inner { position: relative; z-index: 1; display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
-    .br-hero-flag { width: 64px; height: 64px; border-radius: 50%; background: rgba(34,197,94,0.12); border: 2px solid rgba(34,197,94,0.3); display: flex; align-items: center; justify-content: center; font-size: 2rem; flex-shrink: 0; }
-    .br-hero-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-    .br-hero-kicker-line { height: 2px; width: 24px; background: #22c55e; }
-    .br-hero-kicker span { font-size: .65rem; font-weight: 700; letter-spacing: .24em; color: var(--ok-2); text-transform: uppercase; }
-    .br-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3rem; font-weight: 800; color: var(--text-strong); margin: 0 0 6px; line-height: 1; }
-    .br-hero p { font-size: .88rem; color: var(--text-dim); margin: 0; }
-    .br-hero-temporada select {
-        margin-top: 6px; padding: 4px 10px; border-radius: 7px; border: 1px solid var(--line-strong); background: var(--p-2); color: var(--text); font-size: .8rem; font-weight: 600;
+    .br-hero-crest {
+        width: 74px; height: 74px; border-radius: 16px; background: #fff; padding: 5px;
+        border: 1px solid rgba(198,240,0,.55); box-shadow: 0 4px 18px rgba(0,0,0,.35);
+        display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
+    .br-hero-crest img { width: 100%; height: 100%; object-fit: contain; }
+    .br-hero-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .br-hero-kicker-line { height: 2px; width: 24px; background: var(--br-lime); }
+    .br-hero-kicker span { font-size: .65rem; font-weight: 700; letter-spacing: .24em; color: var(--br-lime); text-transform: uppercase; }
+    .br-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3.1rem; font-weight: 800; color: #fff; margin: 0 0 6px; line-height: 1; text-transform: uppercase; letter-spacing: .02em; }
+    .br-hero p { font-size: .88rem; color: rgba(255,255,255,.72); margin: 0; }
+    .br-hero-temporada select {
+        margin-top: 6px; padding: 4px 10px; border-radius: 7px; border: 1px solid rgba(255,255,255,.4); background: rgba(255,255,255,.14); color: #fff; font-size: .8rem; font-weight: 600;
+    }
+    .br-hero-temporada select option { color: #111827; background: #fff; }
 
     .br-rodnav { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
     .br-rodnav-btn {
-        width: 34px; height: 34px; border-radius: 50%; background: var(--p-2); border: 1px solid var(--line-strong);
-        color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center;
+        width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.28);
+        color: rgba(255,255,255,.85); cursor: pointer; display: flex; align-items: center; justify-content: center;
     }
-    .br-rodnav-btn:hover { border-color: #22c55e; color: var(--ok-2); }
+    .br-rodnav-btn:hover { border-color: var(--br-lime); color: var(--br-lime); }
     .br-rodnav-num { text-align: center; min-width: 80px; }
-    .br-rodnav-num .val { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--text-strong); line-height: 1; }
-    .br-rodnav-num .lbl { font-size: .62rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .1em; margin-top: 2px; }
+    .br-rodnav-num .val { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.6rem; font-weight: 800; color: #fff; line-height: 1; }
+    .br-rodnav-num .lbl { font-size: .62rem; color: rgba(255,255,255,.6); text-transform: uppercase; letter-spacing: .1em; margin-top: 2px; }
 
-    .br-stats { display: flex; gap: 20px; flex-shrink: 0; padding: 14px 20px; background: rgba(0,0,0,0.3); border: 1px solid rgba(34,197,94,0.15); border-radius: 10px; }
+    .br-stats { display: flex; gap: 20px; flex-shrink: 0; padding: 14px 20px; background: rgba(4,14,44,.45); border: 1px solid rgba(198,240,0,.28); border-radius: 10px; }
     .br-stat { text-align: center; }
-    .br-stat .val { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--ok); line-height: 1; }
-    .br-stat .lbl { font-size: .58rem; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: .08em; margin-top: 2px; }
-    .br-stat-sep { width: 1px; background: rgba(34,197,94,0.15); align-self: stretch; }
+    .br-stat .val { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--br-lime); line-height: 1; }
+    .br-stat .lbl { font-size: .58rem; color: rgba(255,255,255,.55); text-transform: uppercase; letter-spacing: .08em; margin-top: 2px; }
+    .br-stat-sep { width: 1px; background: rgba(198,240,0,.22); align-self: stretch; }
 
     /* ── Layout principal ── */
     .br-layout { padding: 24px 2.5rem 64px; max-width: 1500px; margin: 0 auto; display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: start; }
@@ -92,13 +125,13 @@
         display: grid; grid-template-columns: 36px 36px 1fr 36px 36px 36px 36px 36px 44px 60px 80px; gap: 4px;
         padding: 10px 14px; background: var(--p-0); border-bottom: 1px solid var(--line-soft); align-items: center;
     }
-    .br-cols span { font-size: .58rem; color: #374151; font-weight: 700; text-transform: uppercase; text-align: center; }
+    .br-cols span { font-size: .58rem; color: var(--text-dim); font-weight: 700; text-transform: uppercase; text-align: center; }
     .br-cols span.left { text-align: left; }
 
     .br-row { display: grid; grid-template-columns: 4px 36px 28px 1fr 36px 36px 36px 36px 36px 44px 60px 80px; gap: 4px; padding: 10px 14px; padding-left: 0; border-bottom: 1px solid var(--line-soft); align-items: center; transition: background .12s; }
     .br-row:last-child { border-bottom: none; }
     .br-row:hover { background: var(--p-2); }
-    .br-row.lider { background: rgba(212,165,32,0.04); }
+    .br-row.lider { background: var(--br-soft); }
 
     .br-zonebar { width: 4px; height: 100%; align-self: stretch; flex-shrink: 0; }
     .br-pos { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1rem; font-weight: 700; text-align: center; }
@@ -132,24 +165,24 @@
     .br-side-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .88rem; font-weight: 700; color: var(--text-strong); text-transform: uppercase; letter-spacing: .04em; }
     .br-side-badge { margin-left: auto; font-size: .65rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
     .br-side-badge.blue { color: var(--info); background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); }
-    .br-side-badge.green { color: var(--ok); background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25); }
+    .br-side-badge.green { color: var(--br-ink); background: var(--br-soft); border: 1px solid var(--br-line); }
 
     .br-artilheiro { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--line-soft); transition: background .12s; }
     .br-artilheiro:last-child { border-bottom: none; }
     .br-artilheiro:hover { background: var(--p-3); }
     .br-art-rank { font-size: .72rem; font-weight: 700; width: 14px; text-align: center; flex-shrink: 0; }
-    .br-art-avatar { width: 30px; height: 30px; border-radius: 50%; background: #1e293b; border: 1px solid #2a3a52; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
+    .br-art-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--p-3); border: 1px solid var(--line-strong); display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
     .br-art-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .br-art-nome { font-size: .82rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .br-art-clube { display: flex; align-items: center; gap: 4px; margin-top: 1px; }
     .br-art-clube img { width: 12px; height: 12px; object-fit: contain; }
     .br-art-clube span { font-size: .64rem; color: var(--text-dimmer); }
-    .br-art-gols { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.1rem; font-weight: 800; color: var(--ok); flex-shrink: 0; }
+    .br-art-gols { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.1rem; font-weight: 800; color: var(--br-ink); flex-shrink: 0; }
 
     .br-jogo { padding: 10px 14px; border-bottom: 1px solid var(--line-soft); transition: background .12s; }
     .br-jogo:last-child { border-bottom: none; }
     .br-jogo:hover { background: var(--p-3); }
-    .br-jogo-hora { font-size: .62rem; color: var(--gold-ink); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 6px; }
+    .br-jogo-hora { font-size: .62rem; color: var(--br-ink); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 6px; }
     .br-jogo-teams { display: flex; align-items: center; gap: 8px; }
     .br-jogo-lado { flex: 1; display: flex; align-items: center; gap: 6px; min-width: 0; }
     .br-jogo-lado.casa { justify-content: flex-end; }
@@ -167,7 +200,8 @@
         font-size: 16px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
         padding: .8rem 1.3rem; border-bottom: 3px solid transparent; color: var(--text-dim);
     }
-    .br-tab.active { color: var(--ok-2); border-bottom-color: #22c55e; }
+    .br-tab:hover { color: var(--br-ink); }
+    .br-tab.active { color: var(--br-ink); border-bottom-color: var(--br-ink); }
     .br-tabpane { display: none; }
     .br-tabpane.active { display: block; }
 
@@ -185,11 +219,14 @@
 <div class="br-root">
     <!-- ── Hero ── -->
     <div class="br-hero theme-dark-zone">
-        <img src="~/Images/banner/escudos-pattern.svg" class="br-hero-pattern" alt="" />
+        <div class="br-hero-facets"></div>
         <div class="br-hero-stripe"></div>
         <div class="br-hero-fade"></div>
         <div class="br-hero-inner">
-            <div class="br-hero-flag">🇧🇷</div>
+            <div class="br-hero-crest">
+                <img src="~/images/background/campeonatobrasileiro.png" alt="Brasileirão"
+                     onerror="this.parentElement.style.display='none'" />
+            </div>
             <div style="flex:1; min-width:180px;">
                 <div class="br-hero-kicker">
                     <div class="br-hero-kicker-line"></div>
@@ -260,7 +297,7 @@
                     <span>GP</span>
                     <span>SG</span>
                     <span>%</span>
-                    <span style="color:var(--gold-ink)">Pts</span>
+                    <span style="color:var(--br-ink)">Pts</span>
                 </div>
 
                 @for (int i = 0; i < Model.Count; i++)
@@ -268,15 +305,15 @@
                     var t = Model[i];
                     var pos = i + 1;
                     bool lider = pos == 1;
-                    var zoneColor = pos <= 6 ? "#3b82f6" : pos <= 12 ? "#f97316" : pos >= 17 ? "#ef4444" : "#374151";
+                    var zoneColor = pos <= 6 ? "#3b82f6" : pos <= 12 ? "#f97316" : pos >= 17 ? "#ef4444" : "var(--line-strong)";
                     var totalJogados = t.Vitorias + t.Empates + t.Derrotas;
                     var aprov = totalJogados > 0 ? (int)Math.Round(t.Pontos / (double)(totalJogados * 3) * 100) : 0;
-                    var aprovColor = aprov >= 60 ? "#22c55e" : aprov >= 40 ? "#f59e0b" : "#ef4444";
+                    var aprovColor = aprov >= 60 ? "#84cc16" : aprov >= 40 ? "#f59e0b" : "#ef4444";
                     var sgColor = t.SaldoGols > 0 ? "var(--ok)" : t.SaldoGols < 0 ? "var(--bad)" : "var(--text-dim)";
 
                     <div class="br-row @(lider ? "lider" : "")">
                         <div class="br-zonebar" style="background:@zoneColor;"></div>
-                        <span class="br-pos" style="color:@(pos <= 3 ? "var(--gold-ink)" : "var(--text-dim)");">@pos</span>
+                        <span class="br-pos" style="color:@(pos <= 3 ? "var(--br-ink)" : "var(--text-dim)");">@pos</span>
                         <div class="br-escudo">
                             @if (!string.IsNullOrEmpty(t.Time?.EscudoUrl))
                             {
@@ -308,7 +345,7 @@
                             <div class="br-aprov-bar"><div style="width:@(aprov)%; background:@aprovColor;"></div></div>
                         </div>
                         <div class="br-pts">
-                            <span style="color:@(lider ? "var(--gold-ink)" : "var(--text-strong)"); background:@(lider ? "rgba(212,165,32,0.12)" : "transparent");">@t.Pontos</span>
+                            <span style="color:@(lider ? "var(--br-ink)" : "var(--text-strong)"); background:@(lider ? "var(--br-soft)" : "transparent");">@t.Pontos</span>
                         </div>
                     </div>
                 }
@@ -330,7 +367,7 @@
                     <span style="font-size:1rem;">⚽</span>
                     <span class="br-side-title">Artilheiros</span>
                 </div>
-                @{ var rankColors = new[] { "var(--warn)", "var(--text-muted)", "#b45309", "#374151", "#374151" }; }
+                @{ var rankColors = new[] { "var(--br-ink)", "var(--text-muted)", "#b45309", "var(--text-dimmer)", "var(--text-dimmer)" }; }
                 @if (!artilheiros.Any())
                 {
                     <div class="br-vazio">Nenhum gol registrado ainda.</div>

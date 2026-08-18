@@ -881,7 +881,17 @@
 
             @if (!Model.Classificacao.Any())
             {
-                <div class="cf-empty">Nenhum dado disponível ainda.</div>
+                @if (Model.CompeticoesHomeSelecionadas == 0)
+                {
+                    <div class="cf-empty">
+                        Nenhuma competição marcada para a home.
+                        <a href="@Url.Action("Index", "Competicoes")">Marque com 🏠 Home</a> as competições que devem somar aqui.
+                    </div>
+                }
+                else
+                {
+                    <div class="cf-empty">Nenhum dado disponível ainda.</div>
+                }
             }
             else
             {

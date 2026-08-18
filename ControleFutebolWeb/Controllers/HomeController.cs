@@ -4,6 +4,7 @@ using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,10 +13,12 @@ namespace ControleFutebolWeb.Controllers
     public class HomeController : Controller
     {
         private readonly FutebolContext _context;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public HomeController(FutebolContext context)
+        public HomeController(FutebolContext context, UserManager<ApplicationUser> userManager)
         {
             _context = context;
+            _userManager = userManager;
         }
 
         [HttpGet]
@@ -63,6 +66,15 @@ namespace ControleFutebolWeb.Controllers
 
         public async Task<IActionResult> Index()
         {
+            var uid = _userManager.GetUserId(User);
+
+            // Competições que o usuário marcou para compor a tabela da home.
+            var competicoesHome = await _context.CompeticoesHomeUsuario
+                .AsNoTracking()
+                .Where(t => t.UsuarioId == uid)
+                .Select(t => t.CompeticaoId)
+                .ToListAsync();
+
             // Últimos 6 jogos finalizados (com placar)
             var jogosRecentes = await _context.Jogos
                 .AsNoTracking()
@@ -74,12 +86,31 @@ namespace ControleFutebolWeb.Controllers
                 .Take(6)
                 .ToListAsync();
 
-            // Classificação calculada diretamente via SQL (sem carregar todos os jogos na memória)
-            var jogosFinalizados = await _context.Jogos
-                .AsNoTracking()
-                .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue)
-                .Select(j => new { j.TimeCasaId, j.TimeVisitanteId, j.PlacarCasa, j.PlacarVisitante })
-                .ToListAsync();
+            // Classificação: só as competições marcadas como "Home" na tela de competições
+            // e, dentro de cada uma, só a temporada mais recente — senão o Brasileirão 2025
+            // somaria pontos na mesma linha do 2026.
+            var jogosFinalizados = new List<JogoResumo>();
+            if (competicoesHome.Count > 0)
+            {
+                var temporadaAtual = await _context.Jogos
+                    .AsNoTracking()
+                    .Where(j => competicoesHome.Contains(j.CompeticaoId))
+                    .GroupBy(j => j.CompeticaoId)
+                    .Select(g => new { CompeticaoId = g.Key, Temporada = g.Max(j => j.Temporada) })
+                    .ToListAsync();
+
+                foreach (var ct in temporadaAtual)
+                {
+                    var jogosCompeticao = await _context.Jogos
+                        .AsNoTracking()
+                        .Where(j => j.CompeticaoId == ct.CompeticaoId
+                                 && j.Temporada == ct.Temporada
+                                 && j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue)
+                        .Select(j => new JogoResumo(j.TimeCasaId, j.TimeVisitanteId, j.PlacarCasa, j.PlacarVisitante))
+                        .ToListAsync();
+                    jogosFinalizados.AddRange(jogosCompeticao);
+                }
+            }
 
             // Agrega numa única passada O(jogos) — antes era O(times × jogos), pois
             // refiltrava a lista inteira de jogos para cada time.
@@ -135,11 +166,15 @@ namespace ControleFutebolWeb.Controllers
                 TotalTimes = await _context.Times.CountAsync(),
                 TotalJogadores = await _context.Jogadores.CountAsync(),
                 TotalJogos = await _context.Jogos.CountAsync(),
-                TotalCompeticoes = await _context.Competicoes.CountAsync()
+                TotalCompeticoes = await _context.Competicoes.CountAsync(),
+                CompeticoesHomeSelecionadas = competicoesHome.Count
             };
 
             return View(vm);
         }
+
+        // Projeção mínima usada só para agregar a classificação da home.
+        private sealed record JogoResumo(int TimeCasaId, int TimeVisitanteId, int? PlacarCasa, int? PlacarVisitante);
 
         [AllowAnonymous]
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

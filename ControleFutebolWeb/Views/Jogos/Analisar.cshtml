@@ -456,6 +456,23 @@
         </form>
     }
 
+    @* Devolve o jogo à lista de Serviços › Jogos sem estatísticas, que só mostra jogo
+       sem estatística nenhuma — sem isso, uma importação ruim (ou um bloco vazio da
+       api-football) tira o jogo de lá e não há mais como reimportar da ESPN. *@
+    <form asp-action="LimparEstatisticas" asp-controller="Jogos" asp-route-id="@Model.Jogo.Id"
+          method="post" style="margin:0;"
+          onsubmit="return confirm('Limpar as estatísticas importadas deste jogo?\n\nApaga as estatísticas de time e as de cada jogador, e o jogo volta a aparecer em Serviços › Jogos sem estatísticas, para você reimportar da ESPN.\n\nSuas notas, observações, escalação, gols e cartões NÃO são alterados.')">
+        @Html.AntiForgeryToken()
+        <button type="submit"
+                style="display:flex; align-items:center; gap:6px; padding:8px 14px;
+                       border-radius:8px; border:1px solid rgba(239,68,68,0.35); background:rgba(239,68,68,0.07);
+                       color:var(--bad); font-size:13px; font-weight:500; cursor:pointer;
+                       white-space:nowrap;"
+                title="Apaga só as estatísticas importadas, para poder reimportar da ESPN (não mexe em notas, observações nem escalação)">
+            🧹 Limpar estatísticas
+        </button>
+    </form>
+
     @* Plano B do "Reimportar" quando a API ainda não tem a escalação do jogo:
        monta os dois times pela última escalação de cada um (ou pela escalação
        padrão do time / formação vazia) — tudo editável em campo. *@

@@ -40,7 +40,7 @@ namespace ControleFutebolWeb.Controllers
         /// Confere o link "apifoot:LEAGUE_ID:SEASON" contra o catálogo da api-football e,
         /// quando o código existe, grava IdApi e adota o escudo publicado pela API (evita
         /// subir um logo por competição). Devolve false com erro no ModelState quando o
-        /// link está malformado ou o código não existe no catálogo.
+        /// link está malformado ou o código não existe nem no dump local nem na API.
         ///
         /// Mesma regra usada em massa por <see cref="SincronizarEscudos"/>.
         ///
@@ -73,7 +73,7 @@ namespace ControleFutebolWeb.Controllers
             if (liga == null)
             {
                 ModelState.AddModelError(nameof(Competicao.LinkTransfermarket),
-                    $"O código {leagueId} não existe no catálogo da api-football. " +
+                    $"A api-football não reconhece o código {leagueId}. " +
                     "Confira em Competições da API.");
                 return false;
             }
@@ -142,6 +142,12 @@ namespace ControleFutebolWeb.Controllers
                 .Select(t => t.CompeticaoId)
                 .ToHashSetAsync();
 
+            // Competições que alimentam a tabela de classificação da home.
+            var homeIds = await _context.CompeticoesHomeUsuario
+                .Where(t => t.UsuarioId == uid)
+                .Select(t => t.CompeticaoId)
+                .ToHashSetAsync();
+
             var competicoes = await _context.Competicoes
                 .OrderBy(c => c.Nome)
                 .ToListAsync();
@@ -162,6 +168,7 @@ namespace ControleFutebolWeb.Controllers
 
             // Injetar TopTier calculado por usuário via ViewBag
             ViewBag.TopTierIds = topTierIds;
+            ViewBag.HomeIds = homeIds;
             ViewBag.JogosPorCompeticao = jogosPorCompeticao;
             ViewBag.TimesPorCompeticao = timesDict;
             return View(competicoes);
@@ -182,6 +189,24 @@ namespace ControleFutebolWeb.Controllers
 
             await _context.SaveChangesAsync();
             _cache.Remove($"layout-menu:{uid}"); // menu do layout muda → invalida o cache
+            return RedirectToAction(nameof(Index));
+        }
+
+        // Marca/desmarca a competição como participante da tabela de classificação da home.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ToggleHome(int id)
+        {
+            var uid = _userManager.GetUserId(User)!;
+            var registro = await _context.CompeticoesHomeUsuario
+                .FirstOrDefaultAsync(t => t.CompeticaoId == id && t.UsuarioId == uid);
+
+            if (registro == null)
+                _context.CompeticoesHomeUsuario.Add(new CompeticaoHomeUsuario { CompeticaoId = id, UsuarioId = uid });
+            else
+                _context.CompeticoesHomeUsuario.Remove(registro);
+
+            await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
 

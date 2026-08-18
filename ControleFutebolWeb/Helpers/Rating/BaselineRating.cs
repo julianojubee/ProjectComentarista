@@ -151,6 +151,11 @@ namespace ControleFutebolWeb.Helpers.Rating
         /// </summary>
         public static double? ValorNormalizado(MetricaRating metrica, EstatisticaJogador e, int minutos)
         {
+            // Campo que a fonte não publica vale ausência, não zero. Como este é o
+            // ponto por onde passam tanto o cálculo da nota quanto a calibração do
+            // baseline, filtrar aqui mantém os dois consistentes: a linha da ESPN não
+            // entra no cálculo do desarme dela nem baixa a média de desarmes do grupo.
+            if (!FonteEstatistica.Cobre(e.Fonte, metrica.Id)) return null;
             if (metrica.Valor(e) is not double bruto) return null;
             if (!metrica.PorNoventa) return bruto;
             return minutos > 0 ? bruto * 90.0 / minutos : null;

@@ -41,6 +41,7 @@ namespace ControleFutebolWeb.Data
         public DbSet<ObservacaoJogoTag> ObservacoesJogoTag { get; set; }
         public DbSet<ObservacaoJogoTagMencao> ObservacoesJogoTagMencoes { get; set; }
         public DbSet<CompeticaoTopTierUsuario> CompeticoesTopTierUsuario { get; set; }
+        public DbSet<CompeticaoHomeUsuario> CompeticoesHomeUsuario { get; set; }
         public DbSet<SimulacaoJogoUsuario> SimulacoesJogoUsuario { get; set; }
         public DbSet<Jogada> Jogadas { get; set; }
         public DbSet<CronometroPartida> CronometrosPartida { get; set; }
@@ -281,6 +282,13 @@ namespace ControleFutebolWeb.Data
             // Data é filtrada por intervalo em "Jogos de Hoje" e usada em ORDER BY
             // em várias listagens — sem índice vira seq scan com a tabela grande.
             modelBuilder.Entity<Jogo>().HasIndex(j => j.Data);
+            // LinkDetalhes guarda o fixture da api-football ("apifoot:1387859"), que
+            // identifica a partida sozinho. O índice é ÚNICO porque o anti-duplicata da
+            // sincronização (ApiFootballService.IncluirOuAtualizarJogo) consulta o banco:
+            // duas sincronizações rodando ao mesmo tempo não enxergam a linha uma da outra
+            // e gravavam o mesmo jogo duas vezes — foi assim que a Ligue 1 2025/26 ficou
+            // com 32 partidas repetidas, o PSG com 40 jogos na tabela e o título sumiu.
+            modelBuilder.Entity<Jogo>().HasIndex(j => j.LinkDetalhes).IsUnique();
             modelBuilder.Entity<Jogador>().HasIndex(j => j.Posicao);
             modelBuilder.Entity<Nota>().HasIndex(n => new { n.UsuarioId, n.JogoId, n.JogadorId });
             modelBuilder.Entity<Escalacao>().HasIndex(e => new { e.JogoId, e.UsuarioId });

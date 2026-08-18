@@ -167,6 +167,7 @@ namespace ControleFutebolWeb.Controllers
             var jogos = await _context.Jogos
                 .Include(j => j.TimeCasa)
                 .Include(j => j.TimeVisitante)
+                .Include(j => j.Competicao)
                 .Where(j => j.TimeCasaId == id || j.TimeVisitanteId == id)
                 .ToListAsync();
 

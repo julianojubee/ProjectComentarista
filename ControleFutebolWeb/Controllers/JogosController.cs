@@ -1600,6 +1600,42 @@ namespace ControleFutebolWeb.Controllers
             return RedirectToAction("Analisar", new { id, faseEscalacao = fase });
         }
 
+        // POST: Jogos/LimparEstatisticas/15874
+        // Apaga as estatísticas importadas do jogo (as de time e as de cada jogador),
+        // devolvendo o jogo à lista de /Servicos/JogosSemEstatisticas.
+        //
+        // Serve para refazer uma importação ruim: aquela lista só mostra jogo SEM
+        // estatística nenhuma, então bastava a api-football gravar um bloco vazio para
+        // o jogo sumir de lá e não haver mais como reimportar da ESPN.
+        //
+        // Não encosta em nota, observação, escalação, gol, cartão ou substituição —
+        // só no que veio de importação e é reimportável.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> LimparEstatisticas(int id)
+        {
+            var jogo = await _context.Jogos.FirstOrDefaultAsync(j => j.Id == id);
+            if (jogo == null) return NotFound();
+
+            var estatisticas = await _context.EstatisticasJogador
+                .Where(e => e.JogoId == id)
+                .ToListAsync();
+
+            _context.EstatisticasJogador.RemoveRange(estatisticas);
+            jogo.EstatisticasJson = null;
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "[LimparEstatisticas] Jogo {JogoId}: {Linhas} linha(s) de jogador e as estatísticas de time removidas.",
+                id, estatisticas.Count);
+
+            TempData["Sucesso"] = estatisticas.Count > 0
+                ? $"Estatísticas do jogo removidas ({estatisticas.Count} linha(s) de jogador). O jogo volta à lista de Serviços › Jogos sem estatísticas."
+                : "O jogo já não tinha estatísticas de jogador; as de time foram removidas.";
+
+            return RedirectToAction(nameof(Analisar), new { id });
+        }
+
         // POST: Jogos/CriarJogadorNoTime — cadastra na hora um jogador que a API ainda
         // não trouxe (garoto da base, reforço recém-anunciado, elenco não importado),
         // direto no elenco do time, para poder ser escalado sem sair da análise.

@@ -994,6 +994,19 @@ namespace ControleFutebolWeb.Services
             return resp?.Response ?? new();
         }
 
+        // Ficha de uma liga pelo id da api-football (/leagues?id=X). Serve para validar
+        // um código que não está no dump estático de wwwroot/data — o dump é um recorte
+        // e fica desatualizado, mas a API sabe de todas as ligas. Cacheado por 7 dias:
+        // nome e escudo de liga não mudam, e assim revalidar não gasta requisição.
+        public async Task<AfLeaguesEntry?> BuscarLigaApiAsync(int leagueId, CancellationToken ct = default)
+        {
+            if (leagueId <= 0) return null;
+            var url = $"leagues?id={leagueId}";
+            var json = await GetStringCachedAsync(url, TimeSpan.FromDays(7), ct);
+            var resp = JsonSerializer.Deserialize<ApiFootballResponse<AfLeaguesEntry>>(json, _json);
+            return resp?.Response?.FirstOrDefault();
+        }
+
         // Ficha de um clube pelo id da api-football (/teams?id=X). É o único
         // endpoint que traz o estádio DO CLUBE (nó "venue"); o venue do fixture
         // é o local daquela partida. Cacheado por 7 dias: estádio quase não muda.
@@ -2407,6 +2420,7 @@ namespace ControleFutebolWeb.Services
                     {
                         JogoId            = jogo.Id,
                         JogadorId         = jogador.Id,
+                        Fonte             = FonteEstatistica.ApiFootball,
                         Minutos           = s.Games?.Minutes,
                         Rating            = rating > 0 ? rating : null,
                         Capitao           = s.Games?.Captain ?? false,

@@ -15,6 +15,8 @@ namespace ControleFutebolWeb.Tests.Helpers
         [InlineData("Bundesliga", "Campeonato Alemão")]
         [InlineData("SulAmericana", "Copa Sul-Americana")]
         [InlineData("Champions League", "Pré-Champions League")] // fase preliminar, mesma competição pra nós
+        [InlineData("La Liga", "Campeonato Espanhol")]
+        [InlineData("Campeonato Holandês", "Campeonato Neerlandês")]
         public void CompeticoesEquivalentes_Correspondem(string nomeBanco, string nomeFutnatv)
         {
             Assert.True(TimeNomeMatcher.SaoMesmaCompeticao(nomeBanco, nomeFutnatv));
@@ -25,6 +27,8 @@ namespace ControleFutebolWeb.Tests.Helpers
         [InlineData("Campeonato Brasileiro", "Brasileirão Feminino")]
         [InlineData("Bundesliga", "Campeonato Alemão (2ª div.)")]
         [InlineData("Premier League", "Copa da Liga Inglesa")]
+        [InlineData("La Liga", "Campeonato Espanhol (2ª div.)")]
+        [InlineData("Campeonato Holandês", "Campeonato Neerlandês (2ª div.)")]
         public void CompeticoesDiferentes_NaoCorrespondem(string nomeBanco, string nomeFutnatv)
         {
             Assert.False(TimeNomeMatcher.SaoMesmaCompeticao(nomeBanco, nomeFutnatv));
@@ -47,11 +51,25 @@ namespace ControleFutebolWeb.Tests.Helpers
         [InlineData("Universidad Católica", "U. Católica")]
         [InlineData("Deportivo A Coruña", "Dep. A Coruña")]
         [InlineData("Estudiantes L.P.", "Estudiantes")]
+        [InlineData("Gimnasia L.P.", "Gimnasia La Plata")]
+        [InlineData("Vitória BA W", "Vitória")]           // futnatv larga a sigla de estado
+        [InlineData("Internacional RS W", "Internacional")] // idem, e sem de-para: cai a sigla
+        [InlineData("America Mineiro W", "América-MG")]
+        [InlineData("Botafogo SP W", "Botafogo")]         // no feminino não há homônimo pra confundir
+        [InlineData("AZ", "AZ Alkmaar")]
+        [InlineData("Kasımpaşa", "Kasimpasa")]           // "ı" turco não decompõe em i + acento
+        [InlineData("Al Ittihad", "Al-Ittihad")]         // hífen só de um lado
+        [InlineData("Al Kholood", "Al-Kholood")]
+        [InlineData("Gençlerbirliği S.K.", "Genclerbirligi")] // sigla com ponto no fim do nome
         [InlineData("São Bernardo", "São Bernardo FC")]   // sigla de agremiação só de um lado
         [InlineData("Çorum FK", "Corum")]
         [InlineData("Cruzeiro EC", "Cruzeiro")]
         [InlineData("Nautico Recife", "Náutico")]         // Série B: futnatv tira a cidade
         [InlineData("Sport Recife", "Sport")]
+        [InlineData("FK Crvena Zvezda", "Red Star Belgrade")] // ESPN usa o nome em inglês
+        [InlineData("Hapoel Beer Sheva", "Hapoel Be'er")]     // ESPN corta o nome no meio
+        [InlineData("Celje", "NK Celje")]                     // sigla de agremiação no começo
+        [InlineData("FC Porto", "Porto")]
         public void TimesEquivalentes_Correspondem(string nomeBanco, string nomeFutnatv)
         {
             Assert.True(TimeNomeMatcher.SaoMesmoTime(nomeBanco, nomeFutnatv));
@@ -67,6 +85,11 @@ namespace ControleFutebolWeb.Tests.Helpers
         [InlineData("Botafogo SP", "Botafogo")]               // apelido do RJ não pode puxar o SP
         [InlineData("Atlético-GO", "Atlético")]               // sigla de estado não é de agremiação
         [InlineData("Sport Recife", "Sport Huancayo")]
+        [InlineData("Vitória BA", "Vitória SC")]              // o Vitória de Guimarães fica de fora
+        [InlineData("Gimnasia L.P.", "Gimnasia Mendoza")]     // outros Gimnasia não entram no grupo
+        [InlineData("Botafogo SP W", "Botafogo RJ F")]        // dois lados com sigla: clubes diferentes
+        [InlineData("Internacional RS", "Internacional SP")]  // fora do feminino a sigla não cai
+        [InlineData("AC Milan", "Inter Milan")]               // tirar o prefixo não iguala o resto
         public void TimesDiferentes_NaoCorrespondem(string nomeBanco, string nomeFutnatv)
         {
             Assert.False(TimeNomeMatcher.SaoMesmoTime(nomeBanco, nomeFutnatv));

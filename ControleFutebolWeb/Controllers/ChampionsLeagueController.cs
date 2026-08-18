@@ -23,10 +23,19 @@ namespace ControleFutebolWeb.Controllers
         {
             var (temporadasDisponiveis, temporadaSel) =
                 TemporadaHelper.Resolver(_context, COMPETICAO_ID, temporada);
+            // Escudo/nome vêm do cadastro da competição — o logo fixo em wwwroot fica
+            // só como fallback quando a competição não tem LogoUrl.
+            var competicao = _context.Competicoes.AsNoTracking()
+                .Where(c => c.Id == COMPETICAO_ID)
+                .Select(c => new { c.Nome, c.LogoUrl })
+                .FirstOrDefault();
+
             var vm = new ChampionsLeagueIndexViewModel
             {
                 Temporada = temporadaSel,
-                TemporadasDisponiveis = temporadasDisponiveis
+                TemporadasDisponiveis = temporadasDisponiveis,
+                NomeCompeticao = string.IsNullOrWhiteSpace(competicao?.Nome) ? "Champions League" : competicao!.Nome,
+                LogoCompeticao = competicao?.LogoUrl
             };
 
             var todosJogos = _context.Jogos

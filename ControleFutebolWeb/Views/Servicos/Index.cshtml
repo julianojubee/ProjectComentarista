@@ -107,6 +107,19 @@
 
     <div class="srv-card">
         <div class="srv-header">
+            <span class="srv-nome">📉 Jogos sem estatísticas</span>
+        </div>
+        <div class="srv-desc">
+            Lista as partidas encerradas que ficaram sem estatística nenhuma porque a api-football
+            devolveu o jogo só com placar e eventos, e permite preencher o buraco pela API pública
+            da ESPN — de um jogo por vez ou em lote.
+        </div>
+        <a asp-action="JogosSemEstatisticas" class="btn-srv btn-reiniciar"
+           style="display:inline-block; text-decoration:none;">📉 Ver jogos sem estatísticas</a>
+    </div>
+
+    <div class="srv-card">
+        <div class="srv-header">
             <span class="srv-nome">🌍 Normalizar nacionalidades</span>
         </div>
         <div class="srv-desc">

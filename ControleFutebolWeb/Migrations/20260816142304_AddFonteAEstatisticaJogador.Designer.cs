@@ -3,6 +3,7 @@ using System;
 using ControleFutebolWeb.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ControleFutebolWeb.Migrations
 {
     [DbContext(typeof(FutebolContext))]
-    partial class FutebolContextModelSnapshot : ModelSnapshot
+    [Migration("20260816142304_AddFonteAEstatisticaJogador")]
+    partial class AddFonteAEstatisticaJogador
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -724,33 +727,6 @@ namespace ControleFutebolWeb.Migrations
                     b.HasIndex("CompeticaoId");
 
                     b.ToTable("competicaofases");
-                });
-
-            modelBuilder.Entity("ControleFutebolWeb.Models.CompeticaoHomeUsuario", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CompeticaoId")
-                        .HasColumnType("integer")
-                        .HasColumnName("competicaoid");
-
-                    b.Property<string>("UsuarioId")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("usuarioid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CompeticaoId");
-
-                    b.HasIndex("UsuarioId");
-
-                    b.ToTable("competicoeshomeusuario");
                 });
 
             modelBuilder.Entity("ControleFutebolWeb.Models.CompeticaoTopTierUsuario", b =>
@@ -2865,25 +2841,6 @@ namespace ControleFutebolWeb.Migrations
                         .IsRequired();
 
                     b.Navigation("Competicao");
-                });
-
-            modelBuilder.Entity("ControleFutebolWeb.Models.CompeticaoHomeUsuario", b =>
-                {
-                    b.HasOne("ControleFutebolWeb.Models.Competicao", "Competicao")
-                        .WithMany()
-                        .HasForeignKey("CompeticaoId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("ControleFutebolWeb.Models.ApplicationUser", "Usuario")
-                        .WithMany()
-                        .HasForeignKey("UsuarioId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Competicao");
-
-                    b.Navigation("Usuario");
                 });
 
             modelBuilder.Entity("ControleFutebolWeb.Models.CompeticaoTopTierUsuario", b =>

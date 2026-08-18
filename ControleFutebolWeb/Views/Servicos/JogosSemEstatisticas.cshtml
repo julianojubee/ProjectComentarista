@@ -1,0 +1,202 @@
+@model ControleFutebolWeb.Models.ViewModels.JogosSemEstatisticasViewModel
+
+@{
+    ViewData["Title"] = "Jogos sem estatísticas";
+}
+
+<style>
+    .jse-wrap { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1rem; }
+    .jse-card {
+        background: var(--p-alt-2);
+        border-radius: 12px;
+        padding: 1.2rem 1.4rem;
+        margin-bottom: 1.2rem;
+        border: 1px solid rgba(255,255,255,.07);
+    }
+    .jse-desc { font-size: .84rem; color: var(--text-muted); line-height: 1.55; }
+    .jse-filtros { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+    .jse-filtros label { display: block; font-size: 10px; text-transform: uppercase;
+        letter-spacing: .4px; color: var(--text-dim); margin-bottom: 3px; }
+    .jse-filtros select {
+        background: rgba(255,255,255,.05); color: var(--text-2);
+        border: 1px solid rgba(255,255,255,.12); border-radius: 7px;
+        padding: 5px 10px; font-size: .85rem; min-width: 190px;
+    }
+    .jse-tabela { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    .jse-tabela th {
+        text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .4px;
+        color: var(--text-dim); padding: .5rem .6rem; border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .jse-tabela td { padding: .5rem .6rem; border-bottom: 1px solid rgba(255,255,255,.04); color: var(--text-2); }
+    .jse-tabela tr:hover td { background: rgba(255,255,255,.03); }
+    .tag { padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: .3px; }
+    .tag-sim  { background: rgba(34,197,94,.14); color: var(--ok); }
+    .tag-nao  { background: rgba(148,163,184,.12); color: var(--text-muted); }
+    .tag-espn { background: rgba(59,130,246,.15); color: var(--info); }
+    .btn-srv { border: none; border-radius: 7px; font-size: 12px; font-weight: 600;
+        padding: 5px 14px; cursor: pointer; transition: opacity .15s; }
+    .btn-srv:hover { opacity: .8; }
+    .btn-srv:disabled { opacity: .35; cursor: not-allowed; }
+    .btn-reiniciar { background: rgba(59,130,246,.15); color: var(--info); border: 1px solid rgba(59,130,246,.25); }
+    .aviso { border-radius: 8px; padding: .7rem 1rem; margin-bottom: 1rem; font-size: .88rem; }
+    .aviso-ok  { background: rgba(34,197,94,.12); color: var(--ok); border: 1px solid rgba(34,197,94,.25); }
+    .aviso-err { background: rgba(239,68,68,.12); color: var(--bad); border: 1px solid rgba(239,68,68,.25); }
+</style>
+
+<div class="jse-wrap">
+
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.2rem; gap:12px; flex-wrap:wrap;">
+        <h2 style="margin:0; color:var(--text-strong); font-size:1.4rem; font-weight:700">
+            📉 Jogos sem estatísticas
+        </h2>
+        <a asp-action="Index" style="font-size:.82rem; color:var(--info); text-decoration:none;">← Serviços</a>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="aviso aviso-ok">✅ @TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="aviso aviso-err">⚠️ @TempData["Erro"]</div>
+    }
+
+    <div class="jse-card">
+        <div class="jse-desc">
+            Partidas já encerradas que ficaram sem estatística nenhuma — nem de time, nem de jogador.
+            O caso típico é a api-football devolver o jogo só com placar e eventos
+            (<code>players</code>, <code>statistics</code> e <code>lineups</code> vazios), o que acontece
+            bastante fora das ligas europeias principais.
+            <br /><br />
+            O botão <strong>Importar da ESPN</strong> preenche o buraco pela API JSON pública da ESPN
+            (a mesma que alimenta a página da partida em espn.com.br). São dados parciais em relação
+            à api-football: as estatísticas de <em>time</em> vêm quase completas (posse, finalizações,
+            passes, faltas, escanteios, defesas), mas as de <em>jogador</em> cobrem só gols, assistências,
+            finalizações, faltas, cartões, impedimentos e defesas — passes, desarmes, duelos, dribles
+            e pênaltis a ESPN não publica por jogador.
+            <br /><br />
+            Os minutos em campo são deduzidos das substituições que a api-football já gravou, então a
+            nota automática funciona nesses jogos. Cada linha fica marcada com a origem: o cálculo da
+            nota <strong>ignora</strong> os campos que a ESPN não informa em vez de tratá-los como zero,
+            para não punir zagueiro e volante por um desarme que a fonte nunca contou. Estatística vinda
+            da api-football nunca é sobrescrita.
+        </div>
+    </div>
+
+    <div class="jse-card">
+        <form method="get" class="jse-filtros">
+            <div>
+                <label>Competição</label>
+                <select name="competicaoId" onchange="this.form.submit()">
+                    <option value="">Todas (@Model.Competicoes.Sum(c => c.Quantidade))</option>
+                    @foreach (var c in Model.Competicoes)
+                    {
+                        <option value="@c.Id" selected="@(Model.CompeticaoId == c.Id)">
+                            @c.Nome (@c.Quantidade)@(c.TemEspn ? "" : " — sem ESPN")
+                        </option>
+                    }
+                </select>
+            </div>
+            <div>
+                <label>Temporada</label>
+                <select name="temporada" onchange="this.form.submit()">
+                    <option value="">Todas</option>
+                    @foreach (var t in Model.Temporadas)
+                    {
+                        <option value="@t" selected="@(Model.Temporada == t)">@t</option>
+                    }
+                </select>
+            </div>
+            <div style="flex:1"></div>
+            <div>
+                <span style="font-size:.82rem; color:var(--text-muted);">
+                    @Model.Total jogo(s) no filtro
+                </span>
+            </div>
+        </form>
+
+        <form method="post" asp-action="ImportarEstatisticasEspnLote" style="margin-top:1rem;"
+              onsubmit="return confirm('Buscar na ESPN as estatísticas dos próximos @Model.LimiteLote jogos do filtro atual?');">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="competicaoId" value="@Model.CompeticaoId" />
+            <input type="hidden" name="temporada" value="@Model.Temporada" />
+            <button type="submit" class="btn-srv btn-reiniciar" @(Model.Total == 0 ? "disabled" : "")>
+                🌐 Importar da ESPN (até @Model.LimiteLote jogos)
+            </button>
+            <span style="font-size:.78rem; color:var(--text-dim); margin-left:10px;">
+                Uma requisição por vez, com intervalo entre elas — clique de novo para continuar de onde parou.
+            </span>
+        </form>
+    </div>
+
+    <div class="jse-card">
+        @if (Model.Jogos.Count == 0)
+        {
+            <div class="jse-desc">Nenhum jogo sem estatísticas no filtro atual. 🎉</div>
+        }
+        else
+        {
+            <table class="jse-tabela">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Competição</th>
+                        <th>Partida</th>
+                        <th>ESPN</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var j in Model.Jogos)
+                    {
+                        <tr>
+                            <td style="white-space:nowrap">@(j.Data?.ToString("dd/MM/yyyy") ?? "—")</td>
+                            <td>@j.Competicao</td>
+                            <td>
+                                <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@j.Id"
+                                   style="color:var(--text-2); text-decoration:none;">
+                                    @j.TimeCasa <strong>@(j.PlacarCasa?.ToString() ?? "-")×@(j.PlacarVisitante?.ToString() ?? "-")</strong> @j.TimeVisitante
+                                </a>
+                            </td>
+                            <td>
+                                @if (j.SlugEspn != null)
+                                {
+                                    <span class="tag tag-espn">@j.SlugEspn</span>
+                                }
+                                else
+                                {
+                                    <span class="tag tag-nao">sem cobertura</span>
+                                }
+                            </td>
+                            <td style="text-align:right; white-space:nowrap">
+                                <form method="post" asp-action="ImportarEstatisticasEspn" style="display:inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="jogoId" value="@j.Id" />
+                                    <input type="hidden" name="competicaoId" value="@Model.CompeticaoId" />
+                                    <input type="hidden" name="temporada" value="@Model.Temporada" />
+                                    <button type="submit" class="btn-srv btn-reiniciar" @(j.SlugEspn == null ? "disabled" : "")>
+                                        🌐 Importar
+                                    </button>
+                                </form>
+                                @if (j.SlugEspn != null)
+                                {
+                                    <a asp-action="ConferirEscalacao" asp-route-jogoId="@j.Id"
+                                       class="btn-srv btn-reiniciar"
+                                       style="display:inline-block; text-decoration:none; margin-left:6px;">📋 Escalação</a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            @if (Model.Total > Model.Jogos.Count)
+            {
+                <div style="margin-top:.8rem; font-size:.8rem; color:var(--text-dim);">
+                    Mostrando os @Model.Jogos.Count mais recentes de @Model.Total. Filtre por competição
+                    ou temporada para ver o resto.
+                </div>
+            }
+        }
+    </div>
+</div>

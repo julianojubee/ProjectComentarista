@@ -6,6 +6,10 @@ namespace ControleFutebolWeb.Models.ViewModels
     public class ChampionsLeagueIndexViewModel
     {
         public int? Temporada { get; set; }
+        /// <summary>Nome da competição no banco (fallback: "Champions League").</summary>
+        public string NomeCompeticao { get; set; } = "Champions League";
+        /// <summary>Logo cadastrado na competição; nulo cai no logo padrão do helper.</summary>
+        public string? LogoCompeticao { get; set; }
         public List<int> TemporadasDisponiveis { get; set; } = new();
         public List<Classificacao> Ranking { get; set; } = new();
         public List<Jogo> ProximosJogos { get; set; } = new();

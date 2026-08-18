@@ -1091,4 +1091,27 @@ namespace ControleFutebolWeb.Services
         [JsonPropertyName("logo")]     public string? Logo     { get; set; }
         [JsonPropertyName("national")] public bool    National { get; set; }
     }
+
+    // ── /leagues?id=X — ficha de uma liga no catálogo da API ──────────────────
+    // Complementa o dump estático de wwwroot/data, que é um recorte e não tem
+    // todas as ligas (ex.: 308, Division 1 da Arábia Saudita).
+    public class AfLeaguesEntry
+    {
+        [JsonPropertyName("league")]  public AfLeagueCatalogo  League  { get; set; } = new();
+        [JsonPropertyName("country")] public AfCountryCatalogo Country { get; set; } = new();
+    }
+
+    public class AfLeagueCatalogo
+    {
+        [JsonPropertyName("id")]   public int    Id   { get; set; }
+        [JsonPropertyName("name")] public string Name { get; set; } = "";
+        [JsonPropertyName("type")] public string Type { get; set; } = "";
+        [JsonPropertyName("logo")] public string Logo { get; set; } = "";
+    }
+
+    public class AfCountryCatalogo
+    {
+        [JsonPropertyName("name")] public string  Name { get; set; } = "";
+        [JsonPropertyName("flag")] public string? Flag { get; set; }
+    }
 }
