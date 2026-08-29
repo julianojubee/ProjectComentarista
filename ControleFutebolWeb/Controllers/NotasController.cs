@@ -1,6 +1,7 @@
 ﻿using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
+using ControleFutebolWeb.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,11 +12,14 @@ namespace ControleFutebolWeb.Controllers
     {
         private readonly FutebolContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly CraqueDaPartidaService _craques;
 
-        public NotasController(FutebolContext context, UserManager<ApplicationUser> userManager)
+        public NotasController(FutebolContext context, UserManager<ApplicationUser> userManager,
+            CraqueDaPartidaService craques)
         {
             _context = context;
             _userManager = userManager;
+            _craques = craques;
         }
 
         [HttpPost]
@@ -66,7 +70,12 @@ namespace ControleFutebolWeb.Controllers
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { sucesso = true, notaId = nota.Id });
+            // A coroa do craque é a maior nota do jogo — esta avaliação pode tê-la
+            // movido de jogador (ou tirado de quem estava com ela).
+            var craque = (await _craques.RecalcularJogoAsync(request.JogoId, usuarioId!))
+                .FirstOrDefault();
+
+            return Ok(new { sucesso = true, notaId = nota.Id, craqueJogadorId = craque?.JogadorId });
         }
 
         // Estatísticas importadas da api-football para este jogador nesta partida —

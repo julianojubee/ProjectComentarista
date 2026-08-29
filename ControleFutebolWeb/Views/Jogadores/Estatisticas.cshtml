@@ -1,4 +1,4 @@
-@model ControleFutebolWeb.Models.ViewModels.JogadorEstatisticasViewModel
+﻿@model ControleFutebolWeb.Models.ViewModels.JogadorEstatisticasViewModel
 @using ControleFutebolWeb.Helpers
 @using ControleFutebolWeb.Models
 @{
@@ -162,6 +162,16 @@
         text-decoration: none;
     }
     .je-btn-observacoes:hover { color: var(--gold-ink); text-decoration: none; }
+
+    /* Roxo para separar do resto da barra: leva para um painel de outra natureza
+       (métricas avançadas, buscadas na hora), e a cor sinaliza isso antes do clique. */
+    .je-btn-avancadas {
+        display: flex; align-items: center; gap: 7px; padding: 8px 16px;
+        background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.3); border-radius: 8px;
+        color: #c084fc; font-size: .8rem; font-weight: 700; cursor: pointer;
+        text-decoration: none;
+    }
+    .je-btn-avancadas:hover { color: #c084fc; text-decoration: none; opacity: .85; }
     .je-btn-observacoes:hover { background: rgba(212,165,32,0.2); }
 
     .je-btn-transferencias {
@@ -343,6 +353,12 @@
         font-size: .9rem; font-weight: 800; padding: 2px 10px; border-radius: 999px;
         background: rgba(212,165,32,.12); color: var(--gold-ink); border: 1px solid rgba(212,165,32,.25); flex-shrink: 0;
     }
+    .je-rating-badge.je-rating-sistema {
+        background: rgba(59,130,246,.12); color: var(--info); border-color: rgba(59,130,246,.3);
+    }
+    .je-rating-grupo { display: flex; gap: .4rem; align-items: center; flex-shrink: 0; }
+    .je-rating-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .je-rating-fonte { font-size: .52rem; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; color: var(--text-dimmer); }
     .je-temporada-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
     .je-stat-box { padding: 14px 8px; text-align: center; border-right: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }
     .je-stat-val { font-size: 1.5rem; font-weight: 800; line-height: 1; color: var(--text-strong); }
@@ -372,6 +388,7 @@
     .je-tag { display: inline-flex; align-items: center; gap: 3px; font-size: .68rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; }
     .je-tag-gol { background: rgba(34,197,94,.12); color: var(--ok); border: 1px solid rgba(34,197,94,.25); }
     .je-tag-assist { background: rgba(251,146,60,.12); color: var(--warn); border: 1px solid rgba(251,146,60,.25); }
+    .je-tag-craque { background: rgba(245,158,11,.14); border: 1px solid rgba(245,158,11,.35); }
     .je-tag-auto { font-size: .62rem; font-weight: 600; color: var(--info); padding: 1px 8px; border-radius: 999px; background: rgba(56,189,248,.1); border: 1px solid rgba(56,189,248,.25); }
     .je-tag-sem { background: rgba(148,163,184,.12); color: var(--text-muted); font-size: .62rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; border: 1px solid rgba(148,163,184,.25); }
     .je-jogo-data { font-size: .68rem; color: var(--text-dimmer); }
@@ -516,6 +533,7 @@
         display: flex; flex-wrap: wrap; align-items: center; gap: .6rem;
     }
     .je-cmp-picker .je-select { max-width: 210px; }
+    .je-cmp-picker #cmpTemporada { max-width: 160px; }
     .je-cmp-ou { font-size: .68rem; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
     .je-cmp-busca-wrap { position: relative; flex: 1; min-width: 190px; }
     .je-cmp-busca {
@@ -728,6 +746,23 @@
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8" /><line x1="21" y1="3" x2="13" y2="11" /><polyline points="8 21 3 21 3 16" /><line x1="3" y1="21" x2="11" y2="13" /></svg>
                     Transferências
                 </button>
+                @* Único ponto da tela que leva a dados externos. A busca no FotMob só
+                   acontece depois do clique — esta página não chama ninguém. Sem
+                   vínculo o botão fica visível e inerte, com o motivo no title: some
+                   seria pior, porque ninguém descobriria que a função existe. *@
+                @{
+                    var temVinculoFotMob = Model.Jogador.IdFotMob != null;
+                }
+                <a href="@(temVinculoFotMob
+                            ? $"/Jogadores/EstatisticasAvancadas/{Model.Jogador.Id}"
+                            : $"/Jogadores/VincularEstatisticas/{Model.Jogador.Id}")"
+                   class="je-btn-avancadas"
+                   title="@(temVinculoFotMob
+                            ? "xG, xGOT e a posição do jogador entre os outros da competição."
+                            : "Este jogador ainda não está identificado na base avançada — clique para escolher.")">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>
+                    Estatísticas avançadas@(temVinculoFotMob ? "" : " · identificar")
+                </a>
             </div>
         </div>
     </div>
@@ -1053,6 +1088,10 @@
                                         </a>
                                     }
                                     <span class="je-jogo-adv">vs <a class="je-jogo-adv-link" href="/Times/Details/@adversarioId" onclick="event.stopPropagation()" title="Ver @adversario">@adversario</a><span class="je-jogo-placar">@placar @penaltis</span></span>
+                                    @if (item.Craque)
+                                    {
+                                        <span class="je-tag je-tag-craque" title="Craque da partida — maior nota do jogo">👑</span>
+                                    }
                                     @if (item.Gols > 0)
                                     {
                                         <span class="je-tag je-tag-gol">⚽ @item.Gols</span>
@@ -1218,6 +1257,14 @@
         </div>
         <div class="je-cmp-picker">
             <div class="je-select-wrap">
+                <select id="cmpTemporada" class="je-select">
+                    <option value="">Carregando temporadas...</option>
+                </select>
+                <div class="je-select-arrow">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg>
+                </div>
+            </div>
+            <div class="je-select-wrap">
                 <select id="cmpLiga" class="je-select">
                     <option value="">Carregando ligas...</option>
                 </select>
@@ -1248,7 +1295,7 @@
             </div>
         </div>
         <div class="je-modal-body" id="compararBody">
-            <div class="je-cmp-vazio">Filtre por liga → time → jogador, ou digite um nome, para montar a comparação com <strong>@Model.Jogador.NomeExibicao</strong>.</div>
+            <div class="je-cmp-vazio">Filtre por temporada → liga → time → jogador, ou digite um nome, para montar a comparação com <strong>@Model.Jogador.NomeExibicao</strong>.</div>
         </div>
     </div>
 </div>
@@ -1489,7 +1536,22 @@
             const logoLeague = s.league.logo ? `<img src="${proxyBase}${encodeURIComponent(s.league.logo)}" class="je-temporada-logo" />` : '';
             const flag = s.league.flag ? `<img src="${proxyBase}${encodeURIComponent(s.league.flag)}" style="width:16px;height:12px;object-fit:cover;border-radius:2px;" />` : '';
             const logoTeam = s.team.logo ? `<img src="${proxyBase}${encodeURIComponent(s.team.logo)}" style="width:20px;height:20px;object-fit:contain;" />` : '';
-            const rating = s.games.rating ? `<span class="je-rating-badge">${parseFloat(s.games.rating).toFixed(1)}</span>` : '';
+            // Duas notas lado a lado: a do provedor (api-football) e a calculada
+            // pelo sistema com os critérios do usuário — costumam divergir.
+            const ratings = [];
+            if (s.games.rating) {
+                ratings.push(`<div class="je-rating-item">
+                    <span class="je-rating-badge">${parseFloat(s.games.rating).toFixed(1)}</span>
+                    <span class="je-rating-fonte">provedor</span>
+                </div>`);
+            }
+            if (s.sistema) {
+                ratings.push(`<div class="je-rating-item">
+                    <span class="je-rating-badge je-rating-sistema" title="${s.sistema.jogos} jogo(s) avaliado(s) pelo sistema">${parseFloat(s.sistema.media).toFixed(1)}</span>
+                    <span class="je-rating-fonte">sistema</span>
+                </div>`);
+            }
+            const rating = ratings.length ? `<div class="je-rating-grupo">${ratings.join('')}</div>` : '';
 
             const duelPct = (s.duels.total > 0) ? Math.round(s.duels.won / s.duels.total * 100) + '%' : null;
             const dribPct = (s.dribbles.attempts > 0) ? Math.round(s.dribbles.success / s.dribbles.attempts * 100) + '%' : null;
@@ -1639,21 +1701,42 @@
     // ── Comparar com ──────────────────────────────────────────────────────────
     let cmpLigasCarregadas = false;
     let cmpBuscaTimer = null;
+    // Jogador escolhido no momento: guardado para remontar a comparação quando a
+    // temporada muda, sem obrigar o usuário a selecionar tudo de novo.
+    let cmpOutroId = null;
+
+    function cmpTemporada() {
+        return document.getElementById('cmpTemporada').value;
+    }
 
     function abrirComparar() {
         document.getElementById('compararModal').classList.add('open');
         document.body.style.overflow = 'hidden';
         if (!cmpLigasCarregadas) {
             cmpLigasCarregadas = true;
-            fetch('/Jogadores/CompararLigas')
+            fetch('/Jogadores/CompararTemporadas')
                 .then(r => r.json())
-                .then(ligas => {
-                    const sel = document.getElementById('cmpLiga');
-                    sel.innerHTML = '<option value="">Todas as ligas</option>' +
-                        ligas.map(l => `<option value="${l.id}">${l.nome}</option>`).join('');
-                    carregarTimesComparar('');
+                .then(temporadas => {
+                    const sel = document.getElementById('cmpTemporada');
+                    sel.innerHTML = '<option value="">Todas as temporadas</option>' +
+                        temporadas.map(t => `<option value="${t.valor}">${t.rotulo}</option>`).join('');
                 });
+            carregarLigasComparar('');
         }
+    }
+
+    function carregarLigasComparar(temporada) {
+        const sel = document.getElementById('cmpLiga');
+        sel.disabled = true;
+        sel.innerHTML = '<option value="">Carregando ligas...</option>';
+        fetch('/Jogadores/CompararLigas' + (temporada ? `?temporada=${temporada}` : ''))
+            .then(r => r.json())
+            .then(ligas => {
+                sel.innerHTML = '<option value="">Todas as ligas</option>' +
+                    ligas.map(l => `<option value="${l.id}">${l.nome}</option>`).join('');
+                sel.disabled = false;
+                carregarTimesComparar('');
+            });
     }
 
     function fecharComparar() {
@@ -1668,7 +1751,10 @@
         selTime.innerHTML = '<option value="">Carregando times...</option>';
         selJog.disabled = true;
         selJog.innerHTML = '<option value="">Jogador...</option>';
-        fetch('/Jogadores/CompararTimes' + (competicaoId ? `?competicaoId=${competicaoId}` : ''))
+        const params = new URLSearchParams();
+        if (competicaoId) params.set('competicaoId', competicaoId);
+        if (cmpTemporada()) params.set('temporada', cmpTemporada());
+        fetch('/Jogadores/CompararTimes' + (params.toString() ? `?${params}` : ''))
             .then(r => r.json())
             .then(times => {
                 selTime.innerHTML = '<option value="">Time...</option>' +
@@ -1679,6 +1765,13 @@
 
     document.getElementById('cmpLiga').addEventListener('change', function () {
         carregarTimesComparar(this.value);
+    });
+
+    // Trocar de temporada refaz a cascata (liga → time → jogador) e, se já havia
+    // uma comparação na tela, recarrega os números com o novo recorte.
+    document.getElementById('cmpTemporada').addEventListener('change', function () {
+        carregarLigasComparar(this.value);
+        if (cmpOutroId) carregarComparacao(cmpOutroId);
     });
 
     document.getElementById('cmpTime').addEventListener('change', function () {
@@ -1739,10 +1832,12 @@
     });
 
     function carregarComparacao(outroId) {
+        cmpOutroId = outroId;
         document.getElementById('cmpBuscaResultados').classList.remove('open');
         const body = document.getElementById('compararBody');
         body.innerHTML = '<div class="je-cmp-vazio">Montando comparação...</div>';
-        fetch(`/Jogadores/CompararDados?id=${jogadorId}&comId=${outroId}`)
+        const temporada = cmpTemporada();
+        fetch(`/Jogadores/CompararDados?id=${jogadorId}&comId=${outroId}` + (temporada ? `&temporada=${temporada}` : ''))
             .then(r => r.json())
             .then(data => {
                 if (data.error) { body.innerHTML = `<div class="je-cmp-vazio">${data.error}</div>`; return; }

@@ -44,7 +44,7 @@
     .br-est-resumo-item .det { font-size: .68rem; color: var(--text-dim); margin-top: 2px; }
     .br-est-mando { display: flex; height: 7px; border-radius: 4px; overflow: hidden; margin-top: 9px; background: var(--p-0); }
     .br-est-mando i { display: block; height: 100%; }
-    .br-est-mando-legenda { display: flex; gap: 10px; flex-wrap: wrap; font-size: .64rem; color: #8b93a1; margin-top: 7px; }
+    .br-est-mando-legenda { display: flex; gap: 10px; flex-wrap: wrap; font-size: .64rem; color: var(--text-muted); margin-top: 7px; }
     .br-est-mando-legenda span { display: inline-flex; align-items: center; gap: 4px; }
     .br-est-mando-legenda b { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
 
@@ -109,13 +109,13 @@
     .br-est-tabela-wrap { overflow-x: auto; }
     .br-est-tabela-min { min-width: 100%; }
     .br-est-thead { display: grid; grid-template-columns: 30px minmax(150px,1fr) repeat(var(--est-cols,11),72px); gap: 2px; padding: 10px 14px; background: var(--p-0); border-bottom: 1px solid var(--line-soft); align-items: center; }
-    .br-est-thead span { font-size: .58rem; color: #374151; font-weight: 700; }
+    .br-est-thead span { font-size: .58rem; color: var(--text-2); font-weight: 700; }
     .br-est-thead button {
         background: none; border: none; cursor: pointer; font-family: 'Barlow', Arial, sans-serif; font-size: .58rem; font-weight: 700;
-        text-transform: uppercase; letter-spacing: .06em; padding: 0; color: #374151; text-align: center; width: 100%;
+        text-transform: uppercase; letter-spacing: .06em; padding: 0; color: var(--text-2); text-align: center; width: 100%;
     }
     .br-est-thead button.left { text-align: left; }
-    .br-est-trow { display: grid; grid-template-columns: 30px minmax(150px,1fr) repeat(var(--est-cols,11),72px); gap: 2px; padding: 9px 14px; border-bottom: 1px solid #131313; align-items: center; }
+    .br-est-trow { display: grid; grid-template-columns: 30px minmax(150px,1fr) repeat(var(--est-cols,11),72px); gap: 2px; padding: 9px 14px; border-bottom: 1px solid var(--line-soft); align-items: center; }
     .br-est-trow span.pos { font-size: .72rem; color: var(--text-dimmer); font-weight: 700; }
     .br-est-trow .br-est-nome-com-escudo { min-width: 0; }
     .br-est-trow .br-est-nome-com-escudo .txt { font-size: .82rem; color: var(--text); }
@@ -167,7 +167,7 @@
     .br-est-gloss-cat { font-size: .6rem; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: .14em; font-weight: 700; margin: 18px 0 8px; }
     .br-est-gloss-item { padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
     .br-est-gloss-item dt { font-size: .84rem; font-weight: 700; color: var(--text); }
-    .br-est-gloss-item dd { margin: 3px 0 0; font-size: .76rem; color: #8b93a1; line-height: 1.5; }
+    .br-est-gloss-item dd { margin: 3px 0 0; font-size: .76rem; color: var(--text-muted); line-height: 1.5; }
     .br-est-gloss-nota { font-size: .72rem; color: var(--text-dim); line-height: 1.6; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
     /* fundo/borda explícitos: .br-side-card só tem estilo próprio na tela do
        Brasileirão — nas demais o card é transparente e, ampliado, deixaria o
@@ -654,7 +654,7 @@
         NUMERICAS.forEach((c) => {
             const ord = comDado(c.get).sort((a, b) => c.menorMelhor ? c.get(a) - c.get(b) : c.get(b) - c.get(a));
             mapa[c.key] = {};
-            ord.forEach((t, i) => { mapa[c.key][t.timeId] = i < 6 ? '#4ade80' : i >= ord.length - 6 ? '#f87171' : '#9ca3af'; });
+            ord.forEach((t, i) => { mapa[c.key][t.timeId] = i < 6 ? 'var(--ok-2)' : i >= ord.length - 6 ? 'var(--bad-2)' : 'var(--text-muted)'; });
         });
         return mapa;
     }
@@ -671,7 +671,7 @@
         if (wrap) wrap.style.minWidth = (30 + 150 + NUMERICAS.length * 74) + 'px';
 
         thead.innerHTML = '<span>#</span>' + COLS.map((c) => `
-            <button type="button" data-k="${c.key}" class="${c.align === 'left' ? 'left' : ''}" style="color:${state.ordem === c.key ? '#4ade80' : '#374151'}">
+            <button type="button" data-k="${c.key}" class="${c.align === 'left' ? 'left' : ''}" style="color:${state.ordem === c.key ? 'var(--ok-2)' : 'var(--text-2)'}">
                 ${c.label}${state.ordem === c.key ? (state.desc ? ' ↓' : ' ↑') : ''}
             </button>`).join('');
         thead.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
@@ -694,7 +694,7 @@
 
         function celula(c, t) {
             const v = c.get(t);
-            const cor = (cores[c.key] || {})[t.timeId] || '#9ca3af';
+            const cor = (cores[c.key] || {})[t.timeId] || 'var(--text-muted)';
             if (v === null || v === undefined) return `<span class="cel" style="color:var(--text-dimmer)">—</span>`;
             const texto = c.cel ? c.cel(t) : (c.fmt ? c.fmt(v) : v);
             return `<span class="cel" style="color:${cor}">${texto}</span>`;
@@ -723,12 +723,15 @@
     }
 
     // ── Chart.js ──────────────────────────────────────────────────────────
+    // Os gráficos herdam as cores do tema (tokens do site.css). Fixar cinza
+    // claro aqui deixava os rótulos ilegíveis no modo claro.
+    const corTema = (nome, alt) => getComputedStyle(document.documentElement).getPropertyValue(nome).trim() || alt;
+
     function defaultsChart() {
-        if (window.Chart.___brDefaults) return;
         const C = window.Chart;
         C.defaults.font.family = "'Barlow', Arial, sans-serif";
         C.defaults.font.size = 12;
-        C.defaults.color = '#9ca3af';
+        C.defaults.color = corTema('--text-muted', '#6b7280');
         C.defaults.plugins.legend.labels.boxWidth = 12;
         C.defaults.plugins.legend.labels.boxHeight = 12;
         C.defaults.plugins.tooltip.backgroundColor = '#0f0f0f';
@@ -739,9 +742,10 @@
         C.defaults.plugins.tooltip.padding = 10;
         C.defaults.plugins.tooltip.cornerRadius = 6;
         C.defaults.maintainAspectRatio = false;
-        C.___brDefaults = true;
     }
-    const eixo = (extra) => Object.assign({ grid: { color: '#222' }, border: { display: false }, ticks: { color: '#6b7280' } }, extra || {});
+    const eixo = (extra) => Object.assign(
+        { grid: { color: corTema('--line', '#222') }, border: { display: false }, ticks: { color: corTema('--text-muted', '#6b7280') } },
+        extra || {});
     function destroyChart(nome) { if (charts[nome]) { charts[nome].destroy(); delete charts[nome]; } }
 
     // Tooltip nativo do Chart.js é desenhado no canvas e não aceita <img> — por
@@ -798,7 +802,7 @@
             options: {
                 indexAxis: 'y',
                 plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => m.label + ': ' + c.raw + (m.un || '') + '  (' + (c.dataIndex + 1) + 'º de ' + n + ')' } } },
-                scales: { x: eixo({ beginAtZero: true }), y: eixo({ grid: { display: false }, ticks: { color: '#cbd5e1', font: { size: 11 } } }) }
+                scales: { x: eixo({ beginAtZero: true }), y: eixo({ grid: { display: false }, ticks: { color: corTema('--text-2', '#cbd5e1'), font: { size: 11 } } }) }
             }
         });
     }
@@ -835,8 +839,8 @@
             options: {
                 plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { title: (it) => lista[it[0].dataIndex].nome, label: (c) => c.dataset.label + ': ' + Math.abs(c.raw).toFixed(1) + '%' } } },
                 scales: {
-                    x: eixo({ grid: { display: false }, ticks: { color: '#9ca3af', font: { size: 9 }, autoSkip: false, maxRotation: 90, minRotation: 90 } }),
-                    y: eixo({ ticks: { callback: (v) => Math.abs(v) + '%', color: '#6b7280' } })
+                    x: eixo({ grid: { display: false }, ticks: { color: corTema('--text-muted', '#9ca3af'), font: { size: 9 }, autoSkip: false, maxRotation: 90, minRotation: 90 } }),
+                    y: eixo({ ticks: { callback: (v) => Math.abs(v) + '%', color: corTema('--text-muted', '#6b7280') } })
                 }
             }
         });
@@ -858,8 +862,8 @@
                 interaction: { mode: 'index', intersect: false },
                 plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { title: (it) => lista[it[0].dataIndex].nome } } },
                 scales: {
-                    x: eixo({ grid: { display: false }, ticks: { color: '#9ca3af', font: { size: 9 }, autoSkip: false, maxRotation: 90, minRotation: 90 } }),
-                    y: eixo({ title: { display: true, text: 'Gols − xG por jogo', color: '#6b7280' } }),
+                    x: eixo({ grid: { display: false }, ticks: { color: corTema('--text-muted', '#9ca3af'), font: { size: 9 }, autoSkip: false, maxRotation: 90, minRotation: 90 } }),
+                    y: eixo({ title: { display: true, text: 'Gols − xG por jogo', color: corTema('--text-muted', '#6b7280') } }),
                     y1: eixo({ position: 'right', grid: { display: false }, beginAtZero: true })
                 }
             }
@@ -877,7 +881,7 @@
             options: {
                 plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { title: (it) => lista[it[0].dataIndex].nome } } },
                 scales: {
-                    x: eixo({ stacked: true, grid: { display: false }, ticks: { color: '#9ca3af', font: { size: 9 }, autoSkip: false, maxRotation: 90, minRotation: 90 } }),
+                    x: eixo({ stacked: true, grid: { display: false }, ticks: { color: corTema('--text-muted', '#9ca3af'), font: { size: 9 }, autoSkip: false, maxRotation: 90, minRotation: 90 } }),
                     y: eixo({ stacked: true, beginAtZero: true })
                 }
             }
@@ -901,7 +905,7 @@
                 scales: {
                     x: eixo({ grid: { display: false } }),
                     y: eixo({ beginAtZero: true }),
-                    y1: eixo({ position: 'right', grid: { display: false }, beginAtZero: true, ticks: { callback: (v) => v + '%', color: '#6b7280' } })
+                    y1: eixo({ position: 'right', grid: { display: false }, beginAtZero: true, ticks: { callback: (v) => v + '%', color: corTema('--text-muted', '#6b7280') } })
                 }
             }
         });
@@ -1179,5 +1183,8 @@
     }
 
     window.addEventListener('resize', redimensionarGraficos);
+    // Os tokens de cor só são lidos na montagem do gráfico; sem isto, trocar de
+    // tema deixaria os rótulos com a cor do tema anterior até recarregar.
+    window.addEventListener('site-theme-change', () => { if (construido) redesenharTudo(); });
 })();
 </script>

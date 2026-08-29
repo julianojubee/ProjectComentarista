@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using ControleFutebolWeb.Data;
@@ -130,7 +130,18 @@ namespace ControleFutebolWeb.Services
             FutebolContext context, int jogoId, CancellationToken ct = default)
         {
             var (jogo, doc, evento, erro) = await AbrirResumoAsync(context, jogoId, exigeIdApi: true, ct);
-            if (erro != null) return erro;
+
+            // Toda tentativa vai para a tela de logs, inclusive (e principalmente) a que
+            // não achou o jogo — ver LogFonteExterna.
+            async Task<ResultadoEspn> RegistrarAsync(ResultadoEspn r)
+            {
+                await LogFonteExterna.RegistrarAsync(
+                    context, LogFonteExterna.TipoEspn, "Importar estatísticas", r.Ok, jogo,
+                    r.EventoEspn is long id ? $"{r.Mensagem} [evento {id}]" : r.Mensagem, ct);
+                return r;
+            }
+
+            if (erro != null) return await RegistrarAsync(erro);
 
             using var _ = doc!;
             var raiz = doc!.RootElement;
@@ -139,8 +150,8 @@ namespace ControleFutebolWeb.Services
             var jogadores = await GravarEstatisticasJogadoresAsync(context, jogo!, raiz, ct);
 
             if (!gravouTime && jogadores == 0)
-                return new ResultadoEspn(false,
-                    "A ESPN localizou a partida, mas também não tem estatísticas dela.", evento);
+                return await RegistrarAsync(new ResultadoEspn(false,
+                    "A ESPN localizou a partida, mas também não tem estatísticas dela.", evento));
 
             await context.SaveChangesAsync(ct);
 
@@ -148,8 +159,9 @@ namespace ControleFutebolWeb.Services
             if (gravouTime) partes.Add("estatísticas de time");
             if (jogadores > 0) partes.Add($"{jogadores} jogador(es)");
 
-            return new ResultadoEspn(true, $"Importado da ESPN: {string.Join(" e ", partes)}.",
-                evento, gravouTime, jogadores);
+            return await RegistrarAsync(new ResultadoEspn(true,
+                $"Importado da ESPN: {string.Join(" e ", partes)}.",
+                evento, gravouTime, jogadores));
         }
 
         /// <summary>
@@ -459,6 +471,14 @@ namespace ControleFutebolWeb.Services
 
             // Troca atômica — o SaveChanges de ImportarAsync grava a remoção e a
             // inserção na mesma transação.
+            // As estatísticas alimentam a nota automática de quem não avaliou o jogo à
+            // mão, então a eleição do craque de TODOS os analistas ficou velha. Derruba
+            // aqui e deixa cada um refazer a dele na próxima leitura — recalcular usuário
+            // por usuário dentro da importação sairia caro. Vai junto no SaveChanges de
+            // quem chamou, na mesma transação da troca das estatísticas.
+            context.CraquesDaPartida.RemoveRange(
+                await context.CraquesDaPartida.Where(c => c.JogoId == jogo.Id).ToListAsync(ct));
+
             context.EstatisticasJogador.RemoveRange(existentes);
             context.EstatisticasJogador.AddRange(novas);
             return novas.Count;

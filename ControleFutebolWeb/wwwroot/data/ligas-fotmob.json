@@ -1,0 +1,37 @@
+{
+  "_comentario": "De-para do id da liga na api-football (Competicao.IdApi) para o id da liga no FotMob, usado por FotMobService. Id conferido em www.fotmob.com/api/data/allLeagues (nome + ccode do pais). Mais de um id quando o FotMob separa o que o nosso cadastro junta: as fases preliminares das competicoes da UEFA ficam em ligas proprias. Liga ausente aqui = competicao sem fallback do FotMob.",
+  "_ordem": "Os ids sao tentados na ordem em que aparecem; o primeiro em que a partida for localizada vence.",
+
+  "1": 77,
+  "2": [42, 10611],
+  "3": [73, 10613],
+  "11": 299,
+  "13": 45,
+  "39": 47,
+  "45": 132,
+  "48": 133,
+  "61": 53,
+  "66": 134,
+  "71": 268,
+  "72": 8814,
+  "73": 9067,
+  "78": 54,
+  "81": 209,
+  "88": 57,
+  "94": 61,
+  "128": 112,
+  "135": 55,
+  "137": 141,
+  "140": 87,
+  "143": 138,
+  "253": 130,
+  "262": 230,
+
+  "_comentario_catar": "Motivo desta fonte existir: a api-football devolve o placar da Qatar Stars League mas nao as estatisticas. O 535 esta conferido no allLeagues (ccode QAT). O 305 e o id da liga na api-football e NAO esta no nosso competicoes-api-2026.json, que so lista as competicoes ja usadas — confira o IdApi gravado na competicao antes de contar com esta linha.",
+  "305": 535,
+  "824": 11018,
+
+  "307": 536,
+  "475": 10244,
+  "848": 10216
+}

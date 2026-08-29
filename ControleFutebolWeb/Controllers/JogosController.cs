@@ -20,8 +20,12 @@ namespace ControleFutebolWeb.Controllers
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly TransmissaoJogoService _transmissaoJogo;
+        private readonly EspnEstatisticasService _espn;
+        private readonly EspnEscalacaoService _espnEscalacao;
+        private readonly EspnEventosService _espnEventos;
+        private readonly CraqueDaPartidaService _craques;
 
-        public JogosController(FutebolContext context, ILogger<JogosController> logger, ApiFootballService transfermarkt, IServiceScopeFactory scopeFactory, UserManager<ApplicationUser> userManager, TransmissaoJogoService transmissaoJogo)
+        public JogosController(FutebolContext context, ILogger<JogosController> logger, ApiFootballService transfermarkt, IServiceScopeFactory scopeFactory, UserManager<ApplicationUser> userManager, TransmissaoJogoService transmissaoJogo, EspnEstatisticasService espn, EspnEscalacaoService espnEscalacao, EspnEventosService espnEventos, CraqueDaPartidaService craques)
         {
             _context = context;
             _logger = logger;
@@ -29,6 +33,10 @@ namespace ControleFutebolWeb.Controllers
             _scopeFactory = scopeFactory;
             _userManager = userManager;
             _transmissaoJogo = transmissaoJogo;
+            _espn = espn;
+            _espnEscalacao = espnEscalacao;
+            _espnEventos = espnEventos;
+            _craques = craques;
         }
 
         // GET: Jogos/Hoje
@@ -120,10 +128,20 @@ namespace ControleFutebolWeb.Controllers
                     break;
             }
 
+            // As datas do filtro chegam como dia puro no fuso de Brasília, mas j.Data está
+            // em UTC. Sem converter, um jogo de 30/05 13:30 BRT (16:30 UTC) ficava de fora
+            // do filtro 30/05–30/05. O fim do intervalo é exclusivo no dia seguinte pra
+            // incluir o dia inteiro, não só a meia-noite.
             if (startDate.HasValue)
-                jogosQuery = jogosQuery.Where(j => j.Data >= startDate.Value);
+            {
+                var inicioUtc = DateHelper.DeBrasiliaParaUtc(startDate.Value.Date)!.Value;
+                jogosQuery = jogosQuery.Where(j => j.Data >= inicioUtc);
+            }
             if (endDate.HasValue)
-                jogosQuery = jogosQuery.Where(j => j.Data <= endDate.Value);
+            {
+                var fimUtc = DateHelper.DeBrasiliaParaUtc(endDate.Value.Date.AddDays(1))!.Value;
+                jogosQuery = jogosQuery.Where(j => j.Data < fimUtc);
+            }
 
             var timeList = new SelectList(_context.Times.OrderBy(t => t.Nome).ToList(), "Id", "Nome", teamId);
             var uidJogos = _userManager.GetUserId(User)!;
@@ -479,6 +497,12 @@ namespace ControleFutebolWeb.Controllers
                 .ToListAsync())
                 .ToHashSet();
 
+            // Craque da partida (a coroa). Calcula e grava na primeira vez que a análise
+            // do jogo é aberta — é por aqui que o histórico antigo vai sendo preenchido.
+            var craque = await _craques.ObterDoJogoAsync(id, usuarioId);
+            vm.CraqueJogadorId = craque?.JogadorId;
+            vm.CraqueNota = craque?.Nota ?? 0;
+
             // ── Fase intermediária: renderização própria (somente visual/tática) ──
             if (!string.IsNullOrWhiteSpace(faseEscalacao) &&
                 !string.Equals(faseEscalacao, "FINAL", StringComparison.OrdinalIgnoreCase) &&
@@ -526,6 +550,7 @@ namespace ControleFutebolWeb.Controllers
                         .Where(t => t.TimeId == jogo.TimeVisitanteId).OrderByDescending(t => t.DtInc).FirstOrDefaultAsync();
 
                     await PreencherDadosTooltipAsync(vm, jogo, escFase, usuarioId);
+                    await PreencherOrigemEscalacaoAsync(vm, id, faseAtual, escFase);
 
                     return View(vm);
                 }
@@ -861,8 +886,85 @@ namespace ControleFutebolWeb.Controllers
                 .FirstOrDefaultAsync();
 
             await PreencherDadosTooltipAsync(vm, jogo, escalacoes, usuarioId);
+            await PreencherOrigemEscalacaoAsync(vm, id, faseAtual, escalacoes);
 
             return View(vm);
+        }
+
+        // Origem da escalação que está na tela, para o selo da barra de status.
+        //
+        // A importação grava as escalações como linhas compartilhadas (UsuarioId ==
+        // null) e a tela copia essas linhas para o usuário; quando a API não trouxe
+        // nada, a escalação é montada pela última de cada time (EscalacaoBaseHelper) e
+        // fica igualzinha na tela — sem o selo não havia como diferenciar as duas, e o
+        // erro só aparecia no meio do jogo.
+        private async Task PreencherOrigemEscalacaoAsync(
+            AnalisarViewModel vm, int jogoId, string faseAtual, IEnumerable<Escalacao> escalacoesTela)
+        {
+            var importadas = await _context.Escalacoes
+                .Where(e => e.JogoId == jogoId && e.UsuarioId == null && e.JogadorId != null
+                         && (e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null))
+                .Select(e => new { e.IsTimeCasa, e.Titular, e.Fonte, JogadorId = e.JogadorId!.Value })
+                .ToListAsync();
+
+            // Fonte null em linha importada é import antigo, anterior à coluna: conta
+            // como api-football, que era a única fonte que gravava compartilhada.
+            string? FonteDoLado(bool casa) => importadas.Any(e => e.IsTimeCasa == casa)
+                ? importadas.First(e => e.IsTimeCasa == casa).Fonte ?? FonteEscalacao.ApiFootball
+                : null;
+
+            vm.FonteEscalacaoCasa = FonteDoLado(true);
+            vm.FonteEscalacaoVisitante = FonteDoLado(false);
+
+            // Botão "Buscar ESPN". Duas situações o justificam, e as duas exigem a
+            // competição mapeada em ligas-espn.json — sem slug a chamada só devolveria
+            // erro:
+            //
+            //  1. falta escalação de algum lado (o que está em campo é chute);
+            //  2. a escalação está completa mas falta estatística. É o jogo que veio da
+            //     ESPN numa passada anterior: a escalação entrou e a estatística ficou
+            //     para trás, e resolver isso exigia sair daqui e ir em Serviços › Jogos
+            //     sem estatísticas.
+            //
+            // Jogo que ainda não começou não entra por (2): estatística faltando ali é
+            // o normal, não um problema a corrigir.
+            var faltaEscalacao = !vm.EscalacaoApiCasa || !vm.EscalacaoApiVisitante;
+
+            var jogoJaComecou = vm.Jogo.Data != null && vm.Jogo.Data <= DateTime.UtcNow;
+
+            var faltaEstatistica = jogoJaComecou
+                && await EstatisticasFaltandoAsync(_context, jogoId);
+
+            var faltaEvento = jogoJaComecou
+                && await EventosFaltandoAsync(_context, jogoId);
+
+            if (faltaEscalacao || faltaEstatistica || faltaEvento)
+            {
+                var idApiLiga = await _context.Jogos
+                    .Where(j => j.Id == jogoId)
+                    .Select(j => j.Competicao!.IdApi)
+                    .FirstOrDefaultAsync();
+
+                vm.EspnDisponivel = _espn.SlugDaLiga(idApiLiga) != null;
+                vm.EspnSoComplementos = vm.EspnDisponivel && !faltaEscalacao;
+            }
+
+            // Na FINAL a escalação da tela difere da importada por construção (as
+            // substituições), então a comparação só vale na INICIAL.
+            if (faseAtual != "INICIAL" || importadas.Count == 0) return;
+
+            bool MesmosTitulares(bool casa)
+            {
+                var daApi = importadas.Where(e => e.IsTimeCasa == casa && e.Titular)
+                    .Select(e => e.JogadorId).ToHashSet();
+                if (daApi.Count == 0) return true;   // lado sem importação não conta como edição
+                var naTela = escalacoesTela
+                    .Where(e => e.IsTimeCasa == casa && e.Titular && e.JogadorId != null)
+                    .Select(e => e.JogadorId!.Value).ToHashSet();
+                return daApi.SetEquals(naTela);
+            }
+
+            vm.EscalacaoEditada = !MesmosTitulares(true) || !MesmosTitulares(false);
         }
 
         // Preenche os dados do tooltip de info do jogador, separados por escopo:
@@ -908,6 +1010,7 @@ namespace ControleFutebolWeb.Controllers
             vm.MediasPorJogador = dados.Medias;
             vm.TitularPorJogador = dados.TitularCompeticao;
             vm.TitularTemporadaPorJogador = dados.TitularTemporada;
+            vm.TimeAnteriorPorJogador = dados.TimeAnterior;
             vm.TemporadaTooltip = temporadaSel;
             vm.TemporadasTooltip = await TemporadasDoTooltipAsync(idsTooltip, jogo.Temporada);
         }
@@ -949,13 +1052,14 @@ namespace ControleFutebolWeb.Controllers
             int? anoTermino = null;
             var compsCruzadasAnterior = new List<int>();
             var compsCruzadasAtual = new List<int>();
+            var cruzaAno = false;
 
             if (temporada > 0)
             {
-                var refCruzaAno = await _context.Jogos.AnyAsync(j =>
+                cruzaAno = await _context.Jogos.AnyAsync(j =>
                     j.CompeticaoId == jogo.CompeticaoId && j.Temporada == temporada &&
                     j.Data != null && j.Data.Value.Year > j.Temporada);
-                anoTermino = temporada + (refCruzaAno ? 1 : 0);
+                anoTermino = temporada + (cruzaAno ? 1 : 0);
 
                 // Competições cujo rótulo (anoTermino-1) cruza o ano → terminam em anoTermino (entram)
                 compsCruzadasAnterior = await _context.Jogos
@@ -1031,7 +1135,136 @@ namespace ControleFutebolWeb.Controllers
             dados.Medias = await CalcularMediasPorJogadorAsync(
                 ids, anoTermino, compsCruzadasAnterior, compsCruzadasAtual);
 
+            // "Vinha do": só faz sentido com uma temporada escolhida (a anterior é
+            // sempre o rótulo - 1). Em "Todas as temporadas" não há referência.
+            if (temporada > 0)
+                dados.TimeAnterior = await CalcularTimeAnteriorAsync(ids, usuarioId, temporada - 1, cruzaAno);
+
             return dados;
+        }
+
+        // Clube pelo qual cada jogador atuou na temporada anterior, quando ele NÃO
+        // atuou pelo clube atual naquela temporada — ou seja, chegou depois. É o que
+        // o tooltip mostra como "Vinha do", para o analista reconhecer os reforços.
+        //
+        // Duas fontes, nesta ordem:
+        //  1. Escalação dos jogos daquela temporada (o lado do jogo diz o clube) —
+        //     é a mais confiável e ainda dá quantos jogos ele fez lá;
+        //  2. Janela de Transferências (tabela Transferencia, alimentada por
+        //     /Times → Transferências da API e pelas trocas manuais), para o reforço
+        //     de liga que não tem jogo importado: aí só o clube de origem é conhecido,
+        //     sem contagem de jogos.
+        // Jogos de seleção ficam de fora — a comparação é entre clubes.
+        private async Task<Dictionary<int, TimeAnteriorJogador>> CalcularTimeAnteriorAsync(
+            IReadOnlyCollection<int> ids, string usuarioId, int temporadaAnterior, bool cruzaAno)
+        {
+            if (ids.Count == 0 || temporadaAnterior <= 0) return new();
+
+            var timeAtual = await _context.Jogadores
+                .Where(j => ids.Contains(j.Id))
+                .Select(j => new { j.Id, j.TimeId })
+                .ToDictionaryAsync(j => j.Id, j => j.TimeId);
+
+            // Distinct por (jogador, jogo, time): o mesmo jogo tem escalação INICIAL e
+            // FINAL, e ainda a do import junto com a do usuário — sem isso um jogo
+            // valeria três na contagem.
+            var participacoes = await _context.Escalacoes
+                .Where(e => e.JogadorId != null && ids.Contains(e.JogadorId!.Value)
+                         && e.Jogo.Temporada == temporadaAnterior
+                         && (e.UsuarioId == usuarioId || e.UsuarioId == null))
+                .Select(e => new
+                {
+                    JogadorId = e.JogadorId!.Value,
+                    e.JogoId,
+                    TimeId = e.IsTimeCasa ? e.Jogo.TimeCasaId : e.Jogo.TimeVisitanteId,
+                    EhSelecao = e.IsTimeCasa ? e.Jogo.TimeCasa.EhSelecao : e.Jogo.TimeVisitante.EhSelecao,
+                })
+                .Distinct()
+                .ToListAsync();
+
+            var anteriores = new Dictionary<int, (int TimeId, int Jogos)>();
+            foreach (var grupo in participacoes.Where(p => !p.EhSelecao).GroupBy(p => p.JogadorId))
+            {
+                if (!timeAtual.TryGetValue(grupo.Key, out var atual)) continue;
+
+                var porTime = grupo.GroupBy(p => p.TimeId)
+                    .Select(g => new { TimeId = g.Key, Jogos = g.Count() })
+                    .ToList();
+
+                // Jogou pelo clube de hoje na temporada passada → não é reforço.
+                if (porTime.Any(t => t.TimeId == atual)) continue;
+
+                var principal = porTime.OrderByDescending(t => t.Jogos).FirstOrDefault();
+                if (principal != null) anteriores[grupo.Key] = (principal.TimeId, principal.Jogos);
+            }
+
+            // ── Fonte 2: janela de transferências ─────────────────────────────
+            // Só para quem a escalação não resolveu: sem jogo pelo clube atual e sem
+            // jogo por clube nenhum na temporada passada. Vale a chegada MAIS RECENTE
+            // ao clube de hoje, e só a partir do início da temporada atual — uma
+            // transferência de anos atrás não diz nada sobre a temporada passada.
+            var jogouNaTemporada = participacoes.Where(p => !p.EhSelecao)
+                .Select(p => p.JogadorId).ToHashSet();
+            var semJogos = ids.Where(id => !anteriores.ContainsKey(id) && !jogouNaTemporada.Contains(id))
+                .ToList();
+
+            if (semJogos.Count > 0)
+            {
+                // Início da temporada atual: julho quando a competição cruza o ano
+                // civil (Europa), janeiro quando é de ano civil (Brasil, MLS…).
+                var inicioTemporada = new DateTime(
+                    temporadaAnterior + 1, cruzaAno ? 7 : 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+                var chegadas = await _context.Transferencias
+                    .Where(t => semJogos.Contains(t.JogadorId)
+                             && t.TimeOrigemId != null && t.TimeDestinoId != null
+                             && t.Data >= inicioTemporada)
+                    .Select(t => new { t.JogadorId, TimeOrigemId = t.TimeOrigemId!.Value, TimeDestinoId = t.TimeDestinoId!.Value, t.Data, t.Id })
+                    .ToListAsync();
+
+                foreach (var grupo in chegadas.GroupBy(t => t.JogadorId))
+                {
+                    if (!timeAtual.TryGetValue(grupo.Key, out var atual)) continue;
+
+                    var chegada = grupo
+                        .Where(t => t.TimeDestinoId == atual && t.TimeOrigemId != atual)
+                        .OrderByDescending(t => t.Data).ThenByDescending(t => t.Id)
+                        .FirstOrDefault();
+
+                    // Jogos = 0: a transferência não conta partidas, e o tooltip
+                    // omite o "· N jogos" nesse caso.
+                    if (chegada != null) anteriores[grupo.Key] = (chegada.TimeOrigemId, 0);
+                }
+            }
+
+            if (anteriores.Count == 0) return new();
+
+            var idsTimes = anteriores.Values.Select(a => a.TimeId).Distinct().ToList();
+            var times = await _context.Times
+                .Where(t => idsTimes.Contains(t.Id))
+                .Select(t => new { t.Id, t.Nome, t.EscudoUrl })
+                .ToDictionaryAsync(t => t.Id, t => t);
+
+            // Rótulo igual ao da tela: "2024/25" quando a competição cruza o ano civil.
+            var rotulo = cruzaAno
+                ? $"{temporadaAnterior}/{(temporadaAnterior + 1) % 100:00}"
+                : temporadaAnterior.ToString();
+
+            return anteriores
+                .Where(a => times.ContainsKey(a.Value.TimeId))
+                .ToDictionary(a => a.Key, a =>
+                {
+                    var t = times[a.Value.TimeId];
+                    return new TimeAnteriorJogador
+                    {
+                        Nome = t.Nome,
+                        Escudo = string.IsNullOrEmpty(t.EscudoUrl)
+                            ? ""
+                            : Url.Action("Imagem", "MediaProxy", new { url = t.EscudoUrl }) ?? "",
+                        Temporada = rotulo,
+                        Jogos = a.Value.Jogos,
+                    };
+                });
         }
 
         // GET: Jogos/TooltipTemporada/5?temporada=2025 — recalcula os dados do tooltip
@@ -1524,6 +1757,19 @@ namespace ControleFutebolWeb.Controllers
                     }
 
                     _logger.LogInformation("[ReimportarEscalacao] Jogo {Id}: {Ok} — {Msg}", id, ok, msg);
+
+                    // ── Fallback automático: ESPN e, depois, FotMob ──────────────────
+                    // A api-football devolve a partida sem lineup com frequência (jogo
+                    // de mata-mata sul-americano, sobretudo) e o usuário não tem por que
+                    // descobrir isso e clicar num segundo botão: se depois da
+                    // reimportação ainda falta lado, a ESPN é tentada aqui mesmo, dentro
+                    // do mesmo background.
+                    //
+                    // Roda DEPOIS de RecriarEscalacoesPessoaisAsync de propósito: a
+                    // recriação copia das linhas compartilhadas e sobrescreveria o que a
+                    // ESPN tivesse acabado de gravar nas linhas pessoais.
+                    if (!string.IsNullOrEmpty(uid))
+                        await TentarEspnParaLadosFaltandoAsync(scope, ctx, id, uid);
                 }
                 catch (Exception ex)
                 {
@@ -1531,8 +1777,276 @@ namespace ControleFutebolWeb.Controllers
                 }
             });
 
-            TempData["Mensagem"] = "⏳ Re-importação iniciada em background. Aguarde ~1 minuto e recarregue a página.";
+            TempData["Mensagem"] = "⏳ Re-importação iniciada em background. Se a API não tiver a escalação, "
+                                 + "o sistema tenta a ESPN sozinho. Aguarde ~1 minuto e recarregue a página.";
             return RedirectToAction("Analisar", new { id });
+        }
+
+        /// <summary>
+        /// Que lados do jogo NÃO têm escalação importada (linha compartilhada com
+        /// jogador). É o mesmo critério do selo de origem da tela de análise.
+        /// </summary>
+        private static async Task<(bool Casa, bool Visitante)> LadosSemEscalacaoImportadaAsync(
+            FutebolContext ctx, int jogoId)
+        {
+            var lados = await ctx.Escalacoes
+                .Where(e => e.JogoId == jogoId && e.UsuarioId == null && e.JogadorId != null
+                         && (e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null))
+                .Select(e => e.IsTimeCasa)
+                .Distinct()
+                .ToListAsync();
+
+            return (!lados.Contains(true), !lados.Contains(false));
+        }
+
+        /// <summary>
+        /// Falta estatística no jogo? Mesmo critério de Serviços › Jogos sem
+        /// estatísticas (ServicosController.JogosComEstatisticaFaltando): ou o bloco de
+        /// time está vazio, ou não há nenhuma linha por jogador.
+        /// </summary>
+        private static Task<bool> EstatisticasFaltandoAsync(FutebolContext ctx, int jogoId) =>
+            ctx.Jogos.AnyAsync(j => j.Id == jogoId
+                && (j.EstatisticasJson == null || j.EstatisticasJson == ""
+                    || !ctx.EstatisticasJogador.Any(e => e.JogoId == j.Id)));
+
+        /// <summary>
+        /// Falta lance no jogo? Nenhum gol, cartão nem substituição gravados. Um 0 a 0
+        /// sem cartão cai aqui de verdade — e reimportar ele da ESPN é inofensivo, só
+        /// devolve o mesmo nada.
+        /// </summary>
+        private static async Task<bool> EventosFaltandoAsync(FutebolContext ctx, int jogoId) =>
+            !await ctx.Gols.AnyAsync(g => g.JogoId == jogoId)
+            && !await ctx.Cartoes.AnyAsync(c => c.JogoId == jogoId)
+            && !await ctx.Substituicoes.AnyAsync(s => s.JogoId == jogoId);
+
+        /// <summary>
+        /// Completa pela ESPN os lados que a importação da api-football não trouxe.
+        /// Não faz nada quando os dois lados vieram da API, quando a competição não tem
+        /// slug da ESPN mapeado ou quando a ESPN também não publicou o XI — o silêncio é
+        /// o esperado, já que isto roda sem ninguém olhando.
+        /// </summary>
+        /// <summary>
+        /// A FINAL pessoal foi clonada da INICIAL errada e continuaria mostrando quem
+        /// não jogou. Apagá-la faz a tela remontá-la da INICIAL nova; as fases táticas
+        /// do cronômetro ficam, porque não são recriáveis.
+        /// </summary>
+        private static async Task LimparEscalacaoFinalPessoalAsync(
+            FutebolContext ctx, int jogoId, string usuarioId)
+        {
+            var finais = await ctx.Escalacoes
+                .Where(e => e.JogoId == jogoId && e.UsuarioId == usuarioId
+                         && e.FaseEscalacao == "FINAL")
+                .ToListAsync();
+
+            if (finais.Count == 0) return;
+
+            ctx.Escalacoes.RemoveRange(finais);
+            await ctx.SaveChangesAsync();
+        }
+
+        /// <summary>
+        /// O jogo com competição e times carregados, só para a linha de log ficar
+        /// legível ("Al Sadd x Al Ahli Doha") em vez de mostrar um id solto.
+        /// </summary>
+        private static Task<Jogo?> JogoParaLogAsync(FutebolContext ctx, int jogoId) =>
+            ctx.Jogos.AsNoTracking()
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .Include(j => j.Competicao)
+                .FirstOrDefaultAsync(j => j.Id == jogoId);
+
+        private async Task TentarEspnParaLadosFaltandoAsync(
+            IServiceScope scope, FutebolContext ctx, int jogoId, string usuarioId)
+        {
+            var (faltaCasa, faltaVis) = await LadosSemEscalacaoImportadaAsync(ctx, jogoId);
+            if (!faltaCasa && !faltaVis) return;
+
+            var espn = scope.ServiceProvider.GetRequiredService<EspnEstatisticasService>();
+            var fotmob = scope.ServiceProvider.GetRequiredService<FotMobService>();
+            var idApiLiga = await ctx.Jogos
+                .Where(j => j.Id == jogoId)
+                .Select(j => j.Competicao!.IdApi)
+                .FirstOrDefaultAsync();
+
+            bool Falta(bool ehCasa) => ehCasa ? faltaCasa : faltaVis;
+
+            // 1º degrau: ESPN. Sem slug a chamada só devolveria erro; evita bater lá à toa.
+            var ok = false;
+            if (espn.SlugDaLiga(idApiLiga) != null)
+            {
+                var espnEscalacao = scope.ServiceProvider.GetRequiredService<EspnEscalacaoService>();
+                var r = await espnEscalacao.AplicarAsync(ctx, jogoId, usuarioId, filtroLado: Falta);
+
+                _logger.LogInformation("[ReimportarEscalacao] Jogo {Id} › ESPN: {Ok} — {Msg}",
+                    jogoId, r.Ok, r.Mensagem);
+
+                await LogFonteExterna.RegistrarAsync(ctx, LogFonteExterna.TipoEspn,
+                    "Escalação (reimportação)", r.Ok, await JogoParaLogAsync(ctx, jogoId), r.Mensagem);
+
+                ok = r.Ok;
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "[ReimportarEscalacao] Jogo {Id}: faltou escalação e a competição não tem ESPN mapeada.",
+                    jogoId);
+
+                await LogFonteExterna.RegistrarAsync(ctx, LogFonteExterna.TipoEspn,
+                    "Escalação (reimportação)", false, await JogoParaLogAsync(ctx, jogoId),
+                    "Competição sem correspondente na ESPN (ver wwwroot/data/ligas-espn.json).");
+            }
+
+            // 2º degrau: FotMob. É o que cobre as ligas fora do catálogo da ESPN (a do
+            // Catar é a que motivou) e também salva o jogo que a ESPN tem na liga mas
+            // não publicou. Só entra quando a ESPN não resolveu — não é para as duas
+            // escreverem o mesmo XI.
+            if (!ok && fotmob.TemCobertura(idApiLiga))
+            {
+                var fotmobEscalacao = scope.ServiceProvider.GetRequiredService<FotMobEscalacaoService>();
+                var r = await fotmobEscalacao.AplicarAsync(ctx, jogoId, usuarioId, filtroLado: Falta);
+
+                _logger.LogInformation("[ReimportarEscalacao] Jogo {Id} › FotMob: {Ok} — {Msg}",
+                    jogoId, r.Ok, r.Mensagem);
+
+                await LogFonteExterna.RegistrarAsync(ctx, LogFonteExterna.TipoFotMob,
+                    "Escalação (reimportação)", r.Ok, await JogoParaLogAsync(ctx, jogoId), r.Mensagem);
+
+                if (r.Ok)
+                {
+                    await LimparEscalacaoFinalPessoalAsync(ctx, jogoId, usuarioId);
+
+                    // A escalação acabou de ser gravada, então agora as estatísticas por
+                    // jogador têm com quem casar — elas são casadas contra os escalados.
+                    // Rodar isto antes da escalação só gravaria as de time.
+                    if (await EstatisticasFaltandoAsync(ctx, jogoId))
+                    {
+                        var rEst = await fotmob.ImportarAsync(ctx, jogoId);
+                        _logger.LogInformation(
+                            "[ReimportarEscalacao] Jogo {Id} › FotMob estatísticas: {Ok} — {Msg}",
+                            jogoId, rEst.Ok, rEst.Mensagem);
+                    }
+                }
+
+                // Os lances (gols, cartões, substituições) NÃO saem do FotMob ainda:
+                // existe EspnEventosService, mas não o equivalente daqui. Um jogo que só
+                // o FotMob tem fica com escalação e estatística certas e placar zerado
+                // até alguém preencher — melhor do que ficar sem nada, que era o estado
+                // anterior, mas está incompleto de propósito e não por descuido.
+                return;
+            }
+
+            if (!ok) return;
+
+            await LimparEscalacaoFinalPessoalAsync(ctx, jogoId, usuarioId);
+
+            // Quem não tem a partida na api-football não tem nem escalação NEM
+            // estatística: importar só a escalação deixaria o jogo pela metade e
+            // mandaria o usuário para a tela de Serviços terminar na mão. Como a ESPN
+            // acabou de confirmar que tem esta partida, a estatística sai da mesma
+            // visita.
+            if (await EstatisticasFaltandoAsync(ctx, jogoId))
+            {
+                var rEst = await espn.ImportarAsync(ctx, jogoId);
+                _logger.LogInformation("[ReimportarEscalacao] Jogo {Id} › ESPN estatísticas: {Ok} — {Msg}",
+                    jogoId, rEst.Ok, rEst.Mensagem);
+            }
+
+            // Gols, cartões e substituições pela mesma razão: a api-football não trouxe
+            // a partida, então ela também não trouxe os lances. Sem isto o jogo ficava
+            // com escalação e números certos e placar zerado.
+            if (await EventosFaltandoAsync(ctx, jogoId))
+            {
+                var eventos = scope.ServiceProvider.GetRequiredService<EspnEventosService>();
+                var rEv = await eventos.ImportarAsync(ctx, jogoId);
+                _logger.LogInformation("[ReimportarEscalacao] Jogo {Id} › ESPN lances: {Ok} — {Msg}",
+                    jogoId, rEv.Ok, rEv.Mensagem);
+            }
+        }
+
+        // POST: Jogos/BuscarEscalacaoEspn/12964
+        //
+        // Plano B do "Reimportar dados" quando a api-football não publicou a partida:
+        // tenta a ESPN, que costuma ter o que falta (Libertadores/Sul-Americana,
+        // sobretudo). Faz os dois blocos numa tacada — escalação e estatística — porque
+        // quem não tem a partida na API não tem nenhum dos dois, e parar no meio
+        // mandaria o usuário terminar o serviço em outra tela.
+        //
+        // Ao contrário da tela de administração (Serviços › Conferir escalação), aqui
+        // conferir e aplicar são um passo só: a escalação só é tocada nos lados que
+        // NENHUMA importação preencheu, ou seja, onde o que está em campo é o chute do
+        // EscalacaoBaseHelper e não há trabalho de verdade para preservar. Quando a ESPN
+        // também não tem, nada é gravado e a mensagem diz isso — é a "verificação".
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> BuscarEscalacaoEspn(int id, CancellationToken ct)
+        {
+            var usuarioId = _userManager.GetUserId(User)!;
+            var partes = new List<string>();
+            var houveFalha = false;
+
+            // ── Escalação ────────────────────────────────────────────────────────
+            var (faltaCasa, faltaVis) = await LadosSemEscalacaoImportadaAsync(_context, id);
+
+            if (faltaCasa || faltaVis)
+            {
+                var r = await _espnEscalacao.AplicarAsync(
+                    _context, id, usuarioId,
+                    filtroLado: ehCasa => ehCasa ? faltaCasa : faltaVis, ct: ct);
+
+                partes.Add(r.Mensagem);
+                houveFalha |= !r.Ok;
+
+                if (r.Ok)
+                {
+                    // A FINAL pessoal foi clonada da INICIAL errada e continuaria
+                    // mostrando quem não jogou. Apagá-la faz a tela remontá-la da
+                    // INICIAL nova; as fases táticas do cronômetro ficam, porque não
+                    // são recriáveis.
+                    var finais = await _context.Escalacoes
+                        .Where(e => e.JogoId == id && e.UsuarioId == usuarioId
+                                 && e.FaseEscalacao == "FINAL")
+                        .ToListAsync(ct);
+
+                    if (finais.Count > 0)
+                    {
+                        _context.Escalacoes.RemoveRange(finais);
+                        await _context.SaveChangesAsync(ct);
+                    }
+                }
+            }
+
+            // ── Estatísticas ─────────────────────────────────────────────────────
+            // Roda mesmo quando a escalação já estava completa: é o caso do jogo cuja
+            // escalação veio da ESPN numa passada anterior e ficou sem estatística,
+            // que hoje só se resolvia em Serviços › Jogos sem estatísticas.
+            if (await EstatisticasFaltandoAsync(_context, id))
+            {
+                var r = await _espn.ImportarAsync(_context, id, ct);
+                partes.Add(r.Mensagem);
+                houveFalha |= !r.Ok;
+            }
+
+            // ── Lances ───────────────────────────────────────────────────────────
+            // Gols, assistências, cartões, substituições e pênaltis perdidos. Mesma
+            // regra: só entra quando o jogo não tem nenhum, ou seja, quando a
+            // api-football não trouxe — nunca por cima de evento já registrado.
+            if (await EventosFaltandoAsync(_context, id))
+            {
+                var r = await _espnEventos.ImportarAsync(_context, id, ct);
+                partes.Add(r.Mensagem);
+                houveFalha |= !r.Ok;
+            }
+
+            if (partes.Count == 0)
+                partes.Add("Este jogo já tem escalação e estatísticas importadas.");
+
+            TempData["Mensagem"] = (houveFalha ? "⚠️ " : "✅ ") + string.Join(" ", partes);
+            if (houveFalha) TempData["MensagemTipo"] = "erro";
+
+            _logger.LogInformation("[BuscarEscalacaoEspn] Jogo {Id}: falha={Falha} — {Msg}",
+                id, houveFalha, string.Join(" | ", partes));
+
+            return RedirectToAction("Analisar", new { id, faseEscalacao = "INICIAL" });
         }
 
         // POST: Jogos/AplicarUltimaEscalacao/12964
@@ -1623,6 +2137,10 @@ namespace ControleFutebolWeb.Controllers
 
             _context.EstatisticasJogador.RemoveRange(estatisticas);
             jogo.EstatisticasJson = null;
+            // Sem estatística não há nota automática, e o craque eleito por ela deixa de
+            // valer para todos os analistas. Ver CraqueDaPartidaService.InvalidarJogoAsync.
+            _context.CraquesDaPartida.RemoveRange(
+                await _context.CraquesDaPartida.Where(c => c.JogoId == id).ToListAsync());
             await _context.SaveChangesAsync();
 
             _logger.LogInformation(

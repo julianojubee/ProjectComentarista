@@ -2,6 +2,7 @@
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.Api;
+using ControleFutebolWeb.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -17,11 +18,14 @@ namespace ControleFutebolWeb.Controllers.Api
     {
         private readonly FutebolContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly CraqueDaPartidaService _craques;
 
-        public AnalisesApiController(FutebolContext context, UserManager<ApplicationUser> userManager)
+        public AnalisesApiController(FutebolContext context, UserManager<ApplicationUser> userManager,
+            CraqueDaPartidaService craques)
         {
             _context = context;
             _userManager = userManager;
+            _craques = craques;
         }
 
         // GET api/v1/analises/criterios
@@ -141,6 +145,9 @@ namespace ControleFutebolWeb.Controllers.Api
                 .Include(n => n.Detalhes)
                 .FirstAsync(n => n.Id == nota.Id);
 
+            // Mesma regra da web: a maior nota do jogo define o craque da partida.
+            await _craques.RecalcularJogoAsync(jogoId, uid!);
+
             return Ok(ParaNotaDto(salva, await NotaBaseDoUsuarioAsync(uid),
                 await ContextoNotaHelper.CarregarAsync(_context, new[] { jogoId }, uid)));
         }
@@ -160,6 +167,9 @@ namespace ControleFutebolWeb.Controllers.Api
             _context.NotaDetalhes.RemoveRange(nota.Detalhes);
             _context.Notas.Remove(nota);
             await _context.SaveChangesAsync();
+
+            // Sem a nota apagada a eleição muda — inclusive quando quem saiu era o craque.
+            await _craques.RecalcularJogoAsync(jogoId, uid!);
 
             return NoContent();
         }

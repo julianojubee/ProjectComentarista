@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc.Rendering;
+﻿using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace ControleFutebolWeb.Models.ViewModels
 {
@@ -55,6 +55,10 @@ namespace ControleFutebolWeb.Models.ViewModels
         // /Jogadores/Estatisticas), por jogador — exibidas no tooltip de info.
         public Dictionary<int, MediasPorJogo> MediasPorJogador { get; set; } = new();
 
+        // Clube do jogador na temporada anterior, quando ele não jogou pelo clube
+        // atual naquela temporada (reforço) — linha "Vinha do" do tooltip.
+        public Dictionary<int, TimeAnteriorJogador> TimeAnteriorPorJogador { get; set; } = new();
+
         // Jogos como titular na competição deste jogo (linha "Competição" do
         // tooltip) e na temporada (linha "Temporada").
         public Dictionary<int, int> TitularPorJogador { get; set; } = new();
@@ -67,6 +71,34 @@ namespace ControleFutebolWeb.Models.ViewModels
 
         // Opções do seletor: temporadas com estatística dos jogadores desta tela.
         public List<int> TemporadasTooltip { get; set; } = new();
+
+        // Origem da escalação de cada lado, para o selo da barra de status: qual
+        // fonte importou as linhas compartilhadas (UsuarioId == null) daquele time —
+        // ver FonteEscalacao. Null = ninguém importou, e a tela caiu na última
+        // escalação do time, que pode não ser a do jogo; o analista precisa saber
+        // disso antes de confiar no que está em campo.
+        public string? FonteEscalacaoCasa { get; set; }
+        public string? FonteEscalacaoVisitante { get; set; }
+
+        public bool EscalacaoApiCasa => FonteEscalacaoCasa != null;
+        public bool EscalacaoApiVisitante => FonteEscalacaoVisitante != null;
+
+        // A ESPN é uma fonte alternativa para esta partida (a competição tem slug
+        // mapeado em ligas-espn.json) E falta a escalação de pelo menos um lado na
+        // importação. É o que libera o botão "Buscar ESPN" da barra de ações: sem
+        // slug não adianta tentar, e com os dois lados importados não há o que buscar.
+        public bool EspnDisponivel { get; set; }
+
+        // O botão vai buscar só o que complementa: a escalação dos dois lados já
+        // está importada e o que falta são as estatísticas, os lances (gols, cartões,
+        // substituições) ou os dois. Muda o rótulo e o texto de confirmação, para o
+        // botão não prometer mexer numa escalação que ele não vai tocar.
+        public bool EspnSoComplementos { get; set; }
+
+        // Escalação importada existe, mas a que está na tela (fase INICIAL) já não
+        // bate com ela — o usuário mexeu. Só é calculado na fase INICIAL: na FINAL a
+        // diferença é o esperado (substituições).
+        public bool EscalacaoEditada { get; set; }
 
         // Jogo analisado pelo usuário atual (existência de JogoAnalisadoUsuario).
         public bool Analisado { get; set; }
@@ -88,6 +120,14 @@ namespace ControleFutebolWeb.Models.ViewModels
         // Jogadores marcados como capitão nas estatísticas importadas deste jogo —
         // mostra a braçadeira "C" no botão do jogador em campo/banco.
         public HashSet<int> JogadoresCapitao { get; set; } = new();
+
+        // Craque da partida: quem tirou a maior nota do jogo na régua deste usuário
+        // (ver CraqueDaPartida) — ganha a coroa no botão em campo/banco. Null quando
+        // ninguém foi avaliado e o jogo também não tem estatística importada.
+        public int? CraqueJogadorId { get; set; }
+
+        // Nota que elegeu o craque, para o tooltip da coroa.
+        public double CraqueNota { get; set; }
     }
 
     /// <summary>
@@ -110,5 +150,28 @@ namespace ControleFutebolWeb.Models.ViewModels
         public Dictionary<int, int> TitularTemporada { get; set; } = new();
 
         public Dictionary<int, MediasPorJogo> Medias { get; set; } = new();
+
+        public Dictionary<int, TimeAnteriorJogador> TimeAnterior { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Clube pelo qual o jogador atuou na temporada anterior à do tooltip, quando
+    /// é diferente do clube atual dele. Serve para marcar reforços ("chegou agora"):
+    /// o tooltip mostra de onde ele veio.
+    /// </summary>
+    public class TimeAnteriorJogador
+    {
+        public string Nome { get; set; } = string.Empty;
+
+        // Já pronto para o <img> (passa pelo MediaProxy); vazio quando o time não
+        // tem escudo cadastrado.
+        public string Escudo { get; set; } = string.Empty;
+
+        // Rótulo da temporada anterior como aparece na tela: "2024/25" quando a
+        // competição cruza o ano civil, "2024" quando é de ano civil.
+        public string Temporada { get; set; } = string.Empty;
+
+        // Jogos dele por aquele clube na temporada anterior (aparece como "12 jogos").
+        public int Jogos { get; set; }
     }
 }

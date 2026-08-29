@@ -7,10 +7,17 @@
    Escopo global de propósito: os botões de aba gerados pelo painel usam
    onclick="ativarTabPosJogo(...)", e o botão do pré-jogo está inline na view. */
 
-var AP_TOKEN = (window.ANALISE_PUBLICA || {}).token || '';
+var AP_CFG = window.ANALISE_PUBLICA || {};
+var AP_TOKEN = AP_CFG.token || '';
+
+// Ordem das abas — a mesma dos botões montados em painel-jogo.js. Serve para o
+// atalho numérico (1-4) e para o vai-e-vem com as setas no modo apresentação.
+var AP_ABAS = ['notas', 'campo', 'stats', 'obs'];
+var AP_ABA_ATUAL = AP_ABAS.indexOf(AP_CFG.abaInicial) >= 0 ? AP_CFG.abaInicial : 'notas';
 
 // Nome global esperado pelos botões de aba montados em painel-jogo.js.
 function ativarTabPosJogo(tab) {
+    AP_ABA_ATUAL = tab;
     PainelJogo.ativarTab(tab);
 }
 
@@ -23,7 +30,7 @@ async function carregarAnalisePublica() {
             return;
         }
         corpo.innerHTML = PainelJogo.montarPosJogo(await resp.json(), { somenteLeitura: true });
-        ativarTabPosJogo('notas');
+        ativarTabPosJogo(AP_ABA_ATUAL);
     } catch (e) {
         corpo.innerHTML = '<div class="pgj-vazio" style="padding:3rem 0;">Erro ao carregar a análise.</div>';
     }
@@ -59,5 +66,32 @@ document.getElementById('modal-prejogo-publico').addEventListener('click', funct
 document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') fecharPreJogoPublico();
 });
+
+// ── Modo apresentação: troca de aba pelo teclado ────────────────────────────
+// O CSS esconde o cursor no palco justamente porque o mouse aparece na
+// gravação. Sem atalho, o modo ficaria sem como navegar.
+//   1-4     aba direta        setas ←/→   aba anterior/próxima
+if (AP_CFG.tv) {
+    document.addEventListener('keydown', function (e) {
+        // Com o modal do pré-jogo aberto, o teclado é dele (Escape fecha).
+        var modal = document.getElementById('modal-prejogo-publico');
+        if (modal && modal.style.display === 'flex') return;
+
+        var idx = AP_ABAS.indexOf(AP_ABA_ATUAL);
+
+        if (e.key >= '1' && e.key <= '4') {
+            ativarTabPosJogo(AP_ABAS[Number(e.key) - 1]);
+        } else if (e.key === 'ArrowRight') {
+            ativarTabPosJogo(AP_ABAS[(idx + 1) % AP_ABAS.length]);
+        } else if (e.key === 'ArrowLeft') {
+            ativarTabPosJogo(AP_ABAS[(idx - 1 + AP_ABAS.length) % AP_ABAS.length]);
+        } else {
+            return;
+        }
+
+        // Setas rolariam a página junto com a troca de aba.
+        e.preventDefault();
+    });
+}
 
 carregarAnalisePublica();

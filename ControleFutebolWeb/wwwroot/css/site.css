@@ -47,7 +47,7 @@
 
     --text-strong: #0f172a;     /* títulos/números em destaque */
     --text-dim: #6b7280;        /* rótulos */
-    --text-dimmer: #9ca3af;     /* separadores textuais, placeholders */
+    --text-dimmer: #6e7683;     /* separadores textuais, placeholders (contraste AA no branco) */
     --gold-ink: #8a6a0a;        /* dourado como TEXTO (o da marca não contrasta no claro) */
 
     /* Acentos semânticos usados como texto/ícone sobre o painel */

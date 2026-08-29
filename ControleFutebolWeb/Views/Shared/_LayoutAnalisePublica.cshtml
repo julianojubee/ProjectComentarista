@@ -6,9 +6,18 @@
     // tema. Também não injeta UserManager nem FutebolContext: a página renderiza
     // sem uma única query por usuário logado.
     var tituloAba = (ViewData["TitleOverride"] as string) ?? "Análise de Craque";
+
+    // Modo apresentação (?tv=...), já normalizado pelo controller: "h", "v" ou
+    // null. Aqui só decide moldura, tema e o CSS extra — o resto é na view.
+    var modoTv = ViewData["ModoTv"] as string;
+    var ehTv = modoTv != null;
 }
 <!DOCTYPE html>
-<html lang="pt-BR">
+@* data-tv é o gancho que o script de tema logo abaixo usa para forçar o escuro
+   antes da primeira pintura. Html.Raw para o atributo sumir de vez na página
+   normal (interpolar null ainda deixaria um data-tv="" solto no HTML); o valor
+   vem de um bool do servidor, nunca da query. *@
+<html lang="pt-BR"@Html.Raw(ehTv ? " data-tv=\"1\"" : "")>
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -17,14 +26,20 @@
     <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" type="image/svg+xml" href="~/favicon.svg" />
     <link rel="alternate icon" href="~/favicon.ico" />
-    <script>(function(){var t=localStorage.getItem('site-theme');if(t){document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-bs-theme',t);}})();</script>
+    @* No modo apresentação o tema é sempre escuro: o vídeo precisa de contraste
+       previsível, e não do que sobrou no localStorage de quem está gravando. *@
+    <script>(function(){var el=document.documentElement;var t=el.getAttribute('data-tv')?'dark':localStorage.getItem('site-theme');if(t){el.setAttribute('data-theme',t);el.setAttribute('data-bs-theme',t);}})();</script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/mencao-jogador.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/analisar.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/analise-publica.css" asp-append-version="true" />
+    @if (ehTv)
+    {
+        <link rel="stylesheet" href="~/css/analise-tv.css" asp-append-version="true" />
+    }
 </head>
-<body>
+<body class="@(ehTv ? "ap-tv-on" : "")">
     <header class="ap-topo">
         <div class="ap-marca" aria-label="Análise de Craque">
             <svg width="22" height="33" viewBox="0 0 80 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">

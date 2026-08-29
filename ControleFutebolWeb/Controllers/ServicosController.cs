@@ -1,4 +1,4 @@
-using ControleFutebolWeb.Data;
+﻿using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
 using ControleFutebolWeb.Services;
@@ -17,7 +17,9 @@ namespace ControleFutebolWeb.Controllers
         private readonly FutebolContext _context;
         private readonly EspnEstatisticasService _espn;
         private readonly EspnEscalacaoService _espnEscalacao;
+        private readonly FotMobService _fotmob;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly CraqueDaPartidaService _craques;
 
         public ServicosController(
             ServicoMonitor monitor,
@@ -25,14 +27,18 @@ namespace ControleFutebolWeb.Controllers
             FutebolContext context,
             EspnEstatisticasService espn,
             EspnEscalacaoService espnEscalacao,
-            UserManager<ApplicationUser> userManager)
+            FotMobService fotmob,
+            UserManager<ApplicationUser> userManager,
+            CraqueDaPartidaService craques)
         {
             _monitor = monitor;
             _atualizarJogadores = atualizarJogadores;
             _context = context;
             _espn = espn;
             _espnEscalacao = espnEscalacao;
+            _fotmob = fotmob;
             _userManager = userManager;
+            _craques = craques;
         }
 
         public IActionResult Index()
@@ -84,24 +90,33 @@ namespace ControleFutebolWeb.Controllers
         // ── Jogos sem estatísticas / fallback da ESPN ─────────────────────────
 
         /// <summary>
-        /// Jogos encerrados que não têm estatísticas de time nem de jogador. Acontece
-        /// quando a api-football devolve a partida só com o placar e os eventos — o
-        /// fixture existe, mas players/statistics/lineups voltam vazios.
+        /// Jogos encerrados a que falta estatística de time OU de jogador. O caso comum é
+        /// a api-football devolver a partida só com o placar e os eventos (players,
+        /// statistics e lineups vazios), mas ela também devolve partida com um bloco e não
+        /// o outro — e esse buraco parcial é exatamente o que a importação da ESPN preenche,
+        /// já que ela nunca sobrescreve o que a api-football gravou.
+        /// </summary>
+        private IQueryable<Jogo> JogosComEstatisticaFaltando() =>
+            _context.Jogos
+                .Where(j => j.Status == "Finalizado")
+                .Where(j => j.EstatisticasJson == null || j.EstatisticasJson == ""
+                            || !_context.EstatisticasJogador.Any(e => e.JogoId == j.Id));
+
+        /// <summary>
+        /// Tela de Serviços › Jogos sem estatísticas.
         /// </summary>
         [HttpGet]
         public async Task<IActionResult> JogosSemEstatisticas(
             int? competicaoId, int? temporada, CancellationToken ct)
         {
-            var baseQuery = _context.Jogos
-                .Where(j => j.Status == "Finalizado")
-                .Where(j => (j.EstatisticasJson == null || j.EstatisticasJson == "")
-                            && !_context.EstatisticasJogador.Any(e => e.JogoId == j.Id));
+            var baseQuery = JogosComEstatisticaFaltando();
 
             var vm = new JogosSemEstatisticasViewModel
             {
                 CompeticaoId = competicaoId,
                 Temporada = temporada,
                 LimiteLote = EspnEstatisticasService.LimitePorLote,
+                LimiteLoteFotMob = FotMobService.LimitePorLote,
                 Competicoes = await baseQuery
                     .GroupBy(j => new { j.CompeticaoId, j.Competicao!.Nome, j.Competicao.IdApi })
                     .Select(g => new CompeticaoSemEstatisticaItem
@@ -124,7 +139,10 @@ namespace ControleFutebolWeb.Controllers
                 .ToDictionaryAsync(c => c.Id, c => c.IdApi, ct);
 
             foreach (var c in vm.Competicoes)
+            {
                 c.TemEspn = _espn.SlugDaLiga(idsApi.GetValueOrDefault(c.Id)) != null;
+                c.TemFotMob = _fotmob.TemCobertura(idsApi.GetValueOrDefault(c.Id));
+            }
 
             var filtrada = baseQuery;
             if (competicaoId.HasValue) filtrada = filtrada.Where(j => j.CompeticaoId == competicaoId.Value);
@@ -150,7 +168,10 @@ namespace ControleFutebolWeb.Controllers
                 .ToListAsync(ct);
 
             foreach (var j in vm.Jogos)
+            {
                 j.SlugEspn = _espn.SlugDaLiga(idsApi.GetValueOrDefault(j.CompeticaoId));
+                j.TemFotMob = _fotmob.TemCobertura(idsApi.GetValueOrDefault(j.CompeticaoId));
+            }
 
             return View(vm);
         }
@@ -178,10 +199,7 @@ namespace ControleFutebolWeb.Controllers
         public async Task<IActionResult> ImportarEstatisticasEspnLote(
             int? competicaoId, int? temporada, CancellationToken ct)
         {
-            var query = _context.Jogos
-                .Where(j => j.Status == "Finalizado")
-                .Where(j => (j.EstatisticasJson == null || j.EstatisticasJson == "")
-                            && !_context.EstatisticasJogador.Any(e => e.JogoId == j.Id));
+            var query = JogosComEstatisticaFaltando();
 
             if (competicaoId.HasValue) query = query.Where(j => j.CompeticaoId == competicaoId.Value);
             if (temporada.HasValue) query = query.Where(j => j.Temporada == temporada.Value);
@@ -204,6 +222,64 @@ namespace ControleFutebolWeb.Controllers
             }
 
             TempData["Sucesso"] = $"Lote da ESPN: {ok} jogo(s) preenchido(s), {falhas} sem dados.";
+            if (falhas > 0 && ultimoErro != null) TempData["Erro"] = $"Último motivo: {ultimoErro}";
+
+            return RedirectToAction(nameof(JogosSemEstatisticas), new { competicaoId, temporada });
+        }
+
+        // ── FotMob ────────────────────────────────────────────────────────────
+        //
+        // Terceira fonte, para o que nem a api-football nem a ESPN têm. Fica como botão
+        // separado (e não como fallback automático do botão da ESPN) porque as duas não
+        // cobrem as mesmas ligas nem os mesmos campos, e é melhor que a tela mostre qual
+        // fonte foi usada em cada jogo do que esconder isso numa cascata.
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ImportarEstatisticasFotMob(
+            int jogoId, int? competicaoId, int? temporada, CancellationToken ct)
+        {
+            var resultado = await _fotmob.ImportarAsync(_context, jogoId, ct);
+
+            if (resultado.Ok) TempData["Sucesso"] = $"Jogo {jogoId}: {resultado.Mensagem}";
+            else TempData["Erro"] = $"Jogo {jogoId}: {resultado.Mensagem}";
+
+            return RedirectToAction(nameof(JogosSemEstatisticas), new { competicaoId, temporada });
+        }
+
+        /// <summary>
+        /// Importa em lote, do mais recente para o mais antigo. O teto de
+        /// LimitePorLote existe para um clique não disparar dezenas de chamadas
+        /// seguidas no FotMob — repetir o botão continua de onde parou.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ImportarEstatisticasFotMobLote(
+            int? competicaoId, int? temporada, CancellationToken ct)
+        {
+            var query = JogosComEstatisticaFaltando();
+
+            if (competicaoId.HasValue) query = query.Where(j => j.CompeticaoId == competicaoId.Value);
+            if (temporada.HasValue) query = query.Where(j => j.Temporada == temporada.Value);
+
+            var ids = await query
+                .OrderByDescending(j => j.Data)
+                .Select(j => j.Id)
+                .Take(FotMobService.LimitePorLote)
+                .ToListAsync(ct);
+
+            int ok = 0, falhas = 0;
+            string? ultimoErro = null;
+
+            foreach (var id in ids)
+            {
+                if (ct.IsCancellationRequested) break;
+                var r = await _fotmob.ImportarAsync(_context, id, ct);
+                if (r.Ok) ok++;
+                else { falhas++; ultimoErro = r.Mensagem; }
+            }
+
+            TempData["Sucesso"] = $"Lote do FotMob: {ok} jogo(s) preenchido(s), {falhas} sem dados.";
             if (falhas > 0 && ultimoErro != null) TempData["Erro"] = $"Último motivo: {ultimoErro}";
 
             return RedirectToAction(nameof(JogosSemEstatisticas), new { competicaoId, temporada });
@@ -235,7 +311,7 @@ namespace ControleFutebolWeb.Controllers
         public async Task<IActionResult> AplicarEscalacaoEspn(int jogoId, string? usuarioId, CancellationToken ct)
         {
             var alvo = await ResolverUsuarioAlvoAsync(usuarioId);
-            var resultado = await _espnEscalacao.AplicarAsync(_context, jogoId, alvo, ct);
+            var resultado = await _espnEscalacao.AplicarAsync(_context, jogoId, alvo, ct: ct);
 
             if (resultado.Ok) TempData["Sucesso"] = resultado.Mensagem;
             else TempData["Erro"] = resultado.Mensagem;
@@ -266,6 +342,10 @@ namespace ControleFutebolWeb.Controllers
                 foreach (var n in notas) _context.NotaDetalhes.RemoveRange(n.Detalhes);
                 _context.Notas.RemoveRange(notas);
                 await _context.SaveChangesAsync(ct);
+
+                // Apagar a nota de quem nem entrou em campo costuma justamente derrubar
+                // um craque eleito por engano: refaz a eleição do jogo para esse analista.
+                await _craques.RecalcularJogoAsync(jogoId, alvo, ct);
 
                 TempData["Sucesso"] = $"{notas.Count} nota(s) removida(s).";
             }

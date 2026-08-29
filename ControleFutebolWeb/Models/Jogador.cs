@@ -44,6 +44,22 @@ namespace ControleFutebolWeb.Models
 
         public long? IdApi { get; set; }
 
+        /// <summary>
+        /// Id deste jogador no FotMob, quando conhecido. Só serve para abrir as
+        /// estatísticas avançadas (ver FotMobPerfilService) — nenhum dado do FotMob é
+        /// gravado a partir dele.
+        ///
+        /// NÃO é descoberto por busca: o nome completo do nosso cadastro não acha nada
+        /// lá ("Edmilson Junior Paulo da Silva" devolve zero resultados) e o nome curto
+        /// devolve homônimos. Ele nasce como subproduto da importação de estatísticas:
+        /// FotMobService já casa jogador por nome E camisa dentro do elenco daquela
+        /// partida — umas duas dezenas de candidatos, não o mundo inteiro —, e é esse
+        /// casamento, já conferido, que fica guardado aqui.
+        ///
+        /// Null = jogador que ainda não apareceu em nenhum jogo importado do FotMob.
+        /// </summary>
+        public long? IdFotMob { get; set; }
+
         public int? NumeroCamisa { get; set; }
 
         public int? NacionalidadeId { get; set; }

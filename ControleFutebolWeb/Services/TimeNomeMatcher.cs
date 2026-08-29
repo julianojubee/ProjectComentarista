@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 
 namespace ControleFutebolWeb.Services
@@ -16,7 +16,10 @@ namespace ControleFutebolWeb.Services
             new[] { "atletico go", "atletico goianiense" },
             new[] { "america mg", "america mineiro" },
             new[] { "rb bragantino", "bragantino", "red bull bragantino" },
-            new[] { "internacional", "inter" },
+            // O "Inter" do nosso cadastro é o de Milão na Série A e o Internacional no
+            // Brasileirão — os dois no mesmo grupo, porque a competição é que separa e eles
+            // nunca aparecem na mesma.
+            new[] { "internacional", "inter", "internazionale", "inter milan" },
             new[] { "gremio", "gremio fbpa" },
             new[] { "sao paulo", "sao paulo fc", "spfc" },
             new[] { "vasco", "vasco da gama" },
@@ -46,6 +49,21 @@ namespace ControleFutebolWeb.Services
             new[] { "independiente rivadavia", "ind rivadavia" },
             new[] { "universidad catolica", "u catolica" },
             new[] { "boca juniors", "boca jrs" },
+            // O futnatv larga a cidade do Talleres de Córdoba. O de Remedios de Escalada não
+            // está cadastrado nem joga a primeira divisão argentina.
+            new[] { "talleres cordoba", "talleres", "talleres de cordoba" },
+            // O futnatv larga a cidade do Sarmiento de Junín. O de Resistência não está
+            // cadastrado nem joga a primeira divisão argentina, então "sarmiento" seco é seguro.
+            new[] { "sarmiento junin", "sarmiento" },
+            // A ESPN põe a província entre parênteses e por extenso: "Central Córdoba
+            // (Santiago del Estero)". "central cordoba" seco entra porque o de Rosário não
+            // está cadastrado nem joga a primeira divisão argentina.
+            new[] { "central cordoba de santiago", "central cordoba santiago del estero",
+                    "central cordoba", "central cordoba sde" },
+            // A ESPN escreve "Liga de Quito" onde o nosso cadastro diz "LDU de Quito".
+            new[] { "ldu de quito", "liga de quito", "ldu", "ldu quito" },
+            // A ESPN põe a cidade que o nosso cadastro não tem: "Cienciano del Cusco".
+            new[] { "cienciano", "cienciano del cusco" },
             new[] { "river plate", "river" },
             new[] { "atletico torque", "montevideo city", "montevideo city torque" },
             // O futnatv chama o Estudiantes de La Plata só de "Estudiantes". A competição e o
@@ -57,11 +75,73 @@ namespace ControleFutebolWeb.Services
             new[] { "union st gilloise", "union saint gilloise", "union sg" },
             // Eredivisie: o futnatv acrescenta a cidade que o nosso cadastro não tem.
             new[] { "az", "az alkmaar" },
+            // Campeonato Saudita: os clubes árabes têm transliteração diferente de cada lado
+            // ("Al-Faisaly" x "Al-Faysaly", "Al-Qadisiyah" x "Al-Qadsiah"), e a diferença cai
+            // no meio da palavra, então nem a igualdade nem a abreviação resolvem.
+            // Inglaterra: o futnatv mantém o "City"/"Town" do nome oficial que o nosso cadastro
+            // corta. É de-para clube a clube de propósito — tirar "city" do nome no geral faria
+            // "Manchester City" casar com o United.
+            // Portugal: o futnatv chama o Sporting CP só de "Sporting". O Sporting Cristal e o
+            // Sp. Braga não entram no grupo e continuam sem casar, porque a comparação exige
+            // o nome inteiro igual.
+            new[] { "sporting cp", "sporting" },
+            new[] { "coventry", "coventry city" },
+            new[] { "leicester", "leicester city" },
+            // La Liga: o futnatv corta o "Real" do nome. Só entra clube sem homônimo — "Real
+            // Madrid" e "Real Sociedad" ficam de fora, que lá o "Real" faz parte do nome usado.
+            new[] { "real betis", "betis" },
+            // Os dois "Athletic Club" do nosso cadastro (o de Bilbao e o mineiro da Série B)
+            // têm nome idêntico, então dividem o grupo à força — a competição é que separa.
+            // O futnatv escreve "Athletic Bilbao" na La Liga e a ESPN escreve "Athletic" seco
+            // na Série B. "Athletico-PR" e "Charlton Athletic" não colidem: são outras strings.
+            new[] { "athletic club", "athletic bilbao", "athletic" },
+            new[] { "celta vigo", "celta de vigo", "celta" },
+            // Bundesliga: o futnatv aportuguesa o nome de Munique e a ESPN escreve em inglês.
+            new[] { "bayern munchen", "bayern munique", "bayern munich" },
+            // "B. M'gladbach" (futnatv): a abreviação bate em DUAS palavras de uma vez
+            // ("Borussia" -> "B." e "Mönchengladbach" -> "M'gladbach"), então nem o de-para
+            // por palavra abreviada resolve. O apóstrofo some na normalização, e é por isso
+            // que a forma que chega aqui é "mgladbach", tudo junto.
+            new[] { "borussia monchengladbach", "b mgladbach", "borussia mgladbach",
+                    "monchengladbach", "mgladbach", "gladbach" },
+            // O futnatv aportuguesa Hamburgo; o "SV" do nosso cadastro fica no fim do nome,
+            // onde a lista de sufixos não mexe (lá "SC"/"SV" seriam sigla de estado).
+            new[] { "hamburger sv", "hamburgo", "hamburg", "hamburger" },
+            // Ligue 1: o futnatv usa o nome completo do clube e o nosso cadastro só a cidade.
+            new[] { "marseille", "olympique de marseille", "olympique marseille" },
+            new[] { "lyon", "olympique de lyon", "olympique lyonnais" },
+            new[] { "estac troyes", "troyes", "troyes ac" },
+            new[] { "stade brestois 29", "brest", "stade brestois", "stade brestois 29 fc" },
+            // O caminho inverso: aqui é o futnatv que usa a sigla e o nosso cadastro o nome
+            // por extenso. O "Paris FC" fica de fora do grupo e continua sem casar com o PSG.
+            new[] { "paris saint germain", "psg", "paris sg" },
+            // Campeonato do Catar: o FotMob (ver FotMobService) escreve o nome curto e
+            // com hífen, e o nosso cadastro traz a cidade ou o "SC" que ele omite. O
+            // hífen já sai na normalização; o que sobra é este de-para.
+            //
+            // "SC" NÃO é removido no geral de propósito: é a sigla de Santa Catarina e
+            // tirá-la faria "Chapecoense SC" e "Vitória SC" colidirem com outros clubes.
+            new[] { "al ahli doha", "al ahli" },
+            new[] { "al duhail", "al duhail sc" },
+            new[] { "al arabi sc", "al arabi" },
+            new[] { "al rayyan sc", "al rayyan" },
+            // O FotMob chama de "Lusail SC" o que o nosso cadastro tem como
+            // "Lusail City". Clube novo, sem homônimo em outra liga cadastrada.
+            new[] { "lusail city", "lusail sc", "lusail" },
+            new[] { "al faisaly", "al faysaly" },
+            new[] { "al taawoun", "al taawon", "al tawoun" },
+            new[] { "al qadisiyah", "al qadsiah", "al qadisiya" },
+            // "Al-Hilal Saudi FC" (nosso cadastro) x "Al-Hilal" (futnatv): o "FC" já sai
+            // sozinho, o que sobra é o "Saudi" que só o nosso lado traz.
+            new[] { "al hilal saudi", "al hilal" },
             // A ESPN (fonte de estatísticas de reserva, ver EspnEstatisticasService)
             // usa o nome em inglês ou corta o nome no meio. Sem o de-para o jogo não
             // é localizado no scoreboard e a importação falha.
             new[] { "crvena zvezda", "red star belgrade" },
-            new[] { "hapoel beer sheva", "hapoel be er" },
+            // "Hapoel Be'er" (futnatv). O apóstrofo some na normalização, então a forma
+            // que chega aqui é "hapoel beer"; "hapoel be er" fica para a fonte que
+            // escrever com espaço de verdade.
+            new[] { "hapoel beer sheva", "hapoel beer", "hapoel be er" },
         };
 
         // Mesma ideia para competições: o nosso cadastro usa o nome "oficial"/da API de dados,
@@ -70,6 +150,11 @@ namespace ControleFutebolWeb.Services
         {
             new[] { "campeonato brasileiro", "brasileirao serie a", "brasileirao", "campeonato brasileiro serie a" },
             new[] { "brasileirao feminino", "campeonato brasileiro feminino" },
+            // Série B: o futnatv diz "Brasileirão - Série B" e o nosso cadastro guarda o nome
+            // cru da api-football, "Serie B". O "serie b" seco fica aqui porque hoje a Série B
+            // italiana não está cadastrada; se ela entrar, precisa entrar com o país no nome
+            // (como "Serie A TIM"), senão as duas viram a mesma competição aqui.
+            new[] { "serie b", "brasileirao serie b", "campeonato brasileiro serie b" },
             new[] { "copa do brasil" },
             new[] { "libertadores", "copa libertadores", "conmebol libertadores", "libertadores da america" },
             new[] { "sulamericana", "sul americana", "copa sul americana", "conmebol sul americana" },
@@ -80,28 +165,15 @@ namespace ControleFutebolWeb.Services
             // O futnatv chama a fase preliminar/qualificatória de "Pré-Champions League",
             // mas no nosso cadastro esses jogos entram na própria Champions League.
             new[] { "champions league", "liga dos campeoes", "uefa champions league", "pre champions league" },
-            new[] { "serie a tim", "campeonato italiano" },
+            // "Serie A" seco é como o nosso cadastro guarda o italiano. Não colide com o
+            // brasileiro: lá o nome vem sempre com o país junto ("Brasileirão - Série A").
+            new[] { "serie a tim", "campeonato italiano", "serie a" },
             new[] { "bundesliga", "campeonato alemao" },
             new[] { "ligue 1", "campeonato frances" },
             // Nosso cadastro diz "Holandês"; o futnatv diz "Neerlandês".
             new[] { "campeonato holandes", "eredivisie", "campeonato neerlandes" },
             new[] { "copa do mundo", "copa do mundo fifa" },
         };
-
-        private static readonly Dictionary<string, string> ApelidoParaGrupo = BuildIndice(GruposDeTimes);
-        private static readonly Dictionary<string, string> CompeticaoParaGrupo = BuildIndice(GruposDeCompeticoes);
-
-        private static Dictionary<string, string> BuildIndice(List<string[]> grupos)
-        {
-            var indice = new Dictionary<string, string>();
-            foreach (var grupo in grupos)
-            {
-                var chaveGrupo = grupo[0];
-                foreach (var apelido in grupo)
-                    indice[apelido] = chaveGrupo;
-            }
-            return indice;
-        }
 
         // Letras que NÃO são "letra + acento" em Unicode e por isso sobrevivem ao FormD:
         // o "ı" sem ponto do turco ("Kasımpaşa"), o "ø" nórdico, o "đ" e o "ł". Sem isso
@@ -132,6 +204,20 @@ namespace ControleFutebolWeb.Services
             return sb.ToString();
         }
 
+        // Preposição/artigo solto no meio do nome: uma fonte põe, a outra não
+        // ("Celta de Vigo" x "Celta Vigo", "Olympique de Marseille" x "Olympique Marseille").
+        // Sai de todo nome comparado — e também das chaves do de-para, que passam pela mesma
+        // normalização em BuildIndice, senão "vasco da gama" viraria uma chave inalcançável.
+        // As variantes que as fontes usam para o mesmo sinal: aspa reta do teclado, a
+        // curva que editores trocam sozinhos, o acento agudo solto e a modificadora
+        // Unicode.
+        private static readonly HashSet<char> Apostrofos = new() { '\'', '\u2019', '\u2018', '\u02BC', '\u00B4', '`' };
+
+        private static readonly HashSet<string> PalavrasDeLigacao = new()
+        {
+            "de", "da", "do", "dos", "das", "del", "di", "du", "des", "of",
+        };
+
         // Remove acentos, pontuação e normaliza espaços/caixa. Ex.: "Grêmio F.B.Pa" -> "gremio fbpa"
         private static string Normalizar(string? texto)
         {
@@ -147,11 +233,21 @@ namespace ControleFutebolWeb.Services
                 var equivalente = LetraSemDecomposicao(c);
                 if (equivalente.HasValue) { sb.Append(equivalente.Value); continue; }
 
+                // Apóstrofo SOME em vez de virar espaço: ele fica no meio da palavra, não
+                // entre palavras. A ESPN escreve "Newell's Old Boys" e o nosso cadastro
+                // (que veio da api-football) escreve "Newells Old Boys" — virando espaço,
+                // um lado normalizava para "newell s old boys" e o outro para "newells old
+                // boys", e a partida não era localizada. Vale para "O'Higgins" e
+                // "Inter Club d'Escaldes" pelo mesmo motivo.
+                if (Apostrofos.Contains(c)) continue;
+
                 sb.Append(char.IsLetterOrDigit(c) || c == ' ' ? char.ToLowerInvariant(c) : ' ');
             }
 
             var partes = sb.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            return string.Join(' ', partes);
+            var semLigacao = partes.Where(p => !PalavrasDeLigacao.Contains(p)).ToArray();
+            // Se o nome era SÓ ligação (nunca deveria acontecer), fica o original.
+            return string.Join(' ', semLigacao.Length > 0 ? semLigacao : partes);
         }
 
         // Sufixos de categoria de base / futebol feminino, que não fazem parte do nome do clube.
@@ -164,15 +260,25 @@ namespace ControleFutebolWeb.Services
         // um lado põe, o outro não, e isso sozinho já quebrava o casamento. Só siglas de
         // agremiação entram aqui — sigla de estado ("Botafogo SP", "Atlético GO") fica de fora
         // de propósito, porque lá ela é justamente o que distingue dois clubes homônimos.
+        // "town" entra aqui porque nenhum clube inglês com "Town" tem homônimo sem ele
+        // (Ipswich, Huddersfield, Luton). Já "City" fica no de-para clube a clube: cortá-lo
+        // faria "Manchester City" virar "Manchester" e casar errado.
         private static readonly string[] SufixosAgremiacao =
-            { "fc", "fk", "cf", "ec", "sk", "afc" };
+            { "fc", "fk", "cf", "ec", "sk", "afc", "town" };
 
+        // "club" por extenso entra junto: a ESPN escreve "Club Olimpia", "Club Brugge",
+        // e o nosso cadastro só a segunda palavra.
         // A mesma sigla, mas no começo do nome: "NK Celje" (ESPN) x "Celje" (nosso
         // cadastro), "FC Porto" x "Porto". Tirar o prefixo só reaproveita o resto do
         // nome — a comparação continua exigindo que TODO o resto seja igual, então
         // "AC Milan" não passa a casar com "Inter Milan".
+        // "VfB"/"VfL"/"SV"/"FSV"/"TSG"/"TSV" são o mesmo tipo de sigla no futebol alemão, e o
+        // futnatv corta todas ("VfB Stuttgart" x "Stuttgart", "SV Elversberg" x "Elversberg",
+        // "FSV Mainz 05" x "Mainz 05"). Nenhum clube alemão cadastrado fica ambíguo sem elas —
+        // o que sobra é sempre o nome da cidade.
         private static readonly string[] PrefixosAgremiacao =
-            { "fc", "fk", "nk", "sk", "ac", "sc", "cf", "ec", "cd", "afc" };
+            { "fc", "fk", "nk", "sk", "ac", "sc", "cf", "ec", "cd", "afc", "club",
+              "vfb", "vfl", "sv", "fsv", "tsg", "tsv" };
 
         // Siglas de UF que aparecem coladas no nome do clube ("Internacional RS", "Vitória BA").
         private static readonly HashSet<string> SiglasEstado = new()
@@ -218,6 +324,14 @@ namespace ControleFutebolWeb.Services
                     break;
                 }
             }
+            // Número na frente do nome é convenção alemã de ano de fundação ("1. FC Köln",
+            // "1899 Hoffenheim") e nenhuma fonte é consistente com ele. Sai antes do prefixo
+            // para que "1 fc koln" ainda vire "koln". O número no FIM continua intocado: lá
+            // ele faz parte do nome usado pelos dois lados ("Mainz 05", "Schalke 04").
+            var primeiroEspaco = normalizado.IndexOf(' ');
+            if (primeiroEspaco > 0 && normalizado[..primeiroEspaco].All(char.IsDigit))
+                normalizado = normalizado[(primeiroEspaco + 1)..];
+
             // Só tira o prefixo se sobrar nome: "FC" sozinho continua "fc".
             foreach (var prefixo in PrefixosAgremiacao)
             {
@@ -253,6 +367,37 @@ namespace ControleFutebolWeb.Services
             }
 
             return diferentes == 1 && abreviacaoValida;
+        }
+
+        // As chaves do de-para são escritas à mão e precisam passar pela MESMA normalização
+        // dos nomes comparados — senão uma entrada como "vasco da gama" ou "sc corinthians
+        // paulista" nunca seria encontrada no índice. Fica aqui embaixo de propósito:
+        // inicializador de campo estático roda na ordem do arquivo, e NormalizarTime depende
+        // dos arrays de sufixo/prefixo declarados acima.
+        private static readonly Dictionary<string, string> ApelidoParaGrupo =
+            BuildIndice(GruposDeTimes, n => NormalizarTime(n));
+        private static readonly Dictionary<string, string> CompeticaoParaGrupo =
+            BuildIndice(GruposDeCompeticoes, Normalizar);
+
+        private static Dictionary<string, string> BuildIndice(
+            List<string[]> grupos, Func<string, string> normalizar)
+        {
+            var indice = new Dictionary<string, string>();
+            foreach (var grupo in grupos)
+            {
+                var chaveGrupo = normalizar(grupo[0]);
+                foreach (var apelido in grupo)
+                {
+                    var chave = normalizar(apelido);
+                    // Duas normalizações iguais em grupos diferentes casariam times distintos
+                    // sem ninguém perceber; melhor estourar na subida do que gravar canal errado.
+                    if (indice.TryGetValue(chave, out var existente) && existente != chaveGrupo)
+                        throw new InvalidOperationException(
+                            $"De-para ambíguo: '{chave}' aparece nos grupos '{existente}' e '{chaveGrupo}'.");
+                    indice[chave] = chaveGrupo;
+                }
+            }
+            return indice;
         }
 
         // Compara dois nomes de time considerando o de-para conhecido, com fallback

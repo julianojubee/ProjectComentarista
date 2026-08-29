@@ -54,6 +54,26 @@
 
     // Competição decidida em partida única: só existe o painel do confronto.
     var ehJogoUnico = tipoNorm == "JOGO_UNICO";
+
+    // Capa escolhida pelo usuário para o hero (Competicoes/SalvarCapa). Sem ela,
+    // vale o degradê padrão do tipo da competição.
+    var capa = ViewBag.HeroCapa as ControleFutebolWeb.Models.CompeticaoHeroUsuario;
+    var temCapa = capa != null && !string.IsNullOrWhiteSpace(capa.ImagemUrl);
+    var veu = temCapa ? Math.Clamp(capa!.Escurecimento, 0, 90) / 100.0 : 0.55;
+    // O lado esquerdo escurece um pouco mais: é onde ficam escudo, título e kicker.
+    string Veu(double v) => Math.Clamp(v, 0, 1).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+
+    var capaPosX = temCapa ? Math.Clamp(capa!.PosX, 0, 100) : 50;
+    var capaPosY = temCapa ? Math.Clamp(capa!.PosY, 0, 100) : 50;
+    var capaAjuste = temCapa && capa!.Ajuste == "CABER" ? "CABER" : "COBRIR";
+    var capaZoom = temCapa ? Math.Clamp(capa!.Zoom, capaAjuste == "CABER" ? 30 : 100, 300) : 100;
+    var capaEscala = (capaZoom / 100.0).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+
+    // Cor escolhida pelo usuário: vale para tudo que o tipo da competição pintaria
+    // (risco, kicker, números, botões) e tinge o degradê do fundo.
+    var corPadrao = accent;
+    var corCustom = capa?.Cor is string c && System.Text.RegularExpressions.Regex.IsMatch(c, "^#[0-9a-fA-F]{6}$") ? c : null;
+    if (corCustom != null) accent = corCustom;
 }
 
 <style>
@@ -62,8 +82,27 @@
     .cd-root a { text-decoration: none; color: inherit; }
 
     /* ── Hero ── */
-    .cd-hero { position: relative; overflow: hidden; background: @heroGrad; padding: 38px 2.5rem 32px; }
+    .cd-hero {
+        position: relative; overflow: hidden; padding: 38px 2.5rem 32px;
+        background: @heroGrad;
+@if (corCustom != null)
+{
+        @:/* Mesma receita do degradê do tipo, com o matiz escolhido. Navegador sem
+        @:   color-mix ignora esta linha e fica com a de cima. */
+        @:background: linear-gradient(135deg, color-mix(in srgb, @corCustom 10%, #050505) 0%, color-mix(in srgb, @corCustom 26%, #050505) 55%, color-mix(in srgb, @corCustom 10%, #050505) 100%);
+}
+    }
     .cd-hero-pattern { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.05; pointer-events: none; }
+    /* Capa do usuário: a foto cobre o hero e o véu por cima segura a leitura do título. */
+    .cd-hero-capa { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+    .cd-hero-veu { position: absolute; inset: 0; pointer-events: none; }
+
+    /* Preview do modal de capa: mesma proporção aproximada da faixa real. */
+    .cd-capa-preview { position: relative; overflow: hidden; border-radius: 10px; border: 1px solid var(--line); background: @heroGrad; aspect-ratio: 7 / 1; cursor: grab; touch-action: none; user-select: none; }
+    .cd-capa-preview.arrastando { cursor: grabbing; }
+    .cd-capa-preview img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+    .cd-capa-preview-veu { position: absolute; inset: 0; pointer-events: none; }
+    .cd-capa-preview-vazio { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: .78rem; color: var(--text-muted); }
     .cd-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: @accent; }
     .cd-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(to top, var(--page-bg), transparent); pointer-events: none; }
     .cd-hero-inner { position: relative; z-index: 1; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
@@ -225,6 +264,7 @@
     .cd-sem-dados p { font-size: .9rem; margin: 0; }
 
     .cd-alert { border-radius: 10px; padding: .8rem 1.1rem; margin: 0 2.5rem 1rem; font-size: .88rem; background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); color: var(--ok); }
+    .cd-alert.erro { background: rgba(239,68,68,.1); border-color: rgba(239,68,68,.3); color: var(--bad); }
 
     /* ── Responsivo ── */
     @@media (max-width: 768px) {
@@ -259,9 +299,27 @@
         </div>
     }
 
+    @if (TempData["Erro"] != null)
+    {
+        <div style="padding-top:1rem;">
+            <div class="cd-alert erro">⚠️ @TempData["Erro"]</div>
+        </div>
+    }
+
     <!-- ── Hero ── -->
     <div class="cd-hero theme-dark-zone">
-        <img src="~/Images/banner/escudos-pattern.svg" class="cd-hero-pattern" alt="" />
+        @if (temCapa)
+        {
+            @* O ponto escolhido no enquadramento é o mesmo do object-position e da
+               origem do zoom: assim ampliar não tira de vista o que o usuário centrou. *@
+            <img src="@capa!.ImagemUrl" class="cd-hero-capa" alt=""
+                 style="object-fit:@(capaAjuste == "CABER" ? "contain" : "cover"); object-position:@(capaPosX)% @(capaPosY)%; transform:scale(@capaEscala); transform-origin:@(capaPosX)% @(capaPosY)%" />
+            <div class="cd-hero-veu" style="background:linear-gradient(90deg, rgba(0,0,0,@Veu(veu + .2)) 0%, rgba(0,0,0,@Veu(veu)) 55%, rgba(0,0,0,@Veu(veu)) 100%)"></div>
+        }
+        else
+        {
+            <img src="~/Images/banner/escudos-pattern.svg" class="cd-hero-pattern" alt="" />
+        }
         <div class="cd-hero-stripe"></div>
         <div class="cd-hero-fade"></div>
         <div class="cd-hero-inner">
@@ -296,6 +354,7 @@
                         </form>
                     }
                     <a href="@Url.Action("Edit", "Competicoes", new { id = Model.Competicao.Id })" class="cd-pill cd-pill-accent">✏️ Editar competição</a>
+                    <button type="button" class="cd-pill" data-bs-toggle="modal" data-bs-target="#capaModal">🎨 Personalizar capa</button>
                 </div>
             </div>
 
@@ -532,6 +591,208 @@
         </div>
     }
 </div>
+
+<!-- ── Capa do hero (preferência do usuário) ── -->
+<div class="modal fade" id="capaModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="SalvarCapa" asp-route-id="@Model.Competicao.Id" method="post" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="temporada" value="@temporadaDetSel" />
+                <input type="hidden" name="posX" id="capa-posx" value="@capaPosX" />
+                <input type="hidden" name="posY" id="capa-posy" value="@capaPosY" />
+                <div class="modal-header">
+                    <h5 class="modal-title">Aparência de @Model.Competicao.Nome</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="cd-capa-preview mb-1" id="capa-preview">
+                        <img id="capa-preview-img" src="@(temCapa ? capa!.ImagemUrl : "")" alt=""
+                             style="@(temCapa ? "" : "display:none")" />
+                        <div class="cd-capa-preview-veu" id="capa-preview-veu"></div>
+                        <div class="cd-capa-preview-vazio" id="capa-preview-vazio" style="@(temCapa ? "display:none" : "")">
+                            Escolha uma imagem para ver o enquadramento
+                        </div>
+                    </div>
+                    <div class="form-text mb-3">Arraste dentro da faixa para posicionar a imagem.</div>
+
+                    <label class="form-label fw-semibold" for="capa-arquivo">Imagem</label>
+                    <input type="file" id="capa-arquivo" name="capaFile" accept="image/png,image/jpeg,image/webp,image/gif" class="form-control" />
+                    <div class="form-text">
+                        PNG, JPG, WEBP ou GIF, até 5 MB. A imagem cobre a faixa inteira,
+                        então funciona melhor deitada — algo em torno de 1600×400. A capa é sua: os outros
+                        usuários continuam vendo a padrão.
+                    </div>
+
+                    <label class="form-label fw-semibold mt-3" for="capa-ajuste-cobrir">Encaixe</label>
+                    <div class="btn-group d-flex" role="group">
+                        <input type="radio" class="btn-check" name="ajuste" id="capa-ajuste-cobrir" value="COBRIR"
+                               checked="@(capaAjuste == "COBRIR")" autocomplete="off" />
+                        <label class="btn btn-outline-secondary" for="capa-ajuste-cobrir">Preencher a faixa</label>
+                        <input type="radio" class="btn-check" name="ajuste" id="capa-ajuste-caber" value="CABER"
+                               checked="@(capaAjuste == "CABER")" autocomplete="off" />
+                        <label class="btn btn-outline-secondary" for="capa-ajuste-caber">Caber inteira</label>
+                    </div>
+                    <div class="form-text">
+                        <strong>Preencher</strong> corta a imagem para cobrir a faixa toda — feito para arte deitada.
+                        <strong>Caber</strong> mostra a imagem inteira e deixa o degradê da competição nas laterais —
+                        é o que uma arte quadrada, como um logo, precisa.
+                    </div>
+
+                    <label class="form-label fw-semibold mt-3" for="capa-zoom">Tamanho</label>
+                    <input type="range" id="capa-zoom" name="zoom" class="form-range"
+                           min="@(capaAjuste == "CABER" ? 30 : 100)" max="300" step="5" value="@capaZoom" />
+                    <div class="form-text">
+                        <span id="capa-zoom-val">@capaZoom</span>% — aproxima ou afasta a partir do ponto que você posicionou.
+                        Em <em>Caber inteira</em> dá para reduzir até 30%.
+                    </div>
+
+                    <label class="form-label fw-semibold mt-3" for="capa-cor">Cor de destaque</label>
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="color" id="capa-cor" name="cor" class="form-control form-control-color"
+                               value="@(corCustom ?? corPadrao)" @(corCustom == null ? "disabled" : "") />
+                        <div class="form-check mb-0">
+                            <input class="form-check-input" type="checkbox" id="capa-cor-padrao" @(corCustom == null ? "checked" : "") />
+                            <label class="form-check-label" for="capa-cor-padrao">Usar a cor padrão do tipo (@corPadrao)</label>
+                        </div>
+                    </div>
+                    <div class="form-text">
+                        Pinta o risco lateral, o rótulo da competição, os números do canto e os botões —
+                        e tinge o degradê do fundo. Vale só para você.
+                    </div>
+
+                    <label class="form-label fw-semibold mt-3" for="capa-escurecimento">Escurecimento</label>
+                    <input type="range" id="capa-escurecimento" name="escurecimento" class="form-range"
+                           min="0" max="90" step="5" value="@(temCapa ? capa!.Escurecimento : 55)" />
+                    <div class="form-text">
+                        <span id="capa-escurecimento-val">@(temCapa ? capa!.Escurecimento : 55)</span>%
+                        — véu preto sobre a foto. Quanto mais clara a imagem, mais véu o título precisa para continuar legível.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    @if (temCapa)
+                    {
+                        <button type="submit" class="btn btn-outline-danger me-auto"
+                                formaction="@Url.Action("RemoverCapa", "Competicoes", new { id = Model.Competicao.Id, temporada = temporadaDetSel })"
+                                formnovalidate onclick="return confirm('Voltar para a capa padrão desta competição?')">
+                            Remover capa
+                        </button>
+                    }
+                    <button type="button" class="btn btn-secondary" id="capa-centralizar">Centralizar</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar capa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Preview da capa: mostra o enquadramento real (object-position + zoom com a
+    // mesma origem) antes de salvar, inclusive para o arquivo recém-escolhido.
+    (function () {
+        var preview = document.getElementById('capa-preview');
+        if (!preview) return;
+
+        var img = document.getElementById('capa-preview-img');
+        var veu = document.getElementById('capa-preview-veu');
+        var vazio = document.getElementById('capa-preview-vazio');
+        var arquivo = document.getElementById('capa-arquivo');
+        var zoom = document.getElementById('capa-zoom');
+        var zoomVal = document.getElementById('capa-zoom-val');
+        var escur = document.getElementById('capa-escurecimento');
+        var escurVal = document.getElementById('capa-escurecimento-val');
+        var inX = document.getElementById('capa-posx');
+        var inY = document.getElementById('capa-posy');
+        var ajustes = document.querySelectorAll('input[name="ajuste"]');
+        var cor = document.getElementById('capa-cor');
+        var corPadrao = document.getElementById('capa-cor-padrao');
+        var objetoUrl = null;
+
+        // Desabilitado não é enviado no POST — é assim que o servidor recebe
+        // "cor vazia" e volta para a cor padrão do tipo.
+        function aplicarCor() {
+            cor.disabled = corPadrao.checked;
+            preview.style.background = corPadrao.checked ? '' :
+                'linear-gradient(135deg, color-mix(in srgb, ' + cor.value + ' 10%, #050505) 0%, color-mix(in srgb, '
+                + cor.value + ' 26%, #050505) 55%, color-mix(in srgb, ' + cor.value + ' 10%, #050505) 100%)';
+        }
+        corPadrao.addEventListener('change', aplicarCor);
+        cor.addEventListener('input', aplicarCor);
+
+        function ajusteAtual() {
+            return document.getElementById('capa-ajuste-caber').checked ? 'CABER' : 'COBRIR';
+        }
+
+        function aplicar() {
+            var x = +inX.value, y = +inY.value, z = +zoom.value / 100;
+            img.style.objectFit = ajusteAtual() === 'CABER' ? 'contain' : 'cover';
+            img.style.objectPosition = x + '% ' + y + '%';
+            img.style.transform = 'scale(' + z + ')';
+            img.style.transformOrigin = x + '% ' + y + '%';
+            var v = +escur.value / 100;
+            veu.style.background = 'linear-gradient(90deg, rgba(0,0,0,' + Math.min(v + .2, 1) + ') 0%, rgba(0,0,0,'
+                + v + ') 55%, rgba(0,0,0,' + v + ') 100%)';
+            zoomVal.textContent = zoom.value;
+            escurVal.textContent = escur.value;
+        }
+
+        zoom.addEventListener('input', aplicar);
+        escur.addEventListener('input', aplicar);
+
+        // Preencher exige pelo menos 100% (abaixo disso sobraria fundo em vez de
+        // cobrir); Caber libera reduzir até 30%.
+        ajustes.forEach(function (r) {
+            r.addEventListener('change', function () {
+                var min = ajusteAtual() === 'CABER' ? 30 : 100;
+                zoom.min = min;
+                if (+zoom.value < min) zoom.value = min;
+                aplicar();
+            });
+        });
+
+        document.getElementById('capa-centralizar').addEventListener('click', function () {
+            inX.value = 50; inY.value = 50; zoom.value = 100; aplicar();
+        });
+
+        arquivo.addEventListener('change', function () {
+            var f = arquivo.files && arquivo.files[0];
+            if (!f) return;
+            if (objetoUrl) URL.revokeObjectURL(objetoUrl);
+            objetoUrl = URL.createObjectURL(f);
+            img.src = objetoUrl;
+            img.style.display = '';
+            vazio.style.display = 'none';
+            aplicar();
+        });
+
+        // Arrastar move a foto: puxar para a esquerda revela o lado direito, então
+        // o deslocamento entra invertido no object-position.
+        var arrastando = false, ultimoX = 0, ultimoY = 0;
+        preview.addEventListener('pointerdown', function (e) {
+            if (img.style.display === 'none') return;
+            arrastando = true; ultimoX = e.clientX; ultimoY = e.clientY;
+            preview.classList.add('arrastando');
+            preview.setPointerCapture(e.pointerId);
+        });
+        preview.addEventListener('pointermove', function (e) {
+            if (!arrastando) return;
+            var r = preview.getBoundingClientRect();
+            var novoX = +inX.value - (e.clientX - ultimoX) / r.width * 100;
+            var novoY = +inY.value - (e.clientY - ultimoY) / r.height * 100;
+            inX.value = Math.round(Math.min(100, Math.max(0, novoX)));
+            inY.value = Math.round(Math.min(100, Math.max(0, novoY)));
+            ultimoX = e.clientX; ultimoY = e.clientY;
+            aplicar();
+        });
+        ['pointerup', 'pointercancel'].forEach(function (ev) {
+            preview.addEventListener(ev, function () { arrastando = false; preview.classList.remove('arrastando'); });
+        });
+
+        aplicar();
+        aplicarCor();
+    })();
+</script>
 
 <script>
     (function () {

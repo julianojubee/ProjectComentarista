@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace ControleFutebolWeb.Controllers
@@ -19,8 +19,15 @@ namespace ControleFutebolWeb.Controllers
         };
 
         private static readonly HashSet<string> _allowedHosts = new(
-            _apiSportsHosts.Append("flagcdn.com"), // bandeiras de países (FlagHelper.GetFlagImageUrl)
+            _apiSportsHosts.Append("flagcdn.com")  // bandeiras de países (FlagHelper.GetFlagImageUrl)
+                           .Append(_hostEscudos),  // escudos das telas de estatística avançada
             StringComparer.OrdinalIgnoreCase);
+
+        // Host dos escudos usados pela tela de estatísticas avançadas do jogador.
+        // Fica aqui, e não na view, para que a página servida ao usuário não carregue
+        // endereço de fonte externa nenhum: o HTML pede /MediaProxy/Escudo/{id} e é
+        // este controller que sabe de onde a imagem vem.
+        private const string _hostEscudos = "images.fotmob.com";
 
         private static readonly HashSet<string> _tiposPermitidos = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -67,6 +74,21 @@ namespace ControleFutebolWeb.Controllers
                 AbsoluteExpirationRelativeToNow = _ttlFalha,
                 Size = 1 // obrigatório: o MemoryCache tem SizeLimit configurado.
             });
+
+        /// <summary>
+        /// GET /MediaProxy/Escudo/203826 — escudo de um clube ou seleção pelo id.
+        ///
+        /// Existe para a URL de origem não aparecer no HTML: passar a imagem por
+        /// ?url=... deixaria o endereço da fonte visível em toda página que mostra um
+        /// escudo. Aqui a página só cita um número, e a montagem acontece no servidor.
+        /// </summary>
+        [HttpGet]
+        [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+        [ResponseCache(Duration = 86400, Location = ResponseCacheLocation.Any)]
+        public Task<IActionResult> Escudo(long id, CancellationToken ct) =>
+            id <= 0
+                ? Task.FromResult(SemCache(BadRequest()))
+                : Imagem($"https://{_hostEscudos}/image_resources/logo/teamlogo/{id}.png", ct);
 
         // GET /MediaProxy/Imagem?url=https://media.api-sports.io/football/players/50077.png
         // AllowAnonymous: o app Android carrega imagens pelo Coil, que não envia

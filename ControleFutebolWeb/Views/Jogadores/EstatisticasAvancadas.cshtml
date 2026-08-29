@@ -1,0 +1,388 @@
+@model ControleFutebolWeb.Models.ViewModels.EstatisticasAvancadasViewModel
+@{
+    ViewData["Title"] = $"{Model.JogadorNome} — estatísticas avançadas";
+}
+
+@*
+    Tela de leitura pura: tudo aqui foi buscado durante esta requisição e nada é
+    gravado — ver FotMobPerfilService.
+
+    A ORIGEM DOS DADOS NÃO APARECE para o usuário: nem no texto, nem em nome de fonte,
+    nem em URL de imagem (os escudos passam por /MediaProxy/Escudo/{id}, que monta o
+    endereço no servidor). É decisão de produto. O que continua fora por decisão
+    técnica é a NOTA da fonte externa: a nota do jogador é a que o site calcula, e duas
+    réguas concorrentes na mesma tela seria ruim independentemente de crédito.
+*@
+
+<style>
+    .ea-page { background: var(--p-0); margin: 0 -12px; padding: 24px 16px 48px; border-radius: 14px; }
+    .ea-wrap { max-width: 1000px; margin: 0 auto; }
+
+    .ea-voltar {
+        display: inline-flex; align-items: center; gap: 8px; margin-bottom: 18px;
+        font-size: .78rem; font-weight: 600; color: var(--text-muted);
+        background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 8px;
+        padding: 8px 14px; text-decoration: none;
+    }
+    .ea-voltar:hover { border-color: #c084fc; color: #c084fc; text-decoration: none; }
+
+    .ea-head { margin-bottom: 22px; }
+    .ea-titulo { font-size: 1.5rem; font-weight: 800; color: var(--text-strong); margin: 0; }
+    .ea-sub { font-size: .82rem; color: var(--text-muted); margin-top: 6px; }
+
+    .ea-erro {
+        background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3);
+        color: var(--bad); border-radius: 10px; padding: 14px; font-size: .85rem;
+    }
+
+    .ea-secao { margin-bottom: 30px; }
+    .ea-secao-tit {
+        font-size: .95rem; font-weight: 700; color: var(--text-strong);
+        margin: 0 0 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .ea-secao-nota { font-size: .72rem; font-weight: 500; color: var(--text-dim); }
+
+    /* Filtro em dois níveis: a temporada abre a lista de competições dela. A troca é
+       no cliente porque as competições já vieram todas — só a estatística escolhida
+       custa uma ida ao servidor. */
+    .ea-filtro { margin-bottom: 18px; }
+    .ea-filtro-linha { display: flex; flex-wrap: wrap; gap: 8px; }
+    .ea-filtro-rot {
+        font-size: .7rem; font-weight: 700; color: var(--text-dim);
+        text-transform: uppercase; letter-spacing: .05em; margin-bottom: 7px;
+    }
+    .ea-temp, .ea-comp {
+        padding: 7px 13px; border-radius: 8px; font-size: .76rem; font-weight: 600;
+        background: var(--p-2); border: 1px solid var(--line-strong);
+        color: var(--text-muted); text-decoration: none; cursor: pointer;
+    }
+    .ea-temp:hover, .ea-comp:hover { color: #c084fc; text-decoration: none; }
+    .ea-temp.ativa { background: rgba(168,85,247,.15); border-color: rgba(168,85,247,.4); color: #c084fc; }
+    .ea-comp.ativa { background: rgba(168,85,247,.2); border-color: rgba(168,85,247,.5); color: #c084fc; }
+    .ea-comp.rasa { opacity: .62; }
+    .ea-comps { display: none; margin-top: 12px; }
+    .ea-comps.aberta { display: block; }
+
+    .ea-grupos { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+    .ea-grupo { background: var(--p-1); border: 1px solid var(--line-strong); border-radius: 12px; padding: 16px; }
+    .ea-grupo-tit {
+        font-size: .8rem; font-weight: 700; color: var(--text-strong);
+        text-transform: uppercase; letter-spacing: .04em; margin: 0 0 12px;
+    }
+
+    .ea-metrica { padding: 9px 0; border-bottom: 1px solid var(--line); }
+    .ea-metrica:last-child { border-bottom: none; }
+    .ea-metrica-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+    .ea-metrica-nome { font-size: .8rem; color: var(--text-2); }
+    .ea-metrica-val { font-size: .95rem; font-weight: 700; color: var(--text-strong); white-space: nowrap; }
+    .ea-metrica-p90 { font-size: .68rem; color: var(--text-dim); font-weight: 500; margin-left: 6px; }
+
+    /* A barra é o percentil, não o valor: ela responde "isso é bom para esta liga?",
+       que é a pergunta que a nossa base não consegue responder. */
+    .ea-barra { height: 4px; background: var(--p-3); border-radius: 3px; margin-top: 7px; overflow: hidden; }
+    .ea-barra-fill { height: 100%; border-radius: 3px; }
+    .ea-percentil { font-size: .67rem; color: var(--text-dim); margin-top: 4px; }
+
+    .ea-tabela { width: 100%; border-collapse: collapse; font-size: .8rem; }
+    .ea-tabela th {
+        text-align: left; padding: 8px 10px; font-size: .7rem; font-weight: 700;
+        color: var(--text-dim); text-transform: uppercase; letter-spacing: .04em;
+        border-bottom: 1px solid var(--line-strong); white-space: nowrap;
+    }
+    .ea-tabela td { padding: 9px 10px; border-bottom: 1px solid var(--line); color: var(--text-2); }
+    .ea-tabela tr:last-child td { border-bottom: none; }
+    .ea-num { text-align: right; font-variant-numeric: tabular-nums; }
+    .ea-scroll { overflow-x: auto; background: var(--p-1); border: 1px solid var(--line-strong); border-radius: 12px; }
+
+    /* Escudo + nome andam juntos; o escudo tem tamanho fixo para as linhas da tabela
+       não dançarem quando uma imagem falha. */
+    .ea-time { display: inline-flex; align-items: center; gap: 8px; }
+    .ea-escudo {
+        width: 20px; height: 20px; object-fit: contain; flex: 0 0 20px;
+        background: transparent;
+    }
+
+    .ea-tag { display: inline-block; padding: 2px 7px; border-radius: 5px; font-size: .66rem; font-weight: 700; }
+    .ea-tag-atual { background: rgba(74,222,128,.15); color: #4ade80; }
+    .ea-tag-sel { background: rgba(59,130,246,.15); color: var(--info); }
+
+    .ea-vazio { font-size: .82rem; color: var(--text-dim); padding: 14px; }
+</style>
+
+@*
+    Escudo do time. Devolve string vazia sem id, e a view omite a imagem em vez de
+    pedir uma que não existe. onerror esconde o <img> quando a imagem não vem: o
+    alt de um escudo ausente polui mais do que ajuda.
+*@
+@functions {
+    string Escudo(long? timeId) =>
+        timeId is > 0 ? $"/MediaProxy/Escudo/{timeId}" : "";
+}
+
+<div class="ea-page">
+    <div class="ea-wrap">
+
+        <a href="/Jogadores/Estatisticas/@Model.JogadorId" class="ea-voltar">← Voltar para @Model.JogadorNome</a>
+
+        <div class="ea-head">
+            <h1 class="ea-titulo">Estatísticas avançadas</h1>
+            @if (Model.PosicaoPrincipal != null || Model.ValorDeMercado != null)
+            {
+                <div class="ea-sub">
+                    @if (Model.PosicaoPrincipal != null)
+                    {
+                        <span>Posição principal: <strong>@Model.PosicaoPrincipal</strong></span>
+                    }
+                    @if (Model.ValorDeMercado != null)
+                    {
+                        <span> · Valor de mercado: <strong>@Model.ValorDeMercado</strong></span>
+                    }
+                </div>
+            }
+        </div>
+
+        @if (Model.Erro != null)
+        {
+            <div class="ea-erro">@Model.Erro</div>
+        }
+        else
+        {
+            @* ── Desempenho na temporada ─────────────────────────────── *@
+            <div class="ea-secao">
+                <h2 class="ea-secao-tit">
+                    Desempenho na temporada
+                    <span class="ea-secao-nota">— totais, média por 90' e posição na competição</span>
+                </h2>
+
+                @if (Model.Temporadas.Count > 0)
+                {
+                    <div class="ea-filtro">
+                        <div class="ea-filtro-rot">Temporada</div>
+                        <div class="ea-filtro-linha">
+                            @foreach (var t in Model.Temporadas)
+                            {
+                                <button type="button"
+                                        class="ea-temp @(t.Nome == Model.TemporadaSelecionada ? "ativa" : "")"
+                                        data-temporada="@t.Nome">
+                                    @t.Nome
+                                </button>
+                            }
+                        </div>
+
+                        @foreach (var t in Model.Temporadas)
+                        {
+                            <div class="ea-comps @(t.Nome == Model.TemporadaSelecionada ? "aberta" : "")"
+                                 data-comps="@t.Nome">
+                                <div class="ea-filtro-rot">Competição</div>
+                                <div class="ea-filtro-linha">
+                                    @foreach (var c in t.Competicoes)
+                                    {
+                                        <a href="/Jogadores/EstatisticasAvancadas/@Model.JogadorId?temporadaId=@c.Id"
+                                           class="ea-comp @(c.Id == Model.CompeticaoSelecionada ? "ativa" : "") @(c.TemDadosDetalhados ? "" : "rasa")"
+                                           title="@(c.TemDadosDetalhados ? c.Nome : $"{c.Nome} — só dados básicos")">
+                                            @c.Nome
+                                        </a>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (Model.TemDesempenho)
+                {
+                    <div class="ea-grupos">
+                        @foreach (var g in Model.Grupos)
+                        {
+                            <div class="ea-grupo">
+                                <h3 class="ea-grupo-tit">@g.Nome</h3>
+                                @foreach (var m in g.Metricas)
+                                {
+                                    <div class="ea-metrica">
+                                        <div class="ea-metrica-topo">
+                                            <span class="ea-metrica-nome">@m.Nome</span>
+                                            <span class="ea-metrica-val">
+                                                @m.Valor@(m.EhPercentual ? "%" : "")
+                                                @if (m.Por90 is double p90)
+                                                {
+                                                    <span class="ea-metrica-p90">@p90.ToString("0.##")/90'</span>
+                                                }
+                                            </span>
+                                        </div>
+                                        @if (m.Percentil is double pc)
+                                        {
+                                            @* Verde no topo, âmbar no meio, vermelho embaixo — a leitura
+                                               tem que ser possível sem ler o número. *@
+                                            var cor = pc >= 70 ? "#4ade80" : pc >= 40 ? "#facc15" : "#f87171";
+                                            <div class="ea-barra">
+                                                <div class="ea-barra-fill" style="width:@pc.ToString("0", System.Globalization.CultureInfo.InvariantCulture)%; background:@cor"></div>
+                                            </div>
+                                            <div class="ea-percentil">Melhor que @pc.ToString("0")% dos jogadores da competição</div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="ea-vazio">
+                        Não há estatística detalhada desta competição.
+                        @if (Model.Temporadas.Sum(t => t.Competicoes.Count) > 1)
+                        {
+                            <text>Escolha outra acima.</text>
+                        }
+                    </div>
+                }
+            </div>
+
+            @* ── Carreira ────────────────────────────────────────────── *@
+            @if (Model.Carreira.Count > 0)
+            {
+                <div class="ea-secao">
+                    <h2 class="ea-secao-tit">
+                        Carreira
+                        <span class="ea-secao-nota">— carreira inteira, não só os jogos importados</span>
+                    </h2>
+                    <div class="ea-scroll">
+                        <table class="ea-tabela">
+                            <thead>
+                                <tr>
+                                    <th>Time</th><th>Período</th>
+                                    <th class="ea-num">Jogos</th><th class="ea-num">Gols</th><th class="ea-num">Assist.</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var c in Model.Carreira)
+                                {
+                                    <tr>
+                                        <td>
+                                            <span class="ea-time">
+                                                @if (Escudo(c.TimeId) is { Length: > 0 } src)
+                                                {
+                                                    <img class="ea-escudo" src="@src" alt=""
+                                                         loading="lazy" onerror="this.style.display='none'" />
+                                                }
+                                                <span>@c.Time</span>
+                                            </span>
+                                            @if (c.Categoria == "Seleção") { <span class="ea-tag ea-tag-sel">seleção</span> }
+                                            @if (c.Atual) { <span class="ea-tag ea-tag-atual">atual</span> }
+                                        </td>
+                                        <td>@c.Periodo</td>
+                                        <td class="ea-num">@c.Jogos</td>
+                                        <td class="ea-num">@c.Gols</td>
+                                        <td class="ea-num">@c.Assistencias</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+
+            @* ── Títulos ─────────────────────────────────────────────── *@
+            @if (Model.Titulos.Count > 0)
+            {
+                <div class="ea-secao">
+                    <h2 class="ea-secao-tit">Títulos</h2>
+                    <div class="ea-scroll">
+                        <table class="ea-tabela">
+                            <thead>
+                                <tr><th>Competição</th><th>Time</th><th class="ea-num">Vezes</th><th>Temporadas</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var t in Model.Titulos.OrderByDescending(x => x.Quantidade))
+                                {
+                                    <tr>
+                                        <td>@t.Competicao</td>
+                                        <td>
+                                            <span class="ea-time">
+                                                @if (Escudo(t.TimeId) is { Length: > 0 } src)
+                                                {
+                                                    <img class="ea-escudo" src="@src" alt=""
+                                                         loading="lazy" onerror="this.style.display='none'" />
+                                                }
+                                                <span>@t.Time</span>
+                                            </span>
+                                        </td>
+                                        <td class="ea-num">@t.Quantidade</td>
+                                        <td>@t.Temporadas</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+
+            @* ── Últimos jogos ───────────────────────────────────────── *@
+            @if (Model.Jogos.Count > 0)
+            {
+                <div class="ea-secao">
+                    <h2 class="ea-secao-tit">
+                        Últimos jogos
+                        <span class="ea-secao-nota">
+                            — @Model.Jogos.Count jogo(s), incluindo partidas fora da nossa base
+                        </span>
+                    </h2>
+                    <div class="ea-scroll">
+                        <table class="ea-tabela">
+                            <thead>
+                                <tr>
+                                    <th>Data</th><th>Competição</th><th>Adversário</th><th>Placar</th>
+                                    <th class="ea-num">Min.</th><th class="ea-num">G</th><th class="ea-num">A</th><th class="ea-num">Cartões</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var j in Model.Jogos.OrderByDescending(x => x.Data).Take(30))
+                                {
+                                    <tr>
+                                        <td>@(j.Data?.ToLocalTime().ToString("dd/MM/yyyy") ?? "—")</td>
+                                        <td>@j.Competicao</td>
+                                        <td>
+                                            <span class="ea-time">
+                                                @if (Escudo(j.AdversarioId) is { Length: > 0 } src)
+                                                {
+                                                    <img class="ea-escudo" src="@src" alt=""
+                                                         loading="lazy" onerror="this.style.display='none'" />
+                                                }
+                                                <span>@(j.Mandante ? "vs " : "@ ")@j.Adversario</span>
+                                            </span>
+                                        </td>
+                                        <td>@(j.Placar ?? "—")</td>
+                                        <td class="ea-num">@(j.Minutos?.ToString() ?? "—")</td>
+                                        <td class="ea-num">@j.Gols</td>
+                                        <td class="ea-num">@j.Assistencias</td>
+                                        <td class="ea-num">
+                                            @if (j.CartoesAmarelos > 0) { <text>🟨@j.CartoesAmarelos</text> }
+                                            @if (j.CartoesVermelhos > 0) { <text>🟥@j.CartoesVermelhos</text> }
+                                            @if (j.CartoesAmarelos == 0 && j.CartoesVermelhos == 0) { <text>—</text> }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+<script>
+    // Troca a temporada aberta sem recarregar: as competições de todas já estão no
+    // HTML. Só a escolha da competição vai ao servidor, porque é ela que define de
+    // quais estatísticas a página é feita.
+    document.querySelectorAll('.ea-temp').forEach(function (botao) {
+        botao.addEventListener('click', function () {
+            var alvo = botao.dataset.temporada;
+            document.querySelectorAll('.ea-temp').forEach(function (b) {
+                b.classList.toggle('ativa', b === botao);
+            });
+            document.querySelectorAll('.ea-comps').forEach(function (bloco) {
+                bloco.classList.toggle('aberta', bloco.dataset.comps === alvo);
+            });
+        });
+    });
+</script>

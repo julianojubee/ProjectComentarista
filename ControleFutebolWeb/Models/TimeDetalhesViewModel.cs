@@ -26,6 +26,13 @@
         // Temporadas com jogos realizados; o painel do elenco mostra uma de cada vez.
         public List<int> TemporadasElenco { get; set; } = new();
         public int TemporadaElencoSelecionada { get; set; }
+        // Jogo de onde veio a escalação exibida no campinho (a última usada pelo
+        // clube). Null = está sendo mostrada a escalação padrão salva/os slots
+        // vazios da formação padrão.
+        public Jogo? EscalacaoUltimoJogo { get; set; }
+        // Formação do campinho: a do último jogo quando há um, senão a padrão.
+        public int FormacaoExibidaId { get; set; }
+        public string? FormacaoExibidaNome { get; set; }
     }
 
     public class CompeticaoApiItem

@@ -216,6 +216,12 @@
                                 Logs
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark"
+                               asp-area="" asp-controller="Servicos" asp-action="Index">
+                                <span class="gold-ico">🛠️</span> Serviços
+                            </a>
+                        </li>
                         }
 
                     </ul>
@@ -309,6 +315,8 @@
             localStorage.setItem('site-theme', next);
             var icon = document.getElementById('theme-toggle-icon');
             if (icon) icon.textContent = next === 'dark' ? '☀️' : '🌙';
+            // Quem desenha em canvas (Chart.js) não enxerga a troca de tokens CSS.
+            window.dispatchEvent(new CustomEvent('site-theme-change', { detail: { theme: next } }));
         }
     </script>
 

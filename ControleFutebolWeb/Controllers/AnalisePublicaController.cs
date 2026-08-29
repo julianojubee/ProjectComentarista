@@ -54,20 +54,41 @@ namespace ControleFutebolWeb.Controllers
             return link != null && link.EstaAtivo(DateTime.UtcNow) ? link : null;
         }
 
+        // ?tv=1|16x9|h → apresentação 16:9; ?tv=9x16|v → 9:16 (Shorts).
+        // Qualquer outro valor cai fora: modo desligado, página normal.
+        private static string? NormalizarModoTv(string? tv) => tv switch
+        {
+            "1" or "16x9" or "h" => "h",
+            "9x16" or "v" => "v",
+            _ => null
+        };
+
+        // ?tab=... só aceita as quatro abas do painel — o valor entra no HTML e
+        // vira chamada de JS, então nada de string arbitrária da URL.
+        private static string NormalizarAba(string? tab) =>
+            tab is "notas" or "campo" or "stats" or "obs" ? tab : "notas";
+
         // GET /analise/{token} — a página em si (casca; o conteúdo vem por JSON).
         [HttpGet("{token}")]
-        public async Task<IActionResult> Index(string token)
+        public async Task<IActionResult> Index(string token, [FromQuery] string? tv, [FromQuery] string? tab)
         {
             var link = await BuscarLinkAsync(token);
             if (link == null) return NotFound();
 
+            var modoTv = NormalizarModoTv(tv);
+
             // Contador de acessos: update direto, sem tracking, para não pesar
-            // numa página que pode ser aberta por muita gente.
-            await _context.AnalisesCompartilhadas
-                .Where(a => a.Id == link.Id)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(a => a.Visualizacoes, a => a.Visualizacoes + 1)
-                    .SetProperty(a => a.UltimoAcessoEm, DateTime.UtcNow));
+            // numa página que pode ser aberta por muita gente. O modo
+            // apresentação não conta — quem abre é o próprio autor gravando, e
+            // isso inflaria a métrica de quantas pessoas viram a análise.
+            if (modoTv == null)
+            {
+                await _context.AnalisesCompartilhadas
+                    .Where(a => a.Id == link.Id)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(a => a.Visualizacoes, a => a.Visualizacoes + 1)
+                        .SetProperty(a => a.UltimoAcessoEm, DateTime.UtcNow));
+            }
 
             static string Cor(string? valor, string padrao) =>
                 string.IsNullOrWhiteSpace(valor) ? padrao : valor;
@@ -80,7 +101,9 @@ namespace ControleFutebolWeb.Controllers
                 CorCamisaCasa = Cor(link.Jogo.CorCamisaCasa, "dc3545"),
                 CorNumeroCasa = Cor(link.Jogo.CorNumeroCasa, "ffffff"),
                 CorCamisaVisitante = Cor(link.Jogo.CorCamisaVisitante, "0d6efd"),
-                CorNumeroVisitante = Cor(link.Jogo.CorNumeroVisitante, "ffffff")
+                CorNumeroVisitante = Cor(link.Jogo.CorNumeroVisitante, "ffffff"),
+                ModoTv = modoTv,
+                AbaInicial = NormalizarAba(tab)
             });
         }
 

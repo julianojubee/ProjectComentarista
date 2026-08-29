@@ -1,4 +1,4 @@
-@model List<ControleFutebolWeb.Models.Transferencia>
+﻿@model List<ControleFutebolWeb.Models.Transferencia>
 @using ControleFutebolWeb.Helpers
 
 @{
@@ -268,7 +268,7 @@
                             </div>
                             <div style="min-width:0;">
                                 <div class="tf-jogador-nome">
-                                    <a href="@Url.Action("Estatisticas", "Jogadores", new { id = t.JogadorId })">@t.Jogador.NomeExibicao</a>
+                                    <a href="@Url.Action("Estatisticas", "Jogadores", new { id = t.JogadorId })">@t.Jogador.Nome</a>
                                 </div>
                                 <div class="tf-jogador-pos">@PosicaoJogadorHelper.Sigla(t.Jogador.Posicao)</div>
                             </div>
@@ -313,7 +313,7 @@
                                 @if (t.UsuarioId != null && t.UsuarioId == (string?)ViewBag.UsuarioAtualId)
                                 {
                                     var confirmacao = t.TimeDestinoId == null
-                                        ? $"Desfazer a aposentadoria de {t.Jogador.NomeExibicao}? Ele volta a aparecer como jogador em atividade."
+                                        ? $"Desfazer a aposentadoria de {t.Jogador.Nome}? Ele volta a aparecer como jogador em atividade."
                                         : $"Excluir esta transferência? Se o jogador ainda estiver em {t.TimeDestino?.Nome}, ele volta para {t.TimeOrigem?.Nome ?? "o clube anterior"}.";
                                     <form method="post" asp-action="Excluir" asp-route-id="@t.Id" style="margin:0"
                                           onsubmit="return confirm('@confirmacao');">

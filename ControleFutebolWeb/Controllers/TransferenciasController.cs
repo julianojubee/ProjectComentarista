@@ -1,4 +1,4 @@
-using ControleFutebolWeb.Data;
+﻿using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
 using Microsoft.AspNetCore.Authorization;
@@ -157,7 +157,7 @@ namespace ControleFutebolWeb.Controllers
 
             if (jogador.TimeId == destino.Id)
             {
-                TempData["Erro"] = $"{jogador.NomeExibicao} já pertence a {destino.Nome}.";
+                TempData["Erro"] = $"{jogador.Nome} já pertence a {destino.Nome}.";
                 return RedirectToAction(nameof(Index));
             }
 
@@ -180,7 +180,7 @@ namespace ControleFutebolWeb.Controllers
             jogador.AposentadoEm = null;
             await _context.SaveChangesAsync();
 
-            TempData["Sucesso"] = $"{jogador.NomeExibicao} transferido: {origemNome} → {destino.Nome}.";
+            TempData["Sucesso"] = $"{jogador.Nome} transferido: {origemNome} → {destino.Nome}.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -352,7 +352,7 @@ namespace ControleFutebolWeb.Controllers
                 return Json(new { ok = false, mensagem = "O destino precisa ser um clube — seleções não contam como transferência." });
 
             if (jogador.TimeId == destino.Id)
-                return Json(new { ok = false, mensagem = $"{jogador.NomeExibicao} já pertence a {destino.Nome}." });
+                return Json(new { ok = false, mensagem = $"{jogador.Nome} já pertence a {destino.Nome}." });
 
             _context.Transferencias.Add(new Transferencia
             {
@@ -374,7 +374,7 @@ namespace ControleFutebolWeb.Controllers
             return Json(new
             {
                 ok = true,
-                mensagem = $"{jogador.NomeExibicao} transferido: {origemNome} → {destino.Nome}."
+                mensagem = $"{jogador.Nome} transferido: {origemNome} → {destino.Nome}."
             });
         }
 
@@ -395,7 +395,7 @@ namespace ControleFutebolWeb.Controllers
                 return Json(new { ok = false, mensagem = "Jogador não encontrado." });
 
             if (jogador.Aposentado)
-                return Json(new { ok = false, mensagem = $"{jogador.NomeExibicao} já está marcado como aposentado." });
+                return Json(new { ok = false, mensagem = $"{jogador.Nome} já está marcado como aposentado." });
 
             _context.Transferencias.Add(new Transferencia
             {
@@ -415,7 +415,7 @@ namespace ControleFutebolWeb.Controllers
             return Json(new
             {
                 ok = true,
-                mensagem = $"{jogador.NomeExibicao} marcado como aposentado (último clube: {origemNome})."
+                mensagem = $"{jogador.Nome} marcado como aposentado (último clube: {origemNome})."
             });
         }
 
@@ -466,8 +466,8 @@ namespace ControleFutebolWeb.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Sucesso"] = ehAposentadoria
-                ? $"{transferencia.Jogador.NomeExibicao} não está mais marcado como aposentado."
-                : $"Transferência de {transferencia.Jogador.NomeExibicao} excluída.";
+                ? $"{transferencia.Jogador.Nome} não está mais marcado como aposentado."
+                : $"Transferência de {transferencia.Jogador.Nome} excluída.";
             return RedirectToAction(nameof(Index));
         }
     }

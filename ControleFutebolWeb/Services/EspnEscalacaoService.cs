@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
@@ -294,8 +294,16 @@ namespace ControleFutebolWeb.Services
         /// elenco, ajusta a formação e distribui os titulares nos slots dela. Só mexe
         /// na fase INICIAL e só nas linhas deste usuário.
         /// </summary>
+        /// <param name="filtroLado">
+        /// Recebe true para o mandante e false para o visitante; devolver false pula o
+        /// lado. Serve ao fallback automático da reimportação, que só quer preencher o
+        /// lado que a api-football não trouxe: passar a ESPN por cima de um lado que já
+        /// veio da API descartaria o casamento por IdApi e pode cadastrar jogador
+        /// duplicado quando o nome diverge. Null aplica nos dois.
+        /// </param>
         public async Task<ResultadoEspn> AplicarAsync(
-            FutebolContext context, int jogoId, string usuarioId, CancellationToken ct = default)
+            FutebolContext context, int jogoId, string usuarioId,
+            Func<bool, bool>? filtroLado = null, CancellationToken ct = default)
         {
             var (jogo, doc, evento, erro) = await _espn.AbrirResumoAsync(context, jogoId, exigeIdApi: false, ct);
             if (erro != null) return erro;
@@ -309,14 +317,18 @@ namespace ControleFutebolWeb.Services
 
             foreach (var roster in rosters.EnumerateArray())
             {
-                var resultado = await AplicarLadoAsync(context, jogo!, roster, usuarioId, ct);
+                var resultado = await AplicarLadoAsync(context, jogo!, roster, usuarioId, filtroLado, ct);
                 if (resultado == null) continue;
                 lados++;
                 criados += resultado.Value;
             }
 
             if (lados == 0)
-                return new ResultadoEspn(false, "Não foi possível casar os times da ESPN com os do jogo.", evento);
+                return new ResultadoEspn(false,
+                    filtroLado == null
+                        ? "Não foi possível casar os times da ESPN com os do jogo."
+                        : "A ESPN não tinha o lado que faltava desta partida.",
+                    evento);
 
             await context.SaveChangesAsync(ct);
 
@@ -325,24 +337,56 @@ namespace ControleFutebolWeb.Services
             return new ResultadoEspn(true, msg, evento);
         }
 
-        /// <returns>Quantos jogadores precisaram ser cadastrados, ou null se o time não casou.</returns>
+        /// <returns>
+        /// Quantos jogadores precisaram ser cadastrados, ou null se o time não casou —
+        /// ou se filtroLado dispensou este lado.
+        /// </returns>
         private async Task<int?> AplicarLadoAsync(
-            FutebolContext context, Jogo jogo, JsonElement roster, string usuarioId, CancellationToken ct)
+            FutebolContext context, Jogo jogo, JsonElement roster, string usuarioId,
+            Func<bool, bool>? filtroLado, CancellationToken ct)
         {
             var nomeTime = roster.GetProperty("team").GetProperty("displayName").GetString();
             bool? ehCasa = TimeNomeMatcher.SaoMesmoTime(jogo.TimeCasa?.Nome, nomeTime) ? true
                          : TimeNomeMatcher.SaoMesmoTime(jogo.TimeVisitante?.Nome, nomeTime) ? false
                          : null;
             if (ehCasa == null) return null;
+            if (filtroLado != null && !filtroLado(ehCasa.Value)) return null;
 
-            var time = ehCasa.Value ? jogo.TimeCasa! : jogo.TimeVisitante!;
+            return await AplicarAtletasAsync(
+                context, jogo, ehCasa.Value,
+                roster.TryGetProperty("formation", out var f) ? f.GetString() : null,
+                AtletasDaEspn(roster).ToList(),
+                usuarioId, FonteEscalacao.Espn, ct);
+        }
+
+        /// <summary>
+        /// Grava um lado da escalação inicial a partir de uma lista de atletas já lida
+        /// da fonte. É aqui que mora TODA a regra de aplicação — cadastrar quem falta no
+        /// elenco, resolver a formação, distribuir o XI nos slots, montar o banco e
+        /// decidir se a linha compartilhada pode ser escrita.
+        ///
+        /// Está separado da leitura do roster porque a regra não é da ESPN: o FotMob
+        /// (ver FotMobEscalacaoService) publica o mesmo conteúdo em outro formato, e
+        /// duplicar isto seria manter duas cópias de decisões delicadas — em especial a
+        /// de só escrever a escalação compartilhada quando ela está vazia.
+        /// </summary>
+        /// <param name="fonte">
+        /// Vai para Escalacao.Fonte na linha COMPARTILHADA e é o que o selo da tela lê.
+        /// Ver FonteEscalacao.
+        /// </param>
+        internal async Task<int?> AplicarAtletasAsync(
+            FutebolContext context, Jogo jogo, bool ehCasa, string? formacaoDaFonte,
+            IReadOnlyList<AtletaEscalado> atletas, string usuarioId, string fonte,
+            CancellationToken ct)
+        {
+            var time = ehCasa ? jogo.TimeCasa! : jogo.TimeVisitante!;
             var elenco = await ElencoAsync(context, time.Id, ct);
             var criados = 0;
 
             // Cadastra quem a ESPN lista e o elenco não tem. Mesmo caminho do "+" da
             // tela de análise: entra sem IdApi, e a importação da api-football
             // reaproveita o cadastro pelo nome depois em vez de duplicar.
-            async Task<Jogador> ResolverOuCriarAsync(EspnAtleta a)
+            async Task<Jogador> ResolverOuCriarAsync(AtletaEscalado a)
             {
                 var jogador = Casar(elenco, a.Nome, a.Numero)?.Jogador;
                 if (jogador != null) return jogador;
@@ -371,20 +415,19 @@ namespace ControleFutebolWeb.Services
                 return jogador;
             }
 
-            // 1) Resolve (ou cadastra) cada titular do XI da ESPN.
-            var titulares = new List<(Jogador Jogador, EspnAtleta Atleta)>();
-            foreach (var a in TitularesDaEspn(roster))
+            // 1) Resolve (ou cadastra) cada titular do XI publicado pela fonte.
+            var titulares = new List<(Jogador Jogador, AtletaEscalado Atleta)>();
+            foreach (var a in atletas.Where(a => a.Titular))
                 titulares.Add((await ResolverOuCriarAsync(a), a));
 
             if (titulares.Count == 0) return criados;
 
-            // 2) Formação: usa a da ESPN quando existe no cadastro; senão mantém a atual.
-            var formacaoEspn = roster.TryGetProperty("formation", out var f) ? f.GetString() : null;
-            var formacaoId = ehCasa.Value ? jogo.FormacaoCasaId : jogo.FormacaoVisitanteId;
-            if (formacaoEspn != null)
+            // 2) Formação: usa a da fonte quando existe no cadastro; senão mantém a atual.
+            var formacaoId = ehCasa ? jogo.FormacaoCasaId : jogo.FormacaoVisitanteId;
+            if (formacaoDaFonte != null)
             {
                 var achada = await context.Formacoes
-                    .Where(x => x.Nome == formacaoEspn).Select(x => (int?)x.Id).FirstOrDefaultAsync(ct);
+                    .Where(x => x.Nome == formacaoDaFonte).Select(x => (int?)x.Id).FirstOrDefaultAsync(ct);
                 if (achada != null) formacaoId = achada;
             }
 
@@ -397,7 +440,7 @@ namespace ControleFutebolWeb.Services
             // quando faltam no elenco — o banco é parte da escalação, e um reserva que
             // entrou aos 60' precisa existir para receber nota.
             var reservas = new List<Jogador>();
-            foreach (var a in AtletasDaEspn(roster).Where(x => !x.Titular))
+            foreach (var a in atletas.Where(x => !x.Titular))
             {
                 var jogador = await ResolverOuCriarAsync(a);
                 if (titulares.All(t => t.Jogador.Id != jogador.Id)
@@ -405,45 +448,70 @@ namespace ControleFutebolWeb.Services
                     reservas.Add(jogador);
             }
 
-            // 4) Substitui a escalação INICIAL deste usuário. As linhas dos outros
-            //    usuários e a compartilhada (UsuarioId null) não são tocadas.
+            // 4) Monta as linhas do XI uma vez só, para gravá-las tanto na escalação
+            //    pessoal quanto (quando cabe) na compartilhada.
+            Escalacao Linha(int jogadorId, string? posicao, double x, double y, bool titular,
+                            string? dono, string? fonte) => new()
+            {
+                JogoId = jogo.Id,
+                JogadorId = jogadorId,
+                Posicao = posicao,
+                PosicaoX = x,
+                PosicaoY = y,
+                IsTimeCasa = ehCasa,
+                Titular = titular,
+                Fonte = fonte,
+                FaseEscalacao = "INICIAL",
+                UsuarioId = dono,
+            };
+
+            var doXi = DistribuirNosSlots(titulares, slots)
+                .Select(t => (Id: t.Jogador.Id, Pos: t.Slot?.NomePosicao ?? t.Atleta.Posicao,
+                              X: t.Slot?.PosicaoX ?? 0, Y: t.Slot?.PosicaoY ?? 0, Titular: true))
+                .Concat(reservas.Select(r => (Id: r.Id, Pos: (string?)"RES",
+                              X: 0d, Y: 0d, Titular: false)))
+                .ToList();
+
+            // 4a) Substitui a escalação INICIAL deste usuário. As linhas dos outros
+            //     usuários não são tocadas.
             var antigas = await context.Escalacoes
-                .Where(e => e.JogoId == jogo.Id && e.IsTimeCasa == ehCasa.Value
+                .Where(e => e.JogoId == jogo.Id && e.IsTimeCasa == ehCasa
                          && e.FaseEscalacao == "INICIAL" && e.UsuarioId == usuarioId)
                 .ToListAsync(ct);
             context.Escalacoes.RemoveRange(antigas);
 
-            foreach (var (jogador, slot, atleta) in DistribuirNosSlots(titulares, slots))
-                context.Escalacoes.Add(new Escalacao
-                {
-                    JogoId = jogo.Id,
-                    JogadorId = jogador.Id,
-                    Posicao = slot?.NomePosicao ?? atleta.Posicao,
-                    PosicaoX = slot?.PosicaoX ?? 0,
-                    PosicaoY = slot?.PosicaoY ?? 0,
-                    IsTimeCasa = ehCasa.Value,
-                    Titular = true,
-                    FaseEscalacao = "INICIAL",
-                    UsuarioId = usuarioId,
-                });
+            foreach (var l in doXi)
+                context.Escalacoes.Add(Linha(l.Id, l.Pos, l.X, l.Y, l.Titular, usuarioId, null));
 
-            foreach (var r in reservas)
-                context.Escalacoes.Add(new Escalacao
-                {
-                    JogoId = jogo.Id,
-                    JogadorId = r.Id,
-                    Posicao = "RES",
-                    PosicaoX = 0,
-                    PosicaoY = 0,
-                    IsTimeCasa = ehCasa.Value,
-                    Titular = false,
-                    FaseEscalacao = "INICIAL",
-                    UsuarioId = usuarioId,
-                });
+            // 4b) A compartilhada (UsuarioId null) é "o que foi a partida", independente
+            //     de usuário: é dela que a tela copia para quem abrir o jogo depois e é
+            //     dela que o selo de origem lê. Só é escrita quando está VAZIA — se a
+            //     api-football já importou este lado, o XI dela fica, porque vem casado
+            //     por IdApi e sobrescrever com nome da ESPN duplicaria jogador.
+            var compartilhadaExiste = await context.Escalacoes
+                .AnyAsync(e => e.JogoId == jogo.Id && e.IsTimeCasa == ehCasa
+                            && e.UsuarioId == null && e.JogadorId != null
+                            && (e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null), ct);
+
+            if (!compartilhadaExiste)
+            {
+                // Os slots vazios que a importação cria quando não há lineup ficariam
+                // convivendo com o XI da ESPN, e a tela copiaria os dois.
+                var vazias = await context.Escalacoes
+                    .Where(e => e.JogoId == jogo.Id && e.IsTimeCasa == ehCasa
+                             && e.UsuarioId == null
+                             && (e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null))
+                    .ToListAsync(ct);
+                context.Escalacoes.RemoveRange(vazias);
+
+                foreach (var l in doXi)
+                    context.Escalacoes.Add(
+                        Linha(l.Id, l.Pos, l.X, l.Y, l.Titular, null, fonte));
+            }
 
             if (formacaoId != null)
             {
-                if (ehCasa.Value) jogo.FormacaoCasaId = formacaoId;
+                if (ehCasa) jogo.FormacaoCasaId = formacaoId;
                 else jogo.FormacaoVisitanteId = formacaoId;
             }
 
@@ -457,9 +525,9 @@ namespace ControleFutebolWeb.Services
         /// ficou no banco o jogo todo vem com 0. É esse campo que separa "não jogou"
         /// de "jogou", e não o simples fato de estar na lista.
         /// </param>
-        public record EspnAtleta(string Nome, int? Numero, string Posicao, bool Titular, bool Atuou = true);
+        public record AtletaEscalado(string Nome, int? Numero, string Posicao, bool Titular, bool Atuou = true);
 
-        private static IEnumerable<EspnAtleta> AtletasDaEspn(JsonElement roster)
+        private static IEnumerable<AtletaEscalado> AtletasDaEspn(JsonElement roster)
         {
             if (!roster.TryGetProperty("roster", out var lista)) yield break;
 
@@ -480,16 +548,16 @@ namespace ControleFutebolWeb.Services
                             && st.TryGetProperty("value", out var sv) && sv.ValueKind == JsonValueKind.Number)
                             atuou = sv.GetDouble() > 0;
 
-                yield return new EspnAtleta(nome, numero, posicao, titular, atuou);
+                yield return new AtletaEscalado(nome, numero, posicao, titular, atuou);
             }
         }
 
-        private static IEnumerable<EspnAtleta> TitularesDaEspn(JsonElement roster)
+        private static IEnumerable<AtletaEscalado> TitularesDaEspn(JsonElement roster)
             => AtletasDaEspn(roster).Where(a => a.Titular);
 
         // ── Casamento e ordenação ─────────────────────────────────────────────
 
-        private record Casado(Jogador Jogador, string Por);
+        internal record Casado(Jogador Jogador, string Por);
 
         /// <summary>
         /// Acha o jogador do elenco correspondente ao atleta da ESPN: por nome
@@ -501,7 +569,7 @@ namespace ControleFutebolWeb.Services
         /// camisa 71), e exigir candidato único fazia o chamador cadastrar um terceiro
         /// registro do mesmo jogador. Desempata em vez de criar.
         /// </summary>
-        private static Casado? Casar(List<Jogador> elenco, string nome, int? numero)
+        internal static Casado? Casar(List<Jogador> elenco, string nome, int? numero)
         {
             var porNome = elenco.Where(j => NomeJogadorHelper.Corresponde(j.Nome, nome)).ToList();
             if (porNome.Count == 1) return new Casado(porNome[0], "nome");
@@ -534,7 +602,7 @@ namespace ControleFutebolWeb.Services
                 .First();
         }
 
-        private static Task<List<Jogador>> ElencoAsync(FutebolContext context, int timeId, CancellationToken ct)
+        internal static Task<List<Jogador>> ElencoAsync(FutebolContext context, int timeId, CancellationToken ct)
             => context.Jogadores.Where(j => j.TimeId == timeId || j.SelecaoId == timeId).ToListAsync(ct);
 
         private static async Task<HashSet<int>> TitularesSalvosAsync(
@@ -576,10 +644,10 @@ namespace ControleFutebolWeb.Services
         /// atleta sai do texto da posição da ESPN. Quem sobra de uma linha cai nos
         /// slots que ficaram livres, para nenhum titular ficar de fora.
         /// </summary>
-        public static List<(Jogador Jogador, PosicaoFormacao? Slot, EspnAtleta Atleta)> DistribuirNosSlots(
-            List<(Jogador Jogador, EspnAtleta Atleta)> titulares, List<PosicaoFormacao> slots)
+        public static List<(Jogador Jogador, PosicaoFormacao? Slot, AtletaEscalado Atleta)> DistribuirNosSlots(
+            List<(Jogador Jogador, AtletaEscalado Atleta)> titulares, List<PosicaoFormacao> slots)
         {
-            var resultado = new List<(Jogador, PosicaoFormacao?, EspnAtleta)>();
+            var resultado = new List<(Jogador, PosicaoFormacao?, AtletaEscalado)>();
             var livres = slots.ToList();
 
             foreach (var linha in new[] { 0, 1, 2, 3 })

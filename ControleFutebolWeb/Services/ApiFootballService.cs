@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 using System.Globalization;
 using ControleFutebolWeb.Helpers;
@@ -1345,10 +1345,14 @@ namespace ControleFutebolWeb.Services
 
             if (idsApi.Count == 0) return (false, true, "");
 
-            var conhecidos = await context.Jogadores
-                .Include(j => j.Time)
-                .Where(j => j.IdApi != null && idsApi.Contains(j.IdApi.Value))
-                .ToDictionaryAsync(j => j.IdApi!.Value, ct);
+            // A base aceita mais de um cadastro com o mesmo IdApi (não há índice
+            // único), então o mesmo id pode devolver vários jogadores duplicados.
+            var conhecidos = (await context.Jogadores
+                    .Include(j => j.Time)
+                    .Where(j => j.IdApi != null && idsApi.Contains(j.IdApi.Value))
+                    .ToListAsync(ct))
+                .GroupBy(j => j.IdApi!.Value)
+                .ToDictionary(g => g.Key, g => g.ToList());
 
             var alinhados = 0;
             var cruzados = 0;
@@ -1366,13 +1370,16 @@ namespace ControleFutebolWeb.Services
                 foreach (var lp in lineup.StartXI.Concat(lineup.Substitutes))
                 {
                     var idApi = (long)(lp.Player.Id ?? 0);
-                    if (idApi <= 0 || !conhecidos.TryGetValue(idApi, out var jogador)) continue;
+                    if (idApi <= 0 || !conhecidos.TryGetValue(idApi, out var cadastros)) continue;
 
-                    if (jogador.TimeId == time.Id || jogador.SelecaoId == time.Id)
+                    // Basta um dos cadastros estar no time certo para não haver indício.
+                    if (cadastros.Any(j => j.TimeId == time.Id || j.SelecaoId == time.Id))
                     {
                         alinhados++;
                         continue;
                     }
+
+                    var jogador = cadastros[0];
 
                     // Cadastrado só pela seleção: o clube ainda é desconhecido, então
                     // não é indício de lado trocado nem de transferência.
@@ -1439,21 +1446,34 @@ namespace ControleFutebolWeb.Services
                     detalhes: $"{diagnostico} — escalação importada, mas o clube dos jogadores não foi alterado.");
             }
 
-            // Remove apenas escalações compartilhadas (UsuarioId == null) — as personalizadas por usuário são preservadas
-            var escalOld = await context.Escalacoes.Where(e => e.JogoId == jogo.Id && e.UsuarioId == null).ToListAsync(ct);
-            context.Escalacoes.RemoveRange(escalOld);
-            var golsOld = await context.Gols.Where(g => g.JogoId == jogo.Id).ToListAsync(ct);
-            context.Gols.RemoveRange(golsOld);
-            var assistOld = await context.Assistencias.Where(a => a.JogoId == jogo.Id).ToListAsync(ct);
-            context.Assistencias.RemoveRange(assistOld);
-            var cartoesOld = await context.Cartoes.Where(c => c.JogoId == jogo.Id).ToListAsync(ct);
-            context.Cartoes.RemoveRange(cartoesOld);
-            var subsOld = await context.Substituicoes.Where(s => s.JogoId == jogo.Id).ToListAsync(ct);
-            context.Substituicoes.RemoveRange(subsOld);
-            var penPerdOld = await context.PenaltisPerdidos.Where(p => p.JogoId == jogo.Id).ToListAsync(ct);
-            context.PenaltisPerdidos.RemoveRange(penPerdOld);
-            var penDispOld = await context.PenaltisDisputa.Where(p => p.JogoId == jogo.Id).ToListAsync(ct);
-            context.PenaltisDisputa.RemoveRange(penDispOld);
+            // Apagar o que existe é o primeiro passo de "reimportar do zero", mas SÓ
+            // quando a API tem com o que repor. A partida que ela devolve vazia (comum
+            // em mata-mata sul-americano) levava embora o que estava gravado e não
+            // colocava nada no lugar: escalação que a ESPN tinha preenchido, e gols e
+            // cartões que o analista pode ter registrado na mão durante o jogo — sem
+            // backup e sem desfazer. Sem dado novo, o antigo fica.
+            if (fx.Lineups.Any())
+            {
+                // Só as compartilhadas (UsuarioId == null); as de cada usuário ficam.
+                var escalOld = await context.Escalacoes.Where(e => e.JogoId == jogo.Id && e.UsuarioId == null).ToListAsync(ct);
+                context.Escalacoes.RemoveRange(escalOld);
+            }
+
+            if (fx.Events.Any())
+            {
+                var golsOld = await context.Gols.Where(g => g.JogoId == jogo.Id).ToListAsync(ct);
+                context.Gols.RemoveRange(golsOld);
+                var assistOld = await context.Assistencias.Where(a => a.JogoId == jogo.Id).ToListAsync(ct);
+                context.Assistencias.RemoveRange(assistOld);
+                var cartoesOld = await context.Cartoes.Where(c => c.JogoId == jogo.Id).ToListAsync(ct);
+                context.Cartoes.RemoveRange(cartoesOld);
+                var subsOld = await context.Substituicoes.Where(s => s.JogoId == jogo.Id).ToListAsync(ct);
+                context.Substituicoes.RemoveRange(subsOld);
+                var penPerdOld = await context.PenaltisPerdidos.Where(p => p.JogoId == jogo.Id).ToListAsync(ct);
+                context.PenaltisPerdidos.RemoveRange(penPerdOld);
+                var penDispOld = await context.PenaltisDisputa.Where(p => p.JogoId == jogo.Id).ToListAsync(ct);
+                context.PenaltisDisputa.RemoveRange(penDispOld);
+            }
 
             // Mapa: IdApi → Jogador local (para vincular eventos)
             var jogadorMap = new Dictionary<int, Jogador>();
@@ -1800,6 +1820,7 @@ namespace ControleFutebolWeb.Services
                 IsTimeCasa    = isTimeCasa,
                 Titular       = titular,
                 Posicao       = posicao,
+                Fonte         = FonteEscalacao.ApiFootball,
                 FaseEscalacao = fase,
                 PosicaoX      = posFormacao?.PosicaoX ?? 0,
                 PosicaoY      = posFormacao?.PosicaoY ?? 0
@@ -2355,6 +2376,12 @@ namespace ControleFutebolWeb.Services
                     .Where(e => e.JogoId == jogo.Id)
                     .ToListAsync(ct);
                 context.EstatisticasJogador.RemoveRange(antigas);
+
+                // Notas e estatísticas do jogo mudaram: a eleição do craque de todos os
+                // analistas ficou velha. Ver CraqueDaPartidaService.InvalidarJogoAsync.
+                context.CraquesDaPartida.RemoveRange(
+                    await context.CraquesDaPartida.Where(c => c.JogoId == jogo.Id).ToListAsync(ct));
+
                 await context.SaveChangesAsync(ct);
 
                 var todosJogadoresApi = fx.Players.SelectMany(t => t.Players).ToList();

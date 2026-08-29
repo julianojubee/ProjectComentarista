@@ -1,0 +1,127 @@
+/* Modo apresentação da análise pública (/analise/{token}?tv=1 ou ?tv=9x16).
+   Existe para uma coisa só: GRAVAR VÍDEO da tela. O painel normal é denso
+   demais para ser lido num celular assistindo YouTube, então aqui tudo cresce,
+   o contraste sobe, a moldura do site some e o cursor desaparece.
+
+   Nada disso vaza para a página normal: toda regra é filha de .ap-tv-on
+   (no <body>), que só existe quando o modo está ligado.
+
+   Dois enquadramentos:
+     .ap-tv-h  16:9 — vídeo longo, duas colunas preservadas.
+     .ap-tv-v  9:16 — Shorts, tudo em coluna única e fonte ainda maior. */
+
+/* ── Moldura: o site sai de cena ────────────────────────────────────────── */
+.ap-tv-on { background: #05080f; }
+.ap-tv-on .ap-rodape,
+.ap-tv-on #theme-toggle-btn,
+.ap-tv-on .ap-btn { display: none; }
+
+/* A marca fica: é branding de graça dentro do vídeo. */
+.ap-tv-on .ap-topo {
+    background: transparent;
+    border-bottom: none;
+    padding: 14px 28px 0;
+}
+.ap-tv-on .ap-marca-nome { font-size: 1.05rem; letter-spacing: .2em; }
+.ap-tv-on .ap-marca svg { width: 26px; height: 39px; }
+
+/* Cursor some no palco — mouse vagando é o que mais denuncia gravação de tela.
+   As abas trocam pelo teclado (1-4 e setas), então ele não faz falta. */
+.ap-tv-on .ap-root { cursor: none; }
+
+/* ── Palco ──────────────────────────────────────────────────────────────── */
+.ap-tv { margin: 8px auto 0; padding: 0 0 40px; }
+.ap-tv-h { max-width: 1500px; }
+.ap-tv-v { max-width: 520px; }
+
+.ap-tv .ap-cabecalho { padding: 10px 28px 14px; }
+.ap-tv .ap-confronto { font-size: 2.1rem; }
+.ap-tv .ap-autor { font-size: 1rem; }
+.ap-tv .ap-painel { border-radius: 18px; border-color: rgba(255,255,255,.14); }
+
+/* ── Hero ───────────────────────────────────────────────────────────────── */
+.ap-tv .pgj-hero { padding: 30px 40px 26px; }
+.ap-tv .pgj-hero-escudo { width: 92px; height: 92px; }
+.ap-tv .pgj-hero-nome { font-size: 1.9rem; }
+.ap-tv .pgj-hero-placar { font-size: 5.4rem; }
+.ap-tv .pgj-pill-comp, .ap-tv .pgj-pill-date { font-size: 1rem; }
+.ap-tv .pgj-hero-media .val { font-size: 1.9rem; }
+.ap-tv .pgj-hero-media .lbl { font-size: .82rem; }
+.ap-tv .pgj-hero-forma span { width: 24px; height: 24px; font-size: 13px; }
+
+/* ── Abas: viram capítulo, não menuzinho ────────────────────────────────── */
+.ap-tv .pgj-tabs { padding: 0 32px; overflow: visible; }
+.ap-tv .pgj-tab { font-size: 1.1rem; padding: 16px 20px; }
+.ap-tv .pgj-tab.active { border-bottom-width: 3px; }
+.ap-tv .pgj-content { padding: 26px 32px 40px; }
+
+/* ── Notas dos jogadores ────────────────────────────────────────────────── */
+.ap-tv .pgj-team-col-nome { font-size: 1.35rem; }
+.ap-tv .pgj-team-col-media { font-size: 1.05rem; padding: 4px 12px; }
+.ap-tv .pgj-team-col-header img { width: 30px; height: 30px; }
+.ap-tv .pgj-jog-row { padding: 12px 18px; gap: 14px; }
+.ap-tv .pgj-jog-num { width: 40px; height: 40px; font-size: 16px; }
+.ap-tv .pgj-jog-nome { font-size: 1.2rem; }
+.ap-tv .pgj-jog-pos { font-size: .88rem; }
+.ap-tv .pgj-jog-nota { width: 56px; height: 56px; border-width: 3px; }
+.ap-tv .pgj-jog-nota span { font-size: 1.5rem; }
+.ap-tv .pgj-subsection-label { font-size: .9rem; }
+.ap-tv .pgj-badge-amarelo,
+.ap-tv .pgj-badge-vermelho,
+.ap-tv .pgj-evt-saiu,
+.ap-tv .pgj-evt-entrou { font-size: .88rem; }
+
+/* Hover não existe em vídeo e ainda pisca o fundo se o mouse passar por cima. */
+.ap-tv .pgj-jog-row:hover { background: transparent; }
+
+/* ── Estatísticas: a barra é o gráfico, tem que ser grossa ──────────────── */
+.ap-tv .pgj-stats-title { font-size: .95rem; }
+.ap-tv .pgj-stats-head-team span { font-size: 1.2rem; }
+.ap-tv .pgj-stats-head-team img { width: 26px; height: 26px; }
+.ap-tv .pgj-stat-row { padding: 14px 26px 11px; }
+.ap-tv .pgj-stat-lbl { font-size: 1.05rem; margin-bottom: 9px; }
+.ap-tv .pgj-stat-vals .num { font-size: 1.7rem; min-width: 64px; }
+.ap-tv .pgj-stat-bar { height: 16px; border-radius: 8px; }
+
+.ap-tv .pgj-destaque-card { padding: 16px 20px; }
+.ap-tv .pgj-destaque-label { font-size: .9rem; margin-bottom: 10px; }
+.ap-tv .pgj-destaque-nome { font-size: 1.15rem; }
+.ap-tv .pgj-destaque-val { font-size: 1.55rem; }
+
+/* ── Campo e observações ────────────────────────────────────────────────── */
+.ap-tv .pgj-campo-col-label span { font-size: 1rem; }
+.ap-tv .pgj-campo-col-label img { width: 26px; height: 26px; }
+.ap-tv .pgj-obs-row { padding: 18px 20px; gap: 16px; }
+.ap-tv .pgj-obs-badge { font-size: .88rem; padding: 4px 12px; }
+.ap-tv .pgj-obs-jogador { font-size: 1.15rem; }
+.ap-tv .pgj-obs-texto { font-size: 1.25rem; line-height: 1.6; }
+.ap-tv .pgj-vazio { font-size: 1.1rem; padding: 24px; }
+
+/* ── Contraste: o vídeo comprime e come cinza claro sobre fundo escuro ──── */
+.ap-tv .pgj-stat-lbl,
+.ap-tv .pgj-jog-pos,
+.ap-tv .pgj-subsection-label,
+.ap-tv .pgj-destaque-label,
+.ap-tv .pgj-campo-col-label span { color: #cbd5e1; }
+.ap-tv .pgj-obs-texto { color: #e2e8f0; }
+
+/* ── 9:16: coluna única em tudo que o painel divide em duas ─────────────── */
+.ap-tv-v .pgj-notas-grid,
+.ap-tv-v .pgj-campo-grid,
+.ap-tv-v .pgj-destaques-grid { grid-template-columns: 1fr; }
+
+.ap-tv-v .ap-cabecalho { padding: 8px 18px 10px; }
+.ap-tv-v .ap-confronto { font-size: 1.7rem; }
+.ap-tv-v .pgj-hero { padding: 22px 20px 20px; }
+.ap-tv-v .pgj-hero-teams { gap: 14px; }
+.ap-tv-v .pgj-hero-escudo { width: 74px; height: 74px; }
+.ap-tv-v .pgj-hero-nome { font-size: 1.5rem; }
+.ap-tv-v .pgj-hero-placar { font-size: 4.4rem; }
+.ap-tv-v .pgj-tabs { padding: 0 14px; overflow-x: auto; }
+.ap-tv-v .pgj-tab { font-size: 1rem; padding: 14px 12px; }
+.ap-tv-v .pgj-content { padding: 20px 14px 32px; }
+.ap-tv-v .pgj-stat-row { padding: 13px 16px 10px; }
+.ap-tv-v .pgj-stat-vals .num { font-size: 1.6rem; min-width: 56px; }
+.ap-tv-v .pgj-jog-nome { font-size: 1.25rem; }
+.ap-tv-v .pgj-jog-nota { width: 54px; height: 54px; }
+.ap-tv-v .pgj-obs-texto { font-size: 1.3rem; }

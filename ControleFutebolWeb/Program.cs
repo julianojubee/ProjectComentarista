@@ -94,6 +94,7 @@ internal class Program
         builder.Services.AddScoped<RatingAutomaticoService>();
         builder.Services.AddScoped<TransmissaoJogoService>();
         builder.Services.AddScoped<PainelJogoService>();
+        builder.Services.AddScoped<CraqueDaPartidaService>();
         builder.Services.AddSingleton<CatalogoLigasApi>();
 
         builder.Services.ConfigureApplicationCookie(options =>
@@ -138,6 +139,13 @@ internal class Program
         builder.Services.AddHttpClient<FutnatvService>();
         builder.Services.AddHttpClient<EspnEstatisticasService>();
         builder.Services.AddScoped<EspnEscalacaoService>();
+        builder.Services.AddScoped<EspnEventosService>();
+        // Terceira fonte de estatística, para o que nem a api-football nem a ESPN têm
+        // (a liga do Catar é o caso que motivou) — ver FotMobService.
+        builder.Services.AddHttpClient<FotMobService>();
+        builder.Services.AddScoped<FotMobEscalacaoService>();
+        // Estatísticas avançadas do jogador, buscadas só quando o usuário clica.
+        builder.Services.AddScoped<FotMobPerfilService>();
         builder.Services.AddHttpClient("MediaProxy", c =>
         {
             c.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");

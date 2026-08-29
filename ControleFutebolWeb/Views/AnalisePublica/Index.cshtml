@@ -2,6 +2,13 @@
 @{
     Layout = "_LayoutAnalisePublica";
     ViewData["TitleOverride"] = $"Análise de Craque - {Model.Confronto}";
+
+    // O layout precisa saber do modo apresentação antes do <body>: é ele que
+    // esconde a moldura, força o tema escuro e carrega o CSS extra.
+    ViewData["ModoTv"] = Model.ModoTv;
+
+    var classesRoot = "ap-root an-root"
+        + (Model.EhTv ? " ap-tv " + (Model.TvVertical ? "ap-tv-v" : "ap-tv-h") : "");
 }
 
 @* Cores de camisa do jogo (números dos jogadores na lista e no campinho) —
@@ -15,7 +22,7 @@
     }
 </style>
 
-<div class="ap-root an-root">
+<div class="@classesRoot">
     <div class="ap-cabecalho">
         <div>
             <div class="ap-confronto">@Model.Confronto</div>
@@ -50,7 +57,12 @@
 
 <script>
     // Token da URL — todo fetch da página passa por ele.
-    window.ANALISE_PUBLICA = { token: '@Model.Token' };
+    // abaInicial e tv vêm normalizados do controller (nunca crus da query).
+    window.ANALISE_PUBLICA = {
+        token: '@Model.Token',
+        abaInicial: '@Model.AbaInicial',
+        tv: @(Model.EhTv ? "true" : "false")
+    };
 </script>
 
 @section Scripts {

@@ -63,6 +63,10 @@ namespace ControleFutebolWeb.Models.ViewModels
         public List<JogadorEstatistica> MaisCartoesAmarelos { get; set; } = new();
         public List<JogadorEstatistica> MaisCartoesVermelhos { get; set; } = new();
 
+        // Quem mais foi craque da partida (a coroa: maior nota do jogo) no recorte
+        // filtrado — ver CraqueDaPartida.
+        public List<JogadorEstatistica> CraquesDaPartida { get; set; } = new();
+
         // Times
         public List<TimeEstatistica> TimesGols { get; set; } = new();
         public List<TimeEstatistica> TimesVitorias { get; set; } = new();

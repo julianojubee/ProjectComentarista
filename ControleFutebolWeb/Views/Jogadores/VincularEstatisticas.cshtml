@@ -1,0 +1,138 @@
+﻿@model ControleFutebolWeb.Models.ViewModels.VincularFotMobViewModel
+@{
+    ViewData["Title"] = $"Identificar {Model.JogadorNome} na base avançada";
+}
+
+<style>
+    .vf-page { background: var(--p-0); margin: 0 -12px; padding: 24px 16px 48px; border-radius: 14px; }
+    .vf-wrap { max-width: 720px; margin: 0 auto; }
+    .vf-voltar {
+        display: inline-flex; align-items: center; gap: 8px; margin-bottom: 18px;
+        font-size: .78rem; font-weight: 600; color: var(--text-muted);
+        background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 8px;
+        padding: 8px 14px; text-decoration: none;
+    }
+    .vf-voltar:hover { border-color: #c084fc; color: #c084fc; text-decoration: none; }
+    .vf-titulo { font-size: 1.35rem; font-weight: 800; color: var(--text-strong); margin: 0 0 6px; }
+    .vf-sub { font-size: .82rem; color: var(--text-muted); line-height: 1.55; margin-bottom: 20px; }
+    .vf-busca { display: flex; gap: 8px; margin-bottom: 20px; }
+    .vf-busca input {
+        flex: 1; padding: 10px 13px; border-radius: 8px; font-size: .85rem;
+        background: var(--p-2); border: 1px solid var(--line-strong); color: var(--text-strong);
+    }
+    .vf-busca button {
+        padding: 10px 18px; border-radius: 8px; font-size: .82rem; font-weight: 700; cursor: pointer;
+        background: rgba(168,85,247,.15); border: 1px solid rgba(168,85,247,.35); color: #c084fc;
+    }
+    .vf-lista { display: flex; flex-direction: column; gap: 8px; }
+    .vf-item {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        padding: 12px 14px; background: var(--p-1);
+        border: 1px solid var(--line-strong); border-radius: 10px;
+    }
+    .vf-item.atual { border-color: rgba(74,222,128,.4); background: rgba(74,222,128,.06); }
+    .vf-nome { font-size: .9rem; font-weight: 600; color: var(--text-strong); }
+    .vf-time { font-size: .76rem; color: var(--text-muted); margin-top: 2px; }
+    .vf-acoes { display: flex; gap: 8px; align-items: center; }
+    .vf-btn {
+        padding: 7px 14px; border-radius: 7px; font-size: .76rem; font-weight: 700; cursor: pointer;
+        background: rgba(168,85,247,.15); border: 1px solid rgba(168,85,247,.35); color: #c084fc;
+    }
+    .vf-conferir { font-size: .72rem; color: var(--text-dim); text-decoration: underline; }
+    .vf-vazio {
+        font-size: .82rem; color: var(--text-dim); padding: 16px;
+        background: var(--p-1); border: 1px solid var(--line-strong); border-radius: 10px; line-height: 1.55;
+    }
+    .vf-remover { margin-top: 22px; }
+    .vf-remover button {
+        padding: 8px 14px; border-radius: 7px; font-size: .76rem; font-weight: 600; cursor: pointer;
+        background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.28); color: var(--bad);
+    }
+</style>
+
+<div class="vf-page">
+    <div class="vf-wrap">
+
+        <a href="/Jogadores/Estatisticas/@Model.JogadorId" class="vf-voltar">← Voltar para @Model.JogadorNome</a>
+
+        <h1 class="vf-titulo">Identificar na base avançada</h1>
+        <p class="vf-sub">
+            Escolha qual registro corresponde a <strong>@Model.JogadorNome</strong>.
+            O vínculo é gravado uma vez e serve para abrir as estatísticas avançadas —
+            <strong>nenhum outro dado externo é copiado para o cadastro</strong>.
+            @* A conferência é do usuário porque a busca por nome não é confiável o
+               bastante para decidir sozinha: homônimos são comuns. O clube ao lado de
+               cada nome é o que resolve na prática. *@
+            Confira o clube antes de confirmar: nomes se repetem.
+        </p>
+
+        <form method="get" class="vf-busca">
+            <input type="text" name="termo" value="@Model.Termo" placeholder="Nome do jogador na base externa" autofocus />
+            <button type="submit">Buscar</button>
+        </form>
+
+        @if (Model.Candidatos.Count == 0)
+        {
+            <div class="vf-vazio">
+                @if (string.IsNullOrWhiteSpace(Model.Termo))
+                {
+                    <text>Digite um nome para buscar.</text>
+                }
+                else
+                {
+                    <text>
+                        Nenhum jogador encontrado para “@Model.Termo”.
+                        A base externa costuma usar o nome curto — se você buscou o nome completo,
+                        tente só o primeiro e o último, ou o apelido pelo qual ele é conhecido.
+                    </text>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="vf-lista">
+                @foreach (var c in Model.Candidatos)
+                {
+                    <div class="vf-item @(c.Id == Model.IdFotMobAtual ? "atual" : "")">
+                        <div>
+                            <div class="vf-nome">
+                                @c.Nome
+                                @if (c.Id == Model.IdFotMobAtual)
+                                {
+                                    <span style="color:#4ade80; font-size:.72rem"> · vinculado</span>
+                                }
+                            </div>
+                            <div class="vf-time">@(c.Time ?? "sem clube")</div>
+                        </div>
+                        <div class="vf-acoes">
+                            @* Abre a página do FotMob em aba nova para conferir antes de
+                               gravar — é mais rápido do que vincular, olhar e desfazer. *@
+                            <a href="https://www.fotmob.com/players/@c.Id" target="_blank"
+                               rel="noopener noreferrer" class="vf-conferir">conferir</a>
+                            @if (c.Id != Model.IdFotMobAtual)
+                            {
+                                <form method="post" style="display:inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@Model.JogadorId" />
+                                    <input type="hidden" name="idExterno" value="@c.Id" />
+                                    <button type="submit" class="vf-btn">Vincular</button>
+                                </form>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (Model.IdFotMobAtual != null)
+        {
+            <form method="post" class="vf-remover"
+                  onsubmit="return confirm('Remover a identificação? As estatísticas avançadas deixam de abrir para este jogador.');">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.JogadorId" />
+                <input type="hidden" name="idExterno" value="0" />
+                <button type="submit">Remover identificação atual</button>
+            </form>
+        }
+    </div>
+</div>

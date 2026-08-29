@@ -1,4 +1,4 @@
-/* Comportamento da tela de análise tática (/Jogos/Analisar).
+﻿/* Comportamento da tela de análise tática (/Jogos/Analisar).
    Extraído dos blocos <script> inline da view: ~120 KB que eram retransmitidos
    a cada partida aberta. Aqui vira arquivo estático versionado
    (asp-append-version), que o navegador baixa uma vez.
@@ -277,11 +277,88 @@
         trocarVisualCampo(modo);
     })();
 
+    // ── Trocar dois jogadores de lugar ─────────────────────────────────────
+    // Arrastar um titular sobre outro troca os dois de slot: cada um herda a
+    // posição do outro (coordenadas no campo E posição nominal, porque o slot
+    // é o registro de Escalacao — só o JogadorId muda de lado).
+    function slotPorIndex(index) {
+        return document.querySelector(`.posicao-drop[data-index='${index}']`);
+    }
+
+    function hiddenJogadorDoSlot(index) {
+        const prefix = index.startsWith('casa_') ? 'escalacaoCasa' : 'escalacaoVisitante';
+        return document.getElementById(`${prefix}_${index.split('_')[1]}__JogadorId`);
+    }
+
+    // O botão "+" carrega a posição no onclick gerado pelo Razor; depois da
+    // troca ele precisa apontar para a posição nova do slot que o abriga.
+    function religarBotaoAvaliar(slotEl) {
+        const btn = slotEl.querySelector('.btn-avaliar');
+        if (!btn) return;
+        const jogadorId = parseInt((btn.id || '').replace('btn-avaliar-', ''), 10);
+        if (!jogadorId) return;
+        const nome = slotEl.querySelector('.player-name')?.textContent.trim() || '';
+        const posicao = slotEl.dataset.posicaoFull || slotEl.dataset.posicao || '';
+        btn.removeAttribute('onclick');
+        btn.onclick = e => abrirAvaliacao(jogadorId, nome, posicao, e);
+    }
+
+    function trocarJogadoresDeSlot(origem, destino) {
+        if (!origem || !destino || origem === destino) return false;
+        // Só faz sentido dentro do mesmo time
+        if (origem.split('_')[0] !== destino.split('_')[0]) return false;
+
+        const elO = slotPorIndex(origem), elD = slotPorIndex(destino);
+        const hO  = hiddenJogadorDoSlot(origem), hD = hiddenJogadorDoSlot(destino);
+        if (!elO || !elD || !hO || !hD) return false;
+        if (!hO.value && !hD.value) return false;
+
+        const idTmp = hO.value;
+        hO.value = hD.value;
+        hD.value = idTmp;
+
+        const htmlTmp = elO.innerHTML;
+        elO.innerHTML = elD.innerHTML;
+        elD.innerHTML = htmlTmp;
+
+        const temTmp = elO.dataset.temjogador;
+        elO.dataset.temjogador = elD.dataset.temjogador;
+        elD.dataset.temjogador = temTmp;
+
+        religarBotaoAvaliar(elO);
+        religarBotaoAvaliar(elD);
+        return true;
+    }
+
+    // Destaque do alvo enquanto se arrasta um titular sobre outro
+    document.addEventListener('dragover', ev => {
+        if (!draggingPosicao) return;
+        const alvo = ev.target.closest?.('.posicao-drop');
+        document.querySelectorAll('.posicao-drop.alvo-troca')
+            .forEach(el => { if (el !== alvo) el.classList.remove('alvo-troca'); });
+        if (alvo && alvo.dataset.index !== posicaoArrastando &&
+            alvo.dataset.index.split('_')[0] === String(posicaoArrastando).split('_')[0]) {
+            alvo.classList.add('alvo-troca');
+        }
+    });
+    function limparAlvoTroca() {
+        document.querySelectorAll('.posicao-drop.alvo-troca')
+            .forEach(el => el.classList.remove('alvo-troca'));
+    }
+    document.addEventListener('dragend', limparAlvoTroca);
+    document.addEventListener('drop', limparAlvoTroca);
+
     // ── Drop em slot do campo ──────────────────────────────────────────────
     function dropEscalacao(ev, index) {
         ev.preventDefault();
         ev.stopPropagation();
-        if (draggingPosicao) return;
+        if (draggingPosicao) {
+            const origem = posicaoArrastando;
+            draggingPosicao   = false;
+            posicaoArrastando = null;
+            trocarJogadoresDeSlot(origem, index);
+            return;
+        }
 
         const { jogadorId, jogadorNome, jogadorNumero, camisaUrl, time } = dragData;
         if (!jogadorId) return;
@@ -1312,6 +1389,21 @@
 
     function fecharPreJogo() {
         document.getElementById('modal-prejogo').style.display = 'none';
+        if (document.getElementById('prejogo-box').classList.contains('pj-maximizado'))
+            alternarMaximizarPreJogo(); // reabre no tamanho padrão
+    }
+
+    // Tela cheia do modal: o match-up com 22 jogadores fica apertado na largura
+    // padrão. A classe manda no tamanho (o CSS vence o width inline das abas);
+    // setas e formas se redesenham sozinhas pelo ResizeObserver do campo.
+    function alternarMaximizarPreJogo() {
+        var box = document.getElementById('prejogo-box');
+        var btn = document.getElementById('pj-btn-maximizar');
+        var maximizado = box.classList.toggle('pj-maximizado');
+        if (btn) {
+            btn.textContent = maximizado ? '✕⛶' : '⛶';
+            btn.title = maximizado ? 'Restaurar tamanho' : 'Maximizar (tela cheia)';
+        }
     }
 
     document.getElementById('modal-prejogo').addEventListener('click', function (e) {
@@ -1354,33 +1446,90 @@
         }
     }
 
-    function muSlotHtml(time, idx, e) {
+    // Media do jogador na competicao/temporada do jogo (vem do servidor como
+    // numero; nos data-attributes vira string, por isso o parseFloat).
+    function muMediaTexto(media) {
+        var n = parseFloat(media);
+        return isNaN(n) ? '' : n.toFixed(1);
+    }
+
+    function muMediaClasse(media) {
+        var n = parseFloat(media);
+        if (isNaN(n)) return '';
+        return n >= 7 ? ' mu-media-alta' : n >= 5 ? ' mu-media-media' : ' mu-media-baixa';
+    }
+
+    // Gols e assistencias na competicao (tambem chegam como string no dataset)
+    function muInteiro(valor) {
+        var n = parseInt(valor, 10);
+        return isNaN(n) ? 0 : n;
+    }
+
+    // Pilula abaixo do circulo: chuteira = assistencias, bola = gols. So aparece
+    // o que o jogador tem; sem gol nem assistencia a pilula nao e desenhada.
+    function muStatsHtml(d) {
+        var gols = muInteiro(d.gols);
+        var assists = muInteiro(d.assistencias);
+        if (gols === 0 && assists === 0) return '';
+        return '<span class="mu-stats">' +
+            (assists ? '<span class="mu-stat" title="Assistências na competição">👟 ' + assists + '</span>' : '') +
+            (gols ? '<span class="mu-stat" title="Gols na competição">⚽ ' + gols + '</span>' : '') +
+            '</span>';
+    }
+
+    // Miolo do slot: sigla, circulo (foto quando o jogador tem, senao so o
+    // numero) com a media no canto, gols/assistencias e o nome. Usado na
+    // renderizacao inicial e quando o slot troca de jogador (substituicao
+    // vinda do elenco).
+    function muSlotInnerHtml(time, d) {
         var circle = time === 1 ? 'player-circle-casa' : 'player-circle-vis';
+        var media = muMediaTexto(d.media);
+        return '<span class="mu-slot-sigla">' + muEsc(d.sigla) + '</span>' +
+            '<div class="player-circle ' + circle + (d.foto ? ' mu-com-foto' : '') + '">' +
+                (d.foto ? '<img class="mu-foto" src="' + muEsc(d.foto) + '" alt="">' : '') +
+                '<span class="mu-num">' + muEsc(d.numero) + '</span>' +
+                (media ? '<span class="mu-media' + muMediaClasse(d.media) + '" title="Média na competição">' + media + '</span>' : '') +
+            '</div>' +
+            muStatsHtml(d) +
+            '<div class="player-name">' + muEsc(d.nome) + '</div>';
+    }
+
+    function muSlotHtml(time, idx, e) {
         return '<div id="mu-slot-' + time + '-' + idx + '" class="mu-slot"' +
             ' data-jogadorid="' + e.id + '"' +
             ' data-numero="' + muEsc(e.numero) + '"' +
             ' data-nome="' + muEsc(e.nome) + '"' +
             ' data-sigla="' + muEsc(e.sigla) + '"' +
+            ' data-foto="' + muEsc(e.foto || '') + '"' +
+            ' data-media="' + muEsc(e.media == null ? '' : e.media) + '"' +
+            ' data-gols="' + muInteiro(e.gols) + '"' +
+            ' data-assistencias="' + muInteiro(e.assistencias) + '"' +
+            ' title="' + muEsc(e.nome) + '"' +
             ' style="left:' + e.x + '%; top:' + e.y + '%;"' +
             ' onpointerdown="muPointerDown(event, ' + time + ')"' +
             ' ondragover="event.preventDefault()"' +
             ' ondrop="muDropSlot(event, ' + time + ')">' +
-            '<span class="mu-slot-sigla">' + muEsc(e.sigla) + '</span>' +
-            '<div class="player-circle ' + circle + '">' + muEsc(e.numero) + '</div>' +
-            '<div class="player-name">' + muEsc(e.nome) + '</div>' +
+            muSlotInnerHtml(time, e) +
             '</div>';
     }
 
     function muBancoItemHtml(time, j) {
+        var media = muMediaTexto(j.media);
         return '<div class="mu-banco-item" draggable="true"' +
             ' data-jogadorid="' + j.id + '"' +
             ' data-numero="' + muEsc(j.numero) + '"' +
             ' data-nome="' + muEsc(j.nome) + '"' +
             ' data-sigla="' + muEsc(j.sigla) + '"' +
+            ' data-foto="' + muEsc(j.foto || '') + '"' +
+            ' data-media="' + muEsc(j.media == null ? '' : j.media) + '"' +
+            ' data-gols="' + muInteiro(j.gols) + '"' +
+            ' data-assistencias="' + muInteiro(j.assistencias) + '"' +
+            ' title="' + muEsc(j.nome) + '"' +
             ' ondragstart="muDragStart(event, ' + time + ')">' +
             '<span class="mu-banco-num">' + (muEsc(j.numero) || '–') + '</span>' +
             '<span class="mu-banco-nome">' + muEsc(j.nome) + '</span>' +
             '<span class="mu-banco-pos">' + muEsc(j.sigla) + '</span>' +
+            '<span class="mu-banco-media' + muMediaClasse(j.media) + '" title="Média na competição">' + (media || '–') + '</span>' +
             '</div>';
     }
 
@@ -1574,15 +1723,21 @@
         drag.el.remove();
     }
 
-    // Atualiza data-attributes e o visual (número/nome/sigla) de um slot do campo
+    // Atualiza data-attributes e o visual (foto/número/média/nome/sigla) de um
+    // slot do campo. Redesenha o miolo inteiro: com foto e média o conteúdo do
+    // círculo muda de estrutura, não só de texto.
     function muAplicarNoSlot(slot, d) {
+        var time = slot.id.startsWith('mu-slot-1-') ? 1 : 2;
         slot.dataset.jogadorid = d.jogadorid;
         slot.dataset.numero = d.numero;
         slot.dataset.nome = d.nome;
         slot.dataset.sigla = d.sigla;
-        slot.querySelector('.mu-slot-sigla').textContent = d.sigla;
-        slot.querySelector('.player-circle').textContent = d.numero;
-        slot.querySelector('.player-name').textContent = d.nome;
+        slot.dataset.foto = d.foto || '';
+        slot.dataset.media = d.media || '';
+        slot.dataset.gols = muInteiro(d.gols);
+        slot.dataset.assistencias = muInteiro(d.assistencias);
+        slot.title = d.nome;
+        slot.innerHTML = muSlotInnerHtml(time, slot.dataset);
     }
 
     // Recria a linha do banco para o titular que saiu do campo (textContent, não
@@ -1595,6 +1750,11 @@
         item.dataset.numero = d.numero;
         item.dataset.nome = d.nome;
         item.dataset.sigla = d.sigla;
+        item.dataset.foto = d.foto || '';
+        item.dataset.media = d.media || '';
+        item.dataset.gols = muInteiro(d.gols);
+        item.dataset.assistencias = muInteiro(d.assistencias);
+        item.title = d.nome;
 
         const num = document.createElement('span');
         num.className = 'mu-banco-num';
@@ -1605,7 +1765,11 @@
         const pos = document.createElement('span');
         pos.className = 'mu-banco-pos';
         pos.textContent = d.sigla;
-        item.append(num, nome, pos);
+        const media = document.createElement('span');
+        media.className = 'mu-banco-media' + muMediaClasse(d.media);
+        media.title = 'Média na competição';
+        media.textContent = muMediaTexto(d.media) || '–';
+        item.append(num, nome, pos, media);
 
         item.addEventListener('dragstart', ev => muDragStart(ev, time));
 
@@ -1626,7 +1790,9 @@
         const d = drag.el.dataset;
         document.getElementById('muCampo').insertAdjacentHTML('beforeend',
             muSlotHtml(drag.time, 'x' + (++muExtraSeq),
-                { id: d.jogadorid, numero: d.numero, nome: d.nome, sigla: d.sigla, x: pos.x, y: pos.y }));
+                { id: d.jogadorid, numero: d.numero, nome: d.nome, sigla: d.sigla,
+                  foto: d.foto, media: d.media, gols: d.gols, assistencias: d.assistencias,
+                  x: pos.x, y: pos.y }));
         drag.el.remove();
     }
 
@@ -2378,6 +2544,9 @@
     let GOLS_TEMPORADA = ANALISAR.golsTemporada;
     let ASSISTS_TEMPORADA = ANALISAR.assistsTemporada;
     let TITULAR_TEMPORADA = ANALISAR.titularTemporada;
+    // Clube da temporada anterior por jogador (id → {nome, escudo, temporada, jogos}),
+    // só para quem não jogou pelo clube atual naquela temporada — o reforço.
+    let TIME_ANTERIOR = ANALISAR.timeAnterior || {};
 
     // Troca a temporada dos números do tooltip (gols/assists/titular por competição
     // e por temporada + médias por jogo). Recarrega só esses dicionários: a tela tem
@@ -2396,6 +2565,7 @@
             GOLS_TEMPORADA = d.golsTemporada || {};
             ASSISTS_TEMPORADA = d.assistsTemporada || {};
             TITULAR_TEMPORADA = d.titularTemporada || {};
+            TIME_ANTERIOR = d.timeAnterior || {};
             TEMPORADA_TOOLTIP = d.temporada;
 
             // Gols/assists da competição moram dentro de DADOS_JOGADORES (é de lá
@@ -2459,6 +2629,18 @@
                 : `<span>🏟️ ${dados.time}</span>`) : '',
         ].filter(Boolean).join('');
         if (meta) html += `<div class="tt-meta">${meta}</div>`;
+        // "Vinha do": clube da temporada passada, quando não é o clube de hoje.
+        const ant = TIME_ANTERIOR[dados.id];
+        if (ant) {
+            const escudo = ant.escudo ? `<img class="tt-icon" src="${ant.escudo}" />` : '🏟️';
+            html += `<div class="tt-vinha-do">` +
+                `<span class="tt-vinha-icone" title="Vinha do">🔄</span>` +
+                `<span class="tt-vinha-time">${escudo} ${ant.nome}</span>` +
+                // Sem contagem quando o dado veio da janela de transferências,
+                // que não sabe quantos jogos ele fez pelo clube antigo.
+                `<span class="tt-vinha-obs">${ant.temporada}${ant.jogos > 0 ? ` · ${ant.jogos} jogo${ant.jogos > 1 ? 's' : ''}` : ''}</span>` +
+                `</div>`;
+        }
         // Stats separadas por escopo: competição do jogo e temporada (todas as
         // competições do mesmo ano). dados.gols/assists vêm da competição.
         html += ttLinhaStats('Competição', dados.gols, dados.assists, TITULAR_JOGADORES[dados.id]);

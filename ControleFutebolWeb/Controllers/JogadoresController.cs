@@ -3,6 +3,7 @@ using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
 using ControleFutebolWeb.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -22,13 +23,18 @@ namespace ControleFutebolWeb.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly PerfilJogadorService _perfilJogador;
 
-        public JogadoresController(FutebolContext context, ILogger<JogadoresController> logger, ApiFootballService transfermarktService, UserManager<ApplicationUser> userManager, PerfilJogadorService perfilJogador)
+        private readonly FotMobPerfilService _fotmobPerfil;
+        private readonly FotMobService _fotmob;
+
+        public JogadoresController(FutebolContext context, ILogger<JogadoresController> logger, ApiFootballService transfermarktService, UserManager<ApplicationUser> userManager, PerfilJogadorService perfilJogador, FotMobPerfilService fotmobPerfil, FotMobService fotmob)
         {
             _context = context;
             _logger = logger;
             _transfermarktService = transfermarktService;
             _userManager = userManager;
             _perfilJogador = perfilJogador;
+            _fotmobPerfil = fotmobPerfil;
+            _fotmob = fotmob;
         }
 
         public IActionResult Index(string posicao, string nacionalidade, int? timeId, string sortOrder, string? nome, int? idadeMin, int? idadeMax, bool semIdade = false, int page = 1)
@@ -397,6 +403,109 @@ namespace ControleFutebolWeb.Controllers
                 _logger.LogWarning("ModelState inválido em Jogadores/{Action}. Erros: {@Errors}", contextAction, errors);
         }
 
+        /// <summary>
+        /// Tela de identificação manual do jogador na base externa, para os que a
+        /// importação nunca alcança (ver FotMobService.BuscarJogadoresAsync).
+        ///
+        /// Já chega com uma sugestão de termo, mas quem escolhe é uma pessoa: o nome
+        /// completo do cadastro geralmente não acha nada lá e o curto traz homônimos.
+        ///
+        /// RESTRITA A ADMIN. É o único ponto do sistema onde a fonte dos dados aparece
+        /// — não dá para escolher o registro certo sem ver de onde ele vem, e há um
+        /// link para conferir antes de gravar. O usuário comum nunca chega aqui: para
+        /// ele, a tela de estatísticas avançadas não cita fonte nenhuma.
+        /// </summary>
+        [HttpGet]
+        [Authorize(Policy = "Admin")]
+        public async Task<IActionResult> VincularEstatisticas(int id, string? termo, CancellationToken ct)
+        {
+            var jogador = await _context.Jogadores.AsNoTracking()
+                .FirstOrDefaultAsync(j => j.Id == id, ct);
+            if (jogador == null) return NotFound();
+
+            var vm = new VincularFotMobViewModel
+            {
+                JogadorId = jogador.Id,
+                JogadorNome = jogador.Nome,
+                IdFotMobAtual = jogador.IdFotMob,
+                // Os dois primeiros nomes acertam bem mais que o nome completo — é o
+                // formato que o FotMob usa ("Edmílson Junior" e não o nome de registro).
+                Termo = termo ?? TermoSugerido(jogador.Nome),
+            };
+
+            if (!string.IsNullOrWhiteSpace(vm.Termo))
+                vm.Candidatos = (await _fotmob.BuscarJogadoresAsync(vm.Termo, ct))
+                    .Select(c => new CandidatoFotMob { Id = c.Id, Nome = c.Nome, Time = c.Time })
+                    .ToList();
+
+            return View(vm);
+        }
+
+        /// <summary>Nome curto: os dois primeiros termos, que é como o FotMob nomeia.</summary>
+        private static string TermoSugerido(string nome)
+        {
+            var partes = nome.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            return partes.Length <= 2 ? nome : string.Join(' ', partes.Take(2));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Policy = "Admin")]
+        public async Task<IActionResult> VincularEstatisticas(int id, long idExterno, CancellationToken ct)
+        {
+            var jogador = await _context.Jogadores.FirstOrDefaultAsync(j => j.Id == id, ct);
+            if (jogador == null) return NotFound();
+
+            // Zero desfaz a identificação — é como se corrige uma escolha errada sem
+            // precisar mexer no banco na mão.
+            jogador.IdFotMob = idExterno > 0 ? idExterno : null;
+            await _context.SaveChangesAsync(ct);
+
+            TempData["Sucesso"] = idExterno > 0
+                ? $"{jogador.Nome} identificado na base de estatísticas avançadas."
+                : $"Identificação de {jogador.Nome} removida.";
+
+            return RedirectToAction(idExterno > 0 ? nameof(EstatisticasAvancadas) : nameof(Estatisticas),
+                new { id });
+        }
+
+        /// <summary>
+        /// Estatísticas avançadas do jogador no FotMob, abertas pelo botão da página
+        /// dele. A chamada externa acontece AQUI e só aqui: a tela de Estatisticas
+        /// carrega sem tocar no FotMob, como pedido.
+        ///
+        /// Nada é gravado — ver FotMobPerfilService, que explica por que essa tela não
+        /// consegue criar divergência com o resto do sistema.
+        /// </summary>
+        /// <param name="temporadaId">
+        /// entryId da temporada/competição no FotMob. Vem do seletor da própria tela;
+        /// vazio carrega a mais recente.
+        /// </param>
+        public async Task<IActionResult> EstatisticasAvancadas(
+            int id, string? temporadaId, CancellationToken ct)
+        {
+            var jogador = await _context.Jogadores
+                .AsNoTracking()
+                .Select(j => new { j.Id, j.Nome, j.IdFotMob })
+                .FirstOrDefaultAsync(j => j.Id == id, ct);
+
+            if (jogador == null) return NotFound();
+
+            // Sem vínculo não há o que buscar. Acontece com quem nunca apareceu num jogo
+            // importado do FotMob — a mensagem diz o caminho em vez de dar erro seco,
+            // porque o vínculo nasce de uma importação e não de um cadastro manual.
+            if (jogador.IdFotMob is not long idFotMob)
+            {
+                return RedirectToAction(nameof(VincularEstatisticas), new { id });
+            }
+
+            var vm = await _fotmobPerfil.MontarAsync(idFotMob, temporadaId, ct);
+            vm.JogadorId = jogador.Id;
+            vm.JogadorNome = jogador.Nome;
+
+            return View(vm);
+        }
+
         public async Task<IActionResult> Estatisticas(int id, int? competicaoId, int? temporada)
         {
             var uid = _userManager.GetUserId(User);
@@ -706,6 +815,19 @@ namespace ControleFutebolWeb.Controllers
                 .Concat(itensNaoAnalisados)
                 .OrderByDescending(x => x.Jogo.Data)
                 .ToList();
+
+            // Coroa de craque da partida nos jogos deste histórico. Só lê o que já está
+            // gravado: quem abre o perfil de um jogador não deve pagar a eleição de
+            // centenas de partidas em que ele nem foi o melhor — quem preenche a tabela
+            // é a tela de análise do jogo e o ranking dos relatórios.
+            var jogosDoHistorico = notasPorJogo.Select(x => x.Jogo.Id).ToList();
+            var craquesDoJogador = await _context.CraquesDaPartida
+                .Where(c => c.UsuarioId == uid && c.JogadorId == id && jogosDoHistorico.Contains(c.JogoId))
+                .Select(c => c.JogoId)
+                .ToHashSetAsync();
+
+            foreach (var item in notasPorJogo)
+                item.Craque = craquesDoJogador.Contains(item.Jogo.Id);
 
             // Observações marcadas com a tag "Jogador" OU que mencionam o jogador
             // via "@Nome" no texto (criadas em /Jogos/Analisar), exibidas junto ao
@@ -1256,12 +1378,49 @@ namespace ControleFutebolWeb.Controllers
         // liga → time → jogador + comparação lado a lado de dois jogadores.
         // ─────────────────────────────────────────────────────────────────
 
-        // GET: /Jogadores/CompararLigas — competições para o filtro (TopTier primeiro)
+        // GET: /Jogadores/CompararTemporadas — temporadas com jogos na base.
+        // Rótulo por temporada ("2025/26" ou "2025"): vale o calendário da maioria
+        // das competições que tiveram jogos naquela temporada.
         [HttpGet]
-        public async Task<IActionResult> CompararLigas()
+        public async Task<IActionResult> CompararTemporadas()
         {
-            var ligas = await _context.Competicoes
+            var participacoes = await _context.Jogos
                 .AsNoTracking()
+                .Select(j => new { j.CompeticaoId, j.Temporada })
+                .Distinct()
+                .ToListAsync();
+
+            var calendarioEuropeu = await TemporadaHelper.CompeticoesDeCalendarioEuropeuAsync(
+                _context, participacoes.Select(p => p.CompeticaoId).Distinct().ToList());
+
+            var temporadas = participacoes
+                .GroupBy(p => p.Temporada)
+                .OrderByDescending(g => g.Key)
+                .Select(g =>
+                {
+                    var europeias = g.Count(p => calendarioEuropeu.Contains(p.CompeticaoId));
+                    return new { valor = g.Key, rotulo = TemporadaHelper.Rotulo(g.Key, europeias * 2 >= g.Count()) };
+                })
+                .ToList();
+            return Json(temporadas);
+        }
+
+        // GET: /Jogadores/CompararLigas?temporada=X — competições para o filtro
+        // (TopTier primeiro); com temporada, só as que tiveram jogos nela.
+        [HttpGet]
+        public async Task<IActionResult> CompararLigas(int? temporada)
+        {
+            IQueryable<Competicao> query = _context.Competicoes.AsNoTracking();
+
+            if (temporada.HasValue)
+            {
+                var ids = _context.Jogos
+                    .Where(j => j.Temporada == temporada.Value)
+                    .Select(j => j.CompeticaoId);
+                query = query.Where(c => ids.Contains(c.Id));
+            }
+
+            var ligas = await query
                 .OrderByDescending(c => c.TopTier)
                 .ThenBy(c => c.Nome)
                 .Select(c => new { id = c.Id, nome = c.Nome })
@@ -1269,22 +1428,24 @@ namespace ControleFutebolWeb.Controllers
             return Json(ligas);
         }
 
-        // GET: /Jogadores/CompararTimes?competicaoId=X
+        // GET: /Jogadores/CompararTimes?competicaoId=X&temporada=Y
         // Não há vínculo direto time↔competição no modelo: os times de uma liga
         // são derivados dos jogos cadastrados nela (mandante ou visitante).
         [HttpGet]
-        public async Task<IActionResult> CompararTimes(int? competicaoId)
+        public async Task<IActionResult> CompararTimes(int? competicaoId, int? temporada)
         {
             IQueryable<Time> query = _context.Times.AsNoTracking();
 
-            if (competicaoId.HasValue)
+            if (competicaoId.HasValue || temporada.HasValue)
             {
-                var ids = _context.Jogos
-                    .Where(j => j.CompeticaoId == competicaoId.Value)
-                    .Select(j => j.TimeCasaId)
-                    .Union(_context.Jogos
-                        .Where(j => j.CompeticaoId == competicaoId.Value)
-                        .Select(j => j.TimeVisitanteId));
+                var jogos = _context.Jogos.AsQueryable();
+                if (competicaoId.HasValue)
+                    jogos = jogos.Where(j => j.CompeticaoId == competicaoId.Value);
+                if (temporada.HasValue)
+                    jogos = jogos.Where(j => j.Temporada == temporada.Value);
+
+                var ids = jogos.Select(j => j.TimeCasaId)
+                    .Union(jogos.Select(j => j.TimeVisitanteId));
                 query = query.Where(t => ids.Contains(t.Id));
             }
 
@@ -1335,12 +1496,13 @@ namespace ControleFutebolWeb.Controllers
             return Json(jogadores);
         }
 
-        // GET: /Jogadores/CompararDados?id=X&comId=Y
+        // GET: /Jogadores/CompararDados?id=X&comId=Y&temporada=Z
         // Payload completo da comparação: cabeçalho dos dois jogadores, métricas
         // agrupadas com destaque de quem vence cada uma e o resumo textual
         // (quem é melhor em quê, e em qual função cada um renderia mais).
+        // Sem temporada, a comparação soma a carreira inteira dos dois na base.
         [HttpGet]
-        public async Task<IActionResult> CompararDados(int id, int comId)
+        public async Task<IActionResult> CompararDados(int id, int comId, int? temporada)
         {
             if (id == comId)
                 return Json(new { error = "Escolha um jogador diferente para comparar." });
@@ -1353,8 +1515,8 @@ namespace ControleFutebolWeb.Controllers
                 .Where(c => c.UsuarioId == uid).ToListAsync();
             var criterios = CriteriosNotaHelper.MergeCriterios(criteriosCompartilhados, criteriosUsuario);
 
-            var a = await _perfilJogador.MontarAsync(id, uid, criterios);
-            var b = await _perfilJogador.MontarAsync(comId, uid, criterios);
+            var a = await _perfilJogador.MontarAsync(id, uid, criterios, temporada);
+            var b = await _perfilJogador.MontarAsync(comId, uid, criterios, temporada);
             if (a == null || b == null) return NotFound();
 
             var ptBr = System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
@@ -1697,6 +1859,75 @@ namespace ControleFutebolWeb.Controllers
             });
         }
 
+        // Média do sistema por competição numa temporada, com a mesma régua de
+        // /Jogadores/Estatisticas: nota manual quando o usuário avaliou o jogo,
+        // senão a nota automática calculada sobre a estatística importada.
+        // A chave é Competicao.IdApi — é por league.id que as linhas do histórico
+        // externo (api-football) chegam em EstatisticasTemporada.
+        private async Task<Dictionary<int, (double Media, int Jogos)>> MediasSistemaPorLigaAsync(int jogadorId, int season)
+        {
+            var uid = _userManager.GetUserId(User);
+
+            var notas = await _context.Notas
+                .AsNoTracking()
+                // Detalhes: o piso de merecimento conta os chips verdes x vermelhos.
+                .Include(n => n.Detalhes)
+                .Include(n => n.Jogo).ThenInclude(j => j.Competicao)
+                .Where(n => n.JogadorId == jogadorId && n.UsuarioId == uid && n.Jogo.Temporada == season)
+                .ToListAsync();
+
+            // Exclui reservas não utilizados (Minutos 0/null), mesmo critério da tela.
+            var estatisticas = await _context.EstatisticasJogador
+                .AsNoTracking()
+                // Jogo e Jogador precisam vir juntos: o bônus "não sofreu gol"
+                // (CriteriosNotaHelper) lê o placar e a posição/time do jogador.
+                .Include(e => e.Jogo).ThenInclude(j => j.Competicao)
+                .Include(e => e.Jogador)
+                .Where(e => e.JogadorId == jogadorId && e.Minutos != null && e.Minutos > 0
+                         && e.Jogo.Temporada == season)
+                .ToListAsync();
+
+            if (notas.Count == 0 && estatisticas.Count == 0)
+                return new();
+
+            var criteriosCompartilhados = await _context.CriteriosNota
+                .Where(c => c.UsuarioId == null).ToListAsync();
+            var criteriosUsuario = await _context.CriteriosNota
+                .Where(c => c.UsuarioId == uid).ToListAsync();
+            var criterios = CriteriosNotaHelper.MergeCriterios(criteriosCompartilhados, criteriosUsuario);
+
+            var jogoIds = notas.Select(n => n.JogoId)
+                .Concat(estatisticas.Select(e => e.JogoId))
+                .Distinct()
+                .ToList();
+
+            // Lado (casa/visitante) pela escalação da época — o time atual erraria
+            // os jogos anteriores a uma transferência.
+            var lados = await LadoJogadorHelper.CarregarAsync(_context, jogoIds, uid, new[] { jogadorId });
+            var contextos = await ContextoNotaHelper.CarregarAsync(_context, jogoIds, uid);
+            var calculadora = await NotaAutomaticaHelper.CarregarAsync(
+                _context, jogoIds, uid, criterios, lados, contextos);
+
+            var jogosComNotaManual = notas.Select(n => n.JogoId).ToHashSet();
+
+            return notas
+                .Select(n => (
+                    IdApi: n.Jogo.Competicao?.IdApi,
+                    Nota: n.NotaManual.HasValue
+                        ? Math.Round(Math.Max(0, Math.Min(10, n.NotaManual.Value)), 2)
+                        : CriteriosNotaHelper.NotaFinal(n.Valor, criterios,
+                            ContextoNotaHelper.De(contextos, jogadorId, n.JogoId) with
+                            {
+                                Acoes = CriteriosNotaHelper.ContarAcoes(n.Detalhes)
+                            })))
+                .Concat(estatisticas
+                    .Where(e => !jogosComNotaManual.Contains(e.JogoId))
+                    .Select(e => (IdApi: e.Jogo.Competicao?.IdApi, Nota: calculadora.De(e).Nota)))
+                .Where(x => x.IdApi.HasValue)
+                .GroupBy(x => x.IdApi!.Value)
+                .ToDictionary(g => g.Key, g => (Math.Round(g.Average(x => x.Nota), 2), g.Count()));
+        }
+
         [HttpGet]
         public async Task<IActionResult> EstatisticasTemporada(int id, int season)
         {
@@ -1707,6 +1938,7 @@ namespace ControleFutebolWeb.Controllers
             try
             {
                 var stats = await _transfermarktService.BuscarEstatisticasTemporadaAsync(jogador.IdApi.Value, season);
+                var mediasSistema = await MediasSistemaPorLigaAsync(id, season);
                 var result = stats.Select(s => new
                 {
                     league = new
@@ -1735,7 +1967,12 @@ namespace ControleFutebolWeb.Controllers
                     cards = new { yellow = s.Cards.Yellow ?? 0, yellowred = s.Cards.Yellowred ?? 0, red = s.Cards.Red ?? 0 },
                     substitutes = new { @in = s.Substitutes.In ?? 0, @out = s.Substitutes.Out ?? 0, bench = s.Substitutes.Bench ?? 0 },
                     duels = new { total = s.Duels.Total ?? 0, won = s.Duels.Won ?? 0 },
-                    fouls = new { drawn = s.Fouls.Drawn ?? 0, committed = s.Fouls.Committed ?? 0 }
+                    fouls = new { drawn = s.Fouls.Drawn ?? 0, committed = s.Fouls.Committed ?? 0 },
+                    // Média calculada pelo sistema para essa mesma liga/temporada
+                    // (null quando o usuário não tem jogos avaliados nela).
+                    sistema = mediasSistema.TryGetValue(s.League.Id, out var ms)
+                        ? (object?)new { media = ms.Media, jogos = ms.Jogos }
+                        : null
                 });
                 return Json(result);
             }

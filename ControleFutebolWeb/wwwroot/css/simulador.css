@@ -1,6 +1,7 @@
 /* ── Simulador de tabela (/Simulador) ────────────────────────────────────────
-   Painel escuro fechado em si mesmo, no mesmo visual das telas de competição
-   (Competicoes/Detalhes), independente do tema claro/escuro do restante do site. */
+   Painel fechado em si mesmo, no mesmo visual das telas de competição
+   (Competicoes/Detalhes). As cores saem dos tokens do site.css, então o painel
+   acompanha o tema — só o herói continua escuro (.theme-dark-zone na view). */
 
 .sim-root, .sim-root *, .sim-root *::before, .sim-root *::after { box-sizing: border-box; }
 
@@ -70,7 +71,7 @@
     cursor: pointer;
     transition: background .12s, border-color .12s;
 }
-.sim-btn:hover { background: #242424; border-color: #3d3d3d; }
+.sim-btn:hover { background: var(--p-4); border-color: var(--line-strong); }
 .sim-btn.danger { color: var(--bad); border-color: rgba(239,68,68,.35); }
 .sim-btn.danger:hover { background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.6); }
 
@@ -82,7 +83,7 @@
     background: var(--p-1);
     border: 1px solid var(--line);
 }
-.sim-aviso.ok { border-color: rgba(34,197,94,.35); color: #86efac; }
+.sim-aviso.ok { border-color: rgba(34,197,94,.35); color: var(--ok); }
 .sim-aviso.erro { border-color: rgba(239,68,68,.35); color: var(--bad); }
 
 /* ── Barra de status ── */
@@ -126,7 +127,7 @@
     align-items: start;
 }
 
-.sim-painel { background: #131313; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.sim-painel { background: var(--p-2); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
 
 .sim-painel-head {
     display: flex;
@@ -161,9 +162,9 @@
 .sim-cols .d { color: var(--bad-2); }
 .sim-cols .pts { color: var(--gold-ink); }
 
-.sim-row { border-bottom: 1px solid #191919; transition: background .12s; }
+.sim-row { border-bottom: 1px solid var(--line-soft); transition: background .12s; }
 .sim-row:last-of-type { border-bottom: none; }
-.sim-row:hover { background: var(--p-2); }
+.sim-row:hover { background: var(--p-3); }
 .sim-row.simulado { background: rgba(212,165,32,.05); }
 
 .sim-zonebar { width: 4px; height: 26px; border-radius: 0 2px 2px 0; }
@@ -236,7 +237,7 @@
 
 .sim-jogos { display: flex; flex-direction: column; }
 
-.sim-jogo { padding: 10px 14px; border-bottom: 1px solid #191919; }
+.sim-jogo { padding: 10px 14px; border-bottom: 1px solid var(--line-soft); }
 .sim-jogo:last-child { border-bottom: none; }
 .sim-jogo.simulado { background: rgba(212,165,32,.05); }
 .sim-jogo.realizado { opacity: .65; }

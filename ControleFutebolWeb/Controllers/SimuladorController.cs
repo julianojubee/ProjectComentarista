@@ -231,7 +231,19 @@ namespace ControleFutebolWeb.Controllers
                 .Select(g => g.First())
                 .ToList();
 
-            var tabelaReal = ClassificacaoCalculator.Calcular(realizados, participantes);
+            // Mesmos critérios de desempate da tela de Competições (Competicoes/Edit): sem
+            // isso a ordem dos empatados sairia diferente da tabela oficial da competição.
+            // Os cartões vêm só dos jogos realizados — jogo simulado não tem cartão.
+            var criterios = CriteriosDesempateHelper.Parse(competicao.CriteriosDesempate);
+            var idsRealizados = realizados.Select(j => j.Id).ToHashSet();
+            var cartoes = await _context.Cartoes
+                .AsNoTracking()
+                .Include(c => c.Jogador)
+                .Where(c => idsRealizados.Contains(c.JogoId))
+                .ToListAsync();
+
+            var tabelaReal = ClassificacaoCalculator.Calcular(
+                realizados, participantes, criterios, DadosDesempate.Construir(realizados, cartoes));
 
             // Jogos simulados: cópia rasa do jogo pendente com o placar do palpite.
             var jogosComSimulacao = new List<Jogo>(realizados);
@@ -251,7 +263,9 @@ namespace ControleFutebolWeb.Controllers
                 });
             }
 
-            var tabelaSimulada = ClassificacaoCalculator.Calcular(jogosComSimulacao, participantes);
+            var tabelaSimulada = ClassificacaoCalculator.Calcular(
+                jogosComSimulacao, participantes, criterios,
+                DadosDesempate.Construir(jogosComSimulacao, cartoes));
 
             var posicaoReal = tabelaReal.ToDictionary(c => c.TimeId, c => c.Posicao);
             var pontosReais = tabelaReal.ToDictionary(c => c.TimeId, c => c.Pontos);

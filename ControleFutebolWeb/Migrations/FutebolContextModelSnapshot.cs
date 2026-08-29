@@ -726,6 +726,63 @@ namespace ControleFutebolWeb.Migrations
                     b.ToTable("competicaofases");
                 });
 
+            modelBuilder.Entity("ControleFutebolWeb.Models.CompeticaoHeroUsuario", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Ajuste")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("ajuste");
+
+                    b.Property<int>("CompeticaoId")
+                        .HasColumnType("integer")
+                        .HasColumnName("competicaoid");
+
+                    b.Property<string>("Cor")
+                        .HasColumnType("text")
+                        .HasColumnName("cor");
+
+                    b.Property<int>("Escurecimento")
+                        .HasColumnType("integer")
+                        .HasColumnName("escurecimento");
+
+                    b.Property<string>("ImagemUrl")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("imagemurl");
+
+                    b.Property<int>("PosX")
+                        .HasColumnType("integer")
+                        .HasColumnName("posx");
+
+                    b.Property<int>("PosY")
+                        .HasColumnType("integer")
+                        .HasColumnName("posy");
+
+                    b.Property<string>("UsuarioId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("usuarioid");
+
+                    b.Property<int>("Zoom")
+                        .HasColumnType("integer")
+                        .HasColumnName("zoom");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompeticaoId");
+
+                    b.HasIndex("UsuarioId");
+
+                    b.ToTable("competicoesherousuario");
+                });
+
             modelBuilder.Entity("ControleFutebolWeb.Models.CompeticaoHomeUsuario", b =>
                 {
                     b.Property<int>("Id")
@@ -778,6 +835,64 @@ namespace ControleFutebolWeb.Migrations
                     b.HasIndex("UsuarioId");
 
                     b.ToTable("competicoestoptierusuario");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.CraqueDaPartida", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Assistencias")
+                        .HasColumnType("integer")
+                        .HasColumnName("assistencias");
+
+                    b.Property<DateTime>("CalculadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("calculadoem");
+
+                    b.Property<int>("ChancesCriadas")
+                        .HasColumnType("integer")
+                        .HasColumnName("chancescriadas");
+
+                    b.Property<int>("Empatados")
+                        .HasColumnType("integer")
+                        .HasColumnName("empatados");
+
+                    b.Property<int>("Gols")
+                        .HasColumnType("integer")
+                        .HasColumnName("gols");
+
+                    b.Property<int>("JogadorId")
+                        .HasColumnType("integer")
+                        .HasColumnName("jogadorid");
+
+                    b.Property<int>("JogoId")
+                        .HasColumnType("integer")
+                        .HasColumnName("jogoid");
+
+                    b.Property<double>("Nota")
+                        .HasColumnType("double precision")
+                        .HasColumnName("nota");
+
+                    b.Property<string>("UsuarioId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("usuarioid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JogadorId");
+
+                    b.HasIndex("JogoId", "UsuarioId")
+                        .IsUnique();
+
+                    b.HasIndex("UsuarioId", "JogadorId");
+
+                    b.ToTable("craquesdapartida");
                 });
 
             modelBuilder.Entity("ControleFutebolWeb.Models.CriterioNota", b =>
@@ -908,6 +1023,10 @@ namespace ControleFutebolWeb.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("faseescalacao");
+
+                    b.Property<string>("Fonte")
+                        .HasColumnType("text")
+                        .HasColumnName("fonte");
 
                     b.Property<bool>("IsTimeCasa")
                         .HasColumnType("boolean")
@@ -1306,6 +1425,10 @@ namespace ControleFutebolWeb.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("idapi");
 
+                    b.Property<long?>("IdFotMob")
+                        .HasColumnType("bigint")
+                        .HasColumnName("idfotmob");
+
                     b.Property<int?>("IdadeTransfermarkt")
                         .HasColumnType("integer")
                         .HasColumnName("idadetransfermarkt");
@@ -1357,6 +1480,10 @@ namespace ControleFutebolWeb.Migrations
                         .HasColumnName("ultimonome");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("IdApi")
+                        .IsUnique()
+                        .HasFilter("idapi IS NOT NULL");
 
                     b.HasIndex("NacionalidadeId");
 
@@ -2867,6 +2994,25 @@ namespace ControleFutebolWeb.Migrations
                     b.Navigation("Competicao");
                 });
 
+            modelBuilder.Entity("ControleFutebolWeb.Models.CompeticaoHeroUsuario", b =>
+                {
+                    b.HasOne("ControleFutebolWeb.Models.Competicao", "Competicao")
+                        .WithMany()
+                        .HasForeignKey("CompeticaoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ControleFutebolWeb.Models.ApplicationUser", "Usuario")
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Competicao");
+
+                    b.Navigation("Usuario");
+                });
+
             modelBuilder.Entity("ControleFutebolWeb.Models.CompeticaoHomeUsuario", b =>
                 {
                     b.HasOne("ControleFutebolWeb.Models.Competicao", "Competicao")
@@ -2901,6 +3047,33 @@ namespace ControleFutebolWeb.Migrations
                         .IsRequired();
 
                     b.Navigation("Competicao");
+
+                    b.Navigation("Usuario");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.CraqueDaPartida", b =>
+                {
+                    b.HasOne("ControleFutebolWeb.Models.Jogador", "Jogador")
+                        .WithMany()
+                        .HasForeignKey("JogadorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ControleFutebolWeb.Models.Jogo", "Jogo")
+                        .WithMany()
+                        .HasForeignKey("JogoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ControleFutebolWeb.Models.ApplicationUser", "Usuario")
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Jogador");
+
+                    b.Navigation("Jogo");
 
                     b.Navigation("Usuario");
                 });

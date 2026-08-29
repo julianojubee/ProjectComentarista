@@ -1,4 +1,4 @@
-/* Estilos da tela de análise tática (/Jogos/Analisar).
+﻿/* Estilos da tela de análise tática (/Jogos/Analisar).
    Extraído dos blocos <style> inline da view: ~55 KB que eram reenviados a
    cada request. Aqui vira arquivo estático versionado (asp-append-version),
    cacheável por 1 ano. As únicas regras que continuam inline na view são as
@@ -103,7 +103,7 @@
         color: var(--text-muted); font-size: 14px; font-weight: 700; cursor: pointer;
     }
     .jog-btn-add:hover { border-color: #d4af37; color: #d4af37; }
-    .jog-form-novo { display: none; gap: 4px; padding: 6px 8px; background: #101010; border-bottom: 1px solid var(--line-soft); }
+    .jog-form-novo { display: none; gap: 4px; padding: 6px 8px; background: var(--p-1); border-bottom: 1px solid var(--line-soft); }
     .jog-form-novo.aberto { display: flex; }
     .jog-form-novo input {
         min-width: 0; padding: 3px 6px; border-radius: 5px; border: 1px solid var(--line-strong);
@@ -135,6 +135,12 @@
         font-size: 11px;
         text-shadow: 1px 1px 2px black;
         transform: translate(-50%, -50%);
+    }
+
+    /* Alvo de troca: arrastar um titular sobre outro destaca quem vai ceder o lugar */
+    .posicao-drop.alvo-troca .player-circle {
+        outline: 3px dashed #38bdf8;
+        outline-offset: 2px;
     }
 
     /* ── Setas de movimentação dos jogadores ── */
@@ -209,7 +215,7 @@
            :not() elevam a especificidade desta regra acima dos estilos dos
            próprios botões — qualquer novo elemento interativo dentro do slot
            precisa ser adicionado aqui também. */
-        .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in):not(.card-amarelo-badge):not(.capitao-badge) {
+        .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in):not(.card-amarelo-badge):not(.capitao-badge):not(.craque-badge) {
             pointer-events: none;
         }
 
@@ -380,8 +386,8 @@
         display: none;
         position: fixed;
         z-index: 9999;
-        background: #1e293b;
-        border: 1px solid #38bdf8;
+        background: var(--p-2);
+        border: 1px solid var(--info);
         border-radius: 8px;
         padding: 8px 12px;
         font-size: 12px;
@@ -405,7 +411,7 @@
         height: 40px;
         border-radius: 50%;
         object-fit: cover;
-        border: 2px solid #38bdf8;
+        border: 2px solid var(--info);
         flex-shrink: 0;
     }
 
@@ -433,10 +439,36 @@
         border-radius: 2px;
     }
 
+    /* "Vinha do": clube da temporada passada de quem chegou como reforço */
+    #jogador-tooltip .tt-vinha-do {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px solid var(--line);
+        font-size: 11px;
+    }
+
+    #jogador-tooltip .tt-vinha-icone {
+        font-size: 12px;
+        line-height: 1;
+    }
+
+    #jogador-tooltip .tt-vinha-time {
+        color: var(--text-2);
+        font-weight: 600;
+    }
+
+    #jogador-tooltip .tt-vinha-obs {
+        color: var(--text-dim);
+    }
+
     #jogador-tooltip .tt-stats {
         margin-top: 6px;
         padding-top: 6px;
-        border-top: 1px solid #334155;
+        border-top: 1px solid var(--line);
     }
 
     /* Blocos consecutivos (Competição + Temporada) formam um bloco só */
@@ -470,7 +502,7 @@
     #jogador-tooltip .tt-obs {
         margin-top: 6px;
         padding-top: 6px;
-        border-top: 1px solid #334155;
+        border-top: 1px solid var(--line);
         color: var(--text-muted);
         white-space: pre-wrap;
     }
@@ -478,7 +510,7 @@
     #jogador-tooltip .tt-medias-titulo {
         margin-top: 6px;
         padding-top: 6px;
-        border-top: 1px solid #334155;
+        border-top: 1px solid var(--line);
         color: var(--text-muted);
         font-size: 10px;
         text-transform: uppercase;
@@ -493,7 +525,7 @@
     }
 
     #jogador-tooltip .tt-media-cel {
-        background: #1e293b;
+        background: var(--p-3);
         border-radius: 6px;
         padding: 4px 6px;
         display: flex;
@@ -511,7 +543,7 @@
         font-size: 9.5px;
     }
 
-    .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in):not(.card-amarelo-badge):not(.capitao-badge) {
+    .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in):not(.card-amarelo-badge):not(.capitao-badge):not(.craque-badge) {
         pointer-events: none;
     }
 
@@ -668,6 +700,44 @@
         border: 1px solid #fff;
         box-shadow: 0 1px 2px rgba(0,0,0,.45);
         z-index: 3;
+        pointer-events: auto;
+        cursor: help;
+    }
+
+    /* Coroa do craque da partida (maior nota do jogo). Canto inferior ESQUERDO do
+       círculo de 36px: o topo é dos botões + e ℹ (a coroa em cima cobria o "+") e o
+       canto inferior direito é da seta de entrada. É a única marca da posição que
+       não é redonda: a coroa é o próprio desenho, sem pastilha atrás. */
+    .craque-badge {
+        position: absolute;
+        top: 22px;
+        left: 50%;
+        margin-left: -26px;
+        font-size: 15px;
+        line-height: 1;
+        text-shadow: 0 1px 3px rgba(0,0,0,.6);
+        z-index: 4;
+        pointer-events: auto;
+        cursor: help;
+    }
+
+    /* A braçadeira de capitão mora no mesmo canto e vem imediatamente antes da coroa
+       no HTML — quando os dois aparecem juntos, a coroa se afasta mais para a esquerda
+       em vez de pousar em cima dela. */
+    .capitao-badge + .craque-badge {
+        margin-left: -48px;
+    }
+
+    /* Versão do banco de reservas: canto inferior esquerdo do círculo de 28px.
+       Não pode ancorar no rodapé do card — ali fica o nome do reserva. */
+    .craque-badge-mini {
+        position: absolute;
+        top: 15px;
+        left: 6px;
+        font-size: 11px;
+        line-height: 1;
+        text-shadow: 0 1px 2px rgba(0,0,0,.6);
+        z-index: 4;
         pointer-events: auto;
         cursor: help;
     }
@@ -1254,8 +1324,8 @@
     }
 
     .modal-evento-box {
-        background: #1e293b;
-        border: 1px solid rgba(255,255,255,.12);
+        background: var(--p-2);
+        border: 1px solid var(--line);
         border-radius: 16px;
         padding: 1.4rem;
         width: 360px;
@@ -1297,7 +1367,7 @@
         }
 
             .mev-field select option {
-                background: #1e293b;
+                background: var(--p-2);
             }
 
     .mev-row {
@@ -1506,6 +1576,27 @@
     .pj-vazio { font-size: 12px; color: rgba(255,255,255,.5); }
 
     /* ── Abas do modal Pré-jogo ── */
+    /* ── Modal Pré-jogo maximizado (⛶): ocupa a tela inteira para o match-up
+       respirar. O !important é proposital — mostrarAbaPreJogo() escreve a
+       largura no style inline ao trocar de aba. */
+    #prejogo-box.pj-maximizado {
+        width: 100vw !important; max-width: 100vw; height: 100vh; max-height: 100vh;
+        border-radius: 0; border: none; padding: 1rem 1.4rem;
+    }
+    /* Campo pega a altura que sobra do cabeçalho/abas/toolbar em vez da proporção fixa */
+    .pj-maximizado .mu-campo { aspect-ratio: auto; height: calc(100vh - 300px); min-height: 380px; }
+    .pj-maximizado .mu-layout { grid-template-columns: 240px 1fr 240px; }
+    .pj-maximizado .mu-banco-lista { max-height: calc(100vh - 340px); }
+    /* Com mais espaço, jogador maior: foto, número e média ficam legíveis de longe */
+    .pj-maximizado .mu-slot { width: 78px; font-size: 12px; }
+    .pj-maximizado .mu-slot .player-circle { width: 44px; height: 44px; font-size: 14px; }
+    .pj-maximizado .mu-slot-sigla { font-size: 10px; }
+    /* Com o modal cheio sobra espaço: nome corta menos (o .player-name global
+       para em 64px). O que ainda cortar aparece inteiro no tooltip do slot. */
+    .pj-maximizado .mu-slot .player-name { max-width: 78px; font-size: 11px; }
+    .pj-maximizado .mu-stat { font-size: 10px; line-height: 15px; }
+    .pj-maximizado .mu-media { min-width: 24px; height: 17px; line-height: 17px; font-size: 11px; }
+
     .pj-tabs { display: flex; gap: 6px; margin-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,.08); }
     .pj-tab {
         background: none; border: none; border-bottom: 2px solid transparent;
@@ -1567,7 +1658,53 @@
         text-shadow: 1px 1px 2px #000; display: block; margin-bottom: 1px;
     }
     /* O .player-name global limita largura a 64px; dentro do slot já cabe */
-    .mu-slot .player-circle { width: 30px; height: 30px; font-size: 12px; }
+    .mu-slot .player-circle {
+        width: 34px; height: 34px; font-size: 12px; position: relative;
+        display: flex; align-items: center; justify-content: center; overflow: visible;
+    }
+    /* Com foto o círculo vira a moldura da imagem e o número vai pro canto */
+    .mu-slot .player-circle.mu-com-foto { background: #0b1220; }
+    /* Borda na cor do time (esquerda x direita): com foto o fundo do círculo some
+       e, sem isso, os 22 jogadores viram uma massa só de bordas brancas iguais */
+    .mu-slot .player-circle-casa {
+        border-color: var(--cor-camisa-casa, #dc2626);
+        box-shadow: 0 0 0 1px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.5);
+    }
+    .mu-slot .player-circle-vis {
+        border-color: var(--cor-camisa-vis, #2563eb);
+        box-shadow: 0 0 0 1px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.5);
+    }
+    .mu-slot .mu-foto {
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        border-radius: 50%; object-fit: cover; object-position: top center;
+    }
+    .mu-slot .mu-com-foto .mu-num {
+        position: absolute; left: -7px; top: -5px; min-width: 16px; height: 16px;
+        padding: 0 3px; border-radius: 8px; font-size: 10px; font-weight: 800;
+        line-height: 16px; text-align: center; background: rgba(0,0,0,.8); color: #fff;
+        border: 1px solid rgba(255,255,255,.5); text-shadow: none;
+    }
+    /* Média do jogador na competição do jogo, no canto de cima do círculo */
+    .mu-slot .mu-media {
+        position: absolute; right: -9px; top: -5px; min-width: 21px; height: 15px;
+        padding: 0 3px; border-radius: 7px; font-size: 9.5px; font-weight: 800;
+        line-height: 15px; text-align: center; color: #0b1220; background: #94a3b8;
+        border: 1px solid rgba(0,0,0,.5); text-shadow: none;
+    }
+    .mu-media-alta { background: #22c55e; color: #0b1220; }
+    .mu-media-media { background: #facc15; color: #0b1220; }
+    .mu-media-baixa { background: #f87171; color: #0b1220; }
+    /* Gols (bola) e assistências (chuteira) na competição, logo abaixo do
+       círculo — sobe um pouco para encostar nele, como num card de jogador */
+    .mu-stats {
+        display: inline-flex; align-items: center; gap: 5px; margin-top: -5px;
+        padding: 1px 5px; border-radius: 8px; background: rgba(2,6,23,.82);
+        border: 1px solid rgba(255,255,255,.14); position: relative; z-index: 2;
+    }
+    .mu-stat {
+        font-size: 9px; font-weight: 700; line-height: 13px; color: #e2e8f0;
+        white-space: nowrap; text-shadow: none;
+    }
 
     /* Layout: banco do time 1 | campo | banco do time 2 */
     .mu-layout { display: grid; grid-template-columns: 185px 1fr 185px; gap: 12px; align-items: start; }
@@ -1600,6 +1737,12 @@
     }
     .mu-banco-nome { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .mu-banco-pos { flex: 0 0 auto; font-size: 10px; font-weight: 700; color: var(--text-muted); }
+    /* Média na competição também no elenco: o critério de quem entra */
+    .mu-banco-media {
+        flex: 0 0 28px; text-align: center; font-size: 10px; font-weight: 800;
+        border-radius: 6px; padding: 1px 0; color: var(--text-muted);
+        background: rgba(148,163,184,.18);
+    }
     .mu-dica { text-align: center; color: var(--text-dim); font-size: 11px; margin-top: 8px; }
 
     /* ── Match-up: modo seta (mesmo visual das setas da análise) ── */
@@ -1644,7 +1787,7 @@
         background: rgba(0,0,0,.25); border-bottom: 1px solid rgba(255,255,255,.06);
     }
     .mu-form-ficticio input {
-        background: #0b1526; border: 1px solid rgba(255,255,255,.15); border-radius: 6px;
+        background: var(--input-bg); border: 1px solid var(--line-strong); border-radius: 6px;
         color: var(--text-strong); font-size: 12px; padding: 4px 6px; min-width: 0;
     }
     .mu-form-ficticio .mu-fic-num { flex: 0 0 40px; }
@@ -1770,3 +1913,76 @@
     .pgj-obs-form button { padding:8px 16px; background:#d4a520; color:#141414; font-size:.82rem; font-weight:800; border:none; border-radius:8px; cursor:pointer; }
     .pgj-obs-form button:hover { background:#c49918; }
     .pgj-obs-form textarea { width:100%; padding:10px 12px; background:var(--p-0); border:1px solid var(--line-strong); border-radius:8px; color:var(--text); font-size:.85rem; outline:none; line-height:1.6; resize:none; box-sizing:border-box; }
+
+/* ── Selo de origem da escalação (barra de status da análise) ───────────── */
+.an-selo-esc {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--p-2);
+    white-space: nowrap;
+}
+
+.an-selo-esc.ok {
+    border-color: rgba(34, 197, 94, 0.45);
+    background: rgba(34, 197, 94, 0.10);
+}
+
+/* Um dos times sem escalação da API, ou nenhum: mesmo alerta em tons diferentes */
+.an-selo-esc.parcial {
+    border-color: rgba(245, 158, 11, 0.45);
+    background: rgba(245, 158, 11, 0.10);
+}
+
+.an-selo-esc.alerta {
+    border-color: rgba(239, 68, 68, 0.5);
+    background: rgba(239, 68, 68, 0.12);
+}
+
+.an-selo-esc-icone { font-size: 16px; line-height: 1; }
+
+/* Selo compacto: só o veredito. A explicação vive no title (hover) e no texto
+   para leitor de tela, para a barra de ações não ser ocupada por um parágrafo
+   que na maioria das partidas só diz "está tudo certo". */
+.an-selo-esc-x {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--bad);
+}
+
+.an-selo-esc-logo {
+    height: 20px;
+    width: auto;
+    max-width: 60px;
+    object-fit: contain;
+    display: block;
+}
+
+/* Some quando o arquivo do logo não está em wwwroot/Images/fontes/. */
+.an-selo-esc-fallback {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    color: var(--text-muted);
+}
+
+.an-selo-esc-texto { display: flex; flex-direction: column; gap: 1px; }
+
+.an-selo-esc-titulo {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.an-selo-esc.ok .an-selo-esc-titulo { color: var(--ok); }
+.an-selo-esc.parcial .an-selo-esc-titulo { color: var(--warn); }
+.an-selo-esc.alerta .an-selo-esc-titulo { color: var(--bad); }
+
+.an-selo-esc-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+}

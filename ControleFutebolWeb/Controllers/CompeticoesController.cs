@@ -19,6 +19,7 @@ namespace ControleFutebolWeb.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IMemoryCache _cache;
         private readonly CatalogoLigasApi _catalogoLigas;
+        private readonly IWebHostEnvironment _env;
 
         public CompeticoesController(
             FutebolContext context,
@@ -26,7 +27,8 @@ namespace ControleFutebolWeb.Controllers
             IServiceScopeFactory scopeFactory,
             UserManager<ApplicationUser> userManager,
             IMemoryCache cache,
-            CatalogoLigasApi catalogoLigas)
+            CatalogoLigasApi catalogoLigas,
+            IWebHostEnvironment env)
         {
             _context = context;
             _logger = logger;
@@ -34,6 +36,7 @@ namespace ControleFutebolWeb.Controllers
             _userManager = userManager;
             _cache = cache;
             _catalogoLigas = catalogoLigas;
+            _env = env;
         }
 
         /// <summary>
@@ -210,11 +213,136 @@ namespace ControleFutebolWeb.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // GET: Competicoes/EquipeDaRodada/5?temporada=2025&rodada=22
-        // Os melhores por setor numa rodada, montados num 4-3-3. A nota é a mesma
-        // que o resto do sistema usa: a manual do usuário quando existe, senão a
-        // calculada pelos critérios dele em cima da estatística importada.
-        public async Task<IActionResult> EquipeDaRodada(int id, int? temporada = null, int? rodada = null)
+        // Capa (hero) da tela de detalhes. É preferência de usuário: cada um sobe a
+        // sua arte e nenhuma delas muda o que os outros veem.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SalvarCapa(int id, IFormFile? capaFile, int escurecimento = 55,
+            int posX = 50, int posY = 50, int zoom = 100, string ajuste = "COBRIR", string? cor = null,
+            int? temporada = null)
+        {
+            var uid = _userManager.GetUserId(User);
+            if (uid == null) return Challenge();
+
+            var competicao = await _context.Competicoes.FindAsync(id);
+            if (competicao == null) return NotFound();
+
+            var registro = await _context.CompeticoesHeroUsuario
+                .FirstOrDefaultAsync(h => h.CompeticaoId == id && h.UsuarioId == uid);
+
+            // Fora da faixa o véu ou não protege o texto ou apaga a imagem toda.
+            escurecimento = Math.Clamp(escurecimento, 0, 90);
+            posX = Math.Clamp(posX, 0, 100);
+            posY = Math.Clamp(posY, 0, 100);
+            // Em COBRIR, abaixo de 100% a foto deixaria de cobrir a faixa; em CABER,
+            // reduzir é justamente o ponto (arte quadrada que precisa aparecer inteira).
+            ajuste = ajuste == "CABER" ? "CABER" : "COBRIR";
+            zoom = Math.Clamp(zoom, ajuste == "CABER" ? 30 : 100, 300);
+
+            // A cor entra em CSS: só #rrggbb passa. Vazio (campo desligado no
+            // formulário) significa "voltar para a cor padrão do tipo".
+            cor = string.IsNullOrWhiteSpace(cor) ? null : cor.Trim();
+            if (cor != null && !System.Text.RegularExpressions.Regex.IsMatch(cor, "^#[0-9a-fA-F]{6}$"))
+            {
+                TempData["Erro"] = "Cor inválida.";
+                return RedirectToAction(nameof(Detalhes), new { id, temporada });
+            }
+
+            if (capaFile != null && capaFile.Length > 0)
+            {
+                var r = await UploadHelper.SalvarImagemAsync(capaFile, _env.WebRootPath, "images/heroes", competicao.Nome);
+                if (!r.Sucesso)
+                {
+                    TempData["Erro"] = $"Erro na capa: {r.Erro}";
+                    return RedirectToAction(nameof(Detalhes), new { id, temporada });
+                }
+
+                var anterior = registro?.ImagemUrl;
+                if (registro == null)
+                {
+                    registro = new CompeticaoHeroUsuario { CompeticaoId = id, UsuarioId = uid };
+                    _context.CompeticoesHeroUsuario.Add(registro);
+                }
+                registro.ImagemUrl = r.UrlRelativa!;
+                RemoverArquivoCapa(anterior);
+            }
+            else if (registro == null)
+            {
+                // Sem imagem: o registro nasce só com a cor e os ajustes escolhidos.
+                registro = new CompeticaoHeroUsuario { CompeticaoId = id, UsuarioId = uid };
+                _context.CompeticoesHeroUsuario.Add(registro);
+            }
+
+            registro.Escurecimento = escurecimento;
+            registro.PosX = posX;
+            registro.PosY = posY;
+            registro.Zoom = zoom;
+            registro.Ajuste = ajuste;
+            registro.Cor = cor;
+
+            // Nada personalizado sobrando (nem capa nem cor): apaga o registro em vez
+            // de guardar uma linha que só repete o padrão.
+            if (string.IsNullOrWhiteSpace(registro.ImagemUrl) && cor == null)
+                _context.CompeticoesHeroUsuario.Remove(registro);
+
+            await _context.SaveChangesAsync();
+            TempData["Sucesso"] = "Aparência da competição atualizada.";
+            return RedirectToAction(nameof(Detalhes), new { id, temporada });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoverCapa(int id, int? temporada = null)
+        {
+            var uid = _userManager.GetUserId(User);
+            if (uid == null) return Challenge();
+
+            var registro = await _context.CompeticoesHeroUsuario
+                .FirstOrDefaultAsync(h => h.CompeticaoId == id && h.UsuarioId == uid);
+
+            if (registro != null)
+            {
+                var imagem = registro.ImagemUrl;
+
+                // A cor é uma escolha à parte: tirar a foto não deve desfazê-la.
+                if (registro.Cor == null)
+                    _context.CompeticoesHeroUsuario.Remove(registro);
+                else
+                    registro.ImagemUrl = "";
+
+                await _context.SaveChangesAsync();
+                RemoverArquivoCapa(imagem);
+                TempData["Sucesso"] = "Capa padrão restaurada.";
+            }
+
+            return RedirectToAction(nameof(Detalhes), new { id, temporada });
+        }
+
+        // Apaga o arquivo da capa antiga: sem isso cada troca deixaria a imagem
+        // anterior parada em wwwroot/images/heroes para sempre.
+        private void RemoverArquivoCapa(string? url)
+        {
+            if (string.IsNullOrWhiteSpace(url) || !url.StartsWith("/images/heroes/", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            try
+            {
+                var caminho = Path.Combine(_env.WebRootPath, url.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                if (System.IO.File.Exists(caminho)) System.IO.File.Delete(caminho);
+            }
+            catch (IOException ex)
+            {
+                _logger.LogWarning(ex, "Não foi possível apagar a capa antiga {Url}", url);
+            }
+        }
+
+        // GET: Competicoes/EquipeDaRodada/5?temporada=2025&rodada=22&formacao=3
+        // Os melhores da rodada montados na formação mais usada pelos times naquela
+        // rodada (o usuário pode escolher outra pelo seletor), cada um na posição em
+        // que realmente jogou. A nota é a mesma que o resto do sistema usa: a manual
+        // do usuário quando existe, senão a calculada pelos critérios dele em cima
+        // da estatística importada.
+        public async Task<IActionResult> EquipeDaRodada(int id, int? temporada = null, int? rodada = null, int? formacao = null)
         {
             var competicao = await _context.Competicoes.FindAsync(id);
             if (competicao == null) return NotFound();
@@ -254,6 +382,43 @@ namespace ControleFutebolWeb.Controllers
                 .ToListAsync();
             vm.JogosNaRodada = jogos.Count;
             if (jogos.Count == 0) return View(vm);
+
+            // Formação da equipe: a mais usada pelos times na rodada, salvo escolha
+            // explícita do usuário. O 4-3-3 fixo de antes espalhava zagueiro pelas
+            // laterais quando a rodada era jogada com três defensores.
+            var usosFormacao = new Dictionary<int, int>();
+            void ContarFormacao(int? formacaoId)
+            {
+                if (formacaoId.HasValue)
+                    usosFormacao[formacaoId.Value] = usosFormacao.GetValueOrDefault(formacaoId.Value) + 1;
+            }
+            foreach (var j in jogos) { ContarFormacao(j.FormacaoCasaId); ContarFormacao(j.FormacaoVisitanteId); }
+
+            // Sem posições cadastradas não há slot para preencher.
+            var formacoes = await _context.Formacoes.AsNoTracking()
+                .Include(f => f.Posicoes)
+                .Where(f => f.Posicoes.Any())
+                .ToListAsync();
+
+            vm.FormacoesDisponiveis = formacoes
+                .Select(f => new FormacaoDaRodada { Id = f.Id, Nome = f.Nome, Usos = usosFormacao.GetValueOrDefault(f.Id) })
+                .OrderByDescending(o => o.Usos).ThenBy(o => o.Nome)
+                .ToList();
+
+            var formacaoEscolhida = formacoes.FirstOrDefault(f => f.Id == formacao);
+            vm.FormacaoAutomatica = formacaoEscolhida == null;
+            formacaoEscolhida ??= formacoes
+                    .Where(f => usosFormacao.ContainsKey(f.Id))
+                    .OrderByDescending(f => usosFormacao[f.Id]).ThenBy(f => f.Nome)
+                    .FirstOrDefault()
+                // Rodada sem nenhuma formação registrada: o 4-3-3 segue como desenho
+                // padrão desta tela, como era antes do seletor existir.
+                ?? formacoes.FirstOrDefault(f => f.Nome == "4-3-3")
+                ?? formacoes.FirstOrDefault();
+            if (formacaoEscolhida == null) return View(vm);
+
+            vm.FormacaoId = formacaoEscolhida.Id;
+            vm.FormacaoNome = formacaoEscolhida.Nome;
 
             var jogoIds = jogos.Select(j => j.Id).ToHashSet();
 
@@ -329,18 +494,14 @@ namespace ControleFutebolWeb.Controllers
                 .Where(a => jogoIds.Contains(a.JogoId))
                 .ToListAsync();
 
-            var candidatos = new List<(string Setor, JogadorDaRodada Item)>();
+            var candidatos = new List<JogadorDaRodada>();
             foreach (var ((jogadorId, jogoId), nota) in notaPorChave)
             {
                 if (!jogadores.TryGetValue(jogadorId, out var jogador)) continue;
                 if (!jogoPorId.TryGetValue(jogoId, out var jogo)) continue;
 
-                var setor = PosicaoJogadorHelper.Setor(jogador.Posicao);
-                // Sem posição reconhecível não dá para dizer em que vaga ele entra;
-                // ficar de fora é melhor que ocupar a vaga errada na escalação.
-                if (setor == null) continue;
-
-                bool? emCasa = lado.TryGetValue((jogadorId, jogoId), out var atuacao) ? atuacao.IsTimeCasa : null;
+                var temAtuacao = lado.TryGetValue((jogadorId, jogoId), out var atuacao);
+                bool? emCasa = temAtuacao ? atuacao.IsTimeCasa : null;
                 var adversario = emCasa switch
                 {
                     true => jogo.TimeVisitante?.Nome,
@@ -348,7 +509,13 @@ namespace ControleFutebolWeb.Controllers
                     _ => $"{jogo.TimeCasa?.Nome} × {jogo.TimeVisitante?.Nome}"
                 };
 
-                candidatos.Add((setor, new JogadorDaRodada
+                // A posição é a daquele jogo (slot da escalação), não a agregada do
+                // cadastro: é o que garante o lateral na lateral e o zagueiro no miolo.
+                var posicaoNaRodada = temAtuacao && !string.IsNullOrWhiteSpace(atuacao.Posicao)
+                    ? PosicaoJogadorHelper.NormalizarNomePosicao(atuacao.Posicao!)
+                    : null;
+
+                candidatos.Add(new JogadorDaRodada
                 {
                     Jogador = jogador,
                     Time = emCasa == true ? jogo.TimeCasa : emCasa == false ? jogo.TimeVisitante : jogador.Time,
@@ -358,29 +525,120 @@ namespace ControleFutebolWeb.Controllers
                     Adversario = adversario ?? "",
                     Placar = $"{jogo.PlacarCasa}×{jogo.PlacarVisitante}",
                     Gols = golsRodada.Count(g => g.JogadorId == jogadorId && g.JogoId == jogoId),
-                    Assistencias = assistRodada.Count(a => a.JogadorId == jogadorId && a.JogoId == jogoId)
-                }));
+                    Assistencias = assistRodada.Count(a => a.JogadorId == jogadorId && a.JogoId == jogoId),
+                    PosicaoNaRodada = posicaoNaRodada
+                });
             }
 
-            // 4-3-3. Um jogador só ocupa uma vaga mesmo que tenha jogado duas vezes
-            // na rodada (jogo adiado da rodada anterior, por exemplo): fica com a
-            // melhor nota das duas.
-            List<JogadorDaRodada> Melhores(string setor, int quantos) => candidatos
-                .Where(c => c.Setor == setor)
-                .GroupBy(c => c.Item.Jogador.Id)
-                .Select(g => g.OrderByDescending(x => x.Item.Nota).First().Item)
-                .OrderByDescending(i => i.Nota)
-                .ThenByDescending(i => i.Gols + i.Assistencias)
-                .Take(quantos)
+            // Um jogador só ocupa uma vaga mesmo que tenha jogado duas vezes na rodada
+            // (jogo adiado da rodada anterior, por exemplo): fica com a melhor nota das
+            // duas, mas segue elegível a qualquer posição em que atuou na rodada.
+            var elegiveis = candidatos
+                .GroupBy(c => c.Jogador.Id)
+                .Select(g => new
+                {
+                    Item = g.OrderByDescending(x => x.Nota).ThenByDescending(x => x.Gols + x.Assistencias).First(),
+                    // Da mais para a menos frequente na rodada. Sem escalação com
+                    // coordenada, sobra o cadastro do jogador — que já é o agregado das
+                    // posições em que ele mais joga.
+                    Posicoes = g.Where(x => !string.IsNullOrWhiteSpace(x.PosicaoNaRodada))
+                                .GroupBy(x => x.PosicaoNaRodada!)
+                                .OrderByDescending(p => p.Count())
+                                .Select(p => p.Key)
+                                .ToList()
+                })
+                .Select(x => new
+                {
+                    x.Item,
+                    Posicoes = x.Posicoes.Count > 0 ? x.Posicoes : PosicoesDoCadastro(x.Item.Jogador)
+                })
+                // Sem posição não dá para dizer em que vaga ele entra; ficar de fora é
+                // melhor que ocupar a vaga errada na escalação.
+                .Where(x => x.Posicoes.Count > 0)
+                .OrderByDescending(x => x.Item.Nota)
+                .ThenByDescending(x => x.Item.Gols + x.Item.Assistencias)
                 .ToList();
 
-            vm.Goleiros = Melhores("GOL", 1);
-            vm.Defensores = Melhores("DEF", 4);
-            vm.MeioCampo = Melhores("MEI", 3);
-            vm.Atacantes = Melhores("ATA", 3);
+            var slots = formacaoEscolhida.Posicoes.OrderBy(p => p.Ordem).ToList();
+            vm.Slots = slots
+                .Select(s => new SlotDaRodada
+                {
+                    NomePosicao = s.NomePosicao,
+                    PosicaoX = s.PosicaoX,
+                    PosicaoY = s.PosicaoY
+                })
+                .ToList();
+
+            var usados = new HashSet<int>();
+
+            // 1ª passada: casamento exato — o slot só aceita quem jogou naquela mesma
+            // posição na rodada (slot "Lateral Direito" ← quem foi lateral direito).
+            for (int i = 0; i < slots.Count; i++)
+            {
+                var nomeSlot = PosicaoJogadorHelper.NormalizarNomePosicao(slots[i].NomePosicao);
+                var melhor = elegiveis.FirstOrDefault(x => !usados.Contains(x.Item.Jogador.Id)
+                                                        && x.Posicoes.Contains(nomeSlot));
+                if (melhor == null) continue;
+                vm.Slots[i].Jogador = melhor.Item;
+                usados.Add(melhor.Item.Jogador.Id);
+            }
+
+            // 2ª passada: ala e lateral são o mesmo jogador em desenhos diferentes
+            // (linha de 5 x linha de 4), então o lateral direito é o candidato natural
+            // do slot de ala direito — e vice-versa — antes de sair procurando por setor
+            // (que jogaria um meia na vaga do ala).
+            for (int i = 0; i < slots.Count; i++)
+            {
+                if (vm.Slots[i].Jogador != null) continue;
+
+                var equivalente = PosicaoJogadorHelper.Sigla(slots[i].NomePosicao) switch
+                {
+                    "AE" => "LE",
+                    "AD" => "LD",
+                    "LE" => "AE",
+                    "LD" => "AD",
+                    _ => null
+                };
+                if (equivalente == null) continue;
+
+                var lateral = elegiveis.FirstOrDefault(x => !usados.Contains(x.Item.Jogador.Id)
+                    && x.Posicoes.Any(p => PosicaoJogadorHelper.Sigla(p) == equivalente));
+                if (lateral == null) continue;
+                vm.Slots[i].Jogador = lateral.Item;
+                vm.Slots[i].Aproximado = true;
+                usados.Add(lateral.Item.Jogador.Id);
+            }
+
+            // 3ª passada: o que sobrou vazio recebe o melhor do mesmo setor, marcado
+            // como aproximado — com poucos jogos na rodada é comum não haver ninguém
+            // avaliado numa posição específica, e a tela avisa quem entrou de tapa-buraco
+            // em vez de deixar o desenho furado.
+            for (int i = 0; i < slots.Count; i++)
+            {
+                if (vm.Slots[i].Jogador != null) continue;
+
+                var setorSlot = PosicaoJogadorHelper.Setor(slots[i].NomePosicao);
+                if (setorSlot == null) continue;
+
+                var melhor = elegiveis.FirstOrDefault(x => !usados.Contains(x.Item.Jogador.Id)
+                                                        && PosicaoJogadorHelper.Setor(x.Posicoes[0]) == setorSlot);
+                if (melhor == null) continue;
+                vm.Slots[i].Jogador = melhor.Item;
+                vm.Slots[i].Aproximado = true;
+                usados.Add(melhor.Item.Jogador.Id);
+            }
 
             return View(vm);
         }
+
+        // Posições do cadastro do jogador ("Lateral Direito/Zagueiro"), normalizadas —
+        // fallback de quem tem nota na rodada mas nenhuma escalação com coordenada.
+        private static List<string> PosicoesDoCadastro(Jogador jogador) =>
+            (jogador.Posicao ?? "")
+                .Split('/', StringSplitOptions.RemoveEmptyEntries)
+                .Select(p => PosicaoJogadorHelper.NormalizarNomePosicao(p.Trim()))
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .ToList();
 
         // GET: Competicoes/Estatisticas/5?temporada=2025
         // Painel de estatísticas da competição em tela cheia. A aba "Estatísticas"
@@ -565,6 +823,11 @@ namespace ControleFutebolWeb.Controllers
                 .Distinct()
                 .Count();
             ViewBag.TotalGols = jogosRealizados.Sum(j => (j.PlacarCasa ?? 0) + (j.PlacarVisitante ?? 0));
+
+            // ── Capa personalizada do hero (por usuário) ──────────────────────
+            var uidCapa = _userManager.GetUserId(User);
+            ViewBag.HeroCapa = uidCapa == null ? null : _context.CompeticoesHeroUsuario.AsNoTracking()
+                .FirstOrDefault(h => h.CompeticaoId == id && h.UsuarioId == uidCapa);
 
             // ── Artilheiros (top 5 goleadores da competição/temporada) ────────
             var topScorers = _context.Gols

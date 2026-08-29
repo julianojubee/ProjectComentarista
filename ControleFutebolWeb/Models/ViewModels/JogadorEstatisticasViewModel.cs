@@ -1,4 +1,4 @@
-using ControleFutebolWeb.Helpers;
+﻿using ControleFutebolWeb.Helpers;
 
 namespace ControleFutebolWeb.Models.ViewModels
 {
@@ -108,6 +108,10 @@ namespace ControleFutebolWeb.Models.ViewModels
         public int Assistencias { get; set; }
         public int Cartoes { get; set; }
         public string Resultado { get; set; }        // "V", "E", "D", "?" (sem placar)
+
+        // Levou a coroa de craque da partida neste jogo (maior nota do jogo na régua
+        // do usuário) — ver CraqueDaPartida.
+        public bool Craque { get; set; }
 
         // De que lado o jogador estava NESTE jogo (da escalação da época, não do
         // time atual — após uma transferência o time atual inverteria o histórico).

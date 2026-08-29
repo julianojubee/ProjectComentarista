@@ -15,10 +15,12 @@ namespace ControleFutebolWeb.Services
     public class RelatoriosService
     {
         private readonly FutebolContext _context;
+        private readonly CraqueDaPartidaService _craques;
 
-        public RelatoriosService(FutebolContext context)
+        public RelatoriosService(FutebolContext context, CraqueDaPartidaService craques)
         {
             _context = context;
+            _craques = craques;
         }
 
         // ── Monta o ViewModel completo ───────────────────────────────────────────
@@ -256,6 +258,7 @@ namespace ControleFutebolWeb.Services
                 MaisPartidas = RankPartidas(escalacoes, 15),
                 MaisCartoesAmarelos = RankCartoes(cartoes, "Amarelo", 10),
                 MaisCartoesVermelhos = RankCartoes(cartoes, "Vermelho", 10),
+                CraquesDaPartida = await RankCraquesAsync(jogoIds, usuarioId, 15),
 
                 // Times
                 TimesGols = statsTimes.OrderByDescending(t => t.GolsPro).Take(10).ToList(),
@@ -802,6 +805,49 @@ namespace ControleFutebolWeb.Services
         }
 
         // ── Helpers de ranking ───────────────────────────────────────────────────
+
+        /// <summary>
+        /// Quem mais levou a coroa de craque da partida nos jogos do recorte.
+        ///
+        /// A eleição de cada jogo é calculada e gravada na primeira leitura (ver
+        /// CraqueDaPartidaService.ObterAsync), então a primeira abertura dos relatórios
+        /// depois de importar uma temporada paga o cálculo de todos os jogos dela — as
+        /// seguintes só leem a tabela.
+        /// </summary>
+        private async Task<List<JogadorEstatistica>> RankCraquesAsync(
+            IReadOnlyCollection<int> jogoIds, string? usuarioId, int top)
+        {
+            if (string.IsNullOrEmpty(usuarioId)) return new();
+
+            var craques = await _craques.ObterAsync(jogoIds.ToList(), usuarioId);
+            if (craques.Count == 0) return new();
+
+            var porJogador = craques.Values
+                .GroupBy(c => c.JogadorId)
+                .Select(g => new { JogadorId = g.Key, Coroas = g.Count(), Nota = g.Average(c => c.Nota) })
+                .OrderByDescending(x => x.Coroas)
+                .ThenByDescending(x => x.Nota)
+                .Take(top)
+                .ToList();
+
+            var jogadores = await _context.Jogadores
+                .AsNoTrackingWithIdentityResolution()
+                .Include(j => j.Time)
+                .Include(j => j.Selecao)
+                .Where(j => porJogador.Select(x => x.JogadorId).Contains(j.Id))
+                .ToDictionaryAsync(j => j.Id);
+
+            return porJogador
+                .Where(x => jogadores.ContainsKey(x.JogadorId))
+                .Select(x => new JogadorEstatistica
+                {
+                    Jogador = jogadores[x.JogadorId],
+                    Valor = x.Coroas,
+                    Detalhe = $"{x.Coroas} craque(s) da partida"
+                })
+                .ToList();
+        }
+
         private static List<JogadorEstatistica> RankGols(List<Gol> gols, bool contra, int top) =>
             gols
                 .Where(g => g.Contra == contra && g.Jogador != null)

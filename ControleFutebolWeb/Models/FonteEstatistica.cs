@@ -1,14 +1,17 @@
-namespace ControleFutebolWeb.Models
+﻿namespace ControleFutebolWeb.Models
 {
     /// <summary>
     /// Origem de uma linha de <see cref="EstatisticaJogador"/> e o que essa origem
     /// consegue informar.
     ///
-    /// Existe porque as duas fontes não cobrem os mesmos campos. A api-football manda
-    /// a linha inteira; a ESPN (fallback quando a api-football devolve a partida vazia)
+    /// Existe porque as fontes não cobrem os mesmos campos. A api-football manda a
+    /// linha inteira; a ESPN (fallback quando a api-football devolve a partida vazia)
     /// publica só gols, assistências, finalizações, faltas, cartões, impedimentos e
     /// defesas — passes, desarmes, interceptações, bloqueios, duelos, dribles e
-    /// pênaltis simplesmente não vêm.
+    /// pênaltis simplesmente não vêm. O FotMob (fallback para o que nem a ESPN tem,
+    /// como a liga do Catar) fica no meio: cobre tudo que a ESPN cobre e mais passes,
+    /// desarmes, interceptações, bloqueios, duelos e dribles, mas não distingue pênalti
+    /// perdido de defendido.
     ///
     /// Como as colunas são int, um campo não informado fica gravado como 0, idêntico a
     /// um zero de verdade. Quem consome para gerar nota tem que perguntar aqui antes de
@@ -21,6 +24,7 @@ namespace ControleFutebolWeb.Models
     {
         public const string ApiFootball = "apifootball";
         public const string Espn = "espn";
+        public const string FotMob = "fotmob";
 
         // Allowlist, não blocklist: métrica nova nasce "não coberta pela ESPN" até
         // alguém conferir que a ESPN publica aquilo. Errar para o lado de descartar
@@ -46,11 +50,46 @@ namespace ControleFutebolWeb.Models
             "evento_gol", "evento_assistencia", "evento_cartao_vermelho",
         };
 
+        // Mesma allowlist, mesmo motivo, para o FotMob (ver FotMobService): é tudo que
+        // a ESPN cobre MAIS o que ela não publica por jogador e o FotMob publica —
+        // passes, passes-chave, desarmes, bloqueios, interceptações, duelos e dribles.
+        //
+        // Fica de fora só a família de pênaltis além de sofrido/cometido: o FotMob traz
+        // penalties_won e conceded_penalties, mas não separa pênalti perdido de pênalti
+        // defendido, e sem essa distinção os dois lados do lance ficariam indistinguíveis.
+        //
+        // "baseline_rating" também fica de fora, mas ele nunca chega aqui: é o critério
+        // reservado que guarda a régua calibrada do rating (ver BaselineRating), não um
+        // campo de EstatisticaJogador. Está ausente por não ser métrica de fonte nenhuma.
+        //
+        // A NOTA do jogador é outra coisa e não passa por esta lista: o FotMob publica a
+        // dele, FotMobService não a importa (métrica proprietária) e EstatisticaJogador.Rating
+        // fica null — que é o campo lido como "Rating médio (api)". A nota que o site
+        // mostra sai de RatingAutomaticoHelper sobre as métricas objetivas acima.
+        private static readonly HashSet<string> CobertosPeloFotMob =
+            new(CobertosPelaEspn, StringComparer.Ordinal)
+            {
+                // AcaoId dos critérios de nota
+                "passe_chave", "desarme", "bloqueio", "interceptacao",
+                "duelo_vencido", "drible_certo", "drible_sofrido",
+                "penalti_sofrido", "penalti_cometido",
+
+                // Id das métricas contínuas do rating
+                "passes", "passes_precisao", "passes_chave",
+                "dribles", "dribles_precisao", "dribles_sofridos",
+                "desarmes", "interceptacoes", "bloqueios",
+                "duelos", "duelos_precisao",
+            };
+
         /// <summary>
         /// A fonte informa esse campo? Fonte desconhecida ou vazia é tratada como
         /// api-football: é o que as linhas gravadas antes desta coluna existir são.
         /// </summary>
-        public static bool Cobre(string? fonte, string id) =>
-            fonte != Espn || CobertosPelaEspn.Contains(id);
+        public static bool Cobre(string? fonte, string id) => fonte switch
+        {
+            Espn => CobertosPelaEspn.Contains(id),
+            FotMob => CobertosPeloFotMob.Contains(id),
+            _ => true,
+        };
     }
 }

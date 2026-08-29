@@ -101,7 +101,7 @@ namespace ControleFutebolWeb.Tests.Services
 
             var titulares = xi
                 .Select((x, i) => (new Jogador { Id = i + 1, Nome = x.Item1 },
-                                   new EspnEscalacaoService.EspnAtleta(x.Item1, i + 1, x.Item2, true)))
+                                   new EspnEscalacaoService.AtletaEscalado(x.Item1, i + 1, x.Item2, true)))
                 .ToList();
 
             var slots = new List<PosicaoFormacao>

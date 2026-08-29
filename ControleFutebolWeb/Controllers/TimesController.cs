@@ -117,6 +117,114 @@ namespace ControleFutebolWeb.Controllers
         }
 
 
+        /// <summary>
+        /// Escalação exibida no campinho de Details: a última que o clube usou de
+        /// verdade (titulares da fase INICIAL do jogo mais recente já realizado),
+        /// convertida para os slots de <see cref="TimeEscalacaoPadrao"/> que o
+        /// formulário da tela edita. Retorna null quando o time não tem nenhum jogo
+        /// com escalação salva.
+        /// </summary>
+        private sealed record UltimaEscalacaoUsada(
+            List<TimeEscalacaoPadrao> Slots, Jogo Jogo, int? FormacaoId, string? FormacaoNome);
+
+        private async Task<UltimaEscalacaoUsada?> UltimaEscalacaoUsadaAsync(int timeId)
+        {
+            var uid = _userManager.GetUserId(User);
+
+            // Jogo mais recente já realizado em que este time tem escalação titular.
+            var ultimoJogoId = await _context.Escalacoes
+                .AsNoTracking()
+                .Where(e => e.Titular && e.JogadorId != null
+                         && (e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null)
+                         && (e.UsuarioId == uid || e.UsuarioId == null)
+                         && ((e.IsTimeCasa && e.Jogo.TimeCasaId == timeId)
+                          || (!e.IsTimeCasa && e.Jogo.TimeVisitanteId == timeId))
+                         // UtcNow: Jogo.Data é timestamptz no Postgres e o provider
+                         // recusa comparar com DateTime local.
+                         && e.Jogo.Data <= DateTime.UtcNow)
+                .OrderByDescending(e => e.Jogo.Data)
+                .Select(e => (int?)e.JogoId)
+                .FirstOrDefaultAsync();
+
+            if (ultimoJogoId == null) return null;
+
+            var jogo = await _context.Jogos
+                .AsNoTracking()
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .Include(j => j.Competicao)
+                .FirstOrDefaultAsync(j => j.Id == ultimoJogoId.Value);
+            if (jogo == null) return null;
+
+            bool ehCasa = jogo.TimeCasaId == timeId;
+
+            var linhas = await _context.Escalacoes
+                .AsNoTracking()
+                .Include(e => e.Jogador)
+                .Where(e => e.JogoId == jogo.Id && e.IsTimeCasa == ehCasa
+                         && e.Titular && e.JogadorId != null
+                         && (e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null)
+                         && (e.UsuarioId == uid || e.UsuarioId == null))
+                .ToListAsync();
+
+            // Havendo a linha compartilhada (importada) e a cópia do usuário para o
+            // mesmo jogador, vale a do usuário — é onde estão os ajustes dele.
+            linhas = linhas
+                .GroupBy(e => e.JogadorId!.Value)
+                .Select(g => g.OrderBy(e => e.UsuarioId == uid ? 0 : 1).First())
+                .ToList();
+
+            if (linhas.Count == 0) return null;
+
+            var formacaoId = ehCasa ? jogo.FormacaoCasaId : jogo.FormacaoVisitanteId;
+            var formacaoNome = formacaoId == null ? null
+                : await _context.Formacoes.Where(f => f.Id == formacaoId.Value)
+                    .Select(f => f.Nome).FirstOrDefaultAsync();
+
+            // Slots da formação usada, para dar um PosicaoId coerente a cada boneco:
+            // casa cada jogador com o slot livre mais próximo das coordenadas dele.
+            var slotsFormacao = formacaoId == null
+                ? new List<PosicaoFormacao>()
+                : await _context.PosicoesFormacao.AsNoTracking()
+                    .Where(p => p.FormacaoId == formacaoId.Value).ToListAsync();
+
+            var slotsLivres = slotsFormacao.ToList();
+
+            var escalacao = linhas
+                .OrderBy(e => e.PosicaoY)
+                .Select(e =>
+                {
+                    PosicaoFormacao? slot = null;
+                    if (slotsLivres.Count > 0)
+                    {
+                        slot = slotsLivres
+                            .OrderBy(p => (p.PosicaoX - e.PosicaoX) * (p.PosicaoX - e.PosicaoX)
+                                        + (p.PosicaoY - e.PosicaoY) * (p.PosicaoY - e.PosicaoY))
+                            .First();
+                        slotsLivres.Remove(slot);
+                    }
+
+                    return new TimeEscalacaoPadrao
+                    {
+                        // Id 0: estes slots não existem em TimeEscalacaoPadrao ainda —
+                        // SalvarEscalacaoPadrao recria os registros nesse caso.
+                        Id = 0,
+                        TimeId = timeId,
+                        FormacaoId = formacaoId ?? 0,
+                        PosicaoId = slot?.PosicaoId ?? 0,
+                        Posicao = e.Posicao ?? slot?.NomePosicao ?? "",
+                        PosicaoX = (int)Math.Round(e.PosicaoX),
+                        PosicaoY = (int)Math.Round(e.PosicaoY),
+                        Titular = true,
+                        JogadorId = e.JogadorId,
+                        Jogador = e.Jogador
+                    };
+                })
+                .ToList();
+
+            return new UltimaEscalacaoUsada(escalacao, jogo, formacaoId, formacaoNome);
+        }
+
         // GET: Times/Details/5
         // temporadaElenco: recorte do painel "Estatísticas do Elenco". Sem valor,
         // usa a temporada mais recente com jogos realizados — misturar temporadas
@@ -131,7 +239,14 @@ namespace ControleFutebolWeb.Controllers
 
             if (time == null) return NotFound();
 
-            var escalacao = time.TimeEscalacaoPadrao.Any()
+            // O campinho abre com a última escalação que o clube realmente usou
+            // (titulares da fase INICIAL do jogo mais recente já realizado). Só
+            // quando não há jogo com escalação é que valem a escalação padrão
+            // salva e, por último, os slots vazios da formação padrão.
+            var ultima = await UltimaEscalacaoUsadaAsync(id);
+
+            var escalacao = ultima?.Slots
+                ?? (time.TimeEscalacaoPadrao.Any()
                 ? time.TimeEscalacaoPadrao.Select(te => new TimeEscalacaoPadrao
                 {
                     Id = te.Id,
@@ -156,7 +271,7 @@ namespace ControleFutebolWeb.Controllers
                         Titular = true,          // ← fallback já nasce true
                         TimeId = id,
                         JogadorId = null
-                    }).ToListAsync();
+                    }).ToListAsync());
 
             var elenco = await _context.Jogadores
                 .Include(j => j.Nacionalidade)
@@ -171,14 +286,29 @@ namespace ControleFutebolWeb.Controllers
                 .Where(j => j.TimeCasaId == id || j.TimeVisitanteId == id)
                 .ToListAsync();
 
-            var jogosPassados = jogos
-                .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue && j.Data < DateTime.Now)
+            // Jogo.Data é UTC (api-football) — comparar com a hora local adiantava/atrasava
+            // o corte entre "já jogou" e "vai jogar" no fuso do Brasil.
+            var agora = DateTime.UtcNow;
+
+            var realizados = jogos
+                .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue && j.Data < agora)
+                .ToList();
+
+            // Só os jogos da temporada mais recente entram na lista de partidas: no início
+            // da temporada os "5 últimos jogos" puxavam o fim da temporada anterior e
+            // empurravam o próximo jogo do time para o fim da lista.
+            var temporadaAtual = realizados.Count > 0
+                ? realizados.Max(j => j.Temporada)
+                : (int?)null;
+
+            var jogosPassados = realizados
+                .Where(j => temporadaAtual == null || j.Temporada == temporadaAtual)
                 .OrderByDescending(j => j.Data)
                 .Take(5)
                 .ToList();
 
             var jogosFuturos = jogos
-                .Where(j => j.Data >= DateTime.Now)
+                .Where(j => j.Data >= agora)
                 .OrderBy(j => j.Data)
                 .Take(5)
                 .ToList();
@@ -366,7 +496,10 @@ namespace ControleFutebolWeb.Controllers
                 Titulos = (await TitulosHelper.PorTimeAsync(_context))
                     .GetValueOrDefault(id, new List<TitulosHelper.Titulo>()),
                 TemporadasElenco = temporadasDisponiveis,
-                TemporadaElencoSelecionada = temporadaSelecionada
+                TemporadaElencoSelecionada = temporadaSelecionada,
+                EscalacaoUltimoJogo = ultima?.Jogo,
+                FormacaoExibidaId = ultima?.FormacaoId ?? time.FormacaoPadraoId,
+                FormacaoExibidaNome = ultima?.FormacaoNome ?? time.FormacaoPadrao?.Nome
             };
 
             return View(viewModel);
@@ -902,6 +1035,54 @@ namespace ControleFutebolWeb.Controllers
 
             if (escalacao != null && escalacao.Any())
             {
+                // Slots vindos da última escalação usada (mostrada ao abrir a tela)
+                // não existem em TimeEscalacaoPadrao: chegam com Id 0. Nesse caso os
+                // registros do time são recriados a partir do que está no campinho.
+                bool recriar = escalacao.Any(e => e.Id == 0)
+                            || escalacao.Any(e => time.TimeEscalacaoPadrao.All(te => te.Id != e.Id));
+
+                if (recriar)
+                {
+                    var formacaoDosSlots = _context.Formacoes.Any(f => f.Id == formacaoPadraoId)
+                        ? formacaoPadraoId
+                        : time.FormacaoPadraoId;
+
+                    _context.TimeEscalacaoPadrao.RemoveRange(time.TimeEscalacaoPadrao);
+
+                    // Rótulo da posição vem do slot da formação (o form só trafega
+                    // PosicaoId e as coordenadas).
+                    var nomesPorPosicaoId = _context.PosicoesFormacao
+                        .Where(p => p.FormacaoId == formacaoDosSlots)
+                        .AsEnumerable()
+                        .GroupBy(p => p.PosicaoId)
+                        .ToDictionary(g => g.Key, g => g.First().NomePosicao);
+
+                    var jaEscalados = new HashSet<int>();
+                    foreach (var e in escalacao)
+                    {
+                        int? jogadorId = e.JogadorId > 0 && jaEscalados.Add(e.JogadorId)
+                            ? e.JogadorId
+                            : null;
+
+                        _context.TimeEscalacaoPadrao.Add(new TimeEscalacaoPadrao
+                        {
+                            TimeId = time.Id,
+                            FormacaoId = formacaoDosSlots,
+                            PosicaoId = e.PosicaoId,
+                            Posicao = nomesPorPosicaoId.GetValueOrDefault(e.PosicaoId)
+                                      ?? e.Posicao ?? string.Empty,
+                            PosicaoX = (int)Math.Round(e.PosicaoX),
+                            PosicaoY = (int)Math.Round(e.PosicaoY),
+                            Titular = true,
+                            JogadorId = jogadorId
+                        });
+                    }
+
+                    time.FormacaoPadraoId = formacaoDosSlots;
+                    _context.SaveChanges();
+                    return RedirectToAction("Details", new { id = time.Id });
+                }
+
                 foreach (var e in escalacao)
                 {
                     var posicao = time.TimeEscalacaoPadrao.FirstOrDefault(te => te.Id == e.Id);

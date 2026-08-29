@@ -23,6 +23,7 @@ namespace ControleFutebolWeb.Data
         public DbSet<Competicao> Competicoes { get; set; }
         public DbSet<TimeEscalacaoPadrao> TimeEscalacaoPadrao { get; set; }
         public DbSet<Notadetalhe> NotaDetalhes { get; set; }
+        public DbSet<CraqueDaPartida> CraquesDaPartida { get; set; }
         public DbSet<Treinador> Treinadores { get; set; }
         public DbSet<TreinadorHistorico> TreinadoresHistorico { get; set; }
         public DbSet<Assistencia> Assistencias { get; set; }
@@ -42,6 +43,7 @@ namespace ControleFutebolWeb.Data
         public DbSet<ObservacaoJogoTagMencao> ObservacoesJogoTagMencoes { get; set; }
         public DbSet<CompeticaoTopTierUsuario> CompeticoesTopTierUsuario { get; set; }
         public DbSet<CompeticaoHomeUsuario> CompeticoesHomeUsuario { get; set; }
+        public DbSet<CompeticaoHeroUsuario> CompeticoesHeroUsuario { get; set; }
         public DbSet<SimulacaoJogoUsuario> SimulacoesJogoUsuario { get; set; }
         public DbSet<Jogada> Jogadas { get; set; }
         public DbSet<CronometroPartida> CronometrosPartida { get; set; }
@@ -290,6 +292,16 @@ namespace ControleFutebolWeb.Data
             // com 32 partidas repetidas, o PSG com 40 jogos na tabela e o título sumiu.
             modelBuilder.Entity<Jogo>().HasIndex(j => j.LinkDetalhes).IsUnique();
             modelBuilder.Entity<Jogador>().HasIndex(j => j.Posicao);
+            // Mesma história do LinkDetalhes acima, agora com o jogador: ResolverJogador
+            // procura o IdApi no banco antes de criar, mas duas importações simultâneas
+            // não enxergam a linha uma da outra e gravam o mesmo atleta duas vezes — foi
+            // assim que o Basaksehir ficou com Ozan Tufan, Umut Nayir, Melih Kabasakal e
+            // Rene Mitongo em dobro. O filtro deixa de fora quem ainda nao tem id da API
+            // (estreante entra com IdApi nulo ate a API atribuir o dele).
+            modelBuilder.Entity<Jogador>()
+                .HasIndex(j => j.IdApi)
+                .IsUnique()
+                .HasFilter("idapi IS NOT NULL");
             modelBuilder.Entity<Nota>().HasIndex(n => new { n.UsuarioId, n.JogoId, n.JogadorId });
             modelBuilder.Entity<Escalacao>().HasIndex(e => new { e.JogoId, e.UsuarioId });
             modelBuilder.Entity<ObservacaoJogoTag>().HasIndex(o => new { o.JogadorId, o.UsuarioId });
@@ -456,6 +468,24 @@ namespace ControleFutebolWeb.Data
                     .HasForeignKey(pt => pt.PostId).OnDelete(DeleteBehavior.Cascade);
                 entity.HasOne(pt => pt.Tag).WithMany(t => t.Posts)
                     .HasForeignKey(pt => pt.TagId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Craque da partida: uma coroa por jogo POR usuário. O índice único é o que
+            // garante isso — o recálculo apaga e regrava a linha, e duas requisições
+            // concorrentes (salvar nota e abrir a análise, por exemplo) tentariam gravar
+            // a mesma eleição duas vezes. Apagar o jogo, o jogador ou o usuário leva a
+            // coroa junto: ela não sobrevive a nenhum dos três.
+            modelBuilder.Entity<CraqueDaPartida>(entity =>
+            {
+                entity.HasOne(c => c.Jogo).WithMany()
+                    .HasForeignKey(c => c.JogoId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(c => c.Jogador).WithMany()
+                    .HasForeignKey(c => c.JogadorId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(c => c.Usuario).WithMany()
+                    .HasForeignKey(c => c.UsuarioId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(c => new { c.JogoId, c.UsuarioId }).IsUnique();
+                // O relatório conta craques por jogador dentro de um recorte de jogos.
+                entity.HasIndex(c => new { c.UsuarioId, c.JogadorId });
             });
 
             // 🔹 Converte nomes de tabelas e colunas para minúsculas

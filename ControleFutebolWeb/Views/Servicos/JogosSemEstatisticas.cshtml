@@ -1,4 +1,4 @@
-@model ControleFutebolWeb.Models.ViewModels.JogosSemEstatisticasViewModel
+﻿@model ControleFutebolWeb.Models.ViewModels.JogosSemEstatisticasViewModel
 
 @{
     ViewData["Title"] = "Jogos sem estatísticas";
@@ -33,6 +33,7 @@
     .tag-sim  { background: rgba(34,197,94,.14); color: var(--ok); }
     .tag-nao  { background: rgba(148,163,184,.12); color: var(--text-muted); }
     .tag-espn { background: rgba(59,130,246,.15); color: var(--info); }
+    .tag-fotmob { background: rgba(168,85,247,.15); color: #c084fc; }
     .btn-srv { border: none; border-radius: 7px; font-size: 12px; font-weight: 600;
         padding: 5px 14px; cursor: pointer; transition: opacity .15s; }
     .btn-srv:hover { opacity: .8; }
@@ -63,10 +64,11 @@
 
     <div class="jse-card">
         <div class="jse-desc">
-            Partidas já encerradas que ficaram sem estatística nenhuma — nem de time, nem de jogador.
-            O caso típico é a api-football devolver o jogo só com placar e eventos
-            (<code>players</code>, <code>statistics</code> e <code>lineups</code> vazios), o que acontece
-            bastante fora das ligas europeias principais.
+            Partidas já encerradas a que falta estatística de time ou de jogador. O caso típico é a
+            api-football devolver o jogo só com placar e eventos (<code>players</code>,
+            <code>statistics</code> e <code>lineups</code> vazios), o que acontece bastante fora das
+            ligas europeias principais — mas o jogo também entra na lista quando veio só metade,
+            com as estatísticas de time e sem as de jogador (ou o contrário).
             <br /><br />
             O botão <strong>Importar da ESPN</strong> preenche o buraco pela API JSON pública da ESPN
             (a mesma que alimenta a página da partida em espn.com.br). São dados parciais em relação
@@ -92,7 +94,7 @@
                     @foreach (var c in Model.Competicoes)
                     {
                         <option value="@c.Id" selected="@(Model.CompeticaoId == c.Id)">
-                            @c.Nome (@c.Quantidade)@(c.TemEspn ? "" : " — sem ESPN")
+                            @c.Nome (@c.Quantidade)@(c.TemEspn ? "" : c.TemFotMob ? " — só FotMob" : " — sem fonte")
                         </option>
                     }
                 </select>
@@ -125,6 +127,22 @@
             </button>
             <span style="font-size:.78rem; color:var(--text-dim); margin-left:10px;">
                 Uma requisição por vez, com intervalo entre elas — clique de novo para continuar de onde parou.
+            </span>
+        </form>
+
+        @* Terceira fonte. Fica num botão próprio porque cobre ligas que a ESPN não
+           cataloga (a do Catar é o caso que motivou) e traz campos por jogador que
+           a ESPN não publica — ver FotMobService. *@
+        <form method="post" asp-action="ImportarEstatisticasFotMobLote" style="margin-top:.6rem;"
+              onsubmit="return confirm('Buscar no FotMob as estatísticas dos próximos @Model.LimiteLoteFotMob jogos do filtro atual?');">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="competicaoId" value="@Model.CompeticaoId" />
+            <input type="hidden" name="temporada" value="@Model.Temporada" />
+            <button type="submit" class="btn-srv btn-reiniciar" @(Model.Total == 0 ? "disabled" : "")>
+                📊 Importar do FotMob (até @Model.LimiteLoteFotMob jogos)
+            </button>
+            <span style="font-size:.78rem; color:var(--text-dim); margin-left:10px;">
+                Cobre passes, desarmes, duelos e dribles por jogador, que a ESPN não publica.
             </span>
         </form>
     </div>
@@ -163,7 +181,11 @@
                                 {
                                     <span class="tag tag-espn">@j.SlugEspn</span>
                                 }
-                                else
+                                @if (j.TemFotMob)
+                                {
+                                    <span class="tag tag-fotmob">fotmob</span>
+                                }
+                                @if (j.SlugEspn == null && !j.TemFotMob)
                                 {
                                     <span class="tag tag-nao">sem cobertura</span>
                                 }
@@ -176,6 +198,16 @@
                                     <input type="hidden" name="temporada" value="@Model.Temporada" />
                                     <button type="submit" class="btn-srv btn-reiniciar" @(j.SlugEspn == null ? "disabled" : "")>
                                         🌐 Importar
+                                    </button>
+                                </form>
+                                <form method="post" asp-action="ImportarEstatisticasFotMob" style="display:inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="jogoId" value="@j.Id" />
+                                    <input type="hidden" name="competicaoId" value="@Model.CompeticaoId" />
+                                    <input type="hidden" name="temporada" value="@Model.Temporada" />
+                                    <button type="submit" class="btn-srv btn-reiniciar" style="margin-left:6px;"
+                                            @(j.TemFotMob ? "" : "disabled")>
+                                        📊 FotMob
                                     </button>
                                 </form>
                                 @if (j.SlugEspn != null)

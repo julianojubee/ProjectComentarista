@@ -75,7 +75,7 @@
         display: grid; grid-template-columns: 1fr 90px 90px 130px 220px; gap: 12px;
         padding: 10px 20px; background: var(--p-0); border-bottom: 1px solid var(--line-soft); align-items: center;
     }
-    .cn-thead span { font-size: .62rem; color: #374151; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
+    .cn-thead span { font-size: .62rem; color: var(--text-2); font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
 
     .cn-row {
         display: grid; grid-template-columns: 1fr 90px 90px 130px 220px; gap: 12px;
@@ -114,6 +114,9 @@
 
     /* ── Card do peso inicial (nota base) ── */
     .cn-base { background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin-bottom: 20px; }
+    /* Card sem efeito no cálculo atual: sinaliza pelo fundo/borda, não por
+       opacidade — apagar o texto todo deixava a explicação ilegível no claro. */
+    .cn-base-inativa { background: var(--p-3); border-style: dashed; }
     .cn-base-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
     .cn-base-titulo { font-size: .95rem; font-weight: 700; color: var(--text-strong); }
     .cn-base-desc { font-size: .78rem; color: var(--text-muted); margin: 0 0 14px; max-width: 720px; }
@@ -278,7 +281,7 @@
         </div>
 
         <!-- Peso inicial (nota base) -->
-        <div class="cn-base" style="@(motorNota == MotorNota.Automatico ? "opacity:.55;" : "")">
+        <div class="cn-base @(motorNota == MotorNota.Automatico ? "cn-base-inativa" : "")">
             <div class="cn-base-top">
                 <span class="cn-base-titulo">Peso inicial</span>
                 @if (motorNota == MotorNota.Automatico)

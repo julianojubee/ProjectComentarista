@@ -100,5 +100,82 @@ namespace ControleFutebolWeb.Tests.Helpers
             Assert.DoesNotContain(detalhes, d => d.AcaoId == "desarme");
             Assert.DoesNotContain(detalhes, d => d.AcaoId == "interceptacao");
         }
+
+        // ── FotMob ────────────────────────────────────────────────────────────
+        //
+        // Terceira fonte (ver FotMobService), usada onde nem a api-football nem a ESPN
+        // têm o jogo. Fica entre as duas em profundidade: cobre tudo da ESPN e mais os
+        // campos por jogador que ela não publica.
+
+        [Theory]
+        // O que a ESPN também tem
+        [InlineData("gol")]
+        [InlineData("defesa")]
+        [InlineData("cartao_amarelo")]
+        [InlineData("evento_gol")]
+        // E o que só o FotMob tem
+        [InlineData("desarme")]
+        [InlineData("interceptacao")]
+        [InlineData("bloqueio")]
+        [InlineData("duelo_vencido")]
+        [InlineData("passe_chave")]
+        [InlineData("drible_certo")]
+        [InlineData("drible_sofrido")]
+        [InlineData("penalti_sofrido")]
+        [InlineData("penalti_cometido")]
+        [InlineData("passes_precisao")]
+        [InlineData("duelos_precisao")]
+        [InlineData("dribles")]
+        public void FotMob_CobreOQuePublica(string id)
+        {
+            Assert.True(FonteEstatistica.Cobre(FonteEstatistica.FotMob, id));
+        }
+
+        [Theory]
+        // O FotMob traz pênalti sofrido e cometido, mas não separa perdido de defendido.
+        [InlineData("penalti_perdido")]
+        [InlineData("penalti_defendido")]
+        // A nota do jogador existe no payload, mas FotMobService não a importa de
+        // propósito — é métrica proprietária deles. Chega null, e declarar o campo
+        // não coberto é o que impede tratá-lo como zero.
+        [InlineData("baseline_rating")]
+        public void FotMob_NaoCobreOQueNaoImporta(string id)
+        {
+            Assert.False(FonteEstatistica.Cobre(FonteEstatistica.FotMob, id));
+        }
+
+        // Mesma regra da ESPN, mesmo motivo: allowlist, não blocklist.
+        [Fact]
+        public void FotMob_MetricaDesconhecida_NaoEhCoberta()
+        {
+            Assert.False(FonteEstatistica.Cobre(FonteEstatistica.FotMob, "metrica_que_ninguem_conferiu"));
+        }
+
+        // A razão de o FotMob existir como fonte separada, e não como "ESPN com outro
+        // nome": no mesmo jogo, o volante importado dele é avaliado pelos desarmes e
+        // duelos que fez de verdade, enquanto o da ESPN só pode ser avaliado pelo que
+        // ela publica.
+        [Fact]
+        public void VolanteDoFotMob_EhAvaliadoPelosDuelosQueFez()
+        {
+            EstatisticaJogador Linha(string fonte) => new()
+            {
+                Fonte = fonte,
+                Minutos = 90,
+                Desarmes = 6,
+                Interceptacoes = 4,
+                DuelosTotal = 12,
+                DuelosVencidos = 9,
+                PassesTotal = 60,
+                PassesCertos = 54,
+            };
+
+            var detalhesFotMob = CriteriosNotaHelper.ConstruirDetalhes(Linha(FonteEstatistica.FotMob));
+            var detalhesEspn = CriteriosNotaHelper.ConstruirDetalhes(Linha(FonteEstatistica.Espn));
+
+            Assert.Contains(detalhesFotMob, d => d.AcaoId == "desarme");
+            Assert.Contains(detalhesFotMob, d => d.AcaoId == "duelo_vencido");
+            Assert.DoesNotContain(detalhesEspn, d => d.AcaoId == "desarme");
+        }
     }
 }

@@ -1,4 +1,4 @@
-@model IReadOnlyList<ControleFutebolWeb.Services.InfoServico>
+﻿@model IReadOnlyList<ControleFutebolWeb.Services.InfoServico>
 @using ControleFutebolWeb.Services
 
 @{
@@ -110,9 +110,9 @@
             <span class="srv-nome">📉 Jogos sem estatísticas</span>
         </div>
         <div class="srv-desc">
-            Lista as partidas encerradas que ficaram sem estatística nenhuma porque a api-football
-            devolveu o jogo só com placar e eventos, e permite preencher o buraco pela API pública
-            da ESPN — de um jogo por vez ou em lote.
+            Lista as partidas encerradas a que falta estatística de time ou de jogador, porque a
+            api-football devolveu o jogo só com placar e eventos (ou só metade dos blocos), e
+            permite preencher o buraco pela API pública da ESPN — de um jogo por vez ou em lote.
         </div>
         <a asp-action="JogosSemEstatisticas" class="btn-srv btn-reiniciar"
            style="display:inline-block; text-decoration:none;">📉 Ver jogos sem estatísticas</a>

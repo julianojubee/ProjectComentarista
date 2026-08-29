@@ -219,7 +219,12 @@
         border-bottom: 1px solid var(--line-soft); cursor: grab; transition: background 0.12s;
     }
     .jogador-row:hover { background: var(--p-3); }
-    .jogador-row.usado { display: none; }
+    /* Já escalado no campinho: continua na lista (é por ela que se chega ao
+       perfil do jogador), só marcado — o drag ainda bloqueia repetir o mesmo. */
+    .jogador-row.usado { background: rgba(34,197,94,.07); }
+    .jogador-row.usado .ctd-jog-nome::after {
+        content: "•"; color: #22c55e; font-size: 1.1em; line-height: 1; margin-left: 6px;
+    }
     /* Escondido pela busca/filtro de posição — separado de .usado (escalação) para
        que os dois critérios não se atrapalhem. */
     .jogador-row.filtrado { display: none; }
@@ -312,6 +317,29 @@
         font-size: 11px; text-shadow: 1px 1px 2px black; transform: translate(-50%, -50%);
     }
     .posicao-drop * { pointer-events: none; }
+
+    /* Boneco com foto: retrato preenchendo o círculo e o número virando badge
+       no canto — mesmo visual do campinho de /Jogos/Analisar. */
+    .posicao-drop .player-circle { width: 30px; height: 30px; font-size: 11px; }
+    .posicao-drop .player-circle.tem-foto { position: relative; background: #0b1220; overflow: visible; }
+    .posicao-drop .player-circle.tem-foto .player-foto {
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        border-radius: 50%; object-fit: cover; object-position: top center;
+    }
+    .posicao-drop .player-circle .player-foto { display: none; }
+    .posicao-drop .player-circle.tem-foto .player-foto { display: block; }
+    .posicao-drop .player-circle.tem-foto .player-num {
+        position: absolute; right: -5px; bottom: -3px; min-width: 15px; height: 15px;
+        padding: 0 3px; border-radius: 8px; font-size: 9px; font-weight: 800;
+        line-height: 15px; text-align: center; border: 1px solid rgba(255,255,255,.7);
+        background: var(--cor-camisa-casa, #dc2626); color: var(--cor-numero-casa, #fff);
+        box-shadow: 0 1px 3px rgba(0,0,0,.6);
+    }
+
+    .ctd-escalacao-origem {
+        font-size: .72rem; color: var(--text-dim); margin-bottom: .5rem; line-height: 1.4;
+    }
+    .ctd-escalacao-origem strong { color: var(--text-strong); }
 
     /* ── Partidas ────────────────────────────────── */
     .ctd-partidas-list { display: flex; flex-direction: column; gap: 10px; max-height: 560px; overflow-y: auto; }
@@ -776,7 +804,7 @@
                          data-nome="@($"{jogador.Nome} {jogador.NomeExibicao}".Trim())"
                          data-posicoes="@PosicaoJogadorHelper.Sigla(jogador.Posicao)"
                          draggable="true"
-                         ondragstart="dragJogador(event, @jogador.Id, '@jogador.Nome', '@(jogador.NumeroCamisa?.ToString() ?? "")')">
+                         ondragstart="dragJogador(event, @jogador.Id, '@jogador.Nome', '@(jogador.NumeroCamisa?.ToString() ?? "")', '@(Url.FotoSrc(jogador.FotoUrl) ?? "")')">
                         <div class="ctd-num player-circle-team">@(jogador.NumeroCamisa?.ToString() ?? "")</div>
                         @if (!string.IsNullOrWhiteSpace(jogador.FotoUrl))
                         {
@@ -811,7 +839,7 @@
             <script>
                 // Busca por nome + filtro de posição da lista do elenco. Só mostra/esconde
                 // as linhas já renderizadas — a classe .filtrado é independente da .usado,
-                // que a escalação padrão usa para tirar da lista quem já está em campo.
+                // que só marca quem já está no campinho (sem tirar da lista).
                 (function () {
                     const busca = document.getElementById('elenco-busca');
                     const filtro = document.getElementById('elenco-filtro-posicao');
@@ -861,7 +889,7 @@
                 <select id="formacaoPadrao" name="formacaoPadraoId" class="ctd-select">
                     @foreach (var formacao in Model.Formacoes)
                     {
-                        <option value="@formacao.Id" @(formacao.Id == Model.Time.FormacaoPadraoId ? "selected" : "")>
+                        <option value="@formacao.Id" @(formacao.Id == Model.FormacaoExibidaId ? "selected" : "")>
                             @formacao.Nome
                         </option>
                     }
@@ -869,8 +897,28 @@
                 <button type="submit" class="ctd-btn ctd-btn-gold">Definir Formação</button>
             </form>
 
+            @if (Model.EscalacaoUltimoJogo != null)
+            {
+                var jogoOrigem = Model.EscalacaoUltimoJogo;
+                var advOrigem = jogoOrigem.TimeCasaId == Model.Time.Id
+                    ? jogoOrigem.TimeVisitante?.Nome
+                    : jogoOrigem.TimeCasa?.Nome;
+                <div class="ctd-escalacao-origem">
+                    Última escalação usada — <strong>@advOrigem</strong>
+                    (@DateHelper.FormatarData(jogoOrigem.Data, "dd/MM/yyyy"))
+                    @if (!string.IsNullOrEmpty(Model.FormacaoExibidaNome))
+                    {
+                        <text>· <strong>@Model.FormacaoExibidaNome</strong></text>
+                    }
+                    · Ajuste e salve para virar a escalação padrão.
+                </div>
+            }
+
             <form id="formEscalacao" method="post" asp-action="SalvarEscalacaoPadrao" asp-controller="Times">
                 <input type="hidden" name="id" value="@Model.Time.Id" />
+                @* A formação salva é a que está no campinho — do último jogo quando
+                   é ela que está sendo exibida. *@
+                <input type="hidden" name="formacaoPadraoId" value="@Model.FormacaoExibidaId" />
 
                 <div class="ctd-campo-wrap">
                     <div id="campo" class="ctd-campo theme-dark-zone"
@@ -901,13 +949,20 @@
 
                                 @if (esc.Jogador != null)
                                 {
-                                    <div class="player-circle player-circle-team">@(esc.Jogador.NumeroCamisa?.ToString() ?? "")</div>
+                                    <div class="player-circle player-circle-team @(string.IsNullOrWhiteSpace(esc.Jogador.FotoUrl) ? "" : "tem-foto")">
+                                        @if (!string.IsNullOrWhiteSpace(esc.Jogador.FotoUrl))
+                                        {
+                                            <img class="player-foto" src="@Url.FotoSrc(esc.Jogador.FotoUrl)" alt="" loading="lazy" />
+                                        }
+                                        <span class="player-num">@(esc.Jogador.NumeroCamisa?.ToString() ?? "")</span>
+                                    </div>
                                     <div class="player-name">@esc.Jogador.Nome</div>
                                 }
                             </div>
 
                             <input type="hidden" name="escalacao[@index].Id" value="@esc.Id" />
                             <input type="hidden" name="escalacao[@index].PosicaoId" value="@esc.PosicaoId" />
+                            <input type="hidden" name="escalacao[@index].Posicao" value="@esc.Posicao" />
                             <input type="hidden" id="escalacao_@(index)__JogadorId" name="escalacao[@index].JogadorId" value="@esc.JogadorId" />
                             <input type="hidden" id="escalacao_@(index)__PosicaoX" name="escalacao[@index].PosicaoX" value="@esc.PosicaoX" />
                             <input type="hidden" id="escalacao_@(index)__PosicaoY" name="escalacao[@index].PosicaoY" value="@esc.PosicaoY" />
@@ -1074,9 +1129,9 @@
     function allowDrop(ev) { ev.preventDefault(); }
 
     // Arrastar jogador da lista lateral
-    function dragJogador(ev, jogadorId, jogadorNome, jogadorNumero) {
+    function dragJogador(ev, jogadorId, jogadorNome, jogadorNumero, jogadorFoto) {
         draggingPosicao = false;
-        dragData = { jogadorId: String(jogadorId), jogadorNome, jogadorNumero };
+        dragData = { jogadorId: String(jogadorId), jogadorNome, jogadorNumero, jogadorFoto };
         ev.dataTransfer.setData("text/plain", String(jogadorId));
     }
 
@@ -1086,7 +1141,7 @@
         ev.stopPropagation();
         if (draggingPosicao) return;
 
-        const { jogadorId, jogadorNome, jogadorNumero } = dragData;
+        const { jogadorId, jogadorNome, jogadorNumero, jogadorFoto } = dragData;
         if (!jogadorId) return;
 
         if (usados.has(jogadorId)) {
@@ -1106,9 +1161,15 @@
         const posEl      = document.querySelector(`.posicao-drop[data-index='${index}']`);
         const nomePosicao = posEl.dataset.posicao;
 
+        const foto = jogadorFoto
+            ? `<img class="player-foto" src="${jogadorFoto}" alt="" loading="lazy" />`
+            : '';
+
         posEl.innerHTML = `
             <span>${nomePosicao}</span>
-            <div class="player-circle player-circle-team">${jogadorNumero}</div>
+            <div class="player-circle player-circle-team${jogadorFoto ? ' tem-foto' : ''}">
+                ${foto}<span class="player-num">${jogadorNumero}</span>
+            </div>
             <div class="player-name">${jogadorNome}</div>`;
     }
 

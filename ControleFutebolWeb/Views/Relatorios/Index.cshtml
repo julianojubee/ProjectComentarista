@@ -1022,6 +1022,58 @@
                     }
                 </div>
             }
+
+            <!-- Craques da partida -->
+            <div class="rpt-card">
+                <div class="rpt-card-header">
+                    <div class="rpt-card-icon" style="background:#fef3c7;">👑</div>
+                    <div>
+                        <h3 class="rpt-card-title">Craques da Partida</h3>
+                        <p class="rpt-card-sub">Quem mais levou a coroa de maior nota do jogo</p>
+                    </div>
+                </div>
+                @if (!Model.CraquesDaPartida.Any())
+                {
+                    <div style="padding:1.5rem;text-align:center;color:var(--text-muted);font-size:13px;">
+                        Nenhum craque eleito ainda — depende de nota ou estatística nos jogos do filtro.
+                    </div>
+                }
+                @{
+                    var maxCraques = Model.CraquesDaPartida.Any() ? Model.CraquesDaPartida.Max(c => c.Valor) : 1;
+                }
+                @for (int i = 0; i < Model.CraquesDaPartida.Count; i++)
+                {
+                    var cr = Model.CraquesDaPartida[i];
+                    var wCr = Math.Round((double)cr.Valor / maxCraques * 100, 1);
+                    <div class="rpt-row">
+                        <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
+                        @if (!string.IsNullOrEmpty(cr.Jogador.FotoUrl))
+                        {
+                            <div class="rpt-avatar"><img src="@Url.Action("Imagem", "MediaProxy", new { url = cr.Jogador.FotoUrl })" /></div>
+                        }
+                        else { <div class="rpt-avatar">@(cr.Jogador.Nome.Length >= 2 ? cr.Jogador.Nome.Substring(0,2).ToUpper() : "?")</div> }
+                        <div class="rpt-name">
+                            <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@cr.Jogador.Id"
+                               style="color:inherit;text-decoration:none;font-weight:500;">@cr.Jogador.Nome</a>
+                            <small>
+                                @PosicaoJogadorHelper.Sigla(cr.Jogador.Posicao) ·
+                                @{ var teCr = TimeExibicao(cr.Jogador); }
+                                @if (!string.IsNullOrEmpty(teCr.Escudo))
+                                {
+                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = teCr.Escudo })" style="width:12px;height:12px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:3px;" />
+                                }
+                                @teCr.Nome
+                            </small>
+                        </div>
+                        <div class="rpt-bar-wrap" style="max-width:80px;">
+                            <div class="rpt-bar-bg">
+                                <div class="rpt-bar-fill" style="width:@(Coord(wCr))%;background:#f59e0b;"></div>
+                            </div>
+                        </div>
+                        <span class="rpt-badge-value" style="background:#fef3c7;color:#b45309;">@cr.Valor 👑</span>
+                    </div>
+                }
+            </div>
         </div>
     </div>
 

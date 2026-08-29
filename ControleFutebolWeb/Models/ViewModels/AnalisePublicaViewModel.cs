@@ -18,5 +18,15 @@ namespace ControleFutebolWeb.Models.ViewModels
         public string CorNumeroCasa { get; set; } = "ffffff";
         public string CorCamisaVisitante { get; set; } = "0d6efd";
         public string CorNumeroVisitante { get; set; } = "ffffff";
+
+        // Modo apresentação (?tv=...): layout sem moldura e tipografia grande,
+        // para gravar vídeo da tela. "h" = 16:9, "v" = 9:16, null = página normal.
+        public string? ModoTv { get; set; }
+        public bool EhTv => ModoTv != null;
+        public bool TvVertical => ModoTv == "v";
+
+        // Aba já aberta ao carregar (?tab=): evita gravar o clique inicial e
+        // permite mandar o link direto para o trecho que interessa.
+        public string AbaInicial { get; set; } = "notas";
     }
 }

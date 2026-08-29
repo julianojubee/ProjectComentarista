@@ -1,4 +1,4 @@
-using ControleFutebolWeb.Models;
+﻿using ControleFutebolWeb.Models;
 namespace ControleFutebolWeb.Models
 {
     public class Escalacao
@@ -21,6 +21,12 @@ namespace ControleFutebolWeb.Models
 
             // INICIAL | FINAL
             public string FaseEscalacao { get; set; } = "INICIAL";
+
+            // De onde veio esta escalação, quando ela foi importada — ver
+            // FonteEscalacao. Preenchido só nas linhas compartilhadas (UsuarioId
+            // null); null significa origem desconhecida ou escalação montada pela
+            // tela, e é o que faz o selo da análise pedir conferência.
+            public string? Fonte { get; set; }
 
             public string? UsuarioId { get; set; }
             public ApplicationUser? Usuario { get; set; }

@@ -1241,6 +1241,7 @@ namespace ControleFutebolWeb.Services
                     Posicao = MapearPosicao(jogTM.Posicao),
                     PosicaoX = posX,
                     PosicaoY = posY,
+                    Fonte = FonteEscalacao.Transfermarkt,
                     FaseEscalacao = fase
                 });
 

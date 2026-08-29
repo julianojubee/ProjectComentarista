@@ -2,10 +2,14 @@
 @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
 @using ControleFutebolWeb.Helpers
 @using System.Text.Json
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env
 @{
     // Título da aba do navegador: app na frente + confronto, para diferenciar
     // várias análises abertas ao mesmo tempo (ex.: "Análise de Craque - Nova Zelândia x Bélgica").
     ViewData["TitleOverride"] = $"Análise de Craque - {Model.Jogo.TimeCasa?.Nome} x {Model.Jogo.TimeVisitante?.Nome}";
+
+    // Coroa do craque da partida (maior nota do jogo — ver CraqueDaPartida).
+    var tituloCraque = $"Craque da partida — nota {Model.CraqueNota.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)}";
 
     var faseAtual = (Model.FaseEscalacaoAtual as string) ?? "INICIAL";
     var faseEhInicial = faseAtual == "INICIAL";
@@ -221,7 +225,11 @@
         titularCompeticao: @Html.Raw(JsonSerializer.Serialize(Model.TitularPorJogador)),
         golsTemporada: @Html.Raw(JsonSerializer.Serialize(Model.GolsTemporadaPorJogador)),
         assistsTemporada: @Html.Raw(JsonSerializer.Serialize(Model.AssistsTemporadaPorJogador)),
-        titularTemporada: @Html.Raw(JsonSerializer.Serialize(Model.TitularTemporadaPorJogador))
+        titularTemporada: @Html.Raw(JsonSerializer.Serialize(Model.TitularTemporadaPorJogador)),
+        @* Clube da temporada anterior (só para quem chegou depois) — linha "Vinha do". *@
+        timeAnterior: @Html.Raw(JsonSerializer.Serialize(
+            Model.TimeAnteriorPorJogador,
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
     };
 </script>
 
@@ -457,8 +465,8 @@
     }
 
     @* Devolve o jogo à lista de Serviços › Jogos sem estatísticas, que só mostra jogo
-       sem estatística nenhuma — sem isso, uma importação ruim (ou um bloco vazio da
-       api-football) tira o jogo de lá e não há mais como reimportar da ESPN. *@
+       com algum bloco faltando — sem isso, uma importação ruim que preencheu os dois
+       blocos tira o jogo de lá e não há mais como reimportar da ESPN. *@
     <form asp-action="LimparEstatisticas" asp-controller="Jogos" asp-route-id="@Model.Jogo.Id"
           method="post" style="margin:0;"
           onsubmit="return confirm('Limpar as estatísticas importadas deste jogo?\n\nApaga as estatísticas de time e as de cada jogador, e o jogo volta a aparecer em Serviços › Jogos sem estatísticas, para você reimportar da ESPN.\n\nSuas notas, observações, escalação, gols e cartões NÃO são alterados.')">
@@ -472,6 +480,42 @@
             🧹 Limpar estatísticas
         </button>
     </form>
+
+    @* Primeiro plano B quando a api-football não trouxe a partida: a ESPN costuma ter
+       o XI e as estatísticas de jogos que ela devolve vazios. Só aparece com a
+       competição mapeada em ligas-espn.json (ver AnalisarViewModel.EspnDisponivel) —
+       vem antes da "Última escalação" porque é dado de verdade, não chute. *@
+    @if (Model.EspnDisponivel)
+    {
+        var espnRotulo = Model.EspnSoComplementos ? "📊 Completar pela ESPN" : "🔎 Buscar ESPN";
+
+        var espnTitulo = Model.EspnSoComplementos
+            ? "A escalação já está importada — busca na ESPN as estatísticas e os lances que faltarem"
+            : "A API não trouxe este jogo — busca escalação, estatísticas e lances na ESPN";
+
+        @* Texto do confirm(): sem aspas simples, porque ele entra numa string JS
+           delimitada por aspas simples dentro de um atributo delimitado por aspas
+           duplas — escapar nos dois níveis só convida a erro. O \n vira a
+           sequência de escape do JS, não uma quebra de linha de verdade: quebra real
+           dentro da string invalida o handler inteiro. *@
+        var espnConfirma = Model.EspnSoComplementos
+            ? "Buscar na ESPN as estatísticas e os lances (gols, cartões, substituições) que faltarem neste jogo?\n\nA escalação NÃO é alterada, e nada que já esteja gravado é sobrescrito."
+            : "Buscar este jogo na ESPN?\n\nTraz a escalação dos times que ainda não têm importação (substituindo o chute que está em campo, e a aba Final é remontada) e, se faltarem, as estatísticas e os lances da partida. O time que já veio da API não é tocado.\n\nSuas notas e observações não são alteradas.";
+
+        <form asp-action="BuscarEscalacaoEspn" asp-controller="Jogos" asp-route-id="@Model.Jogo.Id"
+              method="post" style="margin:0;"
+              onsubmit="return confirm('@Html.Raw(espnConfirma)')">
+            @Html.AntiForgeryToken()
+            <button type="submit"
+                    style="display:flex; align-items:center; gap:6px; padding:8px 14px;
+                           border-radius:8px; border:1px solid rgba(34,197,94,0.4); background:rgba(34,197,94,0.08);
+                           color:var(--ok); font-size:13px; font-weight:500; cursor:pointer;
+                           white-space:nowrap;"
+                    title="@espnTitulo">
+                @espnRotulo
+            </button>
+        </form>
+    }
 
     @* Plano B do "Reimportar" quando a API ainda não tem a escalação do jogo:
        monta os dois times pela última escalação de cada um (ou pela escalação
@@ -491,42 +535,89 @@
     </form>
 
 
-    @* --- Grupo atual + botão de busca --- *@
-    <div class="d-flex align-items-center gap-2 mt-2">
+    @* --- Selo de origem da escalação -------------------------------------
+       A escalação montada pela "última escalação" de cada time fica idêntica na
+       tela à que veio importada. Este selo diz de onde veio a que está em campo,
+       para o analista não descobrir no meio do jogo que estava errada.
 
-        @* Badge mostrando o grupo atual (ou aviso se vazio) *@
-        @if (!string.IsNullOrWhiteSpace(Model.Jogo.Grupo))
+       Compacto de propósito: o texto longo ocupava metade da barra de ações em
+       toda partida, inclusive nas que estavam certas. O ícone dá o veredito de
+       relance (logo da fonte = confiável, ✕ vermelho = confira) e o title traz a
+       explicação inteira para quem parar o mouse em cima. *@
+    @{
+        var fonteCasa = Model.FonteEscalacaoCasa;
+        var fonteVis = Model.FonteEscalacaoVisitante;
+        var nomeCasa = Model.Jogo.TimeCasa?.Nome ?? "mandante";
+        var nomeVis = Model.Jogo.TimeVisitante?.Nome ?? "visitante";
+
+        // Um lado sem importação derruba o selo para alerta mesmo que o outro tenha
+        // vindo da API: metade do campo continua sendo chute.
+        var faltaAlgum = fonteCasa == null || fonteVis == null;
+        var seloClasse = !faltaAlgum ? "ok" : (fonteCasa != null || fonteVis != null ? "parcial" : "alerta");
+
+        string RotuloFonte(string? f) => f switch
         {
-            <span class="badge bg-success">
-                <i class="ti ti-tag me-1" aria-hidden="true"></i>@Model.Jogo.Grupo
-            </span>
-        }
-        else
+            FonteEscalacao.ApiFootball => "api-football",
+            FonteEscalacao.Espn => "ESPN",
+            FonteEscalacao.Transfermarkt => "Transfermarkt",
+            _ => "nenhuma fonte",
+        };
+
+        // Logos das fontes. O arquivo pode não estar em wwwroot/Images/fontes/ (o
+        // Transfermarkt não tem logo, e os outros dois dependem de alguém ter posto
+        // lá), então a existência é conferida aqui e o selo cai no rótulo em texto —
+        // resolver no servidor evita depender de onerror no <img>.
+        string? LogoFonte(string? f)
         {
-            <span class="badge bg-secondary text-white">
-                <i class="ti ti-tag-off me-1" aria-hidden="true"></i>Sem grupo
-            </span>
+            var arquivo = f switch
+            {
+                FonteEscalacao.ApiFootball => "apisports.png",
+                FonteEscalacao.Espn => "espn.png",
+                _ => null,
+            };
+            if (arquivo == null) return null;
+
+            var caminho = System.IO.Path.Combine(Env.WebRootPath, "Images", "fontes", arquivo);
+            return System.IO.File.Exists(caminho) ? $"/Images/fontes/{arquivo}" : null;
         }
 
-        @* Botão só aparece quando há link do Transfermarkt *@
-        @if (!string.IsNullOrWhiteSpace(Model.Jogo.LinkDetalhes))
+        var fontesUsadas = new[] { fonteCasa, fonteVis }
+            .Where(f => f != null).Distinct().ToList();
+
+        var seloTitulo = !faltaAlgum
+            ? (fontesUsadas.Count == 1
+                ? $"Escalação importada da {RotuloFonte(fonteCasa)}"
+                : $"Escalação importada: {nomeCasa} da {RotuloFonte(fonteCasa)}, {nomeVis} da {RotuloFonte(fonteVis)}")
+            : (fonteCasa != null || fonteVis != null)
+                ? $"Escalação importada só do {(fonteCasa != null ? nomeCasa : nomeVis)} (da {RotuloFonte(fonteCasa ?? fonteVis)})"
+                : "Escalação NÃO importada de nenhuma fonte";
+
+        var seloSub = !faltaAlgum
+            ? (Model.EscalacaoEditada
+                ? "titulares alterados por você depois da importação"
+                : "titulares e reservas vieram do próprio jogo")
+            : (fonteCasa != null || fonteVis != null)
+                ? $"a do {(fonteCasa != null ? nomeVis : nomeCasa)} veio da última escalação — confira"
+                : "a da tela veio da última escalação de cada time — confira antes de analisar";
+    }
+    <div class="an-selo-esc @seloClasse" title="@seloTitulo — @seloSub">
+        @if (faltaAlgum)
         {
-            <form asp-action="BuscarGrupo" asp-route-id="@Model.Jogo.Id" method="post" class="d-inline">
-                @Html.AntiForgeryToken()
-                <button type="submit"
-                        class="btn btn-sm btn-outline-primary"
-                        onclick="this.disabled=true; this.innerHTML='<span class=\'spinner-border spinner-border-sm\'></span> Buscando...'; this.form.submit();">
-                    <i class="ti ti-world-search" aria-hidden="true"></i>
-                    Buscar grupo
-                </button>
-            </form>
+            <span class="an-selo-esc-x" aria-hidden="true">✕</span>
         }
-        else
+        @foreach (var f in fontesUsadas)
         {
-            <span class="text-muted small" title="Sem link do Transfermarkt — não é possível buscar automaticamente">
-                <i class="ti ti-info-circle" aria-hidden="true"></i> sem link TM
-            </span>
+            var logo = LogoFonte(f);
+            if (logo != null)
+            {
+                <img class="an-selo-esc-logo" src="@logo" alt="@RotuloFonte(f)" />
+            }
+            else
+            {
+                <span class="an-selo-esc-fallback">@RotuloFonte(f)</span>
+            }
         }
+        <span class="visually-hidden">@seloTitulo — @seloSub</span>
     </div>
 </div>
 
@@ -928,11 +1019,13 @@
                                                && Model.JogadoresComCartaoVermelho.Contains(esc.Jogador.Id);
                             bool amareloCasa = esc.Jogador != null && Model.JogadoresComCartaoAmarelo.Contains(esc.Jogador.Id);
                             bool capitaoCasa = esc.Jogador != null && Model.JogadoresCapitao.Contains(esc.Jogador.Id);
+                            bool craqueCasa = esc.Jogador != null && Model.CraqueJogadorId == esc.Jogador.Id;
                             if (!expulsoCasa)
                             {
                             <div class="posicao-drop"
                                  data-index="casa_@idxCasa"
                                  data-posicao="@AbreviarPosicao(esc.Posicao)"
+                                 data-posicao-full="@esc.Posicao"
                                  data-campo="casa"
                                  data-escid="@esc.Id"
                                  data-temjogador="@(esc.Jogador != null ? "1" : "0")"
@@ -959,6 +1052,10 @@
                                     @if (capitaoCasa)
                                     {
                                         <span class="capitao-badge" title="Capitão">C</span>
+                                    }
+                                    @if (craqueCasa)
+                                    {
+                                        <span class="craque-badge" title="@tituloCraque">👑</span>
                                     }
                                     @* Fora de .player-name: o overflow:hidden dela cortava a seta em nomes longos *@
                                     @if (!faseEhInicial && jogadoresEntraramCasa.Contains(esc.Jogador.Id))
@@ -1007,6 +1104,7 @@
                             {
                                 bool amareloResCasa = esc.Jogador != null && Model.JogadoresComCartaoAmarelo.Contains(esc.Jogador.Id);
                                 bool capitaoResCasa = esc.Jogador != null && Model.JogadoresCapitao.Contains(esc.Jogador.Id);
+                                bool craqueResCasa = esc.Jogador != null && Model.CraqueJogadorId == esc.Jogador.Id;
                                 <div class="reserva-card" id="reserva-casa-card-@idxResCasa">
                                     <span class="rem-btn" onclick="removerReserva('casa', @idxResCasa)">×</span>
                                     <div class="player-circle player-circle-casa" style="width:28px;height:28px;font-size:11px;">
@@ -1019,6 +1117,10 @@
                                     @if (capitaoResCasa)
                                     {
                                         <span class="capitao-badge-mini" title="Capitão">C</span>
+                                    }
+                                    @if (craqueResCasa)
+                                    {
+                                        <span class="craque-badge-mini" title="@tituloCraque">👑</span>
                                     }
                                     @if (esc.Jogador != null)
                                     {
@@ -1083,11 +1185,13 @@
                                               && Model.JogadoresComCartaoVermelho.Contains(esc.Jogador.Id);
                             bool amareloVis = esc.Jogador != null && Model.JogadoresComCartaoAmarelo.Contains(esc.Jogador.Id);
                             bool capitaoVis = esc.Jogador != null && Model.JogadoresCapitao.Contains(esc.Jogador.Id);
+                            bool craqueVis = esc.Jogador != null && Model.CraqueJogadorId == esc.Jogador.Id;
                             if (!expulsoVis)
                             {
                             <div class="posicao-drop"
                                  data-index="vis_@idxVis"
                                  data-posicao="@AbreviarPosicao(esc.Posicao)"
+                                 data-posicao-full="@esc.Posicao"
                                  data-campo="vis"
                                  data-escid="@esc.Id"
                                  data-temjogador="@(esc.Jogador != null ? "1" : "0")"
@@ -1112,6 +1216,10 @@
                                     @if (capitaoVis)
                                     {
                                         <span class="capitao-badge" title="Capitão">C</span>
+                                    }
+                                    @if (craqueVis)
+                                    {
+                                        <span class="craque-badge" title="@tituloCraque">👑</span>
                                     }
                                     @if (!faseEhInicial && jogadoresEntraramVisitante.Contains(esc.Jogador.Id))
                                     {
@@ -1159,6 +1267,7 @@
                             {
                                 bool amareloResVis = esc.Jogador != null && Model.JogadoresComCartaoAmarelo.Contains(esc.Jogador.Id);
                                 bool capitaoResVis = esc.Jogador != null && Model.JogadoresCapitao.Contains(esc.Jogador.Id);
+                                bool craqueResVis = esc.Jogador != null && Model.CraqueJogadorId == esc.Jogador.Id;
                                 <div class="reserva-card" id="reserva-vis-card-@idxResVis">
                                     <span class="rem-btn" onclick="removerReserva('vis', @idxResVis)">×</span>
                                     <div class="player-circle player-circle-vis" style="width:28px;height:28px;font-size:11px;">
@@ -1171,6 +1280,10 @@
                                     @if (capitaoResVis)
                                     {
                                         <span class="capitao-badge-mini" title="Capitão">C</span>
+                                    }
+                                    @if (craqueResVis)
+                                    {
+                                        <span class="craque-badge-mini" title="@tituloCraque">👑</span>
                                     }
                                     @if (esc.Jogador != null)
                                     {
@@ -1513,7 +1626,11 @@
     <div id="prejogo-box" style="background:#0f1b2d; border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:1.4rem; width:780px; max-width:96vw; max-height:90vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,.5); transition:width .2s;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem;">
             <h5 style="margin:0; color:#f2f5fa; font-size:15px; font-weight:700">🔍 Pré-jogo</h5>
-            <button onclick="fecharPreJogo()" style="background:none;border:none;color:rgba(255,255,255,.65);font-size:22px;cursor:pointer;line-height:1">&times;</button>
+            <div style="display:flex; align-items:center; gap:.4rem;">
+                <button type="button" id="pj-btn-maximizar" onclick="alternarMaximizarPreJogo()" title="Maximizar (tela cheia)"
+                        style="background:none;border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.65);font-size:14px;line-height:1;padding:.25rem .45rem;border-radius:6px;cursor:pointer">⛶</button>
+                <button onclick="fecharPreJogo()" style="background:none;border:none;color:rgba(255,255,255,.65);font-size:22px;cursor:pointer;line-height:1">&times;</button>
+            </div>
         </div>
         <div class="pj-tabs">
             <button type="button" id="pj-tab-resumo" class="pj-tab active" onclick="mostrarAbaPreJogo('resumo')">📋 Resumo</button>
