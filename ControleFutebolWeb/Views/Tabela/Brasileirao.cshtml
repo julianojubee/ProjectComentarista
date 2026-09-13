@@ -1,4 +1,4 @@
-@model List<ControleFutebolWeb.Models.ViewModels.ClassificacaoViewModel>
+﻿@model List<ControleFutebolWeb.Models.ViewModels.ClassificacaoViewModel>
 @using System.Globalization
 @using ControleFutebolWeb.Helpers
 @using ControleFutebolWeb.Controllers
@@ -16,6 +16,7 @@
     int ultimaRodadaNum = (int)(ViewBag.UltimaRodadaNum ?? 0);
     var ultimaRodadaJogos = ViewBag.UltimaRodadaJogos as List<ControleFutebolWeb.Models.Jogo> ?? new();
     var artilheiros = ViewBag.Artilheiros as List<ArtilheiroViewModel> ?? new();
+    var assistentes = ViewBag.Assistencias as List<ControleFutebolWeb.Models.ViewModels.RankingJogadorViewModel> ?? new();
 
     int totalGols = Model.Sum(t => t.GolsPro);
 
@@ -246,6 +247,9 @@
                         </select>
                     </form>
                 }
+                <div style="margin-top:10px;">
+                    @await Html.PartialAsync("_BotaoSincronizarJogos", 1)
+                </div>
             </div>
 
             <!-- Navegação de rodada -->
@@ -400,6 +404,49 @@
                                 </div>
                             </div>
                             <span class="br-art-gols">@(a.Gols)⚽</span>
+                        </div>
+                    }
+                }
+            </div>
+
+            <!-- Assistências -->
+            <div class="br-side-card">
+                <div class="br-side-header">
+                    <span style="font-size:1rem;">🅰️</span>
+                    <span class="br-side-title">Assistências</span>
+                </div>
+                @if (!assistentes.Any())
+                {
+                    <div class="br-vazio">Nenhuma assistência registrada ainda.</div>
+                }
+                else
+                {
+                    for (int i = 0; i < assistentes.Count; i++)
+                    {
+                        var a = assistentes[i];
+                        <div class="br-artilheiro">
+                            <span class="br-art-rank" style="color:@rankColors[Math.Min(i, rankColors.Length - 1)];">@(i + 1)</span>
+                            <div class="br-art-avatar">
+                                @if (!string.IsNullOrEmpty(a.Jogador.FotoUrl))
+                                {
+                                    <img src="@Url.FotoSrc(a.Jogador.FotoUrl)" alt="@a.Jogador.Nome" />
+                                }
+                                else
+                                {
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                                }
+                            </div>
+                            <div style="flex:1; min-width:0;">
+                                <div class="br-art-nome">@a.Jogador.Nome</div>
+                                <div class="br-art-clube">
+                                    @if (!string.IsNullOrEmpty(a.Jogador.Time?.EscudoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = a.Jogador.Time.EscudoUrl })" alt="" />
+                                    }
+                                    <span>@(a.Jogador.Time?.Nome ?? "—")</span>
+                                </div>
+                            </div>
+                            <span class="br-art-gols">@(a.Valor)🅰️</span>
                         </div>
                     }
                 }

@@ -70,8 +70,10 @@ namespace ControleFutebolWeb.Services
             vm.Temporadas = LerTemporadas(raiz).ToList();
             vm.ValorDeMercado = ValorAtual(raiz);
             vm.Carreira = LerCarreira(raiz).ToList();
+            vm.TemporadasCarreira = LerTemporadasDaCarreira(raiz).ToList();
             vm.Titulos = LerTitulos(raiz).ToList();
             vm.Jogos = LerJogos(raiz).ToList();
+            vm.Situacao = LerLesao(raiz);
 
             // Sem competição escolhida usa a primeira da temporada mais recente, que é
             // a ordem em que a fonte já devolve. Jogador sem nenhuma não tem o bloco de
@@ -283,6 +285,68 @@ namespace ControleFutebolWeb.Services
                 }
             }
         }
+
+        /// <summary>
+        /// A mesma carreira, mas quebrada por temporada — é o bloco irmão de
+        /// "teamEntries" dentro de careerItems, e traz os números de cada ano já somados,
+        /// com o detalhe por competição.
+        ///
+        /// Sai da resposta que já foi buscada para montar a tela: alternar o totalizador
+        /// entre "carreira toda" e uma temporada não custa chamada nenhuma.
+        /// </summary>
+        internal static IEnumerable<TemporadaCarreira> LerTemporadasDaCarreira(JsonElement raiz)
+        {
+            if (!Bloco(raiz, "careerHistory", out var carreira) ||
+                !Bloco(carreira, "careerItems", out var itens)) yield break;
+
+            foreach (var bloco in itens.EnumerateObject())
+            {
+                if (!Lista(bloco.Value, "seasonEntries", out var temporadas)) continue;
+
+                foreach (var t in temporadas.EnumerateArray())
+                {
+                    var nome = Texto(t, "seasonName");
+                    if (nome == null) continue;
+
+                    var competicoes = new List<CompeticaoNaTemporada>();
+                    if (Lista(t, "tournamentStats", out var torneios))
+                    {
+                        foreach (var c in torneios.EnumerateArray())
+                        {
+                            var nomeComp = Texto(c, "leagueName");
+                            if (nomeComp == null) continue;
+
+                            competicoes.Add(new CompeticaoNaTemporada
+                            {
+                                Nome = nomeComp,
+                                Jogos = NumeroTexto(c, "appearances"),
+                                Gols = NumeroTexto(c, "goals"),
+                                Assistencias = NumeroTexto(c, "assists"),
+                            });
+                        }
+                    }
+
+                    yield return new TemporadaCarreira
+                    {
+                        Nome = nome,
+                        Time = Texto(t, "team") ?? "",
+                        Selecao = bloco.Name == "national team",
+                        Jogos = NumeroTexto(t, "appearances"),
+                        Gols = NumeroTexto(t, "goals"),
+                        Assistencias = NumeroTexto(t, "assists"),
+                        Competicoes = competicoes,
+                    };
+                }
+            }
+        }
+
+        /// <summary>
+        /// Contagem que vem como TEXTO neste bloco ("76"), e às vezes como a string
+        /// literal "undefined" nas competições antigas — que aqui vale zero, não erro.
+        /// </summary>
+        private static int NumeroTexto(JsonElement e, string propriedade) =>
+            int.TryParse(Texto(e, propriedade), NumberStyles.Integer,
+                CultureInfo.InvariantCulture, out var n) ? n : 0;
 
         private static string Periodo(JsonElement passagem)
         {
@@ -520,6 +584,125 @@ namespace ControleFutebolWeb.Services
             "red_cards" => "Cartões vermelhos",
 
             _ => original,
+        };
+
+        // ── Situação física ───────────────────────────────────────────────────
+
+        /// <summary>
+        /// Lesão atual do jogador, para o selo no cabeçalho de /Jogadores/Estatisticas.
+        ///
+        /// É a única informação do FotMob que aparece fora da tela de estatísticas
+        /// avançadas, e entra por um motivo diferente do resto: não é um número que
+        /// concorra com um número nosso — não temos cadastro de lesão nenhum —, é um
+        /// fato sobre o jogador que muda como se lê a página inteira. Uma média que
+        /// parou de subir em setembro se explica sozinha quando o cabeçalho diz que ele
+        /// rompeu o cruzado em setembro.
+        ///
+        /// Continua sem gravar nada, pelo motivo explicado em SituacaoFisicaViewModel.
+        /// Null = jogador sem lesão informada (o caso normal) ou fonte fora do ar; a
+        /// tela simplesmente não mostra o selo, nunca um erro.
+        /// </summary>
+        public async Task<SituacaoFisicaViewModel?> SituacaoFisicaAsync(
+            long idFotMob, CancellationToken ct = default)
+        {
+            using var perfil = await _fotmob.BuscarPerfilJogadorAsync(idFotMob, ct);
+            return perfil == null ? null : LerLesao(perfil.RootElement);
+        }
+
+        /// <summary>
+        /// A leitura em si, separada da busca porque as duas telas chegam aqui por
+        /// caminhos diferentes: a de estatísticas avançadas já tem o perfil na mão
+        /// (MontarAsync acabou de buscá-lo) e não pode gastar uma segunda chamada só
+        /// para repetir o mesmo bloco.
+        /// </summary>
+        private static SituacaoFisicaViewModel? LerLesao(JsonElement raiz)
+        {
+            // Jogador sem lesão vem com "injuryInformation": null — daí Bloco(), que já
+            // existe justamente porque TryGetProperty num null lança.
+            if (!Bloco(raiz, "injuryInformation", out var lesao)) return null;
+
+            var nome = Texto(lesao, "name");
+            if (string.IsNullOrWhiteSpace(nome)) return null;
+
+            return new SituacaoFisicaViewModel
+            {
+                Lesao = TraduzirLesao(nome),
+                Retorno = Retorno(lesao),
+                AtualizadoEm = AtualizadoEm(lesao),
+            };
+        }
+
+        /// <summary>
+        /// Previsão de retorno. O FotMob manda uma chave de tradução, uma data opcional
+        /// e um texto pronto em inglês; a data, quando existe, é a informação mais útil
+        /// e por isso vem antes da chave.
+        /// </summary>
+        private static string? Retorno(JsonElement lesao)
+        {
+            if (!Bloco(lesao, "expectedReturn", out var retorno)) return null;
+
+            var data = Texto(retorno, "expectedReturnDateParam");
+            if (!string.IsNullOrWhiteSpace(data) &&
+                DateTime.TryParse(data, CultureInfo.InvariantCulture,
+                    DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var quando))
+                return $"Retorno esperado: {quando.ToLocalTime():dd/MM/yyyy}";
+
+            return Texto(retorno, "expectedReturnKey") switch
+            {
+                "expected_return_date_out_for_season" => "Fora por toda a temporada",
+                "expected_return_date_unknown" => "Retorno sem previsão",
+                "expected_return_date_doubtful" => "Presença em dúvida",
+                // Chave nova da fonte: o texto pronto deles é em inglês, mas dizer algo
+                // certo em inglês é melhor do que inventar uma tradução ou omitir.
+                _ => Texto(retorno, "expectedReturnFallback"),
+            };
+        }
+
+        private static DateTime? AtualizadoEm(JsonElement lesao)
+        {
+            if (!Bloco(lesao, "lastUpdated", out var bloco)) return null;
+            var utc = Texto(bloco, "utcTime");
+            return DateTime.TryParse(utc, CultureInfo.InvariantCulture,
+                DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var quando)
+                ? quando.ToLocalTime() : null;
+        }
+
+        /// <summary>
+        /// Nome da lesão em português.
+        ///
+        /// A rota de dados responde sempre em inglês (o site deles traduz no navegador,
+        /// por uma chave que não é pública), então a tradução é nossa. A lista cobre o
+        /// que aparece no dia a dia; o que faltar sai em inglês em vez de sumir, porque
+        /// "Patellar tendon rupture" ainda informa mais do que um selo vazio.
+        /// </summary>
+        private static string TraduzirLesao(string nome) => nome.Trim().ToLowerInvariant() switch
+        {
+            "cruciate ligament injury" => "Lesão do ligamento cruzado",
+            "cruciate ligament rupture" => "Ruptura do ligamento cruzado",
+            "knee injury" => "Lesão no joelho",
+            "meniscus injury" => "Lesão no menisco",
+            "ankle injury" => "Lesão no tornozelo",
+            "foot injury" => "Lesão no pé",
+            "hamstring injury" => "Lesão na posterior da coxa",
+            "thigh muscle strain" => "Estiramento na coxa",
+            "muscle injury" => "Lesão muscular",
+            "muscular problems" => "Problemas musculares",
+            "calf injury" => "Lesão na panturrilha",
+            "groin injury" or "groin strain" => "Lesão na virilha",
+            "adductor problems" => "Problemas no adutor",
+            "achilles tendon problems" => "Problemas no tendão de Aquiles",
+            "achilles tendon rupture" => "Ruptura do tendão de Aquiles",
+            "back injury" or "back problems" => "Lesão nas costas",
+            "shoulder injury" => "Lesão no ombro",
+            "hip injury" or "hip problems" => "Lesão no quadril",
+            "head injury" => "Traumatismo craniano",
+            "concussion" => "Concussão",
+            "fracture" or "broken bone" => "Fratura",
+            "illness" => "Doença",
+            "knock" => "Pancada",
+            "fitness" => "Condicionamento",
+            "unknown injury" => "Lesão não especificada",
+            _ => nome,
         };
 
         private static string TraduzirGrupo(string? id) => id switch

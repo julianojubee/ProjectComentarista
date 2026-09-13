@@ -1,0 +1,169 @@
+﻿@model ControleFutebolWeb.Models.ViewModels.MarcacaoVideoViewModel
+@using System.Text.Json
+@{
+    ViewData["TitleOverride"] = $"Marcação por vídeo - {Model.Jogo.TimeCasa?.Nome} x {Model.Jogo.TimeVisitante?.Nome}";
+
+    var opcoesJson = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    var dados = JsonSerializer.Serialize(new
+    {
+        jogoId = Model.Jogo.Id,
+        casa = new { nome = Model.Jogo.TimeCasa?.Nome, elenco = Model.ElencoCasa },
+        visitante = new { nome = Model.Jogo.TimeVisitante?.Nome, elenco = Model.ElencoVisitante },
+        acoes = Model.Acoes,
+        marcacoes = Model.Marcacoes,
+    }, opcoesJson);
+
+    // Grupos da legenda, na ordem em que aparecem no catálogo.
+    var grupos = Model.Acoes.Where(a => a.Grupo != "Controle")
+        .GroupBy(a => a.Grupo).ToList();
+    var controle = Model.Acoes.Where(a => a.Grupo == "Controle").ToList();
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/marcacao-video.css" asp-append-version="true" />
+}
+
+<div class="mv-wrap">
+
+    <div class="mv-topo">
+        <a class="btn btn-sm btn-outline-secondary" asp-action="Index">←</a>
+        <strong>@Model.Jogo.TimeCasa?.Nome <span class="text-muted">x</span> @Model.Jogo.TimeVisitante?.Nome</strong>
+        <span class="badge text-bg-warning">protótipo</span>
+        <span class="mv-contador">
+            <span id="mv-total">0</span> marcações
+        </span>
+        <span class="mv-espaco"></span>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="mv-btn-previa">Prévia</button>
+        <button type="button" class="btn btn-sm btn-success" id="mv-btn-consolidar">Consolidar em estatísticas</button>
+    </div>
+
+    @if (Model.TemEstatisticaDeOutraFonte)
+    {
+        <div class="alert alert-warning py-2 px-3 mb-2 small">
+            Este jogo já tem estatísticas importadas de uma API. A consolidação preserva
+            essas linhas por padrão — marque "sobrescrever" na hora de consolidar se quiser
+            que a marcação manual prevaleça.
+        </div>
+    }
+
+    <div class="mv-grade">
+
+        <!-- ── Coluna do vídeo ─────────────────────────────────────────── -->
+        <section class="mv-video">
+            <div class="mv-fonte">
+                <input type="text" id="mv-url" class="form-control form-control-sm"
+                       placeholder="Cole o link do YouTube do jogo…" />
+                <button type="button" class="btn btn-sm btn-primary" id="mv-carregar">Carregar</button>
+                <label class="btn btn-sm btn-outline-secondary mb-0" for="mv-arquivo">Arquivo…</label>
+                <input type="file" id="mv-arquivo" accept="video/*" hidden />
+            </div>
+
+            <div class="mv-palco" id="mv-palco">
+                <div id="mv-player"></div>
+                <video id="mv-video-local" controls hidden></video>
+                <div class="mv-vazio" id="mv-vazio">
+                    Carregue o vídeo do jogo (link do YouTube ou arquivo no disco) para começar.
+                </div>
+            </div>
+
+            <div class="mv-controles">
+                <button type="button" class="btn btn-sm btn-outline-light" id="mv-play">▶︎ / ❚❚</button>
+                <span class="mv-tempo">
+                    <span id="mv-tempo-video">0:00</span>
+                    <span class="mv-min" id="mv-minuto">—</span>
+                </span>
+                <span class="mv-velocidade">
+                    <button type="button" class="btn btn-sm btn-outline-light" data-vel="-1">−</button>
+                    <span id="mv-vel">1.0×</span>
+                    <button type="button" class="btn btn-sm btn-outline-light" data-vel="1">+</button>
+                </span>
+                <span class="mv-espaco"></span>
+                <button type="button" class="btn btn-sm btn-outline-light" id="mv-ancora-1">Início 1º tempo</button>
+                <button type="button" class="btn btn-sm btn-outline-light" id="mv-ancora-2">Início 2º tempo</button>
+                <label class="mv-check">
+                    <input type="checkbox" id="mv-pausar" /> pausar ao marcar
+                </label>
+            </div>
+
+            <!-- Legenda das teclas: fica sempre visível de propósito. Quem está
+                 marcando não pode tirar os olhos do jogo para procurar atalho. -->
+            <div class="mv-legenda">
+                @foreach (var grupo in grupos)
+                {
+                    <div class="mv-legenda-grupo">
+                        <h6>@grupo.Key</h6>
+                        @foreach (var acao in grupo)
+                        {
+                            <div class="mv-tecla-linha">
+                                <kbd>@(acao.Shift ? "⇧" + acao.Tecla : acao.Tecla)</kbd>
+                                <span>@acao.Rotulo</span>
+                            </div>
+                        }
+                    </div>
+                }
+                <div class="mv-legenda-grupo">
+                    <h6>Controle</h6>
+                    @foreach (var acao in controle)
+                    {
+                        <div class="mv-tecla-linha">
+                            <kbd>@(acao.Shift ? "⇧" + acao.Tecla : acao.Tecla)</kbd>
+                            <span>@acao.Rotulo</span>
+                        </div>
+                    }
+                    <div class="mv-tecla-linha"><kbd>0–9</kbd><span>número da camisa</span></div>
+                    <div class="mv-tecla-linha"><kbd>Tab</kbd><span>trocar de time</span></div>
+                    <div class="mv-tecla-linha"><kbd>Espaço</kbd><span>play / pause</span></div>
+                    <div class="mv-tecla-linha"><kbd>← →</kbd><span>±5s (com ⇧, ±1s)</span></div>
+                    <div class="mv-tecla-linha"><kbd>⌫</kbd><span>apagar dígito / desfazer</span></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Coluna do elenco ────────────────────────────────────────── -->
+        <aside class="mv-elenco">
+            <div class="mv-times">
+                <button type="button" class="mv-time" data-lado="casa">@Model.Jogo.TimeCasa?.Nome</button>
+                <button type="button" class="mv-time" data-lado="visitante">@Model.Jogo.TimeVisitante?.Nome</button>
+            </div>
+
+            <div class="mv-buffer">
+                <span id="mv-buffer">—</span>
+                <span class="mv-selecionada" id="mv-selecionada">nenhuma jogadora selecionada</span>
+            </div>
+
+            <div class="mv-lista" id="mv-lista"></div>
+
+            <div class="mv-timeline-titulo">
+                Últimas marcações
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="mv-desfazer">Desfazer</button>
+            </div>
+            <div class="mv-timeline" id="mv-timeline"></div>
+        </aside>
+    </div>
+</div>
+
+<!-- Prévia do que a consolidação vai gravar -->
+<div class="modal fade" id="mv-modal-previa" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Prévia das estatísticas</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="mv-previa-corpo"></div>
+            <div class="modal-footer">
+                <label class="me-auto small">
+                    <input type="checkbox" id="mv-sobrescrever" />
+                    sobrescrever estatísticas importadas de outras fontes
+                </label>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-success" id="mv-previa-consolidar">Consolidar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>window.MARCACAO = @Html.Raw(dados);</script>
+    <script src="~/js/marcacao-video.js" asp-append-version="true"></script>
+}

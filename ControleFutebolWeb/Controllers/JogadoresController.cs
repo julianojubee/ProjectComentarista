@@ -3,7 +3,6 @@ using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
 using ControleFutebolWeb.Services;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -25,8 +24,9 @@ namespace ControleFutebolWeb.Controllers
 
         private readonly FotMobPerfilService _fotmobPerfil;
         private readonly FotMobService _fotmob;
+        private readonly FotMobCadastroService _fotmobCadastro;
 
-        public JogadoresController(FutebolContext context, ILogger<JogadoresController> logger, ApiFootballService transfermarktService, UserManager<ApplicationUser> userManager, PerfilJogadorService perfilJogador, FotMobPerfilService fotmobPerfil, FotMobService fotmob)
+        public JogadoresController(FutebolContext context, ILogger<JogadoresController> logger, ApiFootballService transfermarktService, UserManager<ApplicationUser> userManager, PerfilJogadorService perfilJogador, FotMobPerfilService fotmobPerfil, FotMobService fotmob, FotMobCadastroService fotmobCadastro)
         {
             _context = context;
             _logger = logger;
@@ -35,6 +35,7 @@ namespace ControleFutebolWeb.Controllers
             _perfilJogador = perfilJogador;
             _fotmobPerfil = fotmobPerfil;
             _fotmob = fotmob;
+            _fotmobCadastro = fotmobCadastro;
         }
 
         public IActionResult Index(string posicao, string nacionalidade, int? timeId, string sortOrder, string? nome, int? idadeMin, int? idadeMax, bool semIdade = false, int page = 1)
@@ -287,38 +288,39 @@ namespace ControleFutebolWeb.Controllers
 
                     if (jogadorExistente == null) return NotFound();
 
-                    // Validação contra api-football (somente se IdApi estiver preenchido)
-                    var jogadorExistenteParaValidacao = await _context.Jogadores.FindAsync(id);
-                    if (jogadorExistenteParaValidacao?.IdApi > 0)
+                    // Conferência contra a API (somente se IdApi estiver preenchido).
+                    // Não bloqueia: a edição manual existe justamente para corrigir
+                    // o que a API traz errado/incompleto. Só avisa depois de salvar.
+                    var divergencias = new List<string>();
+                    if (jogadorExistente.IdApi > 0)
                     {
-                        var dadosApi = await _transfermarktService.BuscarInfoJogadorAsync(
-                            jogadorExistenteParaValidacao.IdApi.Value);
+                        var dadosApi = await _transfermarktService.BuscarInfoJogadorAsync(jogadorExistente.IdApi.Value);
 
                         if (dadosApi != null)
                         {
-                            var divergencias = new List<string>();
-
                             if (dadosApi.DataNascimento.HasValue &&
                                 dadosApi.DataNascimento.Value.Date != jogador.DataNascimento?.Date)
                                 divergencias.Add($"Data de nascimento divergente. API: {dadosApi.DataNascimento.Value:dd/MM/yyyy}");
 
                             if (!string.IsNullOrEmpty(dadosApi.Nacionalidade) && jogador.NacionalidadeId.HasValue)
                             {
+                                // A API vem em inglês ("Brazil"); o cadastro, em português ("Brasil")
                                 var nacSelecionada = await _context.Nacionalidades.FindAsync(jogador.NacionalidadeId.Value);
-                                if (nacSelecionada?.Nome != dadosApi.Nacionalidade)
-                                    divergencias.Add($"Nacionalidade divergente. API: {dadosApi.Nacionalidade}");
-                            }
-
-                            if (divergencias.Any())
-                            {
-                                TempData["Mensagem"] = string.Join(" | ", divergencias);
-                                TempData["MensagemTipo"] = "erro";
-
-                                ViewBag.TimeId = new SelectList(_context.Times, "Id", "Nome", jogador.TimeId);
-                                ViewBag.NacionalidadeId = new SelectList(_context.Nacionalidades, "Id", "Nome", jogador.NacionalidadeId);
-                                return View(jogador);
+                                var nacApi = CountryHelper.Traduzir(dadosApi.Nacionalidade);
+                                if (!string.Equals(nacSelecionada?.Nome?.Trim(), nacApi.Trim(), StringComparison.OrdinalIgnoreCase) &&
+                                    !string.Equals(nacSelecionada?.Nome?.Trim(), dadosApi.Nacionalidade.Trim(), StringComparison.OrdinalIgnoreCase))
+                                    divergencias.Add($"Nacionalidade divergente. API: {nacApi}");
                             }
                         }
+                    }
+
+                    // Nome renomeado à mão: descarta o PrimeiroNome/UltimoNome da API,
+                    // senão o NomeExibicao (usado em estatísticas, relatórios, tooltips...)
+                    // continua mostrando o nome antigo. Só o botão "Atualizar info" os repõe.
+                    if (!string.Equals(jogadorExistente.Nome?.Trim(), jogador.Nome?.Trim(), StringComparison.Ordinal))
+                    {
+                        jogadorExistente.PrimeiroNome = null;
+                        jogadorExistente.UltimoNome = null;
                     }
 
                     // Atualiza campos
@@ -332,13 +334,17 @@ namespace ControleFutebolWeb.Controllers
                         : null;
                     jogadorExistente.TimeId = jogador.TimeId;
                     jogadorExistente.NacionalidadeId = jogador.NacionalidadeId;
+                    jogadorExistente.Altura = jogador.Altura;
+                    jogadorExistente.Peso = jogador.Peso;
                     jogadorExistente.Observacoes = jogador.Observacoes;
                     jogadorExistente.FotoUrl = jogador.FotoUrl;
                     jogadorExistente.DtAlt = DateTime.UtcNow;
 
                     await _context.SaveChangesAsync();
 
-                    TempData["Mensagem"] = "Jogador atualizado com sucesso!";
+                    TempData["Mensagem"] = divergencias.Any()
+                        ? "Jogador atualizado. Atenção: " + string.Join(" | ", divergencias)
+                        : "Jogador atualizado com sucesso!";
                     TempData["MensagemTipo"] = "sucesso";
 
                     return VoltarParaLista(returnUrl, new { timeId = jogador.TimeId });
@@ -354,6 +360,8 @@ namespace ControleFutebolWeb.Controllers
 
             LogModelStateErrors("Edit");
 
+            ViewBag.Posicoes = new SelectList(await _context.Jogadores
+                .Select(j => j.Posicao).Distinct().OrderBy(p => p).ToListAsync(), jogador.Posicao);
             ViewBag.TimeId = new SelectList(_context.Times, "Id", "Nome", jogador.TimeId);
             ViewBag.NacionalidadeId = new SelectList(_context.Nacionalidades, "Id", "Nome", jogador.NacionalidadeId);
             return View(jogador);
@@ -410,13 +418,14 @@ namespace ControleFutebolWeb.Controllers
         /// Já chega com uma sugestão de termo, mas quem escolhe é uma pessoa: o nome
         /// completo do cadastro geralmente não acha nada lá e o curto traz homônimos.
         ///
-        /// RESTRITA A ADMIN. É o único ponto do sistema onde a fonte dos dados aparece
-        /// — não dá para escolher o registro certo sem ver de onde ele vem, e há um
-        /// link para conferir antes de gravar. O usuário comum nunca chega aqui: para
-        /// ele, a tela de estatísticas avançadas não cita fonte nenhuma.
+        /// Aberta a qualquer usuário autenticado. Já foi restrita a admin — para não
+        /// expor a fonte dos dados —, mas o botão "Estatísticas avançadas" da página
+        /// do jogador aponta para cá sempre que falta vínculo, e o não-admin caía no
+        /// AccessDeniedPath (a tela de login) sem entender o que tinha acontecido.
+        /// Escolher o registro certo exige ver de onde ele vem, então a fonte aparece
+        /// aqui para todo mundo, com o link de conferência antes de gravar.
         /// </summary>
         [HttpGet]
-        [Authorize(Policy = "Admin")]
         public async Task<IActionResult> VincularEstatisticas(int id, string? termo, CancellationToken ct)
         {
             var jogador = await _context.Jogadores.AsNoTracking()
@@ -450,7 +459,6 @@ namespace ControleFutebolWeb.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Policy = "Admin")]
         public async Task<IActionResult> VincularEstatisticas(int id, long idExterno, CancellationToken ct)
         {
             var jogador = await _context.Jogadores.FirstOrDefaultAsync(j => j.Id == id, ct);
@@ -499,11 +507,96 @@ namespace ControleFutebolWeb.Controllers
                 return RedirectToAction(nameof(VincularEstatisticas), new { id });
             }
 
+            // Aproveita a visita para completar o cadastro com o que a api-football não
+            // trouxe (altura, nascimento, nacionalidade e foto). É de graça: o perfil
+            // buscado aqui é o mesmo que o MontarAsync abaixo lê do cache. Só preenche
+            // o que está vazio — ver FotMobCadastroService.
+            var completados = await _fotmobCadastro.ComplementarAsync(jogador.Id, idFotMob, ct);
+            if (completados.Count > 0)
+                TempData["Mensagem"] = $"Cadastro de {jogador.Nome} completado pelo FotMob: " +
+                                       $"{string.Join(", ", completados)}.";
+
             var vm = await _fotmobPerfil.MontarAsync(idFotMob, temporadaId, ct);
             vm.JogadorId = jogador.Id;
-            vm.JogadorNome = jogador.Nome;
+
+            // Cabeçalho igual ao da página do jogador. Lido AGORA, e não junto da
+            // consulta lá em cima, porque o cadastro pode ter acabado de ganhar altura,
+            // nome, nacionalidade e foto — carregá-lo antes mostraria o estado anterior,
+            // com o dado novo aparecendo só na próxima visita.
+            vm.Cadastro = await _context.Jogadores
+                .AsNoTracking()
+                .Include(j => j.Time)
+                .Include(j => j.Nacionalidade)
+                .Include(j => j.Selecao)
+                .FirstOrDefaultAsync(j => j.Id == id, ct);
+            vm.JogadorNome = vm.Cadastro?.Nome ?? jogador.Nome;
 
             return View(vm);
+        }
+
+        /// <summary>
+        /// Botão "Sincronizar com FotMob" da tela de estatísticas avançadas: sobrescreve
+        /// foto, nome, altura, idade e nacionalidade com o perfil do FotMob, só nos
+        /// campos que estiverem diferentes — ver FotMobCadastroService.SincronizarAsync.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SincronizarFotMob(int id, CancellationToken ct)
+        {
+            var idFotMob = await _context.Jogadores
+                .Where(j => j.Id == id)
+                .Select(j => j.IdFotMob)
+                .FirstOrDefaultAsync(ct);
+
+            if (idFotMob is not long idF)
+                return RedirectToAction(nameof(VincularEstatisticas), new { id });
+
+            var alterados = await _fotmobCadastro.SincronizarAsync(id, idF, ct);
+
+            TempData["Mensagem"] = alterados switch
+            {
+                null => "Não foi possível ler o perfil do FotMob agora. Nada foi alterado.",
+                { Count: 0 } => "Cadastro já está igual ao FotMob. Nada foi alterado.",
+                _ => $"Sincronizado com o FotMob: {string.Join(", ", alterados)}.",
+            };
+
+            return RedirectToAction(nameof(EstatisticasAvancadas), new { id });
+        }
+
+        /// <summary>
+        /// Lesão atual do jogador, para o selo do cabeçalho de /Jogadores/Estatisticas.
+        ///
+        /// É um endpoint separado, chamado pela própria tela depois que ela já apareceu,
+        /// e não um campo do modelo dela. A razão é a de sempre por aqui: a página do
+        /// jogador não pode passar a depender do FotMob para carregar. Se a fonte estiver
+        /// lenta ou fora do ar, o que falta é um selo — o resto da tela já está na frente
+        /// do usuário há tempo.
+        ///
+        /// Devolve sempre 200: "não tem lesão", "não está vinculado" e "a fonte não
+        /// respondeu" são o mesmo desfecho para quem chamou (não desenhar nada), e um
+        /// erro HTTP só sujaria o console do navegador.
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> SituacaoFisica(int id, CancellationToken ct)
+        {
+            var idFotMob = await _context.Jogadores
+                .AsNoTracking()
+                .Where(j => j.Id == id)
+                .Select(j => j.IdFotMob)
+                .FirstOrDefaultAsync(ct);
+
+            if (idFotMob is not long externo) return Json(new { lesionado = false });
+
+            var situacao = await _fotmobPerfil.SituacaoFisicaAsync(externo, ct);
+            if (situacao == null) return Json(new { lesionado = false });
+
+            return Json(new
+            {
+                lesionado = true,
+                lesao = situacao.Lesao,
+                retorno = situacao.Retorno,
+                atualizado = situacao.AtualizadoEm?.ToString("dd/MM/yyyy"),
+            });
         }
 
         public async Task<IActionResult> Estatisticas(int id, int? competicaoId, int? temporada)
@@ -962,6 +1055,7 @@ namespace ControleFutebolWeb.Controllers
                 MediaNotas = mediaFinal,
                 TotalJogos = notasPorJogo.Count(x => x.Analisado),
                 TotalJogosParticipados = notasPorJogo.Count,
+                TotalMinutos = minutosPorJogoId.Values.Sum(),
                 TotalGols = gols.Count,
                 TotalAssistencias = assistencias.Count,
                 NotasPorJogo = notasPorJogo,

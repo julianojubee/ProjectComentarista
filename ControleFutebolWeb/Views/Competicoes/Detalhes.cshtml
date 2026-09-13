@@ -6,7 +6,10 @@
 @{
     ViewData["Title"] = Model.Competicao.Nome;
     var semJogos = !Model.Competicao.Jogos.Any();
-    var temApiLink = Model.Competicao.LinkTransfermarket?.StartsWith("apifoot:") == true;
+    // BuscarJogos aceita api-football e FIFA; só checar "apifoot:" escondia o
+    // botão nas competições ligadas por fifa:IDCOMPETITION:IDSEASON.
+    var temApiLink = ControleFutebolWeb.Services.ApiFootballService.IsApiFootballLink(Model.Competicao.LinkTransfermarket)
+                     || ControleFutebolWeb.Services.FifaService.IsFifaLink(Model.Competicao.LinkTransfermarket);
 
     var tipoNorm = (Model.Tipo ?? "").Trim().ToUpperInvariant();
     var (heroGrad, accent, tipoLabel) = tipoNorm switch
@@ -353,6 +356,7 @@
                             <button type="submit" class="cd-pill" style="border:none;">🔄 @(semJogos ? "Importar Jogos" : "Sincronizar jogos")</button>
                         </form>
                     }
+                    <a href="@Url.Action("Index", "AnotacoesCompeticao", new { competicaoId = Model.Competicao.Id })" class="cd-pill">📝 Anotações</a>
                     <a href="@Url.Action("Edit", "Competicoes", new { id = Model.Competicao.Id })" class="cd-pill cd-pill-accent">✏️ Editar competição</a>
                     <button type="button" class="cd-pill" data-bs-toggle="modal" data-bs-target="#capaModal">🎨 Personalizar capa</button>
                 </div>
@@ -435,10 +439,12 @@
                         @if (f.Fase.Tipo == "GRUPOS")
                         {
                             @await Html.PartialAsync("_PainelGrupos", f.Grupos)
+                            @await Html.PartialAsync("_ArtilheirosAssistencias", (Model.Competicao.Id, temporadaDetSel))
                         }
                         else if (f.Fase.Tipo == "MATA_MATA" || f.Fase.Tipo == "JOGO_UNICO")
                         {
                             @await Html.PartialAsync("_PainelChaveamento", f.FasesMataMata)
+                            @await Html.PartialAsync("_ArtilheirosAssistencias", (Model.Competicao.Id, temporadaDetSel))
                         }
                         else
                         {
@@ -467,6 +473,7 @@
             {
                 <div class="cd-panel" id="cd-panel-grupos" style="@(tabInicial == "grupos" ? "" : "display:none;")">
                     @await Html.PartialAsync("_PainelGrupos", Model.Grupos)
+                    @await Html.PartialAsync("_ArtilheirosAssistencias", (Model.Competicao.Id, temporadaDetSel))
                 </div>
             }
 
@@ -475,6 +482,7 @@
             {
                 <div class="cd-panel" id="cd-panel-bracket" style="@(tabInicial == "bracket" ? "" : "display:none;")">
                     @await Html.PartialAsync("_PainelChaveamento", Model.FasesMataMata)
+                    @await Html.PartialAsync("_ArtilheirosAssistencias", (Model.Competicao.Id, temporadaDetSel))
                 </div>
             }
 

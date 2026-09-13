@@ -26,6 +26,14 @@
         public const string Espn = "espn";
         public const string FotMob = "fotmob";
 
+        /// <summary>
+        /// Marcação manual sobre o vídeo da partida (/MarcacaoVideo/Marcar). Usada
+        /// nas competições que fonte nenhuma cobre — o Mundial Sub-20 feminino é o
+        /// caso que motivou a tela. É a única fonte em que o dado é produzido aqui
+        /// dentro, tecla a tecla, e não importado.
+        /// </summary>
+        public const string Video = "video";
+
         // Allowlist, não blocklist: métrica nova nasce "não coberta pela ESPN" até
         // alguém conferir que a ESPN publica aquilo. Errar para o lado de descartar
         // dado só tira base da nota; errar para o outro lado inventa desempenho.
@@ -81,6 +89,26 @@
                 "duelos", "duelos_precisao",
             };
 
+        // A marcação por vídeo cobre tudo que o FotMob cobre MAIS a família inteira
+        // de pênaltis: quem marca vê o lance e sabe separar pênalti perdido (a
+        // cobrança foi para fora) de pênalti defendido (a goleira pegou) — a
+        // distinção que o FotMob não publica e por isso fica de fora lá.
+        //
+        // A lista continua sendo allowlist pelo mesmo motivo das outras: métrica
+        // nova nasce descoberta aqui até ganhar uma tecla no catálogo
+        // (AcoesMarcacaoVideo.Todas). Sem tecla ninguém marca aquilo, a coluna
+        // fica 0 e o rating leria esse 0 como desempenho ruim de verdade.
+        private static readonly HashSet<string> CobertosPeloVideo =
+            new(CobertosPeloFotMob, StringComparer.Ordinal)
+            {
+                // AcaoId dos critérios de nota
+                "penalti_perdido", "penalti_defendido",
+
+                // Id dos eventos raros do rating
+                "evento_penalti_defendido", "evento_penalti_sofrido",
+                "evento_penalti_perdido", "evento_penalti_cometido",
+            };
+
         /// <summary>
         /// A fonte informa esse campo? Fonte desconhecida ou vazia é tratada como
         /// api-football: é o que as linhas gravadas antes desta coluna existir são.
@@ -89,6 +117,7 @@
         {
             Espn => CobertosPelaEspn.Contains(id),
             FotMob => CobertosPeloFotMob.Contains(id),
+            Video => CobertosPeloVideo.Contains(id),
             _ => true,
         };
     }

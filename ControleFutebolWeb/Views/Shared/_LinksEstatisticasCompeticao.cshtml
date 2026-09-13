@@ -1,12 +1,17 @@
 @model (int CompeticaoId, int? Temporada)
 @*
-    Atalhos para as duas telas de estatística que valem para qualquer competição
-    (Competicoes/Estatisticas e Competicoes/EquipeDaRodada). Ficam num partial
-    porque as competições com página própria — Brasileirão, Libertadores, Copa do
-    Brasil, Sul-Americana, Champions, Copa do Mundo — precisam exatamente do mesmo
-    par de links, e só mudam no id e na temporada selecionada.
+    Atalhos que valem para qualquer competição — as duas telas de estatística
+    (Competicoes/Estatisticas e Competicoes/EquipeDaRodada) e as anotações. Ficam
+    num partial porque as competições com página própria — Brasileirão, Libertadores,
+    Copa do Brasil, Sul-Americana, Champions, Copa do Mundo — precisam exatamente do
+    mesmo conjunto de links, e só mudam no id e na temporada selecionada.
 *@
 <div class="lec-links">
+    @* returnUrl: nas telas fixas o "voltar" das anotações precisa cair aqui, e não
+       em /Competicoes/Detalhes — mesmo padrão do _BotaoSincronizarJogos. *@
+    <a asp-controller="AnotacoesCompeticao" asp-action="Index"
+       asp-route-competicaoId="@Model.CompeticaoId"
+       asp-route-returnUrl="@(Context.Request.Path + Context.Request.QueryString)">📝 Anotações</a>
     <a asp-controller="Competicoes" asp-action="EquipeDaRodada"
        asp-route-id="@Model.CompeticaoId" asp-route-temporada="@Model.Temporada">⭐ Equipe da rodada</a>
     <a asp-controller="Competicoes" asp-action="Estatisticas"

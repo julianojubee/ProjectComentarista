@@ -1,4 +1,5 @@
-using ControleFutebolWeb.Data;
+﻿using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -56,6 +57,15 @@ namespace ControleFutebolWeb.Controllers
                 .OrderBy(c => c.Minuto)
                 .ToListAsync();
 
+            // Lado de quem entrou em campo neste jogo — o gol segue a escalação, não o
+            // clube atual do cadastro (que muda quando o jogador é transferido).
+            var escalacoes = await LadoJogadorHelper
+                .EscalacoesDosEventos(_context, new[] { jogoId },
+                    gols.Select(g => g.JogadorId)
+                        .Concat(assistencias.Select(a => a.JogadorId))
+                        .Concat(cartoes.Select(c => c.JogadorId)))
+                .ToListAsync();
+
             var substituicoes = await _context.Substituicoes
                 .Include(s => s.JogadorEntrou)
                 .Include(s => s.JogadorSaiu)
@@ -75,6 +85,8 @@ namespace ControleFutebolWeb.Controllers
                 .OrderBy(p => p.Ordem)
                 .ToListAsync();
 
+            var ladosEscalacao = LadoJogadorHelper.Montar(escalacoes);
+
             var resultado = new
             {
                 placarCasa = jogo.PlacarCasa,
@@ -82,26 +94,16 @@ namespace ControleFutebolWeb.Controllers
                 penaltisCasa = jogo.PenaltisCasa,
                 penaltisVis = jogo.PenaltisVisitante,
 
-                gols = gols.Select(g => new
+                // Lado e assistência saem do GolResumoHelper — a mesma regra que a tela
+                // Jogos/Hoje usa para montar o placar dos cards.
+                gols = GolResumoHelper.Montar(jogo, gols, assistencias, escalacoes).Select(g => new
                 {
                     id = g.Id,
                     minuto = g.Minuto,
-                    nomeJogador = g.Jogador?.Nome,
-                    nomeAssistencia = assistencias
-                        .Where(a => a.Minuto == g.Minuto && !g.Contra &&
-                                    a.Jogador != null &&
-                                    (a.Jogador.TimeId == g.Jogador!.TimeId ||
-                                     a.Jogador.SelecaoId == g.Jogador!.TimeId ||
-                                     a.Jogador.TimeId == g.Jogador!.SelecaoId ||
-                                     (a.Jogador.SelecaoId != null && a.Jogador.SelecaoId == g.Jogador!.SelecaoId)))
-                        .Select(a => a.Jogador!.Nome)
-                        .FirstOrDefault(),
+                    nomeJogador = g.NomeJogador,
+                    nomeAssistencia = g.NomeAssistencia,
                     contra = g.Contra,
-                    timeCasaId = g.Contra
-                        ? ((g.Jogador?.TimeId == jogo.TimeCasaId || g.Jogador?.SelecaoId == jogo.TimeCasaId)
-                            ? null : (int?)jogo.TimeCasaId)
-                        : ((g.Jogador?.TimeId == jogo.TimeCasaId || g.Jogador?.SelecaoId == jogo.TimeCasaId)
-                            ? (int?)jogo.TimeCasaId : null)
+                    timeCasaId = g.EhCasa ? (int?)jogo.TimeCasaId : null
                 }),
 
                 cartoes = cartoes.Select(c => new
@@ -110,7 +112,8 @@ namespace ControleFutebolWeb.Controllers
                     minuto = c.Minuto,
                     tipo = c.Tipo,
                     nomeJogador = c.Jogador?.Nome,
-                    timeCasaId = c.Jogador?.TimeId == jogo.TimeCasaId || c.Jogador?.SelecaoId == jogo.TimeCasaId
+                    // Mesmo critério de lado dos gols: escalação do jogo primeiro.
+                    timeCasaId = LadoJogadorHelper.EhDoTimeDaCasa(c.Jogador, jogo, ladosEscalacao)
                         ? (int?)jogo.TimeCasaId : null
                 }),
 
@@ -228,32 +231,36 @@ namespace ControleFutebolWeb.Controllers
 
             var jogo = gol.Jogo;
 
-            if (!gol.Contra)
-            {
-                bool isCasa = gol.Jogador?.TimeId == jogo.TimeCasaId;
-                if (isCasa)
-                    jogo.PlacarCasa = Math.Max(0, (jogo.PlacarCasa ?? 1) - 1);
-                else
-                    jogo.PlacarVisitante = Math.Max(0, (jogo.PlacarVisitante ?? 1) - 1);
-            }
+            // Lado do autor NAQUELE jogo (escalação), não o clube atual do cadastro: para
+            // um jogador transferido depois da partida, o placar era descontado do time
+            // errado — e aqui o estrago fica gravado no banco.
+            var atuacaoAutor = await LadoJogadorHelper.CarregarLadosAsync(
+                _context, new[] { gol.JogoId }, new[] { gol.JogadorId });
+
+            bool autorEhDaCasa = LadoJogadorHelper.EhDoTimeDaCasa(gol.Jogador, jogo, atuacaoAutor);
+            // Gol contra conta para o adversário de quem marcou.
+            bool contouParaCasa = autorEhDaCasa != gol.Contra;
+
+            if (contouParaCasa)
+                jogo.PlacarCasa = Math.Max(0, (jogo.PlacarCasa ?? 1) - 1);
             else
-            {
-                bool isCasa = gol.Jogador?.TimeId == jogo.TimeCasaId;
-                if (isCasa)
-                    jogo.PlacarVisitante = Math.Max(0, (jogo.PlacarVisitante ?? 1) - 1);
-                else
-                    jogo.PlacarCasa = Math.Max(0, (jogo.PlacarCasa ?? 1) - 1);
-            }
+                jogo.PlacarVisitante = Math.Max(0, (jogo.PlacarVisitante ?? 1) - 1);
 
             _context.Gols.Remove(gol);
 
-            // Remove assistência vinculada ao mesmo minuto (se existir)
+            // Remove a assistência vinculada: mesmo minuto e mesmo lado do autor.
             if (!gol.Contra && gol.Jogador != null)
             {
-                var assist = await _context.Assistencias
+                var candidatas = await _context.Assistencias
                     .Include(a => a.Jogador)
-                    .FirstOrDefaultAsync(a => a.JogoId == gol.JogoId && a.Minuto == gol.Minuto
-                                           && a.Jogador != null && a.Jogador.TimeId == gol.Jogador.TimeId);
+                    .Where(a => a.JogoId == gol.JogoId && a.Minuto == gol.Minuto && a.Jogador != null)
+                    .ToListAsync();
+
+                var atuacoesAssist = await LadoJogadorHelper.CarregarLadosAsync(
+                    _context, new[] { gol.JogoId }, candidatas.Select(a => a.JogadorId));
+
+                var assist = candidatas.FirstOrDefault(
+                    a => LadoJogadorHelper.EhDoTimeDaCasa(a.Jogador, jogo, atuacoesAssist) == autorEhDaCasa);
                 if (assist != null)
                     _context.Assistencias.Remove(assist);
             }

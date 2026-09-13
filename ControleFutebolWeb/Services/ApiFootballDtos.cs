@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -110,6 +110,17 @@ namespace ControleFutebolWeb.Services
     {
         [JsonPropertyName("short")]
         public string Short { get; set; } = "";
+
+        // Minuto corrido no instante da consulta. Nulo antes de começar; depois do apito
+        // final fica congelado no minuto do fim. No 2º tempo é o minuto DA PARTIDA
+        // (46-90), não os minutos desde o reinício.
+        [JsonPropertyName("elapsed")]
+        public int? Elapsed { get; set; }
+
+        // Acréscimos, quando a API informa (elapsed 45 + extra 2 = 45+2). Vem nulo em
+        // boa parte das ligas.
+        [JsonPropertyName("extra")]
+        public int? Extra { get; set; }
     }
 
     public class AfLeague
@@ -1113,5 +1124,27 @@ namespace ControleFutebolWeb.Services
     {
         [JsonPropertyName("name")] public string  Name { get; set; } = "";
         [JsonPropertyName("flag")] public string? Flag { get; set; }
+    }
+
+    // ── /injuries?fixture=X — quem está fora da partida ───────────────────────
+    // Uma entrada por jogador POR MOTIVO, e a API repete o bloco inteiro (o mesmo
+    // fixture veio com 26 entradas para 13 jogadores) — quem lê precisa desduplicar.
+    public class AfInjuryEntry
+    {
+        [JsonPropertyName("player")] public AfInjuryPlayer Player { get; set; } = new();
+        [JsonPropertyName("team")]   public AfTeamRef      Team   { get; set; } = new();
+    }
+
+    public class AfInjuryPlayer
+    {
+        [JsonPropertyName("id")]    public int?    Id    { get; set; }
+        [JsonPropertyName("name")]  public string? Name  { get; set; }
+        [JsonPropertyName("photo")] public string? Photo { get; set; }
+
+        /// <summary>"Missing Fixture" (fora) ou "Questionable" (dúvida).</summary>
+        [JsonPropertyName("type")]   public string? Type   { get; set; }
+
+        /// <summary>Texto livre: "Yellow Cards", "Ankle Injury", "Inactive".</summary>
+        [JsonPropertyName("reason")] public string? Reason { get; set; }
     }
 }

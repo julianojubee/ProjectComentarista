@@ -1,9 +1,10 @@
-@using ControleFutebolWeb.Controllers
+﻿@using ControleFutebolWeb.Controllers
 @model List<ControleFutebolWeb.Models.Jogo>
 
 @{
     // Próximos jogos vêm no Model; artilheiros via ViewBag (compartilhado com a view pai).
     var artilheiros = ViewBag.Artilheiros as List<ArtilheiroViewModel> ?? new();
+    var assistentes = ViewBag.Assistencias as List<ControleFutebolWeb.Models.ViewModels.RankingJogadorViewModel> ?? new();
 }
 
 <div class="cd-sidebar">
@@ -53,7 +54,7 @@
                 <div class="cd-artilheiro">
                     <span class="cd-art-rank" style="color:@rankColors[Math.Min(i, rankColors.Length - 1)];">@(i + 1)</span>
                     <a class="cd-art-avatar" asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@a.Jogador.Id"
-                       title="Ver estatísticas de @a.Jogador.NomeExibicao">
+                       title="Ver estatísticas de @a.Jogador.Nome">
                         @if (!string.IsNullOrEmpty(a.Jogador.FotoUrl))
                         {
                             <img src="@Url.FotoSrc(a.Jogador.FotoUrl)" alt="" />
@@ -61,7 +62,7 @@
                     </a>
                     <div style="flex:1; min-width:0;">
                         <a class="cd-art-nome" asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@a.Jogador.Id"
-                           title="Ver estatísticas de @a.Jogador.NomeExibicao">@a.Jogador.NomeExibicao</a>
+                           title="Ver estatísticas de @a.Jogador.Nome">@a.Jogador.Nome</a>
                         <a class="cd-art-clube" asp-controller="Times" asp-action="Details" asp-route-id="@a.Jogador.TimeId" title="Ver @a.Jogador.Time?.Nome">
                             @if (!string.IsNullOrEmpty(a.Jogador.Time?.EscudoUrl))
                             {
@@ -71,6 +72,44 @@
                         </a>
                     </div>
                     <span class="cd-art-gols">@(a.Gols)⚽</span>
+                </div>
+            }
+        }
+    </div>
+
+    <div class="cd-side-card">
+        <div class="cd-side-header"><span class="cd-side-title">🅰️ Assistências</span></div>
+        @if (!assistentes.Any())
+        {
+            <div class="cd-vazio">Nenhuma assistência registrada ainda.</div>
+        }
+        else
+        {
+            var rankColorsAssist = new[] { "var(--warn)", "var(--text-muted)", "#b45309", "#374151", "#374151" };
+            for (int i = 0; i < assistentes.Count; i++)
+            {
+                var a = assistentes[i];
+                <div class="cd-artilheiro">
+                    <span class="cd-art-rank" style="color:@rankColorsAssist[Math.Min(i, rankColorsAssist.Length - 1)];">@(i + 1)</span>
+                    <a class="cd-art-avatar" asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@a.Jogador.Id"
+                       title="Ver estatísticas de @a.Jogador.Nome">
+                        @if (!string.IsNullOrEmpty(a.Jogador.FotoUrl))
+                        {
+                            <img src="@Url.FotoSrc(a.Jogador.FotoUrl)" alt="" />
+                        }
+                    </a>
+                    <div style="flex:1; min-width:0;">
+                        <a class="cd-art-nome" asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@a.Jogador.Id"
+                           title="Ver estatísticas de @a.Jogador.Nome">@a.Jogador.Nome</a>
+                        <a class="cd-art-clube" asp-controller="Times" asp-action="Details" asp-route-id="@a.Jogador.TimeId" title="Ver @a.Jogador.Time?.Nome">
+                            @if (!string.IsNullOrEmpty(a.Jogador.Time?.EscudoUrl))
+                            {
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = a.Jogador.Time.EscudoUrl })" alt="" />
+                            }
+                            <span>@(a.Jogador.Time?.Nome ?? "—")</span>
+                        </a>
+                    </div>
+                    <span class="cd-art-gols">@(a.Valor)🅰️</span>
                 </div>
             }
         }

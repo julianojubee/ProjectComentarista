@@ -1,4 +1,4 @@
-namespace ControleFutebolWeb.Helpers;
+﻿namespace ControleFutebolWeb.Helpers;
 
 /// <summary>
 /// Mapa centralizado de traduções e variantes de nomes de países/seleções.
@@ -285,6 +285,9 @@ public static class CountryHelper
         ["Taiwan"]                              = "Taiwan",
         ["North Korea"]                         = "Coreia do Norte",
         ["Korea DPR"]                           = "Coreia do Norte",
+        // Como a FIFA escreve nos Mundiais (ver FifaService) — "DPR Korea" e "China PR".
+        ["DPR Korea"]                           = "Coreia do Norte",
+        ["China PR"]                            = "China",
 
         // ── OFC extra ────────────────────────────────────────────────────────
         ["Fiji"]                                = "Fiji",

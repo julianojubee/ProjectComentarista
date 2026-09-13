@@ -75,7 +75,8 @@ namespace ControleFutebolWeb.Filters
             if (context.ActionDescriptor is not ControllerActionDescriptor d) return false;
             return string.Equals(d.ControllerName, "Account", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(d.ControllerName, "Blog", StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(d.ControllerName, "AnalisePublica", StringComparison.OrdinalIgnoreCase);
+                   string.Equals(d.ControllerName, "AnalisePublica", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(d.ControllerName, "Creators", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

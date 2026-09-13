@@ -1,0 +1,218 @@
+@model ControleFutebolWeb.Models.ViewModels.PlacaresDivergentesViewModel
+
+@{
+    ViewData["Title"] = "Placares divergentes";
+}
+
+<style>
+    .pdv-wrap { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1rem; }
+    .pdv-card {
+        background: var(--p-alt-2);
+        border-radius: 12px;
+        padding: 1.2rem 1.4rem;
+        margin-bottom: 1.2rem;
+        border: 1px solid rgba(255,255,255,.07);
+    }
+    .pdv-desc { font-size: .84rem; color: var(--text-muted); line-height: 1.55; }
+    .pdv-filtros { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+    .pdv-filtros label { display: block; font-size: 10px; text-transform: uppercase;
+        letter-spacing: .4px; color: var(--text-dim); margin-bottom: 3px; }
+    .pdv-filtros select {
+        background: rgba(255,255,255,.05); color: var(--text-2);
+        border: 1px solid rgba(255,255,255,.12); border-radius: 7px;
+        padding: 5px 10px; font-size: .85rem; min-width: 190px;
+    }
+    .pdv-tabela { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    .pdv-tabela th {
+        text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .4px;
+        color: var(--text-dim); padding: .5rem .6rem; border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .pdv-tabela td { padding: .5rem .6rem; border-bottom: 1px solid rgba(255,255,255,.04); color: var(--text-2); }
+    .pdv-tabela tr:hover td { background: rgba(255,255,255,.03); }
+    .pdv-placar { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .pdv-gravado { color: var(--text-strong); font-weight: 700; }
+    .pdv-calculado { color: var(--warn); font-weight: 700; }
+    .tag { padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: .3px; }
+    .tag-total { background: rgba(239,68,68,.14); color: var(--bad); }
+    .tag-lado  { background: rgba(251,191,36,.14); color: var(--warn); }
+    .tag-nao   { background: rgba(148,163,184,.12); color: var(--text-muted); }
+    .btn-srv { border: none; border-radius: 7px; font-size: 12px; font-weight: 600;
+        padding: 5px 14px; cursor: pointer; transition: opacity .15s; }
+    .btn-srv:hover { opacity: .8; }
+    .btn-srv:disabled { opacity: .35; cursor: not-allowed; }
+    .btn-reiniciar { background: rgba(59,130,246,.15); color: var(--info); border: 1px solid rgba(59,130,246,.25); }
+    .aviso { border-radius: 8px; padding: .7rem 1rem; margin-bottom: 1rem; font-size: .88rem; }
+    .aviso-ok  { background: rgba(34,197,94,.12); color: var(--ok); border: 1px solid rgba(34,197,94,.25); }
+    .aviso-err { background: rgba(239,68,68,.12); color: var(--bad); border: 1px solid rgba(239,68,68,.25); }
+</style>
+
+<div class="pdv-wrap">
+
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.2rem; gap:12px; flex-wrap:wrap;">
+        <h2 style="margin:0; color:var(--text-strong); font-size:1.4rem; font-weight:700">
+            🧮 Placares divergentes
+        </h2>
+        <a asp-action="Index" style="font-size:.82rem; color:var(--info); text-decoration:none;">← Serviços</a>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="aviso aviso-ok">✅ @TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="aviso aviso-err">⚠️ @TempData["Erro"]</div>
+    }
+
+    <div class="pdv-card">
+        <div class="pdv-desc">
+            Partidas em que o placar gravado não fecha com os gols cadastrados. O placar de cada jogo é
+            remontado aqui a partir dos gols, com o lado de cada autor tirado da escalação daquela
+            partida — a mesma regra da timeline da análise. São dois defeitos diferentes:
+            <br /><br />
+            <span class="tag tag-total">gols faltando</span>
+            a soma dos gols cadastrados não chega ao placar. A api-football devolveu o jogo sem parte dos
+            eventos; reimportar costuma resolver.
+            <br /><br />
+            <span class="tag tag-lado">lado trocado</span>
+            a soma bate e só a divisão casa×visitante difere. Ou o autor do gol não está na escalação do
+            jogo (aí o lado dele sai do clube <em>atual</em> do cadastro, que muda quando ele é
+            transferido), ou a escalação foi gravada com o lado invertido. Reimportar traz lineup e
+            eventos de novo e acerta os dois casos.
+            <br /><br />
+            <span class="tag tag-nao">prorrogação</span>
+            o jogo teve gol depois dos 90. A api-football às vezes deixa o placar no resultado do tempo
+            normal e manda os gols da prorrogação nos eventos — aí a soma sobra sem que falte nada na
+            base, e reimportar não muda: a inconsistência é da fonte.
+            <br /><br />
+            <strong>Reimportar</strong> chama a api-football e regrava escalação, eventos e placar oficial
+            do jogo — é a mesma ação do botão de reimportar escalação da tela de análise. Jogo sem
+            <code>LinkDetalhes</code> no formato <code>apifoot:{fixtureId}</code> não pode ser reimportado
+            e aparece na lista só para o buraco ficar visível.
+        </div>
+    </div>
+
+    <div class="pdv-card">
+        <form method="get" class="pdv-filtros">
+            <div>
+                <label>Competição</label>
+                <select name="competicaoId" onchange="this.form.submit()">
+                    <option value="">Todas (@Model.Competicoes.Sum(c => c.Quantidade))</option>
+                    @foreach (var c in Model.Competicoes)
+                    {
+                        <option value="@c.Id" selected="@(Model.CompeticaoId == c.Id)">
+                            @c.Nome (@c.Quantidade)
+                        </option>
+                    }
+                </select>
+            </div>
+            <div>
+                <label>Temporada</label>
+                <select name="temporada" onchange="this.form.submit()">
+                    <option value="">Todas</option>
+                    @foreach (var t in Model.Temporadas)
+                    {
+                        <option value="@t" selected="@(Model.Temporada == t)">@t</option>
+                    }
+                </select>
+            </div>
+            <div style="flex:1"></div>
+            <div>
+                <span style="font-size:.82rem; color:var(--text-muted);">
+                    @Model.Total jogo(s) no filtro — @Model.TotalReimportaveis reimportável(is)
+                </span>
+            </div>
+        </form>
+
+        <form method="post" asp-action="ReimportarJogosDivergentesLote" style="margin-top:1rem;"
+              onsubmit="return confirm('Reimportar da api-football os próximos @Model.LimiteLote jogos do filtro atual? Escalação, eventos e placar serão regravados.');">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="competicaoId" value="@Model.CompeticaoId" />
+            <input type="hidden" name="temporada" value="@Model.Temporada" />
+            <button type="submit" class="btn-srv btn-reiniciar" @(Model.TotalReimportaveis == 0 ? "disabled" : "")>
+                🔄 Reimportar (até @Model.LimiteLote jogos)
+            </button>
+            <span style="font-size:.78rem; color:var(--text-dim); margin-left:10px;">
+                Uma requisição por jogo, do mais recente para o mais antigo — clique de novo para continuar de onde parou.
+            </span>
+        </form>
+    </div>
+
+    <div class="pdv-card">
+        @if (Model.Jogos.Count == 0)
+        {
+            <div class="pdv-desc">Nenhum placar divergente no filtro atual. 🎉</div>
+        }
+        else
+        {
+            <table class="pdv-tabela">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Competição</th>
+                        <th>Partida</th>
+                        <th>Gravado</th>
+                        <th>Pelos gols</th>
+                        <th>Motivo</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var j in Model.Jogos)
+                    {
+                        <tr>
+                            <td style="white-space:nowrap">@(j.Data?.ToString("dd/MM/yyyy") ?? "—")</td>
+                            <td>@j.Competicao</td>
+                            <td>
+                                <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@j.Id"
+                                   style="color:var(--text-2); text-decoration:none;">
+                                    @j.TimeCasa × @j.TimeVisitante
+                                </a>
+                            </td>
+                            <td class="pdv-placar pdv-gravado">@j.PlacarCasa×@j.PlacarVisitante</td>
+                            <td class="pdv-placar pdv-calculado">@j.GolsCasa×@j.GolsVisitante</td>
+                            <td>
+                                @if (j.MotivoTotal)
+                                {
+                                    <span class="tag tag-total">gols faltando</span>
+                                }
+                                else
+                                {
+                                    <span class="tag tag-lado">lado trocado</span>
+                                }
+                                @if (j.TemProrrogacao)
+                                {
+                                    <span class="tag tag-nao">prorrogação</span>
+                                }
+                                @if (!j.TemEscalacao)
+                                {
+                                    <span class="tag tag-nao">sem escalação</span>
+                                }
+                            </td>
+                            <td style="text-align:right; white-space:nowrap">
+                                <form method="post" asp-action="ReimportarJogo" style="display:inline"
+                                      onsubmit="return confirm('Reimportar o jogo @j.Id da api-football? Escalação, eventos e placar serão regravados.');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="jogoId" value="@j.Id" />
+                                    <input type="hidden" name="competicaoId" value="@Model.CompeticaoId" />
+                                    <input type="hidden" name="temporada" value="@Model.Temporada" />
+                                    <button type="submit" class="btn-srv btn-reiniciar" @(j.PodeReimportar ? "" : "disabled")>
+                                        🔄 Reimportar
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            @if (Model.Total > Model.Jogos.Count)
+            {
+                <div style="margin-top:.8rem; font-size:.8rem; color:var(--text-dim);">
+                    Mostrando os @Model.Jogos.Count mais recentes de @Model.Total — filtre por competição
+                    ou temporada para ver o resto.
+                </div>
+            }
+        }
+    </div>
+</div>

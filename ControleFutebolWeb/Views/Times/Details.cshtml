@@ -668,6 +668,14 @@
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                     Editar time
                 </a>
+                <form method="post" asp-action="ImportarElenco" asp-controller="Times" asp-route-id="@Model.Time.Id" style="display:inline;"
+                      onsubmit="return confirm('Buscar o elenco deste time na fonte da competição (api-football ou FIFA) e cadastrar quem ainda não existe?')">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="ctd-action-btn">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" /></svg>
+                        Buscar elenco
+                    </button>
+                </form>
                 <form method="post" asp-action="AtualizarDadosJogadores" asp-controller="Times" asp-route-id="@Model.Time.Id" style="display:inline;"
                       onsubmit="return confirm('Buscar idade, altura e peso na API para os jogadores do elenco que ainda não têm esses dados?')">
                     @Html.AntiForgeryToken()
@@ -1784,10 +1792,31 @@ const Estatisticas = (function () {
 
     // ── acesso aos dados, já respeitando o recorte selecionado ─────────────
     const temLocal = () => !!(local && local.disponivel);
-    const chaveApi = () => escopo === 'casa' ? 'home' : escopo === 'fora' ? 'away' : 'total';
+    const chaveApi = (esc) => esc === 'casa' ? 'home' : esc === 'fora' ? 'away' : 'total';
 
-    function agregado() {
-        const k = chaveApi(), f = api.fixtures, g = api.goals;
+    // Totais da temporada no recorte pedido. Sempre que o banco local tem os
+    // jogos cadastrados é ele que manda: a API-Football conta classificação por
+    // pênaltis como vitória com 1 gol pró (LDU 0x0 Mirassol nas oitavas da
+    // Libertadores 2026 virava 10 gols pró em vez de 9, e 5V-1E em vez de
+    // 4V-2E) e ainda credita o gol contra ao time do autor. Sem jogos locais,
+    // cai na API.
+    function agregadoEscopo(esc) {
+        if (temLocal()) {
+            const rs = local.rodadas.filter(r => esc === 'casa' ? r.casa : esc === 'fora' ? !r.casa : true);
+            const conta = (letra) => rs.filter(r => r.res === letra).length;
+            const soma = (campo) => rs.reduce((t, r) => t + (r[campo] || 0), 0);
+            const wins = conta('V'), draws = conta('E');
+            return {
+                played: rs.length,
+                wins, draws, loses: conta('D'),
+                gp: soma('gp'),
+                gc: soma('gc'),
+                cleanSheet: rs.filter(r => r.gc === 0).length,
+                failedToScore: rs.filter(r => r.gp === 0).length,
+                pts: wins * 3 + draws
+            };
+        }
+        const k = chaveApi(esc), f = api.fixtures, g = api.goals;
         const wins = f.wins[k] || 0, draws = f.draws[k] || 0;
         return {
             played: f.played[k] || 0,
@@ -1799,6 +1828,8 @@ const Estatisticas = (function () {
             pts: wins * 3 + draws
         };
     }
+
+    const agregado = () => agregadoEscopo(escopo);
 
     // Série de 7 intervalos vinda do banco local (soma casa+fora no recorte total).
     function serieLocal(grupo, tipo) {
@@ -1838,15 +1869,21 @@ const Estatisticas = (function () {
         return daApi.map(f => Object.assign({}, f, { aprov: aprovPorNome.has(f.nome) ? aprovPorNome.get(f.nome) : null }));
     }
 
-    // A API às vezes zera biggest.streak (ex.: Copa 2026 devolvia wins=0 com
-    // form "DWWWW"). Calcula a maior sequência direto da string de forma, que
-    // é confiável, e usa o valor da API apenas se for maior.
+    // Com jogos cadastrados a sequência sai deles, pelo mesmo motivo de
+    // agregadoEscopo (o form da API promove decisão por pênaltis a vitória).
+    // Só na API: ela às vezes zera biggest.streak (ex.: Copa 2026 devolvia
+    // wins=0 com form "DWWWW"), então vale a maior sequência da string de
+    // forma, e o valor da API apenas se for maior.
     function sequencias() {
         const maior = (form, ch) => {
             let max = 0, atual = 0;
             for (const c of form) { atual = (c === ch) ? atual + 1 : 0; if (atual > max) max = atual; }
             return max;
         };
+        if (temLocal()) {
+            const f = rodadas().map(r => r.res).join('');
+            return { V: maior(f, 'V'), E: maior(f, 'E'), D: maior(f, 'D') };
+        }
         const f = api.form || '', s = (api.biggest && api.biggest.streak) || {};
         return {
             V: Math.max(maior(f, 'W'), s.wins || 0),
@@ -1905,7 +1942,8 @@ const Estatisticas = (function () {
 
         if (tab === 'resultados') {
             return [
-                kpi('Jogos', e.played, '#e2e8f0', '🏠 ' + api.fixtures.played.home + ' / ✈️ ' + api.fixtures.played.away),
+                kpi('Jogos', e.played, '#e2e8f0',
+                    '🏠 ' + agregadoEscopo('casa').played + ' / ✈️ ' + agregadoEscopo('fora').played),
                 kpi('Aproveitamento', (e.played ? (e.pts / (e.played * 3) * 100).toFixed(1) : '0.0') + '%', '#d4a520',
                     e.pts + ' de ' + e.played * 3 + ' pontos'),
                 kpi('Vitórias', e.wins, '#22c55e', pct(e.wins, e.played) + '% dos jogos'),
@@ -2101,14 +2139,17 @@ const Estatisticas = (function () {
         };
 
         if (nome === 'casafora') {
-            const f = api.fixtures, cs = api.cleanSheet || {};
+            const serie = (esc) => {
+                const a = agregadoEscopo(esc);
+                return [a.played, a.wins, a.draws, a.loses, a.cleanSheet];
+            };
             return {
                 type: 'bar',
                 data: {
                     labels: ['Jogos', 'Vitórias', 'Empates', 'Derrotas', 'Sem sofrer gol'],
                     datasets: [
-                        { label: '🏠 Casa', data: [f.played.home, f.wins.home, f.draws.home, f.loses.home, cs.home || 0], backgroundColor: '#3b82f6', borderRadius: 4, maxBarThickness: 26 },
-                        { label: '✈️ Fora', data: [f.played.away, f.wins.away, f.draws.away, f.loses.away, cs.away || 0], backgroundColor: '#f97316', borderRadius: 4, maxBarThickness: 26 }
+                        { label: '🏠 Casa', data: serie('casa'), backgroundColor: '#3b82f6', borderRadius: 4, maxBarThickness: 26 },
+                        { label: '✈️ Fora', data: serie('fora'), backgroundColor: '#f97316', borderRadius: 4, maxBarThickness: 26 }
                     ]
                 },
                 options: Object.assign({}, base, {
@@ -2207,19 +2248,17 @@ const Estatisticas = (function () {
         }
 
         if (nome === 'medias') {
-            const g = api.goals, f = api.fixtures;
-            const trio = (k) => {
-                const j = f.played[k] || 1;
-                const gp = g.for.total[k] || 0, gc = g.against.total[k] || 0;
-                return [+(gp / j).toFixed(2), +(gc / j).toFixed(2), +((gp - gc) / j).toFixed(2)];
+            const trio = (esc) => {
+                const a = agregadoEscopo(esc), j = a.played || 1;
+                return [+(a.gp / j).toFixed(2), +(a.gc / j).toFixed(2), +((a.gp - a.gc) / j).toFixed(2)];
             };
             return {
                 type: 'bar',
                 data: {
                     labels: ['Gols pró/jogo', 'Gols sofridos/jogo', 'Saldo/jogo'],
                     datasets: [
-                        { label: '🏠 Casa', data: trio('home'), backgroundColor: '#3b82f6', borderRadius: 4, maxBarThickness: 30 },
-                        { label: '✈️ Fora', data: trio('away'), backgroundColor: '#f97316', borderRadius: 4, maxBarThickness: 30 },
+                        { label: '🏠 Casa', data: trio('casa'), backgroundColor: '#3b82f6', borderRadius: 4, maxBarThickness: 30 },
+                        { label: '✈️ Fora', data: trio('fora'), backgroundColor: '#f97316', borderRadius: 4, maxBarThickness: 30 },
                         { label: 'Total', data: trio('total'), backgroundColor: '#475569', borderRadius: 4, maxBarThickness: 30 }
                     ]
                 },

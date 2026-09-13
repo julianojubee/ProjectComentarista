@@ -1,0 +1,169 @@
+@model ControleFutebolWeb.Models.ViewModels.CompeticoesFifaViewModel
+@{
+    ViewData["Title"] = "Competições FIFA";
+
+    string Categoria(int ageType) => ageType switch
+    {
+        1 => "Sub-17",
+        2 => "Sub-19",
+        3 => "Sub-21",
+        4 => "Sub-20",
+        5 => "Sub-23",
+        6 => "Sub-18",
+        _ => "Principal",
+    };
+}
+
+<style>
+    .cfifa { color: var(--text); }
+    .cfifa-main { padding: 24px 2.5rem 64px; max-width: 1100px; margin: 0 auto; }
+
+    .cfifa-hero {
+        display: flex; align-items: center; justify-content: space-between; gap: 16px;
+        flex-wrap: wrap; padding: 28px 2.5rem 0; max-width: 1100px; margin: 0 auto;
+    }
+    .cfifa-hero h1 { font-family: 'Barlow Condensed', sans-serif; font-size: 2rem; font-weight: 800; margin: 0; color: var(--text-strong); }
+    .cfifa-hero p { font-size: .85rem; color: var(--text-dim); margin: 4px 0 0; max-width: 62ch; }
+    .cfifa-voltar {
+        display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
+        background: transparent; color: var(--gold-ink); border: 1px solid #d4a52055;
+        font-size: .82rem; font-weight: 700; border-radius: 8px; text-decoration: none;
+    }
+    .cfifa-voltar:hover { background: #d4a52015; color: var(--gold-ink); }
+
+    .cfifa-colunas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 20px; margin-top: 22px; }
+    @@media (max-width: 900px) { .cfifa-colunas { grid-template-columns: 1fr; } }
+
+    .cfifa-painel { background: var(--p-1); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    .cfifa-painel > h2 {
+        font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+        color: var(--text-dim); margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--line);
+    }
+    .cfifa-busca {
+        width: calc(100% - 32px); margin: 12px 16px; padding: 9px 14px;
+        background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 8px;
+        color: var(--text); font-size: .85rem; outline: none;
+    }
+    .cfifa-busca:focus { border-color: #d4a520; }
+
+    .cfifa-item {
+        display: flex; align-items: center; gap: 10px; padding: 9px 16px;
+        border-bottom: 1px solid var(--line-soft); font-size: .85rem;
+        color: var(--text); text-decoration: none;
+    }
+    .cfifa-item:last-child { border-bottom: none; }
+    .cfifa-item:hover { background: var(--p-2); color: var(--text); }
+    .cfifa-item.ativo { background: #d4a52012; border-left: 3px solid #d4a520; }
+    .cfifa-item .nome { flex: 1 1 auto; min-width: 0; }
+    .cfifa-item .selo {
+        flex: 0 0 auto; font-size: .68rem; font-weight: 700; padding: 2px 8px;
+        border-radius: 5px; text-transform: uppercase; letter-spacing: .04em;
+        background: rgba(59,130,246,.15); color: var(--info);
+    }
+    .cfifa-item .selo.fem { background: rgba(168,85,247,.15); color: var(--purple); }
+    .cfifa-item .registrada {
+        flex: 0 0 auto; font-size: .68rem; font-weight: 700; padding: 2px 8px;
+        border-radius: 5px; background: rgba(34,197,94,.15); color: var(--ok);
+    }
+    .cfifa-item .periodo { flex: 0 0 auto; font-size: .72rem; color: var(--text-dim); }
+
+    .cfifa-link {
+        flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+        font-family: 'Consolas', monospace; font-size: .8rem; font-weight: 700;
+        color: var(--gold-ink); background: #d4a52012; border: 1px solid #d4a52033;
+        padding: 3px 10px; border-radius: 6px; cursor: pointer;
+    }
+    .cfifa-link:hover { background: #d4a52025; }
+    .cfifa-link.copiado { color: var(--ok); border-color: #4ade8055; }
+
+    .cfifa-vazio { text-align: center; color: var(--text-dim); font-size: .85rem; padding: 2rem 1rem; }
+</style>
+
+<div class="cfifa">
+    <div class="cfifa-hero">
+        <div>
+            <h1>Competições da FIFA</h1>
+            <p>
+                Fonte para os Mundiais de base e femininos que não existem na api-football
+                nem na ESPN. Escolha a competição, copie o link da edição e cole no campo
+                <em>Link</em> ao cadastrar a competição — depois é só usar “Buscar jogos”.
+            </p>
+        </div>
+        <a class="cfifa-voltar" asp-action="Index" asp-controller="Competicoes">← Voltar às Competições</a>
+    </div>
+
+    <div class="cfifa-main">
+        <div class="cfifa-colunas">
+            <div class="cfifa-painel">
+                <h2>Competições (@Model.Competicoes.Count)</h2>
+                <input type="text" class="cfifa-busca" placeholder="Buscar competição…"
+                       autocomplete="off" oninput="cfifaFiltrar(this.value)" />
+
+                @if (Model.Competicoes.Count == 0)
+                {
+                    <div class="cfifa-vazio">A FIFA não respondeu o catálogo agora. Tente de novo em instantes.</div>
+                }
+
+                @foreach (var c in Model.Competicoes)
+                {
+                    <a class="cfifa-item @(c.Id == Model.CompeticaoSelecionada ? "ativo" : "")"
+                       data-busca="@c.Nome.ToLowerInvariant() @c.Id"
+                       asp-action="CompeticoesFifa" asp-route-comp="@c.Id">
+                        <span class="nome">@c.Nome</span>
+                        <span class="selo @(c.Feminino ? "fem" : "")">@(c.Feminino ? "Feminino" : "Masculino")</span>
+                        <span class="selo">@Categoria(c.AgeType)</span>
+                    </a>
+                }
+            </div>
+
+            <div class="cfifa-painel">
+                <h2>@(Model.NomeSelecionada ?? "Edições")</h2>
+
+                @if (Model.CompeticaoSelecionada == null)
+                {
+                    <div class="cfifa-vazio">Escolha uma competição ao lado para ver as edições.</div>
+                }
+                else if (Model.Edicoes.Count == 0)
+                {
+                    <div class="cfifa-vazio">Nenhuma edição publicada para esta competição.</div>
+                }
+                else
+                {
+                    @foreach (var e in Model.Edicoes)
+                    {
+                        var link = $"fifa:{e.IdCompetition}:{e.IdSeason}";
+                        <div class="cfifa-item">
+                            <span class="nome">@e.Nome</span>
+                            @if (Model.LinksRegistrados.Contains(link))
+                            {
+                                <span class="registrada" title="Já existe uma competição cadastrada com este link">✓ registrada</span>
+                            }
+                            <span class="periodo">
+                                @(e.Inicio?.ToLocalTime().ToString("dd/MM/yyyy") ?? "sem data")
+                            </span>
+                            <span class="cfifa-link" title="Clique para copiar" onclick="cfifaCopiar(this, '@link')">@link ⧉</span>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function cfifaCopiar(el, link) {
+        navigator.clipboard.writeText(link).then(() => {
+            el.classList.add('copiado');
+            const original = el.textContent;
+            el.textContent = link + ' ✓';
+            setTimeout(() => { el.classList.remove('copiado'); el.textContent = original; }, 1200);
+        });
+    }
+
+    function cfifaFiltrar(termo) {
+        const t = termo.toLowerCase().trim();
+        document.querySelectorAll('.cfifa-item[data-busca]').forEach(item => {
+            item.style.display = (!t || item.dataset.busca.includes(t)) ? '' : 'none';
+        });
+    }
+</script>

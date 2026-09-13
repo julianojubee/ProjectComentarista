@@ -1,0 +1,176 @@
+@model ControleFutebolWeb.Models.ViewModels.AcessosPublicosViewModel
+@{
+    ViewData["Title"] = "Acessos das páginas públicas";
+    var ptBR = new System.Globalization.CultureInfo("pt-BR");
+
+    // Nome de exibição de cada ferramenta (a chave gravada é curta, ver AcessoPublicoFilter).
+    string Nome(string f) => f switch
+    {
+        "hub" => "Início (/creators)",
+        "escalacao" => "Escalações (Match Up)",
+        "selecao" => "Seleção da competição",
+        "tabelas" => "Tabelas",
+        "jogos-hoje" => "Jogos do dia",
+        "simulador" => "Simulador",
+        _ => f,
+    };
+}
+
+<style>
+    .ac-wrap { padding: 24px 2.5rem 60px; max-width: 1100px; }
+    .ac-titulo { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 2rem; font-weight: 800; color: var(--text-strong); margin: 0; line-height: 1.1; }
+    .ac-sub { font-size: .82rem; color: var(--text-dim); margin: 4px 0 0; max-width: 75ch; }
+
+    .ac-periodo { display: flex; gap: 6px; margin: 18px 0 22px; flex-wrap: wrap; }
+    .ac-periodo a {
+        text-decoration: none; font-size: .74rem; font-weight: 700; padding: 5px 12px;
+        border: 1px solid var(--line); border-radius: 999px; color: var(--text-dim); background: var(--p-1);
+    }
+    .ac-periodo a.ativo { color: var(--gold-ink); border-color: rgba(212,165,32,.4); background: rgba(212,165,32,.12); }
+
+    .ac-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 26px; }
+    .ac-card { background: var(--p-1); border: 1px solid var(--line-soft); border-radius: 12px; padding: 14px 16px; }
+    .ac-card-num { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.9rem; font-weight: 800; color: var(--text-strong); line-height: 1; }
+    .ac-card-label { font-size: .66rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-top: 5px; }
+
+    .ac-secao { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.3rem; font-weight: 800; color: var(--text-strong); margin: 0 0 12px; }
+
+    .ac-tabela { width: 100%; border-collapse: collapse; font-size: .84rem; margin-bottom: 30px; }
+    .ac-tabela th { font-size: .62rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); text-align: right; padding: 8px 8px; border-bottom: 1px solid var(--line); }
+    .ac-tabela th.esq, .ac-tabela td.esq { text-align: left; }
+    .ac-tabela td { padding: 8px; text-align: right; color: var(--text-2); border-bottom: 1px solid var(--line-soft); }
+    .ac-tabela td.esq { font-weight: 600; color: var(--text-strong); }
+    .ac-forte { font-weight: 800; color: var(--gold-ink); }
+
+    /* Gráfico de barras em CSS puro: uma barra por dia, altura proporcional ao pico. */
+    .ac-grafico { display: flex; align-items: flex-end; gap: 3px; height: 150px; padding: 10px 12px; background: var(--p-1); border: 1px solid var(--line-soft); border-radius: 12px; overflow-x: auto; }
+    .ac-barra-col { flex: 1 0 12px; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; min-width: 12px; }
+    .ac-barra { background: linear-gradient(180deg, #d4a520, rgba(212,165,32,.45)); border-radius: 3px 3px 0 0; min-height: 2px; }
+    .ac-barra.vazia { background: var(--line); min-height: 2px; }
+    .ac-legenda { display: flex; justify-content: space-between; font-size: .66rem; color: var(--text-dim); margin: 6px 2px 26px; }
+
+    .ac-vazio { text-align: center; color: var(--text-dim); padding: 3rem 1rem; background: var(--p-1); border: 1px dashed var(--line); border-radius: 12px; }
+    .ac-nota { font-size: .72rem; color: var(--text-dim); line-height: 1.6; border-left: 3px solid var(--line); padding-left: 12px; margin-top: 8px; }
+</style>
+
+<div class="ac-wrap">
+    <h1 class="ac-titulo">Acessos das páginas públicas</h1>
+    <p class="ac-sub">
+        Aberturas das ferramentas de <a href="/creators">/creators</a> entre
+        @Model.De.ToString("dd/MM/yyyy", ptBR) e @Model.Ate.ToString("dd/MM/yyyy", ptBR).
+        Robôs e prévias de link (WhatsApp, buscadores) não entram na conta.
+    </p>
+
+    <div class="ac-periodo">
+        @foreach (var d in new[] { 7, 30, 90, 365 })
+        {
+            <a class="@(Model.Dias == d ? "ativo" : "")" asp-action="Acessos" asp-route-dias="@d">@d dias</a>
+        }
+    </div>
+
+    @if (Model.TotalVisitas == 0)
+    {
+        <div class="ac-vazio">
+            <p><strong>Nenhum acesso registrado no período.</strong></p>
+            <p style="font-size:.8rem;margin:0;">
+                A contagem começa a valer a partir do momento em que esta versão foi publicada —
+                acessos anteriores não existem no banco.
+            </p>
+        </div>
+    }
+    else
+    {
+        <div class="ac-resumo">
+            <div class="ac-card">
+                <div class="ac-card-num">@Model.TotalVisitas</div>
+                <div class="ac-card-label">Aberturas</div>
+            </div>
+            <div class="ac-card">
+                <div class="ac-card-num">@Model.TotalVisitantes</div>
+                <div class="ac-card-label">Visitantes</div>
+            </div>
+            <div class="ac-card">
+                <div class="ac-card-num">@Model.PicoDiario</div>
+                <div class="ac-card-label">Melhor dia</div>
+            </div>
+            <div class="ac-card">
+                <div class="ac-card-num">@(Model.PorDia.Count(d => d.Visitas > 0))</div>
+                <div class="ac-card-label">Dias com acesso</div>
+            </div>
+        </div>
+
+        <h2 class="ac-secao">Por dia</h2>
+        <div class="ac-grafico">
+            @foreach (var dia in Model.PorDia)
+            {
+                var altura = Model.PicoDiario > 0 ? (int)Math.Round(100.0 * dia.Visitas / Model.PicoDiario) : 0;
+                var detalhe = dia.Detalhe.Count == 0
+                    ? "sem acesso"
+                    : string.Join(" · ", dia.Detalhe.Select(x => $"{Nome(x.Ferramenta)}: {x.Visitas}"));
+                <div class="ac-barra-col" title="@dia.Dia.ToString("dd/MM", ptBR) — @dia.Visitas aberturas, @dia.Visitantes visitantes&#10;@detalhe">
+                    <div class="ac-barra @(dia.Visitas == 0 ? "vazia" : "")" style="height:@(altura)%"></div>
+                </div>
+            }
+        </div>
+        <div class="ac-legenda">
+            <span>@Model.De.ToString("dd/MM", ptBR)</span>
+            <span>passe o mouse numa barra para ver o dia</span>
+            <span>@Model.Ate.ToString("dd/MM", ptBR)</span>
+        </div>
+
+        <h2 class="ac-secao">Por ferramenta</h2>
+        <table class="ac-tabela">
+            <thead>
+                <tr>
+                    <th class="esq">Ferramenta</th>
+                    <th>Aberturas</th>
+                    <th>Visitantes</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var f in Model.PorFerramenta)
+                {
+                    <tr>
+                        <td class="esq">@Nome(f.Ferramenta)</td>
+                        <td class="ac-forte">@f.Visitas</td>
+                        <td>@f.Visitantes</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <h2 class="ac-secao">Detalhe diário</h2>
+        <table class="ac-tabela">
+            <thead>
+                <tr>
+                    <th class="esq">Dia</th>
+                    <th class="esq">Ferramentas</th>
+                    <th>Aberturas</th>
+                    <th>Visitantes</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var dia in Model.PorDia.Where(d => d.Visitas > 0).OrderByDescending(d => d.Dia))
+                {
+                    <tr>
+                        <td class="esq">@dia.Dia.ToString("dd/MM/yyyy", ptBR)</td>
+                        <td class="esq" style="font-weight:400;color:var(--text-dim);font-size:.78rem;">
+                            @string.Join(" · ", dia.Detalhe.Select(x => $"{Nome(x.Ferramenta)} ({x.Visitas})"))
+                        </td>
+                        <td class="ac-forte">@dia.Visitas</td>
+                        <td>@dia.Visitantes</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <p class="ac-nota">
+        <strong>Aberturas</strong> conta cada vez que a página foi carregada — a mesma pessoa
+        recarregando soma. <strong>Visitantes</strong> é uma aproximação: a primeira abertura de
+        cada navegador no dia, reconhecida por uma marca temporária guardada só na memória do
+        servidor (nada de IP no banco). Reiniciar a aplicação apaga essas marcas, então esse
+        número é piso, não valor exato. As chamadas internas de cada tela — arrastar um jogador,
+        recalcular a tabela do simulador — não contam como acesso.
+    </p>
+</div>

@@ -37,6 +37,7 @@ namespace ControleFutebolWeb.Data
         public DbSet<AnotacaoTimeMencao> AnotacoesTimeMencoes { get; set; }
         public DbSet<AnotacaoJogador> AnotacoesJogador { get; set; }
         public DbSet<AnotacaoTreinador> AnotacoesTreinador { get; set; }
+        public DbSet<AnotacaoCompeticao> AnotacoesCompeticao { get; set; }
         public DbSet<JogoAnalisadoUsuario> JogosAnalisadosUsuario { get; set; }
         public DbSet<ObservacaoJogoUsuario> ObservacoesJogoUsuario { get; set; }
         public DbSet<ObservacaoJogoTag> ObservacoesJogoTag { get; set; }
@@ -58,6 +59,9 @@ namespace ControleFutebolWeb.Data
         public DbSet<BlogCategoria> BlogCategorias { get; set; }
         public DbSet<BlogTag> BlogTags { get; set; }
         public DbSet<BlogPostTag> BlogPostTags { get; set; }
+        public DbSet<AcessoPublico> AcessosPublicos { get; set; }
+        public DbSet<JogoIndisponivel> JogosIndisponiveis { get; set; }
+        public DbSet<MarcacaoVideo> MarcacoesVideo { get; set; }
 
         public override int SaveChanges()
         {
@@ -305,6 +309,12 @@ namespace ControleFutebolWeb.Data
             modelBuilder.Entity<Nota>().HasIndex(n => new { n.UsuarioId, n.JogoId, n.JogadorId });
             modelBuilder.Entity<Escalacao>().HasIndex(e => new { e.JogoId, e.UsuarioId });
             modelBuilder.Entity<ObservacaoJogoTag>().HasIndex(o => new { o.JogadorId, o.UsuarioId });
+            // Contador de acessos da área pública: uma linha por (ferramenta, dia).
+            // ÚNICO porque o incremento é um upsert — duas requisições simultâneas do
+            // mesmo dia não podem criar duas linhas para a mesma ferramenta.
+            modelBuilder.Entity<AcessoPublico>()
+                .HasIndex(a => new { a.Ferramenta, a.Dia })
+                .IsUnique();
 
             // Menções a jogadores dentro do texto de uma observação (via "@Nome"):
             // apagar a observação apaga suas menções junto.
@@ -349,6 +359,15 @@ namespace ControleFutebolWeb.Data
                     .HasForeignKey(a => a.TreinadorId)
                     .OnDelete(DeleteBehavior.Cascade);
                 entity.HasIndex(a => new { a.TreinadorId, a.UsuarioId });
+            });
+
+            // Anotações da competição: apagar a competição leva as anotações dela junto.
+            modelBuilder.Entity<AnotacaoCompeticao>(entity =>
+            {
+                entity.HasOne(a => a.Competicao).WithMany()
+                    .HasForeignKey(a => a.CompeticaoId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(a => new { a.CompeticaoId, a.UsuarioId });
             });
 
             // Transferências: apagar time/jogo não apaga o histórico (FK vira null);
@@ -486,6 +505,46 @@ namespace ControleFutebolWeb.Data
                 entity.HasIndex(c => new { c.JogoId, c.UsuarioId }).IsUnique();
                 // O relatório conta craques por jogador dentro de um recorte de jogos.
                 entity.HasIndex(c => new { c.UsuarioId, c.JogadorId });
+            });
+
+            // Indisponíveis do jogo (aba Pré-jogo). A lista é reescrita a cada busca
+            // de escalação — ver ApiFootballService.AtualizarIndisponiveisAsync.
+            modelBuilder.Entity<JogoIndisponivel>(entity =>
+            {
+                entity.ToTable("jogosindisponiveis");
+                entity.HasKey(e => e.Id);
+
+                entity.HasOne(e => e.Jogo).WithMany()
+                    .HasForeignKey(e => e.JogoId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Time).WithMany()
+                    .HasForeignKey(e => e.TimeId).OnDelete(DeleteBehavior.Cascade);
+
+                // Restrict, e não Cascade: apagar um jogador do cadastro não pode levar
+                // junto o registro de que ele desfalcou uma partida — o fato é do jogo.
+                entity.HasOne(e => e.Jogador).WithMany()
+                    .HasForeignKey(e => e.JogadorId).OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasIndex(e => e.JogoId);
+            });
+
+            // Marcação por vídeo: cada tecla apertada em /MarcacaoVideo/Marcar.
+            modelBuilder.Entity<MarcacaoVideo>(entity =>
+            {
+                // A tela carrega a linha do tempo inteira do jogo de um usuário.
+                entity.HasIndex(m => new { m.UsuarioId, m.JogoId });
+                // A consolidação e o histórico agrupam por jogadora dentro do jogo.
+                entity.HasIndex(m => new { m.JogoId, m.JogadorId });
+
+                entity.Property(m => m.AcaoId).HasMaxLength(40);
+
+                entity.HasOne(m => m.Jogo).WithMany()
+                    .HasForeignKey(m => m.JogoId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(m => m.Usuario).WithMany()
+                    .HasForeignKey(m => m.UsuarioId).OnDelete(DeleteBehavior.Cascade);
+                // Cascade também no jogador: a marcação só existe para dizer o que
+                // AQUELA jogadora fez. Sem ela o registro não significa nada.
+                entity.HasOne(m => m.Jogador).WithMany()
+                    .HasForeignKey(m => m.JogadorId).OnDelete(DeleteBehavior.Cascade);
             });
 
             // 🔹 Converte nomes de tabelas e colunas para minúsculas

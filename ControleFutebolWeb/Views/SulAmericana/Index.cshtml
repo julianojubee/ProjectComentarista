@@ -1,4 +1,4 @@
-@using ControleFutebolWeb.Models
+﻿@using ControleFutebolWeb.Models
 @model ControleFutebolWeb.Models.ViewModels.SulAmericanaIndexViewModel
 @using ControleFutebolWeb.Models.ViewModels
 @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
@@ -218,11 +218,15 @@
                 </select>
             </form>
         }
+        <div style="margin-top:10px;">
+            @await Html.PartialAsync("_BotaoSincronizarJogos", 4)
+        </div>
     </div>
 </div>
 
 @* Esta tela não tem o painel de estatísticas embutido como as outras competições
    (não há sistema de abas aqui). Os links levam ao painel completo em tela cheia. *@
+@await Html.PartialAsync("_ArtilheirosAssistencias", (4, temporadaSulSel))
 @await Html.PartialAsync("_LinksEstatisticasCompeticao", (4, temporadaSulSel))
 
 @if (!grupos.Any())

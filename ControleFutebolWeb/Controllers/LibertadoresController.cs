@@ -1,4 +1,4 @@
-using ControleFutebolWeb.Data;
+﻿using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
@@ -127,7 +127,13 @@ namespace ControleFutebolWeb.Controllers
                 .Include(c => c.Jogador)
                 .Where(c => jogoIdsEstat.Contains(c.JogoId))
                 .ToList();
-            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(todosJogosRealizados, golsEstat, cartoesEstat);
+            // Escalações dos gols e cartões: o dono do evento é o time pelo qual o
+            // jogador entrou em campo naquele jogo, não o clube atual do cadastro.
+            var escalacoesEstat = LadoJogadorHelper.EscalacoesDosEventos(
+                _context, todosJogosRealizados.Select(j => j.Id),
+                golsEstat.Select(g => g.JogadorId).Concat(cartoesEstat.Select(c => c.JogadorId))).ToList();
+
+            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(todosJogosRealizados, golsEstat, cartoesEstat, escalacoesEstat);
 
             return View(vm);
         }

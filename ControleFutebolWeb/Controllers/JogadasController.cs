@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
@@ -23,11 +24,16 @@ namespace ControleFutebolWeb.Controllers
     {
         private readonly FutebolContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IConfiguration _config;
+        private readonly ILogger<JogadasController> _log;
 
-        public JogadasController(FutebolContext context, UserManager<ApplicationUser> userManager)
+        public JogadasController(FutebolContext context, UserManager<ApplicationUser> userManager,
+            IConfiguration config, ILogger<JogadasController> log)
         {
             _context = context;
             _userManager = userManager;
+            _config = config;
+            _log = log;
         }
 
         // Tetos de tamanho do storyboard. Não são regra de negócio: são o limite do
@@ -36,6 +42,14 @@ namespace ControleFutebolWeb.Controllers
         private const int MaxPassos = 40;
         private const int MaxPecas = 36;   // os 22 em campo, com folga para reservas
         private const int MaxSetas = 20;
+        private const int MaxGrupos = 6;   // mesmo teto do editor (jogadas.js)
+
+        // Vocabulários do motor v2: qualquer outro valor vira o padrão, para um
+        // POST forjado não gravar tipo de bola ou ritmo que o player não conhece.
+        private static readonly HashSet<string> TiposDeBola =
+            new() { "toque", "passe", "conducao", "cruzamento", "lancamento", "chute" };
+
+        private static readonly HashSet<string> Ritmos = new() { "andar", "trote", "sprint" };
         private const int MaxLegenda = 120;
 
         private static readonly JsonSerializerOptions JsonOpts = new()
@@ -55,6 +69,12 @@ namespace ControleFutebolWeb.Controllers
         public class PecaDto : PontoDto
         {
             public int Id { get; set; }
+
+            // Ritmo do deslocamento e fração do passo que a peça espera antes de
+            // sair. São do motor v2 e vinham sendo descartados na gravação, o que
+            // devolvia toda jogada salva em trote e sem atraso.
+            public string? Modo { get; set; }
+            public double Atraso { get; set; }
         }
 
         public class SetaDto
@@ -68,9 +88,26 @@ namespace ControleFutebolWeb.Controllers
         public class PassoDto
         {
             public string? Legenda { get; set; }
+
+            // Tipo de bola do trecho deste passo para o próximo (toque, passe,
+            // condução, cruzamento, lançamento, chute).
+            public string? Passe { get; set; }
+
             public PontoDto? Bola { get; set; }
             public List<PecaDto> Pecas { get; set; } = new();
             public List<SetaDto> Setas { get; set; } = new();
+        }
+
+        /// <summary>
+        /// Bloco tático: jogadores que se movem juntos na prancheta (a linha de
+        /// quatro, o triângulo do meio). Vale a jogada inteira, e não um passo —
+        /// o que muda de passo para passo é onde o bloco está, não quem o compõe.
+        /// </summary>
+        public class GrupoDto
+        {
+            public string? Id { get; set; }
+            public string? Nome { get; set; }
+            public List<int> Ids { get; set; } = new();
         }
 
         public class ElencoDto
@@ -84,6 +121,18 @@ namespace ControleFutebolWeb.Controllers
             // jogadas gravadas antes disso existir, quando só o time atacante
             // entrava em campo — false é a leitura certa para elas.
             public bool Adv { get; set; }
+
+            // Foto do jogador (URL do MediaProxy), copiada junto com o nome pelo
+            // mesmo motivo: o arsenal do time redesenha a jogada sem voltar ao
+            // elenco do jogo de origem.
+            public string? Foto { get; set; }
+        }
+
+        /// <summary>Cores das camisas na prancheta, escolhidas pelo usuário.</summary>
+        public class CoresDto
+        {
+            public string? Nos { get; set; }
+            public string? Adv { get; set; }
         }
 
         public class StoryboardDto
@@ -91,6 +140,8 @@ namespace ControleFutebolWeb.Controllers
             public int V { get; set; } = 1;
             public int Ms { get; set; } = 900;
             public List<ElencoDto> Elenco { get; set; } = new();
+            public CoresDto? Cores { get; set; }
+            public List<GrupoDto> Grupos { get; set; } = new();
             public List<PassoDto> Passos { get; set; } = new();
         }
 
@@ -252,7 +303,136 @@ namespace ControleFutebolWeb.Controllers
             return Ok(new { sucesso = true });
         }
 
+        // ── Vídeo: WebM → MP4 ────────────────────────────────────────────────
+        //
+        // O editor grava a jogada com o MediaRecorder do navegador, e só o Chrome
+        // e o Edge gravam MP4 direto; no Firefox sai WebM (VP8/VP9), que o
+        // Instagram, o TikTok e o WhatsApp recusam no upload. Como o vídeo existe
+        // justamente para sair do sistema, o servidor faz o remux/transcode com o
+        // ffmpeg e devolve sempre MP4 — o navegador do usuário deixa de decidir o
+        // formato do arquivo final.
+        //
+        // Quem já gravou em MP4 não passa por aqui: o cliente só chama esta rota
+        // quando o que ele tem nas mãos é WebM.
+
+        private const long MaxVideoBytes = 80L * 1024 * 1024;
+
+        [HttpPost]
+        [RequestSizeLimit(MaxVideoBytes + 1024 * 1024)]
+        public async Task<IActionResult> ConverterMp4(IFormFile? arquivo)
+        {
+            if (arquivo == null || arquivo.Length == 0) return BadRequest("Nenhum vídeo enviado.");
+            if (arquivo.Length > MaxVideoBytes) return BadRequest("Vídeo grande demais para converter.");
+
+            var ffmpeg = CaminhoFfmpeg();
+            if (ffmpeg == null)
+            {
+                // 503 e não 500: não é erro do pedido, é uma capacidade que este
+                // servidor não tem. O cliente usa isso para baixar o WebM mesmo.
+                return StatusCode(503, "O servidor não tem ffmpeg instalado para converter o vídeo.");
+            }
+
+            // Os temporários levam um nome aleatório e são apagados sempre: são
+            // vídeos de análise de um usuário, não podem sobrar no disco nem
+            // colidir entre duas exportações simultâneas.
+            var baseTmp = Path.Combine(Path.GetTempPath(), "jgd-" + Guid.NewGuid().ToString("N"));
+            var entrada = baseTmp + ".webm";
+            var saida = baseTmp + ".mp4";
+
+            try
+            {
+                await using (var fs = System.IO.File.Create(entrada))
+                    await arquivo.CopyToAsync(fs);
+
+                // -movflags +faststart põe o índice no começo do arquivo: sem isso
+                // o vídeo só começa a tocar depois de baixado inteiro, o que as
+                // redes sociais e o preview do WhatsApp odeiam.
+                // yuv420p é o pixel format que os players não-Chrome aceitam.
+                var args = new[]
+                {
+                    "-y", "-hide_banner", "-loglevel", "error",
+                    "-i", entrada,
+                    "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+                    "-pix_fmt", "yuv420p",
+                    "-movflags", "+faststart",
+                    "-an",
+                    saida
+                };
+
+                var psi = new ProcessStartInfo(ffmpeg)
+                {
+                    RedirectStandardError = true,
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                foreach (var a in args) psi.ArgumentList.Add(a);
+
+                using var proc = Process.Start(psi);
+                if (proc == null) return StatusCode(503, "Não foi possível iniciar o ffmpeg.");
+
+                var erroTask = proc.StandardError.ReadToEndAsync();
+
+                using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
+                try
+                {
+                    await proc.WaitForExitAsync(cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    try { proc.Kill(true); } catch { /* já morreu */ }
+                    return StatusCode(504, "A conversão demorou demais e foi cancelada.");
+                }
+
+                if (proc.ExitCode != 0 || !System.IO.File.Exists(saida))
+                {
+                    _log.LogWarning("ffmpeg falhou ({Codigo}): {Erro}", proc.ExitCode, await erroTask);
+                    return StatusCode(500, "O ffmpeg não conseguiu converter este vídeo.");
+                }
+
+                // Lido para memória porque o arquivo temporário some no finally: um
+                // FileStream devolvido aqui ainda estaria sendo enviado quando o
+                // arquivo fosse apagado.
+                var mp4 = await System.IO.File.ReadAllBytesAsync(saida);
+                return File(mp4, "video/mp4");
+            }
+            finally
+            {
+                try { if (System.IO.File.Exists(entrada)) System.IO.File.Delete(entrada); } catch { }
+                try { if (System.IO.File.Exists(saida)) System.IO.File.Delete(saida); } catch { }
+            }
+        }
+
+        // Caminho do ffmpeg: o do appsettings ("Ffmpeg:Caminho") vence, senão o do
+        // PATH. Devolve null quando não há nenhum — é o que faz a rota responder
+        // "este servidor não converte" em vez de estourar.
+        private string? CaminhoFfmpeg()
+        {
+            var configurado = _config["Ffmpeg:Caminho"];
+            if (!string.IsNullOrWhiteSpace(configurado))
+                return System.IO.File.Exists(configurado) ? configurado : null;
+
+            var nome = OperatingSystem.IsWindows() ? "ffmpeg.exe" : "ffmpeg";
+            var path = Environment.GetEnvironmentVariable("PATH") ?? "";
+            foreach (var dir in path.Split(Path.PathSeparator))
+            {
+                if (string.IsNullOrWhiteSpace(dir)) continue;
+                try
+                {
+                    var alvo = Path.Combine(dir.Trim(), nome);
+                    if (System.IO.File.Exists(alvo)) return alvo;
+                }
+                catch (ArgumentException) { /* diretório inválido no PATH */ }
+            }
+            return null;
+        }
+
         // ── Montagem do payload por lado ─────────────────────────────────────
+
+        // Foto e escudo saem pelo MediaProxy, como no match-up: a origem é externa
+        // e o proxy é quem resolve cache e hotlink.
+        private string? ImagemUrl(string? url) =>
+            string.IsNullOrEmpty(url) ? null : Url.Action("Imagem", "MediaProxy", new { url });
 
         private async Task<object> MontarLadoAsync(Jogo jogo, bool ehCasa, string uid, List<Jogada> jogadas)
         {
@@ -271,7 +451,8 @@ namespace ControleFutebolWeb.Controllers
                     id = j.Id,
                     num = j.NumeroCamisa != null ? j.NumeroCamisa.ToString() : "",
                     nome = j.Nome,
-                    sigla = j.Posicao
+                    sigla = j.Posicao,
+                    fotoUrl = j.FotoUrl
                 })
                 .ToListAsync();
 
@@ -299,6 +480,7 @@ namespace ControleFutebolWeb.Controllers
                         num = e.Jogador.NumeroCamisa?.ToString() ?? "",
                         nome = e.Jogador.Nome,
                         sigla = PosicaoJogadorHelper.Sigla(e.Posicao),
+                        foto = ImagemUrl(e.Jogador.FotoUrl),
                         x,
                         y
                     };
@@ -318,7 +500,8 @@ namespace ControleFutebolWeb.Controllers
                     j.id,
                     j.num,
                     j.nome,
-                    sigla = PosicaoJogadorHelper.Sigla(j.sigla)
+                    sigla = PosicaoJogadorHelper.Sigla(j.sigla),
+                    foto = ImagemUrl(j.fotoUrl)
                 }),
                 escalacao,
                 jogadas = jogadas.Where(j => j.TimeId == timeId).Select(j => new
@@ -363,6 +546,24 @@ namespace ControleFutebolWeb.Controllers
             }
         }
 
+        // Só cor hexadecimal: o valor vai direto para o style da peça, e é a única
+        // forma dele de um POST forjado não virar CSS arbitrário.
+        private static string? Cor(string? v) =>
+            v != null && System.Text.RegularExpressions.Regex.IsMatch(v, "^#[0-9a-fA-F]{6}$") ? v : null;
+
+        private static List<GrupoDto> NormalizarGrupos(StoryboardDto s)
+        {
+            var noElenco = s.Elenco.Take(MaxPecas).Select(e => e.Id).ToHashSet();
+            var usado = new HashSet<int>();
+
+            return s.Grupos.Take(MaxGrupos).Select((g, i) => new GrupoDto
+            {
+                Id = Cortar(g.Id, 20) ?? $"g{i}",
+                Nome = Cortar(g.Nome, 40),
+                Ids = g.Ids.Where(id => noElenco.Contains(id) && usado.Add(id)).Take(MaxPecas).ToList()
+            }).Where(g => g.Ids.Count >= 2).ToList();
+        }
+
         private static StoryboardDto Normalizar(StoryboardDto s)
         {
             static double C(double v) => Math.Round(Math.Clamp(v, 0, 100), 2);
@@ -377,14 +578,32 @@ namespace ControleFutebolWeb.Controllers
                     Num = Cortar(e.Num, 3),
                     Nome = Cortar(e.Nome, 60),
                     Sigla = Cortar(e.Sigla, 6),
-                    Adv = e.Adv
+                    Adv = e.Adv,
+                    Foto = Cortar(e.Foto, 400)
                 }).ToList(),
+                Cores = s.Cores == null ? null : new CoresDto
+                {
+                    Nos = Cor(s.Cores.Nos),
+                    Adv = Cor(s.Cores.Adv)
+                },
+                // Um jogador só entra num bloco: blocos sobrepostos deixariam o
+                // arrasto sem resposta certa. Bloco com menos de dois membros não
+                // é bloco (o outro pode ter saído da jogada).
+                Grupos = NormalizarGrupos(s),
                 Passos = s.Passos.Take(MaxPassos).Select(p => new PassoDto
                 {
                     Legenda = Cortar(p.Legenda, MaxLegenda),
+                    Passe = TiposDeBola.Contains(p.Passe ?? "") ? p.Passe : "passe",
                     Bola = p.Bola == null ? null : new PontoDto { X = C(p.Bola.X), Y = C(p.Bola.Y) },
                     Pecas = p.Pecas.Take(MaxPecas)
-                        .Select(c => new PecaDto { Id = c.Id, X = C(c.X), Y = C(c.Y) }).ToList(),
+                        .Select(c => new PecaDto
+                        {
+                            Id = c.Id,
+                            X = C(c.X),
+                            Y = C(c.Y),
+                            Modo = Ritmos.Contains(c.Modo ?? "") ? c.Modo : "trote",
+                            Atraso = Math.Round(Math.Clamp(c.Atraso, 0, 0.6), 2)
+                        }).ToList(),
                     Setas = p.Setas.Take(MaxSetas)
                         .Select(t => new SetaDto { X1 = C(t.X1), Y1 = C(t.Y1), X2 = C(t.X2), Y2 = C(t.Y2) }).ToList()
                 }).ToList()

@@ -8,6 +8,7 @@ namespace ControleFutebolWeb.Models.ViewModels
         public double MediaNotas { get; set; }
         public int TotalJogos { get; set; }          // jogos analisados
         public int TotalJogosParticipados { get; set; } // total com escalação
+        public int TotalMinutos { get; set; }     // soma dos minutos das estatísticas importadas (respeita os filtros)
         public int TotalGols { get; set; }
         public int TotalAssistencias { get; set; }
         public List<NotaJogoItem> NotasPorJogo { get; set; }

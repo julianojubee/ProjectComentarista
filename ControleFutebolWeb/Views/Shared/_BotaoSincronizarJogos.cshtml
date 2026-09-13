@@ -1,0 +1,29 @@
+@using ControleFutebolWeb.Services
+@model int
+@inject ControleFutebolWeb.Data.FutebolContext _sincContext
+@{
+    // Botão de sincronizar jogos das telas fixas (Brasileirão, Copa do Brasil,
+    // Libertadores, Sul-Americana, Champions). Dispara a mesma ação do hero de
+    // Competicoes/Detalhes — que até então era o único lugar com o botão — e
+    // volta para a página de origem em vez da lista de competições.
+    var linkSinc = _sincContext.Competicoes
+        .Where(c => c.Id == Model)
+        .Select(c => c.LinkTransfermarket)
+        .FirstOrDefault();
+
+    var podeSincronizar = ApiFootballService.IsApiFootballLink(linkSinc)
+                          || FifaService.IsFifaLink(linkSinc);
+
+    var semJogosSinc = podeSincronizar && !_sincContext.Jogos.Any(j => j.CompeticaoId == Model);
+}
+@if (podeSincronizar)
+{
+    <form asp-controller="Competicoes" asp-action="BuscarJogos" asp-route-id="@Model"
+          asp-route-returnUrl="@(Context.Request.Path + Context.Request.QueryString)"
+          method="post" style="display:inline;">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="sinc-jogos-btn">
+            🔄 @(semJogosSinc ? "Importar jogos" : "Sincronizar jogos")
+        </button>
+    </form>
+}

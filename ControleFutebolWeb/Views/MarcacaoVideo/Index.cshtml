@@ -1,0 +1,76 @@
+@model List<ControleFutebolWeb.Models.Jogo>
+@{
+    ViewData["Title"] = "Marcação por vídeo";
+    var marcacoes = ViewBag.MarcacoesPorJogo as Dictionary<int, int> ?? new Dictionary<int, int>();
+    var busca = ViewBag.Busca as string;
+}
+
+<div class="container-fluid py-3">
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <h4 class="mb-0">🎬 Marcação por vídeo</h4>
+        <span class="badge text-bg-warning">protótipo</span>
+    </div>
+    <p class="text-muted" style="max-width:70ch;">
+        Para os jogos que nenhuma fonte cobre. Você assiste à partida, digita o número
+        da camisa e aperta a tecla da ação — no fim, a marcação vira estatística e a
+        nota automática passa a existir.
+    </p>
+
+    <form method="get" class="row g-2 align-items-center mb-3" style="max-width:520px;">
+        <div class="col">
+            <input type="text" name="q" value="@busca" class="form-control"
+                   placeholder="Filtrar por time ou competição…" />
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-outline-secondary" type="submit">Filtrar</button>
+        </div>
+    </form>
+
+    @if (!Model.Any())
+    {
+        <div class="alert alert-secondary">Nenhum jogo encontrado.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Competição</th>
+                        <th>Jogo</th>
+                        <th class="text-center">Marcações</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var jogo in Model)
+                    {
+                        var total = marcacoes.GetValueOrDefault(jogo.Id);
+                        <tr>
+                            <td class="text-nowrap">@(jogo.Data?.ToString("dd/MM/yyyy") ?? "—")</td>
+                            <td>@(jogo.Competicao?.Nome ?? "—")</td>
+                            <td>@jogo.TimeCasa?.Nome <span class="text-muted">x</span> @jogo.TimeVisitante?.Nome</td>
+                            <td class="text-center">
+                                @if (total > 0)
+                                {
+                                    <span class="badge text-bg-success">@total</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-primary"
+                                   asp-action="Marcar" asp-route-id="@jogo.Id">
+                                    @(total > 0 ? "Continuar" : "Marcar")
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

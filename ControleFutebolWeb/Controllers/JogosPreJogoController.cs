@@ -28,16 +28,18 @@ namespace ControleFutebolWeb.Controllers
         private readonly ApiFootballService _transfermarkt;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly PainelJogoService _paineis;
+        private readonly TooltipJogadorService _tooltip;
 
         public JogosPreJogoController(FutebolContext context, ILogger<JogosPreJogoController> logger,
             ApiFootballService transfermarkt, UserManager<ApplicationUser> userManager,
-            PainelJogoService paineis)
+            PainelJogoService paineis, TooltipJogadorService tooltip)
         {
             _context = context;
             _logger = logger;
             _transfermarkt = transfermarkt;
             _userManager = userManager;
             _paineis = paineis;
+            _tooltip = tooltip;
         }
 
         // URL do proxy de mídia para o PainelJogoService (que não tem IUrlHelper).
@@ -96,6 +98,64 @@ namespace ControleFutebolWeb.Controllers
         {
             var dados = await _paineis.PreJogoAsync(id, ImagemUrl);
             return dados == null ? NotFound() : Json(dados);
+        }
+
+        // GET: Jogos/Indisponiveis/5 — aba Indisponíveis do modal Pré-jogo.
+        //
+        // Lê só o banco: a busca na api-football acontece no "Reimportar dados", junto
+        // com a escalação (ver ApiFootballService.AtualizarIndisponiveisAsync). Abrir o
+        // modal não gasta chamada da API, e por isso pode ser aberto quantas vezes o
+        // analista quiser durante a preparação do jogo.
+        [HttpGet]
+        public async Task<IActionResult> Indisponiveis(int id)
+        {
+            var jogo = await _context.Jogos
+                .AsNoTracking()
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .FirstOrDefaultAsync(j => j.Id == id);
+
+            if (jogo == null) return NotFound();
+
+            var lista = await _context.JogosIndisponiveis
+                .AsNoTracking()
+                .Include(i => i.Jogador)
+                .Where(i => i.JogoId == id)
+                .ToListAsync();
+
+            object Lado(int timeId, Time? time) => new
+            {
+                time = time?.Nome,
+                escudo = string.IsNullOrWhiteSpace(time?.EscudoUrl) ? null : ImagemUrl(time!.EscudoUrl!),
+                jogadores = lista
+                    .Where(i => i.TimeId == timeId)
+                    // Quem está fora antes de quem é dúvida, e dentro de cada grupo por
+                    // nome: a primeira coisa que o analista procura é o desfalque certo.
+                    .OrderBy(i => IndisponibilidadeHelper.EhDuvida(i.Tipo))
+                    .ThenBy(i => i.Jogador != null ? i.Jogador.Nome : i.Nome)
+                    .Select(i => new
+                    {
+                        jogadorId = i.JogadorId,
+                        // Vinculado ao cadastro: vale o nosso nome, o mesmo que aparece
+                        // no campinho do Analisar. Sem vínculo, o nome da fonte.
+                        nome = i.Jogador != null ? i.Jogador.Nome : i.Nome,
+                        foto = string.IsNullOrWhiteSpace(i.FotoUrl) ? null : ImagemUrl(i.FotoUrl!),
+                        duvida = IndisponibilidadeHelper.EhDuvida(i.Tipo),
+                        situacao = IndisponibilidadeHelper.Tipo(i.Tipo),
+                        categoria = IndisponibilidadeHelper.Categoria(i.Motivo),
+                        motivo = IndisponibilidadeHelper.Motivo(i.Motivo),
+                    })
+                    .ToList()
+            };
+
+            return Json(new
+            {
+                casa = Lado(jogo.TimeCasaId, jogo.TimeCasa),
+                visitante = Lado(jogo.TimeVisitanteId, jogo.TimeVisitante),
+                atualizadoEm = lista.Count > 0
+                    ? lista.Max(i => i.AtualizadoEm).ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                    : null,
+            });
         }
 
         // GET: Jogos/MatchUpPreJogo/5 — aba Match-up do modal Pré-jogo.
@@ -167,12 +227,18 @@ namespace ControleFutebolWeb.Controllers
                 }),
             };
 
+            // Ficha e números do ℹ para quem aparece no campo e no banco: o mapa
+            // da tela de análise não cobre o elenco inteiro que o match-up traz.
+            var tooltip = await _tooltip.MontarPacoteAsync(
+                jogadorIds, jogo, uid ?? string.Empty, url => ImagemUrl(url!));
+
             return Json(new
             {
                 casa = Map(t1),
                 visitante = Map(t2),
                 nomeCasa = jogo.TimeCasa?.Nome,
                 nomeVisitante = jogo.TimeVisitante?.Nome,
+                tooltip,
             });
         }
 

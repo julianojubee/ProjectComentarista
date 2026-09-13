@@ -914,3 +914,28 @@ tr.rebaixado td:first-child {
     color: var(--text-muted);
     white-space: nowrap;
 }
+
+/* Botão "Sincronizar jogos" das telas fixas de competição (_BotaoSincronizarJogos).
+   Fica sempre sobre o hero escuro de cada competição, por isso é translúcido em
+   branco e não usa as cores do tema. */
+.sinc-jogos-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, .35);
+    background: rgba(255, 255, 255, .14);
+    color: #fff;
+    font-size: .78rem;
+    font-weight: 600;
+    line-height: 1.2;
+    cursor: pointer;
+    backdrop-filter: blur(2px);
+    transition: background .15s ease, border-color .15s ease;
+}
+
+.sinc-jogos-btn:hover {
+    background: rgba(255, 255, 255, .26);
+    border-color: rgba(255, 255, 255, .6);
+}

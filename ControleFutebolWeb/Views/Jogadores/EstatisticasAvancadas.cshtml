@@ -1,4 +1,4 @@
-@model ControleFutebolWeb.Models.ViewModels.EstatisticasAvancadasViewModel
+﻿@model ControleFutebolWeb.Models.ViewModels.EstatisticasAvancadasViewModel
 @{
     ViewData["Title"] = $"{Model.JogadorNome} — estatísticas avançadas";
 }
@@ -26,6 +26,48 @@
     }
     .ea-voltar:hover { border-color: #c084fc; color: #c084fc; text-decoration: none; }
 
+    /* Totalizador logo abaixo de quem o jogador é. Fica antes de tudo porque é a
+       resposta mais procurada da tela ("quantos gols ele tem?") e antes dela só havia
+       número dentro de uma competição de uma temporada por vez. */
+    .ea-tot { margin: -8px 0 22px; }
+    .ea-tot-seletor { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+    .ea-tot-seletor-rot {
+        font-size: .7rem; font-weight: 700; color: var(--text-dim);
+        text-transform: uppercase; letter-spacing: .05em;
+    }
+    .ea-tot-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .ea-tot-chip {
+        padding: 6px 12px; border-radius: 8px; font-size: .74rem; font-weight: 600;
+        background: var(--p-2); border: 1px solid var(--line-strong);
+        color: var(--text-muted); cursor: pointer; font-family: inherit;
+    }
+    .ea-tot-chip:hover { color: #c084fc; border-color: rgba(168,85,247,.4); }
+    .ea-tot-chip.ativa { background: rgba(168,85,247,.18); border-color: rgba(168,85,247,.5); color: #c084fc; }
+
+    .ea-tot-cards { display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap; }
+    .ea-tot-card {
+        flex: 1 1 130px; min-width: 120px;
+        background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 12px;
+        padding: 12px 14px;
+    }
+    .ea-tot-card.destaque { border-color: var(--gold-ink); }
+    .ea-tot-rot {
+        font-size: .66rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+        color: var(--text-dim);
+    }
+    .ea-tot-val { font-size: 1.7rem; font-weight: 800; color: var(--text-strong); line-height: 1.15; }
+    .ea-tot-card.destaque .ea-tot-val { color: var(--gold-ink); }
+    .ea-tot-det { font-size: .68rem; color: var(--text-muted); margin-top: 2px; min-height: .9em; }
+
+    .ea-tot-comps { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .ea-tot-comp {
+        font-size: .7rem; color: var(--text-muted);
+        background: var(--p-1); border: 1px solid var(--line); border-radius: 8px; padding: 4px 9px;
+    }
+    .ea-tot-comp strong { color: var(--text-2); font-weight: 700; }
+    .ea-tot-comp span { color: var(--text-dim); }
+    .ea-tot-nota { font-size: .7rem; color: var(--text-dim); margin-top: 9px; }
+
     .ea-head { margin-bottom: 22px; }
     .ea-titulo { font-size: 1.5rem; font-weight: 800; color: var(--text-strong); margin: 0; }
     .ea-sub { font-size: .82rem; color: var(--text-muted); margin-top: 6px; }
@@ -35,6 +77,15 @@
         color: var(--bad); border-radius: 10px; padding: 14px; font-size: .85rem;
     }
 
+    @* Mesmo selo do cabeçalho da página do jogador, para a lesão ser reconhecível
+       nas duas telas em vez de virar dois avisos diferentes do mesmo fato. *@
+    .ea-lesao {
+        display: inline-flex; align-items: center; gap: .35rem; margin-top: 10px;
+        font-size: .78rem; font-weight: 700; color: var(--bad);
+        background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3);
+        border-radius: 999px; padding: .18rem .65rem;
+    }
+    .ea-lesao span { font-weight: 500; opacity: .85; }
     .ea-secao { margin-bottom: 30px; }
     .ea-secao-tit {
         font-size: .95rem; font-weight: 700; color: var(--text-strong);
@@ -107,6 +158,55 @@
     .ea-tag-sel { background: rgba(59,130,246,.15); color: var(--info); }
 
     .ea-vazio { font-size: .82rem; color: var(--text-dim); padding: 14px; }
+
+    /* Cabeçalho de identificação — o MESMO da página do jogador (.je-header lá), com
+       os mesmos dados vindos da mesma linha do banco. Repetido aqui, e não extraído
+       para uma partial, porque é assim que as outras telas de jogador fazem: cada uma
+       carrega o seu cabeçalho e o seu estilo (ver EstatisticasJogo.cshtml). */
+    .ea-jog {
+        display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+        background: linear-gradient(135deg, #090909 0%, #161616 100%);
+        border: 1px solid var(--line-strong); border-radius: 14px;
+        padding: 18px 22px; margin-bottom: 20px;
+    }
+    .ea-jog-escudo {
+        width: 56px; height: 56px; border-radius: 50%;
+        background: var(--p-0); border: 1px solid var(--line-strong);
+        display: flex; align-items: center; justify-content: center;
+        overflow: hidden; flex-shrink: 0;
+    }
+    .ea-jog-escudo img { width: 82%; height: 82%; object-fit: contain; }
+    a.ea-jog-escudo:hover { border-color: var(--gold-ink); }
+
+    .ea-jog-foto {
+        width: 64px; height: 64px; border-radius: 12px;
+        background: var(--p-alt-2); border: 2px solid var(--p-alt-3);
+        display: flex; align-items: center; justify-content: center;
+        overflow: hidden; flex-shrink: 0;
+    }
+    .ea-jog-foto img { width: 100%; height: 100%; object-fit: cover; }
+
+    .ea-jog-info { flex: 1; min-width: 200px; }
+    .ea-jog-nome { font-size: 1.9rem; font-weight: 800; color: var(--text-strong); margin: 0 0 6px; line-height: 1; }
+    .ea-jog-meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .ea-jog-pos {
+        display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 6px;
+        background: rgba(34,197,94,.15); border: 1px solid rgba(34,197,94,.35);
+        color: var(--ok); font-size: .72rem; font-weight: 700; letter-spacing: .06em;
+    }
+    .ea-jog-item { font-size: .8rem; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
+    .ea-jog-item img { width: 16px; height: 16px; object-fit: contain; }
+    a.ea-jog-item { color: var(--text-muted); text-decoration: none; }
+    a.ea-jog-item:hover { color: var(--gold-ink); text-decoration: underline; }
+
+    .ea-sync { margin: 0 0 0 auto; align-self: flex-start; }
+    .ea-sync-btn {
+        font-size: .72rem; font-weight: 700; padding: 5px 10px; border-radius: 7px;
+        background: transparent; border: 1px solid var(--line-strong); color: var(--text-muted);
+        cursor: pointer; white-space: nowrap;
+    }
+    .ea-sync-btn:hover { border-color: var(--gold-ink); color: var(--gold-ink); }
+    .ea-sync-btn:disabled { opacity: .6; cursor: wait; }
 </style>
 
 @*
@@ -124,8 +224,232 @@
 
         <a href="/Jogadores/Estatisticas/@Model.JogadorId" class="ea-voltar">← Voltar para @Model.JogadorNome</a>
 
+        @* Quem o jogador é, do nosso cadastro — o mesmo cabeçalho da página dele.
+           Aparece aqui porque esta tela é cheia de número e nada dizia de quem eram:
+           só o nome, no botão de voltar. Nada disto vem da fonte externa; é a linha do
+           banco que a outra tela também lê, então as duas não podem discordar. *@
+        @if (Model.Cadastro is { } jogador)
+        {
+            <div class="ea-jog theme-dark-zone">
+                @if (!string.IsNullOrEmpty(jogador.Time?.EscudoUrl))
+                {
+                    <a class="ea-jog-escudo" asp-controller="Times" asp-action="Details" asp-route-id="@jogador.TimeId" title="Ver @jogador.Time.Nome">
+                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogador.Time.EscudoUrl })" alt="" />
+                    </a>
+                }
+
+                <div class="ea-jog-foto">
+                    <img src="@(string.IsNullOrWhiteSpace(jogador.FotoUrl) ? "/images/placeholder-jogador.png" : Url.FotoSrc(jogador.FotoUrl))"
+                         alt="@jogador.NomeExibicao"
+                         onerror="this.onerror=null; this.src='/images/placeholder-jogador.png'" />
+                </div>
+
+                <div class="ea-jog-info">
+                    <h1 class="ea-jog-nome">@jogador.NomeExibicao</h1>
+                    <div class="ea-jog-meta">
+                        @if (!string.IsNullOrWhiteSpace(jogador.Posicao))
+                        {
+                            <span class="ea-jog-pos">@PosicaoJogadorHelper.Sigla(jogador.Posicao)</span>
+                        }
+                        @if (jogador.NumeroCamisa.HasValue)
+                        {
+                            <span class="ea-jog-item">Nº @jogador.NumeroCamisa</span>
+                        }
+                        @* Idade zero é "sem data de nascimento" (Jogador.Idade), e
+                           "0 anos" no cabeçalho seria pior do que não dizer nada. *@
+                        @if (jogador.Idade > 0)
+                        {
+                            <span class="ea-jog-item">@jogador.Idade anos</span>
+                        }
+                        @if (jogador.Altura.HasValue)
+                        {
+                            <span class="ea-jog-item">@jogador.Altura cm</span>
+                        }
+                        @if (jogador.Peso.HasValue)
+                        {
+                            <span class="ea-jog-item">@jogador.Peso kg</span>
+                        }
+                        @if (jogador.Time != null)
+                        {
+                            <a class="ea-jog-item" asp-controller="Times" asp-action="Details" asp-route-id="@jogador.TimeId" title="Ver @jogador.Time.Nome">
+                                @if (!string.IsNullOrEmpty(jogador.Time.EscudoUrl))
+                                {
+                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogador.Time.EscudoUrl })" alt="" />
+                                }
+                                @jogador.Time.Nome
+                            </a>
+                        }
+                        @if (jogador.Nacionalidade != null)
+                        {
+                            var bandeira = FlagHelper.GetFlagImageUrl(jogador.Nacionalidade.Nome);
+                            <span class="ea-jog-item" title="País de nascimento: @jogador.Nacionalidade.Nome">
+                                @if (bandeira != null)
+                                {
+                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = bandeira })" alt="" />
+                                }
+                                @jogador.Nacionalidade.Nome
+                            </span>
+                        }
+                        @if (jogador.Selecao != null)
+                        {
+                            <a class="ea-jog-item" asp-controller="Times" asp-action="Details" asp-route-id="@jogador.SelecaoId" title="Seleção que defende: @jogador.Selecao.Nome">
+                                @if (!string.IsNullOrEmpty(jogador.Selecao.EscudoUrl))
+                                {
+                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogador.Selecao.EscudoUrl })" alt="" />
+                                }
+                                @jogador.Selecao.Nome
+                            </a>
+                        }
+                    </div>
+                </div>
+
+                <form asp-action="SincronizarFotMob" asp-route-id="@jogador.Id" method="post" class="ea-sync">
+                    <button type="submit" class="ea-sync-btn"
+                            title="Atualiza foto, nome, altura, idade e nacionalidade com o perfil do FotMob (só o que estiver diferente)"
+                            onclick="this.disabled=true; this.textContent='Sincronizando…'; this.form.submit();">
+                        ⟳ Sincronizar com FotMob
+                    </button>
+                </form>
+            </div>
+        }
+
+        @* Totalizador de gols e assistências, com seletor de recorte: a carreira toda
+           ou uma temporada. Tudo o que ele mostra veio na MESMA resposta que monta o
+           resto da tela (a carreira do jogador), então trocar de recorte é instantâneo
+           e não custa busca nenhuma — por isso a troca é no cliente, e não por link.
+
+           Antes daqui a tela só respondia "quantos gols nesta competição desta
+           temporada"; o total do jogador ficava para quem somasse as linhas de olho. *@
+        @{
+            var opcoesTot = Model.OpcoesTotalizador;
+        }
+        @if (opcoesTot.Count > 0)
+        {
+            <div class="ea-tot" id="ea-tot">
+                <div class="ea-tot-seletor">
+                    <span class="ea-tot-seletor-rot">Recorte</span>
+                    <div class="ea-tot-chips">
+                        @foreach (var (op, i) in opcoesTot.Select((o, i) => (o, i)))
+                        {
+                            <button type="button" class="ea-tot-chip @(i == 0 ? "ativa" : "")"
+                                    data-tot="@op.Id">@op.Rotulo</button>
+                        }
+                    </div>
+                </div>
+
+                <div class="ea-tot-cards">
+                    <div class="ea-tot-card destaque">
+                        <div class="ea-tot-rot">Gols</div>
+                        <div class="ea-tot-val" data-tot-val="gols">@opcoesTot[0].Gols</div>
+                        <div class="ea-tot-det" data-tot-det="gols"></div>
+                    </div>
+                    <div class="ea-tot-card destaque">
+                        <div class="ea-tot-rot">Assistências</div>
+                        <div class="ea-tot-val" data-tot-val="assistencias">@opcoesTot[0].Assistencias</div>
+                        <div class="ea-tot-det" data-tot-det="assistencias"></div>
+                    </div>
+                    <div class="ea-tot-card">
+                        <div class="ea-tot-rot">Participações em gol</div>
+                        <div class="ea-tot-val" data-tot-val="participacoes">@opcoesTot[0].Participacoes</div>
+                        <div class="ea-tot-det">gols + assistências</div>
+                    </div>
+                    <div class="ea-tot-card">
+                        <div class="ea-tot-rot">Jogos</div>
+                        <div class="ea-tot-val" data-tot-val="jogos">@opcoesTot[0].Jogos</div>
+                        <div class="ea-tot-det" data-tot-det="media"></div>
+                    </div>
+                </div>
+
+                @* Quebra por competição da temporada escolhida. Fica vazia na carreira
+                   toda, onde o recorte que faz sentido é o de clubes — e esse já está na
+                   tabela "Carreira" mais abaixo. *@
+                <div class="ea-tot-comps" data-tot-comps hidden></div>
+
+                <div class="ea-tot-nota" data-tot-nota></div>
+            </div>
+
+            <script type="application/json" id="ea-tot-dados">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(opcoesTot, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))</script>
+            <script>
+                (function () {
+                    var raiz = document.getElementById('ea-tot');
+                    var fonte = document.getElementById('ea-tot-dados');
+                    var dados = JSON.parse((fonte && fonte.textContent) || '[]');
+                    if (!raiz || !dados.length) return;
+
+                    var porId = {};
+                    dados.forEach(function (o) { porId[o.id] = o; });
+
+                    function texto(seletor, valor) {
+                        var el = raiz.querySelector(seletor);
+                        if (el) el.textContent = valor;
+                    }
+
+                    // Nome de competição entra como texto, nunca como marcação: veio de
+                    // fora e não tem por que poder escrever HTML nesta página.
+                    function chipCompeticao(c) {
+                        var chip = document.createElement('span');
+                        chip.className = 'ea-tot-comp';
+
+                        var nome = document.createElement('strong');
+                        nome.textContent = c.nome;
+                        chip.appendChild(nome);
+
+                        chip.appendChild(document.createTextNode(
+                            ' ' + c.gols + 'G ' + c.assistencias + 'A '));
+
+                        var jogos = document.createElement('span');
+                        jogos.textContent = 'em ' + c.jogos + ' jogo(s)';
+                        chip.appendChild(jogos);
+
+                        return chip;
+                    }
+
+                    function aplicar(id) {
+                        var o = porId[id];
+                        if (!o) return;
+
+                        texto('[data-tot-val="gols"]', o.gols);
+                        texto('[data-tot-val="assistencias"]', o.assistencias);
+                        texto('[data-tot-val="participacoes"]', o.participacoes);
+                        texto('[data-tot-val="jogos"]', o.jogos);
+
+                        // A quebra clube/seleção só vem preenchida na carreira; na
+                        // temporada o clube daquele ano fica na nota do rodapé.
+                        texto('[data-tot-det="gols"]', o.detalheGols || '');
+                        texto('[data-tot-det="assistencias"]', o.detalheAssistencias || '');
+                        texto('[data-tot-det="media"]', o.jogos > 0
+                            ? (o.participacoes / o.jogos).toFixed(2).replace('.', ',') + ' participações por jogo'
+                            : '');
+
+                        var comps = raiz.querySelector('[data-tot-comps]');
+                        if (comps) {
+                            comps.textContent = '';
+                            (o.competicoes || []).forEach(function (c) {
+                                comps.appendChild(chipCompeticao(c));
+                            });
+                            comps.hidden = comps.children.length === 0;
+                        }
+
+                        texto('[data-tot-nota]', o.id === 'carreira'
+                            ? 'Carreira inteira — soma de todas as passagens listadas em “Carreira” mais abaixo.'
+                            : 'Temporada ' + o.rotulo + (o.detalhe ? ' · ' + o.detalhe : ''));
+
+                        raiz.querySelectorAll('[data-tot]').forEach(function (b) {
+                            b.classList.toggle('ativa', b.dataset.tot === id);
+                        });
+                    }
+
+                    raiz.querySelectorAll('[data-tot]').forEach(function (b) {
+                        b.addEventListener('click', function () { aplicar(b.dataset.tot); });
+                    });
+
+                    aplicar(dados[0].id);
+                })();
+            </script>
+        }
+
         <div class="ea-head">
-            <h1 class="ea-titulo">Estatísticas avançadas</h1>
+            <h2 class="ea-titulo">Estatísticas avançadas</h2>
             @if (Model.PosicaoPrincipal != null || Model.ValorDeMercado != null)
             {
                 <div class="ea-sub">
@@ -136,6 +460,17 @@
                     @if (Model.ValorDeMercado != null)
                     {
                         <span> · Valor de mercado: <strong>@Model.ValorDeMercado</strong></span>
+                    }
+                </div>
+            }
+            @if (Model.Situacao != null)
+            {
+                <div class="ea-lesao"
+                     title="@(Model.Situacao.AtualizadoEm.HasValue ? $"Informado pelo FotMob, atualizado em {Model.Situacao.AtualizadoEm.Value:dd/MM/yyyy}." : "Informado pelo FotMob.")">
+                    🩹 @Model.Situacao.Lesao
+                    @if (Model.Situacao.Retorno != null)
+                    {
+                        <span>· @Model.Situacao.Retorno</span>
                     }
                 </div>
             }

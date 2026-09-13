@@ -177,6 +177,10 @@
 @section Styles {
     <link rel="stylesheet" href="~/css/mencao-jogador.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/jogadas.css" asp-append-version="true" />
+    @* matchup.css antes de analisar.css: os ajustes .pj-maximizado .mu-* daqui
+       sobrescrevem o campo compartilhado quando o modal abre em tela cheia. *@
+    <link rel="stylesheet" href="~/css/jogador-tooltip.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/matchup.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/analisar.css" asp-append-version="true" />
 }
 
@@ -245,6 +249,54 @@
         --cor-numero-vis:  #@(string.IsNullOrWhiteSpace(Model.Jogo.CorNumeroVisitante) ? "ffffff" : Model.Jogo.CorNumeroVisitante);
     }
 </style>
+@* Cor da camisa escolhida pelo usuário no cabeçalho das escalações (igual ao
+   seletor do match-up de /creators). Fica só no navegador, por jogo: o Jogo é
+   compartilhado e as cores da API continuam valendo para os outros. *@
+<script>
+    (function () {
+        const chave = function (lado) { return 'an-cor-camisa-@(Model.Jogo.Id)-' + lado; };
+
+        // Número em preto ou branco, o que contrastar mais com a camisa
+        function corNumero(hex) {
+            const n = parseInt(hex.slice(1), 16);
+            const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+            return (0.299 * r + 0.587 * g + 0.114 * b) > 160 ? '#111111' : '#ffffff';
+        }
+
+        function aplicar(lado, cor) {
+            const s = document.documentElement.style;
+            s.setProperty('--cor-camisa-' + lado, cor);
+            s.setProperty('--cor-numero-' + lado, corNumero(cor));
+        }
+
+        window.anSetCorCamisa = function (lado, cor) {
+            aplicar(lado, cor);
+            try { localStorage.setItem(chave(lado), cor); } catch (e) { }
+        };
+
+        window.anResetCorCamisa = function (lado, input) {
+            const s = document.documentElement.style;
+            s.removeProperty('--cor-camisa-' + lado);
+            s.removeProperty('--cor-numero-' + lado);
+            try { localStorage.removeItem(chave(lado)); } catch (e) { }
+            if (input) input.value = getComputedStyle(document.documentElement).getPropertyValue('--cor-camisa-' + lado).trim().slice(0, 7);
+        };
+
+        ['casa', 'vis'].forEach(function (lado) {
+            let cor = null;
+            try { cor = localStorage.getItem(chave(lado)); } catch (e) { }
+            if (cor && /^#[0-9a-f]{6}$/i.test(cor)) aplicar(lado, cor);
+        });
+
+        // Os inputs vêm depois no HTML: sincroniza o valor quando o DOM estiver pronto
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('.jog-cor-camisa').forEach(function (inp) {
+                const cor = getComputedStyle(document.documentElement).getPropertyValue('--cor-camisa-' + inp.dataset.lado).trim();
+                if (/^#[0-9a-f]{6}$/i.test(cor)) inp.value = cor;
+            });
+        });
+    })();
+</script>
 
 @if (Model.Jogo.CompeticaoId == 1)
 {
@@ -315,14 +367,17 @@
     <!-- Disputa de pênaltis (preenchida via JS quando houver) -->
     <div class="mb-penaltis" id="mbPenaltis" style="display:none;"></div>
 
-    @if (!string.IsNullOrWhiteSpace(Model.Jogo.Estadio) || !string.IsNullOrWhiteSpace(Model.Jogo.Arbitro))
+    @* Local da partida: o que a fonte informou ou, na falta dele, o estádio do
+       mandante cadastrado no time (EstadioJogoHelper). *@
+    @{ var localJogo = EstadioJogoHelper.Local(Model.Jogo); }
+    @if (!string.IsNullOrWhiteSpace(localJogo) || !string.IsNullOrWhiteSpace(Model.Jogo.Arbitro))
     {
         <div class="mb-meta">
-            @if (!string.IsNullOrWhiteSpace(Model.Jogo.Estadio))
+            @if (!string.IsNullOrWhiteSpace(localJogo))
             {
-                <span class="mb-meta-item">
+                <span class="mb-meta-item" title="@(EstadioJogoHelper.DoMandante(Model.Jogo) ? "Estádio do mandante — o local não veio da fonte" : null)">
                     <span class="mb-meta-icon">🏟️</span>
-                    <span>@Model.Jogo.Estadio</span>
+                    <span>@localJogo</span>
                 </span>
             }
             @if (!string.IsNullOrWhiteSpace(Model.Jogo.Arbitro))
@@ -912,6 +967,10 @@
                             <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeCasa.EscudoUrl })" alt="" />
                         }
                         <span class="jog-nome">@Model.Jogo.TimeCasa?.Nome</span>
+                        <input type="color" class="jog-cor-camisa" data-lado="casa" value="#dc3545"
+                               title="Cor da camisa deste time (clique com o botão direito para voltar à cor original)"
+                               oninput="anSetCorCamisa('casa', this.value)"
+                               oncontextmenu="event.preventDefault(); anResetCorCamisa('casa', this)" />
                         <button type="button" class="jog-btn-add" onclick="toggleFormNovoJogador('casa')"
                                 title="Cadastrar no elenco um jogador que a API ainda não trouxe">+</button>
                     </div>
@@ -1340,6 +1399,10 @@
                             <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeVisitante.EscudoUrl })" alt="" />
                         }
                         <span class="jog-nome">@Model.Jogo.TimeVisitante?.Nome</span>
+                        <input type="color" class="jog-cor-camisa" data-lado="vis" value="#0d6efd"
+                               title="Cor da camisa deste time (clique com o botão direito para voltar à cor original)"
+                               oninput="anSetCorCamisa('vis', this.value)"
+                               oncontextmenu="event.preventDefault(); anResetCorCamisa('vis', this)" />
                         <button type="button" class="jog-btn-add" onclick="toggleFormNovoJogador('vis')"
                                 title="Cadastrar no elenco um jogador que a API ainda não trouxe">+</button>
                     </div>
@@ -1635,11 +1698,15 @@
         <div class="pj-tabs">
             <button type="button" id="pj-tab-resumo" class="pj-tab active" onclick="mostrarAbaPreJogo('resumo')">📋 Resumo</button>
             <button type="button" id="pj-tab-matchup" class="pj-tab" onclick="mostrarAbaPreJogo('matchup')">⚔️ Match-up</button>
+            <button type="button" id="pj-tab-indisp" class="pj-tab" onclick="mostrarAbaPreJogo('indisp')">🚑 Indisponíveis</button>
         </div>
         <div id="prejogo-corpo">
             <div style="text-align:center; color:rgba(255,255,255,.6); padding:2rem 0">Carregando...</div>
         </div>
         <div id="prejogo-matchup" style="display:none;">
+            <div style="text-align:center; color:rgba(255,255,255,.6); padding:2rem 0">Carregando...</div>
+        </div>
+        <div id="prejogo-indisp" style="display:none;">
             <div style="text-align:center; color:rgba(255,255,255,.6); padding:2rem 0">Carregando...</div>
         </div>
     </div>
@@ -1749,6 +1816,12 @@
     @* painel-jogo.js antes de analisar.js: define window.PainelJogo, usado para
        montar o modal Pós-jogo (e reaproveitado em /analise/{token}). *@
     <script src="~/js/painel-jogo.js" asp-append-version="true"></script>
+    @* matchup.js: campo do Match-up do modal Pré-jogo, compartilhado com a
+       página pública /creators/escalacao. *@
+    @* jogador-tooltip.js antes: define window.JogadorTooltip, usado pelo ℹ desta
+       tela e pelo do campo do Match-up. *@
+    <script src="~/js/jogador-tooltip.js" asp-append-version="true"></script>
+    <script src="~/js/matchup.js" asp-append-version="true"></script>
     <script src="~/js/analisar.js" asp-append-version="true"></script>
 }
 

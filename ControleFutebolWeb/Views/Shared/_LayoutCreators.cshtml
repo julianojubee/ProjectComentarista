@@ -1,0 +1,89 @@
+@{
+    // Layout PÚBLICO da área de creators (/creators). Como o _LayoutBlog, não
+    // injeta UserManager nem FutebolContext: página anônima não roda nenhuma
+    // query por usuário. O único enfeite dependente de login é o botão do topo
+    // (Entrar / Meu painel).
+    var tituloAba = (ViewData["TitleOverride"] as string)
+        ?? ((ViewData["Title"] as string ?? "Creators") + " - Análise de Craque");
+    var atual = ViewData["Ferramenta"] as string;
+    string Ativo(string nome) => atual == nome ? " ativo" : "";
+}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@tituloAba</title>
+    <link rel="icon" type="image/svg+xml" href="~/favicon.svg" />
+    <link rel="alternate icon" href="~/favicon.ico" />
+    @await RenderSectionAsync("Meta", required: false)
+    <script>(function(){var t=localStorage.getItem('site-theme');if(t){document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-bs-theme',t);}})();</script>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @* Mesmo combo com busca das telas internas: os <select data-buscavel> viram
+       campo digitável e continuam sendo o mesmo select no DOM. *@
+    <link rel="stylesheet" href="~/css/select-buscavel.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/creators.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+    <header class="cr-topo">
+        <div class="cr-topo-inner">
+            <a class="cr-marca" href="/creators" aria-label="Creators — início">
+                <span class="cr-marca-nome">ANÁLISE DE CRAQUE</span>
+                <span class="cr-marca-tag">CREATORS</span>
+            </a>
+            <nav class="cr-nav">
+                <a class="cr-nav-link@(Ativo("escalacao"))" href="/creators/escalacao">Escalações</a>
+                <a class="cr-nav-link@(Ativo("selecao"))" href="/creators/selecao">Seleção</a>
+                <a class="cr-nav-link@(Ativo("tabelas"))" href="/creators/tabelas">Tabelas</a>
+                <a class="cr-nav-link@(Ativo("jogos"))" href="/creators/jogos-hoje">Jogos do dia</a>
+                <a class="cr-nav-link@(Ativo("simulador"))" href="/creators/simulador">Simulador</a>
+            </nav>
+            <div class="cr-topo-acoes">
+                <button id="theme-toggle-btn" onclick="toggleThemeCreators()" class="cr-btn-tema"
+                        title="Alternar modo escuro">
+                    <span id="theme-toggle-icon">🌙</span>
+                </button>
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <a class="cr-btn" href="/Home/Index">Meu painel</a>
+                }
+                else
+                {
+                    <a class="cr-btn" asp-controller="Account" asp-action="Login">Entrar</a>
+                }
+            </div>
+        </div>
+    </header>
+
+    <main role="main">
+        @RenderBody()
+    </main>
+
+    <footer class="cr-rodape">
+        Ferramentas abertas para criadores de conteúdo. O que você monta aqui fica só na sua tela — nada é salvo.
+    </footer>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            var icon = document.getElementById('theme-toggle-icon');
+            if (icon) {
+                var t = document.documentElement.getAttribute('data-theme') || 'light';
+                icon.textContent = t === 'dark' ? '☀️' : '🌙';
+            }
+        });
+        function toggleThemeCreators() {
+            var current = document.documentElement.getAttribute('data-theme') || 'light';
+            var next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            document.documentElement.setAttribute('data-bs-theme', next);
+            localStorage.setItem('site-theme', next);
+            var icon = document.getElementById('theme-toggle-icon');
+            if (icon) icon.textContent = next === 'dark' ? '☀️' : '🌙';
+        }
+    </script>
+    <script src="~/js/select-buscavel.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

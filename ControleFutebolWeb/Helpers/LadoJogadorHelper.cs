@@ -1,4 +1,4 @@
-using ControleFutebolWeb.Data;
+﻿using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,6 +27,66 @@ namespace ControleFutebolWeb.Helpers
     // qualquer cálculo que precise da atuação histórica.
     public static class LadoJogadorHelper
     {
+        /// <summary>Mapa vazio, para quem não tem escalação daquele jogo à mão.</summary>
+        public static readonly IReadOnlyDictionary<(int JogadorId, int JogoId), AtuacaoNoJogo> SemAtuacoes =
+            new Dictionary<(int, int), AtuacaoNoJogo>();
+
+        /// <summary>
+        /// O jogador atuou pelo time da casa neste jogo? Responde pela escalação da época;
+        /// o clube do cadastro (TimeId, ou SelecaoId em competição de seleções) é só o
+        /// fallback de quem não aparece escalado.
+        /// </summary>
+        public static bool EhDoTimeDaCasa(
+            Jogador? jogador, Jogo jogo,
+            IReadOnlyDictionary<(int JogadorId, int JogoId), AtuacaoNoJogo> atuacoes)
+        {
+            if (jogador == null) return false;
+            if (atuacoes.TryGetValue((jogador.Id, jogo.Id), out var atuacao)) return atuacao.IsTimeCasa;
+
+            return jogador.TimeId == jogo.TimeCasaId || jogador.SelecaoId == jogo.TimeCasaId;
+        }
+
+        /// <summary>
+        /// De que time do jogo é o autor de um evento (gol, cartão, assistência). Null
+        /// quando nem a escalação nem o cadastro ligam o jogador a um dos dois times —
+        /// evento sem dono, que as contagens por time devem ignorar em vez de chutar.
+        /// </summary>
+        public static int? TimeDoAutor(
+            Jogo jogo, Jogador? autor,
+            IReadOnlyDictionary<(int JogadorId, int JogoId), AtuacaoNoJogo> atuacoes)
+        {
+            if (autor == null) return null;
+            if (atuacoes.TryGetValue((autor.Id, jogo.Id), out var atuacao))
+                return atuacao.IsTimeCasa ? jogo.TimeCasaId : jogo.TimeVisitanteId;
+
+            if (autor.TimeId == jogo.TimeCasaId || autor.SelecaoId == jogo.TimeCasaId)
+                return jogo.TimeCasaId;
+            if (autor.TimeId == jogo.TimeVisitanteId || autor.SelecaoId == jogo.TimeVisitanteId)
+                return jogo.TimeVisitanteId;
+
+            return null;
+        }
+
+        /// <summary>
+        /// Escalações compartilhadas dos jogos pedidos, restritas aos jogadores que
+        /// aparecem nos eventos a contar — as escalações inteiras de uma competição são
+        /// milhares de linhas para resolver algumas centenas de gols e cartões. Devolve a
+        /// consulta porque há telas montadas de forma síncrona. Contagem por time não
+        /// depende de quem está olhando, então vai pela escalação compartilhada.
+        /// </summary>
+        public static IQueryable<Escalacao> EscalacoesDosEventos(
+            FutebolContext context, IEnumerable<int> jogoIds, IEnumerable<int> jogadorIds) =>
+            Consulta(context, jogoIds.Distinct().ToList(), null, jogadorIds.Distinct().ToList());
+
+        /// <summary>
+        /// Só o lado de cada (jogador, jogo) dos eventos informados — sem as consultas de
+        /// formação/slot que <see cref="CarregarAsync"/> faz para descobrir a posição.
+        /// </summary>
+        public static async Task<Dictionary<(int JogadorId, int JogoId), AtuacaoNoJogo>> CarregarLadosAsync(
+            FutebolContext context, IEnumerable<int> jogoIds, IEnumerable<int> jogadorIds,
+            CancellationToken ct = default) =>
+            Montar(await EscalacoesDosEventos(context, jogoIds, jogadorIds).ToListAsync(ct));
+
         public static Dictionary<(int JogadorId, int JogoId), AtuacaoNoJogo> Montar(
             IEnumerable<Escalacao> escalacoes,
             IReadOnlyDictionary<int, List<PosicaoFormacao>>? slotsPorFormacao = null,

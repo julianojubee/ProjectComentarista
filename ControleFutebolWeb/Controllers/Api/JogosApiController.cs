@@ -96,7 +96,8 @@ namespace ControleFutebolWeb.Controllers.Api
                 PlacarCasa = jogo.PlacarCasa,
                 PlacarVisitante = jogo.PlacarVisitante,
                 Status = jogo.Status,
-                Estadio = jogo.Estadio,
+                // Sem o local da fonte, o app mostra o estádio do mandante (ver EstadioJogoHelper)
+                Estadio = EstadioJogoHelper.Local(jogo),
                 Arbitro = jogo.Arbitro,
                 PenaltisCasa = jogo.PenaltisCasa,
                 PenaltisVisitante = jogo.PenaltisVisitante,

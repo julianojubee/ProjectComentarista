@@ -73,15 +73,16 @@
 .jgd-max-btn + .jgd-fechar { margin-left: 6px; }
 
 /* ── Maximizado ─────────────────────────────────────────────────────
-   O campo é o que ganha com o espaço: ele ocupa 100% da coluna, então basta a
-   caixa crescer. O teto existe porque a proporção é fixa (1,62:1) — numa tela
-   larga o gramado ficaria alto demais e empurraria a timeline e os painéis para
-   fora da vista. Ele traduz a altura que sobra depois das barras (~440px) na
-   largura correspondente, mais as 214px da coluna do elenco e das margens.
+   A prancheta deixa de ser um modal e vira tela de trabalho. O que ela faz com
+   o espaço depende da largura:
 
-   O teto vai nos FILHOS do editor, e não no .jgd-campo-wrap: margem automática
-   num item de grid desliga o stretch e a largura vira fit-content — como o
-   conteúdo do wrap é só posicionamento absoluto, ele colapsaria para ~30px. */
+   • Até 1200px continua em coluna única, com o campo limitado pela ALTURA que
+     sobra depois das barras (a proporção é fixa, 1,62:1): dividir uma tela
+     estreita em duas colunas deixaria o gramado menor do que já era.
+   • De 1200px em diante o editor vira duas colunas — o campo sozinho na
+     esquerda e os ajustes da jogada (scrub, timeline, painéis) empilhados à
+     direita. É o que finalmente usa a tela inteira: antes o campo tinha de
+     caber ACIMA dos painéis, e sobrava largura sem ninguém. */
 .jgd-box.jgd-maximizado {
     width: 100vw;
     max-width: 100vw;
@@ -91,6 +92,11 @@
     border: none;
 }
 
+/* Coluna única: o teto traduz a altura livre na largura correspondente, mais as
+   214px da coluna do elenco e das margens das traves. Vai nos FILHOS do editor,
+   e não no .jgd-campo-wrap: margem automática num item de grid desliga o
+   stretch e a largura vira fit-content — como o conteúdo do wrap é só
+   posicionamento absoluto, ele colapsaria para ~30px. */
 .jgd-box.jgd-maximizado .jgd-editor > * {
     max-width: max(760px, calc((100vh - 440px) * 1.62 + 214px));
     margin-left: auto;
@@ -98,6 +104,60 @@
 }
 
 .jgd-box.jgd-maximizado .jgd-elenco-lista { max-height: calc(100vh - 530px); }
+
+@media (min-width: 1200px) {
+    .jgd-box.jgd-maximizado .jgd-editor {
+        display: grid;
+        /* Largura desejada da coluna do campo = a altura livre convertida pela
+           proporção do gramado; sobrando espaço ele vai para os ajustes, e
+           faltando a coluna encolhe até 420px. */
+        grid-template-columns: minmax(420px, calc((100vh - 215px) * 1.62 + 196px)) 320px;
+        grid-template-rows: auto auto auto auto auto auto 1fr;
+        align-content: start;
+        column-gap: 14px;
+        padding: .7rem .8rem .8rem;
+    }
+
+    .jgd-box.jgd-maximizado .jgd-editor > * { max-width: none; margin-left: 0; margin-right: 0; }
+
+    /* Cada pixel tirado das barras laterais vira gramado */
+    .jgd-box.jgd-maximizado .jgd-corpo { grid-template-columns: 200px 1fr; }
+
+    /* Barra de ferramentas, dica de modo e motor atravessam as duas colunas */
+    .jgd-box.jgd-maximizado .jgd-barra,
+    .jgd-box.jgd-maximizado .jgd-dica-modo,
+    .jgd-box.jgd-maximizado .jgd-motor { grid-column: 1 / -1; }
+
+    .jgd-box.jgd-maximizado .jgd-palco {
+        grid-column: 1;
+        grid-row: 4 / span 4;
+        grid-template-columns: 160px 1fr;
+        align-self: start;
+        position: relative;
+    }
+
+    /* Quem manda na altura é o campo. Tirando o elenco do fluxo do grid (a
+       coluna de 160px continua reservada para ele), a lista de jogadores não
+       estica mais a linha: ela ocupa a altura do gramado e rola por dentro. */
+    .jgd-box.jgd-maximizado .jgd-elenco {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 160px;
+    }
+
+    /* O elenco saiu do fluxo: o campo precisa dizer que segue na 2ª coluna */
+    .jgd-box.jgd-maximizado .jgd-campo-wrap { grid-column: 2; }
+
+    .jgd-box.jgd-maximizado .jgd-scrub-linha { grid-column: 2; grid-row: 4; margin-top: 0; }
+    .jgd-box.jgd-maximizado .jgd-timeline    { grid-column: 2; grid-row: 5; }
+    .jgd-box.jgd-maximizado .jgd-paineis     { grid-column: 2; grid-row: 6; grid-template-columns: 1fr; }
+    .jgd-box.jgd-maximizado .jgd-rodape-dica { grid-column: 2; grid-row: 7; }
+
+    /* A lista do elenco acompanha a altura do campo em vez de um teto fixo */
+    .jgd-box.jgd-maximizado .jgd-elenco-lista { max-height: none; flex: 1 1 auto; }
+}
 
 /* Abas de time (casa / visitante) */
 .jgd-abas { display: flex; gap: 6px; }
@@ -393,7 +453,8 @@
     color: var(--text-muted);
     font-size: 11px;
     font-weight: 700;
-    padding: 6px;
+    line-height: 1.35;
+    padding: 6px 8px;
     cursor: pointer;
 }
 
@@ -504,6 +565,89 @@
 .jgd-caminho.jgd-caminho-adv { stroke: rgba(96,165,250,.5); }
 .jgd-caminho-bola { fill: none; stroke: rgba(255,255,255,.55); stroke-width: 1.8; stroke-linecap: round; }
 
+/* ══ Exportação em vídeo ════════════════════════════════════════════ */
+/* A janela mostra o canvas que está sendo gravado: a captura é em tempo real e
+   depende do requestAnimationFrame, então o usuário precisa ver que algo está
+   acontecendo ali e não trocar de aba no meio. */
+.jgd-video-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.82);
+    z-index: 10010;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.jgd-video-caixa {
+    background: var(--p-0);
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 14px;
+    padding: 1.1rem 1.2rem;
+    width: min(880px, 94vw);
+    box-shadow: 0 16px 50px rgba(0,0,0,.6);
+    text-align: center;
+}
+
+.jgd-video-tit { color: var(--text-strong); font-size: 15px; font-weight: 700; margin-bottom: .8rem; }
+
+.jgd-video-tela canvas {
+    width: 100%;
+    height: auto;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,.12);
+    display: block;
+}
+
+.jgd-video-barra {
+    height: 6px;
+    background: rgba(255,255,255,.1);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: .8rem 0 .6rem;
+}
+
+.jgd-video-barra i { display: block; height: 100%; width: 0; background: #facc15; transition: width .1s linear; }
+
+.jgd-video-nota { color: var(--text-muted); font-size: 12px; line-height: 1.5; margin-bottom: .8rem; }
+
+.jgd-btn.jgd-btn-video { background: rgba(236,72,153,.14); border-color: rgba(236,72,153,.45); color: #f9a8d4; }
+.jgd-btn.jgd-btn-video:hover { background: rgba(236,72,153,.25); color: #fff; }
+
+/* ══ Blocos (setores que se movem juntos) ═══════════════════════════ */
+/* Contorno do casco convexo do grupo: com duas peças é uma linha, com três um
+   triângulo, com quatro em fila uma faixa fina. Tracejado e translúcido para
+   ficar atrás das setas de anotação, que continuam sendo a informação tática.
+   A cor vem do desenho (style.stroke), uma por bloco. */
+.jgd-bloco {
+    fill: none;
+    stroke-width: 2;
+    stroke-dasharray: 7 5;
+    stroke-linejoin: round;
+    opacity: .65;
+    pointer-events: none;
+}
+
+/* Laço de seleção: o retângulo que o usuário arrasta no gramado vazio */
+.jgd-laco {
+    position: absolute;
+    border: 1px dashed rgba(255,255,255,.75);
+    background: rgba(255,255,255,.09);
+    border-radius: 3px;
+    pointer-events: none;
+    z-index: 15;
+}
+
+/* Peça de um bloco: anel na cor do bloco, por baixo do anel de seleção */
+.jgd-peca.jgd-em-bloco .jgd-peca-circulo {
+    box-shadow: 0 2px 6px rgba(0,0,0,.45), 0 0 0 2.5px var(--jgd-bloco-cor);
+}
+
+/* Numa seleção múltipla, a peça sob o cursor é a referência do arrasto */
+.jgd-peca.jgd-principal .jgd-peca-circulo { border-color: #fff; }
+
+.jgd-btn.jgd-btn-bloco.ativo { background: #f472b6; border-color: #f472b6; color: #2a0716; }
+
 /* Peça (jogador) */
 .jgd-peca {
     position: absolute;
@@ -529,8 +673,12 @@
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     font-size: 12px; font-weight: 800; color: #0b0f16;
-    background: #facc15; border: 2px solid rgba(255,255,255,.5);
+    /* A cor da camisa é escolhida no editor (por jogada, como no match-up dos
+       creators) e chega como variável no host do palco. O valor literal é o
+       fallback para as jogadas gravadas antes de existir a escolha. */
+    background: var(--jgd-cor-nos, #facc15); border: 2px solid rgba(255,255,255,.5);
     box-shadow: 0 2px 6px rgba(0,0,0,.45);
+    overflow: hidden;
 }
 
 /* Sombra no chão: alonga na corrida e encolhe no alto da passada */
@@ -559,7 +707,7 @@
     transform: translateX(-50%);
     border-left: 5px solid transparent;
     border-right: 5px solid transparent;
-    border-bottom: 8px solid #facc15;
+    border-bottom: 8px solid var(--jgd-cor-nos, #facc15);
     filter: drop-shadow(0 1px 2px rgba(0,0,0,.5));
 }
 
@@ -576,6 +724,13 @@
     box-shadow: 0 0 0 2.5px #22d3ee, 0 0 12px rgba(34,211,238,.7);
 }
 
+/* Selecionada E num bloco: os dois anéis, o ciano por dentro e a cor do bloco
+   por fora — o usuário precisa ver ao mesmo tempo o que está pegando e o que
+   vai andar junto. */
+.jgd-peca.jgd-selecionada.jgd-em-bloco .jgd-peca-circulo {
+    box-shadow: 0 0 0 2.5px #22d3ee, 0 0 0 5px var(--jgd-bloco-cor), 0 0 12px rgba(34,211,238,.55);
+}
+
 .jgd-peca-nome {
     font-size: 9px; color: #fff; line-height: 1.1; margin-top: 2px; text-align: center;
     max-width: 74px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -584,9 +739,54 @@
 
 /* Marcação adversária: azul, o mesmo par de cores que o campinho da análise usa
    para casa e visitante, para não inventar um terceiro código de cor. */
-.jgd-peca.jgd-adv .jgd-peca-circulo { background: #3b82f6; color: #fff; }
+.jgd-peca.jgd-adv .jgd-peca-circulo { background: var(--jgd-cor-adv, #3b82f6); color: #fff; }
 .jgd-peca.jgd-adv .jgd-peca-sigla { color: rgba(191,219,254,.8); }
-.jgd-peca.jgd-adv .jgd-peca-facing::before { border-bottom-color: #3b82f6; }
+.jgd-peca.jgd-adv .jgd-peca-facing::before { border-bottom-color: var(--jgd-cor-adv, #3b82f6); }
+
+/* ══ Foto do jogador na peça ════════════════════════════════════════ */
+/* Com foto, o círculo deixa de ser a camisa e vira a moldura do rosto: a cor do
+   time passa para a borda (senão as 22 peças viram uma massa de bordas brancas
+   iguais) e o número sai do meio para um badge no canto. Mesma leitura do
+   match-up de /creators/escalacao. */
+.jgd-peca.jgd-com-foto .jgd-peca-circulo {
+    background: #0b1220;
+    border-color: var(--jgd-cor-nos, #facc15);
+    border-width: 2.5px;
+    overflow: visible;
+}
+
+.jgd-peca.jgd-com-foto.jgd-adv .jgd-peca-circulo { border-color: var(--jgd-cor-adv, #3b82f6); }
+
+.jgd-peca-foto {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: top center;
+    pointer-events: none;
+}
+
+.jgd-peca.jgd-com-foto .jgd-peca-num {
+    position: absolute; left: -6px; top: -5px;
+    min-width: 15px; height: 15px; padding: 0 3px;
+    border-radius: 8px;
+    background: rgba(0,0,0,.82); color: #fff;
+    border: 1px solid rgba(255,255,255,.5);
+    font-size: 9.5px; font-weight: 800; line-height: 15px; text-align: center;
+}
+
+/* Sem foto o número continua sendo o miolo do disco */
+.jgd-peca-num { position: relative; z-index: 1; }
+
+/* Seletor de cor da camisa na barra do editor */
+.jgd-cor-time {
+    width: 26px; height: 24px; padding: 0;
+    background: none; border: 1px solid rgba(255,255,255,.18);
+    border-radius: 6px; cursor: pointer;
+}
+
+.jgd-cor-time::-webkit-color-swatch-wrapper { padding: 2px; }
+.jgd-cor-time::-webkit-color-swatch { border: none; border-radius: 4px; }
 
 .jgd-peca-remover {
     position: absolute; top: 6px; right: 6px;

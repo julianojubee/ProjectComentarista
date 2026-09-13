@@ -1,0 +1,120 @@
+@model ControleFutebolWeb.Models.ViewModels.CreatorsTabelaViewModel
+@{
+    Layout = "_LayoutCreators";
+    ViewData["Title"] = "Tabelas";
+    ViewData["Ferramenta"] = "tabelas";
+}
+
+<div class="cr-wrap">
+    <h1 class="cr-titulo">Tabelas</h1>
+    <p class="cr-sub">Classificação por competição e temporada, montada com os jogos já encerrados.</p>
+
+    @if (Model.Competicoes.Count == 0)
+    {
+        <p class="cr-aviso">Nenhuma competição com jogos registrados por enquanto.</p>
+    }
+    else
+    {
+        <form class="cr-barra" method="get" action="/creators/tabelas">
+            <div class="cr-campo-form">
+                <label for="competicao">Competição</label>
+                <select id="competicao" name="competicao" onchange="this.form.submit()">
+                    @foreach (var c in Model.Competicoes)
+                    {
+                        <option value="@c.Id" selected="@(c.Id == Model.CompeticaoId)">@c.Nome</option>
+                    }
+                </select>
+            </div>
+            <div class="cr-campo-form">
+                <label for="temporada">Temporada</label>
+                <select id="temporada" name="temporada" onchange="this.form.submit()">
+                    @foreach (var t in Model.Temporadas)
+                    {
+                        <option value="@t" selected="@(t == Model.Temporada)">@t</option>
+                    }
+                </select>
+            </div>
+        </form>
+
+        @if (!Model.TemAlgoParaMostrar)
+        {
+            <p class="cr-aviso">Nenhum jogo registrado nessa temporada.</p>
+        }
+        else
+        {
+            <p class="cr-sub">@Model.Competicao?.Nome — @Model.Temporada · @Model.TotalJogos jogos encerrados</p>
+
+            @* Cada bloco só aparece se a competição tiver aquele formato: uma de
+               pontos corridos mostra a tabela, uma de grupos mostra um card por
+               grupo, uma eliminatória mostra o chaveamento. Competição com fases
+               declaradas (ex.: pontos corridos + playoff) mostra fase a fase. *@
+            @if (Model.Painel.Fases.Any())
+            {
+                foreach (var fase in Model.Painel.Fases)
+                {
+                    <section class="cr-fase">
+                        <h2 class="cr-fase-nome">@fase.Fase.Nome</h2>
+                        @if (fase.Classificacao.Any())
+                        {
+                            @await Html.PartialAsync("_TabelaClassificacao", fase.Classificacao)
+                        }
+                        @if (fase.Grupos.Any())
+                        {
+                            <div class="cr-grupos">
+                                @foreach (var grupo in fase.Grupos)
+                                {
+                                    <div class="cr-grupo">
+                                        <h3 class="cr-grupo-nome">@grupo.Nome</h3>
+                                        @await Html.PartialAsync("_TabelaClassificacao", grupo.Times)
+                                    </div>
+                                }
+                            </div>
+                        }
+                        @if (fase.FasesMataMata.Any())
+                        {
+                            @await Html.PartialAsync("_Chaveamento", fase.FasesMataMata)
+                        }
+                        @if (!fase.Classificacao.Any() && !fase.Grupos.Any() && !fase.FasesMataMata.Any())
+                        {
+                            <p class="cr-aviso">Sem jogos nesta fase ainda.</p>
+                        }
+                    </section>
+                }
+
+                if (Model.Painel.Classificacao.Any())
+                {
+                    <section class="cr-fase">
+                        <h2 class="cr-fase-nome">Tabela geral</h2>
+                        @await Html.PartialAsync("_TabelaClassificacao", Model.Painel.Classificacao)
+                    </section>
+                }
+            }
+            else
+            {
+                if (Model.Painel.Classificacao.Any())
+                {
+                    @await Html.PartialAsync("_TabelaClassificacao", Model.Painel.Classificacao)
+                }
+                if (Model.Painel.Grupos.Any())
+                {
+                    <div class="cr-grupos">
+                        @foreach (var grupo in Model.Painel.Grupos)
+                        {
+                            <div class="cr-grupo">
+                                <h3 class="cr-grupo-nome">@grupo.Nome</h3>
+                                @await Html.PartialAsync("_TabelaClassificacao", grupo.Times)
+                            </div>
+                        }
+                    </div>
+                }
+                if (Model.Painel.FasesMataMata.Any())
+                {
+                    <section class="cr-fase">
+                        <h2 class="cr-fase-nome">Fases eliminatórias</h2>
+                        @await Html.PartialAsync("_Chaveamento", Model.Painel.FasesMataMata)
+                    </section>
+                }
+            }
+        }
+    }
+</div>

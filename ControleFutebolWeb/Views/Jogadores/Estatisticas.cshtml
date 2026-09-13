@@ -502,6 +502,12 @@
         color: var(--warn); background: rgba(251,191,36,.1); border: 1px solid rgba(251,191,36,.28);
         border-radius: 999px; padding: .1rem .55rem;
     }
+    .je-badge-lesao {
+        display: inline-flex; align-items: center; gap: .3rem; font-size: .72rem; font-weight: 700;
+        color: var(--bad); background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3);
+        border-radius: 999px; padding: .1rem .55rem;
+    }
+    .je-badge-lesao .je-badge-lesao-retorno { font-weight: 500; opacity: .85; }
     .je-tr-filtro {
         width: 100%; background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 8px;
         color: var(--text); font-size: .82rem; padding: 8px 12px; outline: none; font-family: inherit; margin-bottom: .8rem;
@@ -675,6 +681,14 @@
                             @Model.Jogador.Selecao.Nome
                         </a>
                     }
+                    @* Lesão em curso, informada pelo FotMob. Nasce vazio e some se não
+                       houver lesão: quem preenche é /Jogadores/SituacaoFisica, chamado
+                       depois que a tela já carregou — esta página não espera fonte
+                       externa nenhuma para aparecer. *@
+                    @if (Model.Jogador.IdFotMob != null)
+                    {
+                        <span class="je-badge-lesao" id="jeLesao" hidden></span>
+                    }
                     @if (Model.Jogador.Aposentado)
                     {
                         <span class="je-tr-badge-aposentado"
@@ -781,8 +795,8 @@
                 <div class="je-resumo-label">Jogos</div>
             </div>
             <div class="je-resumo-card" style="--je-cor:#a78bfa;">
-                <div class="je-resumo-valor">@Model.TotalJogos</div>
-                <div class="je-resumo-label">Avaliados</div>
+                <div class="je-resumo-valor">@Model.TotalMinutos.ToString("N0")</div>
+                <div class="je-resumo-label">Minutos</div>
             </div>
             <div class="je-resumo-card" style="--je-cor:#22c55e;">
                 <div class="je-resumo-valor">@Model.TotalGols</div>
@@ -2126,6 +2140,30 @@
                     '<div class="je-tr-msg erro">Erro ao registrar a aposentadoria.</div>';
             });
     }
+
+    // ── Selo de lesão (FotMob) ────────────────────────────────────────────────
+    // Enfeite tardio de propósito: se a fonte demorar ou cair, a página já está
+    // inteira na tela e o único efeito é o selo não aparecer. Nada de spinner —
+    // um "carregando lesão?" ao lado do nome sugeriria uma dúvida que não existe.
+    (function carregarLesao() {
+        const selo = document.getElementById('jeLesao');
+        if (!selo) return;
+
+        fetch(`/Jogadores/SituacaoFisica?id=${jogadorId}`)
+            .then(r => r.json())
+            .then(d => {
+                if (!d || !d.lesionado) return;
+
+                const detalhe = [d.retorno, d.atualizado ? 'atualizado em ' + d.atualizado : null]
+                    .filter(Boolean).join(' · ');
+
+                selo.innerHTML = '🩹 ' + escapeHtml(d.lesao) +
+                    (d.retorno ? ` <span class="je-badge-lesao-retorno">· ${escapeHtml(d.retorno)}</span>` : '');
+                selo.title = detalhe ? `${d.lesao} — ${detalhe}. Fonte: FotMob.` : `${d.lesao}. Fonte: FotMob.`;
+                selo.hidden = false;
+            })
+            .catch(() => { });
+    })();
 
     function escapeHtml(txt) {
         const d = document.createElement('div');

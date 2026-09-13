@@ -1,4 +1,4 @@
-using ControleFutebolWeb.Data;
+﻿using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Models;
 
 namespace ControleFutebolWeb.Services
@@ -21,6 +21,8 @@ namespace ControleFutebolWeb.Services
     {
         public const string TipoEspn = "ESPN";
         public const string TipoFotMob = "FotMob";
+        public const string TipoFifa = "FIFA";
+        public const string TipoOgol = "ogol";
 
         /// <summary>
         /// Uma linha por tentativa. Salva na hora (e não junto com a importação) para

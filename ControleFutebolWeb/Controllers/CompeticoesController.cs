@@ -20,6 +20,7 @@ namespace ControleFutebolWeb.Controllers
         private readonly IMemoryCache _cache;
         private readonly CatalogoLigasApi _catalogoLigas;
         private readonly IWebHostEnvironment _env;
+        private readonly FifaService _fifa;
 
         public CompeticoesController(
             FutebolContext context,
@@ -28,7 +29,8 @@ namespace ControleFutebolWeb.Controllers
             UserManager<ApplicationUser> userManager,
             IMemoryCache cache,
             CatalogoLigasApi catalogoLigas,
-            IWebHostEnvironment env)
+            IWebHostEnvironment env,
+            FifaService fifa)
         {
             _context = context;
             _logger = logger;
@@ -37,6 +39,7 @@ namespace ControleFutebolWeb.Controllers
             _cache = cache;
             _catalogoLigas = catalogoLigas;
             _env = env;
+            _fifa = fifa;
         }
 
         /// <summary>
@@ -57,6 +60,11 @@ namespace ControleFutebolWeb.Controllers
             // LogoUrl não vem no formulário: parte sempre do que já está salvo, para que
             // salvar sem link (ou com link de outra fonte) não apague o escudo atual.
             competicao.LogoUrl = logoAtual;
+
+            // Competição da FIFA: catálogo próprio, sem chave, e o escudo é a arte da
+            // edição — quando ela já existe (ver FifaService.LogoDaSeasonAsync).
+            if (FifaService.IsFifaLink(link))
+                return await AplicarCatalogoFifaAsync(competicao, link!);
 
             if (!ApiFootballService.IsApiFootballLink(link)) return true;
 
@@ -90,15 +98,68 @@ namespace ControleFutebolWeb.Controllers
             return true;
         }
 
+        /// <summary>
+        /// Confere o link "fifa:IDCOMPETITION:IDSEASON" contra o catálogo da FIFA.
+        /// Mesmo contrato de <see cref="AplicarCatalogoApiAsync"/>: false com erro no
+        /// ModelState quando o link está malformado ou a edição não existe.
+        ///
+        /// IdApi NÃO é preenchido — aquele campo é o id da liga na api-football, e é por
+        /// ele que a ESPN e o FotMob decidem se cobrem a competição. Gravar um id da
+        /// FIFA ali faria as duas procurarem a partida na liga errada.
+        /// </summary>
+        private async Task<bool> AplicarCatalogoFifaAsync(Competicao competicao, string link)
+        {
+            string idComp, idSeason;
+            try
+            {
+                (idComp, idSeason) = FifaService.ParseLink(link);
+            }
+            catch (ArgumentException)
+            {
+                ModelState.AddModelError(nameof(Competicao.LinkTransfermarket),
+                    "Formato inválido. Use fifa:IDCOMPETITION:IDSEASON (ex.: fifa:108:291518).");
+                return false;
+            }
+
+            var season = await _fifa.BuscarSeasonAsync(idComp, idSeason);
+            if (season == null)
+            {
+                ModelState.AddModelError(nameof(Competicao.LinkTransfermarket),
+                    $"A FIFA não reconhece a edição {idSeason} da competição {idComp}. " +
+                    "Confira em Competições da API › FIFA.");
+                return false;
+            }
+
+            // Só sobrescreve o escudo quando a FIFA tem a arte: edição recém-anunciada
+            // ainda não tem identidade visual publicada, e apagar o logo escolhido à mão
+            // para deixar a competição sem escudo nenhum seria uma piora.
+            if (!string.IsNullOrWhiteSpace(season.LogoUrl))
+                competicao.LogoUrl = season.LogoUrl;
+
+            return true;
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> BuscarJogos(int id)
+        public async Task<IActionResult> BuscarJogos(int id, string? returnUrl = null)
         {
+            // returnUrl: as telas fixas (Brasileirão, Copa do Brasil, Libertadores,
+            // Sul-Americana, Champions) chamam esta ação pelo partial
+            // _BotaoSincronizarJogos e voltam para si mesmas, não para a lista.
+            var voltarPara = Url.IsLocalUrl(returnUrl) ? returnUrl : null;
+
             var competicao = await _context.Competicoes.FindAsync(id);
             if (competicao == null) return NotFound();
 
             if (string.IsNullOrWhiteSpace(competicao.LinkTransfermarket))
             {
+                if (voltarPara != null)
+                {
+                    TempData["Mensagem"] = "Configure o link da competição antes de buscar jogos.";
+                    TempData["MensagemTipo"] = "erro";
+                    return Redirect(voltarPara);
+                }
+
                 TempData["Erro"] = "Configure o link da competição antes de buscar jogos.";
                 return RedirectToAction(nameof(Index));
             }
@@ -120,10 +181,19 @@ namespace ControleFutebolWeb.Controllers
                             "[BuscarJogos] {Nome}: {J} jogos, {T} times criados, {E} erros.",
                             competicao.Nome, jogos, times, erros);
                     }
+                    else if (FifaService.IsFifaLink(competicao.LinkTransfermarket))
+                    {
+                        var fifa = scope.ServiceProvider.GetRequiredService<FifaService>();
+                        var (jogos, times, erros, avisos) =
+                            await fifa.SincronizarCompeticaoAsync(ctx, competicao);
+                        logger.LogInformation(
+                            "[BuscarJogos] {Nome}: {J} jogos, {T} times criados, {E} erros (FIFA).",
+                            competicao.Nome, jogos, times, erros);
+                    }
                     else
                     {
                         logger.LogWarning(
-                            "[BuscarJogos] {Nome}: link não é formato apifoot: — configure o link no formato apifoot:LEAGUE_ID:SEASON.",
+                            "[BuscarJogos] {Nome}: link não reconhecido — use apifoot:LEAGUE_ID:SEASON ou fifa:IDCOMPETITION:IDSEASON.",
                             competicao.Nome);
                     }
                 }
@@ -133,7 +203,16 @@ namespace ControleFutebolWeb.Controllers
                 }
             });
 
-            TempData["Sucesso"] = $"Busca de jogos de '{competicao.Nome}' iniciada em segundo plano.";
+            var aviso = $"Busca de jogos de '{competicao.Nome}' iniciada em segundo plano.";
+
+            if (voltarPara != null)
+            {
+                // Fora da tela de competições o feedback sai pelo toast do layout.
+                TempData["Mensagem"] = aviso;
+                return Redirect(voltarPara);
+            }
+
+            TempData["Sucesso"] = aviso;
             return RedirectToAction(nameof(Index));
         }
 
@@ -679,10 +758,16 @@ namespace ControleFutebolWeb.Controllers
             ViewBag.TemporadasDisponiveis = temporadasDisponiveis;
             ViewBag.TotalJogos = jogosRealizados.Count;
 
-            return View(EstatisticaTimeCalculator.Calcular(jogosRealizados, gols, cartoes));
+            // Escalações dos gols e cartões: o dono do evento é o time pelo qual o
+            // jogador entrou em campo naquele jogo, não o clube atual do cadastro.
+            var escalacoesEstat = LadoJogadorHelper.EscalacoesDosEventos(
+                _context, jogoIds,
+                gols.Select(g => g.JogadorId).Concat(cartoes.Select(c => c.JogadorId))).ToList();
+
+            return View(EstatisticaTimeCalculator.Calcular(jogosRealizados, gols, cartoes, escalacoesEstat));
         }
 
-        public IActionResult Detalhes(int id, int? temporada = null)
+        public async Task<IActionResult> Detalhes(int id, int? temporada = null)
         {
             var competicao = _context.Competicoes
                 .Include(c => c.Jogos).ThenInclude(j => j.TimeCasa)
@@ -739,83 +824,20 @@ namespace ControleFutebolWeb.Controllers
                 .OrderBy(f => f.Ordem).ThenBy(f => f.Id)
                 .ToList();
 
-            if (fasesDeclaradas.Any())
-            {
-                // Fases declaradas pelo usuário (ex.: pontos corridos + playoffs):
-                // distribui os jogos entre elas e monta a visualização do tipo de cada uma.
-                var jogosPorFase = FaseJogoClassifier.DistribuirPorFases(fasesDeclaradas, jogosDaTemporada);
+            // Formato da competição (pontos corridos, grupos, mata-mata, fases
+            // declaradas) — mesma leitura usada pela área pública /creators/tabelas.
+            // Escalações dos cartões: o cartão pertence ao time pelo qual o jogador
+            // entrou em campo naquele jogo, não ao clube atual do cadastro dele.
+            var escalacoesCartoes = LadoJogadorHelper.EscalacoesDosEventos(
+                _context, jogoIdsRealizados, cartoes.Select(c => c.JogadorId)).ToList();
 
-                vm.Fases = fasesDeclaradas.Select(fase =>
-                {
-                    var jogosFase = jogosPorFase[fase.Id];
-                    var realizadosFase = jogosFase
-                        .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue)
-                        .ToList();
+            var painel = CompeticaoPainelBuilder.Montar(
+                competicao, fasesDeclaradas, jogosDaTemporada, criterios, cartoes, escalacoesCartoes);
 
-                    return new FaseDetalheViewModel
-                    {
-                        Fase = fase,
-                        Classificacao = fase.Tipo == "PONTOS_CORRIDOS" ? CalcularTabela(realizadosFase, criterios, cartoes) : new(),
-                        Grupos = fase.Tipo == "GRUPOS" ? MontarGrupos(realizadosFase, criterios, cartoes) : new(),
-                        FasesMataMata = fase.Tipo is "MATA_MATA" or "JOGO_UNICO"
-                            ? MontarMataMata(jogosFase, fase.Tipo == "JOGO_UNICO")
-                            : new(),
-                    };
-                }).ToList();
-
-                // Tabela acumulada de todas as fases não-eliminatórias (a "tabela anual" do
-                // Argentino: Apertura + Clausura somados definem o Campeão da Liga e as vagas
-                // continentais). Só faz sentido com duas ou mais fases somáveis — com uma só,
-                // a tabela geral seria a cópia da aba da própria fase.
-                var fasesSomaveis = fasesDeclaradas
-                    .Where(f => !FaseJogoClassifier.EhEliminatoria(f.Tipo))
-                    .ToList();
-
-                if (fasesSomaveis.Count >= 2)
-                {
-                    var jogosSomaveis = fasesSomaveis
-                        .SelectMany(f => jogosPorFase[f.Id])
-                        .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue)
-                        .ToList();
-
-                    vm.Classificacao = CalcularTabela(jogosSomaveis, criterios, cartoes);
-                }
-            }
-            else if (competicao.Tipo == "MATA_MATA" || competicao.Tipo == "JOGO_UNICO")
-            {
-                // JOGO_UNICO: a competição é decidida numa partida só (Supercopa da UEFA,
-                // Recopa...). O confronto é montado como um chaveamento de uma chave só e
-                // o vencedor da partida é anunciado como campeão, não como "classificado".
-                vm.FasesMataMata = MontarMataMata(jogosDaTemporada, competicao.Tipo == "JOGO_UNICO");
-            }
-            else if (competicao.Tipo == "GRUPOS")
-            {
-                // Competições "GRUPOS" às vezes têm, na mesma temporada, uma fase eliminatória
-                // depois da fase de grupos (ex.: Sul-Americana → grupos + oitavas/quartas/semi/final).
-                // A api-football rotula essas fases com nomes que não começam com "Group"/"Grupo"
-                // (ex.: "Round of 16", "Quarterfinals", "Qualification Round 1"), então separamos
-                // esses jogos para montar o chaveamento em vez de tratá-los como um "grupo" de pontos corridos.
-                var jogosFaseGruposRealizados = jogosRealizados.Where(j => EhNomeDeGrupo(j.Grupo)).ToList();
-                var jogosFaseEliminatoria = jogosDaTemporada
-                    .Where(j => !string.IsNullOrEmpty(j.Grupo) && !EhNomeDeGrupo(j.Grupo))
-                    .ToList();
-
-                vm.Grupos = MontarGrupos(jogosFaseGruposRealizados, criterios, cartoes);
-                vm.FasesMataMata = MontarMataMata(jogosFaseEliminatoria);
-            }
-            else
-            {
-                // Pontos corridos: jogos de playoff/eliminatória (round tipo "Quarterfinals")
-                // não entram na tabela — viram um chaveamento à parte, como já ocorre em GRUPOS.
-                var jogosEliminatorios = jogosDaTemporada
-                    .Where(j => FaseJogoClassifier.Classificar(j.Grupo) == FaseCategoria.MataMata)
-                    .ToList();
-
-                vm.Classificacao = CalcularTabela(jogosRealizados
-                    .Where(j => FaseJogoClassifier.Classificar(j.Grupo) != FaseCategoria.MataMata)
-                    .ToList(), criterios, cartoes);
-                vm.FasesMataMata = jogosEliminatorios.Any() ? MontarMataMata(jogosEliminatorios) : new();
-            }
+            vm.Fases = painel.Fases;
+            vm.Classificacao = painel.Classificacao;
+            vm.Grupos = painel.Grupos;
+            vm.FasesMataMata = painel.FasesMataMata;
 
             // ── Stats do hero (times, jogos, gols) ────────────────────────────
             ViewBag.TotalTimes = jogosDaTemporada
@@ -849,12 +871,19 @@ namespace ControleFutebolWeb.Controllers
                 .Select(t => new ArtilheiroViewModel { Jogador = jogadoresArtilheiros[t.JogadorId], Gols = t.Gols })
                 .ToList();
 
+            // ── Assistências (top 5 garçons da competição/temporada) ──────────
+            ViewBag.Assistencias = await RankingCompeticaoHelper.AssistentesAsync(_context, id, temporadaSel);
+
             // ── Aba "Estatísticas" ─────────────────────────────────────────────
             var golsEstat = _context.Gols.AsNoTracking()
                 .Include(g => g.Jogador)
                 .Where(g => jogoIdsRealizados.Contains(g.JogoId))
                 .ToList();
-            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(jogosRealizados, golsEstat, cartoes);
+            var escalacoesEstat = LadoJogadorHelper.EscalacoesDosEventos(
+                _context, jogoIdsRealizados,
+                golsEstat.Select(g => g.JogadorId).Concat(cartoes.Select(c => c.JogadorId))).ToList();
+            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(
+                jogosRealizados, golsEstat, cartoes, escalacoesEstat);
 
             return View(vm);
         }
@@ -999,170 +1028,6 @@ namespace ControleFutebolWeb.Controllers
         }
         // Ação Index e Detalhes...
 
-        private List<Classificacao> CalcularTabela(
-            ICollection<Jogo> jogos,
-            IReadOnlyList<string>? criterios = null,
-            IEnumerable<Cartao>? cartoes = null)
-        {
-            var tabela = new Dictionary<int, Classificacao>();
-
-            foreach (var jogo in jogos)
-            {
-                // Garantir que os times existam na tabela
-                if (!tabela.ContainsKey(jogo.TimeCasaId))
-                    tabela[jogo.TimeCasaId] = new Classificacao { TimeId = jogo.TimeCasaId, Time = jogo.TimeCasa };
-
-                if (!tabela.ContainsKey(jogo.TimeVisitanteId))
-                    tabela[jogo.TimeVisitanteId] = new Classificacao { TimeId = jogo.TimeVisitanteId, Time = jogo.TimeVisitante };
-                var casa = tabela[jogo.TimeCasaId];
-                var visitante = tabela[jogo.TimeVisitanteId];
-
-                casa.Jogos++;
-                visitante.Jogos++;
-
-                casa.GolsPro += (int)jogo.PlacarCasa;
-                casa.GolsContra += (int)jogo.PlacarVisitante;
-                visitante.GolsPro += (int)jogo.PlacarVisitante;
-                visitante.GolsContra += (int)jogo.PlacarCasa;
-
-                if (jogo.PlacarCasa > jogo.PlacarVisitante)
-                {
-                    casa.Vitorias++;
-                    casa.Pontos += 3;
-                    visitante.Derrotas++;
-                }
-                else if (jogo.PlacarCasa < jogo.PlacarVisitante)
-                {
-                    visitante.Vitorias++;
-                    visitante.Pontos += 3;
-                    casa.Derrotas++;
-                }
-                else
-                {
-                    casa.Empates++;
-                    visitante.Empates++;
-                    casa.Pontos++;
-                    visitante.Pontos++;
-                }
-            }
-
-            foreach (var item in tabela.Values)
-            {
-                item.Saldo = item.GolsPro - item.GolsContra;
-            }
-
-            // Critérios de desempate cadastrados na competição (Competicoes/Edit).
-            return CriteriosDesempateHelper.Ordenar(
-                tabela.Values,
-                criterios ?? CriteriosDesempateHelper.Padrao,
-                DadosDesempate.Construir(jogos, cartoes));
-        }
-
-        // Distingue uma "fase de grupos" real (pontos corridos, rotulada "Group X"/"Grupo X")
-        // de uma fase eliminatória (mata-mata) que pode existir na mesma competição/temporada
-        // — a api-football nomeia fases eliminatórias como "Round of 16", "Quarterfinals",
-        // "Qualification Round 1" etc., que não devem virar uma tabela de pontos corridos.
-        private static bool EhNomeDeGrupo(string? nomeGrupo)
-            => FaseJogoClassifier.Classificar(nomeGrupo) == FaseCategoria.Grupos;
-
-        private List<GrupoViewModel> MontarGrupos(
-            ICollection<Jogo> jogos,
-            IReadOnlyList<string>? criterios = null,
-            IEnumerable<Cartao>? cartoes = null)
-        {
-            var grupos = new List<GrupoViewModel>();
-
-            // supondo que cada jogo tenha uma propriedade "Grupo" (string)
-            var nomesGrupos = jogos
-                .Where(j => !string.IsNullOrEmpty(j.Grupo)) // só pega jogos com grupo definido
-                .Select(j => j.Grupo)
-                .Distinct()
-                .ToList();
-
-            foreach (var nome in nomesGrupos)
-            {
-                var jogosDoGrupo = jogos.Where(j => j.Grupo == nome).ToList();
-                var classificacao = CalcularTabela(jogosDoGrupo, criterios, cartoes);
-
-                grupos.Add(new GrupoViewModel
-                {
-                    Nome = nome,
-                    Times = classificacao
-                });
-            }
-
-            return grupos;
-        }
-
-        // decideTitulo = a fase decide o título (competição/fase de JOGO_UNICO):
-        // o vencedor é anunciado como campeão em vez de "classificado".
-        private List<FaseMataMataViewModel> MontarMataMata(List<Jogo> jogos, bool decideTitulo = false)
-        {
-            // Ordena fases conhecidas; fases desconhecidas vão para o final
-            var ordemFases = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["Qualification Round 1"] = -3, ["Preliminary Round"] = -3,
-                ["Qualification Round 2"] = -2,
-                ["Qualification Round 3"] = -1,
-                ["32avos"]      = 1, ["Rodada 1"]    = 1, ["Round of 32"] = 1,
-                ["16avos"]      = 2, ["Rodada 2"]    = 2, ["Round of 16"] = 2,
-                ["Oitavas"]     = 3, ["Rodada 3"]    = 3,
-                ["Quartas"]     = 4, ["Rodada 4"]    = 4, ["Quarterfinals"] = 4,
-                ["Semifinal"]   = 5, ["Semi"]        = 5, ["Semifinals"]    = 5,
-                ["Final"]       = 6,
-                ["3rd Place Final"] = 7,
-            };
-
-            // Jogo sem round vindo da API: numa competição de jogo único a partida É a final.
-            var nomePadrao = decideTitulo ? "Final" : "Fase Única";
-            string NomeFaseDe(Jogo j) => string.IsNullOrWhiteSpace(j.Grupo) ? nomePadrao : j.Grupo;
-
-            var faseNomes = jogos
-                .Select(NomeFaseDe)
-                .Distinct()
-                .OrderBy(n => ordemFases.TryGetValue(n, out var o) ? o : 99)
-                .ToList();
-
-            var resultado = new List<FaseMataMataViewModel>();
-
-            foreach (var fase in faseNomes)
-            {
-                var jogosFase = jogos.Where(j => NomeFaseDe(j) == fase).ToList();
-
-                // Agrupa pares de times (ida e volta) pelo par de IDs ordenado
-                var pares = jogosFase
-                    .GroupBy(j => string.Join("-",
-                        new[] { j.TimeCasaId, j.TimeVisitanteId }.OrderBy(x => x)))
-                    .ToList();
-
-                var confrontos = new List<ConfrontoViewModel>();
-                foreach (var par in pares)
-                {
-                    var lista = par.OrderBy(j => j.Data).ToList();
-                    var ida   = lista.FirstOrDefault();
-                    var volta = lista.Count > 1 ? lista[1] : null;
-
-                    confrontos.Add(new ConfrontoViewModel
-                    {
-                        JogoIda   = ida,
-                        JogoVolta = volta,
-                        TimeA     = ida?.TimeCasa,
-                        TimeB     = ida?.TimeVisitante,
-                    });
-                }
-
-                resultado.Add(new FaseMataMataViewModel
-                {
-                    Nome      = fase,
-                    Ordem     = ordemFases.TryGetValue(fase, out var ord) ? ord : 99,
-                    Confrontos = confrontos,
-                    DecideTitulo = decideTitulo,
-                });
-            }
-
-            return resultado;
-        }
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SalvarLinkCompeticao(int id, string linkCompeticao)
@@ -1277,6 +1142,35 @@ namespace ControleFutebolWeb.Controllers
         // por país. Mostra nome + código (id da liga na API) para o usuário
         // registrar a competição (campo IdApi) e poder buscar os jogos.
         [HttpGet]
+        /// <summary>
+        /// Catálogo da FIFA: as competições que ela organiza e as edições de cada uma,
+        /// com o link pronto para colar no cadastro. Existe porque o IdSeason não é
+        /// deduzível — "Polônia 2026" é 291518 e não há como adivinhar isso.
+        /// </summary>
+        public async Task<IActionResult> CompeticoesFifa(string? comp = null)
+        {
+            var vm = new CompeticoesFifaViewModel
+            {
+                Competicoes = await _fifa.ListarCompeticoesAsync(),
+                CompeticaoSelecionada = comp,
+            };
+
+            if (!string.IsNullOrWhiteSpace(comp))
+            {
+                vm.Edicoes = await _fifa.ListarSeasonsAsync(comp);
+                vm.NomeSelecionada = vm.Competicoes.FirstOrDefault(c => c.Id == comp)?.Nome;
+            }
+
+            // Marca o que já está cadastrado, para não duplicar competição sem perceber.
+            vm.LinksRegistrados = (await _context.Competicoes
+                    .Where(c => c.LinkTransfermarket != null && c.LinkTransfermarket.StartsWith("fifa:"))
+                    .Select(c => c.LinkTransfermarket!)
+                    .ToListAsync())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            return View(vm);
+        }
+
         public async Task<IActionResult> CompeticoesApi()
         {
             var itens = await _catalogoLigas.CarregarAsync();

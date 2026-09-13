@@ -123,6 +123,15 @@ namespace ControleFutebolWeb.Services
         private static readonly HashSet<string> StatusFinalizados =
             new(StringComparer.OrdinalIgnoreCase) { "FT", "AET", "PEN" };
 
+        // Status de bola rolando (ou partida já iniciada e parada no meio): é a janela em
+        // que o placar parcial e o relógio do card fazem sentido. Fora daqui — "NS" de
+        // jogo que ainda vai começar, "PST"/"CANC" de adiado — não há parcial nenhum para
+        // mostrar. 1H/2H tempos normais, HT intervalo, ET prorrogação, BT intervalo da
+        // prorrogação, P disputa de pênaltis, SUSP/INT jogo parado.
+        private static readonly HashSet<string> StatusEmAndamento =
+            new(StringComparer.OrdinalIgnoreCase)
+            { "1H", "HT", "2H", "ET", "BT", "P", "SUSP", "INT", "LIVE" };
+
         // Travas contra escalação corrompida na origem (ver AvaliarLineups).
         // A api-football já entregou partidas de mata-mata com as duas lineups
         // penduradas no time errado; sem trava isso reescrevia o clube de dois
@@ -553,6 +562,15 @@ namespace ControleFutebolWeb.Services
             if (fx.Statistics.Any())
                 jogo.EstatisticasJson = MontarEstatisticasJson(fx);
 
+            // Estádio e árbitro: a API só publica o árbitro (e às vezes o estádio) perto
+            // da partida, então o jogo importado com dias de antecedência nasce sem eles
+            // e a sincronização seguinte não volta nesse jogo. Aqui é onde eles entram —
+            // só quando ainda estão em branco, para não apagar o que já está gravado.
+            if (string.IsNullOrWhiteSpace(jogo.Estadio) && !string.IsNullOrWhiteSpace(fx.Fixture.Venue?.Name))
+                jogo.Estadio = fx.Fixture.Venue!.Name;
+            if (string.IsNullOrWhiteSpace(jogo.Arbitro) && !string.IsNullOrWhiteSpace(fx.Fixture.Referee))
+                jogo.Arbitro = fx.Fixture.Referee;
+
             // Atualiza placar/status quando a partida já terminou na API — antes a
             // reimportação gravava gols/eventos sem atualizar o placar (ver comentário
             // em RelatoriosService.CalcularEstatisticasCompeticoesAsync). Jogo ainda em
@@ -580,13 +598,164 @@ namespace ControleFutebolWeb.Services
                 }
 
                 jogo.Status = "Finalizado";
+
+                // O placar de verdade assumiu: o parcial não tem mais para que existir e
+                // deixá-lo gravado só faria a tela ao vivo competir com o resultado.
+                LimparParcial(jogo);
             }
+            else if (StatusEmAndamento.Contains(fx.Fixture.Status.Short))
+            {
+                // Jogo em andamento: o gol a gol e o relógio vão para os campos parciais,
+                // lidos só pela exibição ao vivo (ver comentário em Jogo.PlacarParcialCasa).
+                jogo.PlacarParcialCasa = fx.Goals.Home;
+                jogo.PlacarParcialVisitante = fx.Goals.Away;
+                jogo.MinutoParcial = fx.Fixture.Status.Elapsed;
+                jogo.AcrescimoParcial = fx.Fixture.Status.Extra;
+                jogo.StatusParcial = fx.Fixture.Status.Short;
+                jogo.PlacarParcialEm = DateTime.UtcNow;
+            }
+            else
+            {
+                // Nem terminou nem começou: jogo que ainda vai rolar, adiado ou cancelado.
+                // Limpar aqui é o que apaga o parcial de uma partida que foi suspensa e
+                // remarcada — sem isso ela ficaria para sempre com o placar do dia em que
+                // parou.
+                LimparParcial(jogo);
+            }
+
+            // Desfalques da partida (aba Indisponíveis do Pré-jogo). Sai de uma rota
+            // própria da API, então é uma chamada a mais — e ela vem justamente aqui,
+            // no "buscar a escalação", porque é a mesma pergunta feita de outro jeito:
+            // quem joga e quem não joga. Nunca derruba a reimportação: escalação sem a
+            // lista de desfalques é o resultado normal em liga sem essa cobertura.
+            await AtualizarIndisponiveisAsync(context, jogo, fixtureId, ct);
 
             await context.SaveChangesAsync(ct);
 
             return (true, placarAtualizado
                 ? $"Escalação reimportada com sucesso. Placar atualizado: {jogo.PlacarCasa}×{jogo.PlacarVisitante}."
                 : "Escalação reimportada com sucesso.");
+        }
+
+        /// <summary>
+        /// Zera o placar parcial e o relógio do jogo. Os campos andam sempre juntos:
+        /// deixar o minuto sem o placar (ou o contrário) faria o card mostrar meia
+        /// informação de uma partida que não está mais em andamento.
+        /// </summary>
+        private static void LimparParcial(Jogo jogo)
+        {
+            jogo.PlacarParcialCasa = null;
+            jogo.PlacarParcialVisitante = null;
+            jogo.MinutoParcial = null;
+            jogo.AcrescimoParcial = null;
+            jogo.StatusParcial = null;
+            jogo.PlacarParcialEm = null;
+        }
+
+        // ── Indisponíveis da partida ──────────────────────────────────────────
+
+        /// <summary>
+        /// Regrava quem está fora (ou em dúvida) para esta partida, de /injuries.
+        ///
+        /// Substitui a lista inteira em vez de casar linha a linha: a fonte publica só
+        /// a situação de agora e ela muda até a hora do jogo — quem estava em dúvida na
+        /// véspera aparece escalado no dia, e o desfalque de ontem some da resposta sem
+        /// aviso. Reescrever é o que faz a lista acompanhar isso.
+        ///
+        /// Resposta vazia NÃO apaga o que está gravado. Vazio na api-football quer
+        /// dizer as duas coisas ao mesmo tempo — "ninguém está fora" e "esta liga não
+        /// tem essa cobertura" — e não dá para distinguir; apagar por causa da segunda
+        /// perderia dado bom. É a mesma regra da escalação: sem dado novo, o antigo fica.
+        ///
+        /// Não salva: quem chamou é dono da transação.
+        /// </summary>
+        /// <returns>Quantos desfalques foram gravados (0 = a fonte não trouxe nada).</returns>
+        public async Task<int> AtualizarIndisponiveisAsync(
+            FutebolContext context, Jogo jogo, long fixtureId, CancellationToken ct = default)
+        {
+            List<AfInjuryEntry> entradas;
+            try
+            {
+                var json = await _http.GetStringAsync($"injuries?fixture={fixtureId}", ct);
+                entradas = JsonSerializer.Deserialize<ApiFootballResponse<AfInjuryEntry>>(json, _json)?.Response
+                           ?? new List<AfInjuryEntry>();
+            }
+            catch (Exception ex)
+            {
+                // Um desfalque a menos na tela não pode custar a escalação que já foi
+                // importada com sucesso.
+                _logger.LogWarning(ex,
+                    "[ApiFoot] Indisponíveis do fixture {Fixture} não puderam ser buscados.", fixtureId);
+                return 0;
+            }
+
+            if (entradas.Count == 0) return 0;
+
+            // A API repete o bloco inteiro (26 entradas para 13 jogadores no
+            // Santos × Internacional). A chave é jogador + tipo + motivo, e não só o
+            // jogador, porque o mesmo nome aparece legitimamente duas vezes com motivos
+            // diferentes ("Yellow Cards" e, separado, "Questionable / Injury").
+            var vistos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            var idsApi = new List<long>();
+            var novos = new List<JogoIndisponivel>();
+
+            foreach (var e in entradas)
+            {
+                // De que lado? A entrada traz o time; o que não for nenhum dos dois é
+                // ruído da fonte e não entra.
+                int timeId;
+                if (e.Team.Id == jogo.TimeCasa?.IdApi) timeId = jogo.TimeCasaId;
+                else if (e.Team.Id == jogo.TimeVisitante?.IdApi) timeId = jogo.TimeVisitanteId;
+                else continue;
+
+                var nome = (e.Player.Name ?? "").Trim();
+                if (nome.Length == 0 && e.Player.Id is null) continue;
+
+                var chave = $"{e.Player.Id ?? 0}|{nome}|{e.Player.Type}|{e.Player.Reason}";
+                if (!vistos.Add(chave)) continue;
+
+                var idApi = e.Player.Id > 0 ? (long?)e.Player.Id : null;
+                if (idApi.HasValue) idsApi.Add(idApi.Value);
+
+                novos.Add(new JogoIndisponivel
+                {
+                    JogoId = jogo.Id,
+                    TimeId = timeId,
+                    IdApiJogador = idApi,
+                    Nome = nome,
+                    FotoUrl = e.Player.Photo,
+                    Tipo = e.Player.Type ?? "",
+                    Motivo = e.Player.Reason ?? "",
+                    AtualizadoEm = DateTime.UtcNow,
+                });
+            }
+
+            if (novos.Count == 0) return 0;
+
+            // Vínculo com o nosso cadastro, quando existe. Quem não tem (garoto da base,
+            // reserva nunca importado) fica com JogadorId null e aparece pelo nome da
+            // fonte — ver JogoIndisponivel.
+            var locais = await context.Jogadores
+                .Where(j => j.IdApi != null && idsApi.Contains(j.IdApi.Value))
+                .Select(j => new { j.Id, IdApi = j.IdApi!.Value })
+                .ToDictionaryAsync(j => j.IdApi, j => j.Id, ct);
+
+            foreach (var n in novos)
+                if (n.IdApiJogador.HasValue && locais.TryGetValue(n.IdApiJogador.Value, out var jid))
+                    n.JogadorId = jid;
+
+            var antigos = await context.JogosIndisponiveis
+                .Where(i => i.JogoId == jogo.Id)
+                .ToListAsync(ct);
+            context.JogosIndisponiveis.RemoveRange(antigos);
+            context.JogosIndisponiveis.AddRange(novos);
+
+            _logger.LogInformation(
+                "[ApiFoot] Jogo {Id}: {Total} indisponíveis gravados (fixture {Fixture}).",
+                jogo.Id, novos.Count, fixtureId);
+
+            return novos.Count;
         }
 
         // ── Busca grupo de um jogo ────────────────────────────────────────────
@@ -1617,10 +1786,40 @@ namespace ControleFutebolWeb.Services
                 {
                     case "goal":
                     {
+                        // Gol contra: a api-football manda o evento no time BENEFICIADO
+                        // (quem ganhou o gol no placar) e não no time de quem marcou — o
+                        // "player" do evento é do adversário. Resolver o autor pelo time do
+                        // evento, como nos outros eventos, cadastrava o jogador no clube
+                        // errado e ainda jogava o gol para o lado errado do placar.
+                        var contra = ev.Detail?.Contains("Own", StringComparison.OrdinalIgnoreCase) == true;
+                        var timeDoEvento = isTimeCasa ? timeCasa : timeVis;
+                        var timeDoAutor = contra ? (isTimeCasa ? timeVis : timeCasa) : timeDoEvento;
+
+                        // O evento de gol contra não é fonte de elenco: ele não diz o clube
+                        // do autor, só o lado que pontuou. Serve para criar o jogador no
+                        // time certo, nunca para mover quem já está cadastrado.
                         var jogador = await ResolverJogador(context, ev.Player.Id ?? 0,
-                            ev.Player.Name ?? "", isTimeCasa ? timeCasa : timeVis, jogadorMap, ct,
-                            jogo: jogo, mapSemId: jogadorSemIdMap, permitirTrocaClube: permitirTrocaClube);
+                            ev.Player.Name ?? "", timeDoAutor, jogadorMap, ct,
+                            jogo: jogo, mapSemId: jogadorSemIdMap,
+                            permitirTrocaClube: !contra && permitirTrocaClube);
                         if (jogador == null) break;
+
+                        // Cadastro que só pode ter vindo da leitura antiga deste evento: o
+                        // autor de um gol contra registrado justamente no time que ganhou o
+                        // gol. Corrige o clube na hora, sem passar pela Janela de
+                        // Transferências — transferência nenhuma houve. Competição de
+                        // seleções fica de fora: lá o vínculo do jogo é o SelecaoId, e o
+                        // TimeId continua sendo o clube dele.
+                        if (contra && !timeDoEvento.EhSelecao && !timeDoAutor.EhSelecao
+                            && jogador.TimeId == timeDoEvento.Id)
+                        {
+                            _logger.LogInformation(
+                                "[ApiFoot] Gol contra: {Jogador} estava cadastrado em {Errado} (time que ganhou o gol) — corrigido para {Certo}.",
+                                jogador.Nome, timeDoEvento.Nome, timeDoAutor.Nome);
+
+                            jogador.TimeId = timeDoAutor.Id;
+                            await context.SaveChangesAsync(ct);
+                        }
 
                         // Disputa de pênaltis (mata-mata): a api-football marca cada cobrança
                         // com comments "Penalty Shootout". Convertido = detail "Penalty",
@@ -1653,7 +1852,6 @@ namespace ControleFutebolWeb.Services
                             break;
                         }
 
-                        var contra = ev.Detail?.Contains("Own", StringComparison.OrdinalIgnoreCase) == true;
                         context.Gols.Add(new Gol
                         {
                             JogoId = jogo.Id, JogadorId = jogador.Id,

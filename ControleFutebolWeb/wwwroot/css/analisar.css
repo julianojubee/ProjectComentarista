@@ -103,6 +103,15 @@
         color: var(--text-muted); font-size: 14px; font-weight: 700; cursor: pointer;
     }
     .jog-btn-add:hover { border-color: #d4af37; color: #d4af37; }
+    /* Seletor da cor da camisa do time (mesmo visual do .mu-banco-cor do match-up) */
+    .jog-cor-camisa {
+        flex-shrink: 0; width: 22px; height: 20px; padding: 0; cursor: pointer;
+        background: var(--p-2); border: 1px solid var(--line); border-radius: 5px;
+    }
+    .jog-cor-camisa:hover { border-color: #d4af37; }
+    .jog-cor-camisa::-webkit-color-swatch-wrapper { padding: 2px; }
+    .jog-cor-camisa::-webkit-color-swatch { border: none; border-radius: 3px; }
+    .jog-cor-camisa::-moz-color-swatch { border: none; border-radius: 3px; }
     .jog-form-novo { display: none; gap: 4px; padding: 6px 8px; background: var(--p-1); border-bottom: 1px solid var(--line-soft); }
     .jog-form-novo.aberto { display: flex; }
     .jog-form-novo input {
@@ -143,27 +152,6 @@
         outline-offset: 2px;
     }
 
-    /* ── Setas de movimentação dos jogadores ── */
-    .setas-svg {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-    }
-
-        .setas-svg line {
-            stroke: #facc15;
-            stroke-width: 3;
-            stroke-linecap: round;
-            filter: drop-shadow(0 1px 1px rgba(0,0,0,.5));
-            pointer-events: none;
-        }
-
-    body.modo-seta .setas-svg line {
-        pointer-events: stroke;
-        cursor: pointer;
-    }
 
     /* .heatmap-overlay mora em site.css (compartilhada com Estatisticas.cshtml) */
 
@@ -338,210 +326,6 @@
         pointer-events: all;
     }
 
-    .btn-info-jogador {
-        position: absolute;
-        top: -6px;
-        left: -6px;
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-        background: #38bdf8;
-        border: none;
-        font-size: 10px;
-        font-weight: 700;
-        color: #0c1a2e;
-        cursor: default;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        line-height: 1;
-        z-index: 10;
-        pointer-events: all;
-    }
-
-    /* Versão menor do ℹ para o círculo de 28px do banco de reservas. Fica no
-       canto inferior esquerdo: o topo direito é do × (rem-btn) e o topo
-       esquerdo dos selos mini de cartão amarelo/capitão. */
-    .reserva-card .btn-info-jogador {
-        top: 13px;
-        left: -2px;
-        width: 14px;
-        height: 14px;
-        font-size: 9px;
-    }
-
-    /* Versão menor do ℹ para o círculo de 28px da lista lateral de jogadores.
-       Fica no canto superior direito: à esquerda o círculo encosta na borda do
-       painel, que corta o overflow horizontal (.scroll-panel). */
-    .jogador-row .btn-info-jogador {
-        top: -3px;
-        left: auto;
-        right: -3px;
-        width: 14px;
-        height: 14px;
-        font-size: 9px;
-    }
-
-    #jogador-tooltip {
-        display: none;
-        position: fixed;
-        z-index: 9999;
-        background: var(--p-2);
-        border: 1px solid var(--info);
-        border-radius: 8px;
-        padding: 8px 12px;
-        font-size: 12px;
-        color: var(--text-strong);
-        min-width: 170px;
-        max-width: 250px;
-        pointer-events: none;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-        line-height: 1.6;
-    }
-
-    #jogador-tooltip .tt-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 6px;
-    }
-
-    #jogador-tooltip .tt-foto {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 2px solid var(--info);
-        flex-shrink: 0;
-    }
-
-    #jogador-tooltip .tt-nome {
-        font-weight: 700;
-        font-size: 13px;
-        color: var(--info);
-        line-height: 1.3;
-    }
-
-    #jogador-tooltip .tt-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px 10px;
-        margin-bottom: 4px;
-        font-size: 11px;
-        color: var(--text-2);
-    }
-
-    #jogador-tooltip .tt-icon {
-        width: 14px;
-        height: 14px;
-        object-fit: contain;
-        vertical-align: -2px;
-        border-radius: 2px;
-    }
-
-    /* "Vinha do": clube da temporada passada de quem chegou como reforço */
-    #jogador-tooltip .tt-vinha-do {
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin-top: 6px;
-        padding-top: 6px;
-        border-top: 1px solid var(--line);
-        font-size: 11px;
-    }
-
-    #jogador-tooltip .tt-vinha-icone {
-        font-size: 12px;
-        line-height: 1;
-    }
-
-    #jogador-tooltip .tt-vinha-time {
-        color: var(--text-2);
-        font-weight: 600;
-    }
-
-    #jogador-tooltip .tt-vinha-obs {
-        color: var(--text-dim);
-    }
-
-    #jogador-tooltip .tt-stats {
-        margin-top: 6px;
-        padding-top: 6px;
-        border-top: 1px solid var(--line);
-    }
-
-    /* Blocos consecutivos (Competição + Temporada) formam um bloco só */
-    #jogador-tooltip .tt-stats + .tt-stats {
-        margin-top: 4px;
-        padding-top: 0;
-        border-top: none;
-    }
-
-    /* Rótulo do escopo (COMPETIÇÃO / TEMPORADA) em linha própria, stats abaixo */
-    #jogador-tooltip .tt-stat-rotulo {
-        font-size: 10px;
-        font-weight: 700;
-        color: var(--text-dim);
-        text-transform: uppercase;
-        letter-spacing: .05em;
-        margin-bottom: 3px;
-    }
-
-    #jogador-tooltip .tt-stat-valores {
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 8px;
-    }
-
-    #jogador-tooltip .tt-stat-gol  { color: var(--ok); font-weight: 600; }
-    #jogador-tooltip .tt-stat-ast  { color: var(--warn); font-weight: 600; }
-    #jogador-tooltip .tt-stat-tit  { color: var(--text-muted); font-weight: 600; }
-
-    #jogador-tooltip .tt-obs {
-        margin-top: 6px;
-        padding-top: 6px;
-        border-top: 1px solid var(--line);
-        color: var(--text-muted);
-        white-space: pre-wrap;
-    }
-
-    #jogador-tooltip .tt-medias-titulo {
-        margin-top: 6px;
-        padding-top: 6px;
-        border-top: 1px solid var(--line);
-        color: var(--text-muted);
-        font-size: 10px;
-        text-transform: uppercase;
-        letter-spacing: .04em;
-    }
-
-    #jogador-tooltip .tt-medias {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 4px;
-        margin-top: 4px;
-    }
-
-    #jogador-tooltip .tt-media-cel {
-        background: var(--p-3);
-        border-radius: 6px;
-        padding: 4px 6px;
-        display: flex;
-        flex-direction: column;
-        line-height: 1.25;
-    }
-
-    #jogador-tooltip .tt-media-cel b {
-        color: var(--text-strong);
-        font-size: 12px;
-    }
-
-    #jogador-tooltip .tt-media-cel span {
-        color: var(--text-muted);
-        font-size: 9.5px;
-    }
 
     .posicao-drop *:not(.btn-avaliar):not(.btn-info-jogador):not(.sub-chip-in):not(.card-amarelo-badge):not(.capitao-badge):not(.craque-badge) {
         pointer-events: none;
@@ -1585,7 +1369,10 @@
     }
     /* Campo pega a altura que sobra do cabeçalho/abas/toolbar em vez da proporção fixa */
     .pj-maximizado .mu-campo { aspect-ratio: auto; height: calc(100vh - 300px); min-height: 380px; }
-    .pj-maximizado .mu-layout { grid-template-columns: 240px 1fr 240px; }
+    /* A largura mora no .mu-banco (as colunas do grid são auto), senão o
+       recolher do elenco não encolheria a coluna aqui dentro. */
+    .pj-maximizado .mu-banco { width: 240px; }
+    .pj-maximizado .mu-banco-fechado { width: 34px; }
     .pj-maximizado .mu-banco-lista { max-height: calc(100vh - 340px); }
     /* Com mais espaço, jogador maior: foto, número e média ficam legíveis de longe */
     .pj-maximizado .mu-slot { width: 78px; font-size: 12px; }
@@ -1606,196 +1393,25 @@
     .pj-tab:hover { color: #f2f5fa; }
     .pj-tab.active { color: var(--gold-ink); border-bottom-color: #d4a520; }
 
-    /* ── Aba Match-up: mesmo campo horizontal da tela de Relatórios, com os
-       dois times frente a frente (estilo escalação de transmissão de TV). ── */
-    .mu-header {
-        display: flex; align-items: center; justify-content: center; gap: 1.5rem;
-        margin-bottom: 1rem; flex-wrap: wrap;
+    /* ── Aba Indisponíveis do Pré-jogo ── */
+    /* Reaproveita .pj-grid/.pj-col da aba Resumo: são as mesmas duas colunas de
+       time, e repetir o desenho faria as abas parecerem telas diferentes. */
+    .pj-ind-item { display: flex; align-items: center; gap: .6rem; padding: .5rem 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+    .pj-ind-item:last-child { border-bottom: none; }
+    .pj-ind-foto { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; background: rgba(255,255,255,.06); flex-shrink: 0; }
+    .pj-ind-txt { min-width: 0; flex: 1; }
+    .pj-ind-nome { font-size: 12.5px; font-weight: 700; color: #f2f5fa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pj-ind-motivo { font-size: 11px; color: rgba(255,255,255,.6); margin-top: 1px; }
+    .pj-ind-tag {
+        font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em;
+        padding: .12rem .45rem; border-radius: 999px; flex-shrink: 0; border: 1px solid transparent;
     }
-    .mu-time-info { display: flex; align-items: center; gap: 10px; text-align: left; }
-    .mu-time-info.mu-dir { text-align: right; flex-direction: row-reverse; }
-    .mu-time-info img { width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; }
-    .mu-time-nome { font-size: 16px; font-weight: 800; color: var(--text-strong); }
-    .mu-time-jogo { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-    .mu-vs { font-size: 20px; font-weight: 900; color: var(--gold-ink); }
-
-    .mu-campo {
-        position: relative; width: 100%; aspect-ratio: 1.8 / 1;
-        background: linear-gradient(90deg, #14532d 0%, #166534 50%, #14532d 100%);
-        border: 2px solid rgba(255,255,255,.15); border-radius: 10px; overflow: hidden;
-    }
-    .mu-linha-meio { position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: rgba(255,255,255,.22); }
-    .mu-circulo {
-        position: absolute; left: 50%; top: 50%; height: 46%; aspect-ratio: 1;
-        border: 1.5px solid rgba(255,255,255,.2); border-radius: 50%; transform: translate(-50%,-50%);
-    }
-    .mu-area-esq, .mu-area-dir { position: absolute; top: 18%; bottom: 18%; width: 11%; border: 1.5px solid rgba(255,255,255,.2); }
-    .mu-area-esq { left: -1px; border-left: none; }
-    .mu-area-dir { right: -1px; border-right: none; }
-    .mu-gol-esq, .mu-gol-dir { position: absolute; top: 32%; bottom: 32%; width: 4.5%; border: 1.5px solid rgba(255,255,255,.2); background: rgba(255,255,255,.04); }
-    .mu-gol-esq { left: -1px; border-left: none; }
-    .mu-gol-dir { right: -1px; border-right: none; }
-
-    .mu-slot {
-        position: absolute; text-align: center; cursor: grab; color: #fff;
-        font-size: 11px; text-shadow: 1px 1px 2px #000; transform: translate(-50%,-50%);
-        width: 62px; user-select: none;
-        /* pointer events cuidam do arrasto no campo; sem isto o navegador
-           tentaria rolar/gesticular em touch em vez de mover o jogador */
-        touch-action: none;
-    }
-    .mu-slot:active { cursor: grabbing; }
-    /* Slot sendo arrastado: acima dos demais (o elementsFromPoint do soltar
-       pula o próprio arrastado no JS para achar o alvo por baixo) */
-    .mu-slot.mu-arrastando { z-index: 20; cursor: grabbing; opacity: .85; }
-    /* Sem isto o dragover/drop (banco→campo) dispararia nos filhos (círculo/
-       nome) e o slot nunca receberia o drop — mesmo truque do campo principal. */
-    .mu-slot * { pointer-events: none; }
-    /* Marcações do campo nunca participam de hit-test */
-    .mu-linha-meio, .mu-circulo, .mu-area-esq, .mu-area-dir, .mu-gol-esq, .mu-gol-dir { pointer-events: none; }
-    .mu-slot-sigla {
-        font-size: 9px; font-weight: 700; color: var(--gold-ink);
-        text-shadow: 1px 1px 2px #000; display: block; margin-bottom: 1px;
-    }
-    /* O .player-name global limita largura a 64px; dentro do slot já cabe */
-    .mu-slot .player-circle {
-        width: 34px; height: 34px; font-size: 12px; position: relative;
-        display: flex; align-items: center; justify-content: center; overflow: visible;
-    }
-    /* Com foto o círculo vira a moldura da imagem e o número vai pro canto */
-    .mu-slot .player-circle.mu-com-foto { background: #0b1220; }
-    /* Borda na cor do time (esquerda x direita): com foto o fundo do círculo some
-       e, sem isso, os 22 jogadores viram uma massa só de bordas brancas iguais */
-    .mu-slot .player-circle-casa {
-        border-color: var(--cor-camisa-casa, #dc2626);
-        box-shadow: 0 0 0 1px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.5);
-    }
-    .mu-slot .player-circle-vis {
-        border-color: var(--cor-camisa-vis, #2563eb);
-        box-shadow: 0 0 0 1px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.5);
-    }
-    .mu-slot .mu-foto {
-        position: absolute; inset: 0; width: 100%; height: 100%;
-        border-radius: 50%; object-fit: cover; object-position: top center;
-    }
-    .mu-slot .mu-com-foto .mu-num {
-        position: absolute; left: -7px; top: -5px; min-width: 16px; height: 16px;
-        padding: 0 3px; border-radius: 8px; font-size: 10px; font-weight: 800;
-        line-height: 16px; text-align: center; background: rgba(0,0,0,.8); color: #fff;
-        border: 1px solid rgba(255,255,255,.5); text-shadow: none;
-    }
-    /* Média do jogador na competição do jogo, no canto de cima do círculo */
-    .mu-slot .mu-media {
-        position: absolute; right: -9px; top: -5px; min-width: 21px; height: 15px;
-        padding: 0 3px; border-radius: 7px; font-size: 9.5px; font-weight: 800;
-        line-height: 15px; text-align: center; color: #0b1220; background: #94a3b8;
-        border: 1px solid rgba(0,0,0,.5); text-shadow: none;
-    }
-    .mu-media-alta { background: #22c55e; color: #0b1220; }
-    .mu-media-media { background: #facc15; color: #0b1220; }
-    .mu-media-baixa { background: #f87171; color: #0b1220; }
-    /* Gols (bola) e assistências (chuteira) na competição, logo abaixo do
-       círculo — sobe um pouco para encostar nele, como num card de jogador */
-    .mu-stats {
-        display: inline-flex; align-items: center; gap: 5px; margin-top: -5px;
-        padding: 1px 5px; border-radius: 8px; background: rgba(2,6,23,.82);
-        border: 1px solid rgba(255,255,255,.14); position: relative; z-index: 2;
-    }
-    .mu-stat {
-        font-size: 9px; font-weight: 700; line-height: 13px; color: #e2e8f0;
-        white-space: nowrap; text-shadow: none;
-    }
-
-    /* Layout: banco do time 1 | campo | banco do time 2 */
-    .mu-layout { display: grid; grid-template-columns: 185px 1fr 185px; gap: 12px; align-items: start; }
-    @media (max-width: 900px) { .mu-layout { grid-template-columns: 1fr; } }
-
-    .mu-banco {
-        background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 10px;
-        overflow: hidden;
-    }
-    .mu-banco-header {
-        display: flex; align-items: center; gap: 6px; padding: 8px 10px;
-        background: rgba(0,0,0,.3); border-bottom: 1px solid rgba(255,255,255,.06);
-        font-size: .68rem; font-weight: 700; color: var(--text-muted);
-        text-transform: uppercase; letter-spacing: .1em;
-    }
-    .mu-banco-lista { max-height: 430px; overflow-y: auto; }
-    .mu-banco-lista::-webkit-scrollbar { width: 5px; }
-    .mu-banco-lista::-webkit-scrollbar-track { background: rgba(0,0,0,.3); }
-    .mu-banco-lista::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-    .mu-banco-item {
-        display: flex; align-items: center; gap: 8px; padding: 5px 10px;
-        font-size: 12px; color: var(--text-2); cursor: grab; user-select: none;
-        border-bottom: 1px solid rgba(255,255,255,.05);
-    }
-    .mu-banco-item:hover { background: rgba(255,255,255,.07); }
-    .mu-banco-item:active { cursor: grabbing; }
-    .mu-banco-item * { pointer-events: none; }
-    .mu-banco-num {
-        flex: 0 0 24px; text-align: center; font-weight: 700; color: var(--gold-ink);
-    }
-    .mu-banco-nome { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .mu-banco-pos { flex: 0 0 auto; font-size: 10px; font-weight: 700; color: var(--text-muted); }
-    /* Média na competição também no elenco: o critério de quem entra */
-    .mu-banco-media {
-        flex: 0 0 28px; text-align: center; font-size: 10px; font-weight: 800;
-        border-radius: 6px; padding: 1px 0; color: var(--text-muted);
-        background: rgba(148,163,184,.18);
-    }
-    .mu-dica { text-align: center; color: var(--text-dim); font-size: 11px; margin-top: 8px; }
-
-    /* ── Match-up: modo seta (mesmo visual das setas da análise) ── */
-    .mu-toolbar { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
-    #muBtnSeta.ativo { background: #facc15; border-color: #facc15; color: #111; font-weight: 700; }
-    .mu-campo.mu-modo-seta { cursor: crosshair; }
-    .mu-campo.mu-modo-seta .mu-slot { cursor: pointer; }
-    .mu-campo.mu-modo-seta .setas-svg line { pointer-events: stroke; cursor: pointer; }
-    .mu-slot.mu-seta-origem .player-circle { outline: 3px solid #facc15; outline-offset: 2px; }
-
-    /* ── Match-up: modo formas (áreas anotadas sobre o campo) ── */
-    #muBtnForma.ativo { background: #ef4444; border-color: #ef4444; color: #fff; font-weight: 700; }
-    .mu-forma-tipo {
-        background: none; border: 1px solid rgba(239,68,68,.4); color: var(--bad); border-radius: 6px;
-        width: 26px; height: 25px; padding: 0; font-size: 13px; line-height: 1; cursor: pointer;
-    }
-    .mu-forma-tipo.ativo { background: #ef4444; border-color: #ef4444; color: #fff; }
-    .mu-campo.mu-modo-forma { cursor: crosshair; }
-    .mu-forma { stroke: #ef4444; stroke-width: 2.5; fill: rgba(239,68,68,.07); pointer-events: none; }
-    polyline.mu-forma { fill: none; stroke-linecap: round; stroke-linejoin: round; }
-    .mu-forma-texto {
-        fill: #f87171; font-size: 13px; font-weight: 700; pointer-events: none;
-        paint-order: stroke; stroke: rgba(0,0,0,.65); stroke-width: 3px;
-    }
-    .mu-campo.mu-modo-forma .mu-forma { pointer-events: all; cursor: pointer; }
-    .mu-campo.mu-modo-forma .mu-forma-texto { pointer-events: all; cursor: move; }
-    .mu-forma-input {
-        position: absolute; transform: translate(-50%,-50%); z-index: 30; width: 180px;
-        background: rgba(0,0,0,.78); border: 1px solid #ef4444; border-radius: 6px;
-        color: #fff; font-size: 12px; padding: 4px 8px; text-align: center;
-    }
-
-    /* ── Match-up: jogador avulso (fora da API) ── */
-    .mu-btn-add {
-        margin-left: auto; flex: 0 0 auto; width: 20px; height: 20px; padding: 0; line-height: 1;
-        background: rgba(212,165,32,.15); border: 1px solid rgba(212,165,32,.4); border-radius: 6px;
-        color: var(--gold-ink); font-size: 14px; font-weight: 700; cursor: pointer;
-    }
-    .mu-btn-add:hover { background: rgba(212,165,32,.3); }
-    .mu-form-ficticio {
-        display: flex; gap: 6px; padding: 8px 10px;
-        background: rgba(0,0,0,.25); border-bottom: 1px solid rgba(255,255,255,.06);
-    }
-    .mu-form-ficticio input {
-        background: var(--input-bg); border: 1px solid var(--line-strong); border-radius: 6px;
-        color: var(--text-strong); font-size: 12px; padding: 4px 6px; min-width: 0;
-    }
-    .mu-form-ficticio .mu-fic-num { flex: 0 0 40px; }
-    .mu-form-ficticio .mu-fic-nome { flex: 1 1 auto; }
-    .mu-form-ficticio button {
-        background: #d4a520; border: none; border-radius: 6px; color: #111;
-        font-size: 11px; font-weight: 700; padding: 4px 8px; cursor: pointer;
-    }
+    /* Fora (vermelho) x dúvida (âmbar): o analista escala em cima dessa diferença. */
+    .pj-ind-tag.fora   { color: #fca5a5; background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.3); }
+    .pj-ind-tag.duvida { color: #fcd34d; background: rgba(251,191,36,.12); border-color: rgba(251,191,36,.3); }
+    .pj-ind-icone { font-size: 13px; flex-shrink: 0; }
+    .pj-ind-vazio { font-size: 12px; color: rgba(255,255,255,.45); padding: .6rem 0; }
+    .pj-ind-rodape { font-size: 10.5px; color: rgba(255,255,255,.4); text-align: center; margin-top: .9rem; }
 
     /* ── Hero (cabeçalho da partida) ── */
     .pgj-hero { background:linear-gradient(135deg,#070d18 0%,#0d1a30 55%,#070d18 100%); padding:32px 40px 26px; border-radius:16px 16px 0 0; }

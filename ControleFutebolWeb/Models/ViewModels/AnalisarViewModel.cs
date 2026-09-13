@@ -174,4 +174,41 @@ namespace ControleFutebolWeb.Models.ViewModels
         // Jogos dele por aquele clube na temporada anterior (aparece como "12 jogos").
         public int Jogos { get; set; }
     }
+
+    // Pacote que o campo do Match Up manda para o navegador: a ficha de cada
+    // jogador mais os números do tooltip ℹ, já no escopo do jogo de referência.
+    // Serializado direto como JSON (nomes em minúsculo pelo AddJsonOptions).
+    public class TooltipJogadorPacote
+    {
+        public int Temporada { get; set; }
+        public Dictionary<int, TooltipJogadorInfo> Dados { get; set; } = new();
+        public Dictionary<int, MediasPorJogo> Medias { get; set; } = new();
+        public Dictionary<int, int> TitularCompeticao { get; set; } = new();
+        public Dictionary<int, int> GolsTemporada { get; set; } = new();
+        public Dictionary<int, int> AssistsTemporada { get; set; } = new();
+        public Dictionary<int, int> TitularTemporada { get; set; } = new();
+        public Dictionary<int, TimeAnteriorJogador> TimeAnterior { get; set; } = new();
+    }
+
+    // Ficha do jogador no tooltip — mesmos campos que a view da análise monta
+    // inline em dadosJogadores.
+    public class TooltipJogadorInfo
+    {
+        public int Id { get; set; }
+        public string Nome { get; set; } = "";
+        public string Foto { get; set; } = "";
+        public string Posicao { get; set; } = "";
+        public string Sigla { get; set; } = "";
+        public int? Numero { get; set; }
+        public int? Idade { get; set; }
+        public int? Altura { get; set; }
+        public int? Peso { get; set; }
+        public string Nac { get; set; } = "";
+        public string NacFlag { get; set; } = "";
+        public string Time { get; set; } = "";
+        public string TimeEscudo { get; set; } = "";
+        public int Gols { get; set; }
+        public int Assists { get; set; }
+        public string Obs { get; set; } = "";
+    }
 }

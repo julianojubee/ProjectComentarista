@@ -1,0 +1,365 @@
+/* Tela de marcação por vídeo (/MarcacaoVideo/Marcar).
+
+   Duas colunas fixas na altura da janela: o vídeo à esquerda, o elenco à direita.
+   Nada de rolagem na página — quem está marcando não pode perder o vídeo de vista
+   nem procurar a legenda das teclas. As áreas que crescem (lista de jogadoras e
+   linha do tempo) rolam por dentro.
+
+   As cores saem das variáveis do Bootstrap para a tela acompanhar o tema
+   claro/escuro do site (data-bs-theme no <html>). */
+
+.mv-wrap {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 120px);
+    min-height: 560px;
+    padding: 8px 12px;
+    gap: 8px;
+}
+
+.mv-topo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.mv-espaco { flex: 1 1 auto; }
+
+.mv-contador {
+    font-size: 13px;
+    color: var(--bs-secondary-color);
+}
+
+.mv-grade {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 10px;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+/* ── Coluna do vídeo ──────────────────────────────────────────────────── */
+
+.mv-video {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+}
+
+.mv-fonte {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.mv-palco {
+    position: relative;
+    background: #000;
+    border-radius: 6px;
+    overflow: hidden;
+    flex: 1 1 auto;
+    min-height: 240px;
+}
+
+.mv-palco iframe,
+.mv-palco video {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border: 0;
+}
+
+.mv-vazio {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9aa0a6;
+    font-size: 14px;
+    text-align: center;
+    padding: 16px;
+}
+
+.mv-controles {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    background: var(--bs-tertiary-bg);
+    border-radius: 6px;
+    padding: 6px 8px;
+}
+
+.mv-controles .btn-outline-light {
+    color: var(--bs-body-color);
+    border-color: var(--bs-border-color);
+}
+
+.mv-tempo {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+}
+
+/* Minuto de JOGO, que é o que vale para a estatística — destacado porque o
+   segundo do vídeo é só referência para achar o lance de novo. */
+.mv-min {
+    margin-left: 8px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--bs-warning-bg-subtle);
+    color: var(--bs-warning-text-emphasis);
+    font-size: 12px;
+}
+
+.mv-velocidade {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+}
+
+.mv-check {
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+}
+
+/* Botão de âncora já definida fica marcado — é o estado que decide se a tela
+   consegue converter segundo de vídeo em minuto de jogo. */
+.mv-ancora-ok {
+    background: var(--bs-success) !important;
+    color: #fff !important;
+    border-color: var(--bs-success) !important;
+}
+
+/* ── Legenda das teclas ───────────────────────────────────────────────── */
+
+.mv-legenda {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    background: var(--bs-tertiary-bg);
+    border-radius: 6px;
+    padding: 8px 10px;
+    max-height: 210px;
+    overflow-y: auto;
+}
+
+.mv-legenda-grupo h6 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--bs-secondary-color);
+    margin: 0 0 4px;
+}
+
+.mv-tecla-linha {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    line-height: 1.6;
+    white-space: nowrap;
+}
+
+.mv-tecla-linha kbd {
+    min-width: 26px;
+    text-align: center;
+    font-size: 11px;
+}
+
+/* ── Coluna do elenco ─────────────────────────────────────────────────── */
+
+.mv-elenco {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+}
+
+.mv-times {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+}
+
+.mv-time {
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    border-radius: 6px;
+    padding: 6px 4px;
+    font-size: 12px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mv-time.ativo {
+    background: var(--bs-primary);
+    border-color: var(--bs-primary);
+    color: #fff;
+}
+
+/* O que foi digitado até agora. Grande porque é a única confirmação de que a
+   tecla certa foi registrada sem olhar para a lista. */
+.mv-buffer {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    background: var(--bs-tertiary-bg);
+    border-radius: 6px;
+    padding: 6px 10px;
+    min-height: 46px;
+}
+
+.mv-buffer > #mv-buffer {
+    font-size: 26px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    min-width: 46px;
+}
+
+.mv-selecionada {
+    font-size: 13px;
+    color: var(--bs-secondary-color);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mv-lista {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 6px;
+}
+
+.mv-jogadora {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--bs-border-color);
+    font-size: 13px;
+}
+
+.mv-jogadora:hover { background: var(--bs-tertiary-bg); }
+
+.mv-jogadora.ativa {
+    background: var(--bs-primary-bg-subtle);
+    font-weight: 600;
+}
+
+.mv-num {
+    min-width: 26px;
+    text-align: center;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    background: var(--bs-secondary-bg);
+    border-radius: 4px;
+    padding: 1px 3px;
+}
+
+.mv-jogadora .mv-nome {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mv-jogadora .mv-tag {
+    font-size: 10px;
+    color: var(--bs-secondary-color);
+}
+
+.mv-jogadora .mv-qtd {
+    font-size: 11px;
+    color: var(--bs-secondary-color);
+    font-variant-numeric: tabular-nums;
+}
+
+.mv-timeline-titulo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--bs-secondary-color);
+}
+
+.mv-timeline {
+    height: 150px;
+    overflow-y: auto;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+.mv-evento {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 6px;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.mv-evento .mv-quando {
+    font-variant-numeric: tabular-nums;
+    color: var(--bs-secondary-color);
+    cursor: pointer;
+    text-decoration: underline dotted;
+}
+
+.mv-evento .mv-desc {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mv-evento .mv-x {
+    border: 0;
+    background: none;
+    color: var(--bs-danger);
+    line-height: 1;
+    padding: 0 2px;
+}
+
+/* Marcação ainda não confirmada pelo servidor. */
+.mv-evento.pendente { opacity: .5; }
+
+/* Aviso flutuante (número inexistente, falha de gravação). */
+.mv-aviso {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bs-danger);
+    color: #fff;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    z-index: 1080;
+}
+
+@media (max-width: 992px) {
+    .mv-grade { grid-template-columns: 1fr; }
+    .mv-wrap { height: auto; }
+}
+
+/* Escudo sobre o iframe do YouTube: enquanto o iframe tem o foco, ele engole o
+   teclado e nenhum atalho de marcação funciona. A camada intercepta o clique
+   (que passa a ser play/pause) e o foco nunca sai da página. */
+.mv-escudo {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    cursor: pointer;
+}

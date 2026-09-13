@@ -95,6 +95,17 @@ internal class Program
         builder.Services.AddScoped<TransmissaoJogoService>();
         builder.Services.AddScoped<PainelJogoService>();
         builder.Services.AddScoped<CraqueDaPartidaService>();
+        builder.Services.AddScoped<MarcacaoVideoService>();
+        // Números do tooltip ℹ do jogador — tela de análise e campo do Match Up.
+        builder.Services.AddScoped<TooltipJogadorService>();
+        // Simulador de tabela — tela logada (/Simulador) e pública (/creators/simulador).
+        builder.Services.AddScoped<SimuladorService>();
+        // Contador das páginas públicas de /creators (lido em /Admin/Acessos).
+        // O cache de visitantes é singleton: a marca "já vi este visitante hoje"
+        // precisa valer entre requisições.
+        builder.Services.AddSingleton<VisitantesDoDiaCache>();
+        builder.Services.AddScoped<AcessoPublicoService>();
+        builder.Services.AddScoped<ControleFutebolWeb.Filters.AcessoPublicoFilter>();
         builder.Services.AddSingleton<CatalogoLigasApi>();
 
         builder.Services.ConfigureApplicationCookie(options =>
@@ -146,6 +157,15 @@ internal class Program
         builder.Services.AddScoped<FotMobEscalacaoService>();
         // Estatísticas avançadas do jogador, buscadas só quando o usuário clica.
         builder.Services.AddScoped<FotMobPerfilService>();
+        builder.Services.AddScoped<FotMobCadastroService>();
+        // Fonte única das competições que só a FIFA publica (Mundial Sub-20 Feminino e
+        // companhia): a api-football não tem a liga e a ESPN não cataloga — ver FifaService.
+        builder.Services.AddHttpClient<FifaService>();
+        builder.Services.AddScoped<FifaEscalacaoService>();
+        builder.Services.AddScoped<FifaEventosService>();
+        // A raspagem do ogol.com.br (Brasileirão Feminino) NÃO é registrada aqui: a
+        // fonte está desativada — ver o cabeçalho de OgolService para o porquê e para o
+        // que é preciso religar.
         builder.Services.AddHttpClient("MediaProxy", c =>
         {
             c.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");
@@ -168,6 +188,9 @@ internal class Program
         builder.Services.AddSingleton<AtualizarTransmissoesService>();
         builder.Services.AddHostedService(sp =>
             sp.GetRequiredService<AtualizarTransmissoesService>());
+        builder.Services.AddSingleton<AtualizarJogosAoVivoService>();
+        builder.Services.AddHostedService(sp =>
+            sp.GetRequiredService<AtualizarJogosAoVivoService>());
         //builder.Services.AddHostedService<AtualizacaoJogosService>();
         //builder.Services.AddHostedService<AtualizarCopaSulAmericanaService>();
         builder.Services.AddHttpClient();
@@ -260,6 +283,16 @@ internal class Program
             // Não expõe a versão do framework.
             headers.Remove("X-Powered-By");
 
+            // A marcação por vídeo (/MarcacaoVideo) é a única tela que embute um player
+            // de terceiro: carrega o iframe_api do YouTube (script de fora), abre o
+            // player num <iframe> e toca arquivo do disco por blob:. Sob a política
+            // estrita as três coisas são bloqueadas SEM erro visível — a tela
+            // simplesmente não reage ao "Carregar". O afrouxamento vale só para o path
+            // dela; em qualquer outra página o site continua sem poder carregar script
+            // nem frame de origem externa.
+            var telaDeVideo = context.Request.Path.StartsWithSegments("/MarcacaoVideo");
+            const string origensYoutube = "https://www.youtube.com https://www.youtube-nocookie.com";
+
             // Content-Security-Policy: trava origens de recursos. Mantém 'unsafe-inline'
             // porque o layout usa <script>/<style>/onclick inline; o ideal futuro é migrar
             // para nonces e remover o 'unsafe-inline' de script-src.
@@ -267,11 +300,14 @@ internal class Program
                 "default-src 'self'; " +
                 // Permite imagens externas via HTTPS (escudos/logos colados por URL) e data:.
                 "img-src 'self' data: https:; " +
-                "script-src 'self' 'unsafe-inline'; " +
+                "script-src 'self' 'unsafe-inline'" + (telaDeVideo ? " " + origensYoutube : "") + "; " +
                 // 'unsafe-inline' + Google Fonts (usado via @import em algumas telas).
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
                 "font-src 'self' data: https://fonts.gstatic.com; " +
                 "connect-src 'self'; " +
+                // Sem estas duas, o padrão cai em default-src 'self': o iframe do
+                // YouTube e o <video src="blob:…"> do arquivo local não carregam.
+                (telaDeVideo ? "frame-src 'self' " + origensYoutube + "; media-src 'self' blob:; " : "") +
                 "frame-ancestors 'none'; " +
                 "base-uri 'self'; " +
                 "form-action 'self'; " +

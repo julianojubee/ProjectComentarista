@@ -1,6 +1,8 @@
-using ControleFutebolWeb.Data;
+﻿using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
+using ControleFutebolWeb.Models.ViewModels;
+using ControleFutebolWeb.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +19,65 @@ namespace ControleFutebolWeb.Controllers
         {
             _context = context;
             _logger = logger;
+        }
+
+        // GET: /Admin/Acessos?dias=30
+        // Movimento das páginas públicas de /creators: quantas aberturas e quantos
+        // visitantes por ferramenta, dia a dia. É o contador agregado do
+        // AcessoPublicoService — não há registro de visita individual para mostrar.
+        [HttpGet]
+        public async Task<IActionResult> Acessos(int dias = 30)
+        {
+            // Teto de dois anos: a URL é do admin, mas ?dias=999999 varreria a
+            // tabela inteira sem necessidade.
+            dias = Math.Clamp(dias, 7, 730);
+
+            var hoje = AcessoPublicoService.HojeNoBrasil();
+            var desde = hoje.AddDays(-(dias - 1));
+
+            var linhas = await _context.AcessosPublicos.AsNoTracking()
+                .Where(a => a.Dia >= desde)
+                .OrderByDescending(a => a.Dia)
+                .ToListAsync();
+
+            var vm = new AcessosPublicosViewModel
+            {
+                Dias = dias,
+                De = desde,
+                Ate = hoje,
+                PorFerramenta = linhas
+                    .GroupBy(a => a.Ferramenta)
+                    .Select(g => new AcessoFerramentaViewModel
+                    {
+                        Ferramenta = g.Key,
+                        Visitas = g.Sum(a => a.Visitas),
+                        Visitantes = g.Sum(a => a.Visitantes),
+                    })
+                    .OrderByDescending(f => f.Visitas)
+                    .ToList(),
+            };
+
+            // Série diária completa: dia sem acesso entra zerado, senão o gráfico
+            // "pula" os dias parados e dá impressão de movimento contínuo.
+            var porDia = linhas.GroupBy(a => a.Dia)
+                .ToDictionary(g => g.Key, g => (Visitas: g.Sum(a => a.Visitas), Visitantes: g.Sum(a => a.Visitantes)));
+
+            for (var dia = desde; dia <= hoje; dia = dia.AddDays(1))
+            {
+                porDia.TryGetValue(dia, out var totais);
+                vm.PorDia.Add(new AcessoDiaViewModel
+                {
+                    Dia = dia,
+                    Visitas = totais.Visitas,
+                    Visitantes = totais.Visitantes,
+                    Detalhe = linhas.Where(a => a.Dia == dia)
+                        .OrderByDescending(a => a.Visitas)
+                        .Select(a => (a.Ferramenta, a.Visitas))
+                        .ToList(),
+                });
+            }
+
+            return View(vm);
         }
 
         // POST: /Admin/NormalizarNacionalidades

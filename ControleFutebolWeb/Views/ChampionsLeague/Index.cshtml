@@ -1,4 +1,4 @@
-@using ControleFutebolWeb.Models
+﻿@using ControleFutebolWeb.Models
 @using ControleFutebolWeb.Models.ViewModels
 @using ControleFutebolWeb.Controllers
 @model ControleFutebolWeb.Models.ViewModels.ChampionsLeagueIndexViewModel
@@ -287,6 +287,7 @@
                         </select>
                     </form>
                 }
+                @await Html.PartialAsync("_BotaoSincronizarJogos", 6)
                 @if (totalJogos > 0)
                 {
                     <div class="ucl-hero-stats">
@@ -645,6 +646,7 @@
             </div>
         }
     </div>
+    @await Html.PartialAsync("_ArtilheirosAssistencias", (6, Model.Temporada))
 </div>
 
 <script>

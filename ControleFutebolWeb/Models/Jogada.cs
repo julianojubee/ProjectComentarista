@@ -19,15 +19,22 @@ namespace ControleFutebolWeb.Models
     ///   "v": 1,
     ///   "ms": 900,                                             // duração de cada transição
     ///   "elenco": [ { "id": 7, "num": "10", "nome": "…", "sigla": "MEI", "adv": false } ],
+    ///   "grupos": [ { "id": "gk3f", "nome": "", "ids": [2, 3, 4, 6] } ],   // blocos
     ///   "passos": [
     ///     {
     ///       "legenda": "Goleiro sai jogando",
+    ///       "passe":  "passe",                                  // tipo de bola do trecho
     ///       "bola":   { "x": 10.0, "y": 50.0 },
-    ///       "pecas":  [ { "id": 7, "x": 8.0, "y": 50.0 } ],
+    ///       "pecas":  [ { "id": 7, "x": 8.0, "y": 50.0, "modo": "trote", "atraso": 0 } ],
     ///       "setas":  [ { "x1": 8, "y1": 50, "x2": 30, "y2": 20 } ]
     ///     }
     ///   ]
     /// }
+    ///
+    /// "grupos" são os blocos táticos: jogadores que a prancheta move juntos, mantendo
+    /// a forma (a linha de quatro, o triângulo do meio). Ficam fora dos passos porque o
+    /// vínculo é entre as peças e vale a jogada inteira — o que muda a cada passo é
+    /// onde o bloco está. Cada jogador entra em no máximo um bloco.
     ///
     /// "elenco" é uma cópia do nome/número dos jogadores usados: o arsenal do time
     /// precisa desenhar a jogada sem recarregar a escalação do jogo de origem, e o

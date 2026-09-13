@@ -1,0 +1,134 @@
+@model ControleFutebolWeb.Models.ViewModels.CreatorsEscalacaoViewModel
+@{
+    Layout = "_LayoutCreators";
+    ViewData["Title"] = "Escalações";
+    ViewData["Ferramenta"] = "escalacao";
+}
+
+@section Styles {
+    @* O campo, o banco, as setas e as formas são os mesmos da aba Match-up do
+       modal Pré-jogo — o CSS e o JS vivem em matchup.css/matchup.js, e o
+       tooltip ℹ do jogador em jogador-tooltip.css/js. *@
+    <link rel="stylesheet" href="~/css/jogador-tooltip.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/matchup.css" asp-append-version="true" />
+}
+
+<div class="cr-wrap cr-wrap-campo">
+    <h1 class="cr-titulo">Escalações</h1>
+    <p class="cr-sub">
+        Escolha dois times. Cada um entra com a última escalação titular registrada, e daí é seu:
+        arraste, substitua pelo elenco, marque movimentações. Nada é salvo.
+    </p>
+
+    @if (Model.Times.Count == 0)
+    {
+        <p class="cr-aviso">Nenhum time com escalação registrada por enquanto.</p>
+    }
+    else
+    {
+        @* data-buscavel: o select vira o combo com campo de digitação usado nas
+           telas internas (js/select-buscavel.js, carregado pelo layout). Sem JS,
+           continua um select nativo e a tela funciona igual. *@
+        <div class="cr-barra">
+            <div class="cr-campo-form">
+                <label for="crCompeticao">Competição</label>
+                <select id="crCompeticao" data-buscavel="Digite a competição…">
+                    <option value="">Todas as competições</option>
+                    @foreach (var c in Model.Competicoes)
+                    {
+                        <option value="@c.Id" selected="@(c.Id == Model.CompeticaoId)">@c.Nome</option>
+                    }
+                </select>
+            </div>
+            <div class="cr-campo-form">
+                <label for="crTimeCasa">Time da esquerda</label>
+                <select id="crTimeCasa" data-buscavel="Digite o time…">
+                    <option value="">Selecione…</option>
+                    @foreach (var t in Model.Times)
+                    {
+                        <option value="@t.Id">@t.Nome</option>
+                    }
+                </select>
+            </div>
+            <div class="cr-campo-form">
+                <label for="crTimeFora">Time da direita</label>
+                <select id="crTimeFora" data-buscavel="Digite o time…">
+                    <option value="">Selecione…</option>
+                    @foreach (var t in Model.Times)
+                    {
+                        <option value="@t.Id">@t.Nome</option>
+                    }
+                </select>
+            </div>
+            <button type="button" class="cr-acao" onclick="crCarregarMatchUp()">Montar campo</button>
+        </div>
+
+        <div id="crMatchUp">
+            <p class="cr-aviso">Escolha os dois times e clique em “Montar campo”.</p>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    @* jogador-tooltip.js antes de matchup.js: o campo pergunta a ele se o jogador
+       tem ficha antes de desenhar o ℹ. *@
+    <script src="~/js/jogador-tooltip.js" asp-append-version="true"></script>
+    <script src="~/js/matchup.js" asp-append-version="true"></script>
+    <script>
+        // Trocar a competição repovoa os dois seletores de time — mesmo esquema de
+        // /Jogos. O select-buscavel observa as options e se atualiza sozinho.
+        // Quem já estava escolhido continua escolhido se ainda estiver na lista.
+        async function crFiltrarTimes() {
+            var comp = document.getElementById('crCompeticao').value;
+            var selects = [document.getElementById('crTimeCasa'), document.getElementById('crTimeFora')];
+            var anteriores = selects.map(function (s) { return s.value; });
+
+            try {
+                var resp = await fetch('/creators/escalacao/times' + (comp ? '?competicao=' + encodeURIComponent(comp) : ''));
+                if (!resp.ok) throw new Error();
+                var times = await resp.json();
+
+                selects.forEach(function (sel, i) {
+                    sel.innerHTML = '';
+                    sel.appendChild(new Option('Selecione…', ''));
+                    times.forEach(function (t) {
+                        var opt = new Option(t.nome, t.id);
+                        if (String(t.id) === anteriores[i]) opt.selected = true;
+                        sel.appendChild(opt);
+                    });
+                });
+            } catch (e) {
+                // Mantém as listas como estavam: pior sair sem filtro do que sem times.
+            }
+        }
+
+        document.getElementById('crCompeticao').addEventListener('change', crFiltrarTimes);
+
+        async function crCarregarMatchUp() {
+            var casa = document.getElementById('crTimeCasa').value;
+            var fora = document.getElementById('crTimeFora').value;
+            var cont = document.getElementById('crMatchUp');
+
+            if (!casa || !fora) {
+                cont.innerHTML = '<p class="cr-aviso">Escolha os dois times.</p>';
+                return;
+            }
+            if (casa === fora) {
+                cont.innerHTML = '<p class="cr-aviso">Escolha dois times diferentes.</p>';
+                return;
+            }
+
+            cont.innerHTML = '<p class="cr-aviso">Carregando…</p>';
+            try {
+                var resp = await fetch('/creators/escalacao/dados?casa=' + encodeURIComponent(casa) + '&fora=' + encodeURIComponent(fora));
+                if (!resp.ok) throw new Error();
+                // campo3d: só esta tela inclina o gramado e monta o estádio
+                // (a aba Match-up do modal Pré-jogo segue com o campo chapado).
+                // cores: cada elenco ganha o seletor da cor da borda dos seus jogadores.
+                muRender(await resp.json(), cont, { dica: 'Simulação — nada é salvo.', campo3d: true, cores: true });
+            } catch (e) {
+                cont.innerHTML = '<p class="cr-erro">Não deu para carregar as escalações. Tente de novo.</p>';
+            }
+        }
+    </script>
+}

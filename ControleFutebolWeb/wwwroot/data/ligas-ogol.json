@@ -1,0 +1,12 @@
+{
+  "_comentario": "DESATIVADO — OgolService nao esta registrado em Program.cs e ninguem o chama; ver o cabecalho daquele arquivo. De-para do id da liga na api-football (Competicao.IdApi) para a edicao correspondente no ogol.com.br. O id da edicao sai da URL /edicao/{slug}/{ID} (o combo de temporadas da propria pagina lista os ids dos anos anteriores). Este arquivo era o unico gatilho da fonte: liga que nao estivesse aqui nunca era consultada. Fica guardado para o dia em que a fonte voltar.",
+  "74": {
+    "nome": "Brasileirao Feminino",
+    "edicoes": {
+      "2026": "209166",
+      "2025": "195937",
+      "2024": "184349",
+      "2023": "171912"
+    }
+  }
+}

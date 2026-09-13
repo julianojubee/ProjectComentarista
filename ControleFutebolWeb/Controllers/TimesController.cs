@@ -20,6 +20,7 @@ namespace ControleFutebolWeb.Controllers
         private readonly ILogger<TimesController> _logger;
         private readonly IWebHostEnvironment _env;
         private readonly ControleFutebolWeb.Services.ApiFootballService _apiFootballService;
+        private readonly ControleFutebolWeb.Services.FifaService _fifaService;
         private readonly UserManager<ApplicationUser> _userManager;
 
         public TimesController(
@@ -27,12 +28,14 @@ namespace ControleFutebolWeb.Controllers
             ILogger<TimesController> logger,
             IWebHostEnvironment env,
             ControleFutebolWeb.Services.ApiFootballService apiFootballService,
+            ControleFutebolWeb.Services.FifaService fifaService,
             UserManager<ApplicationUser> userManager)
         {
             _context = context;
             _logger = logger;
             _env = env;
             _apiFootballService = apiFootballService;
+            _fifaService = fifaService;
             _userManager = userManager;
         }
 
@@ -821,6 +824,104 @@ namespace ControleFutebolWeb.Controllers
 
         // Busca na api-football idade, altura e peso apenas dos jogadores do elenco
         // que ainda não têm esses dados — evita gastar requisições à toa.
+        // POST: Times/ImportarElenco/1234
+        //
+        // Cadastra o elenco do time sem esperar o primeiro jogo. Antes disso os
+        // jogadores só nasciam da escalação de uma partida já disputada, o que deixava
+        // a tela do time vazia justamente na semana de pré-jogo — quando o analista
+        // está montando a cobertura.
+        //
+        // A FONTE é a da competição em que o time joga, não uma escolha à parte:
+        // competição cadastrada com "apifoot:" busca na api-football, com "fifa:" busca
+        // na FIFA. Perguntar a fonte ao usuário seria pedir que ele repetisse uma
+        // informação que já está no cadastro da competição.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ImportarElenco(int id, CancellationToken ct)
+        {
+            var time = await _context.Times.FirstOrDefaultAsync(t => t.Id == id);
+            if (time == null) return NotFound();
+
+            var competicao = await CompeticaoFonteAsync(id);
+
+            if (competicao == null)
+            {
+                TempData["Mensagem"] = $"Nenhuma competição com fonte configurada tem jogos de {time.Nome}. " +
+                                       "Cadastre o link da competição (apifoot: ou fifa:) e use \u0022Buscar jogos\u0022 antes.";
+                TempData["MensagemTipo"] = "erro";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            try
+            {
+                if (ControleFutebolWeb.Services.FifaService.IsFifaLink(competicao.LinkTransfermarket))
+                {
+                    var (idComp, idSeason) =
+                        ControleFutebolWeb.Services.FifaService.ParseLink(competicao.LinkTransfermarket!);
+
+                    var r = await _fifaService.ImportarElencoAsync(_context, time, idComp, idSeason, ct);
+
+                    TempData["Mensagem"] = r.Mensagem;
+                    if (!r.Ok) TempData["MensagemTipo"] = "erro";
+
+                    await ControleFutebolWeb.Services.LogFonteExterna.RegistrarAsync(
+                        _context, ControleFutebolWeb.Services.LogFonteExterna.TipoFifa,
+                        $"Elenco de {time.Nome}", r.Ok, null, r.Mensagem, ct);
+                }
+                else if (ControleFutebolWeb.Services.ApiFootballService.IsApiFootballLink(competicao.LinkTransfermarket) ||
+                         competicao.IdApi != null)
+                {
+                    if (time.IdApi <= 0)
+                    {
+                        TempData["Mensagem"] = $"O time {time.Nome} não tem id da api-football — " +
+                                               "rode \u0022Buscar jogos\u0022 na competição para vinculá-lo.";
+                        TempData["MensagemTipo"] = "erro";
+                        return RedirectToAction(nameof(Details), new { id });
+                    }
+
+                    var criados = await _apiFootballService.ImportarElencoAsync(_context, time, ct);
+
+                    TempData["Mensagem"] = criados > 0
+                        ? $"Elenco de {time.Nome} pela api-football: {criados} jogador(es) cadastrado(s)."
+                        : $"O elenco de {time.Nome} já estava completo — nada a cadastrar.";
+                }
+                else
+                {
+                    TempData["Mensagem"] = $"A competição \u0022{competicao.Nome}\u0022 não tem fonte reconhecida " +
+                                           "(use apifoot:LEAGUE_ID:SEASON ou fifa:IDCOMPETICAO:IDEDICAO).";
+                    TempData["MensagemTipo"] = "erro";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[ImportarElenco] Falha no time {Id} ({Nome})", id, time.Nome);
+                TempData["Mensagem"] = $"Não foi possível importar o elenco: {ex.Message}";
+                TempData["MensagemTipo"] = "erro";
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        /// <summary>
+        /// A competição de onde o elenco deste time deve sair: a mais recente em que ele
+        /// tem jogos e que aponte para alguma fonte. Um time costuma jogar várias (clube
+        /// no estadual e no nacional, seleção no Mundial e nas Eliminatórias) — a mais
+        /// recente é a que o analista está cobrindo agora.
+        ///
+        /// "Aponta para alguma fonte" inclui IdApi sem link: competição cadastrada antes
+        /// do campo de link (a Bundesliga é assim) tem só o id da liga na api-football,
+        /// e ignorá-la deixaria de fora justamente os clubes europeus.
+        /// </summary>
+        private Task<Competicao?> CompeticaoFonteAsync(int timeId) =>
+            _context.Jogos
+                .Where(j => (j.TimeCasaId == timeId || j.TimeVisitanteId == timeId) &&
+                            j.Competicao != null &&
+                            (j.Competicao.LinkTransfermarket != null || j.Competicao.IdApi != null))
+                .OrderByDescending(j => j.Temporada)
+                .ThenByDescending(j => j.Data)
+                .Select(j => j.Competicao)
+                .FirstOrDefaultAsync();
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AtualizarDadosJogadores(int id)
@@ -1608,15 +1709,8 @@ namespace ControleFutebolWeb.Controllers
             if (jogosDoTime.Count == 0)
                 return Json(new { disponivel = false });
 
-            // Um evento (gol/cartão) pertence ao time do jogo em que o autor entrou —
-            // resolve tanto elenco de clube (TimeId) quanto de seleção (SelecaoId).
-            int? TimeDoAutor(Jogo j, Jogador? autor)
-            {
-                if (autor == null) return null;
-                if (autor.TimeId == j.TimeCasaId || autor.SelecaoId == j.TimeCasaId) return j.TimeCasaId;
-                if (autor.TimeId == j.TimeVisitanteId || autor.SelecaoId == j.TimeVisitanteId) return j.TimeVisitanteId;
-                return null;
-            }
+            // O dono de cada evento (gol/cartão) sai da escalação daquele jogo — ver
+            // LadoJogadorHelper.
 
             // ── Rodada a rodada + formação usada em cada jogo ────────────────────
             var partidas = jogosDoTime.Select(j =>
@@ -1680,10 +1774,17 @@ namespace ControleFutebolWeb.Controllers
                 .Where(g => idsJogosDoTime.Contains(g.JogoId))
                 .ToListAsync();
 
+            var ladosGols = await LadoJogadorHelper.CarregarLadosAsync(
+                _context, idsJogosDoTime, gols.Select(g => g.JogadorId));
+            var jogoDoTimePorId = jogosDoTime.ToDictionary(j => j.Id);
+
             foreach (var g in gols)
             {
                 if (g.Jogador == null) continue;
-                bool autorENosso = g.Jogador.TimeId == timeId || g.Jogador.SelecaoId == timeId;
+
+                var timeDoAutor = LadoJogadorHelper.TimeDoAutor(
+                    jogoDoTimePorId[g.JogoId], g.Jogador, ladosGols);
+                bool autorENosso = timeDoAutor == timeId;
                 bool marcadoPorNos = g.Contra ? !autorENosso : autorENosso;
                 int i = IndiceBucket(g.Minuto);
                 bool emCasa = mandante[g.JogoId];
@@ -1703,10 +1804,13 @@ namespace ControleFutebolWeb.Controllers
             // Amarelos por time na liga inteira — alimenta o eixo "disciplina" do radar.
             var amarelosPorTime = new Dictionary<int, int>();
 
+            var ladosCartoes = await LadoJogadorHelper.CarregarLadosAsync(
+                _context, idsJogosLiga, cartoesLiga.Select(c => c.JogadorId));
+
             foreach (var c in cartoesLiga)
             {
                 if (!jogoPorId.TryGetValue(c.JogoId, out var jogo)) continue;
-                var timeDono = TimeDoAutor(jogo, c.Jogador);
+                var timeDono = LadoJogadorHelper.TimeDoAutor(jogo, c.Jogador, ladosCartoes);
                 if (timeDono == null) continue;
 
                 bool vermelho = c.Tipo != null &&

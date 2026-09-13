@@ -1,4 +1,4 @@
-@using ControleFutebolWeb.Helpers
+﻿@using ControleFutebolWeb.Helpers
 @model Competicao
 
 @{
@@ -56,11 +56,16 @@
     </div>
     <div class="form-group">
         <label asp-for="LinkTransfermarket">Link Transfermarkt</label>
-        <input asp-for="LinkTransfermarket" class="form-control" placeholder="apifoot:128:2026" />
+        <input asp-for="LinkTransfermarket" class="form-control" placeholder="apifoot:128:2026 ou fifa:108:291518" />
         <small class="text-muted">
             No formato <code>apifoot:CODIGO:TEMPORADA</code>, o código é conferido no catálogo da API e o
             escudo da competição vem de lá automaticamente.
             <a asp-action="CompeticoesApi">Ver competições da API</a>.
+            <br />
+            Competição que só a FIFA publica (Mundiais de base e femininos): use
+            <code>fifa:IDCOMPETICAO:IDEDICAO</code> — ex.: <code>fifa:108:291518</code> para o
+            Mundial Sub-20 Feminino, Polônia 2026.
+            <a asp-action="CompeticoesFifa">Ver competições da FIFA</a>.
         </small>
         <span asp-validation-for="LinkTransfermarket" class="text-danger"></span>
     </div>

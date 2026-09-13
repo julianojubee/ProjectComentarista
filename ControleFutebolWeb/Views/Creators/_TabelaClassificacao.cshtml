@@ -1,0 +1,53 @@
+@model List<ControleFutebolWeb.Models.Classificacao>
+@*
+    Tabela de pontos corridos da área pública. Serve tanto para a classificação
+    geral quanto para a de um grupo — o chamador decide o título.
+    Sem links para as telas internas: aqui o visitante não tem login.
+*@
+
+<div class="cr-tabela-wrap">
+    <table class="cr-tabela">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th class="esq">Clube</th>
+                <th>P</th>
+                <th>J</th>
+                <th>V</th>
+                <th>E</th>
+                <th>D</th>
+                <th>GP</th>
+                <th>GC</th>
+                <th>SG</th>
+                <th>%</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var c in Model)
+            {
+                var aprov = c.Jogos > 0 ? (int)Math.Round(c.Pontos / (double)(c.Jogos * 3) * 100) : 0;
+                <tr>
+                    <td class="cr-tab-pos">@c.Posicao</td>
+                    <td class="esq">
+                        <span class="cr-tab-time">
+                            @if (!string.IsNullOrWhiteSpace(c.Time?.EscudoUrl))
+                            {
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.Time!.EscudoUrl })" alt="" loading="lazy" />
+                            }
+                            @c.Time?.Nome
+                        </span>
+                    </td>
+                    <td class="cr-tab-pts">@c.Pontos</td>
+                    <td>@c.Jogos</td>
+                    <td>@c.Vitorias</td>
+                    <td>@c.Empates</td>
+                    <td>@c.Derrotas</td>
+                    <td>@c.GolsPro</td>
+                    <td>@c.GolsContra</td>
+                    <td>@c.SaldoGols</td>
+                    <td>@aprov%</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

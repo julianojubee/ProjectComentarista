@@ -27,6 +27,45 @@ namespace ControleFutebolWeb.Models
         public int? PlacarVisitante { get; set; }
         [ValidateNever]
 
+        // Placar parcial do jogo em andamento, gravado pelo AtualizarJogosAoVivoService
+        // (e pelo botão "Reimportar dados") a cada visita à api-football.
+        //
+        // Vive fora de PlacarCasa/PlacarVisitante de propósito: aqueles dois são o que o
+        // sistema inteiro (classificação, chaveamento, relatórios, agrupamento da tela
+        // Jogos/Hoje) lê como "jogo realizado", e gravar um parcial neles daria o jogo
+        // por encerrado no meio do segundo tempo. Ninguém além da exibição do placar ao
+        // vivo lê estes campos aqui.
+        //
+        // São zerados quando o jogo termina — aí o placar de verdade assume.
+        public int? PlacarParcialCasa { get; set; }
+        [ValidateNever]
+
+        public int? PlacarParcialVisitante { get; set; }
+        [ValidateNever]
+
+        // Quando o parcial foi lido da API (UTC). Serve para a tela dizer "há X min",
+        // para o relógio do card contar para a frente a partir de MinutoParcial e para
+        // descartar parcial velho de jogo que o serviço parou de acompanhar.
+        public DateTime? PlacarParcialEm { get; set; }
+        [ValidateNever]
+
+        // Relógio da partida no instante em que o parcial foi lido, direto da
+        // api-football (fixture.status): o minuto, os acréscimos e o código do período
+        // ("1H", "HT", "2H", "ET", "BT", "P", "SUSP", "INT"...).
+        //
+        // É uma leitura datada, não um cronômetro: entre um ciclo e outro do
+        // AtualizarJogosAoVivoService o minuto envelhece, e é o card que conta para a
+        // frente a partir de PlacarParcialEm. Seguem a mesma vida do placar parcial —
+        // são zerados quando o jogo acaba.
+        public int? MinutoParcial { get; set; }
+        [ValidateNever]
+
+        public int? AcrescimoParcial { get; set; }
+        [ValidateNever]
+
+        public string? StatusParcial { get; set; }
+        [ValidateNever]
+
         // Placar da disputa de pênaltis (mata-mata). Nulo quando não houve disputa.
         public int? PenaltisCasa { get; set; }
         [ValidateNever]

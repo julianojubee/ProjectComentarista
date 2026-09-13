@@ -1,0 +1,56 @@
+@model List<ControleFutebolWeb.Models.ViewModels.FaseMataMataViewModel>
+@*
+    Fases eliminatórias: uma coluna por fase (oitavas, quartas…), cada confronto
+    com os dois times, o agregado e, quando houve, os pênaltis. Quem passou fica
+    em destaque; na fase que decide o título, o vencedor é o campeão.
+*@
+
+<div class="cr-chaves">
+    @foreach (var fase in Model.OrderBy(f => f.Ordem))
+    {
+        <div class="cr-chave-fase">
+            <h3 class="cr-chave-nome">@fase.Nome</h3>
+            @foreach (var c in fase.Confrontos)
+            {
+                <div class="cr-confronto">
+                    @foreach (var lado in new[] { true, false })
+                    {
+                        var time = lado ? c.TimeA : c.TimeB;
+                        var total = lado ? c.TotalA : c.TotalB;
+                        var penaltis = lado ? c.PenaltisA : c.PenaltisB;
+                        var venceu = lado ? c.VenceA : c.VenceB;
+                        <div class="cr-confronto-lado @(venceu ? "venceu" : "")">
+                            @if (!string.IsNullOrWhiteSpace(time?.EscudoUrl))
+                            {
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = time!.EscudoUrl })" alt="" loading="lazy" />
+                            }
+                            <span class="cr-confronto-nome">@(time?.Nome ?? "A definir")</span>
+                            @if (c.Completo)
+                            {
+                                <span class="cr-confronto-gols">@total</span>
+                                @if (c.DecididoNosPenaltis && penaltis.HasValue)
+                                {
+                                    <span class="cr-confronto-pen" title="Pênaltis">(@penaltis)</span>
+                                }
+                            }
+                        </div>
+                    }
+                    <div class="cr-confronto-rodape">
+                        @if (!c.Completo)
+                        {
+                            <span>@(c.JogoIda?.Data?.ToString("dd/MM/yyyy") ?? "a definir")</span>
+                        }
+                        else if (fase.DecideTitulo && (c.VenceA || c.VenceB))
+                        {
+                            <span class="cr-campeao">🏆 @((c.VenceA ? c.TimeA : c.TimeB)?.Nome) campeão</span>
+                        }
+                        else
+                        {
+                            <span>@(c.SoIda ? "jogo único" : "ida e volta")</span>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

@@ -19,8 +19,9 @@ namespace ControleFutebolWeb.Controllers
         };
 
         private static readonly HashSet<string> _allowedHosts = new(
-            _apiSportsHosts.Append("flagcdn.com")  // bandeiras de países (FlagHelper.GetFlagImageUrl)
-                           .Append(_hostEscudos),  // escudos das telas de estatística avançada
+            _apiSportsHosts.Append("flagcdn.com")   // bandeiras de países (FlagHelper.GetFlagImageUrl)
+                           .Append(_hostEscudos)    // escudos das telas de estatística avançada
+                           .Append(_hostFifa),      // bandeiras e artes das competições da FIFA
             StringComparer.OrdinalIgnoreCase);
 
         // Host dos escudos usados pela tela de estatísticas avançadas do jogador.
@@ -28,6 +29,12 @@ namespace ControleFutebolWeb.Controllers
         // endereço de fonte externa nenhum: o HTML pede /MediaProxy/Escudo/{id} e é
         // este controller que sabe de onde a imagem vem.
         private const string _hostEscudos = "images.fotmob.com";
+
+        // Bandeira que serve de escudo às seleções importadas da FIFA
+        // ("…/picture/flags-sq-4/BRA") e a arte da edição, que vira o logo da
+        // competição — ver FifaService. Sem este host na allowlist a resposta é 403 e
+        // a tela mostra o alt do <img> no lugar de todos os escudos.
+        private const string _hostFifa = "api.fifa.com";
 
         private static readonly HashSet<string> _tiposPermitidos = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -89,6 +96,22 @@ namespace ControleFutebolWeb.Controllers
             id <= 0
                 ? Task.FromResult(SemCache(BadRequest()))
                 : Imagem($"https://{_hostEscudos}/image_resources/logo/teamlogo/{id}.png", ct);
+
+        /// <summary>
+        /// GET /MediaProxy/FotoJogador/1815149 — retrato do jogador pelo id do FotMob.
+        ///
+        /// Mesma razao do escudo acima: e este caminho, e nao a URL da fonte, que fica
+        /// gravado em Jogador.FotoUrl e aparece no HTML. Como o valor guardado e
+        /// relativo, ele atravessa FotoSrc/FotoSrcAbsoluto sem tratamento especial e
+        /// serve tambem o app Android.
+        /// </summary>
+        [HttpGet]
+        [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+        [ResponseCache(Duration = 86400, Location = ResponseCacheLocation.Any)]
+        public Task<IActionResult> FotoJogador(long id, CancellationToken ct) =>
+            id <= 0
+                ? Task.FromResult(SemCache(BadRequest()))
+                : Imagem(Services.FotMobService.FotoJogadorUrl(id), ct);
 
         // GET /MediaProxy/Imagem?url=https://media.api-sports.io/football/players/50077.png
         // AllowAnonymous: o app Android carrega imagens pelo Coil, que não envia

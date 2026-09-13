@@ -888,6 +888,58 @@ namespace ControleFutebolWeb.Services
             BuscarJsonAsync($"playerData?id={idFotMob}", TimeSpan.FromHours(6), ct);
 
         /// <summary>
+        /// Diz se o FotMob tem retrato deste jogador.
+        ///
+        /// A URL da foto nao vem no playerData: ela e montada a partir do id, sempre no
+        /// mesmo formato. Por isso a unica forma de saber se existe e pedir a imagem —
+        /// quem nao tem retrato responde 403 (e nao 404), que e o mesmo desfecho aqui.
+        ///
+        /// Conferir antes de gravar evita o pior caso: Jogador.FotoUrl apontando para
+        /// uma imagem que nunca carrega, com a tela caindo no placeholder para sempre
+        /// sem ninguem entender por que.
+        ///
+        /// HEAD e nao GET porque so interessa o status; o cache de um dia existe porque
+        /// a resposta e praticamente imutavel e a pergunta se repete a cada visita a
+        /// tela do jogador.
+        /// </summary>
+        public async Task<bool> TemFotoJogadorAsync(long idFotMob, CancellationToken ct = default)
+        {
+            var chave = $"fotmob:foto:{idFotMob}";
+            if (_cache.TryGetValue<bool>(chave, out var conhecido)) return conhecido;
+
+            bool existe;
+            try
+            {
+                using var req = new HttpRequestMessage(HttpMethod.Head, FotoJogadorUrl(idFotMob));
+                using var resp = await _http.SendAsync(req, ct);
+                existe = resp.IsSuccessStatusCode;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
+            {
+                // Falha de rede nao e "nao tem foto": nao guarda a resposta, para a
+                // proxima visita perguntar de novo.
+                _logger.LogWarning(ex, "[FotMob] Falha ao conferir a foto do jogador {Id}.", idFotMob);
+                return false;
+            }
+
+            _cache.Set(chave, existe, new MemoryCacheEntryOptions
+            {
+                Size = 1,
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(1),
+            });
+
+            return existe;
+        }
+
+        /// <summary>
+        /// Endereco do retrato no FotMob. Fica aqui, junto do resto do conhecimento
+        /// sobre a fonte, e nunca chega ao HTML: o que a pagina cita e a rota interna
+        /// do MediaProxy (ver MediaProxyController.FotoJogador).
+        /// </summary>
+        internal static string FotoJogadorUrl(long idFotMob) =>
+            $"https://images.fotmob.com/image_resources/playerimages/{idFotMob}.png";
+
+        /// <summary>
         /// Desempenho do jogador numa temporada/competição.
         /// </summary>
         /// <param name="temporadaId">

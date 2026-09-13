@@ -1,3 +1,4 @@
+using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
 using System.Text.Json;
@@ -13,8 +14,14 @@ namespace ControleFutebolWeb.Services
     // tela que já tenha a lista de jogos realizados da competição/temporada.
     public static class EstatisticaTimeCalculator
     {
+        /// <param name="escalacoes">
+        /// Escalações dos jogos, quando disponíveis: é delas que sai o time pelo qual o
+        /// autor do gol/cartão entrou em campo. Sem elas o dono do evento volta a sair do
+        /// clube atual do cadastro, que muda quando o jogador é transferido.
+        /// </param>
         public static List<EstatisticaTimeViewModel> Calcular(
-            List<Jogo> jogos, List<Gol> gols, List<Cartao> cartoes)
+            List<Jogo> jogos, List<Gol> gols, List<Cartao> cartoes,
+            IEnumerable<Escalacao>? escalacoes = null)
         {
             int IndiceBucket(int minuto) => minuto switch
             {
@@ -27,13 +34,10 @@ namespace ControleFutebolWeb.Services
                 _ => 6
             };
 
-            int? TimeDoAutor(Jogo j, Jogador? autor)
-            {
-                if (autor == null) return null;
-                if (autor.TimeId == j.TimeCasaId || autor.SelecaoId == j.TimeCasaId) return j.TimeCasaId;
-                if (autor.TimeId == j.TimeVisitanteId || autor.SelecaoId == j.TimeVisitanteId) return j.TimeVisitanteId;
-                return null;
-            }
+            var atuacoes = LadoJogadorHelper.Montar(escalacoes ?? Array.Empty<Escalacao>());
+
+            int? TimeDoAutor(Jogo j, Jogador? autor) =>
+                LadoJogadorHelper.TimeDoAutor(j, autor, atuacoes);
 
             var mapa = new Dictionary<int, EstatisticaTimeViewModel>();
             EstatisticaTimeViewModel Get(Time? t)

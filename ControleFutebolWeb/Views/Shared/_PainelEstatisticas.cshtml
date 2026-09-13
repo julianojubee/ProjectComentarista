@@ -810,14 +810,39 @@
     function buildQuadrantes() {
         const pts = DADOS.filter((t) => t.j > 0).map((t) => {
             const x = +(t.gp / t.j).toFixed(2), y = +(t.gc / t.j).toFixed(2);
-            return { x, y, nome: t.nome, escudoUrl: t.escudoUrl, tooltipLinha: t.nome + ' — marca ' + x + ' e sofre ' + y + ' por jogo' };
+            return { x, y, x0: x, y0: y, nome: t.nome, escudoUrl: t.escudoUrl, tooltipLinha: t.nome + ' — marca ' + x + ' e sofre ' + y + ' por jogo' };
         });
         if (!pts.length) return;
         const mx = pts.reduce((a, p) => a + p.x, 0) / pts.length;
         const my = pts.reduce((a, p) => a + p.y, 0) / pts.length;
+
+        // Times com o mesmo aproveitamento (ex.: dois times com 4 jogos, 10 gols
+        // marcados e 3 sofridos) cairiam exatamente no mesmo pixel e um sumiria
+        // atrás do outro — no início da competição isso apaga várias equipes do
+        // gráfico. Cada grupo coincidente vira um anel de pontos em volta da
+        // coordenada real: o deslocamento é uma fração pequena da escala de cada
+        // eixo, e o tooltip continua mostrando os números verdadeiros do time.
+        const grupos = new Map();
+        pts.forEach((p) => {
+            const k = p.x + '|' + p.y;
+            if (!grupos.has(k)) grupos.set(k, []);
+            grupos.get(k).push(p);
+        });
+        const spanX = Math.max(...pts.map((p) => p.x)) - Math.min(...pts.map((p) => p.x)) || 1;
+        const spanY = Math.max(...pts.map((p) => p.y)) - Math.min(...pts.map((p) => p.y)) || 1;
+        grupos.forEach((grupo) => {
+            if (grupo.length < 2) return;
+            const rx = spanX * 0.03, ry = spanY * 0.03;
+            grupo.forEach((p, i) => {
+                const ang = (2 * Math.PI * i) / grupo.length - Math.PI / 2;
+                p.x += rx * Math.cos(ang);
+                p.y += ry * Math.sin(ang);
+                p.tooltipLinha += ' (empatado com ' + (grupo.length - 1) + ' time' + (grupo.length > 2 ? 's' : '') + ')';
+            });
+        });
         buildChart('quadrantes', {
             type: 'scatter',
-            data: { datasets: [{ label: 'Times', data: pts, pointRadius: 7, pointHoverRadius: 10, backgroundColor: pts.map((p) => p.x >= mx && p.y <= my ? '#22c55e' : p.x < mx && p.y > my ? '#ef4444' : '#3b82f6'), borderColor: '#0f0f0f', borderWidth: 1.5 }] },
+            data: { datasets: [{ label: 'Times', data: pts, pointRadius: 7, pointHoverRadius: 10, backgroundColor: pts.map((p) => p.x0 >= mx && p.y0 <= my ? '#22c55e' : p.x0 < mx && p.y0 > my ? '#ef4444' : '#3b82f6'), borderColor: '#0f0f0f', borderWidth: 1.5 }] },
             options: {
                 plugins: { legend: { display: false }, tooltip: { enabled: false, external: tooltipEscudoExterno } },
                 scales: {

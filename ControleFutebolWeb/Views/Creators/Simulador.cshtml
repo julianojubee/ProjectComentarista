@@ -1,0 +1,109 @@
+@model ControleFutebolWeb.Models.ViewModels.SimuladorViewModel
+@removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
+@{
+    Layout = "_LayoutCreators";
+    ViewData["Title"] = "Simulador";
+    ViewData["Ferramenta"] = "simulador";
+    var temCompeticao = Model.Competicao != null;
+}
+
+@section Styles {
+    @* Mesmo visual da tela logada: a tabela e os cards de jogo saem das mesmas
+       partials (Views/Simulador/_TabelaSimulada e _JogosRodada). *@
+    <link rel="stylesheet" href="~/css/simulador.css" asp-append-version="true" />
+}
+
+<div class="cr-wrap">
+    <h1 class="cr-titulo">Simulador de tabela</h1>
+    <p class="cr-sub">
+        Preencha os placares dos jogos que faltam e veja a classificação mudar na hora.
+        Só competições de pontos corridos — em mata-mata o resultado de um jogo muda quem
+        joga o seguinte. Os placares ficam neste navegador; nada é enviado para uma conta.
+    </p>
+
+    <form class="cr-barra" method="get" action="/creators/simulador" id="sim-filtros">
+        <div class="cr-campo-form">
+            <label for="sim-select-competicao">Competição</label>
+            <select name="competicao" id="sim-select-competicao" data-buscavel="Digite a competição…">
+                <option value="">Escolha uma competição…</option>
+                @foreach (var c in Model.CompeticoesDisponiveis)
+                {
+                    <option value="@c.Id" selected="@(c.Id == Model.Competicao?.Id)">@c.Nome</option>
+                }
+            </select>
+        </div>
+        @if (temCompeticao && Model.TemporadasDisponiveis.Count > 1)
+        {
+            <div class="cr-campo-form">
+                <label for="sim-select-temporada">Temporada</label>
+                <select name="temporada" id="sim-select-temporada">
+                    @foreach (var t in Model.TemporadasDisponiveis)
+                    {
+                        <option value="@t" selected="@(t == Model.Temporada)">@t</option>
+                    }
+                </select>
+            </div>
+        }
+        <noscript><button type="submit" class="cr-acao">Carregar</button></noscript>
+    </form>
+
+    @if (!temCompeticao)
+    {
+        <p class="cr-aviso">
+            @(Model.CompeticoesDisponiveis.Count == 0
+                ? "Nenhuma competição de pontos corridos com jogos importados por enquanto."
+                : "Escolha uma competição para começar a simular.")
+        </p>
+    }
+    else
+    {
+        <div class="sim-root" id="sim-root"
+             data-competicao="@Model.Competicao!.Id"
+             data-temporada="@(Model.Temporada)">
+
+            <div class="sim-barra">
+                <div class="sim-status">
+                    <span class="sim-chip">
+                        <strong id="sim-contador">0</strong> de @Model.TotalPendentes jogos simulados
+                    </span>
+                    <span class="sim-salvo" id="sim-salvo"></span>
+                </div>
+                <button type="button" class="sim-btn danger" id="sim-limpar">🗑 Limpar simulação</button>
+            </div>
+
+            <div class="sim-grid">
+                <section class="sim-painel">
+                    <header class="sim-painel-head">
+                        <h2>Classificação</h2>
+                        <span>@Model.Competicao.Nome @Model.Temporada</span>
+                    </header>
+                    <partial name="../Simulador/_TabelaSimulada" model="Model" />
+                </section>
+
+                <section class="sim-painel">
+                    <header class="sim-painel-head">
+                        <h2>Jogos que faltam</h2>
+                        <span>@Model.TotalPendentes no total</span>
+                    </header>
+
+                    @if (Model.Rodada == null)
+                    {
+                        <div class="sim-vazio compacto">
+                            <div class="sim-vazio-ico">🏆</div>
+                            <h2>Nada a simular</h2>
+                            <p>Todos os jogos desta temporada já têm resultado oficial.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <partial name="../Simulador/_JogosRodada" model="Model.Rodada" />
+                    }
+                </section>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/creators-simulador.js" asp-append-version="true"></script>
+}

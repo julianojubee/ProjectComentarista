@@ -1,0 +1,117 @@
+@using ControleFutebolWeb.Helpers
+@model ControleFutebolWeb.Models.ViewModels.CreatorsSelecaoViewModel
+@{
+    Layout = "_LayoutCreators";
+    ViewData["Title"] = "Seleção da competição";
+    ViewData["Ferramenta"] = "selecao";
+}
+
+@functions {
+    // pt-BR do servidor renderizaria "10,5" — CSS inválido (mesmo cuidado do
+    // campinho da análise e da equipe da rodada).
+    string Coord(double v) => v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+}
+
+<div class="cr-wrap">
+    <h1 class="cr-titulo">Seleção da competição</h1>
+    <p class="cr-sub">
+        Os 11 são seus: escolha a competição, a temporada e a formação, puxe um time na lateral
+        e arraste os jogadores para o campo. Nada é salvo.
+    </p>
+
+    @if (Model.Competicoes.Count == 0)
+    {
+        <p class="cr-aviso">Nenhuma competição com jogos registrados por enquanto.</p>
+    }
+    else
+    {
+        <form class="cr-barra" method="get" action="/creators/selecao">
+            <div class="cr-campo-form">
+                <label for="competicao">Competição</label>
+                <select id="competicao" name="competicao" onchange="this.form.submit()">
+                    @foreach (var c in Model.Competicoes)
+                    {
+                        <option value="@c.Id" selected="@(c.Id == Model.CompeticaoId)">@c.Nome</option>
+                    }
+                </select>
+            </div>
+            <div class="cr-campo-form">
+                <label for="temporada">Temporada</label>
+                <select id="temporada" name="temporada" onchange="this.form.submit()">
+                    @foreach (var t in Model.Temporadas)
+                    {
+                        <option value="@t" selected="@(t == Model.Temporada)">@t</option>
+                    }
+                </select>
+            </div>
+            <div class="cr-campo-form">
+                <label for="formacao">Formação</label>
+                <select id="formacao" name="formacao" onchange="this.form.submit()">
+                    @foreach (var f in Model.Formacoes)
+                    {
+                        <option value="@f.Id" selected="@(f.Id == Model.FormacaoId)">@f.Nome</option>
+                    }
+                </select>
+            </div>
+            <button type="button" class="cr-acao" onclick="crLimparSelecao()">Limpar campo</button>
+        </form>
+
+        @if (Model.Formacao?.Posicoes == null || Model.Formacao.Posicoes.Count == 0)
+        {
+            <p class="cr-aviso">Essa formação ainda não tem posições cadastradas.</p>
+        }
+        else
+        {
+            <div class="cr-selecao-grid">
+                <div class="cr-campo-wrap">
+                    <div class="cr-campo theme-dark-zone" id="crCampoSelecao">
+                        <div class="cr-linha-meio"></div>
+                        <div class="cr-circulo"></div>
+                        <div class="cr-area-sup"></div>
+                        <div class="cr-area-inf"></div>
+
+                        @foreach (var p in Model.Formacao.Posicoes.OrderBy(p => p.Ordem))
+                        {
+                            <div class="cr-slot vazio" id="cr-slot-@p.Id" data-vazio="1"
+                                 style="left:@Coord(p.PosicaoX)%; top:@Coord(p.PosicaoY)%;"
+                                 onclick="crSlotClick('cr-slot-@p.Id')"
+                                 ondragover="event.preventDefault()"
+                                 ondrop="crSoltarNoSlot(event, 'cr-slot-@p.Id')"
+                                 title="@p.NomePosicao">
+                                <span class="cr-slot-pos">@PosicaoJogadorHelper.Sigla(p.NomePosicao)</span>
+                                <div class="cr-slot-foto"><span>—</span></div>
+                                <div class="cr-slot-nome">livre</div>
+                                <div class="cr-slot-time"></div>
+                            </div>
+                        }
+                    </div>
+                    <p class="cr-dica">
+                        Arraste um jogador da lista para a posição, ou clique na posição e depois no jogador.
+                        Clicar duas vezes numa posição preenchida esvazia ela.
+                    </p>
+                </div>
+
+                <aside class="cr-lateral">
+                    <h2>Elenco</h2>
+                    <div class="cr-campo-form" style="min-width:0;">
+                        <label for="crTimeElenco">Time da competição</label>
+                        <select id="crTimeElenco" onchange="crCarregarElenco(this.value)">
+                            <option value="">Selecione…</option>
+                            @foreach (var t in Model.Times)
+                            {
+                                <option value="@t.Id">@t.Nome</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="cr-lista" id="crListaElenco">
+                        <p class="cr-dica">Escolha um time para ver os jogadores.</p>
+                    </div>
+                </aside>
+            </div>
+        }
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/creators-selecao.js" asp-append-version="true"></script>
+}

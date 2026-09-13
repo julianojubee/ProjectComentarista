@@ -1413,24 +1413,89 @@
     // ── Abas do modal Pré-jogo (Resumo | Match-up) ─────────────────────────
     let muPreJogoCarregado = false;
 
+    let indispPreJogoCarregado = false;
+
     function mostrarAbaPreJogo(aba) {
         document.getElementById('pj-tab-resumo').classList.toggle('active', aba === 'resumo');
         document.getElementById('pj-tab-matchup').classList.toggle('active', aba === 'matchup');
+        document.getElementById('pj-tab-indisp').classList.toggle('active', aba === 'indisp');
         document.getElementById('prejogo-corpo').style.display = aba === 'resumo' ? '' : 'none';
         document.getElementById('prejogo-matchup').style.display = aba === 'matchup' ? '' : 'none';
+        document.getElementById('prejogo-indisp').style.display = aba === 'indisp' ? '' : 'none';
         // O match-up precisa de largura extra: campo horizontal + dois bancos
         document.getElementById('prejogo-box').style.width = aba === 'matchup' ? '1140px' : '780px';
         if (aba === 'matchup' && !muPreJogoCarregado) {
             muPreJogoCarregado = true;
             carregarMatchUpPreJogo();
         }
+        if (aba === 'indisp' && !indispPreJogoCarregado) {
+            indispPreJogoCarregado = true;
+            carregarIndisponiveisPreJogo();
+        }
     }
 
-    // escHtml não cobre aspas — aqui o texto vai dentro de atributos (data-nome etc.)
-    function muEsc(s) {
-        return String(s == null ? '' : s)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    // ── Aba Indisponíveis ─────────────────────────────────────────────────
+    // Só lê o que a última busca de escalação gravou (/Jogos/Indisponiveis) — abrir
+    // a aba não chama a api-football.
+    async function carregarIndisponiveisPreJogo() {
+        var cont = document.getElementById('prejogo-indisp');
+        cont.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:2rem 0;">Carregando...</div>';
+        try {
+            var resp = await fetch('/Jogos/Indisponiveis/' + ANALISAR.jogoId);
+            if (!resp.ok) throw new Error();
+            cont.innerHTML = montarIndisponiveis(await resp.json());
+        } catch (e) {
+            indispPreJogoCarregado = false; // permite tentar de novo ao reabrir a aba
+            cont.innerHTML = '<div style="color:#f87171;text-align:center;padding:1rem;">Erro ao carregar os indisponíveis.</div>';
+        }
+    }
+
+    function montarIndisponiveis(d) {
+        var total = (d.casa.jogadores.length + d.visitante.jogadores.length);
+
+        // Lista vazia não é "ninguém está fora": a api-football devolve vazio tanto
+        // nesse caso quanto nas ligas sem essa cobertura, e afirmar elenco completo
+        // com base nisso seria informar errado justamente quem escala o time.
+        if (total === 0) {
+            return '<div style="text-align:center;color:rgba(255,255,255,.55);padding:2rem 1rem;font-size:12.5px;line-height:1.6">' +
+                'Nenhum desfalque informado para esta partida.<br>' +
+                '<span style="opacity:.7">A lista vem junto com o "🔄 Reimportar dados" — e nem toda liga tem essa cobertura na fonte.</span>' +
+            '</div>';
+        }
+
+        return '<div class="pj-grid">' +
+                colunaIndisponiveis(d.casa, 'casa') +
+                colunaIndisponiveis(d.visitante, 'vis') +
+            '</div>' +
+            (d.atualizadoEm ? '<div class="pj-ind-rodape">Atualizado em ' + escHtml(d.atualizadoEm) + ' · fonte: api-football</div>' : '');
+    }
+
+    function colunaIndisponiveis(t, lado) {
+        var escudo = t.escudo ? '<img src="' + escHtml(t.escudo) + '" alt="">' : '';
+
+        var itens = t.jogadores.length === 0
+            ? '<div class="pj-ind-vazio">Nenhum desfalque informado.</div>'
+            : t.jogadores.map(function (j) {
+                var icone = j.categoria === 'suspensao' ? '🟨'
+                          : j.categoria === 'lesao' ? '🩹' : '⛔';
+                var foto = j.foto
+                    ? '<img class="pj-ind-foto" src="' + escHtml(j.foto) + '" alt="" onerror="this.onerror=null;this.src=\x27/images/placeholder-jogador.png\x27">'
+                    : '<img class="pj-ind-foto" src="/images/placeholder-jogador.png" alt="">';
+                return '<div class="pj-ind-item">' +
+                        foto +
+                        '<span class="pj-ind-icone">' + icone + '</span>' +
+                        '<div class="pj-ind-txt">' +
+                            '<div class="pj-ind-nome">' + escHtml(j.nome) + '</div>' +
+                            '<div class="pj-ind-motivo">' + escHtml(j.motivo) + '</div>' +
+                        '</div>' +
+                        '<span class="pj-ind-tag ' + (j.duvida ? 'duvida' : 'fora') + '">' + escHtml(j.situacao) + '</span>' +
+                    '</div>';
+            }).join('');
+
+        return '<div class="pj-col ' + lado + '">' +
+                '<div class="pj-team-head">' + escudo + '<span class="pj-team-nome">' + escHtml(t.time || '') + '</span></div>' +
+                itens +
+            '</div>';
     }
 
     async function carregarMatchUpPreJogo() {
@@ -1439,707 +1504,13 @@
         try {
             var resp = await fetch('/Jogos/MatchUpPreJogo/' + ANALISAR.jogoId);
             if (!resp.ok) throw new Error();
-            renderMatchUpPreJogo(await resp.json(), cont);
+            muRender(await resp.json(), cont);
         } catch (e) {
             muPreJogoCarregado = false; // permite tentar de novo ao reabrir a aba
             cont.innerHTML = '<div style="color:#f87171;text-align:center;padding:1rem;">Erro ao carregar o match-up.</div>';
         }
     }
 
-    // Media do jogador na competicao/temporada do jogo (vem do servidor como
-    // numero; nos data-attributes vira string, por isso o parseFloat).
-    function muMediaTexto(media) {
-        var n = parseFloat(media);
-        return isNaN(n) ? '' : n.toFixed(1);
-    }
-
-    function muMediaClasse(media) {
-        var n = parseFloat(media);
-        if (isNaN(n)) return '';
-        return n >= 7 ? ' mu-media-alta' : n >= 5 ? ' mu-media-media' : ' mu-media-baixa';
-    }
-
-    // Gols e assistencias na competicao (tambem chegam como string no dataset)
-    function muInteiro(valor) {
-        var n = parseInt(valor, 10);
-        return isNaN(n) ? 0 : n;
-    }
-
-    // Pilula abaixo do circulo: chuteira = assistencias, bola = gols. So aparece
-    // o que o jogador tem; sem gol nem assistencia a pilula nao e desenhada.
-    function muStatsHtml(d) {
-        var gols = muInteiro(d.gols);
-        var assists = muInteiro(d.assistencias);
-        if (gols === 0 && assists === 0) return '';
-        return '<span class="mu-stats">' +
-            (assists ? '<span class="mu-stat" title="Assistências na competição">👟 ' + assists + '</span>' : '') +
-            (gols ? '<span class="mu-stat" title="Gols na competição">⚽ ' + gols + '</span>' : '') +
-            '</span>';
-    }
-
-    // Miolo do slot: sigla, circulo (foto quando o jogador tem, senao so o
-    // numero) com a media no canto, gols/assistencias e o nome. Usado na
-    // renderizacao inicial e quando o slot troca de jogador (substituicao
-    // vinda do elenco).
-    function muSlotInnerHtml(time, d) {
-        var circle = time === 1 ? 'player-circle-casa' : 'player-circle-vis';
-        var media = muMediaTexto(d.media);
-        return '<span class="mu-slot-sigla">' + muEsc(d.sigla) + '</span>' +
-            '<div class="player-circle ' + circle + (d.foto ? ' mu-com-foto' : '') + '">' +
-                (d.foto ? '<img class="mu-foto" src="' + muEsc(d.foto) + '" alt="">' : '') +
-                '<span class="mu-num">' + muEsc(d.numero) + '</span>' +
-                (media ? '<span class="mu-media' + muMediaClasse(d.media) + '" title="Média na competição">' + media + '</span>' : '') +
-            '</div>' +
-            muStatsHtml(d) +
-            '<div class="player-name">' + muEsc(d.nome) + '</div>';
-    }
-
-    function muSlotHtml(time, idx, e) {
-        return '<div id="mu-slot-' + time + '-' + idx + '" class="mu-slot"' +
-            ' data-jogadorid="' + e.id + '"' +
-            ' data-numero="' + muEsc(e.numero) + '"' +
-            ' data-nome="' + muEsc(e.nome) + '"' +
-            ' data-sigla="' + muEsc(e.sigla) + '"' +
-            ' data-foto="' + muEsc(e.foto || '') + '"' +
-            ' data-media="' + muEsc(e.media == null ? '' : e.media) + '"' +
-            ' data-gols="' + muInteiro(e.gols) + '"' +
-            ' data-assistencias="' + muInteiro(e.assistencias) + '"' +
-            ' title="' + muEsc(e.nome) + '"' +
-            ' style="left:' + e.x + '%; top:' + e.y + '%;"' +
-            ' onpointerdown="muPointerDown(event, ' + time + ')"' +
-            ' ondragover="event.preventDefault()"' +
-            ' ondrop="muDropSlot(event, ' + time + ')">' +
-            muSlotInnerHtml(time, e) +
-            '</div>';
-    }
-
-    function muBancoItemHtml(time, j) {
-        var media = muMediaTexto(j.media);
-        return '<div class="mu-banco-item" draggable="true"' +
-            ' data-jogadorid="' + j.id + '"' +
-            ' data-numero="' + muEsc(j.numero) + '"' +
-            ' data-nome="' + muEsc(j.nome) + '"' +
-            ' data-sigla="' + muEsc(j.sigla) + '"' +
-            ' data-foto="' + muEsc(j.foto || '') + '"' +
-            ' data-media="' + muEsc(j.media == null ? '' : j.media) + '"' +
-            ' data-gols="' + muInteiro(j.gols) + '"' +
-            ' data-assistencias="' + muInteiro(j.assistencias) + '"' +
-            ' title="' + muEsc(j.nome) + '"' +
-            ' ondragstart="muDragStart(event, ' + time + ')">' +
-            '<span class="mu-banco-num">' + (muEsc(j.numero) || '–') + '</span>' +
-            '<span class="mu-banco-nome">' + muEsc(j.nome) + '</span>' +
-            '<span class="mu-banco-pos">' + muEsc(j.sigla) + '</span>' +
-            '<span class="mu-banco-media' + muMediaClasse(j.media) + '" title="Média na competição">' + (media || '–') + '</span>' +
-            '</div>';
-    }
-
-    function renderMatchUpPreJogo(d, cont) {
-        if (!d.casa || !d.visitante) {
-            var faltam = [];
-            if (!d.casa) faltam.push(d.nomeCasa || 'time da casa');
-            if (!d.visitante) faltam.push(d.nomeVisitante || 'time visitante');
-            cont.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:2rem 0;">Sem escalação titular registrada para: ' + muEsc(faltam.join(' e ')) + '.</div>';
-            return;
-        }
-        // Estado visual do match-up recomeça do zero a cada render
-        muModoSeta = false;
-        muSetaOrigem = null;
-        muSetas = {};
-        muModoForma = false;
-        muFormaDraw = null;
-        muFormas = [];
-
-        var t1 = d.casa, t2 = d.visitante;
-        var escudo1 = t1.escudo ? '<img src="' + t1.escudo + '" alt="">' : '';
-        var escudo2 = t2.escudo ? '<img src="' + t2.escudo + '" alt="">' : '';
-        var jogo1 = 'Última escalação: vs ' + muEsc(t1.adversario || '?') + ' — ' + muEsc(t1.data || 'data desconhecida');
-        var jogo2 = 'Última escalação: vs ' + muEsc(t2.adversario || '?') + ' — ' + muEsc(t2.data || 'data desconhecida');
-
-        cont.innerHTML =
-            '<div class="mu-header">' +
-                '<div class="mu-time-info">' + escudo1 + '<div><div class="mu-time-nome">' + muEsc(t1.nome) + '</div><div class="mu-time-jogo">' + jogo1 + '</div></div></div>' +
-                '<div class="mu-vs">×</div>' +
-                '<div class="mu-time-info mu-dir">' + escudo2 + '<div><div class="mu-time-nome">' + muEsc(t2.nome) + '</div><div class="mu-time-jogo">' + jogo2 + '</div></div></div>' +
-            '</div>' +
-            '<div class="mu-toolbar">' +
-                '<button type="button" id="muBtnSeta" class="btn btn-sm btn-outline-warning" onclick="muToggleModoSeta()"' +
-                    ' title="Ligue, clique num jogador e depois no ponto do campo para onde ele se movimenta. Clique duplo numa seta para removê-la.">➹ Setas</button>' +
-                '<span id="muSetaHint" style="font-size:11px; color:#facc15; display:none;">clique no jogador e depois no destino · duplo clique na seta remove · Esc sai</span>' +
-                '<button type="button" id="muBtnForma" class="btn btn-sm btn-outline-danger" onclick="muToggleModoForma()"' +
-                    ' title="Ligue e arraste no campo para desenhar uma área; ao soltar dá para digitar um texto. Clique duplo numa forma para removê-la.">▱ Formas</button>' +
-                '<span id="muFormaTipos" style="display:none; gap:4px;">' +
-                    '<button type="button" class="mu-forma-tipo" data-tipo="rect" onclick="muSetFormaTipo(\'rect\')" title="Retângulo">▭</button>' +
-                    '<button type="button" class="mu-forma-tipo" data-tipo="elipse" onclick="muSetFormaTipo(\'elipse\')" title="Elipse">◯</button>' +
-                    '<button type="button" class="mu-forma-tipo" data-tipo="livre" onclick="muSetFormaTipo(\'livre\')" title="Traço livre">✎</button>' +
-                '</span>' +
-                '<span id="muFormaHint" style="font-size:11px; color:#f87171; display:none;">arraste no campo para desenhar · Enter confirma o texto · arraste o texto para reposicionar · duplo clique na forma remove · Esc sai</span>' +
-            '</div>' +
-            '<div class="mu-layout">' +
-                muBancoHtml(1, t1.nome, t1.elenco) +
-                '<div id="muCampo" class="mu-campo theme-dark-zone" onclick="muCampoClick(event)" onpointerdown="muFormaPointerDown(event)" ondragover="event.preventDefault()" ondrop="muDropCampo(event)">' +
-                    '<div class="mu-linha-meio"></div><div class="mu-circulo"></div>' +
-                    '<div class="mu-area-esq"></div><div class="mu-area-dir"></div>' +
-                    '<div class="mu-gol-esq"></div><div class="mu-gol-dir"></div>' +
-                    '<svg id="muSetasSvg" class="setas-svg"><defs>' +
-                        '<marker id="muSetaHead" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="userSpaceOnUse">' +
-                            '<path d="M0,0 L12,5 L0,10 z" fill="#facc15"></path>' +
-                        '</marker>' +
-                    '</defs><g id="muFormasG"></g></svg>' +
-                    t1.escalacao.map(function (e, i) { return muSlotHtml(1, i, e); }).join('') +
-                    t2.escalacao.map(function (e, i) { return muSlotHtml(2, i, e); }).join('') +
-                '</div>' +
-                muBancoHtml(2, t2.nome, t2.elenco) +
-            '</div>' +
-            '<p class="mu-dica">Arraste um jogador para qualquer ponto do campo, solte sobre um companheiro para trocar as posições, arraste alguém do elenco sobre um titular para substituí-lo ou sobre uma área vazia para incluí-lo no campo. O botão + do elenco cria um jogador avulso (ex.: garoto da base ainda fora da API). Simulação de pré-jogo — nada é salvo.</p>';
-
-        // Setas e formas guardam % do campo: redesenha quando o campo muda de tamanho
-        new ResizeObserver(function () { muDesenharSetas(); muDesenharFormas(); }).observe(document.getElementById('muCampo'));
-    }
-
-    function muBancoHtml(time, nome, elenco) {
-        return '<div class="mu-banco">' +
-            '<div class="mu-banco-header"><span style="flex:1 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + muEsc(nome) + ' — elenco</span>' +
-                '<button type="button" class="mu-btn-add" title="Adicionar jogador avulso (ainda fora da API)" onclick="muToggleFormFicticio(' + time + ')">+</button></div>' +
-            '<div id="muFormFic' + time + '" class="mu-form-ficticio" style="display:none;">' +
-                '<input id="muFicNum' + time + '" class="mu-fic-num" maxlength="3" placeholder="Nº">' +
-                '<input id="muFicNome' + time + '" class="mu-fic-nome" placeholder="Nome do jogador" onkeydown="if (event.key === \'Enter\') muCriarFicticio(' + time + ')">' +
-                '<button type="button" onclick="muCriarFicticio(' + time + ')">OK</button>' +
-            '</div>' +
-            '<div id="muBanco' + time + '" class="mu-banco-lista">' +
-                elenco.map(function (j) { return muBancoItemHtml(time, j); }).join('') +
-            '</div></div>';
-    }
-
-    // ── Match-up: arrasto 100% client-side, só para simulação visual.
-    // Mesma mecânica da aba Match Up de /Relatorios:
-    //   campo → outro jogador: troca a posição (left/top) dos dois (swap);
-    //   campo → área vazia:    reposiciona o jogador ali;
-    //   banco → campo:         o jogador do elenco substitui o titular, que
-    //                          volta pro banco.
-    // O arrasto no campo usa POINTER EVENTS (não HTML5 drag-and-drop): o círculo
-    // segue o cursor de verdade, sem depender do dragstart nativo — o DnD do
-    // HTML5 fica só no banco→campo, onde funciona bem.
-    // Nada é enviado ao servidor: sem persistência.
-
-    // ── Campo: arrasto por pointer events ─────────────────────────────────
-    let muPtr = null; // { el, time, pointerId, startX, startY, origLeft, origTop, moved }
-
-    function muPointerDown(ev, time) {
-        if (muModoSeta) return; // no modo seta o clique seleciona/traça, não arrasta
-        if (muModoForma) return; // no modo forma o arrasto desenha (tratado no campo)
-        if (ev.button !== 0 && ev.pointerType === 'mouse') return; // só botão esquerdo
-        const el = ev.target.closest('.mu-slot');
-        if (!el) return;
-        ev.preventDefault(); // evita seleção de texto/drag nativo
-        // Captura o ponteiro (mantém o fluxo de eventos em touch mesmo saindo do
-        // elemento); os listeners de move/up ficam no document, então falhar aqui
-        // não quebra o arrasto com mouse.
-        try { el.setPointerCapture(ev.pointerId); } catch { }
-        muPtr = { el, time, pointerId: ev.pointerId, startX: ev.clientX, startY: ev.clientY,
-                  origLeft: el.style.left, origTop: el.style.top, moved: false };
-    }
-
-    // Converte a posição do cursor para % do campo, preso apenas às bordas —
-    // qualquer jogador pode ser movido por todo o campo, inclusive no lado adversário.
-    function muPosNoCampo(clientX, clientY) {
-        const rect = document.getElementById('muCampo').getBoundingClientRect();
-        let x = (clientX - rect.left) / rect.width * 100;
-        let y = (clientY - rect.top) / rect.height * 100;
-        // Faixa vertical 10-90%: mesmo limite da renderização inicial, para o
-        // círculo/nome do jogador não serem cortados pelo overflow do campo.
-        return { x: Math.min(Math.max(x, 2), 98), y: Math.min(Math.max(y, 10), 90) };
-    }
-
-    document.addEventListener('pointermove', ev => {
-        if (!muPtr || ev.pointerId !== muPtr.pointerId) return;
-        // pequeno limiar para diferenciar clique de arrasto
-        if (!muPtr.moved && Math.hypot(ev.clientX - muPtr.startX, ev.clientY - muPtr.startY) < 4) return;
-        muPtr.moved = true;
-        muPtr.el.classList.add('mu-arrastando');
-        const pos = muPosNoCampo(ev.clientX, ev.clientY);
-        muPtr.el.style.left = pos.x + '%';
-        muPtr.el.style.top = pos.y + '%';
-        muDesenharSetas(); // a origem das setas acompanha o jogador
-    });
-
-    document.addEventListener('pointerup', ev => {
-        if (!muPtr || ev.pointerId !== muPtr.pointerId) return;
-        const drag = muPtr;
-        muPtr = null;
-        drag.el.classList.remove('mu-arrastando');
-        if (!drag.moved) return; // foi só um clique
-
-        // Soltou sobre outro jogador DO MESMO TIME? → swap: o arrastado assume a
-        // posição do alvo e o alvo vai para a posição ORIGINAL do arrastado.
-        // (elementsFromPoint ignora o próprio arrastado, que está sob o cursor)
-        const alvo = document.elementsFromPoint(ev.clientX, ev.clientY)
-            .find(e => e !== drag.el && e.classList && e.classList.contains('mu-slot'));
-        if (alvo && alvo.id.startsWith(`mu-slot-${drag.time}-`)) {
-            drag.el.style.left = alvo.style.left;
-            drag.el.style.top = alvo.style.top;
-            alvo.style.left = drag.origLeft;
-            alvo.style.top = drag.origTop;
-        }
-        // Área vazia (ou adversário): fica onde soltou — o left/top já foi
-        // aplicado no pointermove.
-        muDesenharSetas();
-    });
-
-    document.addEventListener('pointercancel', ev => {
-        if (!muPtr || ev.pointerId !== muPtr.pointerId) return;
-        // arrasto abortado (ex.: gesto do sistema): volta pra posição original
-        muPtr.el.classList.remove('mu-arrastando');
-        muPtr.el.style.left = muPtr.origLeft;
-        muPtr.el.style.top = muPtr.origTop;
-        muPtr = null;
-        muDesenharSetas();
-    });
-
-    // ── Banco → campo: HTML5 drag-and-drop ────────────────────────────────
-    let muDrag = null; // { time, el } — item do banco sendo arrastado
-
-    function muDragStart(ev, time) {
-        // closest: garante o container certo mesmo se o dragstart nascer num filho
-        const el = ev.target.closest('.mu-banco-item');
-        if (!el) return;
-        muDrag = { time, el };
-        ev.dataTransfer.setData('text/plain', 'matchup'); // exigido por alguns navegadores p/ permitir o drag
-        ev.dataTransfer.effectAllowed = 'move';
-    }
-
-    function muDropSlot(ev, time) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        const alvo = ev.target.closest('.mu-slot');
-        const drag = muDrag;
-        muDrag = null;
-        if (!drag || !alvo || drag.time !== time) return;
-
-        // Substituição: guarda os dados do titular que sai, aplica o novo
-        // jogador no slot e devolve o removido pro banco.
-        const removido = { ...alvo.dataset };
-        muAplicarNoSlot(alvo, drag.el.dataset);
-        muCriarItemBanco(time, removido);
-        drag.el.remove();
-    }
-
-    // Atualiza data-attributes e o visual (foto/número/média/nome/sigla) de um
-    // slot do campo. Redesenha o miolo inteiro: com foto e média o conteúdo do
-    // círculo muda de estrutura, não só de texto.
-    function muAplicarNoSlot(slot, d) {
-        var time = slot.id.startsWith('mu-slot-1-') ? 1 : 2;
-        slot.dataset.jogadorid = d.jogadorid;
-        slot.dataset.numero = d.numero;
-        slot.dataset.nome = d.nome;
-        slot.dataset.sigla = d.sigla;
-        slot.dataset.foto = d.foto || '';
-        slot.dataset.media = d.media || '';
-        slot.dataset.gols = muInteiro(d.gols);
-        slot.dataset.assistencias = muInteiro(d.assistencias);
-        slot.title = d.nome;
-        slot.innerHTML = muSlotInnerHtml(time, slot.dataset);
-    }
-
-    // Recria a linha do banco para o titular que saiu do campo (textContent, não
-    // innerHTML: nome de jogador nunca deve virar markup)
-    function muCriarItemBanco(time, d) {
-        const item = document.createElement('div');
-        item.className = 'mu-banco-item';
-        item.draggable = true;
-        item.dataset.jogadorid = d.jogadorid;
-        item.dataset.numero = d.numero;
-        item.dataset.nome = d.nome;
-        item.dataset.sigla = d.sigla;
-        item.dataset.foto = d.foto || '';
-        item.dataset.media = d.media || '';
-        item.dataset.gols = muInteiro(d.gols);
-        item.dataset.assistencias = muInteiro(d.assistencias);
-        item.title = d.nome;
-
-        const num = document.createElement('span');
-        num.className = 'mu-banco-num';
-        num.textContent = d.numero || '–';
-        const nome = document.createElement('span');
-        nome.className = 'mu-banco-nome';
-        nome.textContent = d.nome;
-        const pos = document.createElement('span');
-        pos.className = 'mu-banco-pos';
-        pos.textContent = d.sigla;
-        const media = document.createElement('span');
-        media.className = 'mu-banco-media' + muMediaClasse(d.media);
-        media.title = 'Média na competição';
-        media.textContent = muMediaTexto(d.media) || '–';
-        item.append(num, nome, pos, media);
-
-        item.addEventListener('dragstart', ev => muDragStart(ev, time));
-
-        const banco = document.getElementById('muBanco' + time);
-        banco.prepend(item); // no topo: é o jogador que o usuário acabou de tirar
-    }
-
-    // ── Elenco → área vazia do campo: inclui o jogador sem tirar ninguém ──
-    // (caso típico: campo com menos de 11 porque um jogador não estava na API)
-    let muExtraSeq = 0;
-
-    function muDropCampo(ev) {
-        ev.preventDefault();
-        const drag = muDrag;
-        muDrag = null;
-        if (!drag) return;
-        const pos = muPosNoCampo(ev.clientX, ev.clientY);
-        const d = drag.el.dataset;
-        document.getElementById('muCampo').insertAdjacentHTML('beforeend',
-            muSlotHtml(drag.time, 'x' + (++muExtraSeq),
-                { id: d.jogadorid, numero: d.numero, nome: d.nome, sigla: d.sigla,
-                  foto: d.foto, media: d.media, gols: d.gols, assistencias: d.assistencias,
-                  x: pos.x, y: pos.y }));
-        drag.el.remove();
-    }
-
-    // ── Jogador avulso (ainda fora da API): entra no elenco e daí pro campo ──
-    let muFicSeq = 0;
-
-    function muToggleFormFicticio(time) {
-        const form = document.getElementById('muFormFic' + time);
-        const abrir = form.style.display === 'none';
-        form.style.display = abrir ? 'flex' : 'none';
-        if (abrir) document.getElementById('muFicNome' + time).focus();
-    }
-
-    function muCriarFicticio(time) {
-        const numEl = document.getElementById('muFicNum' + time);
-        const nomeEl = document.getElementById('muFicNome' + time);
-        const nome = nomeEl.value.trim();
-        if (!nome) { nomeEl.focus(); return; }
-        muCriarItemBanco(time, { jogadorid: 'fic-' + (++muFicSeq), numero: numEl.value.trim(), nome: nome, sigla: '?' });
-        numEl.value = '';
-        nomeEl.value = '';
-        muToggleFormFicticio(time);
-    }
-
-    // ── Setas de movimentação: mesma mecânica da tela de análise, mas 100%
-    // client-side (nada é salvo). Ligue o modo, clique num jogador (origem) e
-    // depois no destino; duplo clique na seta remove; Esc limpa/sai.
-    let muModoSeta = false;
-    let muSetaOrigem = null;  // elemento .mu-slot selecionado como origem
-    let muSetas = {};         // id do slot -> [{x, y}] em % do campo
-
-    function muToggleModoSeta() {
-        muModoSeta = !muModoSeta;
-        if (muModoSeta && muModoForma) muToggleModoForma(); // modos são excludentes
-        document.getElementById('muCampo')?.classList.toggle('mu-modo-seta', muModoSeta);
-        document.getElementById('muBtnSeta')?.classList.toggle('ativo', muModoSeta);
-        const hint = document.getElementById('muSetaHint');
-        if (hint) hint.style.display = muModoSeta ? '' : 'none';
-        muLimparOrigemSeta();
-    }
-
-    function muLimparOrigemSeta() {
-        muSetaOrigem?.classList.remove('mu-seta-origem');
-        muSetaOrigem = null;
-    }
-
-    function muCampoClick(ev) {
-        if (!muModoSeta) return;
-        if (ev.target.tagName === 'line') return; // interação com a própria seta (dblclick remove)
-
-        const slot = ev.target.closest('.mu-slot');
-        if (slot) {
-            muLimparOrigemSeta();
-            muSetaOrigem = slot;
-            slot.classList.add('mu-seta-origem');
-            return;
-        }
-
-        if (!muSetaOrigem) return;
-        const rect = document.getElementById('muCampo').getBoundingClientRect();
-        const x = Math.max(0, Math.min(100, (ev.clientX - rect.left) / rect.width * 100));
-        const y = Math.max(0, Math.min(100, (ev.clientY - rect.top) / rect.height * 100));
-        (muSetas[muSetaOrigem.id] = muSetas[muSetaOrigem.id] || []).push({ x, y });
-        muDesenharSetas();
-        // Mantém a origem selecionada: permite adicionar várias setas ao mesmo jogador
-    }
-
-    function muDesenharSetas() {
-        const campo = document.getElementById('muCampo');
-        const svg = document.getElementById('muSetasSvg');
-        if (!campo || !svg) return;
-
-        svg.querySelectorAll('line').forEach(l => l.remove());
-        const w = campo.clientWidth, h = campo.clientHeight;
-
-        Object.keys(muSetas).forEach(slotId => {
-            const slot = document.getElementById(slotId);
-            const setas = muSetas[slotId];
-            if (!slot || !setas.length) return;
-
-            const x1 = parseFloat(slot.style.left) / 100 * w;
-            const y1 = parseFloat(slot.style.top)  / 100 * h;
-
-            setas.forEach(s => {
-                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                line.setAttribute('x1', x1);
-                line.setAttribute('y1', y1);
-                line.setAttribute('x2', s.x / 100 * w);
-                line.setAttribute('y2', s.y / 100 * h);
-                line.setAttribute('marker-end', 'url(#muSetaHead)');
-                line.addEventListener('dblclick', ev => {
-                    ev.preventDefault();
-                    ev.stopPropagation();
-                    muSetas[slotId] = muSetas[slotId].filter(o => o !== s);
-                    muDesenharSetas();
-                });
-                svg.appendChild(line);
-            });
-        });
-    }
-
-    // ── Formas anotadas (retângulo/elipse/traço livre + texto): arraste para
-    // desenhar a área, solte e digite o texto (Enter confirma, Esc pula).
-    // Igual às setas: 100% client-side, nada é salvo.
-    let muModoForma = false;
-    let muFormaTipo = 'rect';  // 'rect' | 'elipse' | 'livre'
-    let muFormas = [];         // { tipo, x1, y1, x2, y2, pontos, texto } em % do campo
-    let muFormaDraw = null;    // forma em desenho (arrasto em andamento)
-
-    function muToggleModoForma() {
-        muModoForma = !muModoForma;
-        if (muModoForma && muModoSeta) muToggleModoSeta(); // modos são excludentes
-        document.getElementById('muCampo')?.classList.toggle('mu-modo-forma', muModoForma);
-        document.getElementById('muBtnForma')?.classList.toggle('ativo', muModoForma);
-        const tipos = document.getElementById('muFormaTipos');
-        if (tipos) tipos.style.display = muModoForma ? 'inline-flex' : 'none';
-        const hint = document.getElementById('muFormaHint');
-        if (hint) hint.style.display = muModoForma ? '' : 'none';
-        if (muModoForma) muSetFormaTipo(muFormaTipo);
-        else {
-            muFormaDraw = null;
-            document.querySelector('.mu-forma-input')?.remove();
-            muDesenharFormas();
-        }
-    }
-
-    function muSetFormaTipo(tipo) {
-        muFormaTipo = tipo;
-        document.querySelectorAll('.mu-forma-tipo').forEach(b =>
-            b.classList.toggle('ativo', b.dataset.tipo === tipo));
-    }
-
-    // Posição do cursor em % do campo, presa às bordas
-    function muPctCampo(clientX, clientY) {
-        const rect = document.getElementById('muCampo').getBoundingClientRect();
-        return { x: Math.max(0, Math.min(100, (clientX - rect.left) / rect.width * 100)),
-                 y: Math.max(0, Math.min(100, (clientY - rect.top) / rect.height * 100)) };
-    }
-
-    // O preventDefault do pointerdown (necessário pro desenho) suprime o
-    // click/dblclick nativo — o "duplo clique remove" é detectado na mão:
-    // dois pointerdowns na mesma forma em até 400ms. A comparação é pelo
-    // OBJETO da forma (__muForma), não pelo elemento: o redesenho após o
-    // primeiro clique recria os nós SVG.
-    let muFormaUltimoTap = { forma: null, t: 0 };
-
-    function muFormaPointerDown(ev) {
-        if (!muModoForma) return;
-        if (ev.button !== 0 && ev.pointerType === 'mouse') return;
-        if (ev.target.closest && ev.target.closest('.mu-forma-input')) return;
-        ev.preventDefault();
-
-        const alvo = ev.target.closest && ev.target.closest('.mu-forma, .mu-forma-texto');
-        if (alvo && alvo.__muForma) {
-            const agora = Date.now();
-            if (muFormaUltimoTap.forma === alvo.__muForma && agora - muFormaUltimoTap.t < 400) {
-                muFormaUltimoTap = { forma: null, t: 0 };
-                alvo.__muRemover();
-                return;
-            }
-            muFormaUltimoTap = { forma: alvo.__muForma, t: agora };
-            // No texto, o arrasto reposiciona o rótulo em vez de desenhar por cima
-            if (alvo.classList.contains('mu-forma-texto')) {
-                muTextoDrag = { forma: alvo.__muForma, moved: false, startX: ev.clientX, startY: ev.clientY };
-                return;
-            }
-        } else {
-            muFormaUltimoTap = { forma: null, t: 0 };
-        }
-
-        const p = muPctCampo(ev.clientX, ev.clientY);
-        muFormaDraw = { tipo: muFormaTipo, x1: p.x, y1: p.y, x2: p.x, y2: p.y, pontos: [p] };
-    }
-
-    // Arrasto do rótulo de texto de uma forma (reposicionamento)
-    let muTextoDrag = null; // { forma, moved, startX, startY }
-
-    document.addEventListener('pointermove', ev => {
-        if (muTextoDrag) {
-            // pequeno limiar: sem ele o tap de remoção viraria um micro-arrasto
-            if (!muTextoDrag.moved && Math.hypot(ev.clientX - muTextoDrag.startX, ev.clientY - muTextoDrag.startY) < 4) return;
-            muTextoDrag.moved = true;
-            const p = muPctCampo(ev.clientX, ev.clientY);
-            muTextoDrag.forma.tx = p.x;
-            muTextoDrag.forma.ty = p.y;
-            muDesenharFormas();
-            return;
-        }
-        if (!muFormaDraw) return;
-        const p = muPctCampo(ev.clientX, ev.clientY);
-        muFormaDraw.x2 = p.x;
-        muFormaDraw.y2 = p.y;
-        if (muFormaDraw.tipo === 'livre') {
-            const ult = muFormaDraw.pontos[muFormaDraw.pontos.length - 1];
-            if (Math.hypot(p.x - ult.x, p.y - ult.y) > 0.7) muFormaDraw.pontos.push(p);
-        }
-        muDesenharFormas();
-    });
-
-    document.addEventListener('pointerup', () => {
-        if (muTextoDrag) {
-            // arrasto de verdade não conta como 1º clique da remoção
-            if (muTextoDrag.moved) muFormaUltimoTap = { forma: null, t: 0 };
-            muTextoDrag = null;
-            return;
-        }
-        if (!muFormaDraw) return;
-        const f = muFormaDraw;
-        muFormaDraw = null;
-        const c = muFormaBBox(f);
-        // Extensão mínima: descarta o "desenho" de um clique parado (inclusive
-        // os dois pointerdowns do duplo clique que remove uma forma)
-        if (c.w < 2 && c.h < 2) { muDesenharFormas(); return; }
-        muFormaUltimoTap = { forma: null, t: 0 }; // desenho concluído não conta como 1º clique da remoção
-        muFormas.push(f);
-        muDesenharFormas();
-        muPedirTextoForma(f);
-    });
-
-    document.addEventListener('pointercancel', () => {
-        muTextoDrag = null;
-        if (!muFormaDraw) return;
-        muFormaDraw = null;
-        muDesenharFormas();
-    });
-
-    function muFormaBBox(f) {
-        let minX, maxX, minY, maxY;
-        if (f.tipo === 'livre') {
-            const xs = f.pontos.map(p => p.x), ys = f.pontos.map(p => p.y);
-            minX = Math.min.apply(null, xs); maxX = Math.max.apply(null, xs);
-            minY = Math.min.apply(null, ys); maxY = Math.max.apply(null, ys);
-        } else {
-            minX = Math.min(f.x1, f.x2); maxX = Math.max(f.x1, f.x2);
-            minY = Math.min(f.y1, f.y2); maxY = Math.max(f.y1, f.y2);
-        }
-        return { x: minX, y: minY, w: maxX - minX, h: maxY - minY,
-                 cx: (minX + maxX) / 2, cy: (minY + maxY) / 2 };
-    }
-
-    function muFormaEl(f, w, h) {
-        const ns = 'http://www.w3.org/2000/svg';
-        if (f.tipo === 'livre') {
-            const el = document.createElementNS(ns, 'polyline');
-            el.setAttribute('points', f.pontos.map(p =>
-                (p.x / 100 * w).toFixed(1) + ',' + (p.y / 100 * h).toFixed(1)).join(' '));
-            return el;
-        }
-        const b = muFormaBBox(f);
-        const x = b.x / 100 * w, y = b.y / 100 * h, lw = b.w / 100 * w, lh = b.h / 100 * h;
-        if (f.tipo === 'elipse') {
-            const el = document.createElementNS(ns, 'ellipse');
-            el.setAttribute('cx', x + lw / 2);
-            el.setAttribute('cy', y + lh / 2);
-            el.setAttribute('rx', lw / 2);
-            el.setAttribute('ry', lh / 2);
-            return el;
-        }
-        const el = document.createElementNS(ns, 'rect');
-        el.setAttribute('x', x);
-        el.setAttribute('y', y);
-        el.setAttribute('width', lw);
-        el.setAttribute('height', lh);
-        el.setAttribute('rx', 6);
-        return el;
-    }
-
-    function muDesenharFormas() {
-        const campo = document.getElementById('muCampo');
-        const g = document.getElementById('muFormasG');
-        if (!campo || !g) return;
-
-        while (g.firstChild) g.removeChild(g.firstChild);
-        const w = campo.clientWidth, h = campo.clientHeight;
-        const todas = muFormaDraw ? muFormas.concat([muFormaDraw]) : muFormas;
-
-        todas.forEach(f => {
-            const remover = () => {
-                muFormas = muFormas.filter(o => o !== f);
-                muDesenharFormas();
-            };
-            const el = muFormaEl(f, w, h);
-            el.classList.add('mu-forma');
-            if (f !== muFormaDraw) { el.__muForma = f; el.__muRemover = remover; }
-            g.appendChild(el);
-
-            if (f.texto) {
-                const b = muFormaBBox(f);
-                const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                t.classList.add('mu-forma-texto');
-                // tx/ty: posição escolhida arrastando o rótulo; sem eles, centro da forma
-                t.setAttribute('x', (f.tx != null ? f.tx : b.cx) / 100 * w);
-                t.setAttribute('y', (f.ty != null ? f.ty : b.cy) / 100 * h);
-                t.setAttribute('text-anchor', 'middle');
-                t.setAttribute('dominant-baseline', 'middle');
-                t.textContent = f.texto;
-                t.__muForma = f;
-                t.__muRemover = remover;
-                g.appendChild(t);
-            }
-        });
-    }
-
-    // Input flutuante sobre a forma recém-desenhada para o texto opcional
-    function muPedirTextoForma(f) {
-        const campo = document.getElementById('muCampo');
-        document.querySelector('.mu-forma-input')?.remove();
-
-        const b = muFormaBBox(f);
-        const inp = document.createElement('input');
-        inp.className = 'mu-forma-input';
-        inp.placeholder = 'Texto (opcional) — Enter';
-        inp.style.left = Math.max(9, Math.min(91, b.cx)) + '%';
-        inp.style.top = Math.max(6, Math.min(94, b.cy)) + '%';
-
-        let feito = false;
-        const fim = confirmar => {
-            if (feito) return;
-            feito = true;
-            if (confirmar && inp.value.trim()) {
-                f.texto = inp.value.trim();
-                muDesenharFormas();
-            }
-            inp.remove();
-        };
-        inp.addEventListener('keydown', ev => {
-            ev.stopPropagation(); // Esc aqui só fecha o input, não o modo
-            if (ev.key === 'Enter') fim(true);
-            else if (ev.key === 'Escape') fim(false);
-        });
-        inp.addEventListener('blur', () => fim(true)); // clicar fora confirma o digitado
-        inp.addEventListener('pointerdown', ev => ev.stopPropagation()); // não inicia outro desenho
-
-        campo.appendChild(inp);
-        inp.focus();
-    }
-
-    document.addEventListener('keydown', ev => {
-        if (ev.key !== 'Escape') return;
-        if (muModoSeta) {
-            if (muSetaOrigem) muLimparOrigemSeta();
-            else muToggleModoSeta();
-        } else if (muModoForma) {
-            if (muFormaDraw) { muFormaDraw = null; muDesenharFormas(); }
-            else muToggleModoForma();
-        }
-    });
 
     var posJogoDadosAtual = null;
 
@@ -2575,6 +1946,7 @@
                 DADOS_JOGADORES[id].assists = (d.assists || {})[id] || 0;
             });
 
+            sincronizarTooltip(); // os dicionários acima foram substituídos
             if (status) status.textContent = '';
         } catch (e) {
             if (status) status.textContent = 'falhou';
@@ -2582,110 +1954,28 @@
     }
     window.trocarTemporadaTooltip = trocarTemporadaTooltip;
 
-    // Um bloco de stats do tooltip (Competição/Temporada): rótulo em cima e,
-    // logo abaixo, jogos como titular, gols e assists no escopo — vazio se
-    // não houver nada a mostrar.
-    function ttLinhaStats(rotulo, gols, assists, titular) {
-        const partes = [
-            titular ? `<span class="tt-stat-tit">🏁 ${titular} titular</span>` : '',
-            (gols > 0)    ? `<span class="tt-stat-gol">⚽ ${gols} gol${gols > 1 ? 's' : ''}</span>` : '',
-            (assists > 0) ? `<span class="tt-stat-ast">🅰️ ${assists} assist${assists > 1 ? 's' : ''}</span>` : '',
-        ].filter(Boolean).join('');
-        return partes
-            ? `<div class="tt-stats"><div class="tt-stat-rotulo">${rotulo}</div><div class="tt-stat-valores">${partes}</div></div>`
-            : '';
-    }
+    // O tooltip ℹ mora em js/jogador-tooltip.js, compartilhado com o campo do
+    // Match Up. Aqui ficam só os atalhos com os nomes que os ~40 handlers inline
+    // da view (onmouseenter="mostrarInfoJogador(...)") já chamam.
+    function mostrarInfoJogador(btn, dados) { JogadorTooltip.mostrar(btn, dados); }
+    function esconderInfoJogador() { JogadorTooltip.esconder(); }
+    function criarBotaoInfo(jogadorId) { return JogadorTooltip.criarBotao(jogadorId); }
 
-    // Botão ℹ de um jogador, para os elementos montados em JS (arrastar para o
-    // campo/banco, cadastro rápido pelo "+"). Os renderizados pelo servidor usam
-    // o mesmo DADOS_JOGADORES direto no onmouseenter.
-    function criarBotaoInfo(jogadorId) {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'btn-info-jogador';
-        btn.textContent = 'ℹ';
-        btn.addEventListener('mouseenter', () => mostrarInfoJogador(btn, DADOS_JOGADORES[jogadorId]));
-        btn.addEventListener('mouseleave', esconderInfoJogador);
-        return btn;
+    // Números do tooltip desta tela; roda de novo quando o seletor "ℹ tooltip"
+    // troca a temporada e os dicionários são substituídos.
+    function sincronizarTooltip() {
+        JogadorTooltip.configurar({
+            dados: DADOS_JOGADORES,
+            medias: MEDIAS_JOGADORES,
+            titularCompeticao: TITULAR_JOGADORES,
+            golsTemporada: GOLS_TEMPORADA,
+            assistsTemporada: ASSISTS_TEMPORADA,
+            titularTemporada: TITULAR_TEMPORADA,
+            timeAnterior: TIME_ANTERIOR,
+            temporada: TEMPORADA_TOOLTIP,
+        });
     }
-
-    function mostrarInfoJogador(btn, dados) {
-        const tt = document.getElementById('jogador-tooltip');
-        if (!tt || !dados) return;
-        const fotoSrc = dados.foto ? `/MediaProxy/Imagem?url=${encodeURIComponent(dados.foto)}` : '/images/placeholder-jogador.png';
-        let html = `<div class="tt-header"><img class="tt-foto" src="${fotoSrc}" /><div class="tt-nome">${dados.nome}</div></div>`;
-        const meta = [
-            dados.posicao ? `<span>🎽 ${abrevPosicao(dados.posicao)}</span>` : '',
-            dados.numero  ? `<span># ${dados.numero}</span>`   : '',
-            dados.idade   ? `<span>📅 ${dados.idade}a</span>`  : '',
-            dados.altura  ? `<span>📏 ${(dados.altura / 100).toFixed(2).replace('.', ',')}m</span>` : '',
-            dados.peso    ? `<span>⚖️ ${dados.peso}kg</span>`  : '',
-            dados.nac ? (dados.nacFlag
-                ? `<span><img class="tt-icon" src="${dados.nacFlag}" /> ${dados.nac}</span>`
-                : `<span>🌍 ${dados.nac}</span>`) : '',
-            // Clube (só em jogo de seleção — ver ClubeTooltip/ClubeEscudoTooltip)
-            dados.time ? (dados.timeEscudo
-                ? `<span><img class="tt-icon" src="${dados.timeEscudo}" /> ${dados.time}</span>`
-                : `<span>🏟️ ${dados.time}</span>`) : '',
-        ].filter(Boolean).join('');
-        if (meta) html += `<div class="tt-meta">${meta}</div>`;
-        // "Vinha do": clube da temporada passada, quando não é o clube de hoje.
-        const ant = TIME_ANTERIOR[dados.id];
-        if (ant) {
-            const escudo = ant.escudo ? `<img class="tt-icon" src="${ant.escudo}" />` : '🏟️';
-            html += `<div class="tt-vinha-do">` +
-                `<span class="tt-vinha-icone" title="Vinha do">🔄</span>` +
-                `<span class="tt-vinha-time">${escudo} ${ant.nome}</span>` +
-                // Sem contagem quando o dado veio da janela de transferências,
-                // que não sabe quantos jogos ele fez pelo clube antigo.
-                `<span class="tt-vinha-obs">${ant.temporada}${ant.jogos > 0 ? ` · ${ant.jogos} jogo${ant.jogos > 1 ? 's' : ''}` : ''}</span>` +
-                `</div>`;
-        }
-        // Stats separadas por escopo: competição do jogo e temporada (todas as
-        // competições do mesmo ano). dados.gols/assists vêm da competição.
-        html += ttLinhaStats('Competição', dados.gols, dados.assists, TITULAR_JOGADORES[dados.id]);
-        if (TEMPORADA_TOOLTIP > 0)
-            html += ttLinhaStats(`Temporada ${TEMPORADA_TOOLTIP}`,
-                GOLS_TEMPORADA[dados.id] || 0, ASSISTS_TEMPORADA[dados.id] || 0, TITULAR_TEMPORADA[dados.id]);
-        const md = MEDIAS_JOGADORES[dados.id];
-        if (md) {
-            const celulas = [
-                [`${md.finalizacoes}`, `Finaliz. · ${md.finalizacoesPct}% gol`],
-                [`${md.dribles}`, `Dribles · ${md.driblesPct}% certos`],
-                [`${md.duelos}`, `Duelos · ${md.duelosPct}% venc.`],
-                [`${md.passes}`, 'Passes'],
-                [`${md.passesChave}`, 'Passes-chave'],
-                [`${md.desarmes}`, 'Desarmes'],
-                [`${md.interceptacoes}`, 'Intercept.'],
-                [`${md.bloqueios}`, 'Bloqueios'],
-                [`${md.faltasSofridas}`, 'Faltas sofr.'],
-                [`${md.faltasCometidas}`, 'Faltas com.'],
-            ];
-            if (md.defesas > 0) celulas.unshift([`${md.defesas}`, 'Defesas']);
-            html += `<div class="tt-medias-titulo">Médias por jogo · ${md.jogos} jogo${md.jogos > 1 ? 's' : ''}</div>` +
-                `<div class="tt-medias">` +
-                celulas.map(([v, l]) => `<div class="tt-media-cel"><b>${v}</b><span>${l}</span></div>`).join('') +
-                `</div>`;
-        }
-        if (dados.obs)     html += `<div class="tt-obs">${dados.obs}</div>`;
-        tt.innerHTML = html;
-        tt.style.display = 'block';
-        const rect = btn.getBoundingClientRect();
-        const tw = tt.offsetWidth;
-        const th = tt.offsetHeight;
-        let left = rect.right + 8;
-        let top  = rect.top - th / 2;
-        if (left + tw > window.innerWidth - 8) left = rect.left - tw - 8;
-        if (top < 8) top = 8;
-        if (top + th > window.innerHeight - 8) top = window.innerHeight - th - 8;
-        tt.style.left = left + 'px';
-        tt.style.top  = top + 'px';
-    }
-
-    function esconderInfoJogador() {
-        const tt = document.getElementById('jogador-tooltip');
-        if (tt) tt.style.display = 'none';
-    }
+    sincronizarTooltip();
 
     // ── Cadastro rápido de jogador fora da API ────────────────────────────
     // A escalação só pode ser montada com quem existe no elenco. Quando a API

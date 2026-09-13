@@ -1,4 +1,5 @@
 ﻿using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
 using ControleFutebolWeb.Services;
@@ -20,6 +21,7 @@ namespace ControleFutebolWeb.Controllers
         private readonly FotMobService _fotmob;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly CraqueDaPartidaService _craques;
+        private readonly ApiFootballService _apiFootball;
 
         public ServicosController(
             ServicoMonitor monitor,
@@ -29,7 +31,8 @@ namespace ControleFutebolWeb.Controllers
             EspnEscalacaoService espnEscalacao,
             FotMobService fotmob,
             UserManager<ApplicationUser> userManager,
-            CraqueDaPartidaService craques)
+            CraqueDaPartidaService craques,
+            ApiFootballService apiFootball)
         {
             _monitor = monitor;
             _atualizarJogadores = atualizarJogadores;
@@ -39,6 +42,7 @@ namespace ControleFutebolWeb.Controllers
             _fotmob = fotmob;
             _userManager = userManager;
             _craques = craques;
+            _apiFootball = apiFootball;
         }
 
         public IActionResult Index()
@@ -283,6 +287,217 @@ namespace ControleFutebolWeb.Controllers
             if (falhas > 0 && ultimoErro != null) TempData["Erro"] = $"Último motivo: {ultimoErro}";
 
             return RedirectToAction(nameof(JogosSemEstatisticas), new { competicaoId, temporada });
+        }
+
+        // ── Placares que não fecham com os gols cadastrados ───────────────────
+        //
+        // Reimportar da api-football regrava lineup, eventos e placar do jogo — é o
+        // conserto de quem tem os dados de origem incompletos ou trocados. O teto por
+        // lote existe porque cada jogo é uma chamada à api-football, que é cotada.
+        public const int LimiteLoteReimportacao = 20;
+
+        /// <summary>
+        /// Remonta o placar de cada jogo a partir dos gols cadastrados — com o lado do
+        /// autor vindo da escalação daquela partida, a mesma regra da timeline — e devolve
+        /// os que não batem com o placar gravado.
+        /// </summary>
+        private async Task<List<JogoPlacarDivergenteItem>> LevantarDivergentesAsync(
+            int? competicaoId, int? temporada, CancellationToken ct)
+        {
+            var jogosQuery = _context.Jogos.AsNoTracking()
+                .Where(j => j.PlacarCasa != null && j.PlacarVisitante != null);
+
+            if (competicaoId.HasValue) jogosQuery = jogosQuery.Where(j => j.CompeticaoId == competicaoId.Value);
+            if (temporada.HasValue) jogosQuery = jogosQuery.Where(j => j.Temporada == temporada.Value);
+
+            var jogos = await jogosQuery
+                .Select(j => new
+                {
+                    j.Id,
+                    j.Data,
+                    j.CompeticaoId,
+                    j.Temporada,
+                    Competicao = j.Competicao!.Nome,
+                    Casa = j.TimeCasa.Nome,
+                    Visitante = j.TimeVisitante.Nome,
+                    j.TimeCasaId,
+                    j.TimeVisitanteId,
+                    PlacarCasa = j.PlacarCasa!.Value,
+                    PlacarVisitante = j.PlacarVisitante!.Value,
+                    j.LinkDetalhes,
+                })
+                .ToListAsync(ct);
+
+            if (jogos.Count == 0) return new();
+
+            // Filtro pela navegação, e não por uma lista de milhares de ids: sem filtro de
+            // competição esta tela varre a base inteira.
+            var golsQuery = _context.Gols.AsNoTracking()
+                .Include(g => g.Jogador)
+                .Where(g => g.Jogo.PlacarCasa != null && g.Jogo.PlacarVisitante != null);
+
+            var escalacoesQuery = _context.Escalacoes.AsNoTracking()
+                .Where(e => e.UsuarioId == null && e.JogadorId != null
+                         && e.Jogo.PlacarCasa != null && e.Jogo.PlacarVisitante != null);
+
+            if (competicaoId.HasValue)
+            {
+                golsQuery = golsQuery.Where(g => g.Jogo.CompeticaoId == competicaoId.Value);
+                escalacoesQuery = escalacoesQuery.Where(e => e.Jogo.CompeticaoId == competicaoId.Value);
+            }
+            if (temporada.HasValue)
+            {
+                golsQuery = golsQuery.Where(g => g.Jogo.Temporada == temporada.Value);
+                escalacoesQuery = escalacoesQuery.Where(e => e.Jogo.Temporada == temporada.Value);
+            }
+
+            var gols = await golsQuery.ToListAsync(ct);
+
+            // Só a escalação de quem marcou: o resto do banco de reservas não muda placar.
+            var escalacoes = await escalacoesQuery
+                .Where(e => _context.Gols.Any(g => g.JogoId == e.JogoId && g.JogadorId == e.JogadorId))
+                .Select(e => new Escalacao
+                {
+                    JogoId = e.JogoId,
+                    JogadorId = e.JogadorId,
+                    IsTimeCasa = e.IsTimeCasa,
+                    FaseEscalacao = e.FaseEscalacao,
+                })
+                .ToListAsync(ct);
+
+            var atuacoes = LadoJogadorHelper.Montar(escalacoes);
+            var jogosComEscalacao = escalacoes.Select(e => e.JogoId).ToHashSet();
+            var golsPorJogo = gols.GroupBy(g => g.JogoId).ToDictionary(g => g.Key, g => g.ToList());
+
+            var divergentes = new List<JogoPlacarDivergenteItem>();
+
+            foreach (var j in jogos)
+            {
+                if (!golsPorJogo.TryGetValue(j.Id, out var golsDoJogo)) continue;
+
+                var jogo = new Jogo
+                {
+                    Id = j.Id,
+                    TimeCasaId = j.TimeCasaId,
+                    TimeVisitanteId = j.TimeVisitanteId,
+                };
+
+                int casa = 0, visitante = 0;
+                foreach (var g in golsDoJogo)
+                {
+                    // Gol contra conta para o adversário de quem marcou.
+                    if (LadoJogadorHelper.EhDoTimeDaCasa(g.Jogador, jogo, atuacoes) != g.Contra) casa++;
+                    else visitante++;
+                }
+
+                if (casa == j.PlacarCasa && visitante == j.PlacarVisitante) continue;
+
+                divergentes.Add(new JogoPlacarDivergenteItem
+                {
+                    Id = j.Id,
+                    Data = j.Data,
+                    CompeticaoId = j.CompeticaoId,
+                    Temporada = j.Temporada,
+                    Competicao = j.Competicao,
+                    TimeCasa = j.Casa,
+                    TimeVisitante = j.Visitante,
+                    PlacarCasa = j.PlacarCasa,
+                    PlacarVisitante = j.PlacarVisitante,
+                    GolsCasa = casa,
+                    GolsVisitante = visitante,
+                    MotivoTotal = casa + visitante != j.PlacarCasa + j.PlacarVisitante,
+                    TemProrrogacao = golsDoJogo.Any(g => g.Minuto > 90),
+                    TemEscalacao = jogosComEscalacao.Contains(j.Id),
+                    PodeReimportar = j.LinkDetalhes != null
+                        && j.LinkDetalhes.StartsWith("apifoot:", StringComparison.OrdinalIgnoreCase),
+                });
+            }
+
+            return divergentes.OrderByDescending(d => d.Data).ToList();
+        }
+
+        /// <summary>
+        /// Tela de Serviços › Placares divergentes.
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> PlacaresDivergentes(
+            int? competicaoId, int? temporada, CancellationToken ct)
+        {
+            // O levantamento sem filtro alimenta os selects; a tabela mostra só o recorte.
+            var todos = await LevantarDivergentesAsync(null, null, ct);
+
+            var filtrados = todos
+                .Where(d => (!competicaoId.HasValue || d.CompeticaoId == competicaoId.Value)
+                         && (!temporada.HasValue || d.Temporada == temporada.Value))
+                .ToList();
+
+            var vm = new PlacaresDivergentesViewModel
+            {
+                CompeticaoId = competicaoId,
+                Temporada = temporada,
+                LimiteLote = LimiteLoteReimportacao,
+                Total = filtrados.Count,
+                TotalReimportaveis = filtrados.Count(d => d.PodeReimportar),
+                Jogos = filtrados.Take(200).ToList(),
+                Competicoes = todos
+                    .GroupBy(d => new { d.CompeticaoId, d.Competicao })
+                    .Select(g => new CompeticaoDivergenteItem
+                    {
+                        Id = g.Key.CompeticaoId,
+                        Nome = g.Key.Competicao,
+                        Quantidade = g.Count(),
+                    })
+                    .OrderByDescending(c => c.Quantidade)
+                    .ToList(),
+                Temporadas = todos.Select(d => d.Temporada).Distinct().OrderByDescending(t => t).ToList(),
+            };
+
+            return View(vm);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ReimportarJogo(
+            int jogoId, int? competicaoId, int? temporada, CancellationToken ct)
+        {
+            var (ok, msg) = await _apiFootball.ForcarReimportarEscalacaoAsync(_context, jogoId, ct);
+
+            if (ok) TempData["Sucesso"] = $"Jogo {jogoId}: {msg}";
+            else TempData["Erro"] = $"Jogo {jogoId}: {msg}";
+
+            return RedirectToAction(nameof(PlacaresDivergentes), new { competicaoId, temporada });
+        }
+
+        /// <summary>
+        /// Reimporta em lote, do mais recente para o mais antigo, respeitando
+        /// LimiteLoteReimportacao — repetir o botão continua de onde parou.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ReimportarJogosDivergentesLote(
+            int? competicaoId, int? temporada, CancellationToken ct)
+        {
+            var alvos = (await LevantarDivergentesAsync(competicaoId, temporada, ct))
+                .Where(d => d.PodeReimportar)
+                .Take(LimiteLoteReimportacao)
+                .Select(d => d.Id)
+                .ToList();
+
+            int ok = 0, falhas = 0;
+            string? ultimoErro = null;
+
+            foreach (var id in alvos)
+            {
+                if (ct.IsCancellationRequested) break;
+                var (sucesso, msg) = await _apiFootball.ForcarReimportarEscalacaoAsync(_context, id, ct);
+                if (sucesso) ok++;
+                else { falhas++; ultimoErro = msg; }
+            }
+
+            TempData["Sucesso"] = $"Reimportação: {ok} jogo(s) atualizado(s), {falhas} sem sucesso.";
+            if (falhas > 0 && ultimoErro != null) TempData["Erro"] = $"Último motivo: {ultimoErro}";
+
+            return RedirectToAction(nameof(PlacaresDivergentes), new { competicaoId, temporada });
         }
 
         // ── Conferência da escalação contra a ESPN ────────────────────────────

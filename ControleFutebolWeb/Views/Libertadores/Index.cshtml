@@ -688,6 +688,9 @@
                 </select>
             </form>
         }
+        <div style="margin-top:10px;">
+            @await Html.PartialAsync("_BotaoSincronizarJogos", 2)
+        </div>
     </div>
 </div>
 
@@ -1031,6 +1034,8 @@ else
             @await Html.PartialAsync("_PainelEstatisticas", estatisticasTimes)
         </div>
     </div>
+
+    @await Html.PartialAsync("_ArtilheirosAssistencias", (2, Model.Temporada))
 
     <script>
         (function () {

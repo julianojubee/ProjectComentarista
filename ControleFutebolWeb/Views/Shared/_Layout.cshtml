@@ -195,6 +195,15 @@
                                 <span class="gold-ico">📊</span> Relatórios
                             </a>
                         </li>
+                        @if (_layoutIsAdmin)
+                        {
+                        <li class="nav-item">
+                            <a class="nav-link text-dark"
+                               asp-area="" asp-controller="MarcacaoVideo" asp-action="Index">
+                                <span class="gold-ico">🎬</span> Marcação por vídeo
+                            </a>
+                        </li>
+                        }
                         <li class="nav-item">
                             <a class="nav-link text-dark"
                                asp-area="" asp-controller="Transferencias" asp-action="Index">
@@ -249,6 +258,7 @@
                                     @if (_layoutIsAdmin)
                                     {
                                         <a class="dropdown-item" asp-controller="Pagamentos" asp-action="Index"><span class="gold-ico">💰</span> Pagamentos</a>
+                                        <a class="dropdown-item" asp-controller="Admin" asp-action="Acessos"><span class="gold-ico">📈</span> Acessos públicos</a>
                                     }
                                     <div class="dropdown-divider"></div>
                                     <form asp-controller="Account" asp-action="Logout" method="post" style="display:inline">

@@ -1,4 +1,5 @@
 ﻿using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
 using ControleFutebolWeb.Services;
@@ -167,6 +168,9 @@ namespace ControleFutebolWeb.Controllers
 
             ViewBag.Artilheiros = artilheiros;
 
+            // ── Assistências (top 5 garçons da competição/temporada) ──────────
+            ViewBag.Assistencias = await RankingCompeticaoHelper.AssistentesAsync(_context, 1, temporadaSel);
+
             // ── Classificação ────────────────────────────────────────────────
             var tabela = jogos
                 .SelectMany(j => new[]
@@ -214,7 +218,13 @@ namespace ControleFutebolWeb.Controllers
                 .Where(c => jogoIds.Contains(c.JogoId))
                 .ToListAsync();
 
-            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(jogos, golsEstat, cartoesEstat);
+            // Escalações dos gols e cartões: o dono do evento é o time pelo qual o
+            // jogador entrou em campo naquele jogo, não o clube atual do cadastro.
+            var escalacoesEstat = await LadoJogadorHelper.EscalacoesDosEventos(
+                _context, jogos.Select(j => j.Id),
+                golsEstat.Select(g => g.JogadorId).Concat(cartoesEstat.Select(c => c.JogadorId))).ToListAsync();
+
+            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(jogos, golsEstat, cartoesEstat, escalacoesEstat);
 
             return View(tabela);
         }

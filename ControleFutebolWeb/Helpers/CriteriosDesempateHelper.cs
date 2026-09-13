@@ -199,9 +199,14 @@ namespace ControleFutebolWeb.Helpers
 
         /// <summary>
         /// Monta o contexto a partir dos jogos da fase e dos cartões deles. O time do cartão
-        /// vem do jogador (clube ou seleção), mesma regra do EstatisticaTimeCalculator.
+        /// é aquele pelo qual o jogador entrou em campo naquele jogo (ver LadoJogadorHelper),
+        /// mesma regra do EstatisticaTimeCalculator — passar <paramref name="escalacoes"/>
+        /// evita que o fair play cobre de um clube o cartão que o jogador tomou por outro
+        /// antes de ser transferido.
         /// </summary>
-        public static DadosDesempate Construir(IEnumerable<Jogo> jogos, IEnumerable<Cartao>? cartoes = null)
+        public static DadosDesempate Construir(
+            IEnumerable<Jogo> jogos, IEnumerable<Cartao>? cartoes = null,
+            IEnumerable<Escalacao>? escalacoes = null)
         {
             var lista = jogos.ToList();
             var amarelos = new Dictionary<int, int>();
@@ -210,24 +215,18 @@ namespace ControleFutebolWeb.Helpers
             if (cartoes != null)
             {
                 var jogoPorId = lista.GroupBy(j => j.Id).ToDictionary(g => g.Key, g => g.First());
+                var atuacoes = LadoJogadorHelper.Montar(escalacoes ?? Array.Empty<Escalacao>());
 
                 foreach (var c in cartoes)
                 {
                     if (!jogoPorId.TryGetValue(c.JogoId, out var jogo)) continue;
 
-                    var autor = c.Jogador;
-                    if (autor == null) continue;
-
-                    int timeId;
-                    if (autor.TimeId == jogo.TimeCasaId || autor.SelecaoId == jogo.TimeCasaId)
-                        timeId = jogo.TimeCasaId;
-                    else if (autor.TimeId == jogo.TimeVisitanteId || autor.SelecaoId == jogo.TimeVisitanteId)
-                        timeId = jogo.TimeVisitanteId;
-                    else continue;
+                    var timeId = LadoJogadorHelper.TimeDoAutor(jogo, c.Jogador, atuacoes);
+                    if (timeId == null) continue;
 
                     var destino = c.Tipo != null && c.Tipo.StartsWith("Verm", StringComparison.OrdinalIgnoreCase)
                         ? vermelhos : amarelos;
-                    destino[timeId] = destino.GetValueOrDefault(timeId) + 1;
+                    destino[timeId.Value] = destino.GetValueOrDefault(timeId.Value) + 1;
                 }
             }
 

@@ -150,7 +150,13 @@ namespace ControleFutebolWeb.Controllers
                 .Include(c => c.Jogador)
                 .Where(c => jogoIdsEstat.Contains(c.JogoId))
                 .ToList();
-            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(todosJogosRealizadosEstat, golsEstat, cartoesEstat);
+            // Escalações dos gols e cartões: o dono do evento é o time pelo qual o
+            // jogador entrou em campo naquele jogo, não o clube atual do cadastro.
+            var escalacoesEstat = LadoJogadorHelper.EscalacoesDosEventos(
+                _context, todosJogosRealizadosEstat.Select(j => j.Id),
+                golsEstat.Select(g => g.JogadorId).Concat(cartoesEstat.Select(c => c.JogadorId))).ToList();
+
+            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(todosJogosRealizadosEstat, golsEstat, cartoesEstat, escalacoesEstat);
 
             PreencherAbaSelecao(vm, competicao.Id, temporadaSel, selFormacaoId, selId, nova);
 

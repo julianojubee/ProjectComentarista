@@ -1,0 +1,17 @@
+@model List<ControleFutebolWeb.Models.Jogo>
+@using Microsoft.AspNetCore.Mvc.ViewFeatures
+@{
+    Layout = "_LayoutCreators";
+    ViewData["Title"] = "Jogos do dia";
+    ViewData["Ferramenta"] = "jogos";
+}
+
+@* Mesmos cards da tela logada (Shared/_JogosDoDia): placar ao vivo, gols e
+   transmissão. Publico = true tira o atalho para a análise, que exige conta;
+   as setas de dia ficam nesta rota. *@
+@await Html.PartialAsync("_JogosDoDia", Model, new ViewDataDictionary(ViewData)
+{
+    ["Publico"] = true,
+    ["AcaoDia"] = "JogosHoje",
+    ["ControllerDia"] = "Creators",
+})

@@ -1,4 +1,4 @@
-using ControleFutebolWeb.Data;
+﻿using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using Microsoft.EntityFrameworkCore;
@@ -441,27 +441,61 @@ namespace ControleFutebolWeb.Services
             int total = v + e + d;
             int aproveitamento = total > 0 ? (int)Math.Round((v * 3 + e) * 100.0 / (total * 3)) : 0;
 
-            // Artilheiros do time na competição/temporada
-            var artilheiros = await _context.Gols
-                .Where(g => g.Jogo.CompeticaoId == jogo.CompeticaoId
-                         && g.Jogo.Temporada == jogo.Temporada
-                         && !g.Contra
-                         && (g.Jogador.TimeId == timeId || g.Jogador.SelecaoId == timeId))
-                .GroupBy(g => new { g.JogadorId, g.Jogador.Nome, g.Jogador.FotoUrl })
+            // Artilheiros e assistentes do time na competição/temporada. O gol conta para
+            // o time pelo qual o jogador entrou em campo NAQUELE jogo (escalação): pelo
+            // clube do cadastro, um jogador transferido chegava com os gols que fez pelo
+            // clube anterior na mesma competição.
+            var jogosDoTime = await _context.Jogos
+                .Where(j => j.CompeticaoId == jogo.CompeticaoId
+                         && j.Temporada == jogo.Temporada
+                         && (j.TimeCasaId == timeId || j.TimeVisitanteId == timeId))
+                .Select(j => new { j.Id, j.TimeCasaId, j.TimeVisitanteId })
+                .ToListAsync();
+
+            var idsJogosDoTime = jogosDoTime.Select(j => j.Id).ToList();
+            var ehCasaNoJogo = jogosDoTime.ToDictionary(j => j.Id, j => j.TimeCasaId == timeId);
+
+            var golsDoTime = await _context.Gols
+                .AsNoTracking()
+                .Include(g => g.Jogador)
+                .Where(g => idsJogosDoTime.Contains(g.JogoId) && !g.Contra)
+                .ToListAsync();
+
+            var assistsDoTime = await _context.Assistencias
+                .AsNoTracking()
+                .Include(a => a.Jogador)
+                .Where(a => idsJogosDoTime.Contains(a.JogoId))
+                .ToListAsync();
+
+            var ladosDoTime = await LadoJogadorHelper.CarregarLadosAsync(
+                _context, idsJogosDoTime,
+                golsDoTime.Select(g => g.JogadorId).Concat(assistsDoTime.Select(a => a.JogadorId)));
+
+            // Sem escalação salva, o fallback do helper é o clube do cadastro — que para
+            // quem segue no elenco continua sendo a resposta certa.
+            bool EhDoTime(int jogoIdEvento, Jogador? autor)
+            {
+                if (autor == null) return false;
+                if (ladosDoTime.TryGetValue((autor.Id, jogoIdEvento), out var atuacao))
+                    return atuacao.IsTimeCasa == ehCasaNoJogo[jogoIdEvento];
+
+                return autor.TimeId == timeId || autor.SelecaoId == timeId;
+            }
+
+            var artilheiros = golsDoTime
+                .Where(g => EhDoTime(g.JogoId, g.Jogador))
+                .GroupBy(g => new { g.JogadorId, g.Jogador!.Nome, g.Jogador.FotoUrl })
                 .Select(grp => new { grp.Key.JogadorId, grp.Key.Nome, grp.Key.FotoUrl, Gols = grp.Count() })
                 .OrderByDescending(x => x.Gols)
                 .Take(5)
-                .ToListAsync();
+                .ToList();
 
-            // Assistências do time na competição/temporada (mapa jogador → total)
-            var assistsLista = await _context.Assistencias
-                .Where(a => a.Jogo.CompeticaoId == jogo.CompeticaoId
-                         && a.Jogo.Temporada == jogo.Temporada
-                         && (a.Jogador.TimeId == timeId || a.Jogador.SelecaoId == timeId))
-                .GroupBy(a => new { a.JogadorId, a.Jogador.Nome, a.Jogador.FotoUrl })
+            var assistsLista = assistsDoTime
+                .Where(a => EhDoTime(a.JogoId, a.Jogador))
+                .GroupBy(a => new { a.JogadorId, a.Jogador!.Nome, a.Jogador.FotoUrl })
                 .Select(grp => new { grp.Key.JogadorId, grp.Key.Nome, grp.Key.FotoUrl, Assists = grp.Count() })
                 .OrderByDescending(x => x.Assists)
-                .ToListAsync();
+                .ToList();
             var assistsMap = assistsLista.ToDictionary(x => x.JogadorId, x => x.Assists);
 
             // Destaques: artilheiros + até 2 maiores assistentes que ainda não apareceram

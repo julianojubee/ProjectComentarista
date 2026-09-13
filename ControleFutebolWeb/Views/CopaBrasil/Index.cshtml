@@ -1,4 +1,4 @@
-@using ControleFutebolWeb.Controllers
+﻿@using ControleFutebolWeb.Controllers
 @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
 @{
     ViewData["Title"] = "Copa do Brasil";
@@ -171,6 +171,9 @@
                 </div>
                 <h1>Copa do Brasil</h1>
                 <p class="cb-hero-sub">Fase atual · Confrontos de ida e volta</p>
+                <div style="margin-top:10px;">
+                    @await Html.PartialAsync("_BotaoSincronizarJogos", 3)
+                </div>
             </div>
             @if (temporadasCb.Count > 1)
             {
@@ -416,6 +419,7 @@
             @await Html.PartialAsync("_PainelEstatisticas", estatisticasTimes)
         </div>
     </div>
+    @await Html.PartialAsync("_ArtilheirosAssistencias", (3, temporadaCbSel))
 </div>
 
 <script>

@@ -122,9 +122,31 @@
             v: 2,
             ms: ms || 900,
             elenco: [],
+            // Cor da camisa de cada lado na prancheta. Fica no storyboard (e não
+            // numa preferência do usuário) porque é parte do desenho: o arsenal do
+            // time precisa reproduzir a jogada com as mesmas cores em que ela foi
+            // montada, como o match-up dos creators faz.
+            cores: { nos: COR_PADRAO.nos, adv: COR_PADRAO.adv },
+            // Blocos: conjuntos de jogadores que se movem juntos (a linha de quatro,
+            // o triângulo do meio). Ficam na raiz, e não no passo, porque o vínculo
+            // é entre as PEÇAS e vale a jogada inteira — o que muda de passo para
+            // passo é a posição do bloco, não quem faz parte dele.
+            grupos: [],
             passos: [{ legenda: '', passe: 'passe', bola: { x: BOLA_PADRAO.x, y: BOLA_PADRAO.y }, pecas: [], setas: [] }]
         };
     }
+
+    // Cores padrão das camisas: as mesmas que a prancheta sempre teve (amarelo
+    // para quem executa a jogada, azul para a marcação).
+    var COR_PADRAO = { nos: '#facc15', adv: '#60a5fa' };
+
+    function corHex(v, alt) { return /^#[0-9a-fA-F]{6}$/.test(v || '') ? v : alt; }
+
+    // Paleta dos blocos: cores que não são as dos times (amarelo/azul) nem a da
+    // posse (branco), para o contorno do setor não competir com a leitura tática.
+    var COR_BLOCO = ['#f472b6', '#a78bfa', '#34d399', '#fb923c', '#38bdf8', '#e879f9'];
+
+    var MAX_GRUPOS = 6;
 
     // Storyboard vindo do servidor pode ter sido gravado por uma versão anterior:
     // completa o que faltar para o resto do arquivo não precisar checar nada.
@@ -134,8 +156,15 @@
         out.elenco = (sb.elenco || []).map(function (e) {
             // adv ausente = jogada gravada antes dos adversários existirem: era só
             // o time atacante, então todo mundo é do nosso lado.
-            return { id: e.id, num: e.num || '', nome: e.nome || '', sigla: e.sigla || '', adv: !!e.adv };
+            return {
+                id: e.id, num: e.num || '', nome: e.nome || '', sigla: e.sigla || '',
+                adv: !!e.adv, foto: e.foto || ''
+            };
         });
+        out.cores = {
+            nos: corHex(sb.cores && sb.cores.nos, COR_PADRAO.nos),
+            adv: corHex(sb.cores && sb.cores.adv, COR_PADRAO.adv)
+        };
         var passos = (sb.passos || []).map(function (p) {
             return {
                 legenda: p.legenda || '',
@@ -154,6 +183,22 @@
             };
         });
         if (passos.length) out.passos = passos;
+
+        // Um jogador entra em no máximo um bloco: com blocos sobrepostos, arrastar
+        // uma peça compartilhada não teria resposta certa. Grupos de menos de dois
+        // membros (o outro saiu da jogada) deixam de existir.
+        var noElenco = {};
+        out.elenco.forEach(function (e) { noElenco[e.id] = true; });
+        var usado = {};
+        out.grupos = (sb.grupos || []).slice(0, MAX_GRUPOS).map(function (g, i) {
+            var ids = (g.ids || []).filter(function (id) {
+                if (!noElenco[id] || usado[id]) return false;
+                usado[id] = true;
+                return true;
+            });
+            return { id: g.id || ('g' + i), nome: g.nome || '', ids: ids };
+        }).filter(function (g) { return g.ids.length >= 2; });
+
         return out;
     }
 
@@ -192,7 +237,14 @@
         var motor = opts.motor === 'v1' ? 'v1' : 'v2';
         var plano = null;     // { durs, ini, total, pecas, bola } — ver planejar()
         var tempo = 0;        // posição do player, em ms desde o início da jogada
-        var sel = null;       // peça selecionada no editor
+        // Fotos dos jogadores no disco da peça. Ligadas por padrão; quem prefere só
+        // números desliga no botão da barra (a preferência é do palco, não da
+        // jogada — não muda o que está salvo).
+        var verFotos = opts.fotos !== false;
+        var sel = null;       // peça selecionada no editor (a última clicada)
+        // Seleção múltipla: Ctrl/Shift+clique ou laço no gramado. É o que vira um
+        // bloco, e enquanto ela existe o arrasto move todas as peças juntas.
+        var selecao = [];
         var verCaminhos = false;
         var snap = false;
         var hist = [];        // pilha de desfazer (snapshots JSON do storyboard)
@@ -216,12 +268,13 @@
                     ' orient="auto" markerUnits="userSpaceOnUse">' +
                     '<path d="M0,0 L11,4.5 L0,9 z" fill="#facc15"></path>' +
                     '</marker>' +
-                '</defs><g class="jgd-g-caminhos"></g><g class="jgd-g-rastro"></g><g class="jgd-g-setas"></g></svg>' +
+                '</defs><g class="jgd-g-blocos"></g><g class="jgd-g-caminhos"></g><g class="jgd-g-rastro"></g><g class="jgd-g-setas"></g></svg>' +
                 '<div class="jgd-legenda-palco"></div>' +
             '</div>';
 
         var campo = host.querySelector('.jgd-campo');
         var svg = host.querySelector('.jgd-svg');
+        var gBlocos = host.querySelector('.jgd-g-blocos');
         var gCaminhos = host.querySelector('.jgd-g-caminhos');
         var gRastro = host.querySelector('.jgd-g-rastro');
         var gSetas = host.querySelector('.jgd-g-setas');
@@ -279,13 +332,20 @@
                     campo.appendChild(el);
                     pecasDom[j.id] = el;
                 }
-                el.className = 'jgd-peca' + (j.adv ? ' jgd-adv' : '') + (j.id === sel ? ' jgd-selecionada' : '');
+                var comFoto = verFotos && !!j.foto;
+                el.className = 'jgd-peca' + (j.adv ? ' jgd-adv' : '') + (comFoto ? ' jgd-com-foto' : '');
                 el.innerHTML =
                     '<div class="jgd-peca-sigla">' + esc(j.sigla) + '</div>' +
                     '<div class="jgd-peca-disco">' +
                         '<span class="jgd-peca-sombra"></span>' +
                         '<span class="jgd-peca-facing"></span>' +
-                        '<div class="jgd-peca-circulo">' + esc(j.num || '') + '</div>' +
+                        // Com foto o círculo vira moldura da imagem e o número vai
+                        // para um badge no canto — mesma leitura do match-up, onde
+                        // o rosto identifica mais rápido que o número.
+                        '<div class="jgd-peca-circulo">' +
+                            (comFoto ? '<img class="jgd-peca-foto" src="' + esc(j.foto) + '" alt="" loading="lazy">' : '') +
+                            '<span class="jgd-peca-num">' + esc(j.num || '') + '</span>' +
+                        '</div>' +
                     '</div>' +
                     '<div class="jgd-peca-nome">' + esc(j.nome) + '</div>' +
                     (editavel ? '<button type="button" class="jgd-peca-remover" title="Tirar da jogada">×</button>' : '');
@@ -310,19 +370,89 @@
                 }
             });
 
-            if (sel != null && !pecasDom[sel]) selecionar(null);
+            // Peça que saiu de campo não pode continuar selecionada nem valendo
+            // como membro de um bloco.
+            aplicarCores();
+            selecao = selecao.filter(function (id) { return !!pecasDom[id]; });
+            if (sel != null && !pecasDom[sel]) sel = selecao.length ? selecao[selecao.length - 1] : null;
+            pintarSelecao();
+        }
+
+        // ── Blocos (setores que andam juntos) ───────────────────────────────
+        function grupoDe(id) {
+            for (var i = 0; i < sb.grupos.length; i++) {
+                if (sb.grupos[i].ids.indexOf(id) >= 0) return sb.grupos[i];
+            }
+            return null;
+        }
+
+        function indiceDoGrupo(g) { return sb.grupos.indexOf(g); }
+
+        // Quem se move junto com esta peça: a seleção múltipla manda (é o que o
+        // usuário está segurando na tela); fora dela, vale o bloco a que a peça
+        // pertence. Sem nenhum dos dois, a peça anda sozinha, como sempre andou.
+        function bloco(id) {
+            if (selecao.length > 1 && selecao.indexOf(id) >= 0) return selecao.slice();
+            var g = grupoDe(id);
+            return g ? g.ids.slice() : [id];
         }
 
         // Peça selecionada: alvo dos controles de ritmo/atraso e das setas do
         // teclado. Fica com anel ciano, cor que ainda não é usada em campo (o
         // branco já é posse de bola e o amarelo/azul são os times).
-        function selecionar(id) {
-            if (sel === id) return;
+        //
+        // `aditivo` (Ctrl/Shift+clique) alterna a peça dentro da seleção múltipla
+        // em vez de trocar de peça: é assim que se junta a linha de zaga.
+        function selecionar(id, aditivo) {
+            if (id == null) {
+                selecao = [];
+            } else if (aditivo) {
+                var i = selecao.indexOf(id);
+                if (i >= 0) {
+                    selecao.splice(i, 1);
+                    // Tirou a principal: a próxima da lista assume os controles.
+                    if (sel === id) sel = selecao.length ? selecao[selecao.length - 1] : null;
+                    pintarSelecao();
+                    aoSelecionar(sel);
+                    return;
+                }
+                selecao.push(id);
+            } else if (selecao.length !== 1 || selecao[0] !== id) {
+                selecao = [id];
+            }
+
+            if (sel === id && !aditivo) { pintarSelecao(); return; }
             sel = id;
+            pintarSelecao();
+            aoSelecionar(sel);
+        }
+
+        // Seleciona um conjunto de uma vez (laço, ou o bloco inteiro ao clicar
+        // numa peça agrupada).
+        function selecionarVarios(ids) {
+            selecao = ids.slice();
+            sel = selecao.length ? selecao[selecao.length - 1] : null;
+            pintarSelecao();
+            aoSelecionar(sel);
+        }
+
+        function pintarSelecao() {
             Object.keys(pecasDom).forEach(function (k) {
-                pecasDom[k].classList.toggle('jgd-selecionada', String(k) === String(id));
+                var id = parseInt(k, 10);
+                var el = pecasDom[k];
+                el.classList.toggle('jgd-selecionada', selecao.indexOf(id) >= 0);
+                el.classList.toggle('jgd-principal', id === sel && selecao.length > 1);
+                var g = grupoDe(id);
+                el.classList.toggle('jgd-em-bloco', !!g);
+                el.style.setProperty('--jgd-bloco-cor', g ? COR_BLOCO[indiceDoGrupo(g) % COR_BLOCO.length] : 'transparent');
             });
-            aoSelecionar(id);
+        }
+
+        // As cores da camisa entram como variáveis no host: o CSS das peças (e o do
+        // fantasma, do rastro) lê delas, então trocar a cor é uma atribuição só.
+        function aplicarCores() {
+            host.style.setProperty('--jgd-cor-nos', corHex(sb.cores && sb.cores.nos, COR_PADRAO.nos));
+            host.style.setProperty('--jgd-cor-adv', corHex(sb.cores && sb.cores.adv, COR_PADRAO.adv));
         }
 
         function posicionar(el, x, y) {
@@ -425,6 +555,47 @@
             el.setAttribute('class', classe);
             g.appendChild(el);
             return el;
+        }
+
+        // Contorno do bloco: o casco convexo das peças do grupo. Com dois é uma
+        // linha, com três um triângulo, com quatro em fila uma faixa fina — a
+        // mesma regra desenha qualquer setor sem o usuário escolher o formato.
+        function casco(pts) {
+            if (pts.length < 3) return pts.slice();
+            var ps = pts.slice().sort(function (a, b) { return a.x - b.x || a.y - b.y; });
+            function cruz(o, a, b) { return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x); }
+            var baixo = [], i;
+            for (i = 0; i < ps.length; i++) {
+                while (baixo.length >= 2 && cruz(baixo[baixo.length - 2], baixo[baixo.length - 1], ps[i]) <= 0) baixo.pop();
+                baixo.push(ps[i]);
+            }
+            var cima = [];
+            for (i = ps.length - 1; i >= 0; i--) {
+                while (cima.length >= 2 && cruz(cima[cima.length - 2], cima[cima.length - 1], ps[i]) <= 0) cima.pop();
+                cima.push(ps[i]);
+            }
+            baixo.pop(); cima.pop();
+            var h = baixo.concat(cima);
+            return h.length >= 2 ? h : ps;
+        }
+
+        function desenharBlocos() {
+            gBlocos.innerHTML = '';
+            if (!editavel || tocando || !sb.grupos.length) return;
+            var p = passo();
+            if (!p) return;
+
+            sb.grupos.forEach(function (g, i) {
+                var pts = g.ids.map(function (id) { return pecaNoPasso(p, id); })
+                    .filter(function (c) { return !!c; })
+                    .map(function (c) { return { x: c.x, y: c.y }; });
+                if (pts.length < 2) return;
+
+                var h = casco(pts);
+                if (h.length > 2) h = h.concat([h[0]]);   // fecha o polígono
+                var el = poli(gBlocos, h, 'jgd-bloco');
+                el.style.stroke = COR_BLOCO[i % COR_BLOCO.length];
+            });
         }
 
         function desenharSetas(p) {
@@ -633,13 +804,22 @@
             desenharSetas(p);
             setasDesenhadas = passoAtual;
             desenharRastro();
+            desenharBlocos();
             desenharCaminhos();
             mostrarLegenda(tocando ? p.legenda : (editavel ? '' : p.legenda));
         }
 
         // Render do instante t (ms desde o início da jogada). Devolve o passo
         // corrente, para a timeline e o contador acompanharem.
-        function quadro(t) {
+        // Onde está cada peça e a bola no instante t (ms desde o início da jogada).
+        // Puro: não toca no DOM. Quem pinta é quadro() na tela e o exportador de
+        // vídeo no canvas — os dois têm de mostrar exatamente a mesma jogada, e a
+        // única forma de garantir isso é um cálculo só.
+        //
+        // `ant` carrega o que depende do quadro anterior (a bola conduzida precisa
+        // saber de onde o jogador veio, e o giro é acumulado): quem chama guarda o
+        // objeto devolvido em `bola.mem` e passa de volta no quadro seguinte.
+        function estadoEm(t, ant) {
             var P = sb.passos, n = P.length, i = 0;
             var v2 = motor === 'v2';
             while (i < n - 2 && plano.ini[i + 1] <= t) i++;
@@ -647,14 +827,12 @@
             var a = P[i], b = P[i + 1];
             var bp = plano.bola[i];
             var prof = v2 ? PERFIL[bp.tipo] : perfilV1(bp.d);
+            var mem = ant || {};
 
-            // ── peças
             var posic = {};
             sb.elenco.forEach(function (j) {
-                var el = pecasDom[j.id], info = plano.pecas[j.id], x, y;
-                if (!el) return;
-                if (!info) { el.style.display = 'none'; return; }
-                el.style.display = '';
+                var info = plano.pecas[j.id], x, y;
+                if (!info) { posic[j.id] = null; return; }
 
                 if (v2) {
                     var run = null;
@@ -680,62 +858,83 @@
                 } else {
                     var ca = pecaNoPasso(a, j.id), cb = pecaNoPasso(b, j.id);
                     var de = ca || cb, para = cb || ca;
-                    if (!de) { el.style.display = 'none'; return; }
+                    if (!de) { posic[j.id] = null; return; }
                     var fp = suave(f);
                     x = de.x + (para.x - de.x) * fp;
                     y = de.y + (para.y - de.y) * fp;
                 }
 
-                posicionar(el, x, y);
-                passada(el, x, y);
-                // O caminho é curvo: a direção do nariz vem do deslocamento do
-                // quadro, não do vetor entre keyframes.
-                orientar(el, x - (el._ox == null ? x : el._ox), y - (el._oy == null ? y : el._oy));
-                el._ox = x; el._oy = y;
                 posic[j.id] = { x: x, y: y };
             });
 
             // ── bola
-            var bx, by, fb;
+            var bx, by, fb, giroInc, cx = null, cy = null;
             if (v2 && bp.conduz && posic[bp.carregador]) {
                 // Colada em quem conduz: um pouco à frente do jogador, com a
                 // oscilação lateral de quem toca a bola de um pé para o outro.
                 var c = posic[bp.carregador];
-                var dx = c.x - (bolaDom._cx == null ? c.x : bolaDom._cx);
-                var dy = c.y - (bolaDom._cy == null ? c.y : bolaDom._cy);
+                var dx = c.x - (mem.cx == null ? c.x : mem.cx);
+                var dy = c.y - (mem.cy == null ? c.y : mem.cy);
                 var m = Math.sqrt(dx * dx + dy * dy) || 1;
                 var bal = Math.sin(t / 90) * 0.7;
                 bx = c.x + (dx / m) * 2.4 - (dy / m) * bal;
                 by = c.y + (dy / m) * 2.4 + (dx / m) * bal;
-                bolaDom._cx = c.x; bolaDom._cy = c.y;
+                cx = c.x; cy = c.y;
                 fb = 0;
-                giroBola += m * 12;
+                giroInc = m * 12;
             } else {
                 fb = desacelera(limitar(f / prof.frac, 0, 1));
                 bx = a.bola.x + (b.bola.x - a.bola.x) * fb;
                 by = a.bola.y + (b.bola.y - a.bola.y) * fb;
-                giroBola += bp.d * (fb - (bolaDom._fb == null ? fb : bolaDom._fb)) * prof.giro;
-                bolaDom._cx = null; bolaDom._cy = null;
+                giroInc = bp.d * (fb - (mem.fb == null ? fb : mem.fb)) * prof.giro;
             }
-            bolaDom._fb = fb;
-            posicionar(bolaDom, bx, by);
-            poseBola(bx, by, bp.d, f / prof.frac, prof.arco);
 
             // Posse é decidida nos PASSOS, não quadro a quadro: medir a distância
             // até a bola em pleno voo faz cada jogador por quem ela passa piscar,
             // como se tivesse tocado nela. Aqui o dono da bola só troca no instante
             // em que ela chega ao destino — antes disso ela ainda é de quem tocou.
             var dono = fb >= 1 ? donoDaBola(b) : (bp.conduz ? bp.carregador : donoDaBola(a));
+
+            return {
+                i: i, f: f, passo: a, legenda: a.legenda, dono: dono,
+                pecas: posic,
+                bola: {
+                    x: bx, y: by, fb: fb, giroInc: giroInc,
+                    dist: bp.d, prog: f / prof.frac, arco: prof.arco,
+                    mem: { cx: cx, cy: cy, fb: fb }
+                }
+            };
+        }
+
+        function quadro(t) {
+            var est = estadoEm(t, { cx: bolaDom._cx, cy: bolaDom._cy, fb: bolaDom._fb });
+
             sb.elenco.forEach(function (j) {
-                var el = pecasDom[j.id];
-                if (el) el.classList.toggle('jgd-com-bola', j.id === dono);
+                var el = pecasDom[j.id], pos = est.pecas[j.id];
+                if (!el) return;
+                if (!pos) { el.style.display = 'none'; return; }
+                el.style.display = '';
+                posicionar(el, pos.x, pos.y);
+                passada(el, pos.x, pos.y);
+                // O caminho é curvo: a direção do nariz vem do deslocamento do
+                // quadro, não do vetor entre keyframes.
+                orientar(el, pos.x - (el._ox == null ? pos.x : el._ox), pos.y - (el._oy == null ? pos.y : el._oy));
+                el._ox = pos.x; el._oy = pos.y;
+                el.classList.toggle('jgd-com-bola', j.id === est.dono);
             });
+
+            giroBola += est.bola.giroInc;
+            bolaDom._cx = est.bola.mem.cx;
+            bolaDom._cy = est.bola.mem.cy;
+            bolaDom._fb = est.bola.fb;
+            posicionar(bolaDom, est.bola.x, est.bola.y);
+            poseBola(est.bola.x, est.bola.y, est.bola.dist, est.bola.prog, est.bola.arco);
 
             // Setas são elementos SVG recriados do zero: redesenhar a cada quadro
             // custaria 60 rebuilds por segundo sem mudar nada na tela.
-            if (i !== setasDesenhadas) { desenharSetas(a); setasDesenhadas = i; }
-            mostrarLegenda(a.legenda);
-            return i;
+            if (est.i !== setasDesenhadas) { desenharSetas(est.passo); setasDesenhadas = est.i; }
+            mostrarLegenda(est.legenda);
+            return est.i;
         }
 
         // ── Player ──────────────────────────────────────────────────────────
@@ -826,7 +1025,8 @@
             passoAtual = limitar(passoAtual, 0, sb.passos.length - 1);
             setaOrigem = null;
             tempo = 0;
-            sincronizarPecas();
+            sincronizarPecas();   // repinta seleção e blocos: o desfazer pode ter
+                                  // criado ou desfeito um deles
             renderizarPasso();
             aoTrocarPasso(passoAtual);
             aoMudar();
@@ -856,11 +1056,40 @@
             ev.preventDefault();
             var p = passo();
             var ehBola = alvo.classList.contains('jgd-bola');
-            var dado = ehBola ? p.bola : pecaNoPasso(p, parseInt(alvo.dataset.id, 10));
+            var id = ehBola ? null : parseInt(alvo.dataset.id, 10);
+            var dado = ehBola ? p.bola : pecaNoPasso(p, id);
             if (!dado) return;
 
-            if (!ehBola) selecionar(parseInt(alvo.dataset.id, 10));
+            // Peça de um bloco entra na tela já com o setor inteiro selecionado: o
+            // usuário vê o que vai andar antes de começar a arrastar.
+            if (!ehBola) {
+                if (ev.ctrlKey || ev.metaKey || ev.shiftKey) selecionar(id, true);
+                else if (selecao.indexOf(id) < 0) {
+                    var g = grupoDe(id);
+                    if (g) selecionarVarios(g.ids); else selecionar(id);
+                } else if (sel !== id) { sel = id; pintarSelecao(); aoSelecionar(sel); }
+            }
+
             snapshot();
+
+            // Arrasto em bloco: as outras peças acompanham o MESMO deslocamento,
+            // então o setor (a linha de quatro, o triângulo do meio) chega inteiro
+            // do outro lado — mover uma a uma sempre deformava o desenho.
+            var juntos = ehBola ? [] : bloco(id).filter(function (i) { return i !== id; });
+            var base = { x: dado.x, y: dado.y };
+            var outros = juntos.map(function (i) {
+                var c = pecaNoPasso(p, i);
+                return c ? { c: c, x: c.x, y: c.y, el: pecasDom[i] } : null;
+            }).filter(function (o) { return !!o; });
+
+            // O bloco anda junto ou não anda: o limite de cada eixo é o da peça que
+            // chega primeiro na linha de fundo, senão o setor se amassaria contra
+            // a borda do campo.
+            var minX = base.x, maxX = base.x, minY = base.y, maxY = base.y;
+            outros.forEach(function (o) {
+                minX = Math.min(minX, o.x); maxX = Math.max(maxX, o.x);
+                minY = Math.min(minY, o.y); maxY = Math.max(maxY, o.y);
+            });
 
             alvo.classList.add('jgd-arrastando');
             alvo.setPointerCapture(ev.pointerId);
@@ -869,10 +1098,21 @@
                 var pos = pctDoEvento(e.clientX, e.clientY);
                 var x = pos.x, y = pos.y;
                 if (snap) { x = Math.round(x / 2.5) * 2.5; y = Math.round(y / 2.5) * 2.5; }
-                dado.x = Math.round(x * 100) / 100;
-                dado.y = Math.round(y * 100) / 100;
+                var dx = limitar(x - base.x, -minX, 100 - maxX);
+                var dy = limitar(y - base.y, -minY, 100 - maxY);
+
+                dado.x = Math.round((base.x + dx) * 100) / 100;
+                dado.y = Math.round((base.y + dy) * 100) / 100;
                 posicionar(alvo, dado.x, dado.y);
+
+                outros.forEach(function (o) {
+                    o.c.x = Math.round((o.x + dx) * 100) / 100;
+                    o.c.y = Math.round((o.y + dy) * 100) / 100;
+                    if (o.el) posicionar(o.el, o.c.x, o.c.y);
+                });
+
                 desenharRastro();
+                desenharBlocos();
             }
 
             function soltar(e) {
@@ -893,6 +1133,65 @@
         }
 
         campo.addEventListener('pointerdown', iniciarArrasto);
+
+        // ── Laço: selecionar várias peças arrastando no gramado vazio ────────
+        //
+        // É o caminho natural para pegar "a linha de zaga": em vez de Ctrl+clique
+        // quatro vezes, cerca-se o setor. Clique seco no vazio limpa a seleção.
+        function iniciarLaco(ev) {
+            if (!editavel || tocando || modoSeta) return;
+            if (ev.button !== 0 && ev.pointerType === 'mouse') return;
+            if (ev.target.closest('.jgd-peca, .jgd-bola')) return;
+
+            ev.preventDefault();
+            var ini = pctDoEvento(ev.clientX, ev.clientY);
+            var cx = null;
+
+            function ret(a, b) {
+                return {
+                    x1: Math.min(a.x, b.x), y1: Math.min(a.y, b.y),
+                    x2: Math.max(a.x, b.x), y2: Math.max(a.y, b.y)
+                };
+            }
+
+            function mover(e) {
+                var r = ret(ini, pctDoEvento(e.clientX, e.clientY));
+                if (!cx && (r.x2 - r.x1 > 1 || r.y2 - r.y1 > 1)) {
+                    cx = document.createElement('div');
+                    cx.className = 'jgd-laco';
+                    campo.appendChild(cx);
+                }
+                if (!cx) return;
+                cx.style.left = r.x1 + '%';
+                cx.style.top = r.y1 + '%';
+                cx.style.width = (r.x2 - r.x1) + '%';
+                cx.style.height = (r.y2 - r.y1) + '%';
+            }
+
+            function soltar(e) {
+                campo.removeEventListener('pointermove', mover);
+                campo.removeEventListener('pointerup', soltar);
+                campo.removeEventListener('pointercancel', soltar);
+                campo.releasePointerCapture(e.pointerId);
+
+                if (!cx) { selecionar(null); return; }   // clique seco: limpa
+                cx.remove();
+
+                var r = ret(ini, pctDoEvento(e.clientX, e.clientY));
+                var dentro = passo().pecas.filter(function (c) {
+                    return c.x >= r.x1 && c.x <= r.x2 && c.y >= r.y1 && c.y <= r.y2;
+                }).map(function (c) { return c.id; });
+
+                if (dentro.length) selecionarVarios(dentro); else selecionar(null);
+            }
+
+            campo.setPointerCapture(ev.pointerId);
+            campo.addEventListener('pointermove', mover);
+            campo.addEventListener('pointerup', soltar);
+            campo.addEventListener('pointercancel', soltar);
+        }
+
+        campo.addEventListener('pointerdown', iniciarLaco);
 
         campo.addEventListener('click', function (ev) {
             if (!editavel) return;
@@ -950,21 +1249,42 @@
                 return;
             }
 
+            // Ctrl+G junta a seleção num bloco; Ctrl+Shift+G desfaz o bloco de
+            // quem está selecionado. Mesmo par de atalhos de qualquer editor de
+            // desenho, que é o que a prancheta é.
+            if ((ev.ctrlKey || ev.metaKey) && (ev.key === 'g' || ev.key === 'G')) {
+                ev.preventDefault();
+                if (ev.shiftKey) api.desagrupar(); else api.agrupar();
+                return;
+            }
+
+            if (ev.key === 'Escape' && selecao.length) { selecionar(null); return; }
+
             if (sel == null) return;
-            var eixo = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].indexOf(ev.key);
-            if (eixo < 0) return;
-            var c = pecaNoPasso(passo(), sel);
-            if (!c) return;
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].indexOf(ev.key) < 0) return;
+
+            var p = passo();
+            var ids = bloco(sel).filter(function (i) { return !!pecaNoPasso(p, i); });
+            if (!ids.length) return;
 
             ev.preventDefault();
             var d = ev.shiftKey ? 2 : 0.5;
+            var dx = (ev.key === 'ArrowLeft' ? -d : 0) + (ev.key === 'ArrowRight' ? d : 0);
+            var dy = (ev.key === 'ArrowUp' ? -d : 0) + (ev.key === 'ArrowDown' ? d : 0);
+
+            // Mesma regra do arrasto: o bloco anda junto, e para quando a peça
+            // mais adiantada alcança a borda.
+            var cs = ids.map(function (i) { return pecaNoPasso(p, i); });
+            var xs = cs.map(function (c) { return c.x; }), ys = cs.map(function (c) { return c.y; });
+            dx = limitar(dx, -Math.min.apply(null, xs), 100 - Math.max.apply(null, xs));
+            dy = limitar(dy, -Math.min.apply(null, ys), 100 - Math.max.apply(null, ys));
+            if (!dx && !dy) return;
+
             snapshot();
-            if (ev.key === 'ArrowLeft') c.x = limitar(c.x - d, 0, 100);
-            if (ev.key === 'ArrowRight') c.x = limitar(c.x + d, 0, 100);
-            if (ev.key === 'ArrowUp') c.y = limitar(c.y - d, 0, 100);
-            if (ev.key === 'ArrowDown') c.y = limitar(c.y + d, 0, 100);
-            c.x = Math.round(c.x * 100) / 100;
-            c.y = Math.round(c.y * 100) / 100;
+            cs.forEach(function (c) {
+                c.x = Math.round((c.x + dx) * 100) / 100;
+                c.y = Math.round((c.y + dy) * 100) / 100;
+            });
             renderizarPasso();
             aoMudar();
         }
@@ -988,6 +1308,7 @@
                 setaOrigem = null;
                 tempo = 0;
                 sel = null;
+                selecao = [];
                 hist = [];
                 fut = [];
                 sincronizarPecas();
@@ -1045,12 +1366,17 @@
 
             // O ritmo acompanha a peça pelos passos seguintes: quem entrou em
             // sprint num lance costuma seguir em sprint até parar.
+            // Aceita um id ou uma lista: com um bloco selecionado, o ritmo vale
+            // para o setor inteiro (uma linha de quatro sobe toda em sprint).
             definirModo: function (id, modo) {
                 if (id == null || !RITMO[modo]) return;
+                var ids = Array.isArray(id) ? id : [id];
                 snapshot();
                 for (var i = passoAtual; i < sb.passos.length; i++) {
-                    var c = pecaNoPasso(sb.passos[i], id);
-                    if (c) c.modo = modo;
+                    for (var k = 0; k < ids.length; k++) {
+                        var c = pecaNoPasso(sb.passos[i], ids[k]);
+                        if (c) c.modo = modo;
+                    }
                 }
                 renderizarPasso();
                 aoMudar();
@@ -1059,17 +1385,62 @@
             // `registrar` separa o arrasto do slider (input contínuo) do valor
             // final (change): sem isso cada pixel do slider viraria um snapshot.
             definirAtraso: function (id, atraso, registrar) {
-                var c = pecaNoPasso(passo(), id);
-                if (!c) return;
+                var ids = Array.isArray(id) ? id : [id];
+                var cs = ids.map(function (i) { return pecaNoPasso(passo(), i); })
+                    .filter(function (c) { return !!c; });
+                if (!cs.length) return;
                 if (registrar) snapshot();
-                c.atraso = limitar(atraso, 0, 0.6);
+                cs.forEach(function (c) { c.atraso = limitar(atraso, 0, 0.6); });
                 renderizarPasso();
                 aoMudar();
             },
 
             selecionar: selecionar,
+            selecionarVarios: selecionarVarios,
             selecionada: function () { return sel; },
+            selecao: function () { return selecao.slice(); },
             pecaSelecionada: function () { return sel == null ? null : pecaNoPasso(passo(), sel); },
+
+            // ── Blocos ──────────────────────────────────────────────────────
+            grupos: function () { return sb.grupos; },
+            grupoDe: grupoDe,
+            corDoGrupo: function (g) { return COR_BLOCO[indiceDoGrupo(g) % COR_BLOCO.length]; },
+
+            // Vira bloco quem está selecionado agora. Como cada jogador só pode
+            // estar num bloco, os membros saem dos blocos antigos — agrupar de novo
+            // é a forma de remontar um setor sem precisar desagrupar antes.
+            agrupar: function () {
+                if (selecao.length < 2) return null;
+                snapshot();
+                var ids = selecao.slice();
+                sb.grupos.forEach(function (g) {
+                    g.ids = g.ids.filter(function (i) { return ids.indexOf(i) < 0; });
+                });
+                sb.grupos = sb.grupos.filter(function (g) { return g.ids.length >= 2; });
+                if (sb.grupos.length >= MAX_GRUPOS) sb.grupos.shift();
+                var g = { id: 'g' + Date.now().toString(36), nome: '', ids: ids };
+                sb.grupos.push(g);
+                pintarSelecao();
+                renderizarPasso();
+                aoMudar();
+                return g;
+            },
+
+            // Desfaz os blocos que tocam a seleção (ou o da peça selecionada).
+            desagrupar: function () {
+                var alvos = selecao.length ? selecao : (sel == null ? [] : [sel]);
+                var mexeu = false;
+                sb.grupos.forEach(function (g) {
+                    if (g.ids.some(function (i) { return alvos.indexOf(i) >= 0; })) { g.ids = []; mexeu = true; }
+                });
+                if (!mexeu) return false;
+                snapshot();
+                sb.grupos = sb.grupos.filter(function (g) { return g.ids.length >= 2; });
+                pintarSelecao();
+                renderizarPasso();
+                aoMudar();
+                return true;
+            },
 
             definirMotor: function (v) {
                 motor = v === 'v1' ? 'v1' : 'v2';
@@ -1089,6 +1460,26 @@
 
             alternarSnap: function () { snap = !snap; return snap; },
 
+            // ── Cores das camisas e fotos ───────────────────────────────────
+            cores: function () { return { nos: sb.cores.nos, adv: sb.cores.adv }; },
+
+            definirCor: function (lado, cor, registrar) {
+                if (!corHex(cor, null)) return;
+                if (registrar) snapshot();
+                sb.cores[lado === 'adv' ? 'adv' : 'nos'] = cor;
+                aplicarCores();
+                if (registrar) aoMudar();
+            },
+
+            alternarFotos: function () {
+                verFotos = !verFotos;
+                sincronizarPecas();
+                renderizarPasso();
+                return verFotos;
+            },
+
+            fotos: function () { return verFotos; },
+
             desfazer: desfazer,
             refazer: refazer,
             podeDesfazer: function () { return hist.length > 0; },
@@ -1104,6 +1495,10 @@
             },
 
             duracaoTotal: function () { return plano ? plano.total : 0; },
+
+            // Cálculo puro de um instante da jogada — o exportador de vídeo pinta
+            // no canvas exatamente o que estadoEm() devolve para a tela.
+            estadoEm: function (t, ant) { planejar(); return estadoEm(t, ant); },
             duracaoDoPasso: function (i) { return plano && plano.durs[i] != null ? plano.durs[i] : null; },
             tempo: function () { return tempo; },
 
@@ -1115,7 +1510,8 @@
                 snapshot();
                 sb.elenco.push({
                     id: jogador.id, num: jogador.num || '',
-                    nome: jogador.nome || '', sigla: jogador.sigla || '', adv: !!adv
+                    nome: jogador.nome || '', sigla: jogador.sigla || '', adv: !!adv,
+                    foto: jogador.foto || ''
                 });
                 sb.passos.forEach(function (p) {
                     p.pecas.push({ id: jogador.id, x: x, y: y, modo: 'trote', atraso: 0 });
@@ -1130,6 +1526,11 @@
                 snapshot();
                 if (sel === id) selecionar(null);
                 sb.elenco = sb.elenco.filter(function (j) { return j.id !== id; });
+                // Bloco que fica com um membro só deixa de ser bloco.
+                sb.grupos.forEach(function (g) {
+                    g.ids = g.ids.filter(function (i) { return i !== id; });
+                });
+                sb.grupos = sb.grupos.filter(function (g) { return g.ids.length >= 2; });
                 sb.passos.forEach(function (p) {
                     p.pecas = p.pecas.filter(function (c) { return c.id !== id; });
                 });
@@ -1169,6 +1570,400 @@
         };
 
         return api;
+    }
+
+    // ══ Exportar a jogada em vídeo ══════════════════════════════════════════
+    //
+    // O palco anima com DOM (divs em % dentro do gramado), e DOM não vira arquivo
+    // de vídeo. Então a jogada é REDESENHADA num canvas quadro a quadro e o
+    // MediaRecorder grava o stream desse canvas. O que garante que o vídeo é a
+    // mesma jogada da tela é o motor: as posições saem de palco.estadoEm(), o
+    // mesmo cálculo que o player usa — aqui só muda quem pinta.
+    //
+    // A gravação roda em tempo real (o MediaRecorder carimba os quadros pelo
+    // relógio da máquina): uma jogada de 6s leva 6s para exportar. Por isso o
+    // canvas aparece numa janela na frente do usuário, com o progresso — trocar
+    // de aba no meio pausa o requestAnimationFrame e engasgaria o vídeo.
+
+    var VID_LARGURA = 1280;                                  // 720p-ish na proporção do campo
+    var VID_ALTURA = Math.round(VID_LARGURA / 1.62);
+    var VID_FPS = 30;
+
+    // Preferência do navegador, em ordem: MP4 abre em qualquer lugar (inclusive
+    // no celular e nos editores de vídeo), WebM é o fallback universal do Chrome.
+    var VID_TIPOS = [
+        { mime: 'video/mp4;codecs=avc1.42E01E', ext: 'mp4' },
+        { mime: 'video/mp4', ext: 'mp4' },
+        { mime: 'video/webm;codecs=vp9', ext: 'webm' },
+        { mime: 'video/webm;codecs=vp8', ext: 'webm' },
+        { mime: 'video/webm', ext: 'webm' }
+    ];
+
+    function tipoDeVideo() {
+        if (typeof MediaRecorder === 'undefined') return null;
+        for (var i = 0; i < VID_TIPOS.length; i++) {
+            if (MediaRecorder.isTypeSupported(VID_TIPOS[i].mime)) return VID_TIPOS[i];
+        }
+        return null;
+    }
+
+    // As fotos são <img> do MediaProxy (mesma origem), então o canvas não fica
+    // "tainted" e o vídeo sai com os rostos. Quem falhar simplesmente volta a ser
+    // o número — uma foto quebrada não pode derrubar a exportação inteira.
+    function carregarFotos(elenco) {
+        return Promise.all(elenco.map(function (j) {
+            return new Promise(function (ok) {
+                if (!j.foto) return ok(null);
+                var img = new Image();
+                img.onload = function () { ok({ id: j.id, img: img }); };
+                img.onerror = function () { ok(null); };
+                img.src = j.foto;
+            });
+        })).then(function (rs) {
+            var m = {};
+            rs.forEach(function (r) { if (r) m[r.id] = r.img; });
+            return m;
+        });
+    }
+
+    // ── Desenho do campo e das peças em canvas ──────────────────────────────
+    // Reproduz o gramado do CSS (.jgd-campo e filhos) nas mesmas proporções, para
+    // o vídeo não parecer outra prancheta.
+    function vidCampo(ctx, W, H) {
+        var g = ctx.createLinearGradient(0, 0, W, 0);
+        g.addColorStop(0, '#14532d'); g.addColorStop(0.5, '#166534'); g.addColorStop(1, '#14532d');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, W, H);
+
+        // Faixas do corte da grama: só existem no vídeo, onde o gramado é o fundo
+        // inteiro do quadro e uma cor chapada fica sem escala.
+        ctx.fillStyle = 'rgba(255,255,255,.022)';
+        for (var i = 0; i < 10; i += 2) ctx.fillRect((W / 10) * i, 0, W / 10, H);
+
+        ctx.strokeStyle = 'rgba(255,255,255,.22)';
+        ctx.lineWidth = Math.max(1.5, W / 640);
+
+        ctx.strokeRect(ctx.lineWidth, ctx.lineWidth, W - ctx.lineWidth * 2, H - ctx.lineWidth * 2);
+
+        ctx.beginPath();
+        ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(W / 2, H / 2, H * 0.15, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Grandes áreas (13% da largura, de 20% a 80% da altura) e as pequenas
+        ctx.strokeRect(0, H * 0.2, W * 0.13, H * 0.6);
+        ctx.strokeRect(W - W * 0.13, H * 0.2, W * 0.13, H * 0.6);
+        ctx.fillStyle = 'rgba(255,255,255,.05)';
+        ctx.fillRect(0, H * 0.38, W * 0.045, H * 0.24);
+        ctx.fillRect(W - W * 0.045, H * 0.38, W * 0.045, H * 0.24);
+        ctx.strokeRect(0, H * 0.38, W * 0.045, H * 0.24);
+        ctx.strokeRect(W - W * 0.045, H * 0.38, W * 0.045, H * 0.24);
+
+        ctx.fillStyle = 'rgba(255,255,255,.4)';
+        ctx.font = '700 ' + Math.round(H / 45) + 'px system-ui, Arial';
+        ctx.textAlign = 'right';
+        ctx.fillText('ATAQUE →', W - 14, H / 32);
+        ctx.textAlign = 'center';
+    }
+
+    function vidPeca(ctx, W, H, j, pos, opts) {
+        var x = (pos.x / 100) * W, y = (pos.y / 100) * H;
+        var r = opts.raio;
+        var cor = j.adv ? opts.corAdv : opts.corNos;
+        var foto = opts.fotos[j.id];
+
+        ctx.save();
+
+        // Sombra no chão, como a da peça na tela
+        ctx.fillStyle = 'rgba(0,0,0,.4)';
+        ctx.beginPath();
+        ctx.ellipse(x, y + r * 0.92, r * 0.72, r * 0.24, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.closePath();
+
+        if (foto) {
+            // Com foto o disco é a moldura: a imagem preenche o círculo e a cor do
+            // time fica na borda (mesma leitura do match-up e da prancheta).
+            ctx.save();
+            ctx.clip();
+            var lado = r * 2;
+            ctx.drawImage(foto, x - r, y - r, lado, lado);
+            ctx.restore();
+            ctx.lineWidth = r * 0.17;
+            ctx.strokeStyle = cor;
+            ctx.stroke();
+        } else {
+            ctx.fillStyle = cor;
+            ctx.fill();
+            ctx.lineWidth = r * 0.13;
+            ctx.strokeStyle = 'rgba(255,255,255,.5)';
+            ctx.stroke();
+        }
+
+        // Anel de posse
+        if (opts.comBola) {
+            ctx.lineWidth = r * 0.16;
+            ctx.strokeStyle = 'rgba(255,255,255,.95)';
+            ctx.beginPath();
+            ctx.arc(x, y, r * 1.16, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        if (foto) {
+            // Número no badge, no canto de cima
+            var bw = r * 0.95, bh = r * 0.62, bx = x - r * 1.05, by = y - r * 1.05;
+            ctx.fillStyle = 'rgba(0,0,0,.82)';
+            ctx.beginPath();
+            ctx.roundRect ? ctx.roundRect(bx, by, bw, bh, bh / 2) : ctx.rect(bx, by, bw, bh);
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.font = '800 ' + Math.round(bh * 0.78) + 'px system-ui, Arial';
+            ctx.fillText(j.num || '', bx + bw / 2, by + bh / 2 + 0.5);
+        } else {
+            ctx.fillStyle = '#0b0f16';
+            ctx.font = '800 ' + Math.round(r * 0.95) + 'px system-ui, Arial';
+            ctx.fillText(j.num || '', x, y + 0.5);
+        }
+
+        // Sigla acima, nome abaixo — com sombra, porque o gramado é claro em partes
+        ctx.shadowColor = 'rgba(0,0,0,.9)';
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetY = 1;
+        ctx.fillStyle = j.adv ? 'rgba(191,219,254,.85)' : 'rgba(255,255,255,.7)';
+        ctx.font = '700 ' + Math.round(r * 0.62) + 'px system-ui, Arial';
+        ctx.fillText((j.sigla || '').toUpperCase(), x, y - r * 1.55);
+        ctx.fillStyle = '#fff';
+        ctx.font = '600 ' + Math.round(r * 0.66) + 'px system-ui, Arial';
+        ctx.fillText(j.nome || '', x, y + r * 1.62);
+
+        ctx.restore();
+    }
+
+    function vidBola(ctx, W, H, bola) {
+        var x = (bola.x / 100) * W, y = (bola.y / 100) * H;
+        var r = Math.max(5, W / 145);
+        // Altura do lance: a mesma curva da tela (poseBola), em px do vídeo
+        var alto = bola.arco > 0
+            ? Math.sin(Math.PI * Math.max(0, Math.min(1, bola.prog))) * Math.min(bola.dist * 0.5, 18) * bola.arco
+            : 0;
+        var altoPx = (alto / 100) * H * 1.6;
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,0,0,' + (alto > 0.5 ? 0.22 : 0.42) + ')';
+        ctx.beginPath();
+        ctx.ellipse(x, y, r * 0.9, r * 0.42, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        var cy = y - altoPx;
+        var esc = 1 + altoPx / (H * 0.6);
+        var g = ctx.createRadialGradient(x - r * 0.35, cy - r * 0.4, r * 0.1, x, cy, r * esc);
+        g.addColorStop(0, '#fff'); g.addColorStop(0.55, '#e5e7eb'); g.addColorStop(1, '#9ca3af');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, cy, r * esc, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(0,0,0,.25)';
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function vidSetas(ctx, W, H, setas) {
+        ctx.save();
+        ctx.strokeStyle = '#facc15';
+        ctx.fillStyle = '#facc15';
+        ctx.lineWidth = Math.max(2, W / 420);
+        setas.forEach(function (s) {
+            var x1 = (s.x1 / 100) * W, y1 = (s.y1 / 100) * H;
+            var x2 = (s.x2 / 100) * W, y2 = (s.y2 / 100) * H;
+            var ang = Math.atan2(y2 - y1, x2 - x1);
+            var p = Math.max(9, W / 110);   // ponta
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2 - Math.cos(ang) * p * 0.8, y2 - Math.sin(ang) * p * 0.8);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - Math.cos(ang - 0.42) * p, y2 - Math.sin(ang - 0.42) * p);
+            ctx.lineTo(x2 - Math.cos(ang + 0.42) * p, y2 - Math.sin(ang + 0.42) * p);
+            ctx.closePath();
+            ctx.fill();
+        });
+        ctx.restore();
+    }
+
+    function vidLegenda(ctx, W, H, texto) {
+        if (!texto) return;
+        ctx.save();
+        ctx.font = '600 ' + Math.round(H / 26) + 'px system-ui, Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        var larg = Math.min(W * 0.9, ctx.measureText(texto).width + H / 14);
+        var alt = H / 15, x = (W - larg) / 2, y = H - alt - H / 40;
+        ctx.fillStyle = 'rgba(0,0,0,.72)';
+        ctx.beginPath();
+        ctx.roundRect ? ctx.roundRect(x, y, larg, alt, alt / 3) : ctx.rect(x, y, larg, alt);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,.14)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillStyle = '#facc15';
+        ctx.fillText(texto, W / 2, y + alt / 2 + 1);
+        ctx.restore();
+    }
+
+    // Marca d'água com o nome da jogada e os times: o vídeo sai do sistema e vai
+    // para um story ou uma reunião, onde ninguém tem o contexto da tela.
+    function vidTitulo(ctx, W, H, meta) {
+        if (!meta || !meta.titulo) return;
+        ctx.save();
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.shadowColor = 'rgba(0,0,0,.85)';
+        ctx.shadowBlur = 4;
+        ctx.fillStyle = 'rgba(255,255,255,.92)';
+        ctx.font = '800 ' + Math.round(H / 30) + 'px system-ui, Arial';
+        ctx.fillText(meta.titulo, 16, 12);
+        if (meta.sub) {
+            ctx.fillStyle = 'rgba(255,255,255,.62)';
+            ctx.font = '600 ' + Math.round(H / 44) + 'px system-ui, Arial';
+            ctx.fillText(meta.sub, 16, 12 + H / 26);
+        }
+        ctx.restore();
+    }
+
+    function vidQuadro(ctx, W, H, palco, est, opts) {
+        vidCampo(ctx, W, H);
+        vidSetas(ctx, W, H, (est.passo && est.passo.setas) || []);
+
+        var elenco = palco.storyboard().elenco;
+        // A bola fica sob as peças quando alguém a conduz e sobre elas em voo:
+        // desenhar sempre por cima faria a bola conduzida cobrir o rosto.
+        var noAr = est.bola.arco > 0 && est.bola.prog > 0 && est.bola.prog < 1;
+        if (!noAr) vidBola(ctx, W, H, est.bola);
+
+        elenco.forEach(function (j) {
+            var pos = est.pecas[j.id];
+            if (!pos) return;
+            vidPeca(ctx, W, H, j, pos, {
+                raio: opts.raio, corNos: opts.corNos, corAdv: opts.corAdv,
+                fotos: opts.fotos, comBola: est.dono === j.id
+            });
+        });
+
+        if (noAr) vidBola(ctx, W, H, est.bola);
+        vidLegenda(ctx, W, H, est.legenda);
+        vidTitulo(ctx, W, H, opts.meta);
+    }
+
+    // O MediaRecorder do Firefox só grava WebM, e WebM é recusado no upload do
+    // Instagram, do TikTok e do WhatsApp — justamente para onde este vídeo vai.
+    // Então o arquivo passa pelo ffmpeg do servidor e volta MP4, e o formato final
+    // deixa de depender de qual navegador o usuário abriu.
+    //
+    // Se o servidor não tiver ffmpeg (503), fica o WebM: um arquivo que toca no
+    // computador é melhor que exportação nenhuma.
+    async function paraMp4(r, aoAviso) {
+        if (r.ext === 'mp4') return r;
+        if (aoAviso) aoAviso('convertendo');
+
+        var fd = new FormData();
+        fd.append('arquivo', r.blob, 'jogada.webm');
+
+        var resp;
+        try {
+            resp = await fetch('/Jogadas/ConverterMp4', { method: 'POST', body: fd });
+        } catch (e) {
+            return Object.assign({}, r, { aviso: 'Sem resposta do servidor na conversão — o arquivo saiu em WebM.' });
+        }
+
+        if (!resp.ok) {
+            var motivo = resp.status === 503
+                ? 'Este servidor não tem ffmpeg instalado'
+                : 'A conversão falhou no servidor';
+            return Object.assign({}, r, { aviso: motivo + ' — o arquivo saiu em WebM.' });
+        }
+
+        var mp4 = await resp.blob();
+        return { blob: mp4, ext: 'mp4', canvas: r.canvas };
+    }
+
+    // Grava a jogada inteira e devolve { blob, ext }. `aoProgresso(0..1)` é
+    // chamado a cada quadro, e `aoQuadro` recebe o canvas para quem quiser
+    // mostrá-lo enquanto grava.
+    function gravarVideo(palco, meta, aoProgresso) {
+        var tipo = tipoDeVideo();
+        if (!tipo) return Promise.reject(new Error('Este navegador não grava vídeo (MediaRecorder indisponível).'));
+
+        var total = palco.duracaoTotal();
+        if (!total) return Promise.reject(new Error('A jogada tem um passo só: não há movimento para gravar.'));
+
+        var sb = palco.storyboard();
+        var canvas = document.createElement('canvas');
+        canvas.width = VID_LARGURA;
+        canvas.height = VID_ALTURA;
+        var ctx = canvas.getContext('2d');
+
+        return carregarFotos(sb.elenco).then(function (fotos) {
+            var opts = {
+                raio: VID_LARGURA / 62,
+                corNos: (sb.cores && sb.cores.nos) || COR_PADRAO.nos,
+                corAdv: (sb.cores && sb.cores.adv) || COR_PADRAO.adv,
+                fotos: fotos,
+                meta: meta
+            };
+
+            var stream = canvas.captureStream(VID_FPS);
+            var rec = new MediaRecorder(stream, { mimeType: tipo.mime, videoBitsPerSecond: 6000000 });
+            var pedacos = [];
+            rec.ondataavailable = function (e) { if (e.data && e.data.size) pedacos.push(e.data); };
+
+            return new Promise(function (resolve, reject) {
+                rec.onerror = function (e) { reject(e.error || new Error('Falha ao gravar.')); };
+                rec.onstop = function () {
+                    resolve({ blob: new Blob(pedacos, { type: tipo.mime }), ext: tipo.ext, canvas: canvas });
+                };
+
+                // Um respiro no fim: sem ele o vídeo corta no instante em que a
+                // bola chega, e quem assiste não vê o desfecho do lance.
+                var CAUDA = 700;
+                var ini = performance.now(), mem = null, parado = false;
+
+                // O relógio é o de parede, e não a contagem de quadros: se a
+                // máquina engasgar (ou a janela sair da frente, onde o navegador
+                // estrangula os timers), a jogada continua no tempo certo e o
+                // MediaRecorder repete o último quadro — o vídeo fica com um
+                // engasgo em vez de sair em câmera lenta.
+                //
+                // setTimeout, e não requestAnimationFrame: rAF PARA de disparar
+                // com a aba em segundo plano, o que deixaria a gravação pendurada
+                // para sempre em vez de apenas perder qualidade.
+                function passo() {
+                    if (parado) return;
+                    var t = performance.now() - ini;
+                    var est = palco.estadoEm(Math.min(t, total), mem);
+                    mem = est.bola.mem;
+
+                    vidQuadro(ctx, VID_LARGURA, VID_ALTURA, palco, est, opts);
+                    if (aoProgresso) aoProgresso(Math.min(1, t / (total + CAUDA)), canvas);
+
+                    if (t < total + CAUDA) setTimeout(passo, 1000 / VID_FPS);
+                    else { parado = true; rec.stop(); }
+                }
+
+                rec.start();
+                passo();
+            });
+        });
     }
 
     // ══ Modal do editor (/Jogos/Analisar) ═══════════════════════════════════
@@ -1233,6 +2028,14 @@
     // gramado, mais preciso fica o arrasto das peças. A preferência fica gravada
     // porque quem monta jogada costuma trabalhar sempre do mesmo jeito.
     var CHAVE_MAX = 'jgd-maximizado';
+
+    // Ver fotos é preferência de quem desenha (não faz parte da jogada), então
+    // fica no localStorage junto com a de maximizar.
+    var CHAVE_FOTOS = 'jgd-fotos';
+
+    function fotosSalvas() {
+        try { return localStorage.getItem(CHAVE_FOTOS) !== '0'; } catch (e) { return true; }
+    }
 
     function aplicarMaximizado(v) {
         var box = document.querySelector('#modal-jogadas .jgd-box');
@@ -1350,7 +2153,7 @@
         // dela, e montar 11 peças na mão a cada jogada nova seria insuportável.
         var sb = storyboardVazio();
         sb.elenco = t.escalacao.map(function (e) {
-            return { id: e.id, num: e.num, nome: e.nome, sigla: e.sigla };
+            return { id: e.id, num: e.num, nome: e.nome, sigla: e.sigla, foto: e.foto || '' };
         });
         sb.passos[0].pecas = t.escalacao.map(function (e) {
             return { id: e.id, x: e.x, y: e.y };
@@ -1394,6 +2197,7 @@
                 '<button type="button" class="jgd-btn" id="jgd-refazer" title="Refazer (Ctrl+Shift+Z)">↷</button>' +
                 '<div class="jgd-sep"></div>' +
                 '<button type="button" class="jgd-btn" id="jgd-seta" title="Ligue e clique em dois pontos do campo para traçar uma seta. Duplo clique numa seta remove.">➹ Setas</button>' +
+                '<button type="button" class="jgd-btn jgd-btn-bloco" id="jgd-bloco">⛓ Bloco</button>' +
                 '<div class="jgd-sep"></div>' +
                 '<button type="button" class="jgd-btn jgd-btn-play" id="jgd-play">▶ Reproduzir</button>' +
                 '<select class="jgd-vel" id="jgd-vel" title="Velocidade da animação">' +
@@ -1404,6 +2208,8 @@
                 '</select>' +
                 '<button type="button" class="jgd-btn ativo" id="jgd-loop" title="Repetir em loop">🔁</button>' +
                 '<div class="jgd-espaco"></div>' +
+                '<button type="button" class="jgd-btn jgd-btn-video" id="jgd-video"' +
+                    ' title="Grava a jogada animada num arquivo de vídeo para postar ou mostrar na reunião">🎥 Vídeo</button>' +
                 '<button type="button" class="jgd-btn jgd-btn-salvar" id="jgd-salvar">💾 Salvar</button>' +
                 (jogada.id ? '<button type="button" class="jgd-btn jgd-btn-perigo" id="jgd-excluir">🗑 Excluir</button>' : '') +
             '</div>' +
@@ -1421,6 +2227,17 @@
                     ' title="Desenha o trajeto que cada peça e a bola vão percorrer">⤳ Caminhos</button>' +
                 '<button type="button" class="jgd-btn jgd-btn-ciano" id="jgd-snap"' +
                     ' title="Arredonda o arrasto para uma grade de 2,5%">⌗ Snap</button>' +
+                '<div class="jgd-sep"></div>' +
+                // Cor da camisa de cada lado e fotos dos jogadores: a prancheta
+                // passa a ler como a escalação do match-up, onde o rosto e a cor
+                // do time identificam mais rápido que o número sozinho.
+                '<span class="jgd-motor-rotulo">Cores</span>' +
+                '<input type="color" class="jgd-cor-time" id="jgd-cor-nos"' +
+                    ' title="Cor da camisa do ' + esc(t.nome) + '">' +
+                '<input type="color" class="jgd-cor-time" id="jgd-cor-adv"' +
+                    ' title="Cor da camisa do ' + esc(adversario().nome) + ' (marcação)">' +
+                '<button type="button" class="jgd-btn jgd-btn-ciano" id="jgd-fotos"' +
+                    ' title="Mostra a foto do jogador no lugar do número">🖼 Fotos</button>' +
             '</div>' +
             '<div class="jgd-palco">' +
                 '<div class="jgd-elenco">' +
@@ -1430,8 +2247,7 @@
                     '</div>' +
                     '<input type="text" class="jgd-elenco-busca" id="jgd-busca" placeholder="🔍 Buscar jogador...">' +
                     '<div class="jgd-elenco-lista" id="jgd-elenco-lista"></div>' +
-                    '<button type="button" class="jgd-elenco-todos" id="jgd-add-escalacao"' +
-                        ' title="Põe em campo os titulares deste time de uma vez">＋ escalação inteira</button>' +
+                    '<button type="button" class="jgd-elenco-todos" id="jgd-add-escalacao"></button>' +
                 '</div>' +
                 '<div class="jgd-campo-wrap" id="jgd-campo-host"></div>' +
             '</div>' +
@@ -1477,13 +2293,20 @@
                 'Arraste os jogadores do elenco para o campo (ou clique neles) · arraste as peças e a bola para montar cada passo · ' +
                 'clique numa peça para selecioná-la e ajustar ritmo e atraso · as setas do teclado empurram a peça selecionada ' +
                 '(0,5% — 2% com Shift) · <b>Ctrl+Z</b> desfaz · passe o mouse numa peça e clique no × para tirá-la da jogada.<br>' +
-                'A aba <b>' + esc(adversario().nome) + '</b> traz a marcação (peças azuis) — útil para mostrar o defensor sendo arrastado para abrir espaço.' +
+                '<b>🎥 Vídeo</b> grava a jogada animada num arquivo (MP4, com as fotos e as cores da prancheta) ' +
+                'para postar ou levar para a reunião — a gravação corre no tempo da jogada, então deixe a janela na frente.<br>' +
+                '<b>Blocos:</b> cerque um setor com o mouse no gramado (ou Ctrl+clique nas peças) e use <b>⛓ Bloco</b> ' +
+                '(<b>Ctrl+G</b>) — a linha de quatro, o triângulo do meio ou o que você marcar passa a andar junto, ' +
+                'mantendo a forma, no arrasto e nas setas do teclado. <b>Ctrl+Shift+G</b> desfaz.<br>' +
+                'A aba <b>' + esc(adversario().nome) + '</b> traz a marcação (peças azuis): o botão <b>＋ escalação do ' +
+                esc(adversario().nome) + '</b> põe os 11 de uma vez, na formação deste jogo e virados contra.' +
             '</div>';
 
         M.elencoAlvo = 'nos';
 
         M.palco = criarPalco(el('jgd-campo-host'), {
             editavel: true,
+            fotos: fotosSalvas(),
             aoMudar: function () { marcarSujo(true); renderizarTimeline(); atualizarBarra(); },
             aoMudarElenco: renderizarElenco,
             aoTrocarPasso: function () { renderizarTimeline(); atualizarBarra(); },
@@ -1546,17 +2369,17 @@
 
         el('jgd-sel-controles').querySelectorAll('[data-modo]').forEach(function (b) {
             b.addEventListener('click', function () {
-                M.palco.definirModo(M.palco.selecionada(), b.dataset.modo);
+                M.palco.definirModo(alvosDoPainel(), b.dataset.modo);
             });
         });
 
         // input pinta o valor enquanto arrasta; change registra um único snapshot
         // no fim, para o desfazer não voltar de 5 em 5%.
         el('jgd-atraso').addEventListener('input', function () {
-            M.palco.definirAtraso(M.palco.selecionada(), parseInt(this.value, 10) / 100, false);
+            M.palco.definirAtraso(alvosDoPainel(), parseInt(this.value, 10) / 100, false);
         });
         el('jgd-atraso').addEventListener('change', function () {
-            M.palco.definirAtraso(M.palco.selecionada(), parseInt(this.value, 10) / 100, true);
+            M.palco.definirAtraso(alvosDoPainel(), parseInt(this.value, 10) / 100, true);
         });
 
         el('jgd-scrub').addEventListener('input', function () {
@@ -1564,6 +2387,33 @@
             M.palco.irParaTempo((parseInt(this.value, 10) / 1000) * total);
             el('jgd-play').textContent = '▶ Reproduzir';
             el('jgd-relogio').textContent = (M.palco.tempo() / 1000).toFixed(1).replace('.', ',') + 's';
+        });
+
+        // Um botão só: com um bloco na seleção ele desfaz o bloco, senão junta o
+        // que estiver selecionado. Quem decide é o estado da seleção, e o rótulo
+        // (atualizarBotaoBloco) diz o que vai acontecer antes do clique.
+        // input pinta enquanto o usuário arrasta o seletor; change registra o
+        // desfazer e marca a jogada como alterada, uma vez só.
+        ['nos', 'adv'].forEach(function (lado) {
+            var inp = el('jgd-cor-' + lado);
+            inp.value = M.palco.cores()[lado];
+            inp.addEventListener('input', function () { M.palco.definirCor(lado, this.value, false); });
+            inp.addEventListener('change', function () { M.palco.definirCor(lado, this.value, true); });
+        });
+
+        el('jgd-video').addEventListener('click', function () { exportarVideo(jogada); });
+
+        el('jgd-fotos').addEventListener('click', function () {
+            var v = M.palco.alternarFotos();
+            this.classList.toggle('ativo', v);
+            try { localStorage.setItem(CHAVE_FOTOS, v ? '1' : '0'); } catch (e) { /* modo privado */ }
+        });
+        el('jgd-fotos').classList.toggle('ativo', M.palco.fotos());
+
+        el('jgd-bloco').addEventListener('click', function () {
+            if (blocoNaSelecao()) M.palco.desagrupar();
+            else M.palco.agrupar();
+            atualizarPainelPeca(M.palco.selecionada());
         });
 
         el('jgd-seta').addEventListener('click', function () {
@@ -1651,7 +2501,22 @@
         M.palco.elenco().forEach(function (j) { emCampo[j.id] = true; });
 
         el('jgd-elenco-lista').classList.toggle('jgd-lista-adv', alvo.adv);
-        el('jgd-add-escalacao').disabled = !alvo.time.escalacao.length;
+
+        // O botão vale para as DUAS abas: na do adversário ele entra com os 11 da
+        // marcação, na formação do jogo e girados 180° (posicaoDaEscalacao). O
+        // rótulo diz o nome do time porque, genérico, ninguém descobria que dava
+        // para escalar o visitante inteiro em vez de arrastar jogador por jogador.
+        var btnEsc = el('jgd-add-escalacao');
+        var qtd = alvo.time.escalacao.length;
+        btnEsc.disabled = !qtd;
+        btnEsc.textContent = qtd
+            ? '＋ escalação do ' + alvo.time.nome + ' (' + qtd + ')'
+            : '＋ escalação do ' + alvo.time.nome;
+        btnEsc.title = qtd
+            ? 'Põe em campo os ' + qtd + ' titulares do ' + alvo.time.nome +
+              ' de uma vez, na formação deste jogo' +
+              (alvo.adv ? ' — virados contra, como marcação.' : '.')
+            : 'Este jogo ainda não tem escalação titular do ' + alvo.time.nome + '.';
 
         var lista = alvo.time.elenco.filter(function (j) {
             if (!busca) return true;
@@ -1714,6 +2579,7 @@
         el('jgd-del-passo').disabled = n <= 1;
         el('jgd-desfazer').disabled = !M.palco.podeDesfazer();
         el('jgd-refazer').disabled = !M.palco.podeRefazer();
+        atualizarBotaoBloco();
 
         // Escrever no input a cada mudança mandaria o cursor para o fim enquanto
         // o usuário digita a legenda.
@@ -1737,14 +2603,47 @@
         atualizarScrub(M.palco.tempo(), M.palco.duracaoTotal());
     }
 
+    // Peças que os controles de ritmo e atraso atingem: a seleção inteira, para
+    // acertar o setor de uma vez em vez de peça por peça.
+    function alvosDoPainel() {
+        var s = M.palco.selecao();
+        return s.length ? s : M.palco.selecionada();
+    }
+
+    function blocoNaSelecao() {
+        var s = M.palco.selecao();
+        var id = s.length ? s : (M.palco.selecionada() == null ? [] : [M.palco.selecionada()]);
+        return id.some(function (i) { return !!M.palco.grupoDe(i); });
+    }
+
+    // Rótulo do botão da barra: diz o que o clique vai fazer com a seleção atual.
+    function atualizarBotaoBloco() {
+        var b = el('jgd-bloco');
+        if (!b || !M.palco) return;
+        var n = M.palco.selecao().length;
+        var temBloco = blocoNaSelecao();
+
+        b.classList.toggle('ativo', temBloco);
+        b.disabled = !temBloco && n < 2;
+        b.textContent = temBloco ? '⛓ Desagrupar' : (n >= 2 ? '⛓ Agrupar (' + n + ')' : '⛓ Bloco');
+        b.title = temBloco
+            ? 'Desfaz o bloco das peças selecionadas (Ctrl+Shift+G)'
+            : 'Selecione duas ou mais peças (Ctrl+clique, ou cerque com o mouse no gramado) '
+              + 'e clique para que elas passem a se mover juntas, mantendo a forma (Ctrl+G)';
+    }
+
     function atualizarPainelPeca(id) {
         if (!M.palco || !el('jgd-sel-nome')) return;
         var c = M.palco.pecaSelecionada();
         var j = id == null ? null : M.palco.elenco().find(function (e) { return e.id === id; });
+        var n = M.palco.selecao().length;
 
-        el('jgd-sel-nome').textContent = j
-            ? (j.num ? j.num + ' · ' : '') + j.nome
-            : 'nenhuma — clique numa peça no campo';
+        atualizarBotaoBloco();
+
+        el('jgd-sel-nome').textContent = n > 1
+            ? n + ' peças selecionadas' + (blocoNaSelecao() ? ' · bloco' : '') +
+              (j ? ' (' + j.nome + ' é a de referência)' : '')
+            : (j ? (j.num ? j.num + ' · ' : '') + j.nome : 'nenhuma — clique numa peça no campo');
 
         var modo = c ? (c.modo || 'trote') : null;
         el('jgd-sel-controles').querySelectorAll('[data-modo]').forEach(function (b) {
@@ -1757,6 +2656,82 @@
         var v = c ? Math.round((c.atraso || 0) * 100) : 0;
         if (parseInt(slider.value, 10) !== v) slider.value = String(v);
         el('jgd-atraso-val').textContent = c ? v + '%' : '—';
+    }
+
+    // Exporta a jogada aberta. A gravação é em tempo real e depende do
+    // requestAnimationFrame, então a janela fica na frente mostrando o canvas que
+    // está sendo gravado: é o aviso de "não troque de aba agora" que funciona.
+    async function exportarVideo(jogada) {
+        if (!M.palco) return;
+        if (M.palco.passos().length < 2) {
+            alert('A jogada precisa de pelo menos dois passos para virar vídeo — é o movimento entre eles que a animação mostra.');
+            return;
+        }
+
+        M.palco.parar();
+
+        var nome = (el('jgd-nome').value || '').trim() || 'jogada';
+        var t = ladoAtual();
+        var meta = { titulo: nome, sub: t.nome + ' × ' + adversario().nome };
+
+        var painel = document.createElement('div');
+        painel.className = 'jgd-video-overlay';
+        painel.innerHTML =
+            '<div class="jgd-video-caixa">' +
+                '<div class="jgd-video-tit">🎥 Gravando o vídeo…</div>' +
+                '<div class="jgd-video-tela" id="jgd-video-tela"></div>' +
+                '<div class="jgd-video-barra"><i id="jgd-video-prog"></i></div>' +
+                '<div class="jgd-video-nota" id="jgd-video-nota">' +
+                    'A gravação acontece em tempo real, no ritmo da jogada — deixe esta aba visível até o fim.' +
+                '</div>' +
+                '<button type="button" class="jgd-btn" id="jgd-video-fechar">Fechar</button>' +
+            '</div>';
+        document.body.appendChild(painel);
+
+        var fechar = function () { painel.remove(); };
+        painel.querySelector('#jgd-video-fechar').addEventListener('click', fechar);
+
+        var tela = painel.querySelector('#jgd-video-tela');
+        var prog = painel.querySelector('#jgd-video-prog');
+        var nota = painel.querySelector('#jgd-video-nota');
+        var montado = false;
+
+        try {
+            var r = await gravarVideo(M.palco, meta, function (p, canvas) {
+                if (!montado) { tela.appendChild(canvas); montado = true; }
+                prog.style.width = Math.round(p * 100) + '%';
+            });
+
+            r = await paraMp4(r, function () {
+                painel.querySelector('.jgd-video-tit').textContent = '🎞️ Convertendo para MP4…';
+                nota.textContent = 'Este navegador grava em WebM; o servidor está convertendo o arquivo para MP4.';
+            });
+
+            var arquivo = nome.replace(/[^\p{L}\p{N} _-]/gu, '').trim().replace(/\s+/g, '-').toLowerCase()
+                || 'jogada';
+            var url = URL.createObjectURL(r.blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = arquivo + '.' + r.ext;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            // O objectURL segura o blob inteiro na memória: solta depois que o
+            // download já começou.
+            setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+
+            painel.querySelector('.jgd-video-tit').textContent = '✅ Vídeo pronto';
+            var tam = r.blob.size >= 1048576
+                ? (r.blob.size / 1048576).toFixed(1) + ' MB'
+                : Math.max(1, Math.round(r.blob.size / 1024)) + ' KB';
+            nota.innerHTML = 'Baixado como <b>' + esc(arquivo + '.' + r.ext) + '</b> · ' + tam + ' · ' +
+                (M.palco.duracaoTotal() / 1000).toFixed(1).replace('.', ',') + 's. ' +
+                (r.aviso ? '<br><b>' + esc(r.aviso) + '</b> ' : '') +
+                'Se o download não começou, verifique o bloqueio de downloads do navegador.';
+        } catch (e) {
+            painel.querySelector('.jgd-video-tit').textContent = '❌ Não deu para gravar';
+            nota.textContent = (e && e.message) || 'Falha ao gravar o vídeo.';
+        }
     }
 
     function atualizarScrub(t, total) {
