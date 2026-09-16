@@ -2243,7 +2243,10 @@ namespace ControleFutebolWeb.Services
                 // (o feed de eventos manda o nome completo/formal, ex.: "L. F. de Morais
                 // Francisco" em vez de "Luiz Felipe"). Se o jogador foi cadastrado antes a
                 // partir de um nome assim, corrige assim que a lineup trouxer o apelido.
-                if (origemLineupConfiavel && !string.IsNullOrWhiteSpace(nome) && jogador.Nome != nome)
+                // Exceto quando o cadastro já foi sincronizado com o FotMob: aí o nome
+                // de lá ("Iago Machado") vale mais que o abreviado da lineup ("I. Machado").
+                if (origemLineupConfiavel && jogador.SincronizadoFotMobEm == null &&
+                    !string.IsNullOrWhiteSpace(nome) && jogador.Nome != nome)
                 {
                     jogador.Nome = nome;
                     alterado = true;
@@ -2341,7 +2344,17 @@ namespace ControleFutebolWeb.Services
             try
             {
                 var info = await BuscarInfoJogadorAsync(idApi, ct);
-                if (info != null)
+                // Cadastro sincronizado com o FotMob: foto, nascimento, nacionalidade e
+                // altura de lá não são sobrescritos pela api-football.
+                if (info != null && jogador.SincronizadoFotMobEm != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(info.PrimeiroNome) && string.IsNullOrWhiteSpace(jogador.PrimeiroNome))
+                        jogador.PrimeiroNome = info.PrimeiroNome;
+                    if (!string.IsNullOrWhiteSpace(info.UltimoNome) && string.IsNullOrWhiteSpace(jogador.UltimoNome))
+                        jogador.UltimoNome = info.UltimoNome;
+                    if (info.Peso.HasValue && jogador.Peso == null) jogador.Peso = info.Peso;
+                }
+                else if (info != null)
                 {
                     if (!string.IsNullOrEmpty(info.FotoUrl))
                         jogador.FotoUrl = info.FotoUrl;

@@ -44,10 +44,9 @@ namespace ControleFutebolWeb.Services
     ///   calendar/matches → tabela, placar, estádio, árbitro, grupo e fase;
     ///   live/football/…  → escalação com camisa e posição, técnicos, posse de bola;
     ///   timelines/…      → gols (com assistência), cartões e substituições.
-    /// Estatística POR JOGADOR (passes, desarmes, finalizações individuais) não é
-    /// publicada em endpoint nenhum da v3 — os paths de statistics respondem "null".
-    /// Por isso não existe um FifaEstatisticasService: importar nota/estatística
-    /// continua sendo trabalho do analista nesta competição.
+    /// Estatística POR JOGADORA não está na v3 (os paths de statistics respondem
+    /// "null"): ela sai de fdh-api.fifa.com, publicada depois do jogo — ver
+    /// FifaEstatisticasService.
     /// </summary>
     public class FifaService
     {
@@ -856,6 +855,12 @@ namespace ControleFutebolWeb.Services
                     { existente.Posicao = Posicao(j); mexeu = true; }
                     if (existente.NacionalidadeId == null && nacionalidade != null)
                     { existente.NacionalidadeId = nacionalidade.Id; mexeu = true; }
+                    // A foto costuma chegar depois da lista: no começo do Mundial Sub-20
+                    // a FIFA inscreveu as jogadoras sem imagem e só publicou as fotos
+                    // oficiais mais tarde. Rodar a importação de novo completa quem ficou
+                    // sem — e só quem ficou sem, pela mesma regra dos outros campos.
+                    if (string.IsNullOrWhiteSpace(existente.FotoUrl) && Foto(j, "PlayerPicture") is { } foto)
+                    { existente.FotoUrl = foto; mexeu = true; }
 
                     if (mexeu)
                     {
@@ -873,6 +878,7 @@ namespace ControleFutebolWeb.Services
                     NumeroCamisa       = camisa,
                     DataNascimento     = Nascimento(j),
                     Altura             = Altura(j),
+                    FotoUrl            = Foto(j, "PlayerPicture"),
                     NacionalidadeId    = nacionalidade?.Id,
                     TimeId             = time.Id,
                     // Mesma regra da importação da api-football: numa seleção o vínculo
@@ -934,6 +940,8 @@ namespace ControleFutebolWeb.Services
 
             var nome = FifaEscalacaoService.NormalizarNome(nomeBruto);
             var nascimento = NascimentoTreinador(oficial);
+            // Na comissão técnica a foto vem direto em PictureUrl, sem o nó PlayerPicture.
+            var foto = Foto(oficial, null);
 
             var atual = await context.Treinadores.FirstOrDefaultAsync(t => t.TimeId == time.Id, ct);
 
@@ -945,6 +953,7 @@ namespace ControleFutebolWeb.Services
                     Nome            = nome,
                     DataNascimento  = nascimento,
                     NacionalidadeId = nacionalidade?.Id,
+                    FotoUrl         = foto,
                     DtInc           = DateTime.UtcNow,
                 });
 
@@ -960,6 +969,7 @@ namespace ControleFutebolWeb.Services
                 // Dados do técnico anterior não valem para o novo.
                 atual.DataNascimento = nascimento;
                 atual.NacionalidadeId = nacionalidade?.Id;
+                atual.FotoUrl = foto;
             }
             else
             {
@@ -967,6 +977,8 @@ namespace ControleFutebolWeb.Services
                 { atual.DataNascimento = nascimento; mexeu = true; }
                 if (atual.NacionalidadeId == null && nacionalidade != null)
                 { atual.NacionalidadeId = nacionalidade.Id; mexeu = true; }
+                if (string.IsNullOrWhiteSpace(atual.FotoUrl) && foto != null)
+                { atual.FotoUrl = foto; mexeu = true; }
             }
 
             if (!mexeu) return null;
@@ -999,6 +1011,31 @@ namespace ControleFutebolWeb.Services
             Data(o, "BirthDate") is { } d
                 ? DateTime.SpecifyKind(d.Date.AddHours(12), DateTimeKind.Utc)
                 : null;
+
+        /// <summary>
+        /// Foto oficial, no digitalhub da FIFA. Jogadora traz o endereço dentro de
+        /// "PlayerPicture"; o oficial da comissão, direto em "PictureUrl" (no = null).
+        ///
+        /// O original é um PNG de 3500×2334 com quase 1 MB — pesado demais para avatar
+        /// que aparece às dezenas no campinho. O próprio digitalhub redimensiona pela
+        /// query: quadrado de 400px, ~40 KB, com a pessoa centralizada.
+        /// </summary>
+        private static string? Foto(JsonElement j, string? no)
+        {
+            var origem = j;
+            if (no != null &&
+                (!j.TryGetProperty(no, out origem) || origem.ValueKind != JsonValueKind.Object))
+                return null;
+
+            var url = Texto(origem, "PictureUrl");
+            if (string.IsNullOrWhiteSpace(url) ||
+                !Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
+                return null;
+
+            return string.IsNullOrEmpty(uri.Query)
+                ? $"{url}?io=transform:fill,aspectratio:1x1,width:400&quality=80"
+                : url;
+        }
 
         /// <summary>A FIFA manda a altura em centímetros com casa decimal (178.0).</summary>
         private static int? Altura(JsonElement j) =>
@@ -1071,6 +1108,20 @@ namespace ControleFutebolWeb.Services
                 $"{referencia.Stage}/{referencia.Match}?language={Lingua}",
                 TimeSpan.FromMinutes(2), ct);
 
+        /// <summary>
+        /// Estatística por jogadora da partida, no formato
+        /// { "IdPlayer": [["Passes", 29, true], ...] }. Null enquanto a partida não
+        /// aconteceu (a FIFA responde 404) ou quando não publicou.
+        ///
+        /// Mora em outro host (fdh-api.fifa.com) e com outro id de partida: o IdIFES,
+        /// que o documento da partida traz em Properties. Passa pela mesma porta e
+        /// cache das demais chamadas — é a mesma FIFA do outro lado.
+        /// </summary>
+        internal async Task<JsonDocument?> AbrirEstatisticasJogadorasAsync(string idIfes, CancellationToken ct) =>
+            await BuscarJsonAsync(
+                $"https://fdh-api.fifa.com/v1/stats/match/{Uri.EscapeDataString(idIfes)}/players.json",
+                TimeSpan.FromMinutes(10), ct);
+
         // ── HTTP ─────────────────────────────────────────────────────────────
 
         private async Task<JsonDocument?> BuscarJsonAsync(string rota, TimeSpan ttl, CancellationToken ct)
@@ -1098,6 +1149,13 @@ namespace ControleFutebolWeb.Services
                 });
 
                 return Parse(json, rota);
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                // O fdh responde 404 para a estatística de partida que ainda não
+                // aconteceu — ausência esperada, não falha que mereça aviso no log.
+                _logger.LogDebug("[Fifa] {Rota} ainda não publicado (404).", rota);
+                return null;
             }
             catch (Exception ex)
             {

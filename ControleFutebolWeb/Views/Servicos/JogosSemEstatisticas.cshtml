@@ -94,7 +94,7 @@
                     @foreach (var c in Model.Competicoes)
                     {
                         <option value="@c.Id" selected="@(Model.CompeticaoId == c.Id)">
-                            @c.Nome (@c.Quantidade)@(c.TemEspn ? "" : c.TemFotMob ? " — só FotMob" : " — sem fonte")
+                            @c.Nome (@c.Quantidade)@(c.TemFifa ? " — FIFA" : c.TemEspn ? "" : c.TemFotMob ? " — só FotMob" : " — sem fonte")
                         </option>
                     }
                 </select>
@@ -145,6 +145,22 @@
                 Cobre passes, desarmes, duelos e dribles por jogador, que a ESPN não publica.
             </span>
         </form>
+
+        @* Competições que só a FIFA publica. O contador é próprio porque inclui jogo
+           que já tem marcação por vídeo — a importação preserva quem foi marcada e
+           preenche o resto. Ver FifaEstatisticasService. *@
+        <form method="post" asp-action="ImportarEstatisticasFifaLote" style="margin-top:.6rem;"
+              onsubmit="return confirm('Buscar na FIFA as estatísticas de até @Model.LimiteLoteFifa jogos já disputados do filtro atual?');">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="competicaoId" value="@Model.CompeticaoId" />
+            <input type="hidden" name="temporada" value="@Model.Temporada" />
+            <button type="submit" class="btn-srv btn-reiniciar" @(Model.PendentesFifa == 0 ? "disabled" : "")>
+                🏆 Importar da FIFA (@Model.PendentesFifa pendente(s), até @Model.LimiteLoteFifa por vez)
+            </button>
+            <span style="font-size:.78rem; color:var(--text-dim); margin-left:10px;">
+                Jogos da FIFA já disputados sem estatística da FIFA. Não cobre desarmes, duelos nem passes-chave.
+            </span>
+        </form>
     </div>
 
     <div class="jse-card">
@@ -185,7 +201,11 @@
                                 {
                                     <span class="tag tag-fotmob">fotmob</span>
                                 }
-                                @if (j.SlugEspn == null && !j.TemFotMob)
+                                @if (j.EhFifa)
+                                {
+                                    <span class="tag tag-fotmob">fifa</span>
+                                }
+                                @if (j.SlugEspn == null && !j.TemFotMob && !j.EhFifa)
                                 {
                                     <span class="tag tag-nao">sem cobertura</span>
                                 }
@@ -210,6 +230,18 @@
                                         📊 FotMob
                                     </button>
                                 </form>
+                                @if (j.EhFifa)
+                                {
+                                    <form method="post" asp-action="ImportarEstatisticasFifa" style="display:inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="jogoId" value="@j.Id" />
+                                        <input type="hidden" name="competicaoId" value="@Model.CompeticaoId" />
+                                        <input type="hidden" name="temporada" value="@Model.Temporada" />
+                                        <button type="submit" class="btn-srv btn-reiniciar" style="margin-left:6px;">
+                                            🏆 FIFA
+                                        </button>
+                                    </form>
+                                }
                                 @if (j.SlugEspn != null)
                                 {
                                     <a asp-action="ConferirEscalacao" asp-route-jogoId="@j.Id"

@@ -95,5 +95,11 @@ namespace ControleFutebolWeb.Models
         public bool Aposentado { get; set; } = false;
         public DateTime? AposentadoEm { get; set; }
 
+        // Quando o cadastro foi sincronizado com o perfil do FotMob (botão da tela de
+        // estatísticas avançadas, ou nome trocado ao completar a altura). Preenchido,
+        // a importação de jogos não sobrescreve mais nome, foto, altura, nascimento e
+        // nacionalidade — o FotMob passa a ser a fonte desses dados.
+        public DateTime? SincronizadoFotMobEm { get; set; }
+
     }
 }

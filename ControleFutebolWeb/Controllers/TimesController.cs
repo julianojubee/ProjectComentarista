@@ -297,23 +297,15 @@ namespace ControleFutebolWeb.Controllers
                 .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue && j.Data < agora)
                 .ToList();
 
-            // Só os jogos da temporada mais recente entram na lista de partidas: no início
-            // da temporada os "5 últimos jogos" puxavam o fim da temporada anterior e
-            // empurravam o próximo jogo do time para o fim da lista.
-            var temporadaAtual = realizados.Count > 0
-                ? realizados.Max(j => j.Temporada)
-                : (int?)null;
-
+            // Lista de partidas é o calendário completo do time: os realizados do mais
+            // antigo ao mais recente e, em seguida, os agendados por data.
             var jogosPassados = realizados
-                .Where(j => temporadaAtual == null || j.Temporada == temporadaAtual)
-                .OrderByDescending(j => j.Data)
-                .Take(5)
+                .OrderBy(j => j.Data)
                 .ToList();
 
             var jogosFuturos = jogos
                 .Where(j => j.Data >= agora)
                 .OrderBy(j => j.Data)
-                .Take(5)
                 .ToList();
 
             var formacoes = await _context.Formacoes.ToListAsync();

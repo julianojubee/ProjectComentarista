@@ -21,7 +21,8 @@ namespace ControleFutebolWeb.Controllers
         private static readonly HashSet<string> _allowedHosts = new(
             _apiSportsHosts.Append("flagcdn.com")   // bandeiras de países (FlagHelper.GetFlagImageUrl)
                            .Append(_hostEscudos)    // escudos das telas de estatística avançada
-                           .Append(_hostFifa),      // bandeiras e artes das competições da FIFA
+                           .Append(_hostFifa)       // bandeiras e artes das competições da FIFA
+                           .Append(_hostFotosFifa), // fotos oficiais de jogadoras e técnicos da FIFA
             StringComparer.OrdinalIgnoreCase);
 
         // Host dos escudos usados pela tela de estatísticas avançadas do jogador.
@@ -35,6 +36,10 @@ namespace ControleFutebolWeb.Controllers
         // competição — ver FifaService. Sem este host na allowlist a resposta é 403 e
         // a tela mostra o alt do <img> no lugar de todos os escudos.
         private const string _hostFifa = "api.fifa.com";
+
+        // Fotos do elenco importado da FIFA (FifaService.ImportarElencoAsync): a API
+        // manda o endereço no digitalhub, não no próprio api.fifa.com.
+        private const string _hostFotosFifa = "digitalhub.fifa.com";
 
         private static readonly HashSet<string> _tiposPermitidos = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -98,6 +103,18 @@ namespace ControleFutebolWeb.Controllers
                 : Imagem($"https://{_hostEscudos}/image_resources/logo/teamlogo/{id}.png", ct);
 
         /// <summary>
+        /// GET /MediaProxy/Liga/87 — símbolo de uma competição pelo id. Mesma razão do
+        /// escudo: a página só cita o número.
+        /// </summary>
+        [HttpGet]
+        [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+        [ResponseCache(Duration = 86400, Location = ResponseCacheLocation.Any)]
+        public Task<IActionResult> Liga(long id, CancellationToken ct) =>
+            id <= 0
+                ? Task.FromResult(SemCache(BadRequest()))
+                : Imagem($"https://{_hostEscudos}/image_resources/logo/leaguelogo/{id}.png", ct);
+
+        /// <summary>
         /// GET /MediaProxy/FotoJogador/1815149 — retrato do jogador pelo id do FotMob.
         ///
         /// Mesma razao do escudo acima: e este caminho, e nao a URL da fonte, que fica
@@ -125,6 +142,14 @@ namespace ControleFutebolWeb.Controllers
         {
             if (string.IsNullOrWhiteSpace(url))
                 return SemCache(BadRequest());
+
+            // Caminho local (ex.: /MediaProxy/FotoJogador/123, gravado pela sincronização
+            // com o FotMob): não há o que buscar fora — só redireciona para ele. Muitas
+            // telas passam toda FotoUrl por aqui sem distinguir. "//" e "/\" ficam de
+            // fora porque o navegador os trata como outro host (open redirect).
+            if (url.StartsWith('/') && !url.StartsWith("//") && !url.StartsWith("/\\") &&
+                Url.IsLocalUrl(url))
+                return SemCache(Redirect(url));
 
             if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
                 !_allowedHosts.Contains(uri.Host))

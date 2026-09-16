@@ -34,6 +34,13 @@
         /// </summary>
         public const string Video = "video";
 
+        /// <summary>
+        /// Estatística oficial da FIFA por jogadora (fdh-api.fifa.com, a mesma do match
+        /// centre do fifa.com) — ver FifaEstatisticasService. Só existe para as
+        /// competições que a própria FIFA importa.
+        /// </summary>
+        public const string Fifa = "fifa";
+
         // Allowlist, não blocklist: métrica nova nasce "não coberta pela ESPN" até
         // alguém conferir que a ESPN publica aquilo. Errar para o lado de descartar
         // dado só tira base da nota; errar para o outro lado inventa desempenho.
@@ -109,6 +116,32 @@
                 "evento_penalti_perdido", "evento_penalti_cometido",
             };
 
+        // A FIFA cobre tudo que a ESPN cobre MAIS passes (tentados e certos), dribles
+        // certos e pênalti perdido. Conferido contra players.json do BRA×TAN do
+        // Sub-20 Feminino 2026, que traz 112 métricas por jogadora.
+        //
+        // O bloco defensivo fica de fora porque não existe lá: nada de desarme,
+        // interceptação, bloqueio ou duelo — o mais próximo são "pressões defensivas"
+        // e "perdas forçadas", que medem outra coisa. Passe-chave também não vem, e
+        // drible só vem o COMPLETADO (TakeOnsCompleted): sem os tentados, "dribles" e
+        // "dribles_precisao" leriam 0 de volume e aproveitamento que não existem.
+        //
+        // Pênalti: Penalties − PenaltiesScored é a cobrança desperdiçada, seja para fora
+        // ou defendida — do lado de quem bate, as duas são pênalti perdido. O que não dá
+        // para saber é o lado da goleira (defendido) nem quem sofreu ou cometeu.
+        private static readonly HashSet<string> CobertosPelaFifa =
+            new(CobertosPelaEspn, StringComparer.Ordinal)
+            {
+                // AcaoId dos critérios de nota
+                "drible_certo", "penalti_perdido",
+
+                // Id das métricas contínuas do rating
+                "passes", "passes_precisao",
+
+                // Id dos eventos raros do rating
+                "evento_penalti_perdido",
+            };
+
         /// <summary>
         /// A fonte informa esse campo? Fonte desconhecida ou vazia é tratada como
         /// api-football: é o que as linhas gravadas antes desta coluna existir são.
@@ -118,6 +151,7 @@
             Espn => CobertosPelaEspn.Contains(id),
             FotMob => CobertosPeloFotMob.Contains(id),
             Video => CobertosPeloVideo.Contains(id),
+            Fifa => CobertosPelaFifa.Contains(id),
             _ => true,
         };
     }

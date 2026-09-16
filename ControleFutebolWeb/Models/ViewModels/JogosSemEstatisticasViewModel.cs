@@ -16,6 +16,12 @@
         public int Total { get; set; }
         public int LimiteLote { get; set; }
         public int LimiteLoteFotMob { get; set; }
+
+        // Jogos da FIFA no filtro ainda sem estatística da FIFA. Conta à parte porque
+        // inclui os que já têm linhas da marcação por vídeo, que a lista acima não
+        // mostra (para ela o jogo já "tem estatística").
+        public int PendentesFifa { get; set; }
+        public int LimiteLoteFifa { get; set; }
     }
 
     public class JogoSemEstatisticaItem
@@ -39,6 +45,9 @@
         // A competição existe no FotMob? É a terceira fonte, oferecida principalmente
         // para as ligas que a ESPN não cataloga (a do Catar é o caso que motivou).
         public bool TemFotMob { get; set; }
+
+        // Jogo importado da FIFA (LinkDetalhes "fifa:…"): a fonte é a própria FIFA.
+        public bool EhFifa { get; set; }
     }
 
     public class CompeticaoSemEstatisticaItem
@@ -48,5 +57,6 @@
         public int Quantidade { get; set; }
         public bool TemEspn { get; set; }
         public bool TemFotMob { get; set; }
+        public bool TemFifa { get; set; }
     }
 }

@@ -1415,6 +1415,8 @@
 
     let indispPreJogoCarregado = false;
 
+    let momentoPreJogoCarregado = false;
+
     function mostrarAbaPreJogo(aba) {
         document.getElementById('pj-tab-resumo').classList.toggle('active', aba === 'resumo');
         document.getElementById('pj-tab-matchup').classList.toggle('active', aba === 'matchup');
@@ -1422,8 +1424,14 @@
         document.getElementById('prejogo-corpo').style.display = aba === 'resumo' ? '' : 'none';
         document.getElementById('prejogo-matchup').style.display = aba === 'matchup' ? '' : 'none';
         document.getElementById('prejogo-indisp').style.display = aba === 'indisp' ? '' : 'none';
+        document.getElementById('pj-tab-momento').classList.toggle('active', aba === 'momento');
+        document.getElementById('prejogo-momento').style.display = aba === 'momento' ? '' : 'none';
         // O match-up precisa de largura extra: campo horizontal + dois bancos
-        document.getElementById('prejogo-box').style.width = aba === 'matchup' ? '1140px' : '780px';
+        document.getElementById('prejogo-box').style.width = aba === 'matchup' || aba === 'momento' ? '1140px' : '780px';
+        if (aba === 'momento' && !momentoPreJogoCarregado) {
+            momentoPreJogoCarregado = true;
+            carregarMomentoPreJogo();
+        }
         if (aba === 'matchup' && !muPreJogoCarregado) {
             muPreJogoCarregado = true;
             carregarMatchUpPreJogo();
@@ -1496,6 +1504,357 @@
                 '<div class="pj-team-head">' + escudo + '<span class="pj-team-nome">' + escHtml(t.time || '') + '</span></div>' +
                 itens +
             '</div>';
+    }
+
+    // ── Aba Momento ───────────────────────────────────────────────────────
+    // Como cada jogador chega ao jogo. A lista abre na hora (só banco local); os
+    // resumos chegam um por vez — o servidor já serializa as buscas com intervalo,
+    // e pedir tudo em paralelo só faria as requisições esperarem na fila. Titulares entram na fila sozinhos,
+    // alternando os dois times; do banco, só quem for clicado (e fura a fila).
+    var momentoFila = [];
+    var momentoProcessando = false;
+    var momentoPedidos = {};
+
+    async function carregarMomentoPreJogo() {
+        var cont = document.getElementById('prejogo-momento');
+        cont.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:2rem 0;">Carregando...</div>';
+        try {
+            var resp = await fetch('/Jogos/MomentoJogadores/' + ANALISAR.jogoId);
+            if (!resp.ok) throw new Error();
+            var d = await resp.json();
+            cont.innerHTML = '<div class="pj-grid">' +
+                    colunaMomento(d.casa, 'casa') +
+                    colunaMomento(d.visitante, 'vis') +
+                '</div>' +
+                '<div class="pj-ind-rodape">Atualizado a cada 6h</div>';
+
+            var n = Math.max(d.casa.titulares.length, d.visitante.titulares.length);
+            for (var i = 0; i < n; i++) {
+                [d.casa.titulares[i], d.visitante.titulares[i]].forEach(function (j) {
+                    if (j && j.sincronizado) enfileirarMomento(j.id, false);
+                });
+            }
+        } catch (e) {
+            momentoPreJogoCarregado = false; // permite tentar de novo ao reabrir a aba
+            cont.innerHTML = '<div style="color:#f87171;text-align:center;padding:1rem;">Erro ao carregar os jogadores.</div>';
+        }
+    }
+
+    function colunaMomento(t, lado) {
+        var escudo = t.escudo ? '<img src="' + escAttr(t.escudo) + '" alt="">' : '';
+        var sincronizados = t.titulares.filter(function (j) { return j.sincronizado; }).length;
+        var titulares = t.titulares.length === 0
+            ? '<div class="pj-ind-vazio">Nenhuma escalação registrada para este time.</div>'
+            : t.titulares.map(cardMomento).join('');
+        var reservas = t.reservas.length === 0 ? '' :
+            '<details class="pjm-banco">' +
+                '<summary><span>🪑 Banco / elenco</span><span class="pjm-contador">' + t.reservas.length + '</span></summary>' +
+                '<div class="pjm-banco-dica">Toque no jogador para carregar</div>' +
+                t.reservas.map(cardMomento).join('') +
+            '</details>';
+
+        return '<div class="pj-col ' + lado + '">' +
+                '<div class="pj-team-head">' + escudo +
+                    '<div style="min-width:0">' +
+                        '<div class="pj-team-nome">' + escHtml(t.time || '') + '</div>' +
+                        (t.escalacaoDe
+                            ? '<div class="pjm-sub">Titulares de ' + escHtml(t.escalacaoDe) + ' · ' + sincronizados + '/' + t.titulares.length + ' sincronizados</div>'
+                            : '') +
+                    '</div>' +
+                '</div>' +
+                titulares + reservas +
+            '</div>';
+    }
+
+    function cardMomento(j) {
+        var foto = '<img class="pjm-foto" src="' + escAttr(j.foto || '/images/placeholder-jogador.png') + '" alt="" onerror="this.onerror=null;this.src=\x27/images/placeholder-jogador.png\x27">';
+        var corpo = j.sincronizado
+            ? '<div class="pjm-corpo pjm-pendente">Toque para carregar</div>'
+            : '<div class="pjm-corpo pjm-pendente">' +
+                    '<div class="pjm-vinc-linha">Não sincronizado' +
+                        '<button type="button" class="pjm-vinc-btn" onclick="abrirVinculoMomento(' + j.id + ')">🔗 Vincular</button>' +
+                    '</div>' +
+                '</div>';
+        return '<div class="pjm-card' + (j.sincronizado ? '' : ' nao-sincronizado') + '" id="pjm-' + j.id + '"' +
+                (j.sincronizado ? ' onclick="enfileirarMomento(' + j.id + ', true)"' : '') + '>' +
+                '<div class="pjm-topo">' +
+                    '<div class="pjm-foto-wrap">' + foto +
+                        (j.numero ? '<span class="pjm-num">' + escHtml(String(j.numero)) + '</span>' : '') +
+                    '</div>' +
+                    '<div class="pjm-id">' +
+                        '<div class="pjm-nome">' + escHtml(j.nome) + '</div>' +
+                        '<div class="pjm-meta"><span class="pjm-sigla">' + escHtml(j.sigla || '') + '</span><span class="pjm-perfil"></span></div>' +
+                    '</div>' +
+                    '<div class="pjm-forma"></div>' +
+                '</div>' +
+                corpo +
+            '</div>';
+    }
+
+    function enfileirarMomento(id, prioridade) {
+        if (momentoPedidos[id]) return;
+        momentoPedidos[id] = true;
+        var corpo = document.querySelector('#pjm-' + id + ' .pjm-corpo');
+        if (corpo) corpo.innerHTML = esqueletoMomento();
+        if (prioridade) momentoFila.unshift(id); else momentoFila.push(id);
+        processarFilaMomento();
+    }
+
+    // ── Vínculo sem sair da aba ─────────────────────────────────────────────
+    // Mesma busca da tela de vincular do jogador, num painel dentro do card. Quem
+    // escolhe é o usuário (nomes se repetem); foto e clube de cada candidato servem
+    // para conferir. Vinculou, o card vira sincronizado e já carrega o resumo.
+    function abrirVinculoMomento(id, termo) {
+        var card = document.getElementById('pjm-' + id);
+        if (!card) return;
+        var corpo = card.querySelector('.pjm-corpo');
+        corpo.classList.remove('pjm-pendente');
+        corpo.innerHTML =
+            '<div class="pjm-vinc">' +
+                '<form class="pjm-vinc-busca" onsubmit="event.preventDefault(); buscarVinculoMomento(' + id + ', this.termo.value)">' +
+                    '<input name="termo" type="text" placeholder="Nome do jogador" value="' + escAttr(termo || '') + '">' +
+                    '<button type="submit">Buscar</button>' +
+                    '<button type="button" class="pjm-vinc-fechar" title="Cancelar" onclick="fecharVinculoMomento(' + id + ')">✕</button>' +
+                '</form>' +
+                '<div class="pjm-vinc-lista">' + esqueletoMomento() + '</div>' +
+            '</div>';
+        buscarVinculoMomento(id, termo || '');
+    }
+
+    function fecharVinculoMomento(id) {
+        var corpo = document.querySelector('#pjm-' + id + ' .pjm-corpo');
+        if (!corpo) return;
+        corpo.classList.add('pjm-pendente');
+        corpo.innerHTML = '<div class="pjm-vinc-linha">Não sincronizado' +
+            '<button type="button" class="pjm-vinc-btn" onclick="abrirVinculoMomento(' + id + ')">🔗 Vincular</button></div>';
+    }
+
+    async function buscarVinculoMomento(id, termo) {
+        var card = document.getElementById('pjm-' + id);
+        var lista = card && card.querySelector('.pjm-vinc-lista');
+        if (!lista) return;
+        lista.innerHTML = esqueletoMomento();
+        try {
+            var resp = await fetch('/Jogos/MomentoCandidatos/' + id + '?termo=' + encodeURIComponent(termo || ''));
+            if (!resp.ok) throw new Error();
+            var d = await resp.json();
+            var input = card.querySelector('.pjm-vinc-busca input');
+            if (input && !input.value) input.value = d.termo || '';
+
+            lista.innerHTML = d.candidatos.length === 0
+                ? '<div class="pjm-vinc-vazio">Ninguém encontrado para “' + escHtml(d.termo) + '”. Tente o nome curto ou o apelido.</div>'
+                : d.candidatos.map(function (c) {
+                    return '<div class="pjm-vinc-item">' +
+                            '<img src="' + escAttr(c.foto) + '" alt="" onerror="this.onerror=null;this.src=\x27/images/placeholder-jogador.png\x27">' +
+                            '<div class="pjm-vinc-txt"><b>' + escHtml(c.nome) + '</b><small>' + escHtml(c.time || 'sem clube') + '</small></div>' +
+                            '<button type="button" onclick="confirmarVinculoMomento(' + id + ', ' + c.id + ', this)">Vincular</button>' +
+                        '</div>';
+                }).join('');
+        } catch (e) {
+            lista.innerHTML = '<div class="pjm-erro">Erro ao buscar. Tente de novo.</div>';
+        }
+    }
+
+    async function confirmarVinculoMomento(id, idExterno, btn) {
+        btn.disabled = true;
+        btn.textContent = '...';
+        try {
+            var token = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+            var resp = await fetch('/Jogos/MomentoVincular/' + id, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
+                body: JSON.stringify({ idExterno: idExterno })
+            });
+            if (!resp.ok) throw new Error();
+
+            var card = document.getElementById('pjm-' + id);
+            card.classList.remove('nao-sincronizado');
+            card.setAttribute('onclick', 'enfileirarMomento(' + id + ', true)');
+            momentoPedidos[id] = false;
+            enfileirarMomento(id, true);
+        } catch (e) {
+            btn.disabled = false;
+            btn.textContent = 'Vincular';
+            alert('Não foi possível gravar o vínculo.');
+        }
+    }
+
+    function esqueletoMomento() {
+        return '<div class="pjm-skel"><i style="width:92%"></i><i style="width:70%"></i><i style="width:80%"></i></div>';
+    }
+
+    async function processarFilaMomento() {
+        if (momentoProcessando) return;
+        momentoProcessando = true;
+        while (momentoFila.length) {
+            var id = momentoFila.shift();
+            var card = document.getElementById('pjm-' + id);
+            if (!card) continue;
+            var corpo = card.querySelector('.pjm-corpo');
+            corpo.classList.remove('pjm-pendente');
+            corpo.innerHTML = esqueletoMomento();
+            try {
+                var resp = await fetch('/Jogos/MomentoJogador/' + id);
+                if (!resp.ok) throw new Error();
+                preencherMomento(card, await resp.json());
+            } catch (e) {
+                momentoPedidos[id] = false; // novo toque tenta de novo
+                corpo.innerHTML = '<span class="pjm-erro">Erro ao carregar. Toque para tentar de novo.</span>';
+            }
+        }
+        momentoProcessando = false;
+    }
+
+    // Ícone repetido até 3 (⚽⚽); acima disso, ícone com multiplicador (⚽×4).
+    function iconesMomento(icone, n) {
+        if (!n) return '';
+        return n <= 3 ? new Array(n + 1).join(icone) : icone + '×' + n;
+    }
+
+    function classeResultado(g) {
+        return !g.jogou ? 'nj' : (g.resultado || '').toLowerCase();
+    }
+
+    function logoLiga(id, titulo) {
+        return id ? '<img class="pjm-liga" src="/MediaProxy/Liga/' + id + '" alt="" title="' + escAttr(titulo || '') + '" onerror="this.remove()">' : '';
+    }
+
+    function escudoTime(id, titulo) {
+        return id ? '<img class="pjm-escudo" src="/MediaProxy/Escudo/' + id + '" alt="" title="' + escAttr(titulo || '') + '" onerror="this.remove()">' : '';
+    }
+
+    function preencherMomento(card, m) {
+        var corpo = card.querySelector('.pjm-corpo');
+        card.removeAttribute('onclick');
+        corpo.classList.remove('pjm-pendente');
+
+        if (m.erro) {
+            corpo.innerHTML = '<span class="pjm-erro">' + escHtml(m.erro) + '</span>';
+            return;
+        }
+
+        var jogos = m.jogos || [];
+
+        // Cabeçalho: posição · pé · clube, e a forma dos últimos 5 à direita.
+        var perfil = [];
+        if (m.posicao) perfil.push(escHtml(m.posicao));
+        if (m.pe) perfil.push('🦶 ' + escHtml(m.pe));
+        if (m.clube) perfil.push(escudoTime(m.clubeId, m.clube) + escHtml(m.clube));
+        card.querySelector('.pjm-perfil').innerHTML = perfil.join('<span class="pjm-ponto">·</span>');
+
+        card.querySelector('.pjm-forma').innerHTML = jogos.slice(0, 5).map(function (g) {
+            var dica = dataCurta(g.data) + ' ' + (g.mandante ? 'vs ' : '@ ') + (g.adversario || '') +
+                (g.placar ? ' ' + g.placar : '') + ' — ' + detalheJogoMomento(g);
+            return '<span class="pjm-res ' + classeResultado(g) + '" title="' + escAttr(dica) + '">' + (g.resultado || '–') + '</span>';
+        }).join('');
+
+        var html = '';
+
+        if (m.lesao) {
+            html += '<div class="pjm-alerta">' +
+                    '<span class="pjm-alerta-ico">🩹</span>' +
+                    '<div><b>' + escHtml(m.lesao.lesao) + '</b>' +
+                        (m.lesao.retorno ? '<small>' + escHtml(m.lesao.retorno) + '</small>' : '') +
+                    '</div>' +
+                '</div>';
+        }
+
+        // Últimos 5 jogos em que entrou em campo, em blocos.
+        var jogados = jogos.filter(function (g) { return g.jogou; }).slice(0, 5);
+        if (jogados.length) {
+            var soma = function (campo) { return jogados.reduce(function (a, g) { return a + (g[campo] || 0); }, 0); };
+            var cartoes = soma('amarelos') + soma('vermelhos');
+            var tiles = [
+                ['⚽', soma('gols'), soma('gols') === 1 ? 'gol' : 'gols', 'gol'],
+                ['🅰️', soma('assistencias'), soma('assistencias') === 1 ? 'assist.' : 'assists.', 'ast'],
+                ['⏱️', Math.round(soma('minutos') / jogados.length) + "'", 'min/jogo', ''],
+            ];
+            if (cartoes) tiles.push(['🟨', cartoes, cartoes === 1 ? 'cartão' : 'cartões', 'cartao']);
+            html += '<div class="pjm-bloco-titulo">Últimos ' + jogados.length + ' jogos</div>' +
+                '<div class="pjm-tiles">' + tiles.map(function (t) {
+                    return '<div class="pjm-tile ' + t[3] + (t[1] === 0 ? ' zero' : '') + '">' +
+                        '<span class="pjm-tile-ico">' + t[0] + '</span>' +
+                        '<b>' + t[1] + '</b><small>' + t[2] + '</small>' +
+                    '</div>';
+                }).join('') + '</div>';
+        }
+
+        var t = m.temporada;
+        if (t) {
+            var nums = [
+                '<span title="Jogos (titular)">🏟️ ' + t.jogos + (t.titular !== t.jogos ? ' <small>(' + t.titular + ' tit.)</small>' : '') + '</span>',
+                '<span title="Minutos">⏱️ ' + t.minutos + "'</span>",
+                '<span title="Gols">⚽ ' + t.gols + '</span>',
+                '<span title="Assistências">🅰️ ' + t.assistencias + '</span>',
+            ];
+            if (t.amarelos) nums.push('<span title="Cartões amarelos">🟨 ' + t.amarelos + '</span>');
+            if (t.vermelhos) nums.push('<span title="Cartões vermelhos">🟥 ' + t.vermelhos + '</span>');
+            html += '<div class="pjm-temp">' +
+                    '<div class="pjm-temp-liga">' + logoLiga(t.ligaId, t.liga) +
+                        '<span>' + escHtml(t.liga) + '</span>' +
+                        (t.temporada ? '<small>' + escHtml(t.temporada) + '</small>' : '') +
+                    '</div>' +
+                    '<div class="pjm-temp-nums">' + nums.join('') + '</div>' +
+                '</div>';
+        }
+
+        if (m.destaques && m.destaques.length) {
+            html += '<div class="pjm-bloco-titulo">Destaques entre os ' + escHtml(m.grupoComparacao || 'da posição') + '</div>' +
+                '<div class="pjm-dest">' + m.destaques.map(function (x) {
+                    return '<div class="pjm-dest-item" title="Supera ' + x.percentil + '% dos ' + escAttr(m.grupoComparacao || '') + '">' +
+                        '<span>' + escHtml(x.nome) + '</span>' +
+                        '<div class="pjm-barra"><i style="width:' + x.percentil + '%"></i></div>' +
+                        '<b>' + x.percentil + '%</b>' +
+                    '</div>';
+                }).join('') + '</div>';
+        }
+
+        if (jogos.length) {
+            html += '<details class="pjm-jogos"><summary>📅 Últimos ' + jogos.length + ' jogos</summary>' +
+                jogos.map(function (g) {
+                    var eventos = iconesMomento('⚽', g.gols) + iconesMomento('🅰️', g.assistencias) +
+                        iconesMomento('🟨', g.amarelos) + iconesMomento('🟥', g.vermelhos);
+                    return '<div class="pjm-jogo' + (g.jogou ? '' : ' nj') + '">' +
+                        '<span class="pjm-res ' + classeResultado(g) + '">' + (g.resultado || '–') + '</span>' +
+                        '<span class="pjm-jogo-data">' + dataCurta(g.data) + '</span>' +
+                        '<span class="pjm-jogo-comp">' + logoLiga(g.competicaoId, g.competicao) + '</span>' +
+                        '<span class="pjm-jogo-adv">' +
+                            '<small>' + (g.mandante ? 'vs' : '@') + '</small>' +
+                            escudoTime(g.adversarioId, g.adversario) +
+                            '<span class="pjm-jogo-nome">' + escHtml(g.adversario || '') + '</span>' +
+                            (g.placar ? '<b>' + escHtml(g.placar) + '</b>' : '') +
+                        '</span>' +
+                        '<span class="pjm-jogo-ev">' + eventos + '</span>' +
+                        '<span class="pjm-jogo-min">' + (g.jogou
+                            ? (g.minutos != null ? g.minutos + "'" : '') + (g.reserva ? ' <small>↑</small>' : '')
+                            : '<small>' + (g.reserva ? 'banco' : 'fora') + '</small>') + '</span>' +
+                    '</div>';
+                }).join('') +
+            '</details>';
+        }
+
+        corpo.innerHTML = html || '<span class="pjm-pendente">Sem informações recentes deste jogador.</span>';
+    }
+
+    function detalheJogoMomento(g) {
+        if (!g.jogou) return g.reserva ? 'não saiu do banco' : 'não jogou';
+        var p = [(g.minutos != null ? g.minutos : '?') + "'"];
+        if (g.reserva) p.push('entrou');
+        if (g.gols) p.push(g.gols + (g.gols === 1 ? ' gol' : ' gols'));
+        if (g.assistencias) p.push(g.assistencias + (g.assistencias === 1 ? ' assistência' : ' assistências'));
+        if (g.amarelos) p.push('amarelo');
+        if (g.vermelhos) p.push('vermelho');
+        return p.join(' · ');
+    }
+
+    function escAttr(s) {
+        return escHtml(s).replace(/"/g, '&quot;');
+    }
+
+    function dataCurta(iso) {
+        if (!iso) return '';
+        var d = new Date(iso);
+        return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2);
     }
 
     async function carregarMatchUpPreJogo() {

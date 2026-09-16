@@ -451,7 +451,7 @@ namespace ControleFutebolWeb.Controllers
         }
 
         /// <summary>Nome curto: os dois primeiros termos, que é como o FotMob nomeia.</summary>
-        private static string TermoSugerido(string nome)
+        internal static string TermoSugerido(string nome)
         {
             var partes = nome.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             return partes.Length <= 2 ? nome : string.Join(' ', partes.Take(2));

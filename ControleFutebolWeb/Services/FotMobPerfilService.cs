@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using ControleFutebolWeb.Models.ViewModels;
 
 namespace ControleFutebolWeb.Services
@@ -652,10 +653,47 @@ namespace ControleFutebolWeb.Services
                 "expected_return_date_out_for_season" => "Fora por toda a temporada",
                 "expected_return_date_unknown" => "Retorno sem previsão",
                 "expected_return_date_doubtful" => "Presença em dúvida",
-                // Chave nova da fonte: o texto pronto deles é em inglês, mas dizer algo
-                // certo em inglês é melhor do que inventar uma tradução ou omitir.
-                _ => Texto(retorno, "expectedReturnFallback"),
+                // Chave nova da fonte: tenta traduzir o texto pronto deles ("Late
+                // September 2026"); o que não casar sai como veio.
+                _ => TraduzirRetorno(Texto(retorno, "expectedReturnFallback")),
             };
+        }
+
+        private static readonly string[] _meses =
+        {
+            "january", "february", "march", "april", "may", "june",
+            "july", "august", "september", "october", "november", "december",
+        };
+
+        private static readonly string[] _mesesPt =
+        {
+            "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+            "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+        };
+
+        /// <summary>"Early/Mid/Late {mês} {ano}" e "{mês} {ano}" em português.</summary>
+        internal static string? TraduzirRetorno(string? texto)
+        {
+            if (string.IsNullOrWhiteSpace(texto)) return null;
+
+            var m = Regex.Match(texto.Trim(),
+                @"^(?:(early|mid|middle of|late|end of|beginning of)\s+)?([a-z]+)\s*(\d{4})?$",
+                RegexOptions.IgnoreCase);
+            if (!m.Success) return texto;
+
+            var mes = Array.IndexOf(_meses, m.Groups[2].Value.ToLowerInvariant());
+            if (mes < 0) return texto;
+
+            var periodo = m.Groups[1].Value.ToLowerInvariant() switch
+            {
+                "early" or "beginning of" => "início de ",
+                "mid" or "middle of" => "meados de ",
+                "late" or "end of" => "fim de ",
+                _ => "",
+            };
+            var ano = m.Groups[3].Success ? $" de {m.Groups[3].Value}" : "";
+
+            return $"Retorno previsto para {periodo}{_mesesPt[mes]}{ano}";
         }
 
         private static DateTime? AtualizadoEm(JsonElement lesao)
@@ -670,40 +708,402 @@ namespace ControleFutebolWeb.Services
         /// <summary>
         /// Nome da lesão em português.
         ///
-        /// A rota de dados responde sempre em inglês (o site deles traduz no navegador,
-        /// por uma chave que não é pública), então a tradução é nossa. A lista cobre o
-        /// que aparece no dia a dia; o que faltar sai em inglês em vez de sumir, porque
-        /// "Patellar tendon rupture" ainda informa mais do que um selo vazio.
+        /// A rota de dados responde sempre em inglês, então a tradução é nossa, em duas
+        /// camadas: os nomes inteiros mais comuns, e depois a montagem "tipo + parte do
+        /// corpo" ("Hamstring strain" = estiramento + na posterior da coxa), que cobre
+        /// as combinações que nenhuma lista fechada acompanharia. O que não casar em
+        /// nenhuma sai como veio — ainda informa mais do que um selo vazio.
         /// </summary>
-        private static string TraduzirLesao(string nome) => nome.Trim().ToLowerInvariant() switch
+        internal static string TraduzirLesao(string nome)
         {
-            "cruciate ligament injury" => "Lesão do ligamento cruzado",
-            "cruciate ligament rupture" => "Ruptura do ligamento cruzado",
-            "knee injury" => "Lesão no joelho",
-            "meniscus injury" => "Lesão no menisco",
-            "ankle injury" => "Lesão no tornozelo",
-            "foot injury" => "Lesão no pé",
-            "hamstring injury" => "Lesão na posterior da coxa",
-            "thigh muscle strain" => "Estiramento na coxa",
-            "muscle injury" => "Lesão muscular",
-            "muscular problems" => "Problemas musculares",
-            "calf injury" => "Lesão na panturrilha",
-            "groin injury" or "groin strain" => "Lesão na virilha",
-            "adductor problems" => "Problemas no adutor",
-            "achilles tendon problems" => "Problemas no tendão de Aquiles",
-            "achilles tendon rupture" => "Ruptura do tendão de Aquiles",
-            "back injury" or "back problems" => "Lesão nas costas",
-            "shoulder injury" => "Lesão no ombro",
-            "hip injury" or "hip problems" => "Lesão no quadril",
-            "head injury" => "Traumatismo craniano",
-            "concussion" => "Concussão",
-            "fracture" or "broken bone" => "Fratura",
-            "illness" => "Doença",
-            "knock" => "Pancada",
-            "fitness" => "Condicionamento",
-            "unknown injury" => "Lesão não especificada",
-            _ => nome,
+            var n = Regex.Replace(nome.Trim().ToLowerInvariant(), @"\s+", " ");
+
+            if (_lesoes.TryGetValue(n, out var inteira)) return inteira;
+
+            // "torn/broken/fractured {parte}" vira "{parte} rupture/fracture".
+            foreach (var (prefixo, sufixo) in new[] { ("torn ", " rupture"), ("broken ", " fracture"), ("fractured ", " fracture") })
+                if (n.StartsWith(prefixo)) { n = n[prefixo.Length..] + sufixo; break; }
+
+            // Entre as leituras possíveis vale a de parte do corpo mais longa:
+            // "cruciate ligament injury" é lesão + no ligamento cruzado, e não
+            // lesão de ligamento + "cruciate".
+            var leitura = _tiposLesao
+                .Where(t => n.EndsWith(" " + t.Tipo))
+                .Select(t => (t.Pt, Parte: n[..^(t.Tipo.Length + 1)].Trim()))
+                .Where(x => _partesCorpo.ContainsKey(x.Parte))
+                .OrderByDescending(x => x.Parte.Length)
+                .FirstOrDefault();
+
+            return leitura.Pt != null ? $"{leitura.Pt} {_partesCorpo[leitura.Parte]}" : nome;
+        }
+
+        private static readonly Dictionary<string, string> _lesoes = new()
+        {
+            ["muscle injury"] = "Lesão muscular",
+            ["muscular injury"] = "Lesão muscular",
+            ["muscle problems"] = "Problemas musculares",
+            ["muscular problems"] = "Problemas musculares",
+            ["muscle fatigue"] = "Fadiga muscular",
+            ["muscle strain"] = "Estiramento muscular",
+            ["muscle tear"] = "Ruptura muscular",
+            ["head injury"] = "Pancada na cabeça",
+            ["concussion"] = "Concussão",
+            ["fracture"] = "Fratura",
+            ["broken bone"] = "Fratura",
+            ["illness"] = "Doença",
+            ["virus"] = "Virose",
+            ["flu"] = "Gripe",
+            ["cold"] = "Resfriado",
+            ["fever"] = "Febre",
+            ["covid-19"] = "Covid-19",
+            ["corona virus"] = "Covid-19",
+            ["knock"] = "Pancada",
+            ["bruise"] = "Contusão",
+            ["contusion"] = "Contusão",
+            ["fitness"] = "Condicionamento físico",
+            ["lack of fitness"] = "Falta de ritmo",
+            ["rest"] = "Poupado",
+            ["surgery"] = "Cirurgia",
+            ["inflammation"] = "Inflamação",
+            ["infection"] = "Infecção",
+            ["personal reasons"] = "Motivos pessoais",
+            ["family reasons"] = "Motivos familiares",
+            ["unknown injury"] = "Lesão não especificada",
+            ["injury"] = "Lesão",
+            ["minor injury"] = "Lesão leve",
+            ["suspended"] = "Suspenso",
+            ["suspension"] = "Suspenso",
+            ["red card suspension"] = "Suspenso (cartão vermelho)",
+            ["yellow card suspension"] = "Suspenso (cartões amarelos)",
+            ["heart problems"] = "Problemas cardíacos",
+            ["dehydration"] = "Desidratação",
+            ["pubalgia"] = "Pubalgia",
+            ["pubitis"] = "Pubalgia",
+            ["plantar fasciitis"] = "Fascite plantar",
+            ["tendinitis"] = "Tendinite",
+            ["sprain"] = "Entorse",
         };
+
+        // Do mais específico para o mais genérico: "ligament rupture" antes de "rupture".
+        private static readonly (string Tipo, string Pt)[] _tiposLesao =
+        {
+            ("ligament rupture", "Ruptura de ligamento"),
+            ("ligament injury", "Lesão de ligamento"),
+            ("ligament tear", "Ruptura de ligamento"),
+            ("muscle strain", "Estiramento muscular"),
+            ("muscle injury", "Lesão muscular"),
+            ("muscle tear", "Ruptura muscular"),
+            ("tendon rupture", "Ruptura de tendão"),
+            ("tendon injury", "Lesão de tendão"),
+            ("tendon problems", "Problemas de tendão"),
+            ("injury", "Lesão"),
+            ("problems", "Problemas"),
+            ("problem", "Problema"),
+            ("strain", "Estiramento"),
+            ("sprain", "Entorse"),
+            ("fracture", "Fratura"),
+            ("rupture", "Ruptura"),
+            ("tear", "Ruptura"),
+            ("surgery", "Cirurgia"),
+            ("operation", "Cirurgia"),
+            ("bruise", "Contusão"),
+            ("contusion", "Contusão"),
+            ("knock", "Pancada"),
+            ("inflammation", "Inflamação"),
+            ("pain", "Dores"),
+            ("cut", "Corte"),
+            ("dislocation", "Luxação"),
+            ("edema", "Edema"),
+        };
+
+        private static readonly Dictionary<string, string> _partesCorpo = new()
+        {
+            ["knee"] = "no joelho",
+            ["cruciate"] = "no ligamento cruzado",
+            ["cruciate ligament"] = "no ligamento cruzado",
+            ["anterior cruciate ligament"] = "no ligamento cruzado anterior",
+            ["medial collateral ligament"] = "no ligamento colateral medial",
+            ["collateral ligament"] = "no ligamento colateral",
+            ["ligament"] = "no ligamento",
+            ["meniscus"] = "no menisco",
+            ["patellar tendon"] = "no tendão patelar",
+            ["ankle"] = "no tornozelo",
+            ["foot"] = "no pé",
+            ["toe"] = "no dedo do pé",
+            ["metatarsal"] = "no metatarso",
+            ["heel"] = "no calcanhar",
+            ["achilles"] = "no tendão de Aquiles",
+            ["achilles tendon"] = "no tendão de Aquiles",
+            ["tendon"] = "no tendão",
+            ["shin"] = "na canela",
+            ["leg"] = "na perna",
+            ["calf"] = "na panturrilha",
+            ["hamstring"] = "na posterior da coxa",
+            ["thigh"] = "na coxa",
+            ["thigh muscle"] = "na coxa",
+            ["quadriceps"] = "no quadríceps",
+            ["groin"] = "na virilha",
+            ["adductor"] = "no adutor",
+            ["hip"] = "no quadril",
+            ["pelvis"] = "na pelve",
+            ["back"] = "nas costas",
+            ["lower back"] = "na lombar",
+            ["abdominal"] = "no abdômen",
+            ["abdomen"] = "no abdômen",
+            ["chest"] = "no peito",
+            ["rib"] = "na costela",
+            ["ribs"] = "nas costelas",
+            ["shoulder"] = "no ombro",
+            ["collarbone"] = "na clavícula",
+            ["arm"] = "no braço",
+            ["elbow"] = "no cotovelo",
+            ["wrist"] = "no punho",
+            ["hand"] = "na mão",
+            ["finger"] = "no dedo",
+            ["thumb"] = "no polegar",
+            ["neck"] = "no pescoço",
+            ["head"] = "na cabeça",
+            ["face"] = "no rosto",
+            ["facial"] = "no rosto",
+            ["nose"] = "no nariz",
+            ["jaw"] = "na mandíbula",
+            ["cheekbone"] = "na maçã do rosto",
+            ["eye"] = "no olho",
+        };
+
+        // ── Momento (aba "Momento" do modal Pré-jogo) ─────────────────────────
+
+        /// <summary>
+        /// Como o jogador chega ao jogo: o que a aba "About" do FotMob resume, em
+        /// português e sem a nota deles. Sai inteiro do playerData — a mesma chamada
+        /// (e o mesmo cache de 6h) da tela de estatísticas avançadas.
+        /// </summary>
+        public async Task<MomentoJogadorViewModel> MomentoAsync(long idFotMob, CancellationToken ct = default)
+        {
+            using var perfil = await _fotmob.BuscarPerfilJogadorAsync(idFotMob, ct);
+            if (perfil == null)
+                return new MomentoJogadorViewModel { Erro = "Não foi possível carregar os dados deste jogador." };
+
+            var raiz = perfil.RootElement;
+            var (grupo, destaques) = LerDestaques(raiz);
+            var jogos = LerJogosMomento(raiz).Take(10).ToList();
+
+            return new MomentoJogadorViewModel
+            {
+                Posicao = PosicaoPrincipal(raiz),
+                Pe = PePreferido(raiz),
+                Clube = Clube(raiz),
+                ClubeId = Bloco(raiz, "primaryTeam", out var time) ? Id64(time, "teamId") : null,
+                Lesao = LerLesao(raiz),
+                Temporada = LerTemporadaAtual(raiz),
+                GrupoComparacao = grupo,
+                Destaques = destaques,
+                Jogos = jogos,
+                Sequencia = Sequencia(jogos),
+            };
+        }
+
+        private static string? PePreferido(JsonElement raiz)
+        {
+            if (!Lista(raiz, "playerInformation", out var info)) return null;
+
+            foreach (var item in info.EnumerateArray())
+            {
+                if (Texto(item, "translationKey") != "preferred_foot") continue;
+                if (!Bloco(item, "value", out var v)) return null;
+
+                return Texto(v, "key") switch
+                {
+                    "right" => "Destro",
+                    "left" => "Canhoto",
+                    "both" => "Ambidestro",
+                    _ => Texto(v, "fallback"),
+                };
+            }
+
+            return null;
+        }
+
+        private static string? Clube(JsonElement raiz)
+        {
+            if (!Bloco(raiz, "primaryTeam", out var time)) return null;
+            var nome = Texto(time, "teamName");
+            if (nome == null) return null;
+
+            return time.TryGetProperty("onLoan", out var e) && e.ValueKind == JsonValueKind.True
+                ? $"{nome} (emprestado)" : nome;
+        }
+
+        /// <summary>
+        /// Números da liga principal na temporada atual (bloco "mainLeague"). A nota
+        /// ("rating") vem no mesmo bloco e é ignorada, pelo motivo do topo da classe.
+        /// </summary>
+        private static TemporadaMomento? LerTemporadaAtual(JsonElement raiz)
+        {
+            if (!Bloco(raiz, "mainLeague", out var liga) ||
+                !Lista(liga, "stats", out var stats)) return null;
+
+            var nome = Texto(liga, "leagueName");
+            if (nome == null) return null;
+
+            var valores = new Dictionary<string, int>();
+            foreach (var s in stats.EnumerateArray())
+            {
+                var id = Texto(s, "localizedTitleId");
+                if (id != null && Inteiro(s, "value") is int n) valores[id] = n;
+            }
+
+            if (valores.Count == 0) return null;
+
+            int V(string id) => valores.GetValueOrDefault(id);
+
+            return new TemporadaMomento
+            {
+                Liga = nome,
+                LigaId = Id64(liga, "leagueId"),
+                Temporada = Texto(liga, "season"),
+                Jogos = V("matches_uppercase"),
+                Titular = V("started"),
+                Minutos = V("minutes_played"),
+                Gols = V("goals"),
+                Assistencias = V("assists"),
+                Amarelos = V("yellow_cards"),
+                Vermelhos = V("red_cards"),
+            };
+        }
+
+        /// <summary>
+        /// Bloco "traits": onde o jogador se situa (0 a 1) contra os da mesma função.
+        /// Só entra o que passa de 70% — a aba é para o comentarista saber em que o
+        /// cara é forte, não para listar em que ele é mediano.
+        /// </summary>
+        private static (string? Grupo, List<DestaqueMomento> Destaques) LerDestaques(JsonElement raiz)
+        {
+            if (!Bloco(raiz, "traits", out var traits) ||
+                !Lista(traits, "items", out var itens)) return (null, new());
+
+            var grupo = Texto(traits, "key") switch
+            {
+                "stats_comparison_forwards" => "atacantes",
+                "stats_comparison_midfielders" => "meio-campistas",
+                "stats_comparison_defenders" => "defensores",
+                "stats_comparison_keepers" or "stats_comparison_goalkeepers" => "goleiros",
+                _ => "jogadores da mesma função",
+            };
+
+            var destaques = itens.EnumerateArray()
+                .Select(i => (Nome: TraduzirTrait(Texto(i, "key"), Texto(i, "title")), Valor: Numero(i, "value")))
+                .Where(x => x.Nome != null && x.Valor >= 0.7)
+                .OrderByDescending(x => x.Valor)
+                .Select(x => new DestaqueMomento
+                {
+                    Nome = x.Nome!,
+                    Percentil = (int)Math.Round(x.Valor!.Value * 100),
+                })
+                .ToList();
+
+            return (grupo, destaques);
+        }
+
+        private static string? TraduzirTrait(string? key, string? original) => key switch
+        {
+            "goals" => "Gols",
+            "shot_attempts" => "Finalizações",
+            "chances_created" => "Chances criadas",
+            "aerials_won" => "Duelos aéreos",
+            "defensive_actions" => "Ações defensivas",
+            "touches" => "Toques na bola",
+            "assists" => "Assistências",
+            "dribbles" or "successful_dribbles" => "Dribles",
+            "passes" or "accurate_passes" => "Passes certos",
+            "long_balls" => "Bolas longas",
+            "saves" => "Defesas",
+            "clean_sheets" => "Jogos sem sofrer gol",
+            "goals_prevented" => "Gols evitados",
+            "high_claims" => "Saídas pelo alto",
+            _ => original,
+        };
+
+        /// <summary>
+        /// Os mesmos recentMatches de LerJogos, mas incluindo os jogos em que ficou no
+        /// banco sem entrar — no pré-jogo "não saiu do banco nos dois últimos" é
+        /// informação, não ruído — e com o resultado já do ponto de vista do time dele.
+        /// </summary>
+        internal static IEnumerable<JogoMomento> LerJogosMomento(JsonElement raiz)
+        {
+            if (!Lista(raiz, "recentMatches", out var jogos)) yield break;
+
+            foreach (var j in jogos.EnumerateArray())
+            {
+                if (j.ValueKind != JsonValueKind.Object) continue;
+
+                var casa = j.TryGetProperty("isHomeTeam", out var h) && h.ValueKind == JsonValueKind.True;
+                var golsCasa = Inteiro(j, "homeScore");
+                var golsFora = Inteiro(j, "awayScore");
+
+                string? placar = null, resultado = null;
+                if (golsCasa is int gc && golsFora is int gf)
+                {
+                    var (pro, contra) = casa ? (gc, gf) : (gf, gc);
+                    placar = $"{pro}-{contra}";
+                    resultado = pro > contra ? "V" : pro < contra ? "D" : "E";
+                }
+
+                DateTime? data = null;
+                if (Bloco(j, "matchDate", out var md) &&
+                    DateTime.TryParse(Texto(md, "utcTime"), CultureInfo.InvariantCulture,
+                        DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var d))
+                    data = d.ToLocalTime();
+
+                yield return new JogoMomento
+                {
+                    Data = data,
+                    Competicao = Texto(j, "leagueName"),
+                    CompeticaoId = Id64(j, "leagueId"),
+                    Adversario = Texto(j, "opponentTeamName"),
+                    AdversarioId = Id64(j, "opponentTeamId"),
+                    Mandante = casa,
+                    Placar = placar,
+                    Resultado = resultado,
+                    Jogou = !(j.TryGetProperty("playedInMatch", out var jogou) && jogou.ValueKind == JsonValueKind.False),
+                    Reserva = j.TryGetProperty("onBench", out var b) && b.ValueKind == JsonValueKind.True,
+                    Minutos = Inteiro(j, "minutesPlayed"),
+                    Gols = Inteiro(j, "goals") ?? 0,
+                    Assistencias = Inteiro(j, "assists") ?? 0,
+                    Amarelos = Inteiro(j, "yellowCards") ?? 0,
+                    Vermelhos = Inteiro(j, "redCards") ?? 0,
+                };
+            }
+        }
+
+        /// <summary>
+        /// Uma frase sobre os últimos 5 jogos em que entrou: participações em gol,
+        /// minutagem e quantas vezes começou no banco. É o que o comentarista lê em voz
+        /// alta ("chega com 4 participações em gol nos últimos 5").
+        /// </summary>
+        private static string? Sequencia(List<JogoMomento> jogos)
+        {
+            var jogados = jogos.Where(j => j.Jogou).Take(5).ToList();
+            if (jogados.Count == 0) return null;
+
+            var gols = jogados.Sum(j => j.Gols);
+            var assist = jogados.Sum(j => j.Assistencias);
+            var minutos = jogados.Sum(j => j.Minutos ?? 0);
+            var reserva = jogados.Count(j => j.Reserva);
+
+            var partes = new List<string>
+            {
+                gols + assist == 0
+                    ? "sem participação em gol"
+                    : $"{Plural(gols, "gol", "gols")} e {Plural(assist, "assistência", "assistências")}",
+                $"{minutos / jogados.Count} min por jogo",
+            };
+            if (reserva > 0) partes.Add($"começou {Plural(reserva, "vez", "vezes")} no banco");
+
+            return $"Últimos {jogados.Count} jogos: {string.Join(", ", partes)}.";
+        }
+
+        private static string Plural(int n, string um, string varios) => $"{n} {(n == 1 ? um : varios)}";
 
         private static string TraduzirGrupo(string? id) => id switch
         {

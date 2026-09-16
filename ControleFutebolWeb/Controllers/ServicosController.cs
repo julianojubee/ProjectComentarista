@@ -22,6 +22,7 @@ namespace ControleFutebolWeb.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly CraqueDaPartidaService _craques;
         private readonly ApiFootballService _apiFootball;
+        private readonly FifaEstatisticasService _fifaEstatisticas;
 
         public ServicosController(
             ServicoMonitor monitor,
@@ -32,8 +33,10 @@ namespace ControleFutebolWeb.Controllers
             FotMobService fotmob,
             UserManager<ApplicationUser> userManager,
             CraqueDaPartidaService craques,
-            ApiFootballService apiFootball)
+            ApiFootballService apiFootball,
+            FifaEstatisticasService fifaEstatisticas)
         {
+            _fifaEstatisticas = fifaEstatisticas;
             _monitor = monitor;
             _atualizarJogadores = atualizarJogadores;
             _context = context;
@@ -99,11 +102,16 @@ namespace ControleFutebolWeb.Controllers
         /// statistics e lineups vazios), mas ela também devolve partida com um bloco e não
         /// o outro — e esse buraco parcial é exatamente o que a importação da ESPN preenche,
         /// já que ela nunca sobrescreve o que a api-football gravou.
+        ///
+        /// Jogo da FIFA é exceção na parte de time: a FIFA não tem estatística de time
+        /// que caiba em EstatisticasJson (indexado pelo IdApi da api-football), então só
+        /// a de jogadora conta — sem isso o jogo nunca sairia da lista.
         /// </summary>
         private IQueryable<Jogo> JogosComEstatisticaFaltando() =>
             _context.Jogos
                 .Where(j => j.Status == "Finalizado")
-                .Where(j => j.EstatisticasJson == null || j.EstatisticasJson == ""
+                .Where(j => ((j.EstatisticasJson == null || j.EstatisticasJson == "")
+                             && (j.LinkDetalhes == null || !j.LinkDetalhes.StartsWith("fifa:")))
                             || !_context.EstatisticasJogador.Any(e => e.JogoId == j.Id));
 
         /// <summary>
@@ -142,10 +150,16 @@ namespace ControleFutebolWeb.Controllers
                 .Select(c => new { c.Id, c.IdApi })
                 .ToDictionaryAsync(c => c.Id, c => c.IdApi, ct);
 
+            var competicoesFifa = await _context.Competicoes
+                .Where(c => c.LinkTransfermarket != null && c.LinkTransfermarket.StartsWith("fifa:"))
+                .Select(c => c.Id)
+                .ToListAsync(ct);
+
             foreach (var c in vm.Competicoes)
             {
                 c.TemEspn = _espn.SlugDaLiga(idsApi.GetValueOrDefault(c.Id)) != null;
                 c.TemFotMob = _fotmob.TemCobertura(idsApi.GetValueOrDefault(c.Id));
+                c.TemFifa = competicoesFifa.Contains(c.Id);
             }
 
             var filtrada = baseQuery;
@@ -153,6 +167,8 @@ namespace ControleFutebolWeb.Controllers
             if (temporada.HasValue) filtrada = filtrada.Where(j => j.Temporada == temporada.Value);
 
             vm.Total = await filtrada.CountAsync(ct);
+            vm.LimiteLoteFifa = FifaEstatisticasService.LimitePorLote;
+            vm.PendentesFifa = await JogosFifaSemEstatistica(competicaoId, temporada).CountAsync(ct);
             vm.Jogos = await filtrada
                 .OrderByDescending(j => j.Data)
                 .Take(200)
@@ -168,6 +184,7 @@ namespace ControleFutebolWeb.Controllers
                     PlacarVisitante = j.PlacarVisitante,
                     TemEstatisticasTime = j.EstatisticasJson != null && j.EstatisticasJson != "",
                     TemEstatisticasJogador = _context.EstatisticasJogador.Any(e => e.JogoId == j.Id),
+                    EhFifa = j.LinkDetalhes != null && j.LinkDetalhes.StartsWith("fifa:"),
                 })
                 .ToListAsync(ct);
 
@@ -284,6 +301,78 @@ namespace ControleFutebolWeb.Controllers
             }
 
             TempData["Sucesso"] = $"Lote do FotMob: {ok} jogo(s) preenchido(s), {falhas} sem dados.";
+            if (falhas > 0 && ultimoErro != null) TempData["Erro"] = $"Último motivo: {ultimoErro}";
+
+            return RedirectToAction(nameof(JogosSemEstatisticas), new { competicaoId, temporada });
+        }
+
+        // ── FIFA ──────────────────────────────────────────────────────────────
+        //
+        // Fonte das competições que só a FIFA publica (Mundial Sub-20 Feminino). Não é
+        // fallback de nada: nesses jogos nem a ESPN nem o FotMob têm a partida.
+
+        /// <summary>
+        /// Jogos da FIFA já disputados sem nenhuma linha vinda da FIFA. Entram também os
+        /// que têm marcação por vídeo — a importação preserva quem foi marcada e
+        /// preenche o resto. "Já disputado" aceita o jogo cuja data passou há mais de
+        /// três horas mesmo sem placar gravado: é o jogo que ninguém sincronizou, e a
+        /// FIFA tem a estatística dele do mesmo jeito.
+        /// </summary>
+        private IQueryable<Jogo> JogosFifaSemEstatistica(int? competicaoId, int? temporada)
+        {
+            var limite = DateTime.UtcNow.AddHours(-3);
+
+            var query = _context.Jogos
+                .Where(j => j.LinkDetalhes != null && j.LinkDetalhes.StartsWith("fifa:"))
+                .Where(j => j.Status == "Finalizado" || (j.Data != null && j.Data < limite))
+                .Where(j => !_context.EstatisticasJogador.Any(e => e.JogoId == j.Id && e.Fonte == FonteEstatistica.Fifa));
+
+            if (competicaoId.HasValue) query = query.Where(j => j.CompeticaoId == competicaoId.Value);
+            if (temporada.HasValue) query = query.Where(j => j.Temporada == temporada.Value);
+            return query;
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ImportarEstatisticasFifa(
+            int jogoId, int? competicaoId, int? temporada, CancellationToken ct)
+        {
+            var resultado = await _fifaEstatisticas.ImportarAsync(_context, jogoId, ct);
+
+            if (resultado.Ok) TempData["Sucesso"] = $"Jogo {jogoId}: {resultado.Mensagem}";
+            else TempData["Erro"] = $"Jogo {jogoId}: {resultado.Mensagem}";
+
+            return RedirectToAction(nameof(JogosSemEstatisticas), new { competicaoId, temporada });
+        }
+
+        /// <summary>
+        /// Importa em lote os jogos da FIFA já disputados, do mais antigo para o mais
+        /// recente — é a ordem da competição, e o jogo de ontem é o que mais pode ainda
+        /// não ter sido publicado. Repetir o botão continua de onde parou.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ImportarEstatisticasFifaLote(
+            int? competicaoId, int? temporada, CancellationToken ct)
+        {
+            var ids = await JogosFifaSemEstatistica(competicaoId, temporada)
+                .OrderBy(j => j.Data)
+                .Select(j => j.Id)
+                .Take(FifaEstatisticasService.LimitePorLote)
+                .ToListAsync(ct);
+
+            int ok = 0, falhas = 0;
+            string? ultimoErro = null;
+
+            foreach (var id in ids)
+            {
+                if (ct.IsCancellationRequested) break;
+                var r = await _fifaEstatisticas.ImportarAsync(_context, id, ct);
+                if (r.Ok) ok++;
+                else { falhas++; ultimoErro = r.Mensagem; }
+            }
+
+            TempData["Sucesso"] = $"Lote da FIFA: {ok} jogo(s) preenchido(s), {falhas} sem dados.";
             if (falhas > 0 && ultimoErro != null) TempData["Erro"] = $"Último motivo: {ultimoErro}";
 
             return RedirectToAction(nameof(JogosSemEstatisticas), new { competicaoId, temporada });

@@ -163,6 +163,7 @@ internal class Program
         builder.Services.AddHttpClient<FifaService>();
         builder.Services.AddScoped<FifaEscalacaoService>();
         builder.Services.AddScoped<FifaEventosService>();
+        builder.Services.AddScoped<FifaEstatisticasService>();
         // A raspagem do ogol.com.br (Brasileirão Feminino) NÃO é registrada aqui: a
         // fonte está desativada — ver o cabeçalho de OgolService para o porquê e para o
         // que é preciso religar.

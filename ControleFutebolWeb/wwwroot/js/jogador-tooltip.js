@@ -104,7 +104,11 @@ window.JogadorTooltip = (function () {
     function mostrar(btn, dados) {
         const tt = caixa();
         if (!dados) return;
-        const fotoSrc = dados.foto ? `/MediaProxy/Imagem?url=${encodeURIComponent(dados.foto)}` : '/images/placeholder-jogador.png';
+        // Foto local (ex.: /MediaProxy/FotoJogador/123, vinda do FotMob) vai direto; só
+        // URL externa passa pelo proxy genérico.
+        const fotoSrc = !dados.foto ? '/images/placeholder-jogador.png'
+            : dados.foto.startsWith('/') ? dados.foto
+            : `/MediaProxy/Imagem?url=${encodeURIComponent(dados.foto)}`;
         let html = `<div class="tt-header"><img class="tt-foto" src="${fotoSrc}" /><div class="tt-nome">${dados.nome}</div></div>`;
         const meta = [
             dados.posicao ? `<span>🎽 ${abrevPosicao(dados)}</span>` : '',

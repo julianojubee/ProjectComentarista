@@ -1591,10 +1591,9 @@ namespace ControleFutebolWeb.Controllers
         }
 
         /// <summary>
-        /// Escalação e lances da FIFA para o jogo que só ela publica. Diferente do
-        /// caminho da ESPN, não há passo de estatística: a v3 da FIFA não expõe número
-        /// por jogadora em endpoint nenhum (ver FifaService), então o formulário de
-        /// avaliação continua partindo do zero nessas competições.
+        /// Escalação e lances da FIFA para o jogo que só ela publica. A estatística por
+        /// jogadora não entra aqui: ela sai no "Reimportar dados" do jogo e no lote de
+        /// Serviços (ver FifaEstatisticasService).
         /// </summary>
         private async Task TentarFifaParaLadosFaltandoAsync(
             IServiceScope scope, FutebolContext ctx, int jogoId, string usuarioId,
@@ -1845,7 +1844,8 @@ namespace ControleFutebolWeb.Controllers
         /// ESPN — a escalação só é tocada nos lados que nenhuma importação preencheu, e
         /// os lances só quando o jogo não tem nenhum.
         ///
-        /// Não há bloco de estatísticas: a API da FIFA não publica número por jogadora.
+        /// A estatística por jogadora vem por último, de outro host da FIFA — ver
+        /// FifaEstatisticasService.
         /// </summary>
         private async Task<IActionResult> BuscarDadosDaFifaAsync(
             int id, string usuarioId, CancellationToken ct)
@@ -1890,10 +1890,24 @@ namespace ControleFutebolWeb.Controllers
                     "Lances", r.Ok, await JogoParaLogAsync(_context, id), r.Mensagem, ct);
             }
 
+            // Estatística por jogadora (fdh-api.fifa.com). Só depois do apito final — antes
+            // disso a FIFA responde 404 e o botão apertado no pré-jogo acusaria falha à
+            // toa — e só uma vez: reimportar trocaria as linhas e derrubaria o craque da
+            // partida de todo mundo a cada clique, sem ganho.
+            var encerrado = await _context.Jogos.AnyAsync(j => j.Id == id && j.PlacarCasa != null, ct);
+            var jaTemFifa = await _context.EstatisticasJogador
+                .AnyAsync(e => e.JogoId == id && e.Fonte == FonteEstatistica.Fifa, ct);
+
+            if (encerrado && !jaTemFifa)
+            {
+                var estatisticas = HttpContext.RequestServices.GetRequiredService<FifaEstatisticasService>();
+                var r = await estatisticas.ImportarAsync(_context, id, ct);
+                partes.Add(r.Mensagem);
+                houveFalha |= !r.Ok;
+            }
+
             if (partes.Count == 0)
-                partes.Add("Este jogo já tem escalação e lances importados.");
-            else
-                partes.Add("A FIFA não publica estatística por jogadora — os números da avaliação continuam manuais.");
+                partes.Add("Este jogo já tem escalação, lances e estatísticas importados.");
 
             TempData["Mensagem"] = (houveFalha ? "⚠️ " : "✅ ") + string.Join(" ", partes);
             if (houveFalha) TempData["MensagemTipo"] = "erro";

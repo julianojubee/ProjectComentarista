@@ -112,6 +112,7 @@ namespace ControleFutebolWeb.Services
                             "[FotMobCadastro] Nome do jogador {Id} trocado de \"{Antigo}\" para \"{Novo}\" pelo FotMob {IdFotMob}.",
                             jogador.Id, jogador.Nome, nomeFotMob, idFotMob);
                         jogador.Nome = nomeFotMob!;
+                        jogador.SincronizadoFotMobEm = DateTime.UtcNow;
                         completados.Add("nome");
                     }
                 }
@@ -221,7 +222,16 @@ namespace ControleFutebolWeb.Services
                     alterados.Add("foto");
                 }
 
-                if (alterados.Count == 0) return alterados;
+                // A flag é gravada mesmo sem mudança: o usuário confirmou que o cadastro
+                // deve seguir o FotMob, e é ela que protege da reimportação dos jogos.
+                var jaMarcado = jogador.SincronizadoFotMobEm != null;
+                jogador.SincronizadoFotMobEm = DateTime.UtcNow;
+
+                if (alterados.Count == 0)
+                {
+                    if (!jaMarcado) await _context.SaveChangesAsync(ct);
+                    return alterados;
+                }
 
                 jogador.DtAlt = DateTime.UtcNow;
                 await _context.SaveChangesAsync(ct);

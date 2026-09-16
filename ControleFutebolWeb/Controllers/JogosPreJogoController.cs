@@ -29,17 +29,22 @@ namespace ControleFutebolWeb.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly PainelJogoService _paineis;
         private readonly TooltipJogadorService _tooltip;
+        private readonly FotMobPerfilService _fotmobPerfil;
+        private readonly FotMobService _fotmob;
 
         public JogosPreJogoController(FutebolContext context, ILogger<JogosPreJogoController> logger,
             ApiFootballService transfermarkt, UserManager<ApplicationUser> userManager,
-            PainelJogoService paineis, TooltipJogadorService tooltip)
+            PainelJogoService paineis, TooltipJogadorService tooltip, FotMobPerfilService fotmobPerfil,
+            FotMobService fotmob)
         {
+            _fotmob = fotmob;
             _context = context;
             _logger = logger;
             _transfermarkt = transfermarkt;
             _userManager = userManager;
             _paineis = paineis;
             _tooltip = tooltip;
+            _fotmobPerfil = fotmobPerfil;
         }
 
         // URL do proxy de mídia para o PainelJogoService (que não tem IUrlHelper).
@@ -156,6 +161,119 @@ namespace ControleFutebolWeb.Controllers
                     ? lista.Max(i => i.AtualizadoEm).ToLocalTime().ToString("dd/MM/yyyy HH:mm")
                     : null,
             });
+        }
+
+        // GET: Jogos/MomentoJogadores/5 — aba Momento do modal Pré-jogo: quem entra na
+        // lista, sem tocar no FotMob. Titulares = a última escalação registrada de cada
+        // time (a mesma do match-up); o resto do elenco vem como banco. O resumo de
+        // cada um é pedido depois, jogador a jogador, em /Jogos/MomentoJogador.
+        [HttpGet]
+        public async Task<IActionResult> MomentoJogadores(int id)
+        {
+            var uid = _userManager.GetUserId(User);
+
+            var jogo = await _context.Jogos
+                .AsNoTracking()
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .FirstOrDefaultAsync(j => j.Id == id);
+
+            if (jogo == null) return NotFound();
+
+            object Jogador(Jogador j, string? posicao) => new
+            {
+                id = j.Id,
+                nome = j.Nome,
+                numero = j.NumeroCamisa,
+                sigla = PosicaoJogadorHelper.Sigla(posicao ?? j.Posicao),
+                foto = string.IsNullOrEmpty(j.FotoUrl) ? null : ImagemUrl(j.FotoUrl),
+                sincronizado = j.IdFotMob != null,
+            };
+
+            async Task<object> Lado(int timeId, Time? time, bool esquerda)
+            {
+                var t = await MatchUpHelper.MontarTimeAsync(_context, timeId, esquerda, uid);
+                return new
+                {
+                    time = time?.Nome,
+                    escudo = string.IsNullOrWhiteSpace(time?.EscudoUrl) ? null : ImagemUrl(time!.EscudoUrl!),
+                    escalacaoDe = t?.JogoOrigem?.Data?.ToString("dd/MM/yyyy"),
+                    titulares = t?.Escalacao.Select(e => Jogador(e.Jogador, e.Posicao)).ToList() ?? new List<object>(),
+                    reservas = t?.Elenco.Where(j => !j.Aposentado).OrderBy(j => j.Nome)
+                        .Select(j => Jogador(j, null)).ToList() ?? new List<object>(),
+                };
+            }
+
+            return Json(new
+            {
+                casa = await Lado(jogo.TimeCasaId, jogo.TimeCasa, esquerda: true),
+                visitante = await Lado(jogo.TimeVisitanteId, jogo.TimeVisitante, esquerda: false),
+            });
+        }
+
+        // GET: Jogos/MomentoJogador/123 — resumo "como chega ao jogo" de UM jogador
+        // (o id é do jogador, não do jogo). Uma chamada ao FotMob, em cache por 6h e
+        // enfileirada pela porta do FotMobService; a aba pede um por vez.
+        [HttpGet]
+        public async Task<IActionResult> MomentoJogador(int id, CancellationToken ct)
+        {
+            var idFotMob = await _context.Jogadores
+                .AsNoTracking()
+                .Where(j => j.Id == id)
+                .Select(j => j.IdFotMob)
+                .FirstOrDefaultAsync(ct);
+
+            if (idFotMob is not long externo)
+                return Json(new MomentoJogadorViewModel { Erro = "Não sincronizado." });
+
+            return Json(await _fotmobPerfil.MomentoAsync(externo, ct));
+        }
+
+        // GET: Jogos/MomentoCandidatos/123?termo=... — busca de candidatos para vincular o
+        // jogador sem sair da aba Momento. Mesma busca e mesma sugestão de termo da tela
+        // /Jogadores/VincularEstatisticas; quem escolhe continua sendo uma pessoa, pelos
+        // mesmos motivos (homônimos). A foto de cada candidato ajuda a conferir.
+        [HttpGet]
+        public async Task<IActionResult> MomentoCandidatos(int id, string? termo, CancellationToken ct)
+        {
+            var nome = await _context.Jogadores.AsNoTracking()
+                .Where(j => j.Id == id).Select(j => j.Nome).FirstOrDefaultAsync(ct);
+            if (nome == null) return NotFound();
+
+            termo = string.IsNullOrWhiteSpace(termo) ? JogadoresController.TermoSugerido(nome) : termo.Trim();
+
+            var candidatos = (await _fotmob.BuscarJogadoresAsync(termo, ct))
+                .Select(c => new
+                {
+                    id = c.Id,
+                    nome = c.Nome,
+                    time = c.Time,
+                    foto = Url.Action("FotoJogador", "MediaProxy", new { id = c.Id }),
+                });
+
+            return Json(new { termo, candidatos });
+        }
+
+        public class MomentoVincularRequest
+        {
+            public long IdExterno { get; set; }
+        }
+
+        // POST: Jogos/MomentoVincular/123 — grava o vínculo escolhido na aba Momento. É o
+        // mesmo efeito do POST de /Jogadores/VincularEstatisticas, só que respondendo JSON
+        // para a aba carregar o resumo na hora.
+        [HttpPost]
+        public async Task<IActionResult> MomentoVincular(int id, [FromBody] MomentoVincularRequest req, CancellationToken ct)
+        {
+            if (req.IdExterno <= 0) return BadRequest();
+
+            var jogador = await _context.Jogadores.FirstOrDefaultAsync(j => j.Id == id, ct);
+            if (jogador == null) return NotFound();
+
+            jogador.IdFotMob = req.IdExterno;
+            await _context.SaveChangesAsync(ct);
+
+            return Json(new { ok = true });
         }
 
         // GET: Jogos/MatchUpPreJogo/5 — aba Match-up do modal Pré-jogo.
