@@ -7,7 +7,8 @@ namespace ControleFutebolWeb.Helpers.Campeonatos
 
     /// <summary>
     /// Decide o encerramento pela ÚLTIMA fase:
-    ///   - mata-mata: a final tem vencedor (placar, agregado ou pênaltis);
+    ///   - mata-mata: a final tem vencedor (placar, agregado ou pênaltis) — e o jogo
+    ///     de 3º lugar também, quando existe;
     ///   - pontos corridos: todas as partidas têm placar, e o campeão é o líder da
     ///     tabela pelos critérios de desempate do campeonato;
     ///   - grupos como última fase: todas com placar, mas sem campeão único.
@@ -28,8 +29,13 @@ namespace ControleFutebolWeb.Helpers.Campeonatos
 
             if (tipo == "MATA_MATA")
             {
+                // O 3º lugar, quando existe, precisa estar decidido também.
+                var terceiro = partidas.Where(p => p.Grupo == GeradorPartidasCampeonato.NomeTerceiroLugar).ToList();
+                if (terceiro.Count > 0 && GeradorPartidasCampeonato.Vencedor(terceiro) == null) return new(false, null);
+
                 // A final é a etapa da última rodada, com um confronto só.
                 var final = partidas
+                    .Where(p => p.Grupo != GeradorPartidasCampeonato.NomeTerceiroLugar)
                     .GroupBy(p => p.Grupo ?? "")
                     .OrderBy(g => g.Min(p => p.Rodada))
                     .Last()

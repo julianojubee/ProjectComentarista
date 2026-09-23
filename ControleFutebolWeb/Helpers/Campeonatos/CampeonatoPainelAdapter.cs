@@ -191,7 +191,8 @@ namespace ControleFutebolWeb.Helpers.Campeonatos
                     // A final do último mata-mata decide o campeonato. Não dá para passar
                     // decideTitulo ao builder: ele marca TODAS as etapas, e o vencedor da
                     // semifinal sairia anunciado como campeão.
-                    var final = detalhe.FasesMataMata.OrderBy(e => e.Ordem).LastOrDefault();
+                    // Pelo nome, e não pela última coluna: o 3º lugar vem depois da final.
+                    var final = detalhe.FasesMataMata.FirstOrDefault(e => e.Nome == "Final");
                     if (ultimaFase && final?.Confrontos.Count == 1) final.DecideTitulo = true;
                     break;
             }

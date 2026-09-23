@@ -105,7 +105,7 @@ namespace ControleFutebolWeb.Services
                     break;
 
                 case "MATA_MATA":
-                    partidas = GeradorPartidasCampeonato.MataMata(entrantes, fase.IdaEVolta, rodadaInicial);
+                    partidas = GeradorPartidasCampeonato.MataMata(entrantes, fase.IdaEVolta, rodadaInicial, fase.DisputaTerceiro);
                     break;
 
                 default:

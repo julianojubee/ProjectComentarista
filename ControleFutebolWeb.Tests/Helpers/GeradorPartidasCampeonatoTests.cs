@@ -202,5 +202,51 @@ namespace ControleFutebolWeb.Tests.Helpers
             Assert.Equal(1, semi1.ParticipanteCasaId);
             Assert.Equal(4, semi1.ParticipanteVisitanteId);
         }
+
+        [Fact]
+        public void MataMata_TerceiroLugar_NaRodadaDaFinal_ComVagasEmAberto()
+        {
+            var partidas = GeradorPartidasCampeonato.MataMata(Ids(8), idaEVolta: false, rodadaInicial: 1, terceiroLugar: true);
+
+            var terceiro = Assert.Single(partidas, p => p.Grupo == GeradorPartidasCampeonato.NomeTerceiroLugar);
+            var final = Assert.Single(partidas, p => p.Grupo == "Final");
+            Assert.Equal(final.Rodada, terceiro.Rodada);
+            Assert.Null(terceiro.ParticipanteCasaId);
+            Assert.Null(terceiro.ParticipanteVisitanteId);
+            Assert.Equal(8, partidas.Count);
+        }
+
+        [Fact]
+        public void MataMata_TerceiroLugar_ComTresParticipantes_NaoExiste()
+        {
+            var partidas = GeradorPartidasCampeonato.MataMata(Ids(3), idaEVolta: false, rodadaInicial: 1, terceiroLugar: true);
+
+            Assert.DoesNotContain(partidas, p => p.Grupo == GeradorPartidasCampeonato.NomeTerceiroLugar);
+        }
+
+        [Fact]
+        public void AvancarVencedores_PerdedoresDasSemisVaoParaOTerceiroLugar()
+        {
+            var partidas = GeradorPartidasCampeonato.MataMata(Ids(4), idaEVolta: true, rodadaInicial: 1, terceiroLugar: true);
+            for (var i = 0; i < partidas.Count; i++) partidas[i].Id = i + 1;
+
+            // Semi 1 (1 x 4): o 4 passa no agregado. Semi 2 (2 x 3): o 2 passa.
+            foreach (var p in partidas.Where(p => p.Grupo == "Semifinal"))
+            {
+                var vence = p.ChaveOrdem == 1 ? 4 : 2;
+                p.PlacarCasa = p.ParticipanteCasaId == vence ? 2 : 0;
+                p.PlacarVisitante = p.ParticipanteVisitanteId == vence ? 2 : 0;
+            }
+
+            GeradorPartidasCampeonato.AvancarVencedores(partidas);
+
+            var terceiro = partidas.Where(p => p.Grupo == GeradorPartidasCampeonato.NomeTerceiroLugar).OrderBy(p => p.Rodada).ToList();
+            Assert.Equal(2, terceiro.Count);
+            Assert.Equal((1, 3), (terceiro[0].ParticipanteCasaId!.Value, terceiro[0].ParticipanteVisitanteId!.Value));
+            Assert.Equal((3, 1), (terceiro[1].ParticipanteCasaId!.Value, terceiro[1].ParticipanteVisitanteId!.Value));
+
+            var final = partidas.First(p => p.Grupo == "Final");
+            Assert.Equal((4, 2), (final.ParticipanteCasaId!.Value, final.ParticipanteVisitanteId!.Value));
+        }
     }
 }

@@ -20,5 +20,8 @@ namespace ControleFutebolWeb.Models.Campeonatos
         public bool IdaEVolta { get; set; }
         // Quantos avançam por grupo/tabela para a fase seguinte. Null = última fase.
         public int? Classificados { get; set; }
+
+        // Só no mata-mata: jogo entre os perdedores das semifinais.
+        public bool DisputaTerceiro { get; set; }
     }
 }

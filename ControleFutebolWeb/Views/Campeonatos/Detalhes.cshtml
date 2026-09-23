@@ -22,7 +22,7 @@
             </div>
             <h1 class="cp-titulo">@c.Nome</h1>
             <p class="cp-sub">
-                @string.Join(" → ", c.Fases.OrderBy(f => f.Ordem).Select(f => TipoFase(f.Tipo) + (f.IdaEVolta ? " (ida e volta)" : "")))
+                @string.Join(" → ", c.Fases.OrderBy(f => f.Ordem).Select(f => TipoFase(f.Tipo) + (f.IdaEVolta ? " (ida e volta)" : "") + (f.DisputaTerceiro ? " com 3º lugar" : "")))
                 · @c.Participantes.Count participantes
             </p>
         </div>

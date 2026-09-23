@@ -72,9 +72,9 @@ namespace ControleFutebolWeb.Controllers
             "GRUPOS" => new[]
             {
                 new CampeonatoFase { Nome = "Fase de grupos", Tipo = "GRUPOS", Ordem = 1, IdaEVolta = input.IdaEVolta, Classificados = input.ClassificadosPorGrupo },
-                new CampeonatoFase { Nome = "Mata-mata", Tipo = "MATA_MATA", Ordem = 2, IdaEVolta = input.MataMataIdaEVolta }
+                new CampeonatoFase { Nome = "Mata-mata", Tipo = "MATA_MATA", Ordem = 2, IdaEVolta = input.MataMataIdaEVolta, DisputaTerceiro = input.DisputaTerceiro }
             },
-            "MATA_MATA" => new[] { new CampeonatoFase { Nome = "Mata-mata", Tipo = "MATA_MATA", Ordem = 1, IdaEVolta = input.IdaEVolta } },
+            "MATA_MATA" => new[] { new CampeonatoFase { Nome = "Mata-mata", Tipo = "MATA_MATA", Ordem = 1, IdaEVolta = input.IdaEVolta, DisputaTerceiro = input.DisputaTerceiro } },
             _ => new[] { new CampeonatoFase { Nome = "Pontos corridos", Tipo = "PONTOS_CORRIDOS", Ordem = 1, IdaEVolta = input.IdaEVolta } }
         };
 

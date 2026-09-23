@@ -112,6 +112,20 @@ namespace ControleFutebolWeb.Tests.Helpers
         }
 
         [Fact]
+        public void MataMata_TerceiroLugarViraColunaPropria_SemTituloDeCampeao()
+        {
+            var campeonato = Montar("MATA_MATA", 4,
+                ids => GeradorPartidasCampeonato.MataMata(ids, false, 1, terceiroLugar: true));
+
+            var painel = CampeonatoPainelAdapter.MontarPainel(campeonato);
+
+            var terceiro = painel.FasesMataMata.Single(f => f.Nome == GeradorPartidasCampeonato.NomeTerceiroLugar);
+            Assert.False(terceiro.DecideTitulo);
+            Assert.True(painel.FasesMataMata.Single(f => f.Nome == "Final").DecideTitulo);
+            Assert.Equal("Final", painel.FasesMataMata.OrderBy(f => f.Ordem).ElementAt(1).Nome);
+        }
+
+        [Fact]
         public void DuasFases_UmaAbaPorFase()
         {
             var campeonato = Montar("GRUPOS", 4, ids => GeradorPartidasCampeonato.Grupos(

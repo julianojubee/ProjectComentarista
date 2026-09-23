@@ -26,6 +26,9 @@ namespace ControleFutebolWeb.Models.ViewModels
         // Só no formato GRUPOS: o mata-mata que vem depois dos grupos.
         public bool MataMataIdaEVolta { get; set; }
 
+        // Formatos com mata-mata: jogo entre os perdedores das semifinais.
+        public bool DisputaTerceiro { get; set; }
+
         [Range(1, 8, ErrorMessage = "Entre 1 e 8 por grupo.")]
         public int ClassificadosPorGrupo { get; set; } = 2;
     }

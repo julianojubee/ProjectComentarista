@@ -97,6 +97,9 @@ namespace ControleFutebolWeb.Helpers.Campeonatos
 
         // ── Mata-mata ───────────────────────────────────────────────────────
 
+        /// <summary>Rótulo (PartidaCampeonato.Grupo) do jogo entre os perdedores das semifinais.</summary>
+        public const string NomeTerceiroLugar = "Disputa de 3º lugar";
+
         /// <summary>
         /// Monta o chaveamento inteiro de uma vez: a primeira etapa com os
         /// confrontos e as seguintes com vagas em aberto (participante null), que
@@ -109,8 +112,13 @@ namespace ControleFutebolWeb.Helpers.Campeonatos
         /// ChaveOrdem numera os confrontos de cada etapa a partir de 1; o vencedor do
         /// confronto c vai para o confronto (c+1)/2 da etapa seguinte, como mandante
         /// da ida se c for ímpar.
+        ///
+        /// <paramref name="terceiroLugar"/>: cria também o jogo de 3º lugar, na rodada
+        /// da final, com as vagas em aberto para os perdedores das semifinais. Precisa
+        /// de 4 participantes ou mais — com 3, quem perde a única semifinal já é o 3º.
         /// </summary>
-        public static List<PartidaCampeonato> MataMata(IReadOnlyList<int> participantesPorForca, bool idaEVolta, int rodadaInicial)
+        public static List<PartidaCampeonato> MataMata(IReadOnlyList<int> participantesPorForca, bool idaEVolta, int rodadaInicial,
+            bool terceiroLugar = false)
         {
             var partidas = new List<PartidaCampeonato>();
             var n = participantesPorForca.Count;
@@ -149,6 +157,12 @@ namespace ControleFutebolWeb.Helpers.Campeonatos
                     partidas.Add(Nova(rodada, a, b, nome, c));
                     if (idaEVolta) partidas.Add(Nova(rodada + 1, b, a, nome, c));
                     proximas.Add(null);
+                }
+
+                if (confrontos == 1 && terceiroLugar && n >= 4)
+                {
+                    partidas.Add(Nova(rodada, null, null, NomeTerceiroLugar, 1));
+                    if (idaEVolta) partidas.Add(Nova(rodada + 1, null, null, NomeTerceiroLugar, 1));
                 }
 
                 vagas = proximas;
@@ -222,9 +236,22 @@ namespace ControleFutebolWeb.Helpers.Campeonatos
         }
 
         /// <summary>
+        /// Quem perdeu o confronto: o outro lado do vencedor. Null enquanto não há
+        /// vencedor (ver <see cref="Vencedor"/>).
+        /// </summary>
+        public static int? Perdedor(IReadOnlyCollection<PartidaCampeonato> jogosDoConfronto)
+        {
+            var vencedor = Vencedor(jogosDoConfronto);
+            if (vencedor == null) return null;
+            var primeiro = jogosDoConfronto.First();
+            return primeiro.ParticipanteCasaId == vencedor ? primeiro.ParticipanteVisitanteId : primeiro.ParticipanteCasaId;
+        }
+
+        /// <summary>
         /// Leva o vencedor de cada confronto decidido para a vaga dele na etapa
         /// seguinte — e tira de lá quem não é mais vencedor (placar corrigido ou
-        /// apagado). Uma vaga só muda enquanto o confronto de destino não tem nenhum
+        /// apagado). Os perdedores das semifinais vão, do mesmo jeito, para o jogo de
+        /// 3º lugar. Uma vaga só muda enquanto o confronto de destino não tem nenhum
         /// placar: com a bola já rolando lá, corrigir o passado fica por conta do
         /// organizador. Devolve quantas partidas mudaram.
         /// </summary>
@@ -232,9 +259,10 @@ namespace ControleFutebolWeb.Helpers.Campeonatos
         {
             // Etapas em ordem de rodada — e não pela quantidade de confrontos: com bye,
             // a primeira etapa pode ter menos jogos que a segunda (5 participantes dão
-            // 1 jogo antes da semifinal).
+            // 1 jogo antes da semifinal). O 3º lugar fica de fora: está na rodada da
+            // final e não recebe vencedor de ninguém.
             var etapas = partidasDoMataMata
-                .Where(p => p.ChaveOrdem != null)
+                .Where(p => p.ChaveOrdem != null && p.Grupo != NomeTerceiroLugar)
                 .GroupBy(p => p.Grupo ?? "")
                 .OrderBy(g => g.Min(p => p.Rodada))
                 .Select(g => g.GroupBy(p => p.ChaveOrdem!.Value)
@@ -250,29 +278,46 @@ namespace ControleFutebolWeb.Helpers.Campeonatos
                     if (!etapas[e + 1].TryGetValue((chave + 1) / 2, out var destino)) continue;
                     if (destino.Any(p => p.PlacarCasa != null || p.PlacarVisitante != null)) continue;
 
-                    var vencedor = Vencedor(jogos);
-                    var vagaA = chave % 2 == 1;
-
-                    for (var i = 0; i < destino.Count; i++)
-                    {
-                        // Na ida a vaga A é o mandante; na volta, o visitante.
-                        var noMandante = vagaA == (i % 2 == 0);
-                        var partida = destino[i];
-
-                        if (noMandante && partida.ParticipanteCasaId != vencedor)
-                        {
-                            partida.ParticipanteCasaId = vencedor;
-                            alteradas++;
-                        }
-                        else if (!noMandante && partida.ParticipanteVisitanteId != vencedor)
-                        {
-                            partida.ParticipanteVisitanteId = vencedor;
-                            alteradas++;
-                        }
-                    }
+                    alteradas += Ocupar(destino, vagaA: chave % 2 == 1, Vencedor(jogos));
                 }
             }
 
+            var terceiro = partidasDoMataMata
+                .Where(p => p.Grupo == NomeTerceiroLugar)
+                .OrderBy(p => p.Rodada).ThenBy(p => p.Id)
+                .ToList();
+            if (terceiro.Count > 0 && etapas.Count >= 2
+                && !terceiro.Any(p => p.PlacarCasa != null || p.PlacarVisitante != null))
+            {
+                // Semifinal = etapa antes da final. Perdedor da semi 1 na vaga A, da 2 na B.
+                foreach (var (chave, jogos) in etapas[^2])
+                    alteradas += Ocupar(terceiro, vagaA: chave % 2 == 1, Perdedor(jogos));
+            }
+
+            return alteradas;
+        }
+
+        // Põe o participante na vaga A (mandante da ida, visitante da volta) ou B do
+        // confronto de destino. Devolve quantas partidas mudaram.
+        private static int Ocupar(List<PartidaCampeonato> destino, bool vagaA, int? participante)
+        {
+            var alteradas = 0;
+            for (var i = 0; i < destino.Count; i++)
+            {
+                var noMandante = vagaA == (i % 2 == 0);
+                var partida = destino[i];
+
+                if (noMandante && partida.ParticipanteCasaId != participante)
+                {
+                    partida.ParticipanteCasaId = participante;
+                    alteradas++;
+                }
+                else if (!noMandante && partida.ParticipanteVisitanteId != participante)
+                {
+                    partida.ParticipanteVisitanteId = participante;
+                    alteradas++;
+                }
+            }
             return alteradas;
         }
 

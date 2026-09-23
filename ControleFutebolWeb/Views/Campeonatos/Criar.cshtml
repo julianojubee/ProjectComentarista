@@ -76,6 +76,10 @@
             <label class="cp-check"><input type="checkbox" asp-for="MataMataIdaEVolta" /> Mata-mata com ida e volta</label>
         </div>
 
+        <div id="opcao-terceiro" class="cp-form-linha" style="margin-top:14px;">
+            <label class="cp-check"><input type="checkbox" asp-for="DisputaTerceiro" /> Disputa de 3º lugar <span class="cp-dica" style="margin:0">(entre os perdedores das semifinais)</span></label>
+        </div>
+
         <div style="display:flex; gap:10px; margin-top:22px;">
             <button type="submit" class="cp-btn ouro">Criar campeonato</button>
             <a class="cp-btn" asp-action="Index">Cancelar</a>
@@ -88,10 +92,12 @@
         // Opções que só fazem sentido no formato de grupos.
         (function () {
             var bloco = document.getElementById('opcoes-grupos');
+            var terceiro = document.getElementById('opcao-terceiro');
             var dica = document.getElementById('dica-ida');
             function atualizar() {
                 var formato = (document.querySelector('input[name="Formato"]:checked') || {}).value;
                 bloco.style.display = formato === 'GRUPOS' ? '' : 'none';
+                terceiro.style.display = formato === 'PONTOS_CORRIDOS' ? 'none' : '';
                 dica.textContent = formato === 'GRUPOS' ? '(na fase de grupos)' : '';
             }
             document.querySelectorAll('input[name="Formato"]').forEach(function (r) { r.addEventListener('change', atualizar); });

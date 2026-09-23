@@ -104,5 +104,25 @@ namespace ControleFutebolWeb.Tests.Helpers
             Assert.False(SituacaoCampeonatoHelper.AplicarStatus(c, agora));
             Assert.Equal(StatusCampeonato.Rascunho, c.Status);
         }
+
+        [Fact]
+        public void MataMata_ComTerceiroLugar_SoEncerraComOsDoisJogosDecididos()
+        {
+            var c = Montar((10, "MATA_MATA", ids => GeradorPartidasCampeonato.MataMata(ids, false, 1, terceiroLugar: true)));
+            foreach (var semi in c.Partidas.Where(p => p.Grupo == "Semifinal")) Placar(semi, 1, 0);
+            GeradorPartidasCampeonato.AvancarVencedores(c.Partidas.ToList());
+
+            var final = c.Partidas.Single(p => p.Grupo == "Final");
+            var terceiro = c.Partidas.Single(p => p.Grupo == GeradorPartidasCampeonato.NomeTerceiroLugar);
+
+            Placar(final, 0, 2);
+            Assert.False(SituacaoCampeonatoHelper.Avaliar(c).Decidido);
+
+            Placar(terceiro, 3, 3);
+            Assert.False(SituacaoCampeonatoHelper.Avaliar(c).Decidido);
+
+            terceiro.PenaltisCasa = 4; terceiro.PenaltisVisitante = 2;
+            Assert.Equal(new SituacaoCampeonato(true, final.ParticipanteVisitanteId), SituacaoCampeonatoHelper.Avaliar(c));
+        }
     }
 }
