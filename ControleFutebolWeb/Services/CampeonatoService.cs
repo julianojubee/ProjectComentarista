@@ -125,10 +125,12 @@ namespace ControleFutebolWeb.Services
         }
 
         /// <summary>
-        /// Leva os vencedores do mata-mata para a etapa seguinte. Chamar depois de
-        /// salvar qualquer placar de partida de mata-mata.
+        /// O que muda depois de um placar salvo: os vencedores do mata-mata vão para a
+        /// etapa seguinte e o campeonato encerra (ou reabre, se o placar foi apagado ou
+        /// corrigido) conforme SituacaoCampeonatoHelper. Chamar depois de salvar
+        /// qualquer placar.
         /// </summary>
-        public async Task<ResultadoCampeonato> AtualizarChaveamentoAsync(int campeonatoId, string usuarioId)
+        public async Task<ResultadoCampeonato> AtualizarAposResultadoAsync(int campeonatoId, string usuarioId)
         {
             var campeonato = await CarregarAsync(campeonatoId, usuarioId);
             if (campeonato == null) return ResultadoCampeonato.Falha("Campeonato não encontrado.");
@@ -138,8 +140,26 @@ namespace ControleFutebolWeb.Services
                 alteradas += GeradorPartidasCampeonato.AvancarVencedores(
                     campeonato.Partidas.Where(p => p.FaseId == fase.Id).ToList());
 
-            if (alteradas > 0) await _context.SaveChangesAsync();
+            // Depois do avanço: a final só tem os dois lados depois que as semis passam.
+            var statusMudou = SituacaoCampeonatoHelper.AplicarStatus(campeonato, DateTime.UtcNow);
+
+            if (alteradas > 0 || statusMudou) await _context.SaveChangesAsync();
             return new ResultadoCampeonato(true, Partidas: alteradas);
+        }
+
+        /// <summary>Campeonatos do usuário com a situação (encerrado? campeão?) de cada um.</summary>
+        public async Task<List<(Campeonato Campeonato, SituacaoCampeonato Situacao)>> ListarAsync(string usuarioId)
+        {
+            var campeonatos = await ComTudo()
+                .AsNoTracking()
+                .Where(c => c.UsuarioId == usuarioId)
+                .ToListAsync();
+
+            return campeonatos
+                .OrderBy(c => c.Status == StatusCampeonato.Encerrado)
+                .ThenByDescending(c => c.CriadoEm)
+                .Select(c => (c, SituacaoCampeonatoHelper.Avaliar(c)))
+                .ToList();
         }
 
         private Dictionary<string, List<int>>? MontarGrupos(

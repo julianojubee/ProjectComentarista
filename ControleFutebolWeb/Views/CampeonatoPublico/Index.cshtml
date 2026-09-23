@@ -23,6 +23,8 @@
         </div>
     </div>
 
+    @await Html.PartialAsync("~/Views/Campeonatos/_Campeao.cshtml", Model)
+
     <nav class="cp-abas">
         <a class="@Aba("tabela")" href="/c/@token">Tabela</a>
         <a class="@Aba("partidas")" href="/c/@token?aba=partidas">Partidas</a>

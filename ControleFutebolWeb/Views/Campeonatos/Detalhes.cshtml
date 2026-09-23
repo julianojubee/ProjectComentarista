@@ -49,6 +49,8 @@
         </div>
     </div>
 
+    @await Html.PartialAsync("_Campeao", Model)
+
     @* Próximo passo do campeonato: gerar a fase que está pronta para isso. *@
     @if (proxima != null && c.Participantes.Count >= 2)
     {

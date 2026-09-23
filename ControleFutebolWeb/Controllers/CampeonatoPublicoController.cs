@@ -33,7 +33,8 @@ namespace ControleFutebolWeb.Controllers
                 Aba = aba is "partidas" or "artilharia" ? aba : "tabela",
                 Painel = CampeonatoPainelAdapter.MontarPainel(campeonato),
                 Participantes = campeonato.Participantes.ToDictionary(p => p.Id),
-                Artilharia = EstatisticasCampeonatoHelper.PorAtleta(campeonato.Partidas.SelectMany(p => p.Eventos))
+                Artilharia = EstatisticasCampeonatoHelper.PorAtleta(campeonato.Partidas.SelectMany(p => p.Eventos)),
+                Situacao = SituacaoCampeonatoHelper.Avaliar(campeonato)
             });
         }
     }

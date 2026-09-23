@@ -1,4 +1,4 @@
-@model List<ControleFutebolWeb.Models.Campeonatos.Campeonato>
+@model List<(ControleFutebolWeb.Models.Campeonatos.Campeonato Campeonato, ControleFutebolWeb.Helpers.Campeonatos.SituacaoCampeonato Situacao)>
 @using ControleFutebolWeb.Models.Campeonatos
 @{
     ViewData["Title"] = "Meus campeonatos";
@@ -44,8 +44,9 @@
     else
     {
         <div class="cp-grade">
-            @foreach (var c in Model)
+            @foreach (var (c, situacao) in Model)
             {
+                var campeao = situacao.CampeaoParticipanteId is int cid ? c.Participantes.FirstOrDefault(p => p.Id == cid) : null;
                 <a class="cp-card" asp-action="Detalhes" asp-route-id="@c.Id">
                     <div class="cp-card-topo">
                         <div class="cp-card-nome">@c.Nome</div>
@@ -58,6 +59,10 @@
                         <span>@Formato(c.Tipo)</span>
                         <span>@c.Participantes.Count participantes</span>
                     </div>
+                    @if (c.Status == StatusCampeonato.Encerrado && campeao != null)
+                    {
+                        <div class="cp-card-info" style="color:var(--gold-ink);font-weight:700;">🏆 @campeao.NomeExibicao</div>
+                    }
                 </a>
             }
         </div>

@@ -37,6 +37,7 @@ namespace ControleFutebolWeb.Models.ViewModels
         public CompeticaoPainelBuilder.Painel Painel { get; set; } = new();
         public Dictionary<int, CampeonatoParticipante> Participantes { get; set; } = new();
         public List<EstatisticaAtleta> Artilharia { get; set; } = new();
+        public SituacaoCampeonato Situacao { get; set; }
         public List<TimeProprio> MeusTimes { get; set; } = new();
         public List<Time> TimesReais { get; set; } = new();
         public string? LinkPublico { get; set; }

@@ -36,14 +36,7 @@ namespace ControleFutebolWeb.Controllers
         // GET: /Campeonatos
         public async Task<IActionResult> Index()
         {
-            var campeonatos = await _context.Campeonatos
-                .Where(c => c.UsuarioId == Uid)
-                .Include(c => c.Participantes)
-                .OrderBy(c => c.Status == StatusCampeonato.Encerrado)
-                .ThenByDescending(c => c.CriadoEm)
-                .AsNoTracking()
-                .ToListAsync();
-            return View(campeonatos);
+            return View(await _servico.ListarAsync(Uid));
         }
 
         // GET: /Campeonatos/Criar
@@ -98,6 +91,7 @@ namespace ControleFutebolWeb.Controllers
                 Painel = CampeonatoPainelAdapter.MontarPainel(campeonato),
                 Participantes = campeonato.Participantes.ToDictionary(p => p.Id),
                 Artilharia = EstatisticasCampeonatoHelper.PorAtleta(campeonato.Partidas.SelectMany(p => p.Eventos)),
+                Situacao = SituacaoCampeonatoHelper.Avaliar(campeonato),
                 LinkPublico = campeonato.TokenPublico == null ? null
                     : Url.Action("Index", "CampeonatoPublico", new { token = campeonato.TokenPublico }, Request.Scheme)
             };
@@ -206,7 +200,7 @@ namespace ControleFutebolWeb.Controllers
             partida.WO = temPlacar && wo;
             await _context.SaveChangesAsync();
 
-            await _servico.AtualizarChaveamentoAsync(id, Uid);
+            await _servico.AtualizarAposResultadoAsync(id, Uid);
 
             if (voltarPara == "sumula") return RedirectToAction(nameof(Sumula), new { id, partidaId });
             return Redirect(Url.Action(nameof(Detalhes), new { id, aba = "partidas" }) + $"#partida-{partidaId}");
