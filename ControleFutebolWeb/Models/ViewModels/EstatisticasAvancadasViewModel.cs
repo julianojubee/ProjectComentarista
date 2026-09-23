@@ -186,6 +186,38 @@
         public List<CompeticaoNaTemporada> Competicoes { get; set; } = new();
     }
 
+    /// <summary>
+    /// Uma temporada inteira segundo o FotMob (todas as competições somadas), para a
+    /// linha "Temporada" do tooltip ℹ do jogador. Ver FotMobPerfilService.TemporadaAsync.
+    /// </summary>
+    public class TemporadaFotMobResumo
+    {
+        public string Nome { get; set; } = "";
+        public int Jogos { get; set; }
+        public int Gols { get; set; }
+        public int Assistencias { get; set; }
+        public List<string> Times { get; set; } = new();
+        public List<CompeticaoNaTemporada> Competicoes { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Médias por jogo da temporada inteira segundo o FotMob, já no formato das
+    /// células do tooltip ℹ. Ver FotMobPerfilService.MediasTemporadaAsync.
+    /// </summary>
+    public class MediasFotMob
+    {
+        public int Jogos { get; set; }
+        public int Minutos { get; set; }
+        public int Competicoes { get; set; }
+        public List<CelulaMedia> Celulas { get; set; } = new();
+    }
+
+    public class CelulaMedia
+    {
+        public string Valor { get; set; } = "";
+        public string Rotulo { get; set; } = "";
+    }
+
     public class CompeticaoNaTemporada
     {
         public string Nome { get; set; } = "";

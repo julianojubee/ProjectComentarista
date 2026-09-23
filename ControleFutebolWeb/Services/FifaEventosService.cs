@@ -83,6 +83,7 @@ namespace ControleFutebolWeb.Services
             var cartoes = new List<Cartao>();
             var substituicoes = new List<Substituicao>();
             var penaltisPerdidos = new List<PenaltiPerdido>();
+            var disputa = new List<PenaltiDisputa>();
 
             foreach (var lance in lances.EnumerateArray())
             {
@@ -91,6 +92,34 @@ namespace ControleFutebolWeb.Services
                 var minuto = Minuto(lance);
                 var idPlayer = FifaService.Texto(lance, "IdPlayer");
                 var idSubPlayer = FifaService.Texto(lance, "IdSubPlayer");
+
+                // Disputa de pênaltis: a FIFA narra cada cobrança com os MESMOS códigos
+                // do tempo normal (41 = "Penalty Goal", 60 = "Penalty missed"), só que
+                // no período 11 e sem minuto. Sem este desvio as cobranças entravam como
+                // gols no minuto 0 — o BRA×USA das oitavas do Sub-20 (1×1, 5×4 nos
+                // pênaltis) ficou com 11 gols na análise. Elas vão para PenaltisDisputa,
+                // que não mexe no placar nem na artilharia; o placar da disputa já sai
+                // de AplicarPlacarFinal.
+                if (FifaService.Numero(lance, "Period") == PeriodoDisputaPenaltis)
+                {
+                    var convertido = tipo == TipoGolPenalti;
+                    var desperdicado = !convertido &&
+                                       rotulo.Contains("penalty", StringComparison.OrdinalIgnoreCase);
+                    if (!convertido && !desperdicado) continue;
+
+                    var cobradora = Resolver(idPlayer);
+                    if (cobradora == null) continue;
+
+                    disputa.Add(new PenaltiDisputa
+                    {
+                        JogoId = jogo.Id, JogadorId = cobradora.Id,
+                        IsTimeCasa = fichas[idPlayer!].EhCasa,
+                        Convertido = convertido,
+                        // A timeline vem em ordem cronológica, que é a ordem das cobranças.
+                        Ordem = disputa.Count + 1,
+                    });
+                    continue;
+                }
 
                 // Gol contra: a FIFA descreve o lance com a jogadora que marcou, então o
                 // lado sai da ficha dela — não há o problema da ESPN, que aponta o time
@@ -180,7 +209,7 @@ namespace ControleFutebolWeb.Services
                 }
             }
 
-            var total = gols.Count + cartoes.Count + substituicoes.Count + penaltisPerdidos.Count;
+            var total = gols.Count + cartoes.Count + substituicoes.Count + penaltisPerdidos.Count + disputa.Count;
             if (total == 0)
                 return new ResultadoFifa(placarGravado,
                     placarGravado
@@ -197,12 +226,14 @@ namespace ControleFutebolWeb.Services
             context.Cartoes.RemoveRange(await context.Cartoes.Where(c => c.JogoId == jogo.Id).ToListAsync(ct));
             context.Substituicoes.RemoveRange(await context.Substituicoes.Where(s => s.JogoId == jogo.Id).ToListAsync(ct));
             context.PenaltisPerdidos.RemoveRange(await context.PenaltisPerdidos.Where(p => p.JogoId == jogo.Id).ToListAsync(ct));
+            context.PenaltisDisputa.RemoveRange(await context.PenaltisDisputa.Where(p => p.JogoId == jogo.Id).ToListAsync(ct));
 
             context.Gols.AddRange(gols);
             context.Assistencias.AddRange(assistencias);
             context.Cartoes.AddRange(cartoes);
             context.Substituicoes.AddRange(substituicoes);
             context.PenaltisPerdidos.AddRange(penaltisPerdidos);
+            context.PenaltisDisputa.AddRange(disputa);
             await context.SaveChangesAsync(ct);
 
             if (naoResolvidos.Count > 0)
@@ -216,6 +247,8 @@ namespace ControleFutebolWeb.Services
             if (cartoes.Count > 0) partes.Add($"{cartoes.Count} cartão(ões)");
             if (substituicoes.Count > 0) partes.Add($"{substituicoes.Count} substituição(ões)");
             if (penaltisPerdidos.Count > 0) partes.Add($"{penaltisPerdidos.Count} pênalti(s) perdido(s)");
+            if (disputa.Count > 0)
+                partes.Add($"{disputa.Count} cobrança(s) da disputa de pênaltis ({disputa.Count(d => d.Convertido)} convertida(s))");
 
             var msg = $"Lances importados da FIFA: {string.Join(", ", partes)}.";
             if (placarGravado)
@@ -239,6 +272,10 @@ namespace ControleFutebolWeb.Services
         // "Penalty Awarded" (6) é a marcação da penalidade, não o gol, e continua fora.
         private const int TipoGolContra = 34;
         private const int TipoGolPenalti = 41;
+
+        // Período da disputa de pênaltis na timeline (3 e 5 são os tempos normais,
+        // 7 e 9 a prorrogação, 10 o fim de jogo).
+        internal const int PeriodoDisputaPenaltis = 11;
 
         private record Ficha(string Nome, int? Camisa, bool EhCasa);
 

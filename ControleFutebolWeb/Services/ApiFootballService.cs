@@ -545,6 +545,24 @@ namespace ControleFutebolWeb.Services
             if (fx == null)
                 return (false, "Não foi possível obter os dados da api-football.");
 
+            // Mando e horário publicados depois do cadastro. Em mata-mata a api-football
+            // costuma criar o jogo de volta antes de definir quem manda e a que horas, e
+            // corrige depois — a sincronização casa esse jogo pelo link e não voltava a
+            // olhar os times. Com o mando trocado a escalação da API cairia no lado
+            // errado e nenhuma outra fonte (FotMob, ESPN) acharia a partida. Foi o
+            // Santos x Atlético-MG da Sul-Americana de 16/09/2026: cadastrado como
+            // Santos mandante às 17h, jogado na MRV Arena às 19h.
+            if (jogo.TimeCasa.IdApi == fx.Teams.Away.Id && jogo.TimeVisitante.IdApi == fx.Teams.Home.Id)
+            {
+                _logger.LogWarning("[ApiFoot] Jogo {Id}: mando invertido em relação à API — corrigindo para {Casa} × {Vis}.",
+                    jogo.Id, fx.Teams.Home.Name, fx.Teams.Away.Name);
+                await InverterMandoAsync(context, jogo, ct);
+                await context.SaveChangesAsync(ct);
+            }
+
+            if (fx.Fixture.Date.HasValue && jogo.Data != fx.Fixture.Date.Value.UtcDateTime)
+                jogo.Data = fx.Fixture.Date.Value.UtcDateTime;
+
             var cicloId = Guid.NewGuid();
             await ImportarLineupEEventos(context, jogo,
                 fx, jogo.TimeCasa, jogo.TimeVisitante, cicloId, ct);
@@ -638,11 +656,47 @@ namespace ControleFutebolWeb.Services
         }
 
         /// <summary>
+        /// Troca mandante e visitante de um jogo e tudo que depende do lado: placares,
+        /// formações, cores, e o IsTimeCasa das escalações (de todos os usuários),
+        /// substituições e pênaltis. Gols, cartões e assistências não guardam lado — o
+        /// lado sai do time do jogador —, então não precisam de nada.
+        ///
+        /// Os flags são virados direto no banco (ExecuteUpdate), antes de qualquer
+        /// leitura dessas linhas pelo contexto; os campos do jogo vão no SaveChanges de
+        /// quem chamou.
+        /// </summary>
+        internal static async Task InverterMandoAsync(FutebolContext context, Jogo jogo, CancellationToken ct)
+        {
+            (jogo.TimeCasaId, jogo.TimeVisitanteId) = (jogo.TimeVisitanteId, jogo.TimeCasaId);
+            (jogo.TimeCasa, jogo.TimeVisitante) = (jogo.TimeVisitante, jogo.TimeCasa);
+            (jogo.PlacarCasa, jogo.PlacarVisitante) = (jogo.PlacarVisitante, jogo.PlacarCasa);
+            (jogo.PlacarParcialCasa, jogo.PlacarParcialVisitante) = (jogo.PlacarParcialVisitante, jogo.PlacarParcialCasa);
+            (jogo.PenaltisCasa, jogo.PenaltisVisitante) = (jogo.PenaltisVisitante, jogo.PenaltisCasa);
+            (jogo.FormacaoCasaId, jogo.FormacaoVisitanteId) = (jogo.FormacaoVisitanteId, jogo.FormacaoCasaId);
+            (jogo.CorCamisaCasa, jogo.CorCamisaVisitante) = (jogo.CorCamisaVisitante, jogo.CorCamisaCasa);
+            (jogo.CorNumeroCasa, jogo.CorNumeroVisitante) = (jogo.CorNumeroVisitante, jogo.CorNumeroCasa);
+
+            var id = jogo.Id;
+            await context.Escalacoes.Where(e => e.JogoId == id)
+                .ExecuteUpdateAsync(s => s.SetProperty(e => e.IsTimeCasa, e => !e.IsTimeCasa), ct);
+            await context.Substituicoes.Where(e => e.JogoId == id)
+                .ExecuteUpdateAsync(s => s.SetProperty(e => e.IsTimeCasa, e => !e.IsTimeCasa), ct);
+            await context.PenaltisPerdidos.Where(e => e.JogoId == id)
+                .ExecuteUpdateAsync(s => s.SetProperty(e => e.IsTimeCasa, e => !e.IsTimeCasa), ct);
+            await context.PenaltisDisputa.Where(e => e.JogoId == id)
+                .ExecuteUpdateAsync(s => s.SetProperty(e => e.IsTimeCasa, e => !e.IsTimeCasa), ct);
+            await context.SimulacoesJogoUsuario.Where(e => e.JogoId == id)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(e => e.PlacarCasa, e => e.PlacarVisitante)
+                    .SetProperty(e => e.PlacarVisitante, e => e.PlacarCasa), ct);
+        }
+
+        /// <summary>
         /// Zera o placar parcial e o relógio do jogo. Os campos andam sempre juntos:
         /// deixar o minuto sem o placar (ou o contrário) faria o card mostrar meia
         /// informação de uma partida que não está mais em andamento.
         /// </summary>
-        private static void LimparParcial(Jogo jogo)
+        internal static void LimparParcial(Jogo jogo)
         {
             jogo.PlacarParcialCasa = null;
             jogo.PlacarParcialVisitante = null;
@@ -842,6 +896,11 @@ namespace ControleFutebolWeb.Services
 
                     if (fx.Goals.Home.HasValue && fx.Goals.Away.HasValue)
                     {
+                        // Mando corrigido pela API depois do cadastro: sem isto o placar
+                        // entraria com os lados trocados (ver ForcarReimportarEscalacaoAsync).
+                        if (jogo.TimeCasa?.IdApi == fx.Teams.Away.Id && jogo.TimeVisitante?.IdApi == fx.Teams.Home.Id)
+                            await InverterMandoAsync(context, jogo, ct);
+
                         jogo.PlacarCasa = fx.Goals.Home;
                         jogo.PlacarVisitante = fx.Goals.Away;
                         jogo.Status = "Finalizado";
@@ -1363,6 +1422,8 @@ namespace ControleFutebolWeb.Services
             {
                 // Atualiza os dados da partida mesmo que o jogo já tenha sido analisado.
                 // As posições em campo (escalação) e as observações nunca são tocadas aqui.
+                if (existente.TimeCasaId == timeVis.Id && existente.TimeVisitanteId == timeCasa.Id)
+                    await InverterMandoAsync(context, existente, ct);
                 if (data.HasValue) existente.Data = data;
                 if (rodada > 0) existente.Rodada = rodada;
                 existente.Temporada = season;

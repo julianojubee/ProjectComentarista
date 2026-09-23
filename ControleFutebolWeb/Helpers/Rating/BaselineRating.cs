@@ -96,7 +96,9 @@ namespace ControleFutebolWeb.Helpers.Rating
         /// que impede que um outlier de volume (um jogo com 20 duelos) domine a nota
         /// inteira — acima de 2σ o jogador já provou o ponto, o resto não paga mais.
         /// </summary>
-        public static double ZTruncado(double valor, ReferenciaMetrica r, double limite = 2.0)
+        public const double LimiteZPadrao = 2.0;
+
+        public static double ZTruncado(double valor, ReferenciaMetrica r, double limite = LimiteZPadrao)
         {
             var desvio = DesvioUtil(r.Media, r.Desvio);
             return Math.Clamp((valor - r.Media) / desvio, -limite, limite);

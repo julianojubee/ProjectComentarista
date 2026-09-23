@@ -5,10 +5,9 @@ using ControleFutebolWeb.Models;
 namespace ControleFutebolWeb.Services
 {
     /// <summary>
-    /// Aplica ao jogo a escalação inicial publicada pelo FotMob. É o degrau seguinte ao
-    /// da ESPN na cascata do "Reimportar dados": entra quando nem a api-football nem a
-    /// ESPN têm a partida, o que é justamente o caso das ligas fora do catálogo da ESPN
-    /// (a do Catar é a que motivou).
+    /// Aplica ao jogo a escalação inicial publicada pelo FotMob. É o primeiro degrau da
+    /// cascata quando a api-football não traz a escalação, antes da ESPN — ver
+    /// EscalacaoAlternativaService, que é quem decide a ordem.
     ///
     /// A REGRA de aplicação não está aqui — está em
     /// <see cref="EspnEscalacaoService.AplicarAtletasAsync"/>, que é fonte-agnóstica.
@@ -42,7 +41,7 @@ namespace ControleFutebolWeb.Services
         /// reimportação, que só quer preencher o lado que ninguém trouxe.
         /// </param>
         public async Task<ResultadoFotMob> AplicarAsync(
-            FutebolContext context, int jogoId, string usuarioId,
+            FutebolContext context, int jogoId, string? usuarioId,
             Func<bool, bool>? filtroLado = null, CancellationToken ct = default)
         {
             var (jogo, doc, partida, erro) = await _fotmob.AbrirPartidaAsync(
@@ -118,6 +117,15 @@ namespace ControleFutebolWeb.Services
                     var nome = j.TryGetProperty("name", out var n) ? n.GetString() : null;
                     if (string.IsNullOrWhiteSpace(nome)) continue;
 
+                    long? idFotMob = j.TryGetProperty("id", out var idEl)
+                        ? idEl.ValueKind switch
+                        {
+                            JsonValueKind.Number => idEl.GetInt64(),
+                            JsonValueKind.String => long.TryParse(idEl.GetString(), out var parsed) ? parsed : null,
+                            _ => null,
+                        }
+                        : null;
+
                     yield return new EspnEscalacaoService.AtletaEscalado(
                         nome,
                         Camisa(j),
@@ -126,7 +134,11 @@ namespace ControleFutebolWeb.Services
                         // Reserva que entrou tem evento de substituição registrado; quem
                         // ficou no banco o jogo todo não tem nenhum. É o equivalente ao
                         // "appearances" da ESPN, e é o que separa "não jogou" de "jogou".
-                        Atuou: titular || EntrouEmCampo(j));
+                        Atuou: titular || EntrouEmCampo(j),
+                        // O vínculo é o casamento mais seguro que existe: quem já foi
+                        // ligado ao FotMob (na tela do jogador ou numa importação) casa
+                        // direto, sem depender de nome nem de camisa.
+                        IdFotMob: idFotMob is > 0 ? idFotMob : null);
                 }
             }
         }

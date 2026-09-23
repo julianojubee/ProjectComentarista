@@ -62,7 +62,9 @@
 
     .mu-slot {
         position: absolute; text-align: center; cursor: grab; color: #fff;
-        font-size: 11px; text-shadow: 1px 1px 2px #000; transform: translate(-50%,-50%);
+        font-size: 11px; text-shadow: 1px 1px 2px #000;
+        /* --mu-base: escala do modo transmissão (1 fora dele), ver muAjustarTamanho */
+        transform: translate(-50%,-50%) scale(var(--mu-base, 1));
         width: 62px; user-select: none;
         /* pointer events cuidam do arrasto no campo; sem isto o navegador
            tentaria rolar/gesticular em touch em vez de mover o jogador */
@@ -78,6 +80,21 @@
     /* Exceção: o ℹ precisa receber o mouse para abrir o tooltip. O arrasto do
        slot ignora cliques nele (ver muPointerDown). */
     .mu-slot .btn-info-jogador { pointer-events: all; }
+    /* × do slot: tira o jogador do campo e devolve ao elenco (muRemoverDoCampo).
+       Canto oposto ao ℹ. Com mouse só aparece no hover, para não poluir os 22
+       jogadores; em touch (sem hover) fica sempre visível. */
+    .mu-slot .mu-btn-remover {
+        pointer-events: all; position: absolute; top: -6px; right: -4px;
+        width: 16px; height: 16px; padding: 0; border: none; border-radius: 50%;
+        background: #ef4444; color: #fff; font-size: 12px; font-weight: 700;
+        line-height: 16px; text-align: center; text-shadow: none; cursor: pointer; z-index: 2;
+    }
+    .mu-slot .mu-btn-remover:hover { background: #b91c1c; }
+    @media (hover: hover) {
+        .mu-slot .mu-btn-remover { opacity: 0; transition: opacity .12s; }
+        .mu-slot:hover .mu-btn-remover { opacity: 1; }
+        .mu-slot.mu-arrastando .mu-btn-remover { opacity: 0; }
+    }
     /* Marcações do campo nunca participam de hit-test */
     .mu-linha-meio, .mu-circulo, .mu-area-esq, .mu-area-dir, .mu-gol-esq, .mu-gol-dir { pointer-events: none; }
     .mu-slot-sigla {
@@ -300,6 +317,18 @@
             linear-gradient(90deg, #14532d 0%, #166534 50%, #14532d 100%);
     }
 
+    /* Forro do gramado. Em preserve-3d o Chrome corta o gramado pelo plano de
+       cada jogador em pé (a árvore BSP que ordena os planos) e desenha os pedaços
+       separados; na emenda sobra uma fresta de ~1px em que aparecia o fundo
+       escuro — as "linhas pretas" que surgiam ao arrastar alguém, mais na parte
+       de baixo. Uma cópia do gramado 3px abaixo tem as emendas em outro lugar
+       (o mesmo plano do jogador a corta ~5px ao lado), então pela fresta passa
+       grama. O inset de 2px mantém o forro escondido sob a borda do gramado. */
+    .mu-cena-3d > .mu-campo-3d::before {
+        content: ""; position: absolute; inset: 2px; pointer-events: none;
+        background: inherit; transform: translateZ(-3px);
+    }
+
     /* O retângulo do gol vira a trave de verdade */
     .mu-campo-3d .mu-gol-esq, .mu-campo-3d .mu-gol-dir { display: none; }
 
@@ -311,7 +340,7 @@
        escalação de transmissão dá, com o jogador flutuando sobre o campo. */
     .mu-campo-3d .mu-slot {
         transform: translate(-50%, -50%) translateZ(var(--mu-z, 30px))
-                   rotateX(calc(-1 * var(--mu-ang, 30deg))) scale(var(--mu-k, 1));
+                   rotateX(calc(-1 * var(--mu-ang, 30deg))) scale(calc(var(--mu-k, 1) * var(--mu-base, 1)));
     }
     /* Em preserve-3d o z-index não ordena: quem está sendo arrastado sobe no eixo Z */
     .mu-campo-3d .mu-slot.mu-arrastando { --mu-z: 70px; }
@@ -391,5 +420,53 @@
         .mu-cena-3d > .mu-campo-3d { transform: none !important; overflow: hidden; box-shadow: none; }
         .mu-gol-frame, .mu-gol-teto, .mu-gol-lado, .mu-gol-sombra { display: none; }
         .mu-campo-3d .mu-gol-esq, .mu-campo-3d .mu-gol-dir { display: block; }
-        .mu-campo-3d .mu-slot { transform: translate(-50%, -50%); }
+        .mu-campo-3d .mu-slot { transform: translate(-50%, -50%) scale(var(--mu-base, 1)); }
     }
+
+    /* ══ Modo transmissão (OBS) ═══════════════════════════════════════════════
+       Ligado pelo botão 📺 (muToggleTransmissao). O container do match-up vira
+       uma camada fixa do tamanho da janela, por cima de todo o site, e o campo
+       cresce até a altura disponível. Os jogadores crescem junto via --mu-base.
+       Fora do modo, o botão ⛶ Tela cheia não aparece. */
+    .mu-so-transmissao { display: none; }
+    .mu-transmissao .mu-so-transmissao { display: inline-block; }
+
+    html.mu-transmissao-aberta, html.mu-transmissao-aberta body { overflow: hidden; }
+    .mu-transmissao {
+        position: fixed; inset: 0; z-index: 3000;
+        display: flex; flex-direction: column;
+        padding: 10px 16px 0; overflow: hidden;
+        background: radial-gradient(ellipse at 50% 30%, #13233d 0%, #070d18 75%);
+    }
+    .mu-transmissao .mu-header { margin-bottom: 4px; gap: 2.5rem; flex-wrap: nowrap; }
+    .mu-transmissao .mu-time-info img { width: 64px; height: 64px; }
+    .mu-transmissao .mu-time-nome { font-size: 30px; color: #fff; }
+    .mu-transmissao .mu-vs { font-size: 30px; }
+    .mu-transmissao .mu-time-jogo,
+    .mu-transmissao .mu-dica { display: none; }
+    /* Barra discreta: está na imagem capturada, então só aparece de verdade no hover */
+    .mu-transmissao .mu-toolbar { margin-bottom: 0; opacity: .18; transition: opacity .15s; }
+    .mu-transmissao .mu-toolbar:hover,
+    .mu-transmissao .mu-toolbar:focus-within { opacity: 1; }
+
+    .mu-transmissao .mu-layout { flex: 1 1 auto; min-height: 0; align-items: center; }
+    .mu-transmissao .mu-banco-lista { max-height: calc(100vh - 190px); }
+    /* Header (~80px) + barra (~35px) + respiro da borda de baixo, que a
+       perspectiva aproxima e alarga */
+    .mu-transmissao .mu-cena-3d {
+        max-width: min(100%, calc((100vh - 175px) * 1.5));
+        margin: 0 auto 40px;
+    }
+    .mu-transmissao .mu-campo:not(.mu-campo-3d) {
+        max-width: min(100%, calc((100vh - 150px) * 1.8)); margin: 0 auto;
+    }
+    /* Nomes com fundo: sobre o gramado ampliado o text-shadow sozinho some no vídeo */
+    .mu-transmissao .mu-slot .player-name {
+        background: rgba(0,0,0,.6); border-radius: 4px; padding: 0 4px;
+        /* Largura do texto (até 84px) centrada no slot de 62px, mesmo passando dele */
+        width: fit-content; max-width: 84px; margin: 2px 0 0;
+        position: relative; left: 50%; transform: translateX(-50%);
+    }
+    /* ℹ azul em 22 jogadores polui o vídeo: no modo transmissão só no hover */
+    .mu-transmissao .mu-slot .btn-info-jogador { opacity: 0; transition: opacity .12s; }
+    .mu-transmissao .mu-slot:hover .btn-info-jogador { opacity: 1; }

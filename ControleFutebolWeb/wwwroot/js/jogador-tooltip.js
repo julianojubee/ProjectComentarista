@@ -32,6 +32,21 @@ window.JogadorTooltip = (function () {
         temporada: 0,
     };
 
+    // Temporada completa segundo o FotMob (todas as competições, inclusive as que
+    // não estão cadastradas), buscada no primeiro hover de cada jogador.
+    // Chave "id:temporada" → undefined (nunca pedida), null (a caminho) ou a resposta
+    // de /Jogadores/TemporadaFotMob. ok=false = sem vínculo/sem dado: fica a
+    // contagem local, que é o que havia antes.
+    var temporadaFotMob = {};
+    var aberto = null;           // { btn, dados } do tooltip na tela agora
+
+    // Médias por jogo da temporada inteira no FotMob, mesma chave e mesmos estados.
+    // Custa uma chamada por competição no servidor, então o pedido é cancelado se o
+    // mouse sai antes da resposta (volta a undefined e é pedido de novo no próximo
+    // hover — o que já tinha chegado ao servidor fica no cache dele).
+    var mediasFotMob = {};
+    var mediasPedido = null;     // { chave, ctrl } do pedido em andamento
+
     function configurar(novo) {
         Object.keys(novo || {}).forEach(function (k) {
             if (novo[k] != null) ctx[k] = novo[k];
@@ -88,6 +103,81 @@ window.JogadorTooltip = (function () {
             : '';
     }
 
+    // Linha "Temporada" com os números do FotMob: jogos, gols e assistências
+    // somados de todas as competições do ano. Só o total: a quebra por competição
+    // fica no perfil do jogador.
+    function ttLinhaTemporadaFotMob(t) {
+        const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
+        return `<div class="tt-stats">` +
+                `<div class="tt-stat-rotulo">Temporada ${escHtml(t.temporada)} <span class="tt-fonte">· todas as competições</span></div>` +
+                `<div class="tt-stat-valores">` +
+                    `<span class="tt-stat-tit">🏟️ ${plural(t.jogos, 'jogo', 'jogos')}</span>` +
+                    `<span class="tt-stat-gol">⚽ ${plural(t.gols, 'gol', 'gols')}</span>` +
+                    `<span class="tt-stat-ast">🅰️ ${plural(t.assists, 'assist', 'assists')}</span>` +
+                `</div>` +
+            `</div>`;
+    }
+
+    async function buscarTemporadaFotMob(id, temporada) {
+        const chave = id + ':' + temporada;
+        temporadaFotMob[chave] = null;
+        try {
+            const resp = await fetch(`/Jogadores/TemporadaFotMob/${id}?temporada=${temporada}`,
+                { headers: { 'Accept': 'application/json' } });
+            // Página pública sem login recebe o redirect para o login (HTML):
+            // vale como "sem dado".
+            const json = resp.ok && (resp.headers.get('content-type') || '').includes('json');
+            temporadaFotMob[chave] = json ? await resp.json() : { ok: false };
+        } catch (e) {
+            temporadaFotMob[chave] = { ok: false };
+        }
+        // Chegou com o tooltip do mesmo jogador aberto: redesenha no lugar.
+        if (aberto && String(aberto.dados.id) === String(id) && ctx.temporada === temporada)
+            mostrar(aberto.btn, aberto.dados);
+    }
+
+    async function buscarMediasFotMob(id, temporada) {
+        const chave = id + ':' + temporada;
+        cancelarMedias();
+        const ctrl = new AbortController();
+        mediasPedido = { chave: chave, ctrl: ctrl };
+        mediasFotMob[chave] = null;
+        try {
+            const resp = await fetch(`/Jogadores/MediasFotMob/${id}?temporada=${temporada}`,
+                { headers: { 'Accept': 'application/json' }, signal: ctrl.signal });
+            const json = resp.ok && (resp.headers.get('content-type') || '').includes('json');
+            mediasFotMob[chave] = json ? await resp.json() : { ok: false };
+        } catch (e) {
+            // Cancelado: quem cancelou já devolveu a chave a undefined.
+            if (ctrl.signal.aborted) return;
+            mediasFotMob[chave] = { ok: false };
+        }
+        if (mediasPedido && mediasPedido.ctrl === ctrl) mediasPedido = null;
+        if (aberto && String(aberto.dados.id) === String(id) && ctx.temporada === temporada)
+            mostrar(aberto.btn, aberto.dados);
+    }
+
+    // Cancelado não é "sem dado", só não terminou: a chave volta a undefined e
+    // é pedida de novo no próximo hover.
+    function cancelarMedias() {
+        if (!mediasPedido) return;
+        mediasPedido.ctrl.abort();
+        mediasFotMob[mediasPedido.chave] = undefined;
+        mediasPedido = null;
+    }
+
+    function blocoMedias(titulo, celulas) {
+        return `<div class="tt-medias-titulo">${titulo}</div>` +
+            `<div class="tt-medias">` +
+            celulas.map(([v, l]) => `<div class="tt-media-cel"><b>${v}</b><span>${l}</span></div>`).join('') +
+            `</div>`;
+    }
+
+    function escHtml(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+    }
+
     // Botão ℹ de um jogador, para os elementos montados em JS (arrastar para o
     // campo/banco, cadastro rápido pelo "+", slots do Match Up). Os renderizados
     // pelo servidor chamam mostrar/esconder direto no onmouseenter.
@@ -104,6 +194,7 @@ window.JogadorTooltip = (function () {
     function mostrar(btn, dados) {
         const tt = caixa();
         if (!dados) return;
+        aberto = { btn: btn, dados: dados };
         // Foto local (ex.: /MediaProxy/FotoJogador/123, vinda do FotMob) vai direto; só
         // URL externa passa pelo proxy genérico.
         const fotoSrc = !dados.foto ? '/images/placeholder-jogador.png'
@@ -140,11 +231,28 @@ window.JogadorTooltip = (function () {
         // Stats separadas por escopo: competição do jogo e temporada (todas as
         // competições do mesmo ano). dados.gols/assists vêm da competição.
         html += ttLinhaStats('Competição', dados.gols, dados.assists, ctx.titularCompeticao[dados.id]);
-        if (ctx.temporada > 0)
-            html += ttLinhaStats(`Temporada ${ctx.temporada}`,
-                ctx.golsTemporada[dados.id] || 0, ctx.assistsTemporada[dados.id] || 0, ctx.titularTemporada[dados.id]);
+        if (ctx.temporada > 0) {
+            const fm = dados.id != null ? temporadaFotMob[dados.id + ':' + ctx.temporada] : { ok: false };
+            if (fm && fm.ok) {
+                html += ttLinhaTemporadaFotMob(fm);
+            } else {
+                html += ttLinhaStats(`Temporada ${ctx.temporada}`,
+                    ctx.golsTemporada[dados.id] || 0, ctx.assistsTemporada[dados.id] || 0, ctx.titularTemporada[dados.id]);
+                if (fm === undefined) buscarTemporadaFotMob(dados.id, ctx.temporada);
+                if (!fm) html += `<div class="tt-buscando">⏳ buscando a temporada completa…</div>`;
+            }
+        }
+        // Médias: as do FotMob (temporada inteira, todas as competições) quando
+        // chegam; até lá, ou sem vínculo, as das estatísticas importadas.
+        const chaveFm = dados.id + ':' + ctx.temporada;
+        const mf = ctx.temporada > 0 && dados.id != null ? mediasFotMob[chaveFm] : { ok: false };
+        if (mf === undefined) buscarMediasFotMob(dados.id, ctx.temporada);
         const md = ctx.medias[dados.id];
-        if (md) {
+        if (mf && mf.ok) {
+            html += blocoMedias(
+                `Médias por jogo · ${mf.jogos} jogo${mf.jogos > 1 ? 's' : ''} · ${mf.competicoes} competiç${mf.competicoes > 1 ? 'ões' : 'ão'}`,
+                mf.celulas.map(c => [escHtml(c.valor), escHtml(c.rotulo)]));
+        } else if (md) {
             const celulas = [
                 [`${md.finalizacoes}`, `Finaliz. · ${md.finalizacoesPct}% gol`],
                 [`${md.dribles}`, `Dribles · ${md.driblesPct}% certos`],
@@ -158,11 +266,9 @@ window.JogadorTooltip = (function () {
                 [`${md.faltasCometidas}`, 'Faltas com.'],
             ];
             if (md.defesas > 0) celulas.unshift([`${md.defesas}`, 'Defesas']);
-            html += `<div class="tt-medias-titulo">Médias por jogo · ${md.jogos} jogo${md.jogos > 1 ? 's' : ''}</div>` +
-                `<div class="tt-medias">` +
-                celulas.map(([v, l]) => `<div class="tt-media-cel"><b>${v}</b><span>${l}</span></div>`).join('') +
-                `</div>`;
+            html += blocoMedias(`Médias por jogo · ${md.jogos} jogo${md.jogos > 1 ? 's' : ''} importado${md.jogos > 1 ? 's' : ''}`, celulas);
         }
+        if (!mf) html += `<div class="tt-buscando">⏳ buscando médias da temporada completa…</div>`;
         if (dados.obs)     html += `<div class="tt-obs">${dados.obs}</div>`;
         tt.innerHTML = html;
         tt.style.display = 'block';
@@ -179,6 +285,9 @@ window.JogadorTooltip = (function () {
     }
 
     function esconder() {
+        aberto = null;
+        // Mouse saiu: o pedido de médias (várias chamadas no servidor) não vale mais.
+        cancelarMedias();
         const tt = document.getElementById('jogador-tooltip');
         if (tt) tt.style.display = 'none';
     }

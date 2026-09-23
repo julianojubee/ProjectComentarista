@@ -155,6 +155,12 @@ internal class Program
         // (a liga do Catar é o caso que motivou) — ver FotMobService.
         builder.Services.AddHttpClient<FotMobService>();
         builder.Services.AddScoped<FotMobEscalacaoService>();
+        // Lances do FotMob e a conferência deles contra a reimportação da api-football,
+        // usada pelo ciclo de jogos ao vivo e pelo botão "Reimportar dados".
+        builder.Services.AddScoped<FotMobEventosService>();
+        builder.Services.AddScoped<ComplementoFotMobService>();
+        // Escalação dos lados que a api-football não trouxe: FotMob, depois ESPN.
+        builder.Services.AddScoped<EscalacaoAlternativaService>();
         // Estatísticas avançadas do jogador, buscadas só quando o usuário clica.
         builder.Services.AddScoped<FotMobPerfilService>();
         builder.Services.AddScoped<FotMobCadastroService>();

@@ -229,16 +229,44 @@ namespace ControleFutebolWeb.Services
                 return (jogo, null, null, Falha(
                     "Um dos times está sem IdApi — as estatísticas de time são indexadas por esse id."));
 
-            var partida = await ResolverPartidaAsync(jogo, ligas, ct);
+            var partida = await ResolverPartidaAsync(jogo, ligas, invertido: false, ct);
             if (partida == null)
-                return (jogo, null, null, Falha(
-                    "Partida não localizada no FotMob (liga, data ou nome dos times não bateram)."));
+            {
+                // Antes de dizer "não achei", confere se a partida existe com os lados
+                // trocados. Acontece em mata-mata quando a api-football cadastra o jogo de
+                // volta antes de definir o mando, e o erro está no nosso cadastro — não
+                // no FotMob. A partida NÃO é usada: com o mando invertido todo gol, cartão
+                // e estatística iria para o lado errado. A reimportação pela api-football
+                // corrige o mando (ApiFootballService.InverterMandoAsync).
+                var invertida = await ResolverPartidaAsync(jogo, ligas, invertido: true, ct);
+                return (jogo, null, invertida, Falha(invertida != null
+                    ? $"A partida existe no FotMob com o mando invertido ({jogo.TimeVisitante?.Nome} mandante): "
+                      + "o cadastro do jogo está com casa e visitante trocados. Reimporte os dados para corrigir."
+                    : "Partida não localizada no FotMob (liga, data ou nome dos times não bateram).", invertida));
+            }
 
-            var doc = await BuscarJsonAsync($"matchDetails?matchId={partida}", TimeSpan.FromDays(7), ct);
+            var doc = await BuscarJsonAsync($"matchDetails?matchId={partida}", ValidadeDetalhes(jogo), ct);
             if (doc == null)
                 return (jogo, null, partida, Falha("O FotMob não respondeu os detalhes da partida.", partida));
 
             return (jogo, doc, partida, null);
+        }
+
+        /// <summary>
+        /// Por quanto tempo o matchDetails fica em cache. Jogo encerrado não muda mais e
+        /// pode ficar dias; jogo que está rolando muda a cada lance, e com os 7 dias de
+        /// antes o ciclo de jogos ao vivo voltava a cada 15 min e recebia o documento da
+        /// primeira leitura — o do apito inicial, sem gol nenhum.
+        /// </summary>
+        private static TimeSpan ValidadeDetalhes(Jogo jogo)
+        {
+            if (jogo.PlacarCasa != null || jogo.Data is not DateTime data) return TimeSpan.FromDays(7);
+
+            var inicio = data.ToUniversalTime();
+            var agora = DateTime.UtcNow;
+            var emAndamento = inicio <= agora.AddHours(1) && inicio >= agora.AddHours(-6);
+
+            return emAndamento ? TimeSpan.FromMinutes(1) : TimeSpan.FromDays(7);
         }
 
         // ── Localização da partida ────────────────────────────────────────────
@@ -254,7 +282,7 @@ namespace ControleFutebolWeb.Services
         /// Brasília cai no dia seguinte lá.
         /// </summary>
         private async Task<long?> ResolverPartidaAsync(
-            Jogo jogo, IReadOnlyList<int> ligas, CancellationToken ct)
+            Jogo jogo, IReadOnlyList<int> ligas, bool invertido, CancellationToken ct)
         {
             var dia = DateOnly.FromDateTime(jogo.Data!.Value.ToUniversalTime().Date);
 
@@ -262,7 +290,7 @@ namespace ControleFutebolWeb.Services
             {
                 // Temporada corrente primeiro: é onde estão os jogos que faltam
                 // estatística na esmagadora maioria das vezes.
-                var achado = await ProcurarNaLigaAsync(jogo, liga, temporada: null, dia, ct);
+                var achado = await ProcurarNaLigaAsync(jogo, liga, temporada: null, dia, invertido, ct);
                 if (achado != null) return achado;
 
                 // Não achou: o jogo pode ser de uma temporada anterior à que o FotMob
@@ -272,7 +300,7 @@ namespace ControleFutebolWeb.Services
                 var temporada = await ResolverTemporadaAsync(liga, jogo.Temporada, ct);
                 if (temporada == null) continue;
 
-                achado = await ProcurarNaLigaAsync(jogo, liga, temporada, dia, ct);
+                achado = await ProcurarNaLigaAsync(jogo, liga, temporada, dia, invertido, ct);
                 if (achado != null) return achado;
             }
 
@@ -280,8 +308,11 @@ namespace ControleFutebolWeb.Services
         }
 
         private async Task<long?> ProcurarNaLigaAsync(
-            Jogo jogo, int liga, string? temporada, DateOnly dia, CancellationToken ct)
+            Jogo jogo, int liga, string? temporada, DateOnly dia, bool invertido, CancellationToken ct)
         {
+            var nomeCasa = invertido ? jogo.TimeVisitante?.Nome : jogo.TimeCasa?.Nome;
+            var nomeFora = invertido ? jogo.TimeCasa?.Nome : jogo.TimeVisitante?.Nome;
+
             var url = $"leagues?id={liga}";
             if (temporada != null) url += $"&season={Uri.EscapeDataString(temporada)}";
 
@@ -296,8 +327,8 @@ namespace ControleFutebolWeb.Services
                 if (!m.TryGetProperty("home", out var casa) ||
                     !m.TryGetProperty("away", out var fora)) continue;
 
-                if (!TimeNomeMatcher.SaoMesmoTime(jogo.TimeCasa?.Nome, casa.GetProperty("name").GetString()) ||
-                    !TimeNomeMatcher.SaoMesmoTime(jogo.TimeVisitante?.Nome, fora.GetProperty("name").GetString()))
+                if (!TimeNomeMatcher.SaoMesmoTime(nomeCasa, casa.GetProperty("name").GetString()) ||
+                    !TimeNomeMatcher.SaoMesmoTime(nomeFora, fora.GetProperty("name").GetString()))
                     continue;
 
                 // O nome dos dois times já é bem específico, mas a data é o que separa
@@ -370,20 +401,38 @@ namespace ControleFutebolWeb.Services
         {
             if (!string.IsNullOrWhiteSpace(jogo.EstatisticasJson)) return false;
 
+            var json = MontarEstatisticasTimeJson(jogo, raiz);
+            if (json == null) return false;
+
+            jogo.EstatisticasJson = json;
+            await Task.CompletedTask;
+            return true;
+        }
+
+        /// <summary>
+        /// As estatísticas de time do FotMob já no formato de Jogo.EstatisticasJson, sem
+        /// gravar nada — null quando não há o que montar ou os lados não conferem.
+        /// Separado da gravação porque a comparação dos jogos ao vivo
+        /// (ComplementoFotMobService) precisa ver o resultado antes de decidir se ele
+        /// substitui o que já está gravado.
+        /// </summary>
+        internal string? MontarEstatisticasTimeJson(Jogo jogo, JsonElement raiz)
+        {
             // content.stats.Periods.All.stats[] são os GRUPOS ("Top stats", "Shots",
             // "Passes"...); cada um traz as linhas. FirstHalf/SecondHalf existem ao
             // lado e são ignorados: o resto do sistema trabalha com o jogo inteiro.
             if (!raiz.TryGetProperty("content", out var conteudo) ||
                 !conteudo.TryGetProperty("stats", out var stats) ||
+                stats.ValueKind != JsonValueKind.Object ||
                 !stats.TryGetProperty("Periods", out var periodos) ||
                 !periodos.TryGetProperty("All", out var todos) ||
-                !todos.TryGetProperty("stats", out var grupos)) return false;
+                !todos.TryGetProperty("stats", out var grupos)) return null;
 
             // Toda linha vem como par [casa, visitante], na ordem de general.homeTeam /
             // awayTeam. Confere contra o nosso cadastro em vez de confiar na ordem: se
             // os times estiverem invertidos aqui, é melhor não gravar nada do que
             // gravar a posse de bola trocada.
-            if (!raiz.TryGetProperty("general", out var geral)) return false;
+            if (!raiz.TryGetProperty("general", out var geral)) return null;
             var nomeCasa = geral.GetProperty("homeTeam").GetProperty("name").GetString();
             var nomeFora = geral.GetProperty("awayTeam").GetProperty("name").GetString();
 
@@ -393,7 +442,7 @@ namespace ControleFutebolWeb.Services
                 _logger.LogWarning(
                     "[FotMob] Jogo {Id}: mandante do FotMob ({Casa}) não bate com o cadastro ({Nosso}) — não gravei.",
                     jogo.Id, nomeCasa, jogo.TimeCasa?.Nome);
-                return false;
+                return null;
             }
 
             // Índice 0 = casa, 1 = visitante.
@@ -464,11 +513,9 @@ namespace ControleFutebolWeb.Services
                     lista.Add(new { TimeId = idApi, Stats = convertidos });
             }
 
-            if (lista.Count == 0) return false;
+            if (lista.Count == 0) return null;
 
-            jogo.EstatisticasJson = JsonSerializer.Serialize(lista);
-            await Task.CompletedTask;
-            return true;
+            return JsonSerializer.Serialize(lista);
         }
 
         /// <summary>
@@ -522,8 +569,15 @@ namespace ControleFutebolWeb.Services
         private const string KeyPenaltiSofrido = "penalties_won";
         private const string KeyPenaltiCometido = "conceded_penalties";
 
-        private async Task<int> GravarEstatisticasJogadoresAsync(
-            FutebolContext context, Jogo jogo, JsonElement raiz, CancellationToken ct)
+        /// <param name="decidirTroca">
+        /// Quem decide se as linhas novas substituem as existentes. Sem ele vale a regra
+        /// da importação comum (abaixo). A comparação dos jogos ao vivo passa o próprio
+        /// critério, porque lá a api-football pode estar parada no meio da partida e o
+        /// que ela gravou deixa de ser o dado mais completo.
+        /// </param>
+        internal async Task<int> GravarEstatisticasJogadoresAsync(
+            FutebolContext context, Jogo jogo, JsonElement raiz, CancellationToken ct,
+            Func<IReadOnlyList<EstatisticaJogador>, IReadOnlyList<EstatisticaJogador>, bool>? decidirTroca = null)
         {
             // Dado da api-football é mais completo e nunca é substituído. O que a ESPN
             // gravou PODE ser substituído: o FotMob cobre tudo que ela cobre e ainda
@@ -532,7 +586,8 @@ namespace ControleFutebolWeb.Services
             var existentes = await context.EstatisticasJogador
                 .Where(e => e.JogoId == jogo.Id)
                 .ToListAsync(ct);
-            if (existentes.Any(e => e.Fonte != FonteEstatistica.Espn && e.Fonte != FonteEstatistica.FotMob))
+            if (decidirTroca == null &&
+                existentes.Any(e => e.Fonte != FonteEstatistica.Espn && e.Fonte != FonteEstatistica.FotMob))
                 return 0;
 
             if (!raiz.TryGetProperty("content", out var conteudo) ||
@@ -679,6 +734,7 @@ namespace ControleFutebolWeb.Services
 
             // Nada casou: preserva o que já estava lá em vez de zerar o jogo.
             if (novas.Count == 0) return 0;
+            if (decidirTroca != null && !decidirTroca(existentes, novas)) return 0;
 
             await GravarVinculosAsync(context, vinculos, ct);
 
@@ -708,7 +764,7 @@ namespace ControleFutebolWeb.Services
         ///
         /// Não chama SaveChanges: entra na mesma transação da importação.
         /// </summary>
-        private static async Task GravarVinculosAsync(
+        internal static async Task GravarVinculosAsync(
             FutebolContext context, Dictionary<int, long> vinculos, CancellationToken ct)
         {
             if (vinculos.Count == 0) return;

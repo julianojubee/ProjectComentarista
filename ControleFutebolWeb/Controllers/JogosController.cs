@@ -1457,18 +1457,32 @@ namespace ControleFutebolWeb.Controllers
 
                     _logger.LogInformation("[ReimportarEscalacao] Jogo {Id}: {Ok} — {Msg}", id, ok, msg);
 
-                    // ── Fallback automático: ESPN e, depois, FotMob ──────────────────
+                    // ── Fallback automático: FotMob e, depois, ESPN ──────────────────
                     // A api-football devolve a partida sem lineup com frequência (jogo
                     // de mata-mata sul-americano, sobretudo) e o usuário não tem por que
                     // descobrir isso e clicar num segundo botão: se depois da
-                    // reimportação ainda falta lado, a ESPN é tentada aqui mesmo, dentro
-                    // do mesmo background.
+                    // reimportação ainda falta lado, o FotMob é tentado aqui mesmo, e a
+                    // ESPN para o que ele não cobrir (ver EscalacaoAlternativaService).
                     //
                     // Roda DEPOIS de RecriarEscalacoesPessoaisAsync de propósito: a
                     // recriação copia das linhas compartilhadas e sobrescreveria o que a
-                    // ESPN tivesse acabado de gravar nas linhas pessoais.
+                    // fonte alternativa tivesse acabado de gravar nas linhas pessoais.
                     if (!string.IsNullOrEmpty(uid))
-                        await TentarEspnParaLadosFaltandoAsync(scope, ctx, id, uid);
+                        await TentarFontesAlternativasParaLadosFaltandoAsync(scope, ctx, id, uid);
+
+                    // Por último, a conferência com o FotMob: gol, cartão, substituição,
+                    // estatística ou placar que ele tenha a mais do que as importações
+                    // acima gravaram entra no lugar. É o que resolve o jogo em que a
+                    // api-football fica parada durante a partida (escalação chega,
+                    // eventos não) — ver ComplementoFotMobService.
+                    var complemento = scope.ServiceProvider.GetRequiredService<ComplementoFotMobService>();
+                    using var fotmob = await complemento.BuscarAsync(ctx, id);
+                    if (fotmob.Documento != null)
+                    {
+                        var rFm = await complemento.AplicarAsync(ctx, id, fotmob);
+                        _logger.LogInformation("[ReimportarEscalacao] Jogo {Id} › FotMob conferência: {Msg}",
+                            id, rFm.Mensagem);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -1477,7 +1491,7 @@ namespace ControleFutebolWeb.Controllers
             });
 
             TempData["Mensagem"] = "⏳ Re-importação iniciada em background. Se a API não tiver a escalação, "
-                                 + "o sistema tenta a ESPN sozinho. Aguarde ~1 minuto e recarregue a página.";
+                                 + "o sistema tenta o FotMob e depois a ESPN sozinho. Aguarde ~1 minuto e recarregue a página.";
             return RedirectToAction("Analisar", new { id });
         }
 
@@ -1485,18 +1499,9 @@ namespace ControleFutebolWeb.Controllers
         /// Que lados do jogo NÃO têm escalação importada (linha compartilhada com
         /// jogador). É o mesmo critério do selo de origem da tela de análise.
         /// </summary>
-        private static async Task<(bool Casa, bool Visitante)> LadosSemEscalacaoImportadaAsync(
-            FutebolContext ctx, int jogoId)
-        {
-            var lados = await ctx.Escalacoes
-                .Where(e => e.JogoId == jogoId && e.UsuarioId == null && e.JogadorId != null
-                         && (e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null))
-                .Select(e => e.IsTimeCasa)
-                .Distinct()
-                .ToListAsync();
-
-            return (!lados.Contains(true), !lados.Contains(false));
-        }
+        private static Task<(bool Casa, bool Visitante)> LadosSemEscalacaoImportadaAsync(
+            FutebolContext ctx, int jogoId) =>
+            EscalacaoAlternativaService.LadosSemEscalacaoImportadaAsync(ctx, jogoId);
 
         /// <summary>
         /// Falta estatística no jogo? Mesmo critério de Serviços › Jogos sem
@@ -1628,7 +1633,7 @@ namespace ControleFutebolWeb.Controllers
             }
         }
 
-        private async Task TentarEspnParaLadosFaltandoAsync(
+        private async Task TentarFontesAlternativasParaLadosFaltandoAsync(
             IServiceScope scope, FutebolContext ctx, int jogoId, string usuarioId)
         {
             var (faltaCasa, faltaVis) = await LadosSemEscalacaoImportadaAsync(ctx, jogoId);
@@ -1645,100 +1650,41 @@ namespace ControleFutebolWeb.Controllers
                 return;
             }
 
-            var espn = scope.ServiceProvider.GetRequiredService<EspnEstatisticasService>();
-            var fotmob = scope.ServiceProvider.GetRequiredService<FotMobService>();
-            var idApiLiga = await ctx.Jogos
-                .Where(j => j.Id == jogoId)
-                .Select(j => j.Competicao!.IdApi)
-                .FirstOrDefaultAsync();
-
-            bool Falta(bool ehCasa) => ehCasa ? faltaCasa : faltaVis;
-
-            // 1º degrau: ESPN. Sem slug a chamada só devolveria erro; evita bater lá à toa.
-            var ok = false;
-            if (espn.SlugDaLiga(idApiLiga) != null)
-            {
-                var espnEscalacao = scope.ServiceProvider.GetRequiredService<EspnEscalacaoService>();
-                var r = await espnEscalacao.AplicarAsync(ctx, jogoId, usuarioId, filtroLado: Falta);
-
-                _logger.LogInformation("[ReimportarEscalacao] Jogo {Id} › ESPN: {Ok} — {Msg}",
-                    jogoId, r.Ok, r.Mensagem);
-
-                await LogFonteExterna.RegistrarAsync(ctx, LogFonteExterna.TipoEspn,
-                    "Escalação (reimportação)", r.Ok, await JogoParaLogAsync(ctx, jogoId), r.Mensagem);
-
-                ok = r.Ok;
-            }
-            else
-            {
-                _logger.LogInformation(
-                    "[ReimportarEscalacao] Jogo {Id}: faltou escalação e a competição não tem ESPN mapeada.",
-                    jogoId);
-
-                await LogFonteExterna.RegistrarAsync(ctx, LogFonteExterna.TipoEspn,
-                    "Escalação (reimportação)", false, await JogoParaLogAsync(ctx, jogoId),
-                    "Competição sem correspondente na ESPN (ver wwwroot/data/ligas-espn.json).");
-            }
-
-            // 2º degrau: FotMob. É o que cobre as ligas fora do catálogo da ESPN (a do
-            // Catar é a que motivou) e também salva o jogo que a ESPN tem na liga mas
-            // não publicou. Só entra quando a ESPN não resolveu — não é para as duas
-            // escreverem o mesmo XI.
-            if (!ok && fotmob.TemCobertura(idApiLiga))
-            {
-                var fotmobEscalacao = scope.ServiceProvider.GetRequiredService<FotMobEscalacaoService>();
-                var r = await fotmobEscalacao.AplicarAsync(ctx, jogoId, usuarioId, filtroLado: Falta);
-
-                _logger.LogInformation("[ReimportarEscalacao] Jogo {Id} › FotMob: {Ok} — {Msg}",
-                    jogoId, r.Ok, r.Mensagem);
-
-                await LogFonteExterna.RegistrarAsync(ctx, LogFonteExterna.TipoFotMob,
-                    "Escalação (reimportação)", r.Ok, await JogoParaLogAsync(ctx, jogoId), r.Mensagem);
-
-                if (r.Ok)
-                {
-                    await LimparEscalacaoFinalPessoalAsync(ctx, jogoId, usuarioId);
-
-                    // A escalação acabou de ser gravada, então agora as estatísticas por
-                    // jogador têm com quem casar — elas são casadas contra os escalados.
-                    // Rodar isto antes da escalação só gravaria as de time.
-                    if (await EstatisticasFaltandoAsync(ctx, jogoId))
-                    {
-                        var rEst = await fotmob.ImportarAsync(ctx, jogoId);
-                        _logger.LogInformation(
-                            "[ReimportarEscalacao] Jogo {Id} › FotMob estatísticas: {Ok} — {Msg}",
-                            jogoId, rEst.Ok, rEst.Mensagem);
-                    }
-                }
-
-                // Os lances (gols, cartões, substituições) NÃO saem do FotMob ainda:
-                // existe EspnEventosService, mas não o equivalente daqui. Um jogo que só
-                // o FotMob tem fica com escalação e estatística certas e placar zerado
-                // até alguém preencher — melhor do que ficar sem nada, que era o estado
-                // anterior, mas está incompleto de propósito e não por descuido.
-                return;
-            }
-
-            if (!ok) return;
+            // FotMob primeiro, ESPN para o que ele não cobrir — ver EscalacaoAlternativaService.
+            var alternativa = scope.ServiceProvider.GetRequiredService<EscalacaoAlternativaService>();
+            var preenchidos = await alternativa.PreencherLadosFaltandoAsync(ctx, jogoId, usuarioId);
+            if (preenchidos.Count == 0) return;
 
             await LimparEscalacaoFinalPessoalAsync(ctx, jogoId, usuarioId);
 
             // Quem não tem a partida na api-football não tem nem escalação NEM
-            // estatística: importar só a escalação deixaria o jogo pela metade e
-            // mandaria o usuário para a tela de Serviços terminar na mão. Como a ESPN
-            // acabou de confirmar que tem esta partida, a estatística sai da mesma
-            // visita.
+            // estatística: importar só a escalação deixaria o jogo pela metade. A
+            // escalação acabou de ser gravada, então as estatísticas por jogador já têm
+            // com quem casar. Sai da mesma fonte que preencheu primeiro.
+            var primeira = preenchidos[0].Fonte;
+
             if (await EstatisticasFaltandoAsync(ctx, jogoId))
             {
-                var rEst = await espn.ImportarAsync(ctx, jogoId);
-                _logger.LogInformation("[ReimportarEscalacao] Jogo {Id} › ESPN estatísticas: {Ok} — {Msg}",
-                    jogoId, rEst.Ok, rEst.Mensagem);
+                if (primeira == FonteEscalacao.FotMob)
+                {
+                    var fotmob = scope.ServiceProvider.GetRequiredService<FotMobService>();
+                    var rEst = await fotmob.ImportarAsync(ctx, jogoId);
+                    _logger.LogInformation("[ReimportarEscalacao] Jogo {Id} › FotMob estatísticas: {Ok} — {Msg}",
+                        jogoId, rEst.Ok, rEst.Mensagem);
+                }
+                else
+                {
+                    var espn = scope.ServiceProvider.GetRequiredService<EspnEstatisticasService>();
+                    var rEst = await espn.ImportarAsync(ctx, jogoId);
+                    _logger.LogInformation("[ReimportarEscalacao] Jogo {Id} › ESPN estatísticas: {Ok} — {Msg}",
+                        jogoId, rEst.Ok, rEst.Mensagem);
+                }
             }
 
-            // Gols, cartões e substituições pela mesma razão: a api-football não trouxe
-            // a partida, então ela também não trouxe os lances. Sem isto o jogo ficava
-            // com escalação e números certos e placar zerado.
-            if (await EventosFaltandoAsync(ctx, jogoId))
+            // Lances: com o FotMob eles saem da conferência que ReimportarEscalacao roda
+            // logo depois deste método (ComplementoFotMobService). A ESPN não tem essa
+            // conferência, então quando só ela preencheu os lances vêm daqui.
+            if (preenchidos.All(p => p.Fonte == FonteEscalacao.Espn) && await EventosFaltandoAsync(ctx, jogoId))
             {
                 var eventos = scope.ServiceProvider.GetRequiredService<EspnEventosService>();
                 var rEv = await eventos.ImportarAsync(ctx, jogoId);

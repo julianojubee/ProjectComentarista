@@ -194,6 +194,8 @@
         var circle = time === 1 ? 'player-circle-casa' : 'player-circle-vis';
         var media = muMediaTexto(d.media);
         return muInfoHtml(d.jogadorid || d.id) +
+            '<button type="button" class="mu-btn-remover" title="Tirar do campo (volta para o elenco)"' +
+                ' onclick="event.stopPropagation(); muRemoverDoCampo(this)">×</button>' +
             '<span class="mu-slot-sigla">' + muEsc(d.sigla) + '</span>' +
             '<div class="player-circle ' + circle + (d.foto ? ' mu-com-foto' : '') + '">' +
                 (d.foto ? '<img class="mu-foto" src="' + muEsc(d.foto) + '" alt="">' : '') +
@@ -265,6 +267,9 @@
         muFormas = [];
         const c3d = !!(opts && opts.campo3d);
         muCores = !!(opts && opts.cores);
+        const comTransmissao = !!(opts && opts.transmissao);
+        if (muRoot && muRoot !== cont) muRoot.classList.remove('mu-transmissao');
+        cont.classList.remove('mu-transmissao');
         muRoot = cont;
         // Recomeça nas cores padrão a cada montagem do campo
         muSetCorTime(1, MU_COR_PADRAO[1]);
@@ -300,6 +305,13 @@
                     '<button type="button" class="mu-forma-tipo" data-tipo="livre" onclick="muSetFormaTipo(\'livre\')" title="Traço livre">✎</button>' +
                 '</span>' +
                 '<span id="muFormaHint" style="font-size:11px; color:#f87171; display:none;">arraste no campo para desenhar · Enter confirma o texto · arraste o texto para reposicionar · duplo clique na forma remove · Esc sai</span>' +
+                (comTransmissao
+                    ? '<button type="button" id="muBtnTransmissao" class="btn btn-sm btn-outline-info" onclick="muToggleTransmissao()"' +
+                        ' title="Campo ocupando a janela inteira, sem o resto do site, com os jogadores maiores — para capturar no OBS. Esc sai.">📺 Transmissão</button>' +
+                      '<button type="button" id="muBtnTelaCheia" class="btn btn-sm btn-outline-secondary mu-so-transmissao" onclick="muToggleTelaCheia()"' +
+                        ' title="Tela cheia do navegador (some a barra de endereço e as abas)">⛶ Tela cheia</button>'
+                    : '') +
+                '<span id="muAviso" style="font-size:12px; color:#fbbf24; display:none;"></span>' +
             '</div>' +
             '<div class="mu-layout">' +
                 muBancoHtml(1, t1.nome, t1.elenco) +
@@ -322,7 +334,7 @@
                 '</div>' +
                 muBancoHtml(2, t2.nome, t2.elenco) +
             '</div>' +
-            '<p class="mu-dica">Arraste um jogador para qualquer ponto do campo, solte sobre um companheiro para trocar as posições, arraste alguém do elenco sobre um titular para substituí-lo ou sobre uma área vazia para incluí-lo no campo. O botão + do elenco cria um jogador avulso (ex.: garoto da base ainda fora da API). ' + muEsc((opts && opts.dica) || 'Simulação de pré-jogo — nada é salvo.') + '</p>';
+            '<p class="mu-dica">Arraste um jogador para qualquer ponto do campo, solte sobre um companheiro para trocar as posições, arraste alguém do elenco sobre um titular para substituí-lo ou sobre uma área vazia para incluí-lo no campo (até 11 por time). O × no jogador o devolve ao elenco.O botão + do elenco cria um jogador avulso (ex.: garoto da base ainda fora da API). ' + muEsc((opts && opts.dica) || 'Simulação de pré-jogo — nada é salvo.') + '</p>';
 
         // Ângulo e perspectiva saem daqui para o CSS: assim o JS que projeta o
         // cursor e o CSS que inclina o gramado não têm como divergir.
@@ -338,7 +350,63 @@
 
         // Setas e formas guardam % do campo: redesenha quando o campo muda de tamanho
         // (a escala dos slots também depende da altura do campo, por isso entra aqui)
-        new ResizeObserver(function () { muDesenharSetas(); muDesenharFormas(); muAjustarGol3d(); muAjustarSlots3d(); }).observe(document.getElementById('muCampo'));
+        new ResizeObserver(function () { muAjustarTamanho(); muDesenharSetas(); muDesenharFormas(); muAjustarGol3d(); muAjustarSlots3d(); }).observe(document.getElementById('muCampo'));
+    }
+
+    // ── Modo transmissão (OBS) ─────────────────────────────────────────────
+    // O container do match-up vira uma camada fixa do tamanho da janela: some o
+    // resto do site, os elencos recolhem e o campo cresce até a altura da tela.
+    // Crescer o campo não basta — os jogadores têm tamanho fixo em px e viravam
+    // formiguinhas num gramado de 1500px. Por isso eles escalam junto com a
+    // altura do campo (--mu-base, lido no transform do .mu-slot).
+    const MU_ALTURA_REFERENCIA = 460; // px de campo em que o jogador sai no tamanho "normal"
+
+    function muEmTransmissao() {
+        return !!(muRoot && muRoot.classList.contains('mu-transmissao'));
+    }
+
+    function muAjustarTamanho() {
+        const campo = document.getElementById('muCampo');
+        if (!campo) return;
+        const h = campo.clientHeight;
+        const base = muEmTransmissao() ? Math.min(Math.max(h / MU_ALTURA_REFERENCIA, 1), 2.4) : 1;
+        campo.style.setProperty('--mu-base', base.toFixed(3));
+        // A perspectiva é uma distância de câmera em px: fixa, num campo muito
+        // maior, a câmera "entra" no gramado e o fundo some. Cresce na mesma
+        // proporção do campo (a referência é a altura típica da tela normal).
+        if (mu3d) {
+            mu3d.perspectiva = muEmTransmissao()
+                ? Math.round(MU3D_PERSPECTIVA * Math.max(1, h / 800))
+                : MU3D_PERSPECTIVA;
+            const cena = document.getElementById('muCena');
+            if (cena) cena.style.perspective = mu3d.perspectiva + 'px';
+        }
+    }
+
+    function muToggleTransmissao() {
+        if (!muRoot) return;
+        const ligar = !muRoot.classList.contains('mu-transmissao');
+        muRoot.classList.toggle('mu-transmissao', ligar);
+        document.documentElement.classList.toggle('mu-transmissao-aberta', ligar);
+        // Entrando, os elencos recolhem para o campo ganhar a largura toda
+        // (continuam a um clique de distância, na tira lateral).
+        if (ligar) [1, 2].forEach(function (t) {
+            const b = document.getElementById('muBancoBox' + t);
+            if (b && !b.classList.contains('mu-banco-fechado')) muToggleBanco(t);
+        });
+        if (!ligar && document.fullscreenElement) document.exitFullscreen().catch(function () { });
+        const btn = document.getElementById('muBtnTransmissao');
+        if (btn) btn.textContent = ligar ? '✕ Sair da transmissão' : '📺 Transmissão';
+        muAjustarTamanho();
+        muAjustarGol3d();
+        muAjustarSlots3d();
+        muDesenharSetas();
+        muDesenharFormas();
+    }
+
+    function muToggleTelaCheia() {
+        if (document.fullscreenElement) document.exitFullscreen().catch(function () { });
+        else document.documentElement.requestFullscreen?.().catch(function () { });
     }
 
     function muBancoHtml(time, nome, elenco) {
@@ -393,7 +461,7 @@
 
     function muPointerDown(ev, time) {
         // O ℹ é o único filho do slot que recebe ponteiro: clicar nele não arrasta.
-        if (ev.target.closest('.btn-info-jogador')) return;
+        if (ev.target.closest('.btn-info-jogador, .mu-btn-remover')) return;
         if (muModoSeta) return; // no modo seta o clique seleciona/traça, não arrasta
         if (muModoForma) return; // no modo forma o arrasto desenha (tratado no campo)
         if (ev.button !== 0 && ev.pointerType === 'mouse') return; // só botão esquerdo
@@ -551,12 +619,81 @@
     // ── Elenco → área vazia do campo: inclui o jogador sem tirar ninguém ──
     // (caso típico: campo com menos de 11 porque um jogador não estava na API)
     let muExtraSeq = 0;
+    const MU_MAX_TITULARES = 11;
+
+    function muSlotsDoTime(time) {
+        return Array.from(document.querySelectorAll('#muCampo .mu-slot[id^="mu-slot-' + time + '-"]'));
+    }
+
+    // Titular do time sob o ponto de soltura, pelo retângulo NA TELA. O drop do
+    // HTML5 nem sempre cai no slot: no campo 3D o slot flutua (translateZ) e o
+    // hit-test do navegador entrega o gramado — e aí o jogador era incluído como
+    // 12º em vez de substituir. A folga cobre soltar no nome ou na borda do círculo.
+    // Com o time já completo, vale o titular mais próximo (até ~80px).
+    function muSlotAlvoDoDrop(time, clientX, clientY, completo) {
+        const FOLGA = 10, RAIO_COMPLETO = 80;
+        // Slots vizinhos se sobrepõem: entre os que contêm o ponto, ganha o de
+        // centro mais próximo, não o primeiro da lista.
+        let melhor = null, melhorDist = Infinity, melhorDentro = false;
+        muSlotsDoTime(time).forEach(function (s) {
+            const r = s.getBoundingClientRect();
+            const dentro = clientX >= r.left - FOLGA && clientX <= r.right + FOLGA &&
+                           clientY >= r.top - FOLGA && clientY <= r.bottom + FOLGA;
+            const dist = Math.hypot(clientX - (r.left + r.width / 2), clientY - (r.top + r.height / 2));
+            if ((dentro && !melhorDentro) || (dentro === melhorDentro && dist < melhorDist)) {
+                melhor = s; melhorDist = dist; melhorDentro = dentro;
+            }
+        });
+        if (melhorDentro) return melhor;
+        return completo && melhorDist <= RAIO_COMPLETO ? melhor : null;
+    }
+
+    // Aviso curto na barra de ferramentas (some sozinho)
+    let muAvisoTimer = null;
+    function muAviso(texto) {
+        const el = document.getElementById('muAviso');
+        if (!el) return;
+        el.textContent = texto;
+        el.style.display = 'inline';
+        clearTimeout(muAvisoTimer);
+        muAvisoTimer = setTimeout(function () { el.style.display = 'none'; }, 3500);
+    }
+
+    // Botão × do slot: o jogador sai do campo e volta pro topo do elenco,
+    // levando junto as setas de movimentação dele.
+    function muRemoverDoCampo(btn) {
+        const slot = btn.closest('.mu-slot');
+        if (!slot) return;
+        const time = slot.id.startsWith('mu-slot-1-') ? 1 : 2;
+        if (window.JogadorTooltip) JogadorTooltip.esconder();
+        muCriarItemBanco(time, { ...slot.dataset });
+        delete muSetas[slot.id];
+        if (muSetaOrigem === slot) muLimparOrigemSeta();
+        slot.remove();
+        muDesenharSetas();
+    }
 
     function muDropCampo(ev) {
         ev.preventDefault();
         const drag = muDrag;
         muDrag = null;
         if (!drag) return;
+
+        const completo = muSlotsDoTime(drag.time).length >= MU_MAX_TITULARES;
+        const alvo = muSlotAlvoDoDrop(drag.time, ev.clientX, ev.clientY, completo);
+        if (alvo) {
+            // Mesma substituição do drop direto no slot
+            const removido = { ...alvo.dataset };
+            muAplicarNoSlot(alvo, drag.el.dataset);
+            muCriarItemBanco(drag.time, removido);
+            drag.el.remove();
+            return;
+        }
+        if (completo) {
+            muAviso('Já tem 11 em campo: solte sobre um titular para substituir ou tire alguém no ×.');
+            return;
+        }
+
         const pos = muPosNoCampo(ev.clientX, ev.clientY);
         const d = drag.el.dataset;
         document.getElementById('muCampo').insertAdjacentHTML('beforeend',
@@ -908,5 +1045,8 @@
         } else if (muModoForma) {
             if (muFormaDraw) { muFormaDraw = null; muDesenharFormas(); }
             else muToggleModoForma();
+        } else if (muEmTransmissao() && !document.fullscreenElement) {
+            // Em tela cheia o Esc é do navegador (sai dela); o próximo sai do modo
+            muToggleTransmissao();
         }
     });

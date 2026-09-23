@@ -166,6 +166,10 @@
     #jogador-tooltip .tt-stat-ast  { color: var(--warn); font-weight: 600; }
     #jogador-tooltip .tt-stat-tit  { color: var(--text-muted); font-weight: 600; }
 
+    /* "· todas as competições" ao lado do rótulo da temporada do FotMob */
+    #jogador-tooltip .tt-fonte { text-transform: none; letter-spacing: 0; font-weight: 400; }
+    #jogador-tooltip .tt-buscando { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+
     #jogador-tooltip .tt-obs {
         margin-top: 6px;
         padding-top: 6px;
