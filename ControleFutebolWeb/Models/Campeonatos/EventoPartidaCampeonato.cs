@@ -16,7 +16,8 @@ namespace ControleFutebolWeb.Models.Campeonatos
         public int PartidaId { get; set; }
         public PartidaCampeonato Partida { get; set; } = null!;
 
-        // Lado que o evento favorece/pune (no gol contra, o lado que marcou o gol).
+        // Lado do atleta do lance. No gol contra é o lado de quem fez o gol contra
+        // (o jogador está no elenco dele), e o gol conta para o adversário.
         public int ParticipanteId { get; set; }
         public CampeonatoParticipante Participante { get; set; } = null!;
 

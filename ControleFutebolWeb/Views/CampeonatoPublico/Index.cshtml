@@ -1,0 +1,44 @@
+@model ControleFutebolWeb.Models.ViewModels.CampeonatoDetalhesViewModel
+@{
+    // Página pública do link /c/{token}: só leitura, sem nenhum link para telas internas.
+    Layout = "_LayoutAnalisePublica";
+    var c = Model.Campeonato;
+    ViewData["TitleOverride"] = c.Nome;
+    ViewData["Rodape"] = "Campeonato compartilhado por link — somente leitura.";
+    ViewData["SoLeitura"] = true;
+    var token = c.TokenPublico;
+    string Aba(string nome) => Model.Aba == nome ? "cp-aba ativa" : "cp-aba";
+}
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/creators.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/campeonatos.css" asp-append-version="true" />
+
+<div class="cp" style="padding:16px;">
+    <div class="cp-hero">
+        <div class="cp-hero-escudo">🏆</div>
+        <div>
+            <div class="cp-kicker">@(c.Plataforma ?? "Campeonato")</div>
+            <h1 class="cp-titulo">@c.Nome</h1>
+            <p class="cp-sub">@c.Participantes.Count participantes</p>
+        </div>
+    </div>
+
+    <nav class="cp-abas">
+        <a class="@Aba("tabela")" href="/c/@token">Tabela</a>
+        <a class="@Aba("partidas")" href="/c/@token?aba=partidas">Partidas</a>
+        <a class="@Aba("artilharia")" href="/c/@token?aba=artilharia">Artilharia</a>
+    </nav>
+
+    @switch (Model.Aba)
+    {
+        case "partidas":
+            @await Html.PartialAsync("~/Views/Campeonatos/_Partidas.cshtml", Model, ViewData)
+            break;
+        case "artilharia":
+            @await Html.PartialAsync("~/Views/Campeonatos/_Artilharia.cshtml", Model)
+            break;
+        default:
+            @await Html.PartialAsync("~/Views/Campeonatos/_Painel.cshtml", Model.Painel)
+            break;
+    }
+</div>

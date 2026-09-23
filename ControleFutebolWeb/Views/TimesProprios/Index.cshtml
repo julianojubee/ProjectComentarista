@@ -1,0 +1,54 @@
+@model List<ControleFutebolWeb.Models.Campeonatos.TimeProprio>
+@{
+    ViewData["Title"] = "Meus times";
+    var arquivados = ViewBag.Arquivados as bool? == true;
+}
+@await Html.PartialAsync("~/Views/Campeonatos/_Head.cshtml")
+
+<div class="cp">
+    <div class="cp-hero">
+        <div class="cp-hero-escudo">🛡️</div>
+        <div>
+            <div class="cp-kicker"><a asp-controller="Campeonatos" asp-action="Index" style="color:inherit">Campeonatos próprios</a></div>
+            <h1 class="cp-titulo">@(arquivados ? "Times arquivados" : "Meus times")</h1>
+            <p class="cp-sub">Times fictícios ou amadores, com elenco de jogadores reais ou criados por você.</p>
+        </div>
+        <div class="cp-hero-acoes">
+            @if (arquivados)
+            {
+                <a class="cp-btn" asp-action="Index">Ver ativos</a>
+            }
+            else
+            {
+                <a class="cp-btn" asp-action="Index" asp-route-arquivados="true">Arquivados</a>
+                <a class="cp-btn ouro" asp-action="Criar">+ Novo time</a>
+            }
+        </div>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="cp-secao cp-vazio">
+            <span class="icone">🛡️</span>
+            @(arquivados ? "Nenhum time arquivado." : "Você ainda não criou nenhum time.")
+        </div>
+    }
+    else
+    {
+        <div class="cp-grade">
+            @foreach (var t in Model)
+            {
+                <a class="cp-card" asp-action="Elenco" asp-route-id="@t.Id">
+                    <div class="cp-card-topo">
+                        @await Html.PartialAsync("~/Views/Campeonatos/_Escudo.cshtml", (t.EscudoUrl, t.Nome, t.CorPrincipal))
+                        <div class="cp-card-nome">@t.Nome</div>
+                    </div>
+                    <div class="cp-card-info">
+                        @if (t.Cidade != null) { <span>@t.Cidade</span> }
+                        <span>@t.Elenco.Count jogadores</span>
+                    </div>
+                </a>
+            }
+        </div>
+    }
+</div>

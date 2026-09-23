@@ -1,0 +1,93 @@
+@model ControleFutebolWeb.Models.ViewModels.JogadorProprioInput
+@{
+    var novo = Model.Id == 0;
+    ViewData["Title"] = novo ? "Novo jogador" : $"Editar {Model.Nome}";
+    var timeProprioId = ViewBag.TimeProprioId as int?;
+}
+@await Html.PartialAsync("~/Views/Campeonatos/_Head.cshtml")
+
+<div class="cp" style="max-width:720px;">
+    <div class="cp-hero">
+        <div class="cp-hero-escudo">👤</div>
+        <div>
+            <div class="cp-kicker"><a asp-action="Index" style="color:inherit">Meus jogadores</a></div>
+            <h1 class="cp-titulo">@(novo ? "Novo jogador" : Model.Nome)</h1>
+            @if (timeProprioId != null)
+            {
+                <p class="cp-sub">Ao salvar, ele entra no elenco do time.</p>
+            }
+        </div>
+    </div>
+
+    <form asp-action="Salvar" method="post" enctype="multipart/form-data" class="cp-secao">
+        <input type="hidden" asp-for="Id" />
+        @if (timeProprioId != null)
+        {
+            <input type="hidden" name="timeProprioId" value="@timeProprioId" />
+        }
+        <div asp-validation-summary="All" class="cp-alerta erro" style="display:@(ViewData.ModelState.IsValid ? "none" : "block")"></div>
+
+        <div class="cp-form-linha">
+            <div class="cp-campo" style="flex-basis:300px;">
+                <label asp-for="Nome">Nome</label>
+                <input asp-for="Nome" class="cp-input" autofocus />
+            </div>
+            <div class="cp-campo">
+                <label asp-for="Apelido">Apelido (opcional)</label>
+                <input asp-for="Apelido" class="cp-input" placeholder="Como é chamado" />
+            </div>
+        </div>
+        <div class="cp-form-linha" style="margin-top:12px;">
+            <div class="cp-campo">
+                <label asp-for="Posicao">Posição (opcional)</label>
+                <input asp-for="Posicao" class="cp-input" list="posicoes" />
+                <datalist id="posicoes">
+                    <option value="Goleiro"></option>
+                    <option value="Zagueiro"></option>
+                    <option value="Lateral"></option>
+                    <option value="Volante"></option>
+                    <option value="Meia"></option>
+                    <option value="Atacante"></option>
+                </datalist>
+            </div>
+            <div class="cp-campo estreito">
+                <label asp-for="NumeroCamisa">Camisa</label>
+                <input asp-for="NumeroCamisa" type="number" min="0" max="99" class="cp-input" />
+            </div>
+        </div>
+
+        <h3>Opcionais</h3>
+        <div class="cp-form-linha">
+            <div class="cp-campo">
+                <label asp-for="DataNascimento">Nascimento</label>
+                <input asp-for="DataNascimento" type="date" class="cp-input" />
+            </div>
+            <div class="cp-campo">
+                <label asp-for="NacionalidadeId">Nacionalidade</label>
+                <select asp-for="NacionalidadeId" asp-items="ViewBag.Nacionalidades" class="cp-select">
+                    <option value="">—</option>
+                </select>
+            </div>
+        </div>
+        <div class="cp-form-linha" style="margin-top:12px;">
+            <div class="cp-campo">
+                <label for="foto">Foto</label>
+                <input id="foto" name="foto" type="file" accept="image/png,image/jpeg,image/gif,image/webp" class="cp-input" />
+                @if (Model.FotoUrl != null)
+                {
+                    <label class="cp-check" style="margin-top:6px;text-transform:none;letter-spacing:0;font-weight:500;">
+                        <img src="@Model.FotoUrl" alt="" style="width:26px;height:26px;border-radius:50%;object-fit:cover;" />
+                        <input type="checkbox" name="removerFoto" value="true" /> Remover a foto atual
+                    </label>
+                }
+                <input type="hidden" asp-for="FotoUrl" />
+            </div>
+        </div>
+        <p class="cp-dica">Se for uma pessoa real (liga amadora), preencha nascimento e foto só com a autorização dela.</p>
+
+        <div style="display:flex; gap:10px; margin-top:18px;">
+            <button type="submit" class="cp-btn ouro">Salvar</button>
+            <a class="cp-btn" href="@(timeProprioId != null ? Url.Action("Elenco", "TimesProprios", new { id = timeProprioId }) : Url.Action("Index"))">Cancelar</a>
+        </div>
+    </form>
+</div>

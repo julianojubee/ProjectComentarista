@@ -76,7 +76,8 @@ namespace ControleFutebolWeb.Filters
             return string.Equals(d.ControllerName, "Account", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(d.ControllerName, "Blog", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(d.ControllerName, "AnalisePublica", StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(d.ControllerName, "Creators", StringComparison.OrdinalIgnoreCase);
+                   string.Equals(d.ControllerName, "Creators", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(d.ControllerName, "CampeonatoPublico", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

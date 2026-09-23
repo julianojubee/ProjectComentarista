@@ -1,0 +1,126 @@
+@model ControleFutebolWeb.Models.ViewModels.CampeonatoDetalhesViewModel
+@using ControleFutebolWeb.Models.Campeonatos
+@{
+    var c = Model.Campeonato;
+    ViewData["Title"] = c.Nome;
+    var proxima = Model.ProximaFaseAGerar;
+    var primeiraFase = c.Fases.OrderBy(f => f.Ordem).FirstOrDefault();
+    var semGrupoDefinido = c.Participantes.Any(p => string.IsNullOrWhiteSpace(p.Grupo));
+
+    string Aba(string nome) => Model.Aba == nome ? "cp-aba ativa" : "cp-aba";
+    string TipoFase(string tipo) => tipo switch { "GRUPOS" => "Grupos", "MATA_MATA" => "Mata-mata", _ => "Pontos corridos" };
+}
+@await Html.PartialAsync("_Head")
+
+<div class="cp">
+    <div class="cp-hero">
+        <div class="cp-hero-escudo">@(c.Modalidade == ModalidadeCampeonato.VideoGame ? "🎮" : c.Modalidade == ModalidadeCampeonato.Amador ? "⚽" : "🏆")</div>
+        <div>
+            <div class="cp-kicker">
+                <a asp-action="Index" style="color:inherit">Meus campeonatos</a>
+                @if (c.Plataforma != null) { <span> · @c.Plataforma</span> }
+            </div>
+            <h1 class="cp-titulo">@c.Nome</h1>
+            <p class="cp-sub">
+                @string.Join(" → ", c.Fases.OrderBy(f => f.Ordem).Select(f => TipoFase(f.Tipo) + (f.IdaEVolta ? " (ida e volta)" : "")))
+                · @c.Participantes.Count participantes
+            </p>
+        </div>
+        <div class="cp-hero-acoes">
+            @if (Model.LinkPublico != null)
+            {
+                <button type="button" class="cp-btn" data-copiar="@Model.LinkPublico" title="@Model.LinkPublico">🔗 Copiar link público</button>
+                <form asp-action="Compartilhar" asp-route-id="@c.Id" method="post">
+                    <input type="hidden" name="revogar" value="true" />
+                    <button type="submit" class="cp-btn mini" title="Quem tem o link perde o acesso">Desativar link</button>
+                </form>
+            }
+            else
+            {
+                <form asp-action="Compartilhar" asp-route-id="@c.Id" method="post">
+                    <button type="submit" class="cp-btn" title="Página só de leitura para os amigos acompanharem">🔗 Criar link público</button>
+                </form>
+            }
+            <form asp-action="Excluir" asp-route-id="@c.Id" method="post"
+                  data-confirmar="Excluir o campeonato “@c.Nome” com todas as partidas e súmulas? Não dá para desfazer."
+                  onsubmit="return confirm(this.dataset.confirmar);">
+                <button type="submit" class="cp-btn perigo">Excluir</button>
+            </form>
+        </div>
+    </div>
+
+    @* Próximo passo do campeonato: gerar a fase que está pronta para isso. *@
+    @if (proxima != null && c.Participantes.Count >= 2)
+    {
+        var ehPrimeira = proxima.Id == primeiraFase?.Id;
+        <form asp-action="GerarFase" asp-route-id="@c.Id" method="post" class="cp-secao" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+            <input type="hidden" name="faseId" value="@proxima.Id" />
+            <div style="flex:1 1 280px;">
+                <strong style="color:var(--text-strong)">Próximo passo: gerar as partidas de “@proxima.Nome”</strong>
+                <div class="cp-dica">
+                    @if (ehPrimeira)
+                    {
+                        <text>Depois disso os participantes ficam travados.</text>
+                    }
+                    else
+                    {
+                        <text>Usa os classificados da fase anterior — todas as partidas dela precisam ter placar.</text>
+                    }
+                </div>
+            </div>
+            @if (proxima.Tipo == "GRUPOS" && (!ehPrimeira || semGrupoDefinido))
+            {
+                <div class="cp-campo estreito" style="flex-basis:150px;">
+                    <label for="quantidadeGrupos">Quantos grupos</label>
+                    <input id="quantidadeGrupos" name="quantidadeGrupos" type="number" min="1" max="16" class="cp-input"
+                           value="@Math.Max(1, c.Participantes.Count / 4)" />
+                </div>
+            }
+            <button type="submit" class="cp-btn ouro">Gerar partidas</button>
+        </form>
+    }
+    else if (!Model.PrimeiraFaseGerada)
+    {
+        <div class="cp-alerta ok" style="background:none;border-color:var(--line);color:var(--text-dim);">
+            Adicione pelo menos dois participantes para gerar as partidas.
+        </div>
+    }
+
+    <nav class="cp-abas">
+        <a class="@Aba("tabela")" asp-action="Detalhes" asp-route-id="@c.Id" asp-route-aba="tabela">Tabela</a>
+        <a class="@Aba("partidas")" asp-action="Detalhes" asp-route-id="@c.Id" asp-route-aba="partidas">Partidas<span class="conta">@c.Partidas.Count</span></a>
+        <a class="@Aba("participantes")" asp-action="Detalhes" asp-route-id="@c.Id" asp-route-aba="participantes">Participantes<span class="conta">@c.Participantes.Count</span></a>
+        <a class="@Aba("artilharia")" asp-action="Detalhes" asp-route-id="@c.Id" asp-route-aba="artilharia">Artilharia</a>
+    </nav>
+
+    @switch (Model.Aba)
+    {
+        case "partidas":
+            @await Html.PartialAsync("_Partidas", Model)
+            break;
+        case "artilharia":
+            @await Html.PartialAsync("_Artilharia", Model)
+            break;
+        case "participantes":
+            @await Html.PartialAsync("_Participantes", Model)
+            break;
+        default:
+            @await Html.PartialAsync("_Painel", Model.Painel)
+            break;
+    }
+</div>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('[data-copiar]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var texto = btn.getAttribute('data-copiar');
+                navigator.clipboard.writeText(texto).then(function () {
+                    var antes = btn.textContent;
+                    btn.textContent = '✔ Link copiado';
+                    setTimeout(function () { btn.textContent = antes; }, 1800);
+                }, function () { window.prompt('Copie o link:', texto); });
+            });
+        });
+    </script>
+}

@@ -1,0 +1,65 @@
+@model List<ControleFutebolWeb.Models.Campeonatos.Campeonato>
+@using ControleFutebolWeb.Models.Campeonatos
+@{
+    ViewData["Title"] = "Meus campeonatos";
+
+    string Formato(string tipo) => tipo switch
+    {
+        "GRUPOS" => "Grupos + mata-mata",
+        "MATA_MATA" => "Mata-mata",
+        _ => "Pontos corridos"
+    };
+    string Modalidade(ModalidadeCampeonato m) => m switch
+    {
+        ModalidadeCampeonato.VideoGame => "🎮 Videogame",
+        ModalidadeCampeonato.Amador => "⚽ Amador",
+        _ => "🏆 Outro"
+    };
+}
+@await Html.PartialAsync("_Head")
+
+<div class="cp">
+    <div class="cp-hero">
+        <div class="cp-hero-escudo">🏆</div>
+        <div>
+            <div class="cp-kicker">Campeonatos próprios</div>
+            <h1 class="cp-titulo">Meus campeonatos</h1>
+            <p class="cp-sub">Campeonato de videogame entre amigos, liga amadora, pelada da firma.</p>
+        </div>
+        <div class="cp-hero-acoes">
+            <a class="cp-btn" asp-controller="TimesProprios" asp-action="Index">🛡️ Meus times</a>
+            <a class="cp-btn" asp-controller="JogadoresProprios" asp-action="Index">👤 Meus jogadores</a>
+            <a class="cp-btn ouro" asp-action="Criar">+ Novo campeonato</a>
+        </div>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="cp-secao cp-vazio">
+            <span class="icone">🎮</span>
+            Você ainda não criou nenhum campeonato.<br />
+            <a class="cp-btn ouro" style="margin-top:12px;" asp-action="Criar">Criar o primeiro</a>
+        </div>
+    }
+    else
+    {
+        <div class="cp-grade">
+            @foreach (var c in Model)
+            {
+                <a class="cp-card" asp-action="Detalhes" asp-route-id="@c.Id">
+                    <div class="cp-card-topo">
+                        <div class="cp-card-nome">@c.Nome</div>
+                        <span class="cp-selo @(c.Status switch { StatusCampeonato.EmAndamento => "andamento", StatusCampeonato.Rascunho => "rascunho", _ => "" })" style="margin-left:auto;">
+                            @(c.Status switch { StatusCampeonato.EmAndamento => "Em andamento", StatusCampeonato.Rascunho => "Montando", _ => "Encerrado" })
+                        </span>
+                    </div>
+                    <div class="cp-card-info">
+                        <span>@Modalidade(c.Modalidade)@(c.Plataforma != null ? $" · {c.Plataforma}" : "")</span>
+                        <span>@Formato(c.Tipo)</span>
+                        <span>@c.Participantes.Count participantes</span>
+                    </div>
+                </a>
+            }
+        </div>
+    }
+</div>

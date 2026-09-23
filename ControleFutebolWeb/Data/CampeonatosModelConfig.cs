@@ -9,11 +9,11 @@ namespace ControleFutebolWeb.Data
     // tabelas e colunas em minúsculas — por isso os check constraints já usam os
     // nomes em minúsculas.
     //
-    // Deleções: o usuário leva tudo dele junto. Entre partida e participante é
-    // NoAction (e não Restrict): apagar o campeonato apaga partidas e
-    // participantes no mesmo comando, e o NO ACTION do Postgres só confere no fim
-    // dele; RESTRICT confere na hora e barraria a cascata. Fora disso, a tela é
-    // que impede remover participante de campeonato já em andamento.
+    // Deleções: o usuário leva tudo dele junto. Partida e evento de súmula também
+    // caem em cascata com o participante. NO ACTION/RESTRICT ali quebram a exclusão
+    // do campeonato: o Postgres confere a chave do evento (dois níveis abaixo,
+    // campeonato → partida → evento) antes de a cascata chegar nele. Remover
+    // participante de campeonato já em andamento é barrado pela tela, não pelo banco.
     public static class CampeonatosModelConfig
     {
         public static void Configurar(ModelBuilder modelBuilder)
@@ -119,9 +119,9 @@ namespace ControleFutebolWeb.Data
                 entity.HasOne(p => p.Fase).WithMany()
                     .HasForeignKey(p => p.FaseId).OnDelete(DeleteBehavior.Cascade);
                 entity.HasOne(p => p.ParticipanteCasa).WithMany()
-                    .HasForeignKey(p => p.ParticipanteCasaId).OnDelete(DeleteBehavior.NoAction);
+                    .HasForeignKey(p => p.ParticipanteCasaId).OnDelete(DeleteBehavior.Cascade);
                 entity.HasOne(p => p.ParticipanteVisitante).WithMany()
-                    .HasForeignKey(p => p.ParticipanteVisitanteId).OnDelete(DeleteBehavior.NoAction);
+                    .HasForeignKey(p => p.ParticipanteVisitanteId).OnDelete(DeleteBehavior.Cascade);
                 entity.HasOne(p => p.TimeCasaUsado).WithMany()
                     .HasForeignKey(p => p.TimeCasaUsadoId).OnDelete(DeleteBehavior.SetNull);
                 entity.HasOne(p => p.TimeVisitanteUsado).WithMany()
@@ -144,7 +144,7 @@ namespace ControleFutebolWeb.Data
                 entity.HasOne(e => e.Partida).WithMany(p => p.Eventos)
                     .HasForeignKey(e => e.PartidaId).OnDelete(DeleteBehavior.Cascade);
                 entity.HasOne(e => e.Participante).WithMany()
-                    .HasForeignKey(e => e.ParticipanteId).OnDelete(DeleteBehavior.NoAction);
+                    .HasForeignKey(e => e.ParticipanteId).OnDelete(DeleteBehavior.Cascade);
                 // O gol continua na súmula (pelo NomeSnapshot) se o cadastro sumir.
                 entity.HasOne(e => e.Jogador).WithMany()
                     .HasForeignKey(e => e.JogadorId).OnDelete(DeleteBehavior.SetNull);

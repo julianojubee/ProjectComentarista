@@ -1,0 +1,101 @@
+@model ControleFutebolWeb.Models.ViewModels.CampeonatoCriarInput
+@using ControleFutebolWeb.Models.Campeonatos
+@{
+    ViewData["Title"] = "Novo campeonato";
+}
+@await Html.PartialAsync("_Head")
+
+<div class="cp" style="max-width:820px;">
+    <div class="cp-hero">
+        <div class="cp-hero-escudo">🏆</div>
+        <div>
+            <div class="cp-kicker">Campeonatos próprios</div>
+            <h1 class="cp-titulo">Novo campeonato</h1>
+            <p class="cp-sub">Depois de criar, você adiciona os participantes e gera as partidas.</p>
+        </div>
+    </div>
+
+    <form asp-action="Criar" method="post" class="cp-secao">
+        <div asp-validation-summary="All" class="cp-alerta erro" style="display:@(ViewData.ModelState.IsValid ? "none" : "block")"></div>
+
+        <div class="cp-form-linha">
+            <div class="cp-campo" style="flex-basis:320px;">
+                <label asp-for="Nome">Nome</label>
+                <input asp-for="Nome" class="cp-input" placeholder="Ex.: Copa da Firma 2026" autofocus />
+            </div>
+        </div>
+
+        <h3>Modalidade</h3>
+        <div class="cp-opcoes">
+            <label class="cp-opcao">
+                <input type="radio" asp-for="Modalidade" value="@ModalidadeCampeonato.VideoGame" />
+                <div><strong>🎮 Videogame</strong><span>Amigos jogando EA FC, eFootball…</span></div>
+            </label>
+            <label class="cp-opcao">
+                <input type="radio" asp-for="Modalidade" value="@ModalidadeCampeonato.Amador" />
+                <div><strong>⚽ Amador</strong><span>Pelada, society, liga do bairro.</span></div>
+            </label>
+            <label class="cp-opcao">
+                <input type="radio" asp-for="Modalidade" value="@ModalidadeCampeonato.Outro" />
+                <div><strong>🏆 Outro</strong><span>Qualquer outra disputa.</span></div>
+            </label>
+        </div>
+
+        <div class="cp-form-linha" style="margin-top:12px;">
+            <div class="cp-campo" style="flex-basis:320px;">
+                <label asp-for="Plataforma">Jogo / categoria (opcional)</label>
+                <input asp-for="Plataforma" class="cp-input" placeholder="Ex.: EA FC 26, Society, Sub-17" />
+            </div>
+        </div>
+
+        <h3>Formato</h3>
+        <div class="cp-opcoes">
+            <label class="cp-opcao">
+                <input type="radio" asp-for="Formato" value="PONTOS_CORRIDOS" />
+                <div><strong>Pontos corridos</strong><span>Todos contra todos, vence quem somar mais pontos.</span></div>
+            </label>
+            <label class="cp-opcao">
+                <input type="radio" asp-for="Formato" value="GRUPOS" />
+                <div><strong>Grupos + mata-mata</strong><span>Como a Copa: grupos e depois eliminatórias.</span></div>
+            </label>
+            <label class="cp-opcao">
+                <input type="radio" asp-for="Formato" value="MATA_MATA" />
+                <div><strong>Mata-mata</strong><span>Eliminatória direta do começo ao fim.</span></div>
+            </label>
+        </div>
+
+        <div class="cp-form-linha" style="margin-top:14px; gap:18px;">
+            <label class="cp-check"><input type="checkbox" asp-for="IdaEVolta" /> Ida e volta <span id="dica-ida" class="cp-dica" style="margin:0"></span></label>
+        </div>
+
+        <div id="opcoes-grupos" class="cp-form-linha" style="margin-top:14px; gap:18px;">
+            <div class="cp-campo estreito" style="flex-basis:170px;">
+                <label asp-for="ClassificadosPorGrupo">Classificados por grupo</label>
+                <input asp-for="ClassificadosPorGrupo" class="cp-input" type="number" min="1" max="8" />
+            </div>
+            <label class="cp-check"><input type="checkbox" asp-for="MataMataIdaEVolta" /> Mata-mata com ida e volta</label>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:22px;">
+            <button type="submit" class="cp-btn ouro">Criar campeonato</button>
+            <a class="cp-btn" asp-action="Index">Cancelar</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        // Opções que só fazem sentido no formato de grupos.
+        (function () {
+            var bloco = document.getElementById('opcoes-grupos');
+            var dica = document.getElementById('dica-ida');
+            function atualizar() {
+                var formato = (document.querySelector('input[name="Formato"]:checked') || {}).value;
+                bloco.style.display = formato === 'GRUPOS' ? '' : 'none';
+                dica.textContent = formato === 'GRUPOS' ? '(na fase de grupos)' : '';
+            }
+            document.querySelectorAll('input[name="Formato"]').forEach(function (r) { r.addEventListener('change', atualizar); });
+            atualizar();
+        })();
+    </script>
+}

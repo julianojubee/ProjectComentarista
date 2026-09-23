@@ -1,0 +1,14 @@
+@* Estilos do módulo de campeonatos próprios — incluído no topo de cada tela.
+   creators.css traz a tabela e o chaveamento sem links para as telas internas. *@
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/creators.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/campeonatos.css" asp-append-version="true" />
+
+@if (TempData["Erro"] is string erro)
+{
+    <div class="cp-alerta erro" style="max-width:1180px;margin:8px auto 0;">@erro</div>
+}
+@if (TempData["Mensagem"] is string mensagem)
+{
+    <div class="cp-alerta ok" style="max-width:1180px;margin:8px auto 0;">@mensagem</div>
+}

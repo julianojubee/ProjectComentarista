@@ -100,6 +100,18 @@ namespace ControleFutebolWeb.Tests.Helpers
         }
 
         [Fact]
+        public void MataMata_SoAFinalDaUltimaFaseDecideOTitulo()
+        {
+            var campeonato = Montar("MATA_MATA", 4,
+                ids => GeradorPartidasCampeonato.MataMata(ids, false, 1));
+
+            var painel = CampeonatoPainelAdapter.MontarPainel(campeonato);
+
+            Assert.True(painel.FasesMataMata.Single(f => f.Nome == "Final").DecideTitulo);
+            Assert.False(painel.FasesMataMata.Single(f => f.Nome == "Semifinal").DecideTitulo);
+        }
+
+        [Fact]
         public void DuasFases_UmaAbaPorFase()
         {
             var campeonato = Montar("GRUPOS", 4, ids => GeradorPartidasCampeonato.Grupos(

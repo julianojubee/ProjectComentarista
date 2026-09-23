@@ -1,0 +1,48 @@
+@model List<ControleFutebolWeb.Models.Campeonatos.JogadorProprio>
+@{
+    ViewData["Title"] = "Meus jogadores";
+}
+@await Html.PartialAsync("~/Views/Campeonatos/_Head.cshtml")
+
+<div class="cp" style="max-width:980px;">
+    <div class="cp-hero">
+        <div class="cp-hero-escudo">👤</div>
+        <div>
+            <div class="cp-kicker"><a asp-controller="Campeonatos" asp-action="Index" style="color:inherit">Campeonatos próprios</a></div>
+            <h1 class="cp-titulo">Meus jogadores</h1>
+            <p class="cp-sub">Jogadores criados por você, para usar nos elencos dos seus times.</p>
+        </div>
+        <div class="cp-hero-acoes">
+            <a class="cp-btn ouro" asp-action="Criar">+ Novo jogador</a>
+        </div>
+    </div>
+
+    <div class="cp-secao">
+        @if (!Model.Any())
+        {
+            <div class="cp-vazio"><span class="icone">👤</span>Nenhum jogador criado ainda.</div>
+        }
+        <ul class="cp-lista">
+            @foreach (var j in Model)
+            {
+                <li>
+                    <span class="cp-num">@(j.NumeroCamisa?.ToString() ?? "–")</span>
+                    <div>
+                        <div class="nome">@j.NomeExibicao</div>
+                        <div class="detalhe">
+                            @string.Join(" · ", new[] { j.Apelido != null ? j.Nome : null, j.Posicao, j.Nacionalidade?.Nome }.Where(x => x != null))
+                        </div>
+                    </div>
+                    <div class="fim">
+                        <a class="cp-btn mini" asp-action="Editar" asp-route-id="@j.Id">Editar</a>
+                        <form asp-action="Excluir" asp-route-id="@j.Id" method="post"
+                              data-confirmar="Excluir @j.Nome? Ele sai dos elencos; os gols nas súmulas continuam pelo nome."
+                              onsubmit="return confirm(this.dataset.confirmar);">
+                            <button type="submit" class="cp-btn mini perigo">Excluir</button>
+                        </form>
+                    </div>
+                </li>
+            }
+        </ul>
+    </div>
+</div>

@@ -1,0 +1,181 @@
+@model ControleFutebolWeb.Models.ViewModels.SumulaViewModel
+@using ControleFutebolWeb.Models.Campeonatos
+@{
+    var c = Model.Campeonato;
+    var p = Model.Partida;
+    var nomeCasa = Model.Casa?.NomeExibicao ?? "A definir";
+    var nomeVis = Model.Visitante?.NomeExibicao ?? "A definir";
+    ViewData["Title"] = $"Súmula — {nomeCasa} x {nomeVis}";
+
+    string Icone(TipoEventoPartida t) => t switch
+    {
+        TipoEventoPartida.Gol => "⚽",
+        TipoEventoPartida.GolContra => "🔴",
+        TipoEventoPartida.Assistencia => "👟",
+        TipoEventoPartida.CartaoAmarelo => "🟨",
+        _ => "🟥"
+    };
+    string Rotulo(TipoEventoPartida t) => t switch
+    {
+        TipoEventoPartida.Gol => "Gol",
+        TipoEventoPartida.GolContra => "Gol contra",
+        TipoEventoPartida.Assistencia => "Assistência",
+        TipoEventoPartida.CartaoAmarelo => "Amarelo",
+        _ => "Vermelho"
+    };
+    // Gol contra é lançado no lado de quem o fez e conta para o adversário.
+    int GolsPara(int? lado, int? adversario) =>
+        p.Eventos.Count(e => (e.ParticipanteId == lado && e.Tipo == TipoEventoPartida.Gol)
+                          || (e.ParticipanteId == adversario && e.Tipo == TipoEventoPartida.GolContra));
+    var golsCasa = GolsPara(p.ParticipanteCasaId, p.ParticipanteVisitanteId);
+    var golsVis = GolsPara(p.ParticipanteVisitanteId, p.ParticipanteCasaId);
+}
+@await Html.PartialAsync("_Head")
+
+<div class="cp" style="max-width:980px;">
+    <div class="cp-hero">
+        <div>
+            <div class="cp-kicker">
+                <a asp-action="Detalhes" asp-route-id="@c.Id" asp-route-aba="partidas" style="color:inherit">← @c.Nome</a>
+                · Rodada @p.Rodada @(p.Grupo != null ? $"· {p.Grupo}" : "")
+            </div>
+            <h1 class="cp-titulo">Súmula</h1>
+        </div>
+    </div>
+
+    <form class="cp-secao" asp-action="SalvarPlacar" asp-route-id="@c.Id" method="post">
+        <input type="hidden" name="partidaId" value="@p.Id" />
+        <input type="hidden" name="voltarPara" value="sumula" />
+        <input type="hidden" name="penaltisCasa" value="@p.PenaltisCasa" />
+        <input type="hidden" name="penaltisVisitante" value="@p.PenaltisVisitante" />
+        <div class="cp-sumula-placar">
+            <div class="cp-sumula-lado" style="text-align:right">@nomeCasa</div>
+            <div class="cp-placar">
+                <input type="number" name="placarCasa" min="0" max="99" value="@p.PlacarCasa" style="width:62px;font-size:1.6rem;" aria-label="Gols de @nomeCasa" />
+                <span class="x">×</span>
+                <input type="number" name="placarVisitante" min="0" max="99" value="@p.PlacarVisitante" style="width:62px;font-size:1.6rem;" aria-label="Gols de @nomeVis" />
+            </div>
+            <div class="cp-sumula-lado" style="text-align:left">@nomeVis</div>
+        </div>
+        <div style="display:flex;justify-content:center;gap:10px;margin-top:10px;flex-wrap:wrap;align-items:center;">
+            @if (p.Eventos.Any(e => e.Tipo is TipoEventoPartida.Gol or TipoEventoPartida.GolContra))
+            {
+                <span class="cp-dica" style="margin:0">Gols na súmula: @golsCasa × @golsVis</span>
+                @if (golsCasa != p.PlacarCasa || golsVis != p.PlacarVisitante)
+                {
+                    <button type="button" class="cp-btn mini" onclick="usarGolsDaSumula(@golsCasa, @golsVis)">Usar este placar</button>
+                }
+            }
+            <button type="submit" class="cp-btn ouro">Salvar placar</button>
+        </div>
+    </form>
+
+    <div class="cp-eventos">
+        @foreach (var lado in new[] { (Participante: Model.Casa, Elenco: Model.ElencoCasa), (Participante: Model.Visitante, Elenco: Model.ElencoVisitante) })
+        {
+            if (lado.Participante == null) { continue; }
+            var eventos = p.Eventos.Where(e => e.ParticipanteId == lado.Participante.Id && e.Tipo != TipoEventoPartida.Assistencia)
+                .OrderBy(e => e.Minuto ?? int.MaxValue).ThenBy(e => e.Id).ToList();
+            var assistencias = p.Eventos.Where(e => e.Tipo == TipoEventoPartida.Assistencia && e.GolId != null)
+                .ToDictionary(e => e.GolId!.Value);
+
+            <div class="cp-secao">
+                <h2>@lado.Participante.NomeExibicao</h2>
+
+                @if (!eventos.Any())
+                {
+                    <p class="cp-dica" style="margin:0 0 8px">Nenhum lance ainda.</p>
+                }
+                <ul class="cp-lista">
+                    @foreach (var e in eventos)
+                    {
+                        <li>
+                            <span class="cp-evento-ico" title="@Rotulo(e.Tipo)">@Icone(e.Tipo)</span>
+                            <div>
+                                <div class="nome">@e.NomeSnapshot @(e.Minuto != null ? $"{e.Minuto}'" : "")</div>
+                                @if (assistencias.TryGetValue(e.Id, out var ass))
+                                {
+                                    <div class="detalhe">assistência de @ass.NomeSnapshot</div>
+                                }
+                                @if (e.Tipo == TipoEventoPartida.GolContra)
+                                {
+                                    <div class="detalhe">gol contra — conta para o adversário</div>
+                                }
+                            </div>
+                            <form class="fim" asp-action="RemoverEvento" asp-route-id="@c.Id" method="post">
+                                <input type="hidden" name="partidaId" value="@p.Id" />
+                                <input type="hidden" name="eventoId" value="@e.Id" />
+                                <button type="submit" class="cp-btn mini perigo" title="Remover lance">✕</button>
+                            </form>
+                        </li>
+                    }
+                </ul>
+
+                <form asp-action="AdicionarEvento" asp-route-id="@c.Id" method="post" style="margin-top:12px;">
+                    <input type="hidden" name="partidaId" value="@p.Id" />
+                    <input type="hidden" name="participanteId" value="@lado.Participante.Id" />
+                    <div class="cp-form-linha">
+                        <div class="cp-campo" style="flex-basis:130px;">
+                            <label>Lance</label>
+                            <select name="tipo" class="cp-select" data-tipo-lance>
+                                <option value="@TipoEventoPartida.Gol">⚽ Gol</option>
+                                <option value="@TipoEventoPartida.GolContra">🔴 Gol contra (conta para o adversário)</option>
+                                <option value="@TipoEventoPartida.CartaoAmarelo">🟨 Amarelo</option>
+                                <option value="@TipoEventoPartida.CartaoVermelho">🟥 Vermelho</option>
+                            </select>
+                        </div>
+                        <div class="cp-campo estreito">
+                            <label>Minuto</label>
+                            <input name="minuto" type="number" min="0" max="200" class="cp-input" />
+                        </div>
+                    </div>
+                    <div class="cp-form-linha" style="margin-top:8px;">
+                        <div class="cp-campo">
+                            <label>Jogador</label>
+                            @if (lado.Elenco.Any())
+                            {
+                                <select name="atleta" class="cp-select">
+                                    <option value="">— digitar o nome —</option>
+                                    @foreach (var a in lado.Elenco) { <option value="@a.Valor">@a.Nome</option> }
+                                </select>
+                            }
+                            <input name="nomeLivre" class="cp-input" maxlength="80" placeholder="Nome (se não estiver na lista)" style="@(lado.Elenco.Any() ? "margin-top:6px" : "")" />
+                        </div>
+                        <div class="cp-campo" data-so-gol>
+                            <label>Assistência (opcional)</label>
+                            @if (lado.Elenco.Any())
+                            {
+                                <select name="assistente" class="cp-select">
+                                    <option value="">—</option>
+                                    @foreach (var a in lado.Elenco) { <option value="@a.Valor">@a.Nome</option> }
+                                </select>
+                            }
+                            <input name="nomeLivreAssistente" class="cp-input" maxlength="80" placeholder="Nome (se não estiver na lista)" style="@(lado.Elenco.Any() ? "margin-top:6px" : "")" />
+                        </div>
+                    </div>
+                    <button type="submit" class="cp-btn ouro" style="margin-top:10px;">Adicionar lance</button>
+                    @if (!lado.Elenco.Any())
+                    {
+                        <p class="cp-dica">Sem elenco cadastrado para este lado: digite o nome de quem fez o lance.</p>
+                    }
+                </form>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function usarGolsDaSumula(casa, vis) {
+            document.querySelector('input[name="placarCasa"]').value = casa;
+            document.querySelector('input[name="placarVisitante"]').value = vis;
+        }
+        // Assistência só existe no gol (e não no gol contra nem em cartão).
+        document.querySelectorAll('[data-tipo-lance]').forEach(function (sel) {
+            var campo = sel.form.querySelector('[data-so-gol]');
+            function atualizar() { campo.style.display = sel.value === 'Gol' ? '' : 'none'; }
+            sel.addEventListener('change', atualizar);
+            atualizar();
+        });
+    </script>
+}

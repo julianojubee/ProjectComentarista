@@ -1,0 +1,161 @@
+@model ControleFutebolWeb.Models.Campeonatos.TimeProprio
+@{
+    ViewData["Title"] = $"Elenco — {Model.Nome}";
+    var meusJogadores = (List<ControleFutebolWeb.Models.Campeonatos.JogadorProprio>)ViewBag.MeusJogadores;
+    var elenco = Model.Elenco.OrderBy(e => e.Ordem).ThenBy(e => e.NomeSnapshot).ToList();
+}
+@await Html.PartialAsync("~/Views/Campeonatos/_Head.cshtml")
+
+<div class="cp" style="max-width:980px;">
+    <div class="cp-hero">
+        <div class="cp-hero-escudo">
+            @if (Model.EscudoUrl != null)
+            {
+                <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.EscudoUrl })" alt="" />
+            }
+            else
+            {
+                <span>🛡️</span>
+            }
+        </div>
+        <div>
+            <div class="cp-kicker"><a asp-action="Index" style="color:inherit">Meus times</a></div>
+            <h1 class="cp-titulo">@Model.Nome</h1>
+            <p class="cp-sub">@elenco.Count jogadores no elenco@(Model.Cidade != null ? $" · {Model.Cidade}" : "")</p>
+        </div>
+        <div class="cp-hero-acoes">
+            <a class="cp-btn" asp-action="Editar" asp-route-id="@Model.Id">Editar time</a>
+            <form asp-action="Arquivar" asp-route-id="@Model.Id" method="post">
+                <input type="hidden" name="desarquivar" value="@((Model.ArquivadoEm != null).ToString().ToLower())" />
+                <button type="submit" class="cp-btn">@(Model.ArquivadoEm != null ? "Desarquivar" : "Arquivar")</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="cp-secao">
+        <h2>Elenco</h2>
+        @if (!elenco.Any())
+        {
+            <p class="cp-dica" style="margin:0">Elenco vazio. Adicione jogadores reais ou seus próprios abaixo.</p>
+        }
+        <ul class="cp-lista">
+            @foreach (var e in elenco)
+            {
+                <li>
+                    <span class="cp-num">@(e.NumeroCamisa?.ToString() ?? "–")</span>
+                    <div>
+                        <div class="nome">@e.NomeSnapshot</div>
+                        <div class="detalhe">@(e.Posicao ?? "") @(e.JogadorId != null ? "· jogador real" : "· jogador próprio")</div>
+                    </div>
+                    <form class="fim" asp-action="RemoverDoElenco" asp-route-id="@Model.Id" method="post">
+                        <input type="hidden" name="itemId" value="@e.Id" />
+                        <button type="submit" class="cp-btn mini perigo">Remover</button>
+                    </form>
+                </li>
+            }
+        </ul>
+    </div>
+
+    <div class="cp-secao">
+        <h2>Adicionar jogador real</h2>
+        <div class="cp-busca">
+            <input id="busca-jogador" class="cp-input" placeholder="Digite pelo menos 3 letras do nome…" autocomplete="off" />
+            <ul id="resultados" class="cp-resultados"></ul>
+        </div>
+        <p class="cp-dica">Busca na base de jogadores do sistema. Nome e foto ficam guardados no elenco como estavam agora.</p>
+    </div>
+
+    <div class="cp-secao">
+        <h2>Adicionar jogador próprio</h2>
+        @if (meusJogadores.Any())
+        {
+            <form asp-action="AdicionarAoElenco" asp-route-id="@Model.Id" method="post" class="cp-form-linha">
+                <div class="cp-campo">
+                    <label for="jogadorProprioId">Seus jogadores</label>
+                    <select id="jogadorProprioId" name="jogadorProprioId" class="cp-select" required>
+                        @foreach (var j in meusJogadores)
+                        {
+                            <option value="@j.Id">@j.NomeExibicao@(j.Posicao != null ? $" ({j.Posicao})" : "")</option>
+                        }
+                    </select>
+                </div>
+                <div class="cp-campo estreito">
+                    <label for="numeroCamisa">Camisa</label>
+                    <input id="numeroCamisa" name="numeroCamisa" type="number" min="0" max="99" class="cp-input" />
+                </div>
+                <button type="submit" class="cp-btn ouro">Adicionar</button>
+            </form>
+        }
+        <p class="cp-dica">
+            <a asp-controller="JogadoresProprios" asp-action="Criar" asp-route-timeProprioId="@Model.Id" class="cp-btn mini">+ Criar jogador e pôr neste time</a>
+        </p>
+    </div>
+</div>
+
+@* Formulário usado pelos resultados da busca (um clique = adiciona). *@
+<form id="form-real" asp-action="AdicionarAoElenco" asp-route-id="@Model.Id" method="post" style="display:none;">
+    <input type="hidden" name="jogadorId" id="jogadorId" />
+</form>
+
+@section Scripts {
+    <script>
+        (function () {
+            var campo = document.getElementById('busca-jogador');
+            var lista = document.getElementById('resultados');
+            var url = '@Url.Action("BuscarJogadores")';
+            var proxy = '@Url.Action("Imagem", "MediaProxy")';
+            var espera;
+
+            function item(j) {
+                var li = document.createElement('li');
+                if (j.foto) {
+                    var img = document.createElement('img');
+                    img.src = proxy + '?url=' + encodeURIComponent(j.foto);
+                    img.alt = '';
+                    li.appendChild(img);
+                }
+                var texto = document.createElement('div');
+                var nome = document.createElement('div');
+                nome.className = 'nome';
+                nome.textContent = j.nome;
+                var det = document.createElement('div');
+                det.className = 'detalhe';
+                det.textContent = [j.posicao, j.time].filter(Boolean).join(' · ');
+                texto.appendChild(nome);
+                texto.appendChild(det);
+                li.appendChild(texto);
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'cp-btn mini ouro';
+                btn.style.marginLeft = 'auto';
+                btn.textContent = 'Adicionar';
+                btn.addEventListener('click', function () {
+                    document.getElementById('jogadorId').value = j.id;
+                    document.getElementById('form-real').submit();
+                });
+                li.appendChild(btn);
+                return li;
+            }
+
+            campo.addEventListener('input', function () {
+                clearTimeout(espera);
+                var q = campo.value.trim();
+                if (q.length < 3) { lista.innerHTML = ''; return; }
+                espera = setTimeout(function () {
+                    fetch(url + '?q=' + encodeURIComponent(q))
+                        .then(function (r) { return r.json(); })
+                        .then(function (dados) {
+                            lista.innerHTML = '';
+                            if (!dados.length) {
+                                var vazio = document.createElement('li');
+                                vazio.textContent = 'Nenhum jogador encontrado.';
+                                lista.appendChild(vazio);
+                                return;
+                            }
+                            dados.forEach(function (j) { lista.appendChild(item(j)); });
+                        });
+                }, 250);
+            });
+        })();
+    </script>
+}

@@ -1,0 +1,68 @@
+@model ControleFutebolWeb.Helpers.CompeticaoPainelBuilder.Painel
+@* Tabela, grupos e chaveamento do campeonato — usado na tela do dono e no link
+   público. Reaproveita as parciais dos creators, que não linkam para /Times. *@
+@{
+    const string tabela = "~/Views/Creators/_TabelaClassificacao.cshtml";
+    const string chaveamento = "~/Views/Creators/_Chaveamento.cshtml";
+}
+
+@if (Model.Fases.Any())
+{
+    foreach (var fase in Model.Fases)
+    {
+        <section class="cr-fase">
+            <h2 class="cr-fase-nome">@fase.Fase.Nome</h2>
+            @if (fase.Classificacao.Any())
+            {
+                @await Html.PartialAsync(tabela, fase.Classificacao)
+            }
+            @if (fase.Grupos.Any())
+            {
+                <div class="cr-grupos">
+                    @foreach (var grupo in fase.Grupos)
+                    {
+                        <div class="cr-grupo">
+                            <h3 class="cr-grupo-nome">@grupo.Nome</h3>
+                            @await Html.PartialAsync(tabela, grupo.Times)
+                        </div>
+                    }
+                </div>
+            }
+            @if (fase.FasesMataMata.Any())
+            {
+                @await Html.PartialAsync(chaveamento, fase.FasesMataMata)
+            }
+            @if (!fase.Classificacao.Any() && !fase.Grupos.Any() && !fase.FasesMataMata.Any())
+            {
+                <p class="cr-aviso">As partidas desta fase ainda não foram geradas.</p>
+            }
+        </section>
+    }
+}
+else if (!Model.Classificacao.Any() && !Model.Grupos.Any() && !Model.FasesMataMata.Any())
+{
+    <div class="cp-vazio"><span class="icone">📋</span>A tabela aparece quando as partidas forem geradas.</div>
+}
+else
+{
+    if (Model.Classificacao.Any())
+    {
+        @await Html.PartialAsync(tabela, Model.Classificacao)
+    }
+    if (Model.Grupos.Any())
+    {
+        <div class="cr-grupos">
+            @foreach (var grupo in Model.Grupos)
+            {
+                <div class="cr-grupo">
+                    <h3 class="cr-grupo-nome">@grupo.Nome</h3>
+                    @await Html.PartialAsync(tabela, grupo.Times)
+                </div>
+            }
+        </div>
+    }
+    if (Model.FasesMataMata.Any())
+    {
+        @await Html.PartialAsync(chaveamento, Model.FasesMataMata)
+    }
+}

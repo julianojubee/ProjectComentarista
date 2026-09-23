@@ -140,7 +140,7 @@ namespace ControleFutebolWeb.Helpers.Campeonatos
                 return CompeticaoPainelBuilder.Montar(conv.Competicao, new List<CompeticaoFase>(),
                     conv.Jogos, conv.Criterios, conv.Cartoes);
 
-            var detalhes = fases.Select(f => MontarFase(conv, f)).ToList();
+            var detalhes = fases.Select((f, i) => MontarFase(conv, f, ultimaFase: i == fases.Count - 1)).ToList();
 
             if (detalhes.Count == 1)
             {
@@ -159,7 +159,7 @@ namespace ControleFutebolWeb.Helpers.Campeonatos
         /// Uma fase pelo tipo dela. Diferente das competições reais, a partida sabe a
         /// fase (FaseId), então não passa pela heurística do FaseJogoClassifier.
         /// </summary>
-        public static FaseDetalheViewModel MontarFase(Conversao conv, CampeonatoFase fase)
+        public static FaseDetalheViewModel MontarFase(Conversao conv, CampeonatoFase fase, bool ultimaFase = false)
         {
             var jogosFase = conv.Jogos
                 .Where(j => conv.FasePorPartida.GetValueOrDefault(j.Id) == fase.Id)
@@ -188,6 +188,11 @@ namespace ControleFutebolWeb.Helpers.Campeonatos
                     break;
                 default:
                     detalhe.FasesMataMata = CompeticaoPainelBuilder.MontarMataMata(jogosFase);
+                    // A final do último mata-mata decide o campeonato. Não dá para passar
+                    // decideTitulo ao builder: ele marca TODAS as etapas, e o vencedor da
+                    // semifinal sairia anunciado como campeão.
+                    var final = detalhe.FasesMataMata.OrderBy(e => e.Ordem).LastOrDefault();
+                    if (ultimaFase && final?.Confrontos.Count == 1) final.DecideTitulo = true;
                     break;
             }
 
