@@ -10,6 +10,8 @@
     // O userId vem do cookie (claims), sem hit no banco.
     var _userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
     var _layoutIsAdmin = false;
+    var _layoutTemAnalise = false;
+    var _layoutTemCampeonatos = false;
     var _layoutCompeticoesMenu = new List<ControleFutebolWeb.Models.Competicao>();
 
     if (_userId != null)
@@ -30,11 +32,15 @@
                 .OrderBy(c => c.Nome)
                 .ToListAsync();
 
-            return (IsAdmin: _user?.IsAdmin == true, Menu: _comps);
+            return (IsAdmin: _user?.IsAdmin == true, Menu: _comps,
+                    Modulos: _user?.Modulos ?? ControleFutebolWeb.Models.Campeonatos.ModuloSistema.Nenhum);
         });
 
         _layoutIsAdmin = _dados.IsAdmin;
         _layoutCompeticoesMenu = _dados.Menu;
+        // Menu por plano: admin vê tudo (o AssinaturaFilter também o deixa passar).
+        _layoutTemAnalise = _layoutIsAdmin || ControleFutebolWeb.Filters.ModuloAcesso.Tem(_dados.Modulos, ControleFutebolWeb.Models.Campeonatos.ModuloSistema.Analise);
+        _layoutTemCampeonatos = _layoutIsAdmin || ControleFutebolWeb.Filters.ModuloAcesso.Tem(_dados.Modulos, ControleFutebolWeb.Models.Campeonatos.ModuloSistema.Campeonatos);
     }
 
     // Mapeia uma competição para a rota correta (mesma lógica da tela de Competições)
@@ -113,6 +119,8 @@
                 </button>
                 <div class="navbar-collapse collapse d-lg-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
+                        @if (_layoutTemAnalise)
+                        {
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
                         </li>
@@ -191,17 +199,11 @@
                         </li>
                         <li class="nav-item">
                             <a class="nav-link text-dark"
-                               asp-area="" asp-controller="Campeonatos" asp-action="Index">
-                                <span class="gold-ico">🏆</span> Meus campeonatos
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark"
                                asp-area="" asp-controller="Relatorios" asp-action="Index">
                                 <span class="gold-ico">📊</span> Relatórios
                             </a>
                         </li>
-                        @if (_layoutIsAdmin)
+                        if (_layoutIsAdmin)
                         {
                         <li class="nav-item">
                             <a class="nav-link text-dark"
@@ -216,6 +218,16 @@
                                 <span class="gold-ico">🔁</span> Transferências
                             </a>
                         </li>
+                        }
+                        @if (_layoutTemCampeonatos)
+                        {
+                        <li class="nav-item">
+                            <a class="nav-link text-dark"
+                               asp-area="" asp-controller="Campeonatos" asp-action="Index">
+                                <span class="gold-ico">🏆</span> Meus campeonatos
+                            </a>
+                        </li>
+                        }
                         <li class="nav-item">
                             @* Blog público — quem tem permissão de escrever acha o
                                painel pelo botão "Escrever" dentro do próprio blog. *@

@@ -1,3 +1,5 @@
+@using ControleFutebolWeb.Filters
+@using ControleFutebolWeb.Models.Campeonatos
 @model IEnumerable<ControleFutebolWeb.Models.ApplicationUser>
 @{
     ViewData["Title"] = "Usuários";
@@ -43,6 +45,7 @@
                 <th>Usuário</th>
                 <th>E-mail</th>
                 <th>Admin</th>
+                <th>Plano</th>
                 <th>Autor do blog</th>
                 <th>Status</th>
                 <th style="text-align:right">Ações</th>
@@ -57,6 +60,23 @@
                     <td><code>@u.UserName</code></td>
                     <td>@u.Email</td>
                     <td>@(u.IsAdmin ? "✅" : "—")</td>
+                    <td style="white-space:nowrap">
+                        @* Módulos do plano: cada botão liga/desliga um (AlternarModulo).
+                           Admin acessa tudo, então os botões só valem para quem não é. *@
+                        @foreach (var (modulo, rotulo) in new[] { (ModuloSistema.Analise, "📊 Análise"), (ModuloSistema.Campeonatos, "🏆 Campeonatos") })
+                        {
+                            var tem = ModuloAcesso.Tem(u.Modulos, modulo);
+                            <form asp-action="AlternarModulo" method="post" style="display:inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@u.Id" />
+                                <input type="hidden" name="modulo" value="@modulo" />
+                                <button class="btn btn-sm @(tem ? "btn-success" : "btn-outline-secondary")"
+                                        title="@(tem ? "Remover do plano" : "Incluir no plano")@(u.IsAdmin ? " (admin já acessa tudo)" : "")">
+                                    @rotulo
+                                </button>
+                            </form>
+                        }
+                    </td>
                     <td>
                         @* Alterna a flag EhAutorBlog (efeito imediato: a política
                            BlogEscrever consulta o banco a cada checagem). *@

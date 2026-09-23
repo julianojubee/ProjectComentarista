@@ -1,12 +1,15 @@
 using System.Text;
 using System.Text.Encodings.Web;
+using ControleFutebolWeb.Filters;
 using ControleFutebolWeb.Models;
+using ControleFutebolWeb.Models.Campeonatos;
 using ControleFutebolWeb.Models.ViewModels;
 using ControleFutebolWeb.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace ControleFutebolWeb.Controllers
 {
@@ -17,19 +20,22 @@ namespace ControleFutebolWeb.Controllers
         private readonly IEmailSender _emailSender;
         private readonly ILogger<AccountController> _logger;
         private readonly PixOptions _pixOptions;
+        private readonly IMemoryCache _cache;
 
         public AccountController(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
             IEmailSender emailSender,
             ILogger<AccountController> logger,
-            Microsoft.Extensions.Options.IOptions<PixOptions> pixOptions)
+            Microsoft.Extensions.Options.IOptions<PixOptions> pixOptions,
+            IMemoryCache cache)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _emailSender = emailSender;
             _logger = logger;
             _pixOptions = pixOptions.Value;
+            _cache = cache;
         }
 
         [AllowAnonymous]
@@ -73,6 +79,20 @@ namespace ControleFutebolWeb.Controllers
         {
             await _signInManager.SignOutAsync();
             return RedirectToAction("Login");
+        }
+
+        // Destino do AssinaturaFilter para quem abriu uma tela de um módulo que o
+        // plano não inclui. Quem tem o módulo (ou é admin) volta pra Home.
+        [Authorize]
+        public async Task<IActionResult> ModuloIndisponivel(ModuloSistema modulo)
+        {
+            var usuario = await _userManager.GetUserAsync(User);
+            if (usuario == null || usuario.IsAdmin || ModuloAcesso.Tem(usuario.Modulos, modulo))
+                return RedirectToAction("Index", "Home");
+
+            ViewBag.Modulo = modulo;
+            ViewBag.Modulos = usuario.Modulos;
+            return View();
         }
 
         // Destino do AssinaturaFilter para usuários com pagamento vencido.
@@ -228,6 +248,8 @@ namespace ControleFutebolWeb.Controllers
                 Nome = model.Nome,
                 IsAdmin = model.IsAdmin,
                 EhAutorBlog = model.EhAutorBlog,
+                Modulos = (model.ModuloAnalise ? ModuloSistema.Analise : ModuloSistema.Nenhum)
+                        | (model.ModuloCampeonatos ? ModuloSistema.Campeonatos : ModuloSistema.Nenhum),
                 EmailConfirmed = true
             };
 
@@ -296,6 +318,32 @@ namespace ControleFutebolWeb.Controllers
             TempData["Sucesso"] = usuario.EhAutorBlog
                 ? $"{usuario.Nome} agora é autor do blog."
                 : $"{usuario.Nome} não é mais autor do blog.";
+            return RedirectToAction("Usuarios");
+        }
+
+        // POST: liga/desliga um módulo do plano de um usuário (admin only). Vale na
+        // próxima requisição dele: o AssinaturaFilter lê Modulos do banco a cada uma.
+        [HttpPost, Authorize, ValidateAntiForgeryToken]
+        public async Task<IActionResult> AlternarModulo(string id, ModuloSistema modulo)
+        {
+            var admin = await _userManager.GetUserAsync(User);
+            if (admin == null || !admin.IsAdmin) return Forbid();
+            if (modulo is not (ModuloSistema.Analise or ModuloSistema.Campeonatos)) return BadRequest();
+
+            var usuario = await _userManager.FindByIdAsync(id);
+            if (usuario == null)
+            {
+                TempData["Erro"] = "Usuário não encontrado.";
+                return RedirectToAction("Usuarios");
+            }
+
+            usuario.Modulos ^= modulo;
+            await _userManager.UpdateAsync(usuario);
+            // O menu do layout fica em cache por 60s; sem isto ele mostraria o plano antigo.
+            _cache.Remove($"layout-menu:{usuario.Id}");
+
+            var ligado = ModuloAcesso.Tem(usuario.Modulos, modulo);
+            TempData["Sucesso"] = $"{ModuloAcesso.Nome(modulo)}: {(ligado ? "liberado para" : "removido de")} {usuario.Nome}.";
             return RedirectToAction("Usuarios");
         }
 

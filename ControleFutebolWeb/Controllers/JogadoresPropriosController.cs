@@ -1,4 +1,5 @@
 using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Filters;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.Campeonatos;
@@ -14,6 +15,7 @@ namespace ControleFutebolWeb.Controllers
     // Jogadores criados pelo usuário (o amigo da pelada, o atleta da liga amadora).
     // Em liga amadora é dado de pessoa real: só o nome é obrigatório.
     [Authorize]
+    [ModuloRequerido(ModuloSistema.Campeonatos)]
     public class JogadoresPropriosController : Controller
     {
         private readonly FutebolContext _context;

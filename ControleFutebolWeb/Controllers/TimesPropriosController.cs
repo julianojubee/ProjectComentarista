@@ -1,4 +1,5 @@
 using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Filters;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.Campeonatos;
@@ -13,6 +14,7 @@ namespace ControleFutebolWeb.Controllers
     // Times criados pelo usuário para os campeonatos próprios, e o elenco de cada
     // um (jogadores reais do sistema e/ou jogadores criados pelo usuário).
     [Authorize]
+    [ModuloRequerido(ModuloSistema.Campeonatos)]
     public class TimesPropriosController : Controller
     {
         private readonly FutebolContext _context;

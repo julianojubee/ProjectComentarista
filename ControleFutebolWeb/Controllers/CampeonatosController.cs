@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Filters;
 using ControleFutebolWeb.Helpers.Campeonatos;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.Campeonatos;
@@ -16,6 +17,7 @@ namespace ControleFutebolWeb.Controllers
     // Tudo aqui é do usuário logado — nenhuma action enxerga campeonato de outro
     // dono (o link público é o CampeonatoPublicoController, só leitura).
     [Authorize]
+    [ModuloRequerido(ModuloSistema.Campeonatos)]
     public class CampeonatosController : Controller
     {
         private readonly FutebolContext _context;
