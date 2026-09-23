@@ -1,4 +1,5 @@
 ﻿using ControleFutebolWeb.Models;
+using ControleFutebolWeb.Models.Campeonatos;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -62,6 +63,16 @@ namespace ControleFutebolWeb.Data
         public DbSet<AcessoPublico> AcessosPublicos { get; set; }
         public DbSet<JogoIndisponivel> JogosIndisponiveis { get; set; }
         public DbSet<MarcacaoVideo> MarcacoesVideo { get; set; }
+
+        // 🔹 Módulo de campeonatos próprios (ver CampeonatosModelConfig)
+        public DbSet<TimeProprio> TimesProprios { get; set; }
+        public DbSet<JogadorProprio> JogadoresProprios { get; set; }
+        public DbSet<ElencoItem> ItensElenco { get; set; }
+        public DbSet<Campeonato> Campeonatos { get; set; }
+        public DbSet<CampeonatoFase> CampeonatoFases { get; set; }
+        public DbSet<CampeonatoParticipante> CampeonatoParticipantes { get; set; }
+        public DbSet<PartidaCampeonato> PartidasCampeonato { get; set; }
+        public DbSet<EventoPartidaCampeonato> EventosPartidaCampeonato { get; set; }
 
         public override int SaveChanges()
         {
@@ -546,6 +557,8 @@ namespace ControleFutebolWeb.Data
                 entity.HasOne(m => m.Jogador).WithMany()
                     .HasForeignKey(m => m.JogadorId).OnDelete(DeleteBehavior.Cascade);
             });
+
+            CampeonatosModelConfig.Configurar(modelBuilder);
 
             // 🔹 Converte nomes de tabelas e colunas para minúsculas
             foreach (var entity in modelBuilder.Model.GetEntityTypes())
