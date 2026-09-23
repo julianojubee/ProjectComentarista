@@ -16,6 +16,9 @@ namespace ControleFutebolWeb.Models.Campeonatos
         public CampeonatoFase? Fase { get; set; }
 
         public int Rodada { get; set; }
+        // Rótulo que vai direto para Jogo.Grupo na conversão: "Grupo A" na fase de
+        // grupos, o nome da etapa no mata-mata ("Quartas", "Semifinal", "Final") e
+        // null em pontos corridos. Gravado pelo GeradorPartidasCampeonato.
         public string? Grupo { get; set; }
         // Posição no chaveamento do mata-mata (1..N dentro da rodada), para o
         // vencedor saber em qual partida da rodada seguinte entra.

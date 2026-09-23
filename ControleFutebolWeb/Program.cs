@@ -100,6 +100,8 @@ internal class Program
         builder.Services.AddScoped<TooltipJogadorService>();
         // Simulador de tabela — tela logada (/Simulador) e pública (/creators/simulador).
         builder.Services.AddScoped<SimuladorService>();
+        // Campeonatos próprios do usuário (painel, geração de rodadas, chaveamento).
+        builder.Services.AddScoped<CampeonatoService>();
         // Contador das páginas públicas de /creators (lido em /Admin/Acessos).
         // O cache de visitantes é singleton: a marca "já vi este visitante hoje"
         // precisa valer entre requisições.
