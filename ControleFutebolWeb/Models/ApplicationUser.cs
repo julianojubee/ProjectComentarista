@@ -25,5 +25,9 @@ namespace ControleFutebolWeb.Models
         // Valor da mensalidade deste usuário (usado no QR PIX da tela de bloqueio
         // e como sugestão ao registrar pagamento). null = usa Pix:ValorPadrao.
         public decimal? ValorMensalidade { get; set; }
+
+        // Módulos contratados. Quem já existia fica com Analise (o sistema de
+        // hoje) pelo default da coluna; admin ignora e acessa tudo.
+        public Campeonatos.ModuloSistema Modulos { get; set; } = Campeonatos.ModuloSistema.Analise;
     }
 }

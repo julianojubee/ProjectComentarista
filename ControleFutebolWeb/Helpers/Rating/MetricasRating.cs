@@ -28,6 +28,11 @@ namespace ControleFutebolWeb.Helpers.Rating
     /// Peso dentro da família. Não precisa somar 1: a contribuição da família é a
     /// média ponderada dos z-scores das métricas que puderam ser lidas naquele jogo.
     /// </param>
+    /// <param name="LimiteZ">
+    /// Até quantos desvios a métrica ainda paga. O padrão ±2σ corta o volume que não
+    /// diz nada a mais; métrica em que o volume É a atuação (defesas do goleiro) ganha
+    /// um limite maior.
+    /// </param>
     public sealed record MetricaRating(
         string Id,
         string Label,
@@ -35,7 +40,8 @@ namespace ControleFutebolWeb.Helpers.Rating
         double Sinal,
         double Peso,
         bool PorNoventa,
-        Func<EstatisticaJogador, double?> Valor);
+        Func<EstatisticaJogador, double?> Valor,
+        double LimiteZ = BaselineRating.LimiteZPadrao);
 
     // Catálogo das métricas contínuas. Tudo o que é evento raro e decisivo (gol,
     // assistência, pênalti, vermelho) fica FORA daqui: evento não tem média nem
@@ -68,8 +74,9 @@ namespace ControleFutebolWeb.Helpers.Rating
             T("duelos_precisao",   "Duelos vencidos (%)",   FamiliaRating.Duelo, +1, 0.25, Aproveitamento(e => e.DuelosVencidos, e => e.DuelosTotal)),
             M("dribles_sofridos",  "Dribles sofridos",      FamiliaRating.Duelo, -1, 0.10, e => e.DriblesSofridos),
 
-            // Goleiro
-            M("defesas",           "Defesas",               FamiliaRating.Goleiro, +1, 0.50, e => e.Defesas),
+            // Goleiro. As defesas vão até +4σ: com o corte em 2σ, 7 defesas já batiam no
+            // teto e um goleiro que fez 11 terminava com a mesma nota de quem fez 7.
+            M("defesas",           "Defesas",               FamiliaRating.Goleiro, +1, 0.50, e => e.Defesas, limiteZ: 4.0),
             M("gols_sofridos",     "Gols sofridos",         FamiliaRating.Goleiro, -1, 0.50, e => e.GolsSofridos),
 
             // Disciplina
@@ -81,8 +88,8 @@ namespace ControleFutebolWeb.Helpers.Rating
             Todas.ToDictionary(m => m.Id);
 
         private static MetricaRating M(string id, string label, FamiliaRating familia, double sinal,
-            double peso, Func<EstatisticaJogador, double?> valor)
-            => new(id, label, familia, sinal, peso, PorNoventa: true, valor);
+            double peso, Func<EstatisticaJogador, double?> valor, double limiteZ = BaselineRating.LimiteZPadrao)
+            => new(id, label, familia, sinal, peso, PorNoventa: true, valor, limiteZ);
 
         private static MetricaRating T(string id, string label, FamiliaRating familia, double sinal,
             double peso, Func<EstatisticaJogador, double?> valor)

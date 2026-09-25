@@ -302,7 +302,7 @@ namespace ControleFutebolWeb.Services
         /// duplicado quando o nome diverge. Null aplica nos dois.
         /// </param>
         public async Task<ResultadoEspn> AplicarAsync(
-            FutebolContext context, int jogoId, string usuarioId,
+            FutebolContext context, int jogoId, string? usuarioId,
             Func<bool, bool>? filtroLado = null, CancellationToken ct = default)
         {
             var (jogo, doc, evento, erro) = await _espn.AbrirResumoAsync(context, jogoId, exigeIdApi: false, ct);
@@ -342,7 +342,7 @@ namespace ControleFutebolWeb.Services
         /// ou se filtroLado dispensou este lado.
         /// </returns>
         private async Task<int?> AplicarLadoAsync(
-            FutebolContext context, Jogo jogo, JsonElement roster, string usuarioId,
+            FutebolContext context, Jogo jogo, JsonElement roster, string? usuarioId,
             Func<bool, bool>? filtroLado, CancellationToken ct)
         {
             var nomeTime = roster.GetProperty("team").GetProperty("displayName").GetString();
@@ -374,9 +374,13 @@ namespace ControleFutebolWeb.Services
         /// Vai para Escalacao.Fonte na linha COMPARTILHADA e é o que o selo da tela lê.
         /// Ver FonteEscalacao.
         /// </param>
+        /// <param name="usuarioId">
+        /// Null = só a escalação compartilhada. É o caso do ciclo de jogos ao vivo, que
+        /// roda sem usuário logado e não pode mexer na escalação pessoal de ninguém.
+        /// </param>
         internal async Task<int?> AplicarAtletasAsync(
             FutebolContext context, Jogo jogo, bool ehCasa, string? formacaoDaFonte,
-            IReadOnlyList<AtletaEscalado> atletas, string usuarioId, string fonte,
+            IReadOnlyList<AtletaEscalado> atletas, string? usuarioId, string fonte,
             CancellationToken ct)
         {
             var time = ehCasa ? jogo.TimeCasa! : jogo.TimeVisitante!;
@@ -388,7 +392,26 @@ namespace ControleFutebolWeb.Services
             // reaproveita o cadastro pelo nome depois em vez de duplicar.
             async Task<Jogador> ResolverOuCriarAsync(AtletaEscalado a)
             {
-                var jogador = Casar(elenco, a.Nome, a.Numero)?.Jogador;
+                // 1º o vínculo com o FotMob já gravado no jogador (tela do jogador ou
+                // importação anterior): é a identidade dele, não um palpite por nome.
+                var jogador = a.IdFotMob is long idFotMob
+                    ? elenco.FirstOrDefault(j => j.IdFotMob == idFotMob) : null;
+                if (jogador != null) return jogador;
+
+                // 2º nome E camisa batendo. Vem antes do casamento só por nome porque é
+                // o que separa homônimos do mesmo elenco (dois "Danilo" no Botafogo) —
+                // e, por ser forte, é o único que grava vínculo novo.
+                jogador = CasarPorNomeECamisa(elenco, a.Nome, a.Numero);
+                if (jogador != null)
+                {
+                    if (a.IdFotMob != null && jogador.IdFotMob == null &&
+                        !elenco.Any(j => j.IdFotMob == a.IdFotMob))
+                        jogador.IdFotMob = a.IdFotMob;
+                    return jogador;
+                }
+
+                // 3º nome ou camisa isolados, com desempate.
+                jogador = Casar(elenco, a.Nome, a.Numero)?.Jogador;
                 if (jogador != null) return jogador;
 
                 jogador = new Jogador
@@ -401,6 +424,7 @@ namespace ControleFutebolWeb.Services
                     // depois a partir das escalações reais.
                     Posicao = EhSubstituto(a.Posicao) ? "" : a.Posicao,
                     NumeroCamisa = a.Numero,
+                    IdFotMob = a.IdFotMob,
                     TimeId = time.Id,
                     SelecaoId = time.EhSelecao ? time.Id : null,
                     DtInc = DateTime.UtcNow,
@@ -473,15 +497,18 @@ namespace ControleFutebolWeb.Services
                 .ToList();
 
             // 4a) Substitui a escalação INICIAL deste usuário. As linhas dos outros
-            //     usuários não são tocadas.
-            var antigas = await context.Escalacoes
-                .Where(e => e.JogoId == jogo.Id && e.IsTimeCasa == ehCasa
-                         && e.FaseEscalacao == "INICIAL" && e.UsuarioId == usuarioId)
-                .ToListAsync(ct);
-            context.Escalacoes.RemoveRange(antigas);
+            //     usuários não são tocadas. Sem usuário, pula: só a compartilhada.
+            if (usuarioId != null)
+            {
+                var antigas = await context.Escalacoes
+                    .Where(e => e.JogoId == jogo.Id && e.IsTimeCasa == ehCasa
+                             && e.FaseEscalacao == "INICIAL" && e.UsuarioId == usuarioId)
+                    .ToListAsync(ct);
+                context.Escalacoes.RemoveRange(antigas);
 
-            foreach (var l in doXi)
-                context.Escalacoes.Add(Linha(l.Id, l.Pos, l.X, l.Y, l.Titular, usuarioId, null));
+                foreach (var l in doXi)
+                    context.Escalacoes.Add(Linha(l.Id, l.Pos, l.X, l.Y, l.Titular, usuarioId, null));
+            }
 
             // 4b) A compartilhada (UsuarioId null) é "o que foi a partida", independente
             //     de usuário: é dela que a tela copia para quem abrir o jogo depois e é
@@ -525,7 +552,12 @@ namespace ControleFutebolWeb.Services
         /// ficou no banco o jogo todo vem com 0. É esse campo que separa "não jogou"
         /// de "jogou", e não o simples fato de estar na lista.
         /// </param>
-        public record AtletaEscalado(string Nome, int? Numero, string Posicao, bool Titular, bool Atuou = true);
+        /// <param name="IdFotMob">
+        /// Id do atleta no FotMob, quando a fonte é o FotMob. Casa direto com
+        /// Jogador.IdFotMob, antes de qualquer comparação de nome.
+        /// </param>
+        public record AtletaEscalado(string Nome, int? Numero, string Posicao, bool Titular, bool Atuou = true,
+            long? IdFotMob = null);
 
         private static IEnumerable<AtletaEscalado> AtletasDaEspn(JsonElement roster)
         {
@@ -571,6 +603,8 @@ namespace ControleFutebolWeb.Services
         /// </summary>
         internal static Casado? Casar(List<Jogador> elenco, string nome, int? numero)
         {
+            // (ver também CasarPorNomeECamisa, logo abaixo, que quem conhece a camisa
+            // deve tentar antes)
             var porNome = elenco.Where(j => NomeJogadorHelper.Corresponde(j.Nome, nome)).ToList();
             if (porNome.Count == 1) return new Casado(porNome[0], "nome");
             if (porNome.Count > 1) return new Casado(Desempatar(porNome, nome, numero), "nome");
@@ -583,6 +617,29 @@ namespace ControleFutebolWeb.Services
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Candidato cujo nome corresponde E cuja camisa confere. Null quando a camisa é
+        /// desconhecida ou ninguém atende às duas condições. É mais forte que
+        /// <see cref="Casar"/>, que desempata homônimos preferindo o nome idêntico: com
+        /// "Danilo Santos" (8) e "Danilo" (90) no elenco, o "Danilo" camisa 8 da fonte
+        /// ia para o 90.
+        /// </summary>
+        internal static Jogador? CasarPorNomeECamisa(List<Jogador> candidatos, string nome, int? camisa)
+        {
+            if (camisa == null) return null;
+
+            var ambos = candidatos
+                .Where(j => j.NumeroCamisa == camisa && NomeJogadorHelper.Corresponde(j.Nome, nome))
+                .ToList();
+
+            return ambos.Count switch
+            {
+                0 => null,
+                1 => ambos[0],
+                _ => Desempatar(ambos, nome, camisa),
+            };
         }
 
         /// <summary>

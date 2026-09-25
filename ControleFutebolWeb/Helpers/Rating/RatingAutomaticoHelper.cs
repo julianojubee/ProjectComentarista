@@ -118,6 +118,13 @@ namespace ControleFutebolWeb.Helpers.Rating
         public const double ValorGolContra = -1.20;
         public const double ValorGolDaVitoria = +0.50;
 
+        // Jogo sem sofrer gol, para o goleiro. A métrica "gols sofridos" sozinha não
+        // passa de ~+1σ (média 1,3, desvio 1,25), e o goleiro não tem gol nem
+        // assistência para chegar à faixa alta: sem este evento o melhor jogo possível
+        // de um goleiro parava em ~7,5. Vale o mesmo que uma assistência, e só para
+        // quem esteve em campo tempo suficiente para o 0 ser mérito dele.
+        public const double ValorGoleiroSemSofrerGol = +0.80;
+
         /// <summary>
         /// Nota da partida. Null quando o jogador não entrou em campo (sem minutos não
         /// há desempenho a medir — e dar 6,0 a quem ficou no banco poluiria as médias).
@@ -150,7 +157,7 @@ namespace ControleFutebolWeb.Helpers.Rating
                 ? EscalaDesempenho * familias.Sum(f => f.Peso * f.Z) / pesoMedido * confianca
                 : 0;
 
-            var (eventos, eventosDetalhe) = CalcularEventos(estatistica, contexto);
+            var (eventos, eventosDetalhe) = CalcularEventos(estatistica, grupo, minutos, contexto);
 
             var defensivo = CalcularDefensivo(grupo, contexto) * confianca;
 
@@ -197,7 +204,7 @@ namespace ControleFutebolWeb.Helpers.Rating
                     var referencia = baseline.De(grupoBaseline, m.Id);
                     if (referencia == null) continue;
 
-                    var z = BaselineRating.ZTruncado(valor, referencia) * m.Sinal;
+                    var z = BaselineRating.ZTruncado(valor, referencia, m.LimiteZ) * m.Sinal;
                     somaZ += m.Peso * z;
                     somaPesos += m.Peso;
                     metricas.Add(new ContribuicaoMetrica(
@@ -219,7 +226,7 @@ namespace ControleFutebolWeb.Helpers.Rating
         }
 
         private static (double Total, List<ContribuicaoEvento> Detalhe) CalcularEventos(
-            EstatisticaJogador e, ContextoRating contexto)
+            EstatisticaJogador e, string? grupo, int minutos, ContextoRating contexto)
         {
             var detalhe = new List<ContribuicaoEvento>();
             double total = 0;
@@ -245,6 +252,13 @@ namespace ControleFutebolWeb.Helpers.Rating
             {
                 total += ValorGolDaVitoria;
                 detalhe.Add(new ContribuicaoEvento("Gol da vitória", 1, ValorGolDaVitoria));
+            }
+
+            // Placar desconhecido não dá o evento: sem ele não há como afirmar o 0.
+            if (grupo == "GOLEIRO" && minutos >= MinutosConfiancaPlena && contexto.GolsSofridosTime == 0)
+            {
+                total += ValorGoleiroSemSofrerGol;
+                detalhe.Add(new ContribuicaoEvento("Não sofreu gol", 1, ValorGoleiroSemSofrerGol));
             }
 
             return (total, detalhe);

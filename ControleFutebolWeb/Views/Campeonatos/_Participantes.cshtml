@@ -1,0 +1,118 @@
+@model ControleFutebolWeb.Models.ViewModels.CampeonatoDetalhesViewModel
+@{
+    var c = Model.Campeonato;
+    var travado = Model.PrimeiraFaseGerada;
+    var temGrupos = c.Fases.Any(f => f.Tipo == "GRUPOS");
+    var participantes = c.Participantes.OrderBy(p => p.Semente ?? int.MaxValue).ThenBy(p => p.Ordem).ToList();
+}
+
+<div class="cp-secao">
+    <h2>Participantes</h2>
+    @if (!participantes.Any())
+    {
+        <p class="cp-dica" style="margin:0 0 6px">Ninguém inscrito ainda. Adicione abaixo.</p>
+    }
+    <ul class="cp-lista">
+        @foreach (var p in participantes)
+        {
+            <li>
+                @await Html.PartialAsync("_Escudo", (p.EscudoUrlSnapshot, p.NomeExibicao, p.TimeProprio?.CorPrincipal ?? p.Time?.CorPrincipal))
+                <div>
+                    <div class="nome">@p.NomeExibicao</div>
+                    <div class="detalhe">
+                        @(p.TimeProprioId != null ? "Time próprio" : p.TimeId != null ? "Time real" : "Sem time fixo")
+                        @if (p.Grupo != null) { <span> · Grupo @p.Grupo</span> }
+                        @if (p.Semente != null) { <span> · Cabeça de chave @p.Semente</span> }
+                    </div>
+                </div>
+                @if (!travado)
+                {
+                    <form class="fim" asp-action="RemoverParticipante" asp-route-id="@c.Id" method="post">
+                        <input type="hidden" name="participanteId" value="@p.Id" />
+                        <button type="submit" class="cp-btn mini perigo" title="Remover">Remover</button>
+                    </form>
+                }
+            </li>
+        }
+    </ul>
+</div>
+
+@if (travado)
+{
+    <p class="cp-dica">As partidas já foram geradas, então os participantes não mudam mais.</p>
+}
+else
+{
+    <form class="cp-secao" asp-action="AdicionarParticipante" asp-route-id="@c.Id" method="post">
+        <h2>Adicionar participante</h2>
+
+        <div class="cp-opcoes" style="margin-bottom:12px;">
+            <label class="cp-opcao"><input type="radio" name="origem" value="nenhum" checked />
+                <div><strong>Só o nome</strong><span>A pessoa troca de time a cada jogo.</span></div></label>
+            <label class="cp-opcao"><input type="radio" name="origem" value="real" />
+                <div><strong>Time real</strong><span>Ex.: Juliano com o Flamengo.</span></div></label>
+            <label class="cp-opcao"><input type="radio" name="origem" value="proprio" @(Model.MeusTimes.Any() ? "" : "disabled") />
+                <div><strong>Meu time</strong><span>@(Model.MeusTimes.Any() ? "Um time que você criou." : "Crie um em Meus times.")</span></div></label>
+        </div>
+
+        <div class="cp-form-linha">
+            <div class="cp-campo">
+                <label for="nome">Nome da pessoa (opcional com time)</label>
+                <input id="nome" name="nome" class="cp-input" maxlength="80" placeholder="Ex.: Juliano" />
+            </div>
+            <div class="cp-campo" data-origem="real" style="flex-basis:260px;">
+                <label for="timeId">Time real</label>
+                <select id="timeId" name="timeId" class="cp-select" data-buscavel="Buscar time…">
+                    <option value="">—</option>
+                    @foreach (var t in Model.TimesReais)
+                    {
+                        <option value="@t.Id">@t.Nome</option>
+                    }
+                </select>
+            </div>
+            <div class="cp-campo" data-origem="proprio" style="flex-basis:220px;">
+                <label for="timeProprioId">Meu time</label>
+                <select id="timeProprioId" name="timeProprioId" class="cp-select">
+                    <option value="">—</option>
+                    @foreach (var t in Model.MeusTimes)
+                    {
+                        <option value="@t.Id">@t.Nome</option>
+                    }
+                </select>
+            </div>
+            @if (temGrupos)
+            {
+                <div class="cp-campo estreito">
+                    <label for="grupo">Grupo</label>
+                    <input id="grupo" name="grupo" class="cp-input" maxlength="2" placeholder="A" />
+                </div>
+            }
+            <div class="cp-campo estreito">
+                <label for="semente">Cabeça</label>
+                <input id="semente" name="semente" type="number" min="1" max="64" class="cp-input" placeholder="—" />
+            </div>
+            <button type="submit" class="cp-btn ouro">Adicionar</button>
+        </div>
+        <p class="cp-dica">
+            <strong>Cabeça de chave</strong> (1 = mais forte) define a ordem no sorteio dos grupos e no chaveamento; sem ela vale a ordem de inscrição.
+            @if (temGrupos)
+            {
+                <text>Deixe o <strong>grupo</strong> em branco para o sistema distribuir; preencha em todos para usar o seu sorteio.</text>
+            }
+        </p>
+    </form>
+
+    <script>
+        // Mostra só o campo de time da origem escolhida.
+        (function () {
+            function atualizar() {
+                var origem = (document.querySelector('input[name="origem"]:checked') || {}).value;
+                document.querySelectorAll('[data-origem]').forEach(function (el) {
+                    el.style.display = el.getAttribute('data-origem') === origem ? '' : 'none';
+                });
+            }
+            document.querySelectorAll('input[name="origem"]').forEach(function (r) { r.addEventListener('change', atualizar); });
+            atualizar();
+        })();
+    </script>
+}

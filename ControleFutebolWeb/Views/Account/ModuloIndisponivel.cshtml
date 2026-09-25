@@ -1,0 +1,45 @@
+@using ControleFutebolWeb.Filters
+@using ControleFutebolWeb.Models.Campeonatos
+@{
+    ViewData["Title"] = "Recurso fora do seu plano";
+    var modulo = (ModuloSistema)ViewBag.Modulo;
+    var modulos = (ModuloSistema)ViewBag.Modulos;
+    var temAnalise = ModuloAcesso.Tem(modulos, ModuloSistema.Analise);
+    var temCampeonatos = ModuloAcesso.Tem(modulos, ModuloSistema.Campeonatos);
+}
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/campeonatos.css" asp-append-version="true" />
+
+<div class="cp" style="max-width:620px;">
+    <div class="cp-secao" style="text-align:center; padding:2.2rem 1.6rem; margin-top:2rem;">
+        <div style="font-size:2.6rem;">@(modulo == ModuloSistema.Campeonatos ? "🏆" : "📊")</div>
+        <h1 class="cp-titulo" style="margin:10px 0 6px;">@ModuloAcesso.Nome(modulo) não está no seu plano</h1>
+        <p class="cp-sub" style="max-width:46ch; margin:0 auto 18px;">
+            @if (modulo == ModuloSistema.Campeonatos)
+            {
+                <text>Com ele você cria seus próprios times, jogadores e campeonatos — campeonato de videogame entre amigos, liga amadora — com tabela, chaveamento, súmula e link para compartilhar.</text>
+            }
+            else
+            {
+                <text>Com ele você acompanha as competições reais: análise de jogos, notas, escalações, relatórios e simulador.</text>
+            }
+            Fale com o administrador para incluir no seu plano.
+        </p>
+        <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+            @if (temCampeonatos)
+            {
+                <a class="cp-btn ouro" asp-controller="Campeonatos" asp-action="Index">🏆 Ir para meus campeonatos</a>
+            }
+            @if (temAnalise)
+            {
+                <a class="cp-btn @(temCampeonatos ? "" : "ouro")" asp-controller="Home" asp-action="Index">📊 Ir para a análise</a>
+            }
+            @if (!temAnalise && !temCampeonatos)
+            {
+                <form asp-action="Logout" method="post">
+                    <button type="submit" class="cp-btn">Sair</button>
+                </form>
+            }
+        </div>
+    </div>
+</div>

@@ -1522,9 +1522,12 @@
             var resp = await fetch('/Jogos/MomentoJogadores/' + ANALISAR.jogoId);
             if (!resp.ok) throw new Error();
             var d = await resp.json();
-            cont.innerHTML = '<div class="pj-grid">' +
-                    colunaMomento(d.casa, 'casa') +
-                    colunaMomento(d.visitante, 'vis') +
+            // Cada coluna é um subgrid com o mesmo número de linhas: o card N de um
+            // time divide a linha com o card N do outro e os dois ficam da mesma altura.
+            var linhas = Math.max(d.casa.titulares.length, d.visitante.titulares.length, 1);
+            cont.innerHTML = '<div class="pj-grid pjm-grid" style="--pjm-linhas:' + (linhas + 2) + '">' +
+                    colunaMomento(d.casa, 'casa', linhas) +
+                    colunaMomento(d.visitante, 'vis', linhas) +
                 '</div>' +
                 '<div class="pj-ind-rodape">Atualizado a cada 6h</div>';
 
@@ -1540,13 +1543,16 @@
         }
     }
 
-    function colunaMomento(t, lado) {
+    function colunaMomento(t, lado, linhas) {
         var escudo = t.escudo ? '<img src="' + escAttr(t.escudo) + '" alt="">' : '';
         var sincronizados = t.titulares.filter(function (j) { return j.sincronizado; }).length;
         var titulares = t.titulares.length === 0
             ? '<div class="pj-ind-vazio">Nenhuma escalação registrada para este time.</div>'
             : t.titulares.map(cardMomento).join('');
-        var reservas = t.reservas.length === 0 ? '' :
+        // Completa as linhas que sobram (time com menos titulares) para o banco
+        // cair na mesma linha nas duas colunas.
+        titulares += new Array(Math.max(linhas - Math.max(t.titulares.length, 1), 0) + 1).join('<div></div>');
+        var reservas = t.reservas.length === 0 ? '<div></div>' :
             '<details class="pjm-banco">' +
                 '<summary><span>🪑 Banco / elenco</span><span class="pjm-contador">' + t.reservas.length + '</span></summary>' +
                 '<div class="pjm-banco-dica">Toque no jogador para carregar</div>' +
@@ -1582,7 +1588,7 @@
                         (j.numero ? '<span class="pjm-num">' + escHtml(String(j.numero)) + '</span>' : '') +
                     '</div>' +
                     '<div class="pjm-id">' +
-                        '<div class="pjm-nome">' + escHtml(j.nome) + '</div>' +
+                        '<a class="pjm-nome" href="/Jogadores/Estatisticas/' + j.id + '" target="_blank" rel="noopener" title="Ver perfil de ' + escAttr(j.nome) + '" onclick="event.stopPropagation()">' + escHtml(j.nome) + '</a>' +
                         '<div class="pjm-meta"><span class="pjm-sigla">' + escHtml(j.sigla || '') + '</span><span class="pjm-perfil"></span></div>' +
                     '</div>' +
                     '<div class="pjm-forma"></div>' +
@@ -1764,12 +1770,14 @@
         if (jogados.length) {
             var soma = function (campo) { return jogados.reduce(function (a, g) { return a + (g[campo] || 0); }, 0); };
             var cartoes = soma('amarelos') + soma('vermelhos');
+            // Sempre os mesmos 4 blocos (cartões inclusive, mesmo zerado): os cards
+            // lado a lado ficam com o mesmo desenho.
             var tiles = [
                 ['⚽', soma('gols'), soma('gols') === 1 ? 'gol' : 'gols', 'gol'],
                 ['🅰️', soma('assistencias'), soma('assistencias') === 1 ? 'assist.' : 'assists.', 'ast'],
                 ['⏱️', Math.round(soma('minutos') / jogados.length) + "'", 'min/jogo', ''],
+                ['🟨', cartoes, cartoes === 1 ? 'cartão' : 'cartões', 'cartao'],
             ];
-            if (cartoes) tiles.push(['🟨', cartoes, cartoes === 1 ? 'cartão' : 'cartões', 'cartao']);
             html += '<div class="pjm-bloco-titulo">Últimos ' + jogados.length + ' jogos</div>' +
                 '<div class="pjm-tiles">' + tiles.map(function (t) {
                     return '<div class="pjm-tile ' + t[3] + (t[1] === 0 ? ' zero' : '') + '">' +

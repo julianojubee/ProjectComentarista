@@ -599,6 +599,74 @@ namespace ControleFutebolWeb.Controllers
             });
         }
 
+        /// <summary>
+        /// Linha "Temporada" do tooltip ℹ do jogador com os números do FotMob: todas as
+        /// competições do ano, inclusive as que não estão cadastradas aqui — a base
+        /// local só enxerga os jogos importados. Chamada pelo tooltip ao passar o mouse,
+        /// um jogador por vez; a resposta do FotMob fica 6h em cache.
+        ///
+        /// Sempre 200, como SituacaoFisica: sem vínculo ou sem resposta, o tooltip
+        /// continua com a contagem local.
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> TemporadaFotMob(int id, int temporada, CancellationToken ct)
+        {
+            if (temporada <= 0) return Json(new { ok = false });
+
+            var idFotMob = await _context.Jogadores
+                .AsNoTracking()
+                .Where(j => j.Id == id)
+                .Select(j => j.IdFotMob)
+                .FirstOrDefaultAsync(ct);
+
+            if (idFotMob is not long externo) return Json(new { ok = false });
+
+            var t = await _fotmobPerfil.TemporadaAsync(externo, temporada, ct);
+            if (t == null) return Json(new { ok = false });
+
+            return Json(new
+            {
+                ok = true,
+                temporada = t.Nome,
+                jogos = t.Jogos,
+                gols = t.Gols,
+                assists = t.Assistencias,
+                times = t.Times,
+            });
+        }
+
+        /// <summary>
+        /// Bloco "Médias por jogo" do tooltip ℹ com a temporada inteira do FotMob (todas
+        /// as competições com estatística detalhada). Uma chamada por competição — o
+        /// tooltip cancela o pedido quando o mouse sai, e o ct leva o cancelamento até a
+        /// fila do FotMob. Sempre 200; ok=false mantém as médias locais.
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> MediasFotMob(int id, int temporada, CancellationToken ct)
+        {
+            if (temporada <= 0) return Json(new { ok = false });
+
+            var idFotMob = await _context.Jogadores
+                .AsNoTracking()
+                .Where(j => j.Id == id)
+                .Select(j => j.IdFotMob)
+                .FirstOrDefaultAsync(ct);
+
+            if (idFotMob is not long externo) return Json(new { ok = false });
+
+            var m = await _fotmobPerfil.MediasTemporadaAsync(externo, temporada, ct);
+            if (m == null) return Json(new { ok = false });
+
+            return Json(new
+            {
+                ok = true,
+                jogos = m.Jogos,
+                minutos = m.Minutos,
+                competicoes = m.Competicoes,
+                celulas = m.Celulas.Select(c => new { valor = c.Valor, rotulo = c.Rotulo }),
+            });
+        }
+
         public async Task<IActionResult> Estatisticas(int id, int? competicaoId, int? temporada)
         {
             var uid = _userManager.GetUserId(User);

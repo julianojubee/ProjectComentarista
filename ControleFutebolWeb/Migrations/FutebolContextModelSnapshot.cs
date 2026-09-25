@@ -374,6 +374,12 @@ namespace ControleFutebolWeb.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("lockoutend");
 
+                    b.Property<int>("Modulos")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("modulos");
+
                     b.Property<string>("Nome")
                         .IsRequired()
                         .HasColumnType("text")
@@ -674,6 +680,529 @@ namespace ControleFutebolWeb.Migrations
                         .IsUnique();
 
                     b.ToTable("blogtags");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.Campeonatos.Campeonato", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criadoem");
+
+                    b.Property<string>("CriteriosDesempate")
+                        .HasColumnType("text")
+                        .HasColumnName("criteriosdesempate");
+
+                    b.Property<DateTime?>("DataInicio")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("datainicio");
+
+                    b.Property<DateTime?>("EncerradoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("encerradoem");
+
+                    b.Property<string>("LogoUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("logourl");
+
+                    b.Property<string>("Modalidade")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("modalidade");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("nome");
+
+                    b.Property<string>("Plataforma")
+                        .HasColumnType("text")
+                        .HasColumnName("plataforma");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("tipo");
+
+                    b.Property<string>("TokenPublico")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("tokenpublico");
+
+                    b.Property<string>("UsuarioId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("usuarioid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenPublico")
+                        .IsUnique()
+                        .HasFilter("tokenpublico IS NOT NULL");
+
+                    b.HasIndex("UsuarioId");
+
+                    b.ToTable("campeonatos");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.Campeonatos.CampeonatoFase", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CampeonatoId")
+                        .HasColumnType("integer")
+                        .HasColumnName("campeonatoid");
+
+                    b.Property<int?>("Classificados")
+                        .HasColumnType("integer")
+                        .HasColumnName("classificados");
+
+                    b.Property<bool>("DisputaTerceiro")
+                        .HasColumnType("boolean")
+                        .HasColumnName("disputaterceiro");
+
+                    b.Property<bool>("IdaEVolta")
+                        .HasColumnType("boolean")
+                        .HasColumnName("idaevolta");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("nome");
+
+                    b.Property<int>("Ordem")
+                        .HasColumnType("integer")
+                        .HasColumnName("ordem");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("tipo");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CampeonatoId", "Ordem");
+
+                    b.ToTable("campeonatofases");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.Campeonatos.CampeonatoParticipante", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CampeonatoId")
+                        .HasColumnType("integer")
+                        .HasColumnName("campeonatoid");
+
+                    b.Property<string>("EscudoUrlSnapshot")
+                        .HasColumnType("text")
+                        .HasColumnName("escudourlsnapshot");
+
+                    b.Property<string>("Grupo")
+                        .HasColumnType("text")
+                        .HasColumnName("grupo");
+
+                    b.Property<string>("Nome")
+                        .HasColumnType("text")
+                        .HasColumnName("nome");
+
+                    b.Property<string>("NomeTimeSnapshot")
+                        .HasColumnType("text")
+                        .HasColumnName("nometimesnapshot");
+
+                    b.Property<int>("Ordem")
+                        .HasColumnType("integer")
+                        .HasColumnName("ordem");
+
+                    b.Property<int?>("Semente")
+                        .HasColumnType("integer")
+                        .HasColumnName("semente");
+
+                    b.Property<int?>("TimeId")
+                        .HasColumnType("integer")
+                        .HasColumnName("timeid");
+
+                    b.Property<int?>("TimeProprioId")
+                        .HasColumnType("integer")
+                        .HasColumnName("timeproprioid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CampeonatoId");
+
+                    b.HasIndex("TimeId");
+
+                    b.HasIndex("TimeProprioId");
+
+                    b.ToTable("campeonatoparticipantes", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_campeonatoparticipantes_no_maximo_um_time", "num_nonnulls(timeproprioid, timeid) <= 1");
+                        });
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.Campeonatos.ElencoItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("FotoUrlSnapshot")
+                        .HasColumnType("text")
+                        .HasColumnName("fotourlsnapshot");
+
+                    b.Property<DateTime>("IncluidoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("incluidoem");
+
+                    b.Property<int?>("JogadorId")
+                        .HasColumnType("integer")
+                        .HasColumnName("jogadorid");
+
+                    b.Property<int?>("JogadorProprioId")
+                        .HasColumnType("integer")
+                        .HasColumnName("jogadorproprioid");
+
+                    b.Property<string>("NomeSnapshot")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("nomesnapshot");
+
+                    b.Property<int?>("NumeroCamisa")
+                        .HasColumnType("integer")
+                        .HasColumnName("numerocamisa");
+
+                    b.Property<int>("Ordem")
+                        .HasColumnType("integer")
+                        .HasColumnName("ordem");
+
+                    b.Property<string>("Posicao")
+                        .HasColumnType("text")
+                        .HasColumnName("posicao");
+
+                    b.Property<int>("TimeProprioId")
+                        .HasColumnType("integer")
+                        .HasColumnName("timeproprioid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JogadorId");
+
+                    b.HasIndex("JogadorProprioId");
+
+                    b.HasIndex("TimeProprioId");
+
+                    b.HasIndex("TimeProprioId", "JogadorId")
+                        .IsUnique()
+                        .HasFilter("jogadorid IS NOT NULL");
+
+                    b.HasIndex("TimeProprioId", "JogadorProprioId")
+                        .IsUnique()
+                        .HasFilter("jogadorproprioid IS NOT NULL");
+
+                    b.ToTable("itenselenco", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_itenselenco_um_jogador", "num_nonnulls(jogadorid, jogadorproprioid) = 1");
+                        });
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.Campeonatos.EventoPartidaCampeonato", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("GolId")
+                        .HasColumnType("integer")
+                        .HasColumnName("golid");
+
+                    b.Property<int?>("JogadorId")
+                        .HasColumnType("integer")
+                        .HasColumnName("jogadorid");
+
+                    b.Property<int?>("JogadorProprioId")
+                        .HasColumnType("integer")
+                        .HasColumnName("jogadorproprioid");
+
+                    b.Property<int?>("Minuto")
+                        .HasColumnType("integer")
+                        .HasColumnName("minuto");
+
+                    b.Property<string>("NomeSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("nomesnapshot");
+
+                    b.Property<int>("ParticipanteId")
+                        .HasColumnType("integer")
+                        .HasColumnName("participanteid");
+
+                    b.Property<int>("PartidaId")
+                        .HasColumnType("integer")
+                        .HasColumnName("partidaid");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("tipo");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GolId");
+
+                    b.HasIndex("JogadorId");
+
+                    b.HasIndex("JogadorProprioId");
+
+                    b.HasIndex("ParticipanteId");
+
+                    b.HasIndex("PartidaId");
+
+                    b.ToTable("eventospartidacampeonato", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_eventospartidacampeonato_no_maximo_um_jogador", "num_nonnulls(jogadorid, jogadorproprioid) <= 1");
+                        });
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.Campeonatos.JogadorProprio", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Apelido")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("apelido");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criadoem");
+
+                    b.Property<DateTime?>("DataNascimento")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("datanascimento");
+
+                    b.Property<string>("FotoUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("fotourl");
+
+                    b.Property<int?>("NacionalidadeId")
+                        .HasColumnType("integer")
+                        .HasColumnName("nacionalidadeid");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("nome");
+
+                    b.Property<int?>("NumeroCamisa")
+                        .HasColumnType("integer")
+                        .HasColumnName("numerocamisa");
+
+                    b.Property<string>("Posicao")
+                        .HasColumnType("text")
+                        .HasColumnName("posicao");
+
+                    b.Property<string>("UsuarioId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("usuarioid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NacionalidadeId");
+
+                    b.HasIndex("UsuarioId");
+
+                    b.ToTable("jogadoresproprios");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.Campeonatos.PartidaCampeonato", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CampeonatoId")
+                        .HasColumnType("integer")
+                        .HasColumnName("campeonatoid");
+
+                    b.Property<int?>("ChaveOrdem")
+                        .HasColumnType("integer")
+                        .HasColumnName("chaveordem");
+
+                    b.Property<DateTime?>("Data")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data");
+
+                    b.Property<int?>("FaseId")
+                        .HasColumnType("integer")
+                        .HasColumnName("faseid");
+
+                    b.Property<string>("Grupo")
+                        .HasColumnType("text")
+                        .HasColumnName("grupo");
+
+                    b.Property<string>("Local")
+                        .HasColumnType("text")
+                        .HasColumnName("local");
+
+                    b.Property<string>("Observacoes")
+                        .HasColumnType("text")
+                        .HasColumnName("observacoes");
+
+                    b.Property<int?>("ParticipanteCasaId")
+                        .HasColumnType("integer")
+                        .HasColumnName("participantecasaid");
+
+                    b.Property<int?>("ParticipanteVisitanteId")
+                        .HasColumnType("integer")
+                        .HasColumnName("participantevisitanteid");
+
+                    b.Property<int?>("PenaltisCasa")
+                        .HasColumnType("integer")
+                        .HasColumnName("penaltiscasa");
+
+                    b.Property<int?>("PenaltisVisitante")
+                        .HasColumnType("integer")
+                        .HasColumnName("penaltisvisitante");
+
+                    b.Property<int?>("PlacarCasa")
+                        .HasColumnType("integer")
+                        .HasColumnName("placarcasa");
+
+                    b.Property<int?>("PlacarVisitante")
+                        .HasColumnType("integer")
+                        .HasColumnName("placarvisitante");
+
+                    b.Property<int>("Rodada")
+                        .HasColumnType("integer")
+                        .HasColumnName("rodada");
+
+                    b.Property<int?>("TimeCasaUsadoId")
+                        .HasColumnType("integer")
+                        .HasColumnName("timecasausadoid");
+
+                    b.Property<int?>("TimeVisitanteUsadoId")
+                        .HasColumnType("integer")
+                        .HasColumnName("timevisitanteusadoid");
+
+                    b.Property<bool>("WO")
+                        .HasColumnType("boolean")
+                        .HasColumnName("wo");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FaseId");
+
+                    b.HasIndex("ParticipanteCasaId");
+
+                    b.HasIndex("ParticipanteVisitanteId");
+
+                    b.HasIndex("TimeCasaUsadoId");
+
+                    b.HasIndex("TimeVisitanteUsadoId");
+
+                    b.HasIndex("CampeonatoId", "Rodada");
+
+                    b.ToTable("partidascampeonato", (string)null);
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.Campeonatos.TimeProprio", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("ArquivadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("arquivadoem");
+
+                    b.Property<string>("Cidade")
+                        .HasColumnType("text")
+                        .HasColumnName("cidade");
+
+                    b.Property<string>("CorPrincipal")
+                        .HasColumnType("text")
+                        .HasColumnName("corprincipal");
+
+                    b.Property<string>("CorSecundaria")
+                        .HasColumnType("text")
+                        .HasColumnName("corsecundaria");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criadoem");
+
+                    b.Property<string>("EscudoUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("escudourl");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("nome");
+
+                    b.Property<string>("Sigla")
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)")
+                        .HasColumnName("sigla");
+
+                    b.Property<string>("UsuarioId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("usuarioid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UsuarioId");
+
+                    b.ToTable("timesproprios");
                 });
 
             modelBuilder.Entity("ControleFutebolWeb.Models.Cartao", b =>
@@ -3197,6 +3726,193 @@ namespace ControleFutebolWeb.Migrations
                     b.Navigation("Tag");
                 });
 
+            modelBuilder.Entity("ControleFutebolWeb.Models.Campeonatos.Campeonato", b =>
+                {
+                    b.HasOne("ControleFutebolWeb.Models.ApplicationUser", "Usuario")
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Usuario");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.Campeonatos.CampeonatoFase", b =>
+                {
+                    b.HasOne("ControleFutebolWeb.Models.Campeonatos.Campeonato", "Campeonato")
+                        .WithMany("Fases")
+                        .HasForeignKey("CampeonatoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Campeonato");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.Campeonatos.CampeonatoParticipante", b =>
+                {
+                    b.HasOne("ControleFutebolWeb.Models.Campeonatos.Campeonato", "Campeonato")
+                        .WithMany("Participantes")
+                        .HasForeignKey("CampeonatoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ControleFutebolWeb.Models.Time", "Time")
+                        .WithMany()
+                        .HasForeignKey("TimeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ControleFutebolWeb.Models.Campeonatos.TimeProprio", "TimeProprio")
+                        .WithMany()
+                        .HasForeignKey("TimeProprioId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Campeonato");
+
+                    b.Navigation("Time");
+
+                    b.Navigation("TimeProprio");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.Campeonatos.ElencoItem", b =>
+                {
+                    b.HasOne("ControleFutebolWeb.Models.Jogador", "Jogador")
+                        .WithMany()
+                        .HasForeignKey("JogadorId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("ControleFutebolWeb.Models.Campeonatos.JogadorProprio", "JogadorProprio")
+                        .WithMany()
+                        .HasForeignKey("JogadorProprioId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("ControleFutebolWeb.Models.Campeonatos.TimeProprio", "TimeProprio")
+                        .WithMany("Elenco")
+                        .HasForeignKey("TimeProprioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Jogador");
+
+                    b.Navigation("JogadorProprio");
+
+                    b.Navigation("TimeProprio");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.Campeonatos.EventoPartidaCampeonato", b =>
+                {
+                    b.HasOne("ControleFutebolWeb.Models.Campeonatos.EventoPartidaCampeonato", "Gol")
+                        .WithMany()
+                        .HasForeignKey("GolId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("ControleFutebolWeb.Models.Jogador", "Jogador")
+                        .WithMany()
+                        .HasForeignKey("JogadorId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ControleFutebolWeb.Models.Campeonatos.JogadorProprio", "JogadorProprio")
+                        .WithMany()
+                        .HasForeignKey("JogadorProprioId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ControleFutebolWeb.Models.Campeonatos.CampeonatoParticipante", "Participante")
+                        .WithMany()
+                        .HasForeignKey("ParticipanteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ControleFutebolWeb.Models.Campeonatos.PartidaCampeonato", "Partida")
+                        .WithMany("Eventos")
+                        .HasForeignKey("PartidaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Gol");
+
+                    b.Navigation("Jogador");
+
+                    b.Navigation("JogadorProprio");
+
+                    b.Navigation("Participante");
+
+                    b.Navigation("Partida");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.Campeonatos.JogadorProprio", b =>
+                {
+                    b.HasOne("Nacionalidade", "Nacionalidade")
+                        .WithMany()
+                        .HasForeignKey("NacionalidadeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ControleFutebolWeb.Models.ApplicationUser", "Usuario")
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Nacionalidade");
+
+                    b.Navigation("Usuario");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.Campeonatos.PartidaCampeonato", b =>
+                {
+                    b.HasOne("ControleFutebolWeb.Models.Campeonatos.Campeonato", "Campeonato")
+                        .WithMany("Partidas")
+                        .HasForeignKey("CampeonatoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ControleFutebolWeb.Models.Campeonatos.CampeonatoFase", "Fase")
+                        .WithMany()
+                        .HasForeignKey("FaseId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("ControleFutebolWeb.Models.Campeonatos.CampeonatoParticipante", "ParticipanteCasa")
+                        .WithMany()
+                        .HasForeignKey("ParticipanteCasaId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("ControleFutebolWeb.Models.Campeonatos.CampeonatoParticipante", "ParticipanteVisitante")
+                        .WithMany()
+                        .HasForeignKey("ParticipanteVisitanteId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("ControleFutebolWeb.Models.Time", "TimeCasaUsado")
+                        .WithMany()
+                        .HasForeignKey("TimeCasaUsadoId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ControleFutebolWeb.Models.Time", "TimeVisitanteUsado")
+                        .WithMany()
+                        .HasForeignKey("TimeVisitanteUsadoId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Campeonato");
+
+                    b.Navigation("Fase");
+
+                    b.Navigation("ParticipanteCasa");
+
+                    b.Navigation("ParticipanteVisitante");
+
+                    b.Navigation("TimeCasaUsado");
+
+                    b.Navigation("TimeVisitanteUsado");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.Campeonatos.TimeProprio", b =>
+                {
+                    b.HasOne("ControleFutebolWeb.Models.ApplicationUser", "Usuario")
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Usuario");
+                });
+
             modelBuilder.Entity("ControleFutebolWeb.Models.Cartao", b =>
                 {
                     b.HasOne("ControleFutebolWeb.Models.Jogador", "Jogador")
@@ -3990,6 +4706,25 @@ namespace ControleFutebolWeb.Migrations
             modelBuilder.Entity("ControleFutebolWeb.Models.BlogTag", b =>
                 {
                     b.Navigation("Posts");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.Campeonatos.Campeonato", b =>
+                {
+                    b.Navigation("Fases");
+
+                    b.Navigation("Participantes");
+
+                    b.Navigation("Partidas");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.Campeonatos.PartidaCampeonato", b =>
+                {
+                    b.Navigation("Eventos");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.Campeonatos.TimeProprio", b =>
+                {
+                    b.Navigation("Elenco");
                 });
 
             modelBuilder.Entity("ControleFutebolWeb.Models.Competicao", b =>

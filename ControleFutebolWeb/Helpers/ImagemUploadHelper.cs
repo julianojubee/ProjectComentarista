@@ -1,6 +1,7 @@
 namespace ControleFutebolWeb.Helpers
 {
-    // Validação de imagens enviadas pelo editor do blog.
+    // Validação de imagens enviadas pelo editor do blog e pelos escudos/fotos
+    // dos campeonatos próprios.
     //
     // O formato é decidido pelos MAGIC BYTES do conteúdo, nunca pela extensão
     // do nome enviado: renomear "payload.exe" para "foto.jpg" não engana esta
@@ -66,9 +67,34 @@ namespace ControleFutebolWeb.Helpers
         // pasta não virar um diretório único com milhares de arquivos.
         // O nome é sempre gerado (GUID) — o nome enviado pelo usuário é descartado,
         // o que elimina de saída path traversal e colisão.
-        public static string GerarCaminhoRelativo(string extensao, DateTime agora)
+        public static string GerarCaminhoRelativo(string extensao, DateTime agora, string pasta = "blog")
         {
-            return $"uploads/blog/{agora:yyyy}/{agora:MM}/{Guid.NewGuid():N}.{extensao}";
+            return $"uploads/{pasta}/{agora:yyyy}/{agora:MM}/{Guid.NewGuid():N}.{extensao}";
+        }
+
+        /// <summary>
+        /// Valida e grava um upload em wwwroot/uploads/{pasta}. Devolve a URL local
+        /// ("/uploads/..."), que o MediaProxy só redireciona — diferente de uma URL
+        /// externa, que ele recusaria fora da lista de hosts permitidos.
+        /// </summary>
+        public static async Task<(bool Ok, string? Erro, string? Url)> SalvarAsync(
+            Microsoft.AspNetCore.Http.IFormFile arquivo, string webRootPath, string pasta)
+        {
+            var cabecalho = new byte[BytesCabecalho];
+            await using (var leitura = arquivo.OpenReadStream())
+                await leitura.ReadExactlyAsync(cabecalho.AsMemory(0, (int)Math.Min(cabecalho.Length, arquivo.Length)));
+
+            var (ok, erro, extensao) = Validar(cabecalho, arquivo.Length);
+            if (!ok) return (false, erro, null);
+
+            var caminhoRelativo = GerarCaminhoRelativo(extensao!, DateTime.UtcNow, pasta);
+            var caminhoFisico = Path.Combine(webRootPath, caminhoRelativo.Replace('/', Path.DirectorySeparatorChar));
+            Directory.CreateDirectory(Path.GetDirectoryName(caminhoFisico)!);
+
+            await using (var destino = File.Create(caminhoFisico))
+                await arquivo.CopyToAsync(destino);
+
+            return (true, null, "/" + caminhoRelativo);
         }
     }
 }

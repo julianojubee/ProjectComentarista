@@ -125,10 +125,11 @@
                 // campo3d: só esta tela inclina o gramado e monta o estádio
                 // (a aba Match-up do modal Pré-jogo segue com o campo chapado).
                 // cores: cada elenco ganha o seletor da cor da borda dos seus jogadores.
+                // transmissao: botão que põe o campo em tela inteira para capturar no OBS.
                 // buscaJogador: campo de busca no elenco, para trazer quem não estava
                 // na última escalação (ex.: convocado novo).
                 muRender(await resp.json(), cont, {
-                    dica: 'Simulação — nada é salvo.', campo3d: true, cores: true,
+                    dica: 'Simulação — nada é salvo.', campo3d: true, cores: true, transmissao: true,
                     buscaJogador: '/creators/escalacao/buscar-jogador',
                 });
             } catch (e) {

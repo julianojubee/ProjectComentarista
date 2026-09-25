@@ -101,6 +101,7 @@ namespace ControleFutebolWeb.Services
             };
 
             var golsSofridos = GolsSofridosPorGoleira(raiz, fichas);
+            var penaltisDoJogo = await PenaltisDoTempoDeJogoAsync(jogo, ct);
 
             var novas = new List<EstatisticaJogador>();
             var jaGravadas = new HashSet<int>();
@@ -131,8 +132,15 @@ namespace ControleFutebolWeb.Services
 
                 int N(string chave) => (int)Math.Round(v.GetValueOrDefault(chave));
 
-                var penaltis = N("Penalties");
-                var convertidos = N("PenaltiesScored");
+                // Penalties/PenaltiesScored do fdh não servem em jogo com disputa: no
+                // BRA×USA do Sub-20 algumas cobranças da disputa entraram na conta e
+                // outras não. A contagem sai da timeline, só do tempo de jogo; sem
+                // timeline, os campos do fdh valem apenas quando não houve disputa.
+                var (convertidos, perdidos) = penaltisDoJogo != null
+                    ? penaltisDoJogo.GetValueOrDefault(entrada.Name)
+                    : jogo.PenaltisCasa == null && jogo.PenaltisVisitante == null
+                        ? (N("PenaltiesScored"), Math.Max(0, N("Penalties") - N("PenaltiesScored")))
+                        : (0, 0);
 
                 novas.Add(new EstatisticaJogador
                 {
@@ -173,7 +181,7 @@ namespace ControleFutebolWeb.Services
                     GolsSofridos      = ficha.Goleira ? golsSofridos.GetValueOrDefault(entrada.Name) : 0,
 
                     PenaltiConvertido = convertidos,
-                    PenaltiPerdido    = Math.Max(0, penaltis - convertidos),
+                    PenaltiPerdido    = perdidos,
 
                     EntrouDoBanco     = !ficha.Titular,
                 });
@@ -210,6 +218,44 @@ namespace ControleFutebolWeb.Services
             if (naoCasaram.Count > 0) msg += $" {naoCasaram.Count} não casaram com o elenco e ficaram de fora.";
 
             return await RegistrarAsync(new ResultadoFifa(true, msg, idMatch));
+        }
+
+        /// <summary>
+        /// Pênaltis cobrados no tempo de jogo por IdPlayer (convertidos, perdidos),
+        /// lidos da timeline e sem a disputa (período 11). Null quando a FIFA não
+        /// publicou a timeline.
+        /// </summary>
+        private async Task<Dictionary<string, (int Convertidos, int Perdidos)>?> PenaltisDoTempoDeJogoAsync(
+            Jogo jogo, CancellationToken ct)
+        {
+            using var timeline = await _fifa.AbrirTimelineAsync(FifaService.RefDaPartida(jogo.LinkDetalhes)!, ct);
+            if (timeline == null ||
+                !timeline.RootElement.TryGetProperty("Event", out var lances) ||
+                lances.ValueKind != JsonValueKind.Array) return null;
+
+            var contagem = new Dictionary<string, (int Convertidos, int Perdidos)>(StringComparer.Ordinal);
+
+            foreach (var lance in lances.EnumerateArray())
+            {
+                if (FifaService.Numero(lance, "Period") == FifaEventosService.PeriodoDisputaPenaltis) continue;
+
+                var id = FifaService.Texto(lance, "IdPlayer");
+                if (string.IsNullOrWhiteSpace(id)) continue;
+
+                var rotulo = FifaService.Localizado(lance, "TypeLocalized") ?? "";
+                var atual = contagem.GetValueOrDefault(id);
+
+                // Mesmos critérios de FifaEventosService: 41 é o gol de pênalti; o
+                // desperdiçado sai do rótulo ("Penalty missed"/"saved").
+                if (FifaService.Numero(lance, "Type") == 41)
+                    contagem[id] = (atual.Convertidos + 1, atual.Perdidos);
+                else if (rotulo.Contains("penalty", StringComparison.OrdinalIgnoreCase) &&
+                         (rotulo.Contains("miss", StringComparison.OrdinalIgnoreCase) ||
+                          rotulo.Contains("saved", StringComparison.OrdinalIgnoreCase)))
+                    contagem[id] = (atual.Convertidos, atual.Perdidos + 1);
+            }
+
+            return contagem;
         }
 
         private record Ficha(string Nome, int? Camisa, bool EhCasa, bool Titular, bool Goleira, bool Capita);

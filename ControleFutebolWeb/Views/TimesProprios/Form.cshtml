@@ -1,0 +1,66 @@
+@model ControleFutebolWeb.Models.ViewModels.TimeProprioInput
+@{
+    var novo = Model.Id == 0;
+    ViewData["Title"] = novo ? "Novo time" : $"Editar {Model.Nome}";
+}
+@await Html.PartialAsync("~/Views/Campeonatos/_Head.cshtml")
+
+<div class="cp" style="max-width:720px;">
+    <div class="cp-hero">
+        <div class="cp-hero-escudo">🛡️</div>
+        <div>
+            <div class="cp-kicker"><a asp-action="Index" style="color:inherit">Meus times</a></div>
+            <h1 class="cp-titulo">@(novo ? "Novo time" : Model.Nome)</h1>
+        </div>
+    </div>
+
+    <form asp-action="Salvar" method="post" enctype="multipart/form-data" class="cp-secao">
+        <input type="hidden" asp-for="Id" />
+        <div asp-validation-summary="All" class="cp-alerta erro" style="display:@(ViewData.ModelState.IsValid ? "none" : "block")"></div>
+
+        <div class="cp-form-linha">
+            <div class="cp-campo" style="flex-basis:300px;">
+                <label asp-for="Nome">Nome</label>
+                <input asp-for="Nome" class="cp-input" placeholder="Ex.: Real Pelada FC" autofocus />
+            </div>
+            <div class="cp-campo estreito">
+                <label asp-for="Sigla">Sigla</label>
+                <input asp-for="Sigla" class="cp-input" maxlength="5" placeholder="RPF" />
+            </div>
+        </div>
+        <div class="cp-form-linha" style="margin-top:12px;">
+            <div class="cp-campo">
+                <label asp-for="Cidade">Cidade (opcional)</label>
+                <input asp-for="Cidade" class="cp-input" />
+            </div>
+            <div class="cp-campo" style="flex-basis:300px;">
+                <label for="escudo">Escudo (opcional)</label>
+                <input id="escudo" name="escudo" type="file" accept="image/png,image/jpeg,image/gif,image/webp" class="cp-input" />
+                @if (Model.EscudoUrl != null)
+                {
+                    <label class="cp-check" style="margin-top:6px;text-transform:none;letter-spacing:0;font-weight:500;">
+                        <img src="@Model.EscudoUrl" alt="" style="width:26px;height:26px;object-fit:contain;" />
+                        <input type="checkbox" name="removerEscudo" value="true" /> Remover o escudo atual
+                    </label>
+                }
+            </div>
+        </div>
+        <div class="cp-form-linha" style="margin-top:12px;">
+            <div class="cp-campo estreito" style="flex-basis:130px;">
+                <label asp-for="CorPrincipal">Cor principal</label>
+                <input asp-for="CorPrincipal" type="color" class="cp-input" style="height:40px;padding:4px;" />
+            </div>
+            <div class="cp-campo estreito" style="flex-basis:130px;">
+                <label asp-for="CorSecundaria">Cor secundária</label>
+                <input asp-for="CorSecundaria" type="color" class="cp-input" style="height:40px;padding:4px;" />
+            </div>
+        </div>
+        <input type="hidden" asp-for="EscudoUrl" />
+        <p class="cp-dica">PNG, JPG, GIF ou WebP até 5 MB. Sem escudo, o time aparece com as iniciais na cor principal.</p>
+
+        <div style="display:flex; gap:10px; margin-top:18px;">
+            <button type="submit" class="cp-btn ouro">@(novo ? "Criar e montar elenco" : "Salvar")</button>
+            <a class="cp-btn" href="@(novo ? Url.Action("Index") : Url.Action("Elenco", new { id = Model.Id }))">Cancelar</a>
+        </div>
+    </form>
+</div>

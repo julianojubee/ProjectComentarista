@@ -1,0 +1,40 @@
+@model ControleFutebolWeb.Models.ViewModels.CampeonatoDetalhesViewModel
+
+@if (!Model.Artilharia.Any())
+{
+    <div class="cp-vazio"><span class="icone">🥅</span>Nenhum gol ou cartão lançado nas súmulas ainda.</div>
+}
+else
+{
+    <div class="cp-secao" style="overflow-x:auto;">
+        <table class="cp-tabela">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th class="esq">Jogador</th>
+                    <th class="esq">Por</th>
+                    <th title="Gols">⚽</th>
+                    <th title="Assistências">👟</th>
+                    <th title="Cartões amarelos">🟨</th>
+                    <th title="Cartões vermelhos">🟥</th>
+                </tr>
+            </thead>
+            <tbody>
+                @{ var i = 0; }
+                @foreach (var a in Model.Artilharia)
+                {
+                    i++;
+                    <tr>
+                        <td>@i</td>
+                        <td class="esq"><strong>@a.Nome</strong></td>
+                        <td class="esq" style="color:var(--text-dim)">@Model.NomeDe(a.ParticipanteId)</td>
+                        <td class="destaque">@a.Gols</td>
+                        <td>@a.Assistencias</td>
+                        <td>@a.Amarelos</td>
+                        <td>@a.Vermelhos</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

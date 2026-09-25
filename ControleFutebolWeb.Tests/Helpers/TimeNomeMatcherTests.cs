@@ -48,6 +48,7 @@ namespace ControleFutebolWeb.Tests.Helpers
         [InlineData("Deportivo Recoleta", "Recoleta")]     // futnatv encurta clubes sul-americanos
         [InlineData("Independiente Rivadavia", "Ind. Rivadavia")]
         [InlineData("Union St. Gilloise", "Union Saint-Gilloise")]
+        [InlineData("Wolves", "Wolverhampton")]
         [InlineData("Cerro Porteno", "Cerro Porteño")]
         [InlineData("Atletico Torque", "Montevideo City")]
         [InlineData("Independ. Rivadavia", "Ind. Rivadavia")] // abreviação diferente dos dois lados
@@ -78,6 +79,14 @@ namespace ControleFutebolWeb.Tests.Helpers
         [InlineData("Sport Recife", "Sport")]
         [InlineData("FK Crvena Zvezda", "Red Star Belgrade")] // ESPN usa o nome em inglês
         [InlineData("Hapoel Beer Sheva", "Hapoel Be'er")]     // ESPN corta o nome no meio
+        [InlineData("Levski Sofia", "Levski")]
+        [InlineData("Red Bull Salzburg", "RB Salzburg")]
+        [InlineData("OFI", "OFI Crete")]
+        [InlineData("Plzen", "Viktoria Plzen")]
+        [InlineData("NEC Nijmegen", "NEC")]
+        [InlineData("Ferencvarosi TC", "Ferencváros")]
+        [InlineData("Lillestrom", "Lilleström")]
+        [InlineData("Norwich City", "Norwich")]
         [InlineData("Olimpia", "Club Olimpia")]
         [InlineData("Cienciano", "Cienciano del Cusco")]
         [InlineData("Central Cordoba de Santiago", "Central Córdoba (Santiago del Estero)")]
@@ -86,6 +95,7 @@ namespace ControleFutebolWeb.Tests.Helpers
         [InlineData("Vasco DA Gama", "Vasco da Gama")]
         [InlineData("Celje", "NK Celje")]                     // sigla de agremiação no começo
         [InlineData("FC Porto", "Porto")]
+        [InlineData("AS Roma", "Roma")]                       // futnatv corta o "AS"
         [InlineData("Sporting CP", "Sporting")]
         [InlineData("Inter", "Internazionale")]               // Inter de Milão na Série A
         [InlineData("Ipswich", "Ipswich Town")]               // "Town" é sigla de agremiação

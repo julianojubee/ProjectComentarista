@@ -1,0 +1,11 @@
+@model (string? Url, string Nome, string? Cor)
+@* Escudo pequeno de participante/time próprio. Sem imagem, as iniciais na cor do time. *@
+@if (!string.IsNullOrWhiteSpace(Model.Url))
+{
+    <img class="cp-escudo" src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Url })" alt="" loading="lazy" />
+}
+else
+{
+    var iniciais = string.Concat(Model.Nome.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(p => char.ToUpperInvariant(p[0])));
+    <span class="cp-escudo-vazio" style="background:@(Model.Cor ?? "#d4a520")">@iniciais</span>
+}

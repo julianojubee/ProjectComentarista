@@ -100,6 +100,8 @@ internal class Program
         builder.Services.AddScoped<TooltipJogadorService>();
         // Simulador de tabela — tela logada (/Simulador) e pública (/creators/simulador).
         builder.Services.AddScoped<SimuladorService>();
+        // Campeonatos próprios do usuário (painel, geração de rodadas, chaveamento).
+        builder.Services.AddScoped<CampeonatoService>();
         // Contador das páginas públicas de /creators (lido em /Admin/Acessos).
         // O cache de visitantes é singleton: a marca "já vi este visitante hoje"
         // precisa valer entre requisições.
@@ -155,6 +157,12 @@ internal class Program
         // (a liga do Catar é o caso que motivou) — ver FotMobService.
         builder.Services.AddHttpClient<FotMobService>();
         builder.Services.AddScoped<FotMobEscalacaoService>();
+        // Lances do FotMob e a conferência deles contra a reimportação da api-football,
+        // usada pelo ciclo de jogos ao vivo e pelo botão "Reimportar dados".
+        builder.Services.AddScoped<FotMobEventosService>();
+        builder.Services.AddScoped<ComplementoFotMobService>();
+        // Escalação dos lados que a api-football não trouxe: FotMob, depois ESPN.
+        builder.Services.AddScoped<EscalacaoAlternativaService>();
         // Estatísticas avançadas do jogador, buscadas só quando o usuário clica.
         builder.Services.AddScoped<FotMobPerfilService>();
         builder.Services.AddScoped<FotMobCadastroService>();

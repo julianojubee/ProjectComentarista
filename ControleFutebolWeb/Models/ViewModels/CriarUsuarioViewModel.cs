@@ -24,5 +24,9 @@ namespace ControleFutebolWeb.Models.ViewModels
 
         // Pode escrever no blog público (/blog/admin).
         public bool EhAutorBlog { get; set; }
+
+        // Módulos do plano (ApplicationUser.Modulos).
+        public bool ModuloAnalise { get; set; } = true;
+        public bool ModuloCampeonatos { get; set; }
     }
 }

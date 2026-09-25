@@ -209,6 +209,52 @@ namespace ControleFutebolWeb.Tests.Helpers
         }
 
         [Fact]
+        public void Goleiro_DefesasAlemDeDoisDesviosAindaContam()
+        {
+            var sete = Mediano("GOLEIRO");
+            sete.Defesas = 7;
+            var onze = Mediano("GOLEIRO");
+            onze.Defesas = 11;
+
+            Assert.True(NotaDe(onze, "Goleiro") > NotaDe(sete, "Goleiro") + 0.3,
+                "11 defesas não podem valer o mesmo que 7");
+        }
+
+        [Fact]
+        public void Goleiro_SemSofrerGol_EhEvento_SoComTempoEmCampo()
+        {
+            var e = Mediano("GOLEIRO");
+            e.GolsSofridos = 0;
+
+            var limpo = RatingAutomaticoHelper.Calcular(e, "Goleiro", new ContextoRating(GolsSofridosTime: 0))!;
+            var vazado = RatingAutomaticoHelper.Calcular(e, "Goleiro", new ContextoRating(GolsSofridosTime: 1))!;
+            Assert.Contains(limpo.EventosDetalhe, ev => ev.Label == "Não sofreu gol");
+            Assert.DoesNotContain(vazado.EventosDetalhe, ev => ev.Label == "Não sofreu gol");
+
+            var entrouNoFim = new EstatisticaJogador { Minutos = 20 };
+            var curta = RatingAutomaticoHelper.Calcular(entrouNoFim, "Goleiro", new ContextoRating(GolsSofridosTime: 0))!;
+            Assert.Empty(curta.EventosDetalhe);
+
+            // Jogador de linha continua pela parcela defensiva, não pelo evento.
+            var zagueiro = RatingAutomaticoHelper.Calcular(Mediano("ZAGUEIRO"), "Zagueiro Central",
+                new ContextoRating(GolsSofridosTime: 0))!;
+            Assert.DoesNotContain(zagueiro.EventosDetalhe, ev => ev.Label == "Não sofreu gol");
+        }
+
+        [Fact]
+        public void Goleiro_JogoExcepcional_ChegaNaFaixaAlta()
+        {
+            // Caso real (Weverton, 0x0): 11 defesas, 0 gols, 11/23 passes.
+            var e = new EstatisticaJogador
+            {
+                Minutos = 90, Defesas = 11, PassesTotal = 23, PassesCertos = 11,
+                DuelosTotal = 2, DuelosVencidos = 2, FaltasSofridas = 2,
+            };
+            var nota = NotaDe(e, "Goleiro", new ContextoRating(ResultadoSinal: 0, GolsSofridosTime: 0));
+            Assert.True(nota >= 8.0, $"jogo de 11 defesas sem sofrer gol ficou em {nota}");
+        }
+
+        [Fact]
         public void Resultado_PesaPoucoEProporcionalAoTempoEmCampo()
         {
             var e = Mediano("MEIA");

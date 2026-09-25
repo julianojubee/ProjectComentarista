@@ -1,0 +1,178 @@
+/* Módulo de campeonatos próprios (/Campeonatos, /TimesProprios, /JogadoresProprios
+   e o link público /c/{token}). Usa as variáveis de tema do site.css; a tabela e o
+   chaveamento vêm das parciais da área de creators (creators.css), que não têm
+   links para as telas dos times reais. */
+
+.cp, .cp * { box-sizing: border-box; }
+.cp { font-family: 'Barlow', Arial, sans-serif; color: var(--text); max-width: 1180px; margin: 0 auto; padding: 8px 0 40px; }
+.cp a { text-decoration: none; }
+
+/* ── Cabeçalho ───────────────────────────────────────────────────────────── */
+.cp-hero {
+    position: relative; overflow: hidden; border-radius: 14px; padding: 22px 24px;
+    background: var(--p-1); border: 1px solid var(--line); margin-bottom: 18px;
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+}
+.cp-hero::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #d4a520; }
+.cp-hero-escudo {
+    width: 60px; height: 60px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; font-size: 1.7rem;
+    background: var(--p-0); border: 2px solid rgba(212,165,32,.35);
+}
+.cp-hero-escudo img { width: 80%; height: 80%; object-fit: contain; }
+.cp-kicker { font-size: .64rem; font-weight: 800; letter-spacing: .22em; text-transform: uppercase; color: var(--gold-ink); }
+.cp-titulo { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.9rem; font-weight: 800; color: var(--text-strong); margin: 2px 0 2px; line-height: 1.1; }
+.cp-sub { font-size: .82rem; color: var(--text-dim); margin: 0; }
+.cp-hero-acoes { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* ── Botões ──────────────────────────────────────────────────────────────── */
+.cp-btn {
+    display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap;
+    background: var(--p-0); border: 1px solid var(--line-strong); color: var(--text-2);
+    border-radius: 8px; font-size: .78rem; font-weight: 700; padding: .45rem .9rem; font-family: inherit;
+}
+.cp-btn:hover { color: var(--text-strong); border-color: #d4a520; }
+.cp-btn.ouro { background: #d4a520; border-color: #d4a520; color: #141414; font-weight: 800; }
+.cp-btn.ouro:hover { background: #c49918; color: #141414; }
+.cp-btn.perigo { color: var(--bad); }
+.cp-btn.perigo:hover { border-color: var(--bad); }
+.cp-btn.mini { padding: .25rem .6rem; font-size: .72rem; }
+.cp-btn:disabled { opacity: .5; cursor: default; }
+
+/* ── Avisos ──────────────────────────────────────────────────────────────── */
+.cp-alerta { border-radius: 10px; padding: .75rem 1rem; margin-bottom: 14px; font-size: .86rem; }
+.cp-alerta.erro { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); color: var(--bad); }
+.cp-alerta.ok { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); color: var(--ok); }
+.cp-vazio { text-align: center; color: var(--text-dim); font-size: .88rem; padding: 2.5rem 1rem; }
+.cp-vazio .icone { font-size: 2rem; display: block; margin-bottom: 6px; }
+
+/* ── Campeonato encerrado ────────────────────────────────────────────────── */
+.cp-campeao {
+    display: flex; align-items: center; gap: 14px; border-radius: 12px; padding: 14px 18px; margin-bottom: 16px;
+    background: linear-gradient(90deg, rgba(212,165,32,.18), rgba(212,165,32,.04)); border: 1px solid rgba(212,165,32,.45);
+}
+.cp-campeao-taca { font-size: 2rem; line-height: 1; }
+.cp-campeao-nome { display: flex; align-items: center; gap: 8px; margin-top: 2px; font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.35rem; font-weight: 800; color: var(--text-strong); }
+
+/* ── Abas ────────────────────────────────────────────────────────────────── */
+.cp-abas { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 18px; overflow-x: auto; overflow-y: hidden; }
+.cp-aba {
+    padding: 10px 16px; font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--text-dim); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap;
+}
+.cp-aba:hover { color: var(--text-strong); }
+.cp-aba.ativa { color: var(--gold-ink); border-bottom-color: #d4a520; }
+.cp-aba .conta { font-size: .66rem; color: var(--text-dimmer, var(--text-dim)); margin-left: 4px; }
+
+/* ── Cartões e seções ────────────────────────────────────────────────────── */
+.cp-secao { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; }
+.cp-secao h2 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.2rem; font-weight: 800; color: var(--text-strong); margin: 0 0 12px; }
+.cp-secao h3 { font-size: .7rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--text-dim); margin: 14px 0 8px; }
+
+.cp-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; }
+.cp-card {
+    display: block; background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 16px;
+    color: var(--text); transition: border-color .15s;
+}
+.cp-card:hover { border-color: #d4a520; color: var(--text); }
+.cp-card-topo { display: flex; align-items: center; gap: 10px; }
+.cp-card-nome { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.25rem; font-weight: 800; color: var(--text-strong); line-height: 1.1; }
+.cp-card-info { font-size: .76rem; color: var(--text-dim); margin-top: 8px; display: flex; gap: 10px; flex-wrap: wrap; }
+
+.cp-selo { display: inline-block; font-size: .62rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; border-radius: 999px; padding: 2px 8px; border: 1px solid var(--line-strong); color: var(--text-dim); }
+.cp-selo.andamento { color: var(--ok); border-color: rgba(34,197,94,.4); }
+.cp-selo.rascunho { color: var(--warn); border-color: rgba(245,158,11,.4); }
+
+.cp-escudo { width: 28px; height: 28px; border-radius: 50%; object-fit: contain; flex-shrink: 0; background: var(--p-0); }
+.cp-escudo-vazio {
+    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+    font-size: .66rem; font-weight: 800; color: #141414;
+}
+
+/* ── Lista (participantes, elenco, jogadores) ────────────────────────────── */
+.cp-lista { list-style: none; margin: 0; padding: 0; }
+.cp-lista li { display: flex; align-items: center; gap: 10px; padding: 9px 4px; border-bottom: 1px solid var(--line-soft); }
+.cp-lista li:last-child { border-bottom: none; }
+.cp-lista .nome { font-weight: 700; color: var(--text-strong); }
+.cp-lista .detalhe { font-size: .76rem; color: var(--text-dim); }
+.cp-lista .fim { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.cp-num { width: 26px; text-align: center; font-weight: 800; color: var(--gold-ink); font-size: .78rem; flex-shrink: 0; }
+
+/* ── Formulários ─────────────────────────────────────────────────────────── */
+.cp-form-linha { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.cp-campo { display: flex; flex-direction: column; gap: 4px; min-width: 120px; flex: 1 1 160px; }
+.cp-campo.estreito { flex: 0 0 90px; min-width: 70px; }
+.cp-campo label { font-size: .64rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); }
+.cp-input, .cp-select {
+    width: 100%; background: var(--p-0); border: 1px solid var(--line-strong); border-radius: 8px;
+    color: var(--text-strong); font-size: .86rem; padding: .5rem .7rem; font-family: inherit; outline: none;
+}
+.cp-input:focus, .cp-select:focus { border-color: #d4a520; }
+.cp-dica { font-size: .72rem; color: var(--text-dim); margin-top: 6px; }
+.cp-opcoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.cp-opcao {
+    flex: 1 1 200px; border: 1px solid var(--line-strong); border-radius: 10px; padding: 12px 14px; cursor: pointer;
+    background: var(--p-0); display: flex; gap: 10px; align-items: flex-start;
+}
+.cp-opcao input { margin-top: 3px; accent-color: #d4a520; }
+.cp-opcao strong { display: block; color: var(--text-strong); font-size: .9rem; }
+.cp-opcao span { font-size: .76rem; color: var(--text-dim); }
+.cp-opcao:has(input:checked) { border-color: #d4a520; background: rgba(212,165,32,.08); }
+.cp-check { display: inline-flex; align-items: center; gap: 8px; font-size: .84rem; color: var(--text); cursor: pointer; }
+.cp-check input { accent-color: #d4a520; }
+
+/* ── Partidas ────────────────────────────────────────────────────────────── */
+.cp-rodada { margin-bottom: 18px; }
+.cp-rodada-titulo { font-size: .7rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--text-dim); margin: 0 0 8px; }
+.cp-partida {
+    display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr) auto; gap: 10px; align-items: center;
+    background: var(--p-1); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 6px;
+    scroll-margin-top: 90px;
+}
+.cp-partida:target { border-color: #d4a520; }
+.cp-lado { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 700; color: var(--text-strong); font-size: .9rem; }
+.cp-lado span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-lado.casa { justify-content: flex-end; text-align: right; }
+.cp-lado.aberto { color: var(--text-dim); font-weight: 500; font-style: italic; }
+.cp-placar { display: flex; align-items: center; gap: 6px; }
+.cp-placar input {
+    width: 46px; text-align: center; font-weight: 800; font-size: 1rem; padding: .35rem .2rem;
+    background: var(--p-0); border: 1px solid var(--line-strong); border-radius: 6px; color: var(--text-strong);
+}
+.cp-placar input:focus { border-color: #d4a520; outline: none; }
+.cp-placar .x { color: var(--text-dim); font-weight: 700; }
+.cp-placar .fixo { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.35rem; font-weight: 800; color: var(--text-strong); min-width: 22px; text-align: center; }
+.cp-penaltis { grid-column: 1 / -1; display: flex; justify-content: center; align-items: center; gap: 6px; font-size: .74rem; color: var(--text-dim); }
+.cp-penaltis input { width: 40px; text-align: center; padding: .2rem; background: var(--p-0); border: 1px solid var(--line-strong); border-radius: 6px; color: var(--text-strong); }
+.cp-partida-acoes { display: flex; gap: 6px; }
+.cp-etapa { font-size: .62rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--gold-ink); }
+
+/* ── Súmula ──────────────────────────────────────────────────────────────── */
+.cp-sumula-placar { display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap; text-align: center; }
+.cp-sumula-lado { flex: 1 1 200px; font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.4rem; font-weight: 800; color: var(--text-strong); }
+.cp-sumula-gols { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 2.6rem; font-weight: 800; color: var(--text-strong); }
+.cp-eventos { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.cp-evento-ico { width: 22px; text-align: center; flex-shrink: 0; }
+
+/* ── Tabelas simples (artilharia) ────────────────────────────────────────── */
+.cp-tabela { width: 100%; border-collapse: collapse; font-size: .86rem; }
+.cp-tabela th { font-size: .64rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); text-align: center; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+.cp-tabela td { padding: 8px 6px; border-bottom: 1px solid var(--line-soft); text-align: center; }
+.cp-tabela .esq { text-align: left; }
+.cp-tabela .destaque { font-weight: 800; color: var(--gold-ink); }
+
+/* ── Busca de jogador real (elenco) ──────────────────────────────────────── */
+.cp-busca { position: relative; }
+.cp-resultados { list-style: none; margin: 6px 0 0; padding: 0; border: 1px solid var(--line); border-radius: 8px; max-height: 320px; overflow-y: auto; }
+.cp-resultados:empty { display: none; }
+.cp-resultados li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-bottom: 1px solid var(--line-soft); }
+.cp-resultados li:last-child { border-bottom: none; }
+.cp-resultados img { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; background: var(--p-0); }
+
+@media (max-width: 720px) {
+    .cp-hero { padding: 16px; }
+    .cp-hero-acoes { margin-left: 0; }
+    .cp-partida { grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); }
+    .cp-partida-acoes { grid-column: 1 / -1; justify-content: center; }
+    .cp-eventos { grid-template-columns: 1fr; }
+}

@@ -1,0 +1,24 @@
+@model ControleFutebolWeb.Models.ViewModels.CampeonatoDetalhesViewModel
+@* Faixa de campeonato encerrado — tela do dono e link público. O campeão sai das
+   partidas (SituacaoCampeonatoHelper): grupos como última fase não têm um só. *@
+@if (Model.Campeonato.Status == ControleFutebolWeb.Models.Campeonatos.StatusCampeonato.Encerrado)
+{
+    var campeao = Model.Situacao.CampeaoParticipanteId;
+    <div class="cp-campeao">
+        <span class="cp-campeao-taca">🏆</span>
+        <div>
+            <div class="cp-kicker">Campeonato encerrado@(Model.Campeonato.EncerradoEm is DateTime em ? $" em {em.AddHours(-3):dd/MM/yyyy}" : "")</div>
+            @if (campeao != null)
+            {
+                <div class="cp-campeao-nome">
+                    @await Html.PartialAsync("~/Views/Campeonatos/_Escudo.cshtml", (Model.EscudoDe(campeao), Model.NomeDe(campeao), (string?)null))
+                    <span>@Model.NomeDe(campeao) é o campeão!</span>
+                </div>
+            }
+            else
+            {
+                <div class="cp-campeao-nome"><span>Todas as partidas foram disputadas.</span></div>
+            }
+        </div>
+    </div>
+}

@@ -107,6 +107,179 @@ namespace ControleFutebolWeb.Services
             return vm;
         }
 
+        /// <summary>
+        /// Totais de UMA temporada em todas as competições que o FotMob conhece —
+        /// inclusive as que não estão cadastradas aqui (estaduais, supercopas, jogos de
+        /// seleção). É o mesmo recorte do totalizador da tela de estatísticas avançadas
+        /// (ver OpcoesTotalizador): passagens com o mesmo nome de temporada somadas.
+        ///
+        /// <paramref name="temporada"/> é o rótulo do sistema. Competição de ano civil
+        /// casa com "2026"; a europeia (rótulo = ano de início) com "2025/2026". Tenta
+        /// nessa ordem. Null quando o perfil não veio ou a temporada não existe nele.
+        /// </summary>
+        public async Task<TemporadaFotMobResumo?> TemporadaAsync(
+            long idFotMob, int temporada, CancellationToken ct = default)
+        {
+            using var perfil = await _fotmob.BuscarPerfilJogadorAsync(idFotMob, ct);
+            if (perfil == null) return null;
+
+            var temporadas = LerTemporadasDaCarreira(perfil.RootElement).ToList();
+
+            foreach (var nome in NomesDaTemporada(temporada))
+            {
+                var grupo = temporadas.Where(t => t.Nome == nome).ToList();
+                if (grupo.Count == 0) continue;
+
+                return new TemporadaFotMobResumo
+                {
+                    Nome = nome,
+                    Jogos = grupo.Sum(t => t.Jogos),
+                    Gols = grupo.Sum(t => t.Gols),
+                    Assistencias = grupo.Sum(t => t.Assistencias),
+                    Times = grupo.Select(t => t.Time).Where(t => !string.IsNullOrWhiteSpace(t)).Distinct().ToList(),
+                    Competicoes = grupo.SelectMany(t => t.Competicoes)
+                        .GroupBy(c => c.Nome)
+                        .Select(g => new CompeticaoNaTemporada
+                        {
+                            Nome = g.Key,
+                            Jogos = g.Sum(c => c.Jogos),
+                            Gols = g.Sum(c => c.Gols),
+                            Assistencias = g.Sum(c => c.Assistencias),
+                        })
+                        .OrderByDescending(c => c.Jogos).ThenByDescending(c => c.Gols + c.Assistencias)
+                        .ToList(),
+                };
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Nomes que a temporada <paramref name="temporada"/> do sistema pode ter no
+        /// FotMob, na ordem de preferência: ano civil ("2026"), europeia pelo ano de
+        /// início ("2026/2027") e, por último, a europeia que termina nesse ano.
+        /// </summary>
+        private static string[] NomesDaTemporada(int temporada) =>
+            new[] { $"{temporada}", $"{temporada}/{temporada + 1}", $"{temporada - 1}/{temporada}" };
+
+        /// <summary>
+        /// Médias por jogo da temporada inteira segundo o FotMob, para o tooltip ℹ —
+        /// somando TODAS as competições do ano que têm estatística detalhada, e não só
+        /// os jogos importados aqui.
+        ///
+        /// Custa uma chamada de playerStats por competição (cache de 6h cada), por isso
+        /// o tooltip só pede ao passar o mouse e cancela se o mouse sai antes.
+        ///
+        /// A média é total ÷ jogos, igual à conta da base local. As porcentagens não são
+        /// tiradas da média das porcentagens: cada competição tem um peso diferente, então
+        /// as tentativas são reconstruídas (certos ÷ taxa) e a taxa é recalculada no fim.
+        /// </summary>
+        public async Task<MediasFotMob?> MediasTemporadaAsync(
+            long idFotMob, int temporada, CancellationToken ct = default)
+        {
+            List<string> ids;
+            using (var perfil = await _fotmob.BuscarPerfilJogadorAsync(idFotMob, ct))
+            {
+                if (perfil == null) return null;
+                var todas = LerTemporadas(perfil.RootElement).ToList();
+                var escolhida = NomesDaTemporada(temporada)
+                    .Select(n => todas.FirstOrDefault(t => t.Nome == n))
+                    .FirstOrDefault(t => t != null);
+                if (escolhida == null) return null;
+                ids = escolhida.Competicoes.Where(c => c.TemDadosDetalhados).Select(c => c.Id).ToList();
+            }
+
+            var soma = new Dictionary<string, double>();
+            void Somar(string chave, double v) => soma[chave] = soma.GetValueOrDefault(chave) + v;
+            int competicoes = 0;
+
+            foreach (var id in ids)
+            {
+                using var stats = await _fotmob.BuscarEstatisticasJogadorAsync(idFotMob, id, ct);
+                if (stats == null || stats.RootElement.ValueKind != JsonValueKind.Object) continue;
+
+                var valores = new Dictionary<string, double>();
+                IEnumerable<JsonElement> Metricas(JsonElement bloco) =>
+                    Lista(bloco, "items", out var itens) ? itens.EnumerateArray() : Enumerable.Empty<JsonElement>();
+
+                if (Bloco(stats.RootElement, "topStatCard", out var topo))
+                    foreach (var m in Metricas(topo)) Ler(m);
+                if (Bloco(stats.RootElement, "statsSection", out var secao))
+                    foreach (var g in Metricas(secao))
+                        foreach (var m in Metricas(g)) Ler(m);
+
+                void Ler(JsonElement m)
+                {
+                    var chave = Texto(m, "localizedTitleId");
+                    if (chave != null && double.TryParse(Texto(m, "statValue"), NumberStyles.Float,
+                            CultureInfo.InvariantCulture, out var v))
+                        valores[chave] = v;
+                }
+
+                var jogos = valores.GetValueOrDefault("matches_uppercase");
+                if (jogos <= 0) continue;
+                competicoes++;
+
+                foreach (var (k, v) in valores) Somar(k, v);
+
+                // Tentativas a partir de certos ÷ taxa, para recalcular a taxa no total.
+                void Tentativas(string certos, string taxa, string destino)
+                {
+                    var t = valores.GetValueOrDefault(taxa);
+                    if (t > 0) Somar(destino, valores.GetValueOrDefault(certos) / (t / 100));
+                }
+                Tentativas("dribbles_succeeded", "won_contest_subtitle", "#dribles");
+                Tentativas("duel_won", "duel_won_percent", "#duelos");
+                Tentativas("successful_passes", "successful_passes_accuracy", "#passes");
+                Tentativas("long_balls_accurate", "long_ball_succeeeded_accuracy", "#bolas_longas");
+                Tentativas("saves", "save_percentage", "#chutes_no_gol");
+            }
+
+            var totalJogos = (int)soma.GetValueOrDefault("matches_uppercase");
+            if (totalJogos == 0) return null;
+
+            string PorJogo(string chave) =>
+                (soma.GetValueOrDefault(chave) / totalJogos).ToString("0.#", CultureInfo.InvariantCulture);
+            int Pct(double certos, double total) => total > 0 ? (int)Math.Round(100 * certos / total) : 0;
+            double S(string chave) => soma.GetValueOrDefault(chave);
+
+            var celulas = new List<CelulaMedia>();
+            void Cel(string valor, string rotulo) => celulas.Add(new CelulaMedia { Valor = valor, Rotulo = rotulo });
+
+            if (soma.ContainsKey("saves"))
+            {
+                Cel(PorJogo("saves"), $"Defesas · {Pct(S("saves"), S("#chutes_no_gol"))}%");
+                Cel(PorJogo("goals_conceded"), "Gols sofr.");
+                Cel(PorJogo("keeper_sweeper"), "Saídas do gol");
+                Cel(PorJogo("keeper_high_claim"), "Saídas p/ alto");
+                Cel(PorJogo("#passes"), $"Passes · {Pct(S("successful_passes"), S("#passes"))}% certos");
+                Cel(PorJogo("#bolas_longas"), $"Bolas longas · {Pct(S("long_balls_accurate"), S("#bolas_longas"))}%");
+            }
+            else
+            {
+                Cel(PorJogo("shots"), $"Finaliz. · {Pct(S("ShotsOnTarget"), S("shots"))}% gol");
+                Cel(PorJogo("#dribles"), $"Dribles · {Pct(S("dribbles_succeeded"), S("#dribles"))}% certos");
+                Cel(PorJogo("#duelos"), $"Duelos · {Pct(S("duel_won"), S("#duelos"))}% venc.");
+                Cel(PorJogo("#passes"), $"Passes · {Pct(S("successful_passes"), S("#passes"))}% certos");
+                Cel(PorJogo("chances_created"), "Passes-chave");
+                Cel((S("expected_goals") / totalJogos).ToString("0.00", CultureInfo.InvariantCulture), "xG");
+                Cel((S("expected_assists") / totalJogos).ToString("0.00", CultureInfo.InvariantCulture), "xA");
+                Cel(PorJogo("matchstats.headers.tackles"), "Desarmes");
+                Cel(PorJogo("interceptions"), "Intercept.");
+                Cel(PorJogo("recoveries"), "Recuperações");
+                Cel(PorJogo("fouls_won"), "Faltas sofr.");
+                Cel(PorJogo("fouls"), "Faltas com.");
+            }
+
+            return new MediasFotMob
+            {
+                Jogos = totalJogos,
+                Minutos = (int)S("minutes_played"),
+                Competicoes = competicoes,
+                Celulas = celulas,
+            };
+        }
+
         // ── Leitura do perfil ─────────────────────────────────────────────────
 
         private static string? Texto(JsonElement e, string propriedade) =>
@@ -173,9 +346,18 @@ namespace ControleFutebolWeb.Services
         /// <summary>
         /// Nome da posição em português. O de-para é pela key do FotMob
         /// ("rightmidfielder"), que não muda com o idioma da resposta — esta rota
-        /// responde em inglês mesmo quando se pede pt-BR.
+        /// responde em inglês mesmo quando se pede pt-BR. Se a key não for conhecida,
+        /// tenta o rótulo em inglês ("Keeper", "Right Back") normalizado.
         /// </summary>
-        private static string? TraduzirPosicao(string? key, string? original) => key switch
+        private static string? TraduzirPosicao(string? key, string? original)
+        {
+            static string? Normalizar(string? s) => string.IsNullOrWhiteSpace(s) ? null
+                : Regex.Replace(s.ToLowerInvariant(), "[^a-z]", "");
+
+            return PosicaoPtBr(Normalizar(key)) ?? PosicaoPtBr(Normalizar(original)) ?? original;
+        }
+
+        private static string? PosicaoPtBr(string? key) => key switch
         {
             "keeper" or "goalkeeper" => "Goleiro",
             "rightback" => "Lateral direito",
@@ -191,8 +373,10 @@ namespace ControleFutebolWeb.Services
             "leftmidfielder" => "Meia esquerdo",
             "rightwinger" => "Ponta direita",
             "leftwinger" => "Ponta esquerda",
-            "striker" or "centerforward" or "centreforward" => "Centroavante",
-            _ => original,
+            "striker" or "centerforward" or "centreforward" or "forward" => "Centroavante",
+            "defender" => "Defensor",
+            "midfielder" => "Meio-campista",
+            _ => null,
         };
 
         /// <summary>
@@ -1005,23 +1189,67 @@ namespace ControleFutebolWeb.Services
             return (grupo, destaques);
         }
 
-        private static string? TraduzirTrait(string? key, string? original) => key switch
+        /// <summary>
+        /// Nome do trait em português. Tenta a chave e, se ela não for conhecida (o
+        /// FotMob usa chaves diferentes por posição, sobretudo nos goleiros), o título
+        /// em inglês normalizado ("High claims" → "high_claims"). Só cai no original
+        /// quando nenhum dos dois bate.
+        /// </summary>
+        private static string? TraduzirTrait(string? key, string? original)
         {
-            "goals" => "Gols",
-            "shot_attempts" => "Finalizações",
-            "chances_created" => "Chances criadas",
-            "aerials_won" => "Duelos aéreos",
-            "defensive_actions" => "Ações defensivas",
-            "touches" => "Toques na bola",
-            "assists" => "Assistências",
-            "dribbles" or "successful_dribbles" => "Dribles",
-            "passes" or "accurate_passes" => "Passes certos",
-            "long_balls" => "Bolas longas",
-            "saves" => "Defesas",
-            "clean_sheets" => "Jogos sem sofrer gol",
-            "goals_prevented" => "Gols evitados",
-            "high_claims" => "Saídas pelo alto",
-            _ => original,
+            static string? Normalizar(string? s) => string.IsNullOrWhiteSpace(s) ? null
+                : Regex.Replace(s.Trim().ToLowerInvariant(), "[^a-z0-9]+", "_").Trim('_');
+
+            return (Normalizar(key) is string k && TraitsPtBr.TryGetValue(k, out var porChave)) ? porChave
+                : (Normalizar(original) is string t && TraitsPtBr.TryGetValue(t, out var porTitulo)) ? porTitulo
+                : original;
+        }
+
+        private static readonly Dictionary<string, string> TraitsPtBr = new()
+        {
+            // Linha
+            ["goals"] = "Gols",
+            ["shot_attempts"] = "Finalizações",
+            ["shots"] = "Finalizações",
+            ["chances_created"] = "Chances criadas",
+            ["aerials_won"] = "Duelos aéreos",
+            ["aerial_duels_won"] = "Duelos aéreos",
+            ["defensive_actions"] = "Ações defensivas",
+            ["defensive_contributions"] = "Ações defensivas",
+            ["touches"] = "Toques na bola",
+            ["touches_in_opposition_box"] = "Toques na área adversária",
+            ["assists"] = "Assistências",
+            ["dribbles"] = "Dribles",
+            ["successful_dribbles"] = "Dribles",
+            ["passes"] = "Passes certos",
+            ["accurate_passes"] = "Passes certos",
+            ["pass_accuracy"] = "Precisão de passe",
+            ["long_balls"] = "Bolas longas",
+            ["accurate_long_balls"] = "Bolas longas",
+            ["crosses"] = "Cruzamentos",
+            ["recoveries"] = "Recuperações de bola",
+            ["interceptions"] = "Interceptações",
+            ["tackles"] = "Desarmes",
+            ["duels_won"] = "Duelos ganhos",
+            ["xg"] = "Gols esperados (xG)",
+            ["expected_goals"] = "Gols esperados (xG)",
+            ["xa"] = "Assistências esperadas (xA)",
+            ["expected_assists"] = "Assistências esperadas (xA)",
+            // Goleiros
+            ["saves"] = "Defesas",
+            ["save_percentage"] = "Aproveitamento de defesas",
+            ["clean_sheets"] = "Jogos sem sofrer gol",
+            ["goals_prevented"] = "Gols evitados",
+            ["goals_conceded"] = "Gols sofridos",
+            ["high_claims"] = "Saídas pelo alto",
+            ["high_claim"] = "Saídas pelo alto",
+            ["keeper_high_claim"] = "Saídas pelo alto",
+            ["keeper_sweeper"] = "Saídas do gol (líbero)",
+            ["sweeper_actions"] = "Saídas do gol (líbero)",
+            ["sweeper_action"] = "Saídas do gol (líbero)",
+            ["long_ball_percentage"] = "Precisão nas bolas longas",
+            ["long_ball_accuracy"] = "Precisão nas bolas longas",
+            ["punches"] = "Socos na bola",
         };
 
         /// <summary>

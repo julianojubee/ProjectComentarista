@@ -65,7 +65,7 @@
     </main>
 
     <footer class="ap-rodape">
-        Análise somente leitura, compartilhada por link.
+        @(ViewData["Rodape"] as string ?? "Análise somente leitura, compartilhada por link.")
     </footer>
 
     <script>

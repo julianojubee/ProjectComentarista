@@ -1416,6 +1416,18 @@
     /* ── Aba Momento (resumo por jogador) ── */
     .pjm-sub { font-size: 10.5px; color: rgba(255,255,255,.45); margin-top: 1px; }
 
+    /* Colunas em subgrid: o card N da casa e o card N do visitante dividem a mesma
+       linha e, portanto, a mesma altura. --pjm-linhas = cabeçalho + titulares + banco. */
+    .pjm-grid > .pj-col {
+        display: grid;
+        grid-row: span var(--pjm-linhas, 1);
+        grid-template-rows: subgrid;
+        row-gap: .55rem;
+        align-content: start;
+    }
+    .pjm-grid .pj-team-head { margin-bottom: .25rem; }
+    .pjm-grid .pjm-banco { margin-top: .05rem; }
+
     .pjm-card {
         background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02));
         border: 1px solid rgba(255,255,255,.07);
@@ -1423,7 +1435,14 @@
         padding: .65rem .7rem;
         margin-bottom: .55rem;
         transition: border-color .15s, background .15s;
+        display: flex;
+        flex-direction: column;
     }
+    .pjm-grid > .pj-col > .pjm-card { margin-bottom: 0; }
+    /* Conteúdo menor que o vizinho: sobra fica antes da lista de jogos, que desce
+       para o rodapé e fica alinhada entre os dois cards. */
+    .pjm-card > .pjm-corpo { flex: 1; display: flex; flex-direction: column; }
+    .pjm-card > .pjm-corpo > .pjm-jogos { margin-top: auto; padding-top: .5rem; }
     .pjm-card[onclick] { cursor: pointer; }
     .pjm-card[onclick]:hover { border-color: rgba(212,165,32,.45); background: rgba(255,255,255,.06); }
     .pjm-card.nao-sincronizado .pjm-topo { opacity: .55; }
@@ -1453,7 +1472,8 @@
     .pj-col.vis .pjm-foto { border-color: var(--cor-camisa-vis); }
     .pjm-num { position: absolute; right: -4px; bottom: -3px; min-width: 17px; height: 17px; padding: 0 3px; border-radius: 9px; background: #0f1b2d; border: 1px solid rgba(255,255,255,.25); color: #f2f5fa; font-size: 9.5px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
     .pjm-id { flex: 1; min-width: 0; }
-    .pjm-nome { font-size: 13px; font-weight: 700; color: #f2f5fa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pjm-nome { display: block; font-size: 13px; font-weight: 700; color: #f2f5fa; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    a.pjm-nome:hover { color: #f2d98a; text-decoration: underline; }
     .pjm-meta { display: flex; align-items: center; gap: .35rem; margin-top: 2px; min-width: 0; }
     .pjm-sigla { font-size: 9px; font-weight: 800; letter-spacing: .3px; color: #0f1b2d; background: #d4a520; border-radius: 4px; padding: 1px 5px; flex-shrink: 0; }
     .pjm-perfil { font-size: 10.5px; color: rgba(255,255,255,.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: .25rem; }
@@ -1480,7 +1500,7 @@
     .pjm-alerta small { color: rgba(254,202,202,.75); font-size: 10.5px; }
 
     .pjm-bloco-titulo { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(255,255,255,.4); margin: .45rem 0 .3rem; }
-    .pjm-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(62px, 1fr)); gap: 5px; }
+    .pjm-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
     .pjm-tile { background: rgba(0,0,0,.25); border: 1px solid rgba(255,255,255,.06); border-radius: 8px; padding: .3rem .2rem; text-align: center; line-height: 1.1; }
     .pjm-tile-ico { font-size: 13px; display: block; }
     .pjm-tile b { font-size: 16px; font-weight: 800; color: #f2f5fa; display: block; margin-top: 1px; }

@@ -87,6 +87,9 @@ namespace ControleFutebolWeb.Services
             new[] { "sporting cp", "sporting" },
             new[] { "coventry", "coventry city" },
             new[] { "leicester", "leicester city" },
+            new[] { "norwich city", "norwich" },
+            // "Wolves" é o apelido que o nosso cadastro usa; o futnatv escreve "Wolverhampton".
+            new[] { "wolves", "wolverhampton", "wolverhampton wanderers" },
             // La Liga: o futnatv corta o "Real" do nome. Só entra clube sem homônimo — "Real
             // Madrid" e "Real Sociedad" ficam de fora, que lá o "Real" faz parte do nome usado.
             new[] { "real betis", "betis" },
@@ -142,6 +145,15 @@ namespace ControleFutebolWeb.Services
             // que chega aqui é "hapoel beer"; "hapoel be er" fica para a fonte que
             // escrever com espaço de verdade.
             new[] { "hapoel beer sheva", "hapoel beer", "hapoel be er" },
+            // Europa League: o futnatv corta a cidade ("Levski", "NEC"), acrescenta a que o
+            // nosso cadastro não tem ("OFI Crete", "Viktoria Plzen") ou usa a forma curta
+            // ("RB Salzburg", "Ferencváros" sem o "TC" do nome oficial).
+            new[] { "levski sofia", "levski" },
+            new[] { "red bull salzburg", "rb salzburg", "salzburg" },
+            new[] { "ofi", "ofi crete", "ofi creta" },
+            new[] { "plzen", "viktoria plzen" },
+            new[] { "nec nijmegen", "nec" },
+            new[] { "ferencvarosi tc", "ferencvaros", "ferencvarosi" },
         };
 
         // Mesma ideia para competições: o nosso cadastro usa o nome "oficial"/da API de dados,
@@ -276,8 +288,10 @@ namespace ControleFutebolWeb.Services
         // futnatv corta todas ("VfB Stuttgart" x "Stuttgart", "SV Elversberg" x "Elversberg",
         // "FSV Mainz 05" x "Mainz 05"). Nenhum clube alemão cadastrado fica ambíguo sem elas —
         // o que sobra é sempre o nome da cidade.
+        // "AS" é o mesmo caso no italiano/francês: o futnatv escreve "Roma" onde o nosso
+        // cadastro tem "AS Roma".
         private static readonly string[] PrefixosAgremiacao =
-            { "fc", "fk", "nk", "sk", "ac", "sc", "cf", "ec", "cd", "afc", "club",
+            { "fc", "fk", "nk", "sk", "ac", "as", "sc", "cf", "ec", "cd", "afc", "club",
               "vfb", "vfl", "sv", "fsv", "tsg", "tsv" };
 
         // Siglas de UF que aparecem coladas no nome do clube ("Internacional RS", "Vitória BA").

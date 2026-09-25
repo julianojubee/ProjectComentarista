@@ -216,6 +216,8 @@
 
     .hj-card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
     .hj-comp-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 5px; font-size: .65rem; font-weight: 700; letter-spacing: .04em; white-space: nowrap; }
+    .hj-comp-link { text-decoration: none; cursor: pointer; transition: filter .15s; }
+    .hj-comp-link:hover { filter: brightness(1.35); text-decoration: underline; }
     .hj-status-badge { font-size: .65rem; font-weight: 700; padding: 2px 8px; border-radius: 5px; }
     .hj-status-live { background: rgba(239,68,68,0.15); color: var(--bad); border: 1px solid rgba(239,68,68,0.3); }
     .hj-status-enc { background: rgba(34,197,94,0.1); color: var(--ok); border: 1px solid rgba(34,197,94,0.25); }
@@ -386,7 +388,20 @@
 
                             <div class="hj-card @(live ? "hj-live" : "") @(analisado ? "hj-analisado" : "")" data-comp="@(jogo.Competicao?.Id ?? 0)">
                                 <div class="hj-card-top">
-                                    <span class="hj-comp-badge" style="background:@cc.bg; border:1px solid @cc.border; color:@cc.text;">@(jogo.Competicao?.Nome ?? "Sem competição")</span>
+                                    @if (jogo.Competicao != null)
+                                    {
+                                        @* Abre a tabela da competição na temporada do jogo, em outra aba.
+                                           A pública não enxerga Competicoes/Detalhes (exige login). *@
+                                        var urlTabela = publico
+                                            ? Url.Action("Tabelas", "Creators", new { competicao = jogo.Competicao.Id, temporada = jogo.Temporada })
+                                            : Url.Action("Detalhes", "Competicoes", new { id = jogo.Competicao.Id, temporada = jogo.Temporada });
+                                        <a class="hj-comp-badge hj-comp-link" href="@urlTabela" target="_blank" rel="noopener" title="Ver tabela do campeonato"
+                                           style="background:@cc.bg; border:1px solid @cc.border; color:@cc.text;">@jogo.Competicao.Nome</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="hj-comp-badge" style="background:@cc.bg; border:1px solid @cc.border; color:@cc.text;">Sem competição</span>
+                                    }
                                     <span class="hj-status-badge @(live ? "hj-status-live" : realizado ? "hj-status-enc" : "hj-status-ag")">
                                         @if (live)
                                         {
