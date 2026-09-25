@@ -248,6 +248,8 @@
     // opts.dica troca o texto do rodapé (a tela pública fala em simulação, o
     // modal fala em pré-jogo); o resto do comportamento é igual nas duas.
     // opts.campo3d inclina o gramado e monta o estádio (ver bloco no topo).
+    // opts.buscaJogador: URL que busca jogador por nome no acervo todo (ver
+    // bloco "Buscar jogador"); sem ela, o elenco fica sem o campo de busca.
     function muRender(d, cont, opts) {
         if (!d.casa || !d.visitante) {
             var faltam = [];
@@ -265,6 +267,7 @@
         muFormas = [];
         const c3d = !!(opts && opts.campo3d);
         muCores = !!(opts && opts.cores);
+        muBuscaUrl = (opts && opts.buscaJogador) || null;
         muRoot = cont;
         // Recomeça nas cores padrão a cada montagem do campo
         muSetCorTime(1, MU_COR_PADRAO[1]);
@@ -322,7 +325,7 @@
                 '</div>' +
                 muBancoHtml(2, t2.nome, t2.elenco) +
             '</div>' +
-            '<p class="mu-dica">Arraste um jogador para qualquer ponto do campo, solte sobre um companheiro para trocar as posições, arraste alguém do elenco sobre um titular para substituí-lo ou sobre uma área vazia para incluí-lo no campo. O botão + do elenco cria um jogador avulso (ex.: garoto da base ainda fora da API). ' + muEsc((opts && opts.dica) || 'Simulação de pré-jogo — nada é salvo.') + '</p>';
+            '<p class="mu-dica">Arraste um jogador para qualquer ponto do campo, solte sobre um companheiro para trocar as posições, arraste alguém do elenco sobre um titular para substituí-lo ou sobre uma área vazia para incluí-lo no campo. O botão + do elenco cria um jogador avulso (ex.: garoto da base ainda fora da API)' + (muBuscaUrl ? '; a busca abaixo dele traz qualquer jogador cadastrado, de qualquer time (ex.: um convocado que não jogou a última)' : '') + '. ' + muEsc((opts && opts.dica) || 'Simulação de pré-jogo — nada é salvo.') + '</p>';
 
         // Ângulo e perspectiva saem daqui para o CSS: assim o JS que projeta o
         // cursor e o CSS que inclina o gramado não têm como divergir.
@@ -355,6 +358,13 @@
                 '<input id="muFicNome' + time + '" class="mu-fic-nome" placeholder="Nome do jogador" onkeydown="if (event.key === \'Enter\') muCriarFicticio(' + time + ')">' +
                 '<button type="button" onclick="muCriarFicticio(' + time + ')">OK</button>' +
             '</div>' +
+            (muBuscaUrl ? '<div class="mu-busca">' +
+                '<input id="muBusca' + time + '" class="mu-busca-input" type="search" autocomplete="off"' +
+                    ' placeholder="🔍 Buscar jogador…" title="Busca em todos os times (ex.: um convocado que não jogou a última)"' +
+                    ' oninput="muBuscarJogador(' + time + ')"' +
+                    ' onkeydown="if (event.key === \'Escape\') muFecharBusca(' + time + ', true)">' +
+                '<div id="muBuscaRes' + time + '" class="mu-busca-res" style="display:none;"></div>' +
+            '</div>' : '') +
             '<div id="muBanco' + time + '" class="mu-banco-lista">' +
                 elenco.map(function (j) { return muBancoItemHtml(time, j); }).join('') +
             '</div></div>';
@@ -587,6 +597,86 @@
         numEl.value = '';
         nomeEl.value = '';
         muToggleFormFicticio(time);
+    }
+
+    // ── Buscar jogador (acervo todo): convocado ou reforço fora da última
+    // escalação. O escolhido entra no topo do elenco, igual ao avulso, mas com
+    // id, foto e posição de verdade. Só existe quando muRender recebe
+    // opts.buscaJogador (hoje /creators/escalacao).
+    let muBuscaUrl = null;
+    let muBuscaTimer = {};
+    let muBuscaSeq = {};       // descarta resposta atrasada de uma busca antiga
+    let muBuscaAchados = {};   // time -> resultados da última busca
+
+    function muBuscarJogador(time) {
+        clearTimeout(muBuscaTimer[time]);
+        const q = document.getElementById('muBusca' + time).value.trim();
+        if (q.length < 3) { muFecharBusca(time); return; }
+        muBuscaTimer[time] = setTimeout(() => muExecutarBusca(time, q), 300);
+    }
+
+    async function muExecutarBusca(time, q) {
+        const seq = muBuscaSeq[time] = (muBuscaSeq[time] || 0) + 1;
+        const res = document.getElementById('muBuscaRes' + time);
+        res.style.display = '';
+        res.innerHTML = '<div class="mu-busca-vazio">Buscando…</div>';
+        let lista;
+        try {
+            const resp = await fetch(muBuscaUrl + (muBuscaUrl.includes('?') ? '&' : '?') + 'q=' + encodeURIComponent(q));
+            if (!resp.ok) throw new Error();
+            lista = await resp.json();
+        } catch (e) {
+            lista = null;
+        }
+        if (seq !== muBuscaSeq[time]) return;
+        if (!document.getElementById('muBuscaRes' + time)) return; // campo remontado no meio
+
+        muBuscaAchados[time] = lista || [];
+        if (!lista) { res.innerHTML = '<div class="mu-busca-vazio">Não deu para buscar. Tente de novo.</div>'; return; }
+        if (!lista.length) { res.innerHTML = '<div class="mu-busca-vazio">Nenhum jogador encontrado.</div>'; return; }
+
+        res.innerHTML = lista.map(function (j, i) {
+            const clube = [j.time, j.selecao].filter(Boolean).join(' · ');
+            return '<button type="button" class="mu-busca-item" onclick="muEscolherBusca(' + time + ', ' + i + ')" title="' + muEsc(j.nome + (clube ? ' — ' + clube : '')) + '">' +
+                (j.foto ? '<img src="' + muEsc(j.foto) + '" alt="">' : '<span class="mu-busca-sem-foto">' + (muEsc(j.numero) || '?') + '</span>') +
+                '<span class="mu-busca-txt"><span class="mu-busca-nome">' + muEsc(j.nome) + '</span>' +
+                '<span class="mu-busca-clube">' + muEsc(j.sigla) + (clube ? ' · ' + muEsc(clube) : '') + '</span></span>' +
+            '</button>';
+        }).join('');
+    }
+
+    function muFecharBusca(time, limpar) {
+        clearTimeout(muBuscaTimer[time]);
+        muBuscaSeq[time] = (muBuscaSeq[time] || 0) + 1;
+        const res = document.getElementById('muBuscaRes' + time);
+        if (res) { res.style.display = 'none'; res.innerHTML = ''; }
+        const input = document.getElementById('muBusca' + time);
+        if (limpar && input) input.value = '';
+    }
+
+    function muEscolherBusca(time, i) {
+        const j = (muBuscaAchados[time] || [])[i];
+        if (!j) return;
+        muFecharBusca(time, true);
+
+        // Já está em campo ou no elenco deste time: só destaca, não duplica
+        const campo = document.getElementById('muCampo');
+        const banco = document.getElementById('muBanco' + time);
+        const sel = '[data-jogadorid="' + j.id + '"]';
+        const existente = banco.querySelector(sel) ||
+            Array.from(campo.querySelectorAll('.mu-slot' + sel)).find(s => s.id.startsWith('mu-slot-' + time + '-'));
+        if (existente) { muPiscar(existente); return; }
+
+        muCriarItemBanco(time, { jogadorid: j.id, numero: j.numero, nome: j.nome, sigla: j.sigla, foto: j.foto });
+        muPiscar(banco.firstElementChild);
+    }
+
+    function muPiscar(el) {
+        if (!el) return;
+        el.scrollIntoView({ block: 'nearest' });
+        el.classList.remove('mu-piscar');
+        void el.offsetWidth; // reinicia a animação
+        el.classList.add('mu-piscar');
     }
 
     // ── Setas de movimentação: mesma mecânica da tela de análise, mas 100%

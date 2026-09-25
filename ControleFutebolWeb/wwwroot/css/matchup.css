@@ -160,7 +160,8 @@
     .mu-banco-fechado .mu-banco-cor,
     .mu-banco-fechado .mu-btn-add,
     .mu-banco-fechado .mu-banco-lista,
-    .mu-banco-fechado .mu-form-ficticio { display: none; }
+    .mu-banco-fechado .mu-form-ficticio,
+    .mu-banco-fechado .mu-busca { display: none; }
     .mu-banco-fechado .mu-banco-header { padding: 8px 0; justify-content: center; }
 
     .mu-banco-nome-time { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -256,6 +257,44 @@
         background: #d4a520; border: none; border-radius: 6px; color: #111;
         font-size: 11px; font-weight: 700; padding: 4px 8px; cursor: pointer;
     }
+
+    /* Buscar jogador no acervo todo (só /creators/escalacao, ver muBuscarJogador) */
+    .mu-busca {
+        padding: 6px 10px; background: rgba(0,0,0,.18);
+        border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .mu-busca-input {
+        width: 100%; box-sizing: border-box;
+        background: var(--input-bg); border: 1px solid var(--line-strong); border-radius: 6px;
+        color: var(--text-strong); font-size: 12px; padding: 4px 6px;
+    }
+    .mu-busca-res {
+        margin-top: 6px; max-height: 240px; overflow-y: auto;
+        border: 1px solid rgba(255,255,255,.1); border-radius: 6px; background: rgba(0,0,0,.35);
+    }
+    .mu-busca-item {
+        display: flex; align-items: center; gap: 6px; width: 100%; padding: 5px 6px;
+        background: none; border: none; border-bottom: 1px solid rgba(255,255,255,.05);
+        color: var(--text-strong); text-align: left; cursor: pointer;
+    }
+    .mu-busca-item:last-child { border-bottom: none; }
+    .mu-busca-item:hover { background: rgba(212,165,32,.15); }
+    .mu-busca-item img, .mu-busca-sem-foto {
+        flex: 0 0 24px; width: 24px; height: 24px; border-radius: 50%; object-fit: cover;
+    }
+    .mu-busca-sem-foto {
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(255,255,255,.1); font-size: 10px; color: var(--text-muted);
+    }
+    .mu-busca-txt { display: flex; flex-direction: column; min-width: 0; }
+    .mu-busca-nome, .mu-busca-clube { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mu-busca-nome { font-size: 12px; font-weight: 600; }
+    .mu-busca-clube { font-size: 10px; color: var(--text-muted); }
+    .mu-busca-vazio { padding: 6px; font-size: 11px; color: var(--text-muted); }
+
+    /* Destaque rápido no jogador que acabou de entrar (ou que já estava lá) */
+    @keyframes mu-piscar { 0%, 100% { box-shadow: none; } 30% { box-shadow: 0 0 0 2px #d4a520; } }
+    .mu-piscar { animation: mu-piscar .9s ease 2; }
 
     /* ══ Modo estádio: gramado em perspectiva ═══════════════════════════════
        Ligado só por quem chama muRender com opts.campo3d (hoje /creators/escalacao).

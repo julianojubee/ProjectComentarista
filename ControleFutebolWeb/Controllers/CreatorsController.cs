@@ -1,4 +1,5 @@
-﻿using ControleFutebolWeb.Data;
+﻿using System.Text.RegularExpressions;
+using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Filters;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
@@ -151,6 +152,71 @@ namespace ControleFutebolWeb.Controllers
                 tooltip,
             });
         }
+
+        // GET /creators/escalacao/buscar-jogador?q=estevao — busca no acervo todo,
+        // para trazer ao elenco quem não estava na última escalação (convocado
+        // novo, reforço recém-contratado). Devolve o mesmo formato do elenco, mais
+        // o clube e a seleção para o creator saber quem é quem.
+        //
+        // Sem acento de propósito: o creator digita "estevao" e o banco tem
+        // "Estêvão". A regex (~* no Postgres) troca cada letra que costuma vir
+        // acentuada por uma classe com as variantes; o filtro fino, já sem
+        // acento, é feito aqui depois.
+        [HttpGet("escalacao/buscar-jogador")]
+        public async Task<IActionResult> EscalacaoBuscarJogador(string? q)
+        {
+            var termo = NomeJogadorHelper.Normalizar(q ?? string.Empty);
+            if (termo.Length < 3) return Json(Array.Empty<object>());
+
+            var padrao = RegexSemAcento(termo);
+
+            var candidatos = await _context.Jogadores.AsNoTracking()
+                .Where(j => !j.Aposentado && Regex.IsMatch(j.Nome, padrao, RegexOptions.IgnoreCase))
+                .OrderBy(j => j.Nome.Length)
+                .Take(200)
+                .Select(j => new
+                {
+                    j.Id, j.Nome, j.NumeroCamisa, j.Posicao, j.FotoUrl,
+                    Time = j.Time.Nome,
+                    Selecao = j.Selecao != null ? j.Selecao.Nome : null,
+                })
+                .ToListAsync();
+
+            var achados = candidatos
+                .Select(j => new { j, nome = NomeJogadorHelper.Normalizar(j.Nome) })
+                .Where(x => x.nome.Contains(termo))
+                // Quem começa com o termo vem antes ("Estevão" antes de "Paulo Estevão")
+                .OrderBy(x => x.nome.StartsWith(termo) ? 0 : 1)
+                .ThenBy(x => x.j.Nome.Length)
+                .Take(15)
+                .Select(x => new
+                {
+                    id = x.j.Id,
+                    nome = x.j.Nome,
+                    numero = x.j.NumeroCamisa?.ToString() ?? "",
+                    sigla = PosicaoJogadorHelper.Sigla(x.j.Posicao),
+                    foto = ImagemUrl(x.j.FotoUrl),
+                    time = x.j.Time,
+                    selecao = x.j.Selecao,
+                });
+
+            return Json(achados);
+        }
+
+        // "estevao" → "[eéêèë]st[eéêèë]v[aáâãàä][oóôõòö]". Só letras, dígitos e
+        // espaço passam; o resto vira "." — nada do que o visitante digita chega
+        // à regex como metacaractere.
+        private static readonly Dictionary<char, string> VariantesAcento = new()
+        {
+            ['a'] = "aáâãàäAÁÂÃÀÄ", ['e'] = "eéêèëEÉÊÈË", ['i'] = "iíîìïIÍÎÌÏ",
+            ['o'] = "oóôõòöOÓÔÕÒÖ", ['u'] = "uúûùüUÚÛÙÜ", ['c'] = "cçCÇ", ['n'] = "nñNÑ",
+        };
+
+        private static string RegexSemAcento(string termo) =>
+            string.Concat(termo.Select(c =>
+                VariantesAcento.TryGetValue(c, out var v) ? "[" + v + "]"
+                : (c is (>= 'a' and <= 'z') or (>= '0' and <= '9') or ' ') ? c.ToString()
+                : "."));
 
         // Junta o pacote do tooltip dos dois lados do Match Up. Sem jogo de origem
         // (time sem escalação registrada) o lado simplesmente não entra.
