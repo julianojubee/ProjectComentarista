@@ -1,4 +1,4 @@
-﻿@model ControleFutebolWeb.Models.ViewModels.AnalisarViewModel
+@model ControleFutebolWeb.Models.ViewModels.AnalisarViewModel
 @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
 @using ControleFutebolWeb.Helpers
 @using System.Text.Json
@@ -155,7 +155,7 @@
 
     var metricasEstatisticas = new List<(string label, string chave)>
     {
-        ("xG (Gols Esperados)", "expected_goals"),
+        ("xG (gols esperados)", "expected_goals"),
         ("Finalizações totais", "Total Shots"),
         ("Finalizações no gol", "Shots on Goal"),
         ("Finalizações para fora", "Shots off Goal"),
@@ -169,12 +169,39 @@
         ("Passes certos", "Passes accurate"),
         ("Precisão de passe", "Passes %"),
     };
+
+    // Grupos do painel de estatísticas. Cada grupo mostra, na ordem de
+    // metricasEstatisticas, as métricas cujas chaves estão aqui — Desarmes
+    // (Tackles) só aparece quando é inserido logo abaixo.
+    var gruposEstatisticas = new List<(string titulo, string[] chaves)>
+    {
+        ("Finalização", new[] { "expected_goals", "Total Shots", "Shots on Goal", "Shots off Goal", "Blocked Shots", "Corner Kicks", "Offsides" }),
+        ("Defesa e disciplina", new[] { "Fouls", "Tackles", "Yellow Cards", "Red Cards", "Goalkeeper Saves" }),
+        ("Passe", new[] { "Passes accurate", "Passes %" }),
+    };
+
+    // Desarmes não vêm nas estatísticas de time: são a soma das estatísticas por
+    // jogador (ver DesarmesPorTimeHelper). Só entram quando
+    // a partida já tem estatística de time — sozinhos, o painel mostraria posse 50/50
+    // inventada — e quando pelo menos um lado tem a soma.
+    if ((statsCasa.Count > 0 || statsVis.Count > 0)
+        && (Model.DesarmesCasa.HasValue || Model.DesarmesVisitante.HasValue))
+    {
+        statsCasa.TryAdd("Tackles", Model.DesarmesCasa?.ToString() ?? "-");
+        statsVis.TryAdd("Tackles", Model.DesarmesVisitante?.ToString() ?? "-");
+        var idxFaltas = metricasEstatisticas.FindIndex(m => m.chave == "Fouls");
+        metricasEstatisticas.Insert(idxFaltas >= 0 ? idxFaltas + 1 : metricasEstatisticas.Count, ("Desarmes", "Tackles"));
+    }
 }
 
 @* O CSS desta tela (~66 KB) fica em wwwroot/css/analisar.css, carregado no head
    pela seção Styles: versionado por hash, o navegador baixa uma vez e reusa em
    todas as partidas — antes vinha inline e era retransmitido a cada abertura. *@
 @section Styles {
+    @* Barlow é a fonte que analisar.css sempre pediu, mas nunca era carregada
+       nesta tela (caía no Arial). Cópia local, a mesma da home; a Condensed
+       desenha o placar. *@
+    <link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/mencao-jogador.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/jogadas.css" asp-append-version="true" />
     @* matchup.css antes de analisar.css: os ajustes .pj-maximizado .mu-* daqui
@@ -182,6 +209,7 @@
     <link rel="stylesheet" href="~/css/jogador-tooltip.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/matchup.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/analisar.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/abertura-jogo.css" asp-append-version="true" />
 }
 
 @* Tudo que o JS desta tela precisa do servidor, num objeto só. É a única parte
@@ -194,8 +222,10 @@
         temporada: @Model.Jogo.Temporada,
         timeCasaId: @Model.Jogo.TimeCasaId,
         timeVisitanteId: @Model.Jogo.TimeVisitanteId,
-        timeCasaNome: '@Model.Jogo.TimeCasa?.Nome',
-        timeVisitanteNome: '@Model.Jogo.TimeVisitante?.Nome',
+        @* JSON e não '@Nome': o Razor codifica para HTML ("França" virava
+           "Fran&#xE7;a") e o JS mostrava a entidade crua no textContent. *@
+        timeCasaNome: @Html.Raw(JsonSerializer.Serialize(Model.Jogo.TimeCasa?.Nome ?? "")),
+        timeVisitanteNome: @Html.Raw(JsonSerializer.Serialize(Model.Jogo.TimeVisitante?.Nome ?? "")),
         placarCasaInicial: @(Model.Jogo.PlacarCasa?.ToString() ?? "null"),
         placarVisitanteInicial: @(Model.Jogo.PlacarVisitante?.ToString() ?? "null"),
         faseEscalacaoAtual: '@faseAtual',
@@ -233,7 +263,23 @@
         @* Clube da temporada anterior (só para quem chegou depois) — linha "Vinha do". *@
         timeAnterior: @Html.Raw(JsonSerializer.Serialize(
             Model.TimeAnteriorPorJogador,
-            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })),
+        @* Abertura 3D do modo transmissão (js/abertura-jogo.js). Os jogadores não
+           vêm daqui: são lidos do campo na hora, com os ajustes do analista. *@
+        abertura: @Html.Raw(JsonSerializer.Serialize(new
+        {
+            competicao = Model.Jogo.Competicao?.Nome ?? "",
+            competicaoLogo = string.IsNullOrEmpty(Model.Jogo.Competicao?.LogoUrl) ? "" : Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.Competicao.LogoUrl }),
+            rodada = Model.Jogo.Rodada,
+            grupo = Model.Jogo.Grupo ?? "",
+            data = Model.Jogo.Data,
+            estadio = EstadioJogoHelper.Local(Model.Jogo) ?? "",
+            arbitro = Model.Jogo.Arbitro ?? "",
+            escudoCasa = string.IsNullOrEmpty(Model.Jogo.TimeCasa?.EscudoUrl) ? "" : Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeCasa.EscudoUrl }),
+            escudoVis = string.IsNullOrEmpty(Model.Jogo.TimeVisitante?.EscudoUrl) ? "" : Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeVisitante.EscudoUrl }),
+            treinadorCasa = (Model.TreinadorCasa as ControleFutebolWeb.Models.Treinador)?.Nome ?? "",
+            treinadorVis = (Model.TreinadorVisitante as ControleFutebolWeb.Models.Treinador)?.Nome ?? "",
+        }))
     };
 </script>
 
@@ -327,19 +373,15 @@
             </a>
         </div>
 
-        <!-- Placar -->
+        <!-- Placar: cada visor é um botão que abre a edição do placar -->
         <div class="mb-score">
-            <div class="mb-score-box" id="placarCasaBox"
-                 title="Clique para editar"
-                 onclick="editarPlacar()">
-                @(Model.Jogo.PlacarCasa?.ToString() ?? "–")
-            </div>
-            <span class="mb-score-sep">×</span>
-            <div class="mb-score-box" id="placarVisBox"
-                 title="Clique para editar"
-                 onclick="editarPlacar()">
-                @(Model.Jogo.PlacarVisitante?.ToString() ?? "–")
-            </div>
+            <button type="button" class="mb-score-box" id="placarCasaBox"
+                    title="Editar placar" aria-label="Gols do @Model.Jogo.TimeCasa?.Nome — editar placar"
+                    onclick="editarPlacar()">@(Model.Jogo.PlacarCasa?.ToString() ?? "–")</button>
+            <span class="mb-score-sep" aria-hidden="true">–</span>
+            <button type="button" class="mb-score-box" id="placarVisBox"
+                    title="Editar placar" aria-label="Gols do @Model.Jogo.TimeVisitante?.Nome — editar placar"
+                    onclick="editarPlacar()">@(Model.Jogo.PlacarVisitante?.ToString() ?? "–")</button>
         </div>
 
         <!-- Time Visitante -->
@@ -404,36 +446,42 @@
     <!-- Timeline de gols (sempre visível) -->
     <div class="mb-timeline" id="mbTimelineGols"></div>
 
-    <!-- Barra de ações: três botões lado a lado -->
-    <div style="display:flex; gap:8px; justify-content:center; margin-top:.9rem; flex-wrap:wrap;">
-        <div class="mb-toolbar-toggle" id="mbToolbarToggle" onclick="toggleToolbarEventos()" style="margin:0;">
-            <span>➕ Adicionar evento</span>
-            <span id="mbToolbarToggleIcon" style="transition:transform .15s;">▾</span>
+    @* Barra de ações em grupos: registrar (ação principal), o que mostrar nesta
+       tela (liga/desliga — aria-expanded mantido pelos toggles do analisar.js),
+       as análises que abrem em janela e, no fim, compartilhar. *@
+    <div class="mb-acoes">
+        <div class="mb-acoes-grupo">
+            <button type="button" class="mb-acao primaria" id="mbToolbarToggle"
+                    onclick="toggleToolbarEventos()" aria-expanded="false" aria-controls="mbToolbar">
+                <span>➕ Adicionar evento</span>
+                <span class="mb-acao-seta" id="mbToolbarToggleIcon" aria-hidden="true">▾</span>
+            </button>
         </div>
-        <div class="mb-toolbar-toggle" id="mbOutrosToggle" onclick="toggleOutrosEventos()" style="margin:0;">
-            <span>📋 Outros eventos</span>
-            <span id="mbOutrosToggleIcon" style="transition:transform .15s;">▾</span>
+        <div class="mb-acoes-grupo">
+            <button type="button" class="mb-acao alterna" id="mbOutrosToggle"
+                    onclick="toggleOutrosEventos()" aria-expanded="false" aria-controls="mbTimelineOutros">
+                <span>📋 Outros eventos</span>
+                <span class="mb-acao-seta" id="mbOutrosToggleIcon" aria-hidden="true">▾</span>
+            </button>
+            <button type="button" class="mb-acao alterna" id="mbEstatisticasToggle"
+                    onclick="toggleEstatisticasPanel()" aria-expanded="false" aria-controls="painelEstatisticas">
+                <span>📊 Estatísticas</span>
+                <span class="mb-acao-seta" id="mbEstatisticasToggleIcon" aria-hidden="true">▾</span>
+            </button>
         </div>
-        <div class="mb-toolbar-toggle" id="mbEstatisticasToggle" onclick="toggleEstatisticasPanel()" style="margin:0;">
-            <span>📊 Estatísticas</span>
-            <span id="mbEstatisticasToggleIcon" style="transition:transform .15s;">▾</span>
+        <div class="mb-acoes-grupo">
+            <button type="button" class="mb-acao" id="mbH2HToggle" onclick="abrirH2H(@Model.Jogo.Id)"
+                    title="Os cinco confrontos mais recentes entre os dois times antes desta partida">⚔️ Últimos confrontos</button>
+            <button type="button" class="mb-acao" id="mbPreJogoToggle" onclick="abrirPreJogo(@Model.Jogo.Id)"
+                    title="Como os dois times chegam a esta partida: campanha, forma, match-up, desfalques e momento dos jogadores">🔍 Pré-jogo</button>
+            <button type="button" class="mb-acao" id="mbPosJogoToggle" onclick="abrirPosJogo(@Model.Jogo.Id)"
+                    title="Resumo depois do jogo: notas, escalação, estatísticas e observações">📝 Pós-jogo</button>
+            <button type="button" class="mb-acao" id="mbJogadasToggle" onclick="Jogadas.abrirModal(@Model.Jogo.Id)"
+                    title="Prancheta tática: desenhe passo a passo as jogadas de cada time e reproduza a animação">🎬 Jogadas</button>
         </div>
-        <div class="mb-toolbar-toggle" id="mbH2HToggle" onclick="abrirH2H(@Model.Jogo.Id)" style="margin:0; cursor:pointer;">
-            <span>⚔️ Últimos confrontos</span>
-        </div>
-        <div class="mb-toolbar-toggle" id="mbPreJogoToggle" onclick="abrirPreJogo(@Model.Jogo.Id)" style="margin:0; cursor:pointer;">
-            <span>🔍 Pré-jogo</span>
-        </div>
-        <div class="mb-toolbar-toggle" id="mbPosJogoToggle" onclick="abrirPosJogo(@Model.Jogo.Id)" style="margin:0; cursor:pointer;">
-            <span>📝 Pós-jogo</span>
-        </div>
-        <div class="mb-toolbar-toggle" id="mbCompartilharToggle" onclick="abrirCompartilhar(@Model.Jogo.Id)" style="margin:0; cursor:pointer;"
-             title="Gera um link público, somente leitura, para mostrar esta análise a quem não tem conta no sistema">
-            <span>🔗 Compartilhar</span>
-        </div>
-        <div class="mb-toolbar-toggle" id="mbJogadasToggle" onclick="Jogadas.abrirModal(@Model.Jogo.Id)" style="margin:0; cursor:pointer;"
-             title="Prancheta tática: desenhe passo a passo as jogadas de cada time e reproduza a animação">
-            <span>🎬 Jogadas</span>
+        <div class="mb-acoes-grupo fim">
+            <button type="button" class="mb-acao" id="mbCompartilharToggle" onclick="abrirCompartilhar(@Model.Jogo.Id)"
+                    title="Gera um link público, somente leitura, para mostrar esta análise a quem não tem conta no sistema">🔗 Compartilhar</button>
         </div>
     </div>
 
@@ -469,38 +517,22 @@
 </div>
 
 <!-- ── Status de Análise ───────────────────────────────────────────── -->
-<div style="display:flex; align-items:center; gap:12px; margin-bottom:1rem; flex-wrap:wrap;
-            padding:.85rem 1.2rem; background:var(--p-1); border:1px solid var(--line);
-            border-radius:12px;">
-    <div style="display:flex; align-items:center; gap:10px; flex:1;">
-        <div id="statusIcon" style="width:36px; height:36px; border-radius:50%;
-             display:flex; align-items:center; justify-content:center; font-size:18px;
-             background:@(Model.Analisado ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.06)");
-             border:2px solid @(Model.Analisado ? "#22c55e" : "var(--line)");">
-            @(Model.Analisado ? "✅" : "⏳")
-        </div>
-        <div>
-            <div id="statusLabel" style="font-size:13px; font-weight:600;
-                 color:@(Model.Analisado ? "var(--ok)" : "var(--text-muted)");">
-                @(Model.Analisado ? "Jogo analisado" : "Aguardando análise")
-            </div>
-            <div style="font-size:11px; color:var(--text-dim)">
-                Marque como analisado após revisar escalação final e eventos
-            </div>
-        </div>
-    </div>
-
-    <label style="display:flex; align-items:center; gap:8px; cursor:pointer;
-                  padding:8px 14px; border-radius:8px; border:1px solid var(--line);
-                  background:var(--p-2); user-select:none"
-           title="Marcar/desmarcar jogo como analisado">
+@* Esquerda: o status é o próprio controle (o checkbox liga/desliga "analisado").
+   Direita: ferramentas que mexem nos dados importados + selo da origem deles. *@
+<div class="an-status @(Model.Analisado ? "feito" : "")" id="anStatus">
+    <label class="an-status-marca" title="Marcar/desmarcar jogo como analisado">
         <input type="checkbox"
                id="chkAnalisado"
-               style="width:16px; height:16px; cursor:pointer; accent-color:#22c55e;"
                @(Model.Analisado ? "checked" : "")
                onchange="toggleAnalisado(this)" />
-        <span style="font-size:13px; font-weight:500; color:var(--text-muted)">Marcar como analisado</span>
+        <span class="an-status-check" id="statusIcon" aria-hidden="true"></span>
+        <span class="an-status-texto">
+            <span class="an-status-titulo" id="statusLabel">@(Model.Analisado ? "Jogo analisado" : "Aguardando análise")</span>
+            <span class="an-status-dica">Marque depois de revisar a escalação final e os eventos</span>
+        </span>
     </label>
+
+    <div class="an-dados">
 
     @if (!string.IsNullOrWhiteSpace(Model.Jogo.LinkDetalhes))
     {
@@ -508,11 +540,7 @@
               method="post" style="margin:0;"
               onsubmit="return confirm('Reimportar dados do jogo?\n\nIsso vai reimportar do zero a escalação (titulares/reservas), gols, cartões e assistências deste jogo, e recarregar a SUA escalação a partir da importação.\n\nSuas observações e notas já digitadas NÃO são alteradas.')">
             @Html.AntiForgeryToken()
-            <button type="submit"
-                    style="display:flex; align-items:center; gap:6px; padding:8px 14px;
-                           border-radius:8px; border:1px solid rgba(245,158,11,0.4); background:rgba(245,158,11,0.08);
-                           color:var(--warn); font-size:13px; font-weight:500; cursor:pointer;
-                           white-space:nowrap;"
+            <button type="submit" class="an-dados-btn"
                     title="Apaga e reimporta escalação, gols e cartões deste jogo (não mexe nas suas observações)">
                 🔄 Reimportar dados
             </button>
@@ -526,11 +554,7 @@
           method="post" style="margin:0;"
           onsubmit="return confirm('Limpar as estatísticas importadas deste jogo?\n\nApaga as estatísticas de time e as de cada jogador, e o jogo volta a aparecer em Serviços › Jogos sem estatísticas, para você reimportar da ESPN.\n\nSuas notas, observações, escalação, gols e cartões NÃO são alterados.')">
         @Html.AntiForgeryToken()
-        <button type="submit"
-                style="display:flex; align-items:center; gap:6px; padding:8px 14px;
-                       border-radius:8px; border:1px solid rgba(239,68,68,0.35); background:rgba(239,68,68,0.07);
-                       color:var(--bad); font-size:13px; font-weight:500; cursor:pointer;
-                       white-space:nowrap;"
+        <button type="submit" class="an-dados-btn perigo"
                 title="Apaga só as estatísticas importadas, para poder reimportar da ESPN (não mexe em notas, observações nem escalação)">
             🧹 Limpar estatísticas
         </button>
@@ -561,11 +585,7 @@
               method="post" style="margin:0;"
               onsubmit="return confirm('@Html.Raw(espnConfirma)')">
             @Html.AntiForgeryToken()
-            <button type="submit"
-                    style="display:flex; align-items:center; gap:6px; padding:8px 14px;
-                           border-radius:8px; border:1px solid rgba(34,197,94,0.4); background:rgba(34,197,94,0.08);
-                           color:var(--ok); font-size:13px; font-weight:500; cursor:pointer;
-                           white-space:nowrap;"
+            <button type="submit" class="an-dados-btn"
                     title="@espnTitulo">
                 @espnRotulo
             </button>
@@ -579,11 +599,7 @@
           asp-route-faseEscalacao="@faseAtual" method="post" style="margin:0;"
           onsubmit="return confirm('Carregar a última escalação dos dois times?\n\nUsa a escalação do último jogo de cada time (ou a escalação padrão do time, se ele não tiver jogo anterior).\n\nIsso SUBSTITUI a escalação que você tem nesta aba — os eventos e observações do jogo não são alterados.')">
         @Html.AntiForgeryToken()
-        <button type="submit"
-                style="display:flex; align-items:center; gap:6px; padding:8px 14px;
-                       border-radius:8px; border:1px solid rgba(59,130,246,0.4); background:rgba(59,130,246,0.08);
-                       color:var(--info); font-size:13px; font-weight:500; cursor:pointer;
-                       white-space:nowrap;"
+        <button type="submit" class="an-dados-btn"
                 title="Sem escalação importada? Traz a última escalação de cada time (ou a padrão do time) para você ajustar">
             👥 Última escalação
         </button>
@@ -674,6 +690,7 @@
         }
         <span class="visually-hidden">@seloTitulo — @seloSub</span>
     </div>
+    </div>
 </div>
 
 <!-- ══ MODAL DE EVENTO ══════════════════════════════════════════════════ -->
@@ -755,122 +772,100 @@
 }
 @if (semNenhumJogadorEmCampo)
 {
-    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:1rem;
-                padding:.85rem 1.2rem; border-radius:12px;
-                background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.35);">
-        <span style="font-size:20px;">👥</span>
-        <div style="flex:1; min-width:220px;">
-            <div style="font-size:13px; font-weight:600; color:#93c5fd;">
-                Nenhum jogador escalado nesta fase
-            </div>
-            <div style="font-size:11px; color:var(--text-muted)">
+    <div class="an-vazio">
+        <div class="an-vazio-texto">
+            <strong>Nenhum jogador escalado nesta fase</strong>
+            <span>
                 Arraste os jogadores da lista para o campo, ou carregue a escalação do último
                 jogo de cada time (ou a escalação padrão do time) para começar.
-            </div>
+            </span>
         </div>
-        <button type="button"
-                onclick="document.getElementById('formUltimaEscalacao').requestSubmit()"
-                style="padding:8px 14px; border-radius:8px; border:1px solid rgba(59,130,246,0.5);
-                       background:rgba(59,130,246,0.18); color:#bfdbfe; font-size:13px;
-                       font-weight:600; cursor:pointer; white-space:nowrap;">
-            👥 Carregar última escalação
+        <button type="button" class="an-vazio-btn"
+                onclick="document.getElementById('formUltimaEscalacao').requestSubmit()">
+            Carregar última escalação
         </button>
     </div>
 }
 
-<!-- Seleção de Formações -->
-<div class="row mb-3">
-    <div class="col-md-6">
-        <form method="get" asp-action="Analisar" asp-controller="Jogos">
-            <input type="hidden" name="id" value="@Model.Jogo.Id" />
-            <input type="hidden" name="formacaoVisitanteId" value="@Model.FormacaoVisitanteSelecionada" />
-            <input type="hidden" name="faseEscalacao" value="@faseAtual" />
-            <label class="fw-bold">Formação @Model.Jogo.TimeCasa.Nome:</label>
-            @* requestSubmit (e não submit): dispara o listener de submit que serializa
-               as observações — submit() programático pulava a serialização e o post
-               vazio apagava as observações salvas. *@
-            <select name="formacaoCasaId" class="form-select" onchange="this.form.requestSubmit()">
-                @foreach (var f in (IEnumerable<SelectListItem>)Model.FormacoesCasa)
-                {
-                    <option value="@f.Value" @(f.Selected ? "selected" : "")>@f.Text</option>
-                }
-            </select>
-        </form>
-    </div>
-    <div class="col-md-6">
-        <form method="get" asp-action="Analisar" asp-controller="Jogos">
-            <input type="hidden" name="id" value="@Model.Jogo.Id" />
-            <input type="hidden" name="formacaoCasaId" value="@Model.FormacaoCasaSelecionada" />
-            <input type="hidden" name="faseEscalacao" value="@faseAtual" />
-            <label class="fw-bold">Formação @Model.Jogo.TimeVisitante.Nome:</label>
-            <select name="formacaoVisitanteId" class="form-select" onchange="this.form.requestSubmit()">
-                @foreach (var f in (IEnumerable<SelectListItem>)Model.FormacoesVisitante)
-                {
-                    <option value="@f.Value" @(f.Selected ? "selected" : "")>@f.Text</option>
-                }
-            </select>
-        </form>
-    </div>
-</div>
-
-<!-- ── Fase tática da partida ─────────────────────────────────────── -->
-<div class="d-flex align-items-center gap-2 mb-2 p-2"
-     style="background:var(--p-alt); border-radius:8px; color:var(--text-strong); flex-wrap:wrap">
-    <button type="button" id="btnModoSeta" class="btn btn-sm btn-outline-warning"
-            onclick="toggleModoSeta()"
-            title="Ligue, clique num jogador e depois no ponto do campo para onde ele se movimentou. Clique duplo numa seta para removê-la.">
-        ➹ Setas
-    </button>
-    <span id="modoSetaHint" style="font-size:11px; color:#facc15; display:none;">
-        clique no jogador e depois no destino · duplo clique na seta remove · Esc sai
-    </span>
-    @* Temporada dos números do tooltip de info (ℹ) do jogador. Padrão = a do jogo;
-       trocar recarrega só os dados do tooltip, sem recarregar a escalação. *@
-    <label for="tooltipTemporada" style="font-size:11px; color:var(--text-muted)"
-           title="De qual temporada vêm os gols, assistências, jogos como titular e as médias por jogo mostrados no tooltip ℹ dos jogadores.">
-        ℹ tooltip
-    </label>
-    <select id="tooltipTemporada" class="form-select form-select-sm" style="width:120px;"
-            onchange="trocarTemporadaTooltip(this.value)">
-        @foreach (var t in Model.TemporadasTooltip)
-        {
-            <option value="@t" selected="@(t == Model.TemporadaTooltip)">@t@(t == Model.Jogo.Temporada ? " (jogo)" : "")</option>
-        }
-        <option value="0" selected="@(Model.TemporadaTooltip == 0)">Todas</option>
-    </select>
-    <span id="tooltipTemporadaStatus" style="font-size:11px; color:var(--text-muted);"></span>
-    @* Como os titulares aparecem no campo: número da camisa (padrão) ou foto do
-       jogador com o número em badge. Só visual — a escolha fica no navegador. *@
-    <label for="campoVisual" style="font-size:11px; color:var(--text-muted)"
-           title="Como mostrar os jogadores em campo: o botão com o número da camisa ou a foto do jogador (com o número em badge).">
-        👤 campo
-    </label>
-    <select id="campoVisual" class="form-select form-select-sm" style="width:110px;"
-            onchange="trocarVisualCampo(this.value)">
-        <option value="numero">Números</option>
-        <option value="foto">Fotos</option>
-    </select>
-    <div class="ms-auto d-flex align-items-center gap-1" style="flex-wrap:wrap;">
-        <label style="font-size:11px; color:var(--text-muted)">nome</label>
-        <input type="text" id="faseNome" maxlength="60" placeholder="ex: Fase de ataque"
-               class="form-control form-control-sm" style="width:180px;" />
-        <label style="font-size:11px; color:var(--text-muted)">min</label>
-        <input type="number" id="faseMinuto" min="0" max="130" value="0"
-               class="form-control form-control-sm" style="width:64px;" />
-        <button type="button" class="btn btn-sm btn-primary" onclick="salvarFaseTatica()" title="Salva a escalação atual como uma fase tática no minuto informado">
-            💾 Salvar fase
+<!-- ══ PRANCHETA: ferramentas, fases e formações ══════════════════════ -->
+@* Uma faixa só, em três grupos: ferramentas que agem no campo, como o campo é
+   exibido (nada disso é salvo na escalação) e, à direita, a criação de uma
+   nova fase tática a partir do que está em campo. *@
+<div class="pr-barra">
+    <div class="pr-grupo">
+        <button type="button" id="btnModoSeta" class="pr-btn"
+                onclick="toggleModoSeta()"
+                title="Ligue, clique num jogador e depois no ponto do campo para onde ele se movimentou. Clique duplo numa seta para removê-la.">
+            ➹ Setas
+        </button>
+        <button type="button" id="btnMapaCalor" class="pr-btn" onclick="abrirMapaCalor()">
+            🔥 Mapa de calor
         </button>
     </div>
+
+    <div class="pr-grupo">
+        @* Temporada dos números do tooltip de info (ℹ) do jogador. Padrão = a do jogo;
+           trocar recarrega só os dados do tooltip, sem recarregar a escalação. *@
+        <label class="pr-campo" for="tooltipTemporada"
+               title="De qual temporada vêm os gols, assistências, jogos como titular e as médias por jogo mostrados no tooltip ℹ dos jogadores.">
+            <span>Tooltip</span>
+            <select id="tooltipTemporada" class="form-select form-select-sm"
+                    onchange="trocarTemporadaTooltip(this.value)">
+                @foreach (var t in Model.TemporadasTooltip)
+                {
+                    <option value="@t" selected="@(t == Model.TemporadaTooltip)">@t@(t == Model.Jogo.Temporada ? " (jogo)" : "")</option>
+                }
+                <option value="0" selected="@(Model.TemporadaTooltip == 0)">Todas</option>
+            </select>
+        </label>
+        <span id="tooltipTemporadaStatus" class="pr-status"></span>
+        @* Como os titulares aparecem no campo: número da camisa (padrão) ou foto do
+           jogador com o número em badge. Só visual — a escolha fica no navegador. *@
+        <label class="pr-campo" for="campoVisual"
+               title="Como mostrar os jogadores em campo: o botão com o número da camisa ou a foto do jogador (com o número em badge).">
+            <span>Jogadores</span>
+            <select id="campoVisual" class="form-select form-select-sm"
+                    onchange="trocarVisualCampo(this.value)">
+                <option value="numero">Números</option>
+                <option value="foto">Fotos</option>
+            </select>
+        </label>
+        @* Dois jeitos de montar a análise: cada time no seu campinho vertical (lado a
+           lado, o original) ou os dois frente a frente num campo horizontal só, como
+           em /creators/escalacao. É o MESMO DOM — trocarLayoutAnalise só reposiciona
+           campos, listas e bancos; salvar, setas, notas e substituições não mudam. *@
+        <label class="pr-campo" for="layoutAnalise"
+               title="Como montar os campos: cada time no seu campo (lado a lado) ou os dois times frente a frente no mesmo campo.">
+            <span>Layout</span>
+            <select id="layoutAnalise" class="form-select form-select-sm"
+                    onchange="trocarLayoutAnalise(this.value)">
+                <option value="lado">Lado a lado</option>
+                <option value="unico">Mesmo campo</option>
+            </select>
+        </label>
+    </div>
+
+    <div class="pr-grupo pr-nova-fase">
+        <input type="text" id="faseNome" maxlength="60" placeholder="Nome da fase, ex.: pressão alta"
+               aria-label="Nome da nova fase tática"
+               class="form-control form-control-sm" />
+        <label class="pr-minuto" title="Minuto em que a fase começa">
+            <input type="number" id="faseMinuto" min="0" max="130" value="0"
+                   aria-label="Minuto em que a fase começa"
+                   class="form-control form-control-sm" />
+            <span>min</span>
+        </label>
+        <button type="button" class="pr-btn destaque" onclick="salvarFaseTatica()" title="Salva a escalação atual como uma fase tática no minuto informado">
+            Salvar como fase
+        </button>
+    </div>
+
+    <div id="modoSetaHint" class="pr-dica" style="display:none;">
+        Clique no jogador e depois no destino. Duplo clique numa seta a remove; Esc sai do modo setas.
+    </div>
 </div>
 
-<!-- ── Mapa de calor ───────────────────────────────────────────────── -->
-<div class="mb-2">
-    <button type="button" id="btnMapaCalor" class="btn btn-sm btn-outline-warning" onclick="abrirMapaCalor()">
-        🔥 Mapa de Calor
-    </button>
-</div>
-
-<div class="mb-3">
+<div class="pr-fases">
     <ul class="nav nav-tabs" id="tabsEscalacao">
         <li class="nav-item">
             <a class="nav-link @(faseAtual == "INICIAL" ? "active" : "")"
@@ -921,7 +916,58 @@
     </ul>
 </div>
 
+@* Formações: cada uma em cima do campo do seu time, com a cor da camisa. São
+   forms GET próprios (trocar recarrega a tela), por isso ficam fora do
+   formSalvarEscalacao — form dentro de form não vale. *@
+<div class="pr-formacoes">
+    <form method="get" asp-action="Analisar" asp-controller="Jogos" class="pr-formacao casa">
+        <input type="hidden" name="id" value="@Model.Jogo.Id" />
+        <input type="hidden" name="formacaoVisitanteId" value="@Model.FormacaoVisitanteSelecionada" />
+        <input type="hidden" name="faseEscalacao" value="@faseAtual" />
+        <span class="pr-formacao-cor" aria-hidden="true"></span>
+        <label for="formacaoCasaSel">@Model.Jogo.TimeCasa.Nome</label>
+        @* requestSubmit (e não submit): dispara o listener de submit que serializa
+           as observações — submit() programático pulava a serialização e o post
+           vazio apagava as observações salvas. *@
+        <select id="formacaoCasaSel" name="formacaoCasaId" class="form-select form-select-sm"
+                title="Formação do @Model.Jogo.TimeCasa.Nome" onchange="this.form.requestSubmit()">
+            @foreach (var f in (IEnumerable<SelectListItem>)Model.FormacoesCasa)
+            {
+                <option value="@f.Value" @(f.Selected ? "selected" : "")>@f.Text</option>
+            }
+        </select>
+    </form>
+    <form method="get" asp-action="Analisar" asp-controller="Jogos" class="pr-formacao vis">
+        <input type="hidden" name="id" value="@Model.Jogo.Id" />
+        <input type="hidden" name="formacaoCasaId" value="@Model.FormacaoCasaSelecionada" />
+        <input type="hidden" name="faseEscalacao" value="@faseAtual" />
+        <span class="pr-formacao-cor" aria-hidden="true"></span>
+        <label for="formacaoVisSel">@Model.Jogo.TimeVisitante.Nome</label>
+        <select id="formacaoVisSel" name="formacaoVisitanteId" class="form-select form-select-sm"
+                title="Formação do @Model.Jogo.TimeVisitante.Nome" onchange="this.form.requestSubmit()">
+            @foreach (var f in (IEnumerable<SelectListItem>)Model.FormacoesVisitante)
+            {
+                <option value="@f.Value" @(f.Selected ? "selected" : "")>@f.Text</option>
+            }
+        </select>
+    </form>
+</div>
+
 <div id="painelEscalacao">
+
+@{
+    // Barra de salvar: numa fase intermediária o LimparEscalacoes apaga a fase
+    // inteira (e volta para a Inicial); nas outras, esvazia o campo da aba,
+    // importada inclusive. Fica fora dos <form>: o corpo de um tag helper é um
+    // escopo próprio e o form do Limpar não enxergaria as variáveis.
+    var faseIntermediaria = faseAtual != "INICIAL" && faseAtual != "FINAL";
+    var rotuloAba = faseAtual == "INICIAL" ? "Escalação inicial"
+                  : faseAtual == "FINAL" ? "Escalação final"
+                  : "Fase tática";
+    var confirmaLimpar = faseIntermediaria
+        ? "Excluir esta fase tática?\\n\\nA fase e a escalação dela são apagadas, e a tela volta para a Escalação inicial."
+        : $"Limpar a {rotuloAba.ToLowerInvariant()} dos dois times?\\n\\nO campo fica só com as posições vazias da formação, inclusive se a escalação veio importada (dá para recuperar com Reimportar dados). Eventos e observações não são alterados.";
+}
 
 <!-- ── FORM PRINCIPAL (id fixo para o JS encontrar com segurança) ── -->
 <form id="formSalvarEscalacao" method="post" asp-action="SalvarEscalacao" asp-controller="Jogos">
@@ -930,33 +976,100 @@
     <input type="hidden" name="formacaoVisitanteId" value="@Model.FormacaoVisitanteSelecionada" />
     <input type="hidden" name="faseEscalacao" value="@faseAtual" />
 
-    <div class="row">
+    @* Layout "Mesmo campo": casca vazia. trocarLayoutAnalise (analisar.js) move para
+       cá as listas, os dois campos e os bancos que moram no layout lado a lado
+       logo abaixo, e devolve tudo ao voltar. Continua dentro do form, então os
+       hidden das escalações seguem sendo enviados no Salvar. *@
+    <div id="anUnico" class="an-unico" hidden>
+        <div class="an-unico-lista" data-slot="listaCasa"></div>
+        <div class="an-unico-centro">
+            @* Modo transmissão (como o 📺 de /creators/escalacao): a casca vira uma
+               camada do tamanho da janela, elencos e bancos recolhem e os jogadores
+               crescem com o campo. Os botões extras só aparecem dentro dele — fora,
+               a barra da página já tem setas, visual e o Salvar lá embaixo. *@
+            <div class="an-unico-barra">
+                <button type="button" id="anBtnTransmissao" class="btn btn-sm btn-outline-info" onclick="toggleTransmissaoAnalise()"
+                        title="Campo ocupando a janela inteira, com os jogadores maiores — para apresentar ou capturar no OBS. Esc sai.">📺 Transmissão</button>
+                <button type="button" class="btn btn-sm btn-outline-light an-so-transmissao" onclick="AberturaJogo.tocar()"
+                        title="Toca de novo a abertura 3D do jogo (entrada dos times e montagem das escalações)">🎬 Abertura</button>
+                <button type="button" class="btn btn-sm btn-outline-light an-so-transmissao" onclick="toggleElencosTransmissao()"
+                        title="Mostra/esconde os elencos e os bancos, para arrastar jogadores e fazer substituições">📋 Elencos</button>
+                <button type="button" class="btn btn-sm btn-outline-light an-so-transmissao" onclick="toggleObservacoesTransmissao()"
+                        title="Mostra/esconde as observações do jogo embaixo do campo (adicionar, editar, remover, @@ para mencionar jogador)">📝 Observações</button>
+                <button type="button" id="anBtnSetaTx" class="btn btn-sm btn-outline-warning an-so-transmissao" onclick="toggleModoSeta()"
+                        title="Clique num jogador e depois no destino · duplo clique na seta remove · Esc sai">➹ Setas</button>
+                <button type="button" class="btn btn-sm btn-outline-light an-so-transmissao" onclick="alternarVisualTransmissao()"
+                        title="Alterna entre o número da camisa e a foto dos jogadores">👤 Fotos/Números</button>
+                <button type="button" class="btn btn-sm btn-success an-so-transmissao" onclick="document.getElementById('formSalvarEscalacao').requestSubmit()"
+                        title="Salva a escalação desta aba (a página recarrega e volta direto na transmissão)">💾 Salvar</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary an-so-transmissao" onclick="toggleTelaCheiaAnalise()"
+                        title="Tela cheia do navegador (Esc sai dela)">⛶ Tela cheia</button>
+            </div>
+            <div class="an-unico-cab">
+                <div class="an-unico-time">
+                    @if (!string.IsNullOrEmpty(Model.Jogo.TimeCasa?.EscudoUrl))
+                    {
+                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeCasa.EscudoUrl })" alt="" />
+                    }
+                    <span class="an-unico-cor an-unico-cor-casa"></span>
+                    <span>@Model.Jogo.TimeCasa?.Nome</span>
+                </div>
+                <span class="an-unico-vs">×</span>
+                <div class="an-unico-time an-unico-time-dir">
+                    @if (!string.IsNullOrEmpty(Model.Jogo.TimeVisitante?.EscudoUrl))
+                    {
+                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeVisitante.EscudoUrl })" alt="" />
+                    }
+                    <span class="an-unico-cor an-unico-cor-vis"></span>
+                    <span>@Model.Jogo.TimeVisitante?.Nome</span>
+                </div>
+            </div>
+            <div id="campoUnico" class="campo-unico theme-dark-zone"
+                 ondrop="dropNoCampo(event, 'campoCasa')" ondragover="allowDrop(event)">
+                <div class="cu-linha-meio"></div>
+                <div class="cu-circulo"></div>
+                <div class="cu-area cu-area-esq"></div>
+                <div class="cu-area cu-area-dir"></div>
+                <div class="cu-gol cu-gol-esq"></div>
+                <div class="cu-gol cu-gol-dir"></div>
+            </div>
+            <div class="an-unico-bancos">
+                <div data-slot="bancoCasa"></div>
+                <div data-slot="bancoVis"></div>
+            </div>
+            @* Só na transmissão: o #obsBox (observações do jogo, lá embaixo no form)
+               vem para cá e o 📝 mostra/esconde. Ao sair, volta para o lugar dele. *@
+            <div class="an-unico-obs" data-slot="obs"></div>
+        </div>
+        <div class="an-unico-lista" data-slot="listaVis"></div>
+    </div>
+
+    <div class="row" id="anLadoALado">
 
         <!-- ===== TIME DA CASA ===== -->
         <div class="col-md-6">
             <div class="row">
                 <!-- Lista de jogadores -->
-                <div class="col-5 scroll-panel">
+                <div class="col-5 scroll-panel" id="listaPainelCasa">
                     @{
                         var treinadorCasa = Model.TreinadorCasa as ControleFutebolWeb.Models.Treinador;
                     }
                     @if (treinadorCasa != null)
                     {
-                        <div class="d-flex align-items-center gap-2 px-1 py-1 mb-1"
-                             style="background:var(--p-1);border-radius:7px;border:1px solid var(--line)">
+                        <div class="jog-treinador">
                             @if (!string.IsNullOrWhiteSpace(treinadorCasa.FotoUrl))
                             {
                                 <img src="@Url.FotoSrc(treinadorCasa.FotoUrl)"
                                      alt="@treinadorCasa.Nome"
-                                     style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0;" />
+                                     class="jog-treinador-foto" />
                             }
                             else
                             {
-                                <span style="font-size:16px;">🧑‍💼</span>
+                                <span class="jog-treinador-foto vazia" aria-hidden="true">🧑‍💼</span>
                             }
                             <div>
-                                <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;line-height:1">Treinador</div>
-                                <div style="font-size:12px;font-weight:600;color:var(--text-strong)">@treinadorCasa.Nome</div>
+                                <div class="jog-treinador-rot">Treinador</div>
+                                <div class="jog-treinador-nome">@treinadorCasa.Nome</div>
                             </div>
                         </div>
                     }
@@ -1016,7 +1129,8 @@
                                 <tr class="jogador-row"
                                     id="jogador-casa-@jogador.Id"
                                     draggable="true"
-                                    ondragstart="dragJogador(event, @jogador.Id, '@jogador.Nome', '@jogador.NumeroCamisa', '', 'casa')">
+                                    data-nome="@jogador.Nome"
+                                    ondragstart="dragJogador(event, @jogador.Id, this.dataset.nome, '@jogador.NumeroCamisa', '', 'casa')">
                                     <td>
                                         @* position:relative ancora o ℹ no círculo (o <td> não serve de âncora) *@
                                         <div style="position:relative;display:inline-block;">
@@ -1125,7 +1239,8 @@
                                     <button type="button"
                                             id="btn-avaliar-@esc.Jogador.Id"
                                             class="btn-avaliar"
-                                            onclick="abrirAvaliacao(@esc.Jogador.Id, '@esc.Jogador.Nome', '@esc.Posicao', event)">
+                                            data-nome="@esc.Jogador.Nome"
+                                            onclick="abrirAvaliacao(@esc.Jogador.Id, this.dataset.nome, '@esc.Posicao', event)">
                                         +
                                     </button>
                                     <button type="button" class="btn-info-jogador"
@@ -1152,6 +1267,7 @@
                     @if (mostrarBancoReservas)
                     {
                         <!-- Banco de reservas casa -->
+                        <div id="bancoWrapCasa">
                         <div class="banco-label mt-2">🪑 Banco de reservas</div>
                         <div id="bancoCasa" class="banco"
                              ondrop="dropNoBanco(event, 'casa')"
@@ -1200,6 +1316,7 @@
                                 <input type="hidden" id="reservaCasa_@(idxResCasa)__PosicaoY" name="reservasCasa[@idxResCasa].PosicaoY" value="0" />
                                 idxResCasa++;
                             }
+                        </div>
                         </div>
                         <input type="hidden" id="totalReservasCasa" value="@idxResCasa" />
                     }
@@ -1288,7 +1405,8 @@
                                     <button type="button"
                                             id="btn-avaliar-@esc.Jogador.Id"
                                             class="btn-avaliar"
-                                            onclick="abrirAvaliacao(@esc.Jogador.Id, '@esc.Jogador.Nome', '@esc.Posicao', event)">
+                                            data-nome="@esc.Jogador.Nome"
+                                            onclick="abrirAvaliacao(@esc.Jogador.Id, this.dataset.nome, '@esc.Posicao', event)">
                                         +
                                     </button>
                                     <button type="button" class="btn-info-jogador"
@@ -1315,6 +1433,7 @@
                     @if (mostrarBancoReservas)
                     {
                         <!-- Banco de reservas visitante -->
+                        <div id="bancoWrapVis">
                         <div class="banco-label mt-2">🪑 Banco de reservas</div>
                         <div id="bancoVisitante" class="banco"
                              ondrop="dropNoBanco(event, 'vis')"
@@ -1363,32 +1482,32 @@
                                 idxResVis++;
                             }
                         </div>
+                        </div>
                         <input type="hidden" id="totalReservasVis" value="@idxResVis" />
                     }
                 </div>
 
                 <!-- Lista de jogadores visitante -->
-                <div class="col-5 scroll-panel">
+                <div class="col-5 scroll-panel" id="listaPainelVis">
                     @{
                         var treinadorVis = Model.TreinadorVisitante as ControleFutebolWeb.Models.Treinador;
                     }
                     @if (treinadorVis != null)
                     {
-                        <div class="d-flex align-items-center gap-2 px-1 py-1 mb-1"
-                             style="background:var(--p-1);border-radius:7px;border:1px solid var(--line)">
+                        <div class="jog-treinador">
                             @if (!string.IsNullOrWhiteSpace(treinadorVis.FotoUrl))
                             {
                                 <img src="@Url.FotoSrc(treinadorVis.FotoUrl)"
                                      alt="@treinadorVis.Nome"
-                                     style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0;" />
+                                     class="jog-treinador-foto" />
                             }
                             else
                             {
-                                <span style="font-size:16px;">🧑‍💼</span>
+                                <span class="jog-treinador-foto vazia" aria-hidden="true">🧑‍💼</span>
                             }
                             <div>
-                                <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;line-height:1">Treinador</div>
-                                <div style="font-size:12px;font-weight:600;color:var(--text-strong)">@treinadorVis.Nome</div>
+                                <div class="jog-treinador-rot">Treinador</div>
+                                <div class="jog-treinador-nome">@treinadorVis.Nome</div>
                             </div>
                         </div>
                     }
@@ -1448,7 +1567,8 @@
                                 <tr class="jogador-row"
                                     id="jogador-vis-@jogador.Id"
                                     draggable="true"
-                                    ondragstart="dragJogador(event, @jogador.Id, '@jogador.Nome', '@jogador.NumeroCamisa', '', 'vis')">
+                                    data-nome="@jogador.Nome"
+                                    ondragstart="dragJogador(event, @jogador.Id, this.dataset.nome, '@jogador.NumeroCamisa', '', 'vis')">
                                     <td>
                                         @* position:relative ancora o ℹ no círculo (o <td> não serve de âncora) *@
                                         <div style="position:relative;display:inline-block;">
@@ -1482,7 +1602,7 @@
 
     </div>
 
-    <div class="obs-box">
+    <div class="obs-box" id="obsBox">
         <div class="obs-title">Observações do jogo (mandante, visitante, competição, jogador, marcos históricos…)</div>
         <div id="obsTagList">
             @foreach (var o in Model.ObservacoesTag)
@@ -1530,83 +1650,112 @@
         </div>
     </div>
 
-    <div class="text-center mt-3">
-        <button type="submit" class="btn btn-success">Salvar Escalação @(faseEhInicial ? "Inicial" : "Final")</button>
+    @* Fica grudada no pé da janela enquanto a prancheta está na tela: dá pra
+       salvar sem rolar até o fim depois de mexer no campo. O Limpar pertence ao
+       form de baixo (atributo form=), só mora aqui para ficar junto do Salvar. *@
+    <div class="pr-salvar">
+        <span class="pr-salvar-aba">@rotuloAba</span>
+        <button type="submit" form="formLimparEscalacao" class="pr-salvar-limpar">
+            @(faseIntermediaria ? "Excluir fase" : "Limpar escalação")
+        </button>
+        <button type="submit" class="pr-salvar-ok">Salvar escalação</button>
     </div>
 </form>
 
-<form asp-action="LimparEscalacoes" asp-route-id="@Model.Jogo.Id" asp-route-faseEscalacao="@faseAtual" method="post" class="mt-2">
+<form id="formLimparEscalacao" asp-action="LimparEscalacoes" asp-route-id="@Model.Jogo.Id" asp-route-faseEscalacao="@faseAtual" method="post"
+      onsubmit="return confirm('@Html.Raw(confirmaLimpar)')">
     @Html.AntiForgeryToken()
-    <div class="text-center">
-        <button type="submit" class="btn btn-danger">🗑️ Limpar Escalação @(faseEhInicial ? "Inicial" : "Final")</button>
-    </div>
 </form>
 
 </div>
 <!-- fim #painelEscalacao -->
 
 <div id="painelEstatisticas" style="display:none;">
-    <div class="cf-card" style="padding:1.25rem;">
+    @* Comparativo da partida. As cores são as das camisas (--cor-camisa-*), as
+       mesmas das faixas do placar e do seletor de cor das escalações. *@
+    <div class="est-painel">
         @{
-            var totalChutes = PegarStatNumero(statsCasa, "Total Shots") + PegarStatNumero(statsVis, "Total Shots");
             var possCasa = PegarStatNumero(statsCasa, "Ball Possession");
             var possVis = PegarStatNumero(statsVis, "Ball Possession");
-            if (possCasa == 0 && possVis == 0) { possCasa = 50; possVis = 50; }
+            var possInformada = possCasa > 0 || possVis > 0;
+            if (!possInformada) { possCasa = 50; possVis = 50; }
         }
 
         @if (statsCasa.Count == 0 && statsVis.Count == 0)
         {
-            <div style="padding:1.5rem;text-align:center;color:var(--text-muted);font-size:13px">
-                Estatísticas ainda não disponíveis para esta partida.
+            <div class="est-vazio">
+                <strong>Esta partida ainda não tem estatísticas</strong>
+                <span>Elas aparecem aqui quando a importação trouxer os números do jogo.</span>
             </div>
         }
         else
         {
-            <div style="display:flex;align-items:center;justify-content:center;gap:1.5rem;margin-bottom:1.5rem;flex-wrap:wrap;">
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeCasa?.EscudoUrl })"
-                         alt="@Model.Jogo.TimeCasa?.Nome" style="width:28px;height:28px;object-fit:contain;" />
-                    <span style="font-weight:700;color:var(--text-strong)">@Model.Jogo.TimeCasa?.Nome</span>
+            <div class="est-times">
+                <div class="est-time casa">
+                    <span class="est-time-cor" aria-hidden="true"></span>
+                    @if (!string.IsNullOrEmpty(Model.Jogo.TimeCasa?.EscudoUrl))
+                    {
+                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeCasa.EscudoUrl })" alt="" />
+                    }
+                    <span>@Model.Jogo.TimeCasa?.Nome</span>
                 </div>
-                <div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;font-weight:600">Posse de bola</div>
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <span style="font-weight:700;color:var(--text-strong)">@Model.Jogo.TimeVisitante?.Nome</span>
-                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeVisitante?.EscudoUrl })"
-                         alt="@Model.Jogo.TimeVisitante?.Nome" style="width:28px;height:28px;object-fit:contain;" />
+                <div class="est-time vis">
+                    <span>@Model.Jogo.TimeVisitante?.Nome</span>
+                    @if (!string.IsNullOrEmpty(Model.Jogo.TimeVisitante?.EscudoUrl))
+                    {
+                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.Jogo.TimeVisitante.EscudoUrl })" alt="" />
+                    }
+                    <span class="est-time-cor" aria-hidden="true"></span>
                 </div>
             </div>
 
-            <div style="display:flex;align-items:center;height:10px;border-radius:6px;overflow:hidden;margin-bottom:0.25rem;background:var(--p-3)">
-                <div style="height:100%;background:#dc2626;width:@(Coord(possCasa))%;"></div>
-                <div style="height:100%;background:#2563eb;width:@(Coord(possVis))%;"></div>
-            </div>
-            <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:var(--text-strong);margin-bottom:1.5rem">
-                <span>@(possCasa)%</span>
-                <span>@(possVis)%</span>
-            </div>
-
-            @foreach (var (label, chave) in metricasEstatisticas)
-            {
-                var valCasaStr = PegarStat(statsCasa, chave);
-                var valVisStr = PegarStat(statsVis, chave);
-                var valCasaNum = PegarStatNumero(statsCasa, chave);
-                var valVisNum = PegarStatNumero(statsVis, chave);
-                var total = valCasaNum + valVisNum;
-                var pctCasa = total > 0 ? (valCasaNum / total * 100) : 50;
-                var pctVis = 100 - pctCasa;
-
-                <div style="margin-bottom:1rem;">
-                    <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text);margin-bottom:4px">
-                        <span style="font-weight:700;">@valCasaStr</span>
-                        <span style="color:var(--text-muted)">@label</span>
-                        <span style="font-weight:700;">@valVisStr</span>
+            @* Posse: a única métrica que soma 100, por isso a barra dividida *@
+            <div class="est-posse">
+                <span class="est-posse-num">@(possInformada ? $"{possCasa}%" : "–")</span>
+                <div class="est-posse-meio">
+                    <div class="est-posse-barra" role="img"
+                         aria-label="Posse de bola: @Model.Jogo.TimeCasa?.Nome @(possCasa)%, @Model.Jogo.TimeVisitante?.Nome @(possVis)%">
+                        <span class="casa" style="width:@(Coord(possCasa))%"></span>
+                        <span class="vis" style="width:@(Coord(possVis))%"></span>
                     </div>
-                    <div style="display:flex;align-items:center;height:8px;border-radius:5px;overflow:hidden;background:var(--p-3)">
-                        <div style="height:100%;background:#dc2626;width:@(Coord(pctCasa))%;"></div>
-                        <div style="height:100%;background:#2563eb;width:@(Coord(pctVis))%;"></div>
-                    </div>
+                    <span class="est-posse-rot">Posse de bola@(possInformada ? "" : " (não informada)")</span>
                 </div>
-            }
+                <span class="est-posse-num">@(possInformada ? $"{possVis}%" : "–")</span>
+            </div>
+
+            <div class="est-grupos">
+                @foreach (var (tituloGrupo, chavesGrupo) in gruposEstatisticas)
+                {
+                    var metricasGrupo = metricasEstatisticas.Where(m => chavesGrupo.Contains(m.chave)).ToList();
+                    if (metricasGrupo.Count == 0) { continue; }
+                    <section class="est-grupo">
+                        <h3 class="est-grupo-titulo">@tituloGrupo</h3>
+                        @foreach (var (label, chave) in metricasGrupo)
+                        {
+                            var valCasaStr = PegarStat(statsCasa, chave);
+                            var valVisStr = PegarStat(statsVis, chave);
+                            var valCasaNum = PegarStatNumero(statsCasa, chave);
+                            var valVisNum = PegarStatNumero(statsVis, chave);
+                            // Borboleta: cada lado cresce do centro, proporcional ao maior
+                            // dos dois. Quem tem o número maior fica destacado.
+                            var maior = Math.Max(valCasaNum, valVisNum);
+                            var largCasa = maior > 0 ? valCasaNum / maior * 100 : 0;
+                            var largVis = maior > 0 ? valVisNum / maior * 100 : 0;
+                            var lider = valCasaNum > valVisNum ? "casa" : valVisNum > valCasaNum ? "vis" : "";
+
+                            <div class="est-linha @(lider != "" ? "lider-" + lider : "")">
+                                <span class="est-val casa">@valCasaStr</span>
+                                <span class="est-rot">@label</span>
+                                <span class="est-val vis">@valVisStr</span>
+                                <div class="est-barras" aria-hidden="true">
+                                    <span class="casa"><i style="width:@(Coord(largCasa))%"></i></span>
+                                    <span class="vis"><i style="width:@(Coord(largVis))%"></i></span>
+                                </div>
+                            </div>
+                        }
+                    </section>
+                }
+            </div>
         }
     </div>
 </div>
@@ -1670,48 +1819,62 @@
 
 
 <!-- ── Modal Últimos Confrontos (H2H) ─────────────────────────────────── -->
-<div id="modal-h2h" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:10000; align-items:center; justify-content:center;">
-    <div style="background:#1e293b; border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:1.4rem; width:480px; max-width:96vw; max-height:88vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,.5);">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-            <h5 style="margin:0; color:#f2f5fa; font-size:15px; font-weight:700">⚔️ Últimos confrontos</h5>
-            <button onclick="fecharH2H()" style="background:none;border:none;color:rgba(255,255,255,.65);font-size:22px;cursor:pointer;line-height:1">&times;</button>
+<div id="modal-h2h" class="pj-modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="h2h-titulo">
+    <div class="pj-box pj-box-curto h2h-box">
+        <div class="pj-topo">
+            <div class="pj-topo-txt">
+                <h2 id="h2h-titulo" class="pj-titulo">Últimos confrontos</h2>
+                <div class="pj-sub">@Model.Jogo.TimeCasa.Nome x @Model.Jogo.TimeVisitante.Nome, os cinco mais recentes antes desta partida</div>
+            </div>
+            <div class="pj-topo-acoes">
+                <button type="button" class="pj-fechar" onclick="fecharH2H()" aria-label="Fechar os últimos confrontos" title="Fechar">&times;</button>
+            </div>
         </div>
-        <div id="h2h-corpo">
-            <div style="text-align:center; color:rgba(255,255,255,.6); padding:2rem 0">Carregando...</div>
+        <div class="pj-corpo" id="h2h-corpo">
+            <div class="pj-carregando">Carregando...</div>
         </div>
     </div>
 </div>
 
 
 
-<!-- ── Modal Pré-jogo ─────────────────────────────────────────────────── -->
-<div id="modal-prejogo" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:10000; align-items:center; justify-content:center;">
-    <div id="prejogo-box" style="background:#0f1b2d; border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:1.4rem; width:780px; max-width:96vw; max-height:90vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,.5); transition:width .2s;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem;">
-            <h5 style="margin:0; color:#f2f5fa; font-size:15px; font-weight:700">🔍 Pré-jogo</h5>
-            <div style="display:flex; align-items:center; gap:.4rem;">
-                <button type="button" id="pj-btn-maximizar" onclick="alternarMaximizarPreJogo()" title="Maximizar (tela cheia)"
-                        style="background:none;border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.65);font-size:14px;line-height:1;padding:.25rem .45rem;border-radius:6px;cursor:pointer">⛶</button>
-                <button onclick="fecharPreJogo()" style="background:none;border:none;color:rgba(255,255,255,.65);font-size:22px;cursor:pointer;line-height:1">&times;</button>
+<!-- ── Modal Pré-jogo ─────────────────────────────────────────────────
+     Largura e altura fixas para as quatro abas: trocar de aba não faz o modal
+     pular de tamanho (o Tela cheia continua para o match-up). -->
+<div id="modal-prejogo" class="pj-modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="pj-titulo">
+    <div id="prejogo-box" class="pj-box">
+        <div class="pj-topo">
+            <div class="pj-topo-txt">
+                <h2 id="pj-titulo" class="pj-titulo">Pré-jogo</h2>
+                <div class="pj-sub">
+                    @Model.Jogo.TimeCasa.Nome x @Model.Jogo.TimeVisitante.Nome@(string.IsNullOrEmpty(Model.Jogo.Competicao?.Nome) ? "" : ", " + Model.Jogo.Competicao.Nome)@(Model.Jogo.Rodada > 0 ? $", rodada {Model.Jogo.Rodada}" : "")
+                </div>
+            </div>
+            <div class="pj-topo-acoes">
+                <button type="button" id="pj-btn-maximizar" class="pj-btn" onclick="alternarMaximizarPreJogo()"
+                        title="Ocupar a tela inteira" aria-pressed="false">Tela cheia</button>
+                <button type="button" class="pj-fechar" onclick="fecharPreJogo()" aria-label="Fechar o pré-jogo" title="Fechar">&times;</button>
             </div>
         </div>
-        <div class="pj-tabs">
-            <button type="button" id="pj-tab-resumo" class="pj-tab active" onclick="mostrarAbaPreJogo('resumo')">📋 Resumo</button>
-            <button type="button" id="pj-tab-matchup" class="pj-tab" onclick="mostrarAbaPreJogo('matchup')">⚔️ Match-up</button>
-            <button type="button" id="pj-tab-indisp" class="pj-tab" onclick="mostrarAbaPreJogo('indisp')">🚑 Indisponíveis</button>
-            <button type="button" id="pj-tab-momento" class="pj-tab" onclick="mostrarAbaPreJogo('momento')">📈 Momento</button>
+        <div class="pj-tabs" role="tablist">
+            <button type="button" id="pj-tab-resumo" class="pj-tab active" role="tab" aria-selected="true" onclick="mostrarAbaPreJogo('resumo')">Resumo</button>
+            <button type="button" id="pj-tab-matchup" class="pj-tab" role="tab" aria-selected="false" onclick="mostrarAbaPreJogo('matchup')">Match-up</button>
+            <button type="button" id="pj-tab-indisp" class="pj-tab" role="tab" aria-selected="false" onclick="mostrarAbaPreJogo('indisp')">Desfalques</button>
+            <button type="button" id="pj-tab-momento" class="pj-tab" role="tab" aria-selected="false" onclick="mostrarAbaPreJogo('momento')">Momento</button>
         </div>
-        <div id="prejogo-corpo">
-            <div style="text-align:center; color:rgba(255,255,255,.6); padding:2rem 0">Carregando...</div>
-        </div>
-        <div id="prejogo-matchup" style="display:none;">
-            <div style="text-align:center; color:rgba(255,255,255,.6); padding:2rem 0">Carregando...</div>
-        </div>
-        <div id="prejogo-indisp" style="display:none;">
-            <div style="text-align:center; color:rgba(255,255,255,.6); padding:2rem 0">Carregando...</div>
-        </div>
-        <div id="prejogo-momento" style="display:none;">
-            <div style="text-align:center; color:rgba(255,255,255,.6); padding:2rem 0">Carregando...</div>
+        <div class="pj-corpo">
+            <div id="prejogo-corpo">
+                <div class="pj-carregando">Carregando...</div>
+            </div>
+            <div id="prejogo-matchup" style="display:none;">
+                <div class="pj-carregando">Carregando...</div>
+            </div>
+            <div id="prejogo-indisp" style="display:none;">
+                <div class="pj-carregando">Carregando...</div>
+            </div>
+            <div id="prejogo-momento" style="display:none;">
+                <div class="pj-carregando">Carregando...</div>
+            </div>
         </div>
     </div>
 </div>
@@ -1802,11 +1965,11 @@
 </div>
 
 <!-- ── Modal Pós-jogo ─────────────────────────────────────────────────── -->
-<div id="modal-posjogo" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:10000; align-items:center; justify-content:center;">
-    <div style="background:var(--p-0); border:1px solid rgba(255,255,255,.12); border-radius:16px; width:1140px; max-width:97vw; max-height:93vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,.5); position:relative">
-        <button onclick="fecharPosJogo()" style="position:absolute; top:14px; right:16px; z-index:5; background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.15); color:var(--text-strong); font-size:18px; width:30px; height:30px; border-radius:50%; cursor:pointer; line-height:1">&times;</button>
+<div id="modal-posjogo" class="pgj-modal" style="display:none;" role="dialog" aria-modal="true" aria-label="Pós-jogo">
+    <div class="pgj-box">
+        <button type="button" class="pgj-fechar" onclick="fecharPosJogo()" aria-label="Fechar o pós-jogo" title="Fechar">&times;</button>
         <div id="posjogo-corpo">
-            <div style="text-align:center; color:var(--text-muted); padding:3rem 0">Carregando...</div>
+            <div class="pgj-carregando">Carregando...</div>
         </div>
     </div>
 </div>
@@ -1826,6 +1989,9 @@
        tela e pelo do campo do Match-up. *@
     <script src="~/js/jogador-tooltip.js" asp-append-version="true"></script>
     <script src="~/js/matchup.js" asp-append-version="true"></script>
+    @* abertura-jogo.js antes de analisar.js: o 📺 Transmissão chama
+       window.AberturaJogo ao entrar no modo. *@
+    <script src="~/js/abertura-jogo.js" asp-append-version="true"></script>
     <script src="~/js/analisar.js" asp-append-version="true"></script>
 }
 

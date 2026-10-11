@@ -185,6 +185,11 @@ namespace ControleFutebolWeb.Services
             // Nosso cadastro diz "Holandês"; o futnatv diz "Neerlandês".
             new[] { "campeonato holandes", "eredivisie", "campeonato neerlandes" },
             new[] { "copa do mundo", "copa do mundo fifa" },
+            // O futnatv separa a Nations League por liga ("UEFA Nations League - A" ... "- D"),
+            // e o nosso cadastro guarda uma competição só. A "CONCACAF Nations League" não
+            // entra no grupo e continua sem casar.
+            new[] { "uefa nations league", "uefa nations league a", "uefa nations league b",
+                    "uefa nations league c", "uefa nations league d", "liga das nacoes", "liga das nacoes uefa" },
         };
 
         // Letras que NÃO são "letra + acento" em Unicode e por isso sobrevivem ao FormD:

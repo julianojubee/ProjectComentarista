@@ -1,36 +1,52 @@
-﻿@using ControleFutebolWeb.Helpers
+@using ControleFutebolWeb.Helpers
 @model ControleFutebolWeb.Models.Jogador
-
-<h2>Excluir Jogador</h2>
-
-<div>
-    <h4>Você tem certeza que deseja excluir este jogador?</h4>
-    <dl class="row">
-        <dt class="col-sm-2">Nome</dt>
-        <dd class="col-sm-10">@Model.Nome</dd>
-        <dt class="col-sm-2">Posição</dt>
-        <dd class="col-sm-10">@PosicaoJogadorHelper.Sigla(Model.Posicao)</dd>
-        <dt class="col-sm-2">Número</dt>
-        <dd class="col-sm-10">@Model.NumeroCamisa</dd>
-        <dt class="col-sm-2">Time</dt>
-        <dd class="col-sm-10">
-            @if (Model.Time != null)
-            {
-                <a asp-controller="Times" asp-action="Details" asp-route-id="@Model.TimeId">@Model.Time.Nome</a>
-            }
-        </dd>
-    </dl>
-</div>
-
 @{
+    ViewData["Title"] = $"Excluir {Model.Nome}";
     // Preserva os filtros da listagem de origem ao excluir/cancelar.
     var returnUrl = ViewData["ReturnUrl"] as string;
+    var voltar = string.IsNullOrEmpty(returnUrl) ? Url.Action("Estatisticas", new { id = Model.Id }) : returnUrl;
 }
 
-<form asp-action="Delete" method="post">
-    @Html.AntiForgeryToken()
-    <input type="hidden" asp-for="Id" />
-    <input type="hidden" name="returnUrl" value="@returnUrl" />
-    <input type="submit" value="Excluir" class="btn btn-danger" />
-    <a href="@(string.IsNullOrEmpty(returnUrl) ? Url.Action("Index") : returnUrl)" class="btn btn-secondary">Cancelar</a>
-</form>
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/form-card.css" asp-append-version="true" />
+
+<div class="af">
+    <div class="af-card">
+        <a href="@Url.Action("Estatisticas", new { id = Model.Id })" class="af-voltar">@Model.Nome</a>
+        <h1 class="af-title">Excluir jogador</h1>
+
+        @if (TempData["Erro"] != null)
+        {
+            <div class="af-alerta" role="alert">@TempData["Erro"]</div>
+        }
+
+        <div class="af-alerta">
+            O cadastro de <strong>@Model.Nome</strong> será apagado. Essa ação não pode ser desfeita.
+        </div>
+
+        <div class="af-resumo">
+            <img src="@(Url.FotoSrc(Model.FotoUrl) ?? Url.Content("~/images/placeholder-treinador.png"))" alt="" />
+            <div>
+                <div class="af-resumo-nome">@Model.Nome</div>
+                <div class="af-resumo-meta">
+                    @string.Join(", ", new[]
+                    {
+                        PosicaoJogadorHelper.Sigla(Model.Posicao),
+                        Model.NumeroCamisa.HasValue ? $"camisa {Model.NumeroCamisa}" : null,
+                        Model.Time?.Nome,
+                        Model.Nacionalidade?.Nome
+                    }.Where(x => !string.IsNullOrWhiteSpace(x)))
+                </div>
+            </div>
+        </div>
+
+        <form asp-action="Delete" method="post">
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" name="returnUrl" value="@returnUrl" />
+            <div class="af-actions">
+                <button type="submit" class="af-danger">Excluir jogador</button>
+                <a href="@voltar" class="af-cancel">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>

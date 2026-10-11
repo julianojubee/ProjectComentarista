@@ -28,6 +28,10 @@ namespace ControleFutebolWeb.Models.ViewModels
         public int TotalAgendados => TotalJogos - TotalFinalizados;
         public int PageSize { get; set; } = 50;
 
+        // A página foi escolhida pelo servidor para mostrar hoje (sem ?page na URL):
+        // a tela rola até o dia de hoje, já que jogos futuros vêm antes na lista.
+        public bool AbriuEmHoje { get; set; }
+
         // Filtros atuais (para preservar nos links de paginação)
         public int? TeamIdFiltro { get; set; }
         public string? LocationFiltro { get; set; }

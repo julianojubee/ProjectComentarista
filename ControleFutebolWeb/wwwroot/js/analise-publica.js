@@ -12,7 +12,7 @@ var AP_TOKEN = AP_CFG.token || '';
 
 // Ordem das abas — a mesma dos botões montados em painel-jogo.js. Serve para o
 // atalho numérico (1-4) e para o vai-e-vem com as setas no modo apresentação.
-var AP_ABAS = ['notas', 'campo', 'stats', 'obs'];
+var AP_ABAS = ['notas', 'campo', 'stats', 'curio', 'obs'];
 var AP_ABA_ATUAL = AP_ABAS.indexOf(AP_CFG.abaInicial) >= 0 ? AP_CFG.abaInicial : 'notas';
 
 // Nome global esperado pelos botões de aba montados em painel-jogo.js.
@@ -45,11 +45,7 @@ async function abrirPreJogoPublico() {
     try {
         var resp = await fetch('/analise/' + encodeURIComponent(AP_TOKEN) + '/prejogo');
         if (!resp.ok) throw new Error();
-        var dados = await resp.json();
-        corpo.innerHTML = '<div class="pj-grid">' +
-            PainelJogo.colunaPreJogo(dados.casa, 'casa') +
-            PainelJogo.colunaPreJogo(dados.visitante, 'vis') +
-        '</div>';
+        corpo.innerHTML = PainelJogo.resumoPreJogo(await resp.json());
     } catch (e) {
         corpo.innerHTML = '<div style="color:#f87171; text-align:center; padding:1rem;">Erro ao carregar dados do pré-jogo.</div>';
     }

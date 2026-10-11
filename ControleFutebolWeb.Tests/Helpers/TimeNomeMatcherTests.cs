@@ -19,6 +19,8 @@ namespace ControleFutebolWeb.Tests.Helpers
         [InlineData("Champions League", "Pré-Champions League")] // fase preliminar, mesma competição pra nós
         [InlineData("La Liga", "Campeonato Espanhol")]
         [InlineData("Campeonato Holandês", "Campeonato Neerlandês")]
+        [InlineData("UEFA Nations League", "UEFA Nations League - A")]
+        [InlineData("UEFA Nations League", "UEFA Nations League - D")]
         public void CompeticoesEquivalentes_Correspondem(string nomeBanco, string nomeFutnatv)
         {
             Assert.True(TimeNomeMatcher.SaoMesmaCompeticao(nomeBanco, nomeFutnatv));
@@ -32,6 +34,7 @@ namespace ControleFutebolWeb.Tests.Helpers
         [InlineData("Premier League", "Copa da Liga Inglesa")]
         [InlineData("La Liga", "Campeonato Espanhol (2ª div.)")]
         [InlineData("Campeonato Holandês", "Campeonato Neerlandês (2ª div.)")]
+        [InlineData("UEFA Nations League", "CONCACAF Nations League")]
         public void CompeticoesDiferentes_NaoCorrespondem(string nomeBanco, string nomeFutnatv)
         {
             Assert.False(TimeNomeMatcher.SaoMesmaCompeticao(nomeBanco, nomeFutnatv));

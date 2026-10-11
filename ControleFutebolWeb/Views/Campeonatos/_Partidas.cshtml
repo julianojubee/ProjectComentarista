@@ -4,93 +4,69 @@
 @{
     var soLeitura = ViewData["SoLeitura"] as bool? == true;
     var c = Model.Campeonato;
-    var fasesMataMata = c.Fases.Where(f => f.Tipo == "MATA_MATA").Select(f => f.Id).ToHashSet();
     var rodadas = c.Partidas.OrderBy(p => p.Rodada).ThenBy(p => p.Grupo).ThenBy(p => p.ChaveOrdem).ThenBy(p => p.Id)
         .GroupBy(p => p.Rodada).ToList();
+    var pendentes = c.Partidas.Count(p => !(p.PlacarCasa.HasValue && p.PlacarVisitante.HasValue));
+    var jogadas = c.Partidas.Count - pendentes;
+    // O dono abre nas pendentes (é onde lança placar); o público vê tudo
+    var comecaPendentes = !soLeitura && pendentes > 0 && jogadas > 0;
 }
 
 @if (!rodadas.Any())
 {
-    <div class="cp-vazio"><span class="icone">⚽</span>Nenhuma partida gerada ainda.</div>
+    <div class="cp-vazio">Nenhuma partida gerada ainda.</div>
 }
-
-@foreach (var rodada in rodadas)
+else
 {
-    <div class="cp-rodada">
-        <h3 class="cp-rodada-titulo">Rodada @rodada.Key</h3>
-        @foreach (var p in rodada)
-        {
-            var aberta = p.ParticipanteCasaId == null || p.ParticipanteVisitanteId == null;
-            var mataMata = p.FaseId != null && fasesMataMata.Contains(p.FaseId.Value);
-            var nomeCasa = Model.NomeDe(p.ParticipanteCasaId);
-            var nomeVis = Model.NomeDe(p.ParticipanteVisitanteId);
+    @if (pendentes > 0 && jogadas > 0)
+    {
+        <div class="cp-filtro" role="group" aria-label="Mostrar partidas">
+            <button type="button" data-filtro="pendentes" aria-pressed="@(comecaPendentes ? "true" : "false")">Pendentes <span>@pendentes</span></button>
+            <button type="button" data-filtro="todas" aria-pressed="@(comecaPendentes ? "false" : "true")">Todas <span>@c.Partidas.Count</span></button>
+        </div>
+    }
 
-            <form class="cp-partida" id="partida-@p.Id" method="post"
-                  action="@(soLeitura ? null : Url.Action("SalvarPlacar", "Campeonatos", new { id = c.Id }))">
-                @if (!soLeitura)
+    <div class="cp-partidas @(comecaPendentes ? "so-pendentes" : "")" id="cpPartidas">
+        @foreach (var rodada in rodadas)
+        {
+            <section class="cp-rodada">
+                <h3 class="cp-rodada-titulo">Rodada @rodada.Key</h3>
+                @foreach (var p in rodada)
                 {
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="partidaId" value="@p.Id" />
+                    @await Html.PartialAsync("~/Views/Campeonatos/_Partida.cshtml", (Model, p, soLeitura, false, (string?)null))
                 }
-                <div class="cp-lado casa @(p.ParticipanteCasaId == null ? "aberto" : "")">
-                    <span>@nomeCasa</span>
-                    @await Html.PartialAsync("~/Views/Campeonatos/_Escudo.cshtml", (Model.EscudoDe(p.ParticipanteCasaId), nomeCasa, (string?)null))
-                </div>
-                <div class="cp-placar">
-                    @if (soLeitura || aberta)
-                    {
-                        <span class="fixo">@(p.PlacarCasa?.ToString() ?? "–")</span>
-                        <span class="x">×</span>
-                        <span class="fixo">@(p.PlacarVisitante?.ToString() ?? "–")</span>
-                    }
-                    else
-                    {
-                        <input type="number" name="placarCasa" min="0" max="99" value="@p.PlacarCasa" aria-label="Gols de @nomeCasa" />
-                        <span class="x">×</span>
-                        <input type="number" name="placarVisitante" min="0" max="99" value="@p.PlacarVisitante" aria-label="Gols de @nomeVis" />
-                    }
-                </div>
-                <div class="cp-lado @(p.ParticipanteVisitanteId == null ? "aberto" : "")">
-                    @await Html.PartialAsync("~/Views/Campeonatos/_Escudo.cshtml", (Model.EscudoDe(p.ParticipanteVisitanteId), nomeVis, (string?)null))
-                    <span>@nomeVis</span>
-                </div>
-                @if (!soLeitura)
-                {
-                    <div class="cp-partida-acoes">
-                        @if (!aberta)
-                        {
-                            <button type="submit" class="cp-btn mini ouro">Salvar</button>
-                            <a class="cp-btn mini" asp-action="Sumula" asp-controller="Campeonatos" asp-route-id="@c.Id" asp-route-partidaId="@p.Id">Súmula@(p.Eventos.Any() ? $" ({p.Eventos.Count})" : "")</a>
-                        }
-                    </div>
-                }
-                @if (mataMata || p.Grupo != null)
-                {
-                    <div class="cp-penaltis">
-                        @if (p.Grupo != null)
-                        {
-                            <span class="cp-etapa">@p.Grupo</span>
-                        }
-                        @if (mataMata && !aberta)
-                        {
-                            if (soLeitura)
-                            {
-                                if (p.PenaltisCasa != null)
-                                {
-                                    <span>Pênaltis: @p.PenaltisCasa × @p.PenaltisVisitante</span>
-                                }
-                            }
-                            else
-                            {
-                                <span>Pênaltis:</span>
-                                <input type="number" name="penaltisCasa" min="0" max="99" value="@p.PenaltisCasa" aria-label="Pênaltis de @nomeCasa" />
-                                <span>×</span>
-                                <input type="number" name="penaltisVisitante" min="0" max="99" value="@p.PenaltisVisitante" aria-label="Pênaltis de @nomeVis" />
-                            }
-                        }
-                    </div>
-                }
-            </form>
+            </section>
         }
     </div>
+
+    <script>
+        (function () {
+            var lista = document.getElementById('cpPartidas');
+            var botoes = document.querySelectorAll('.cp-filtro [data-filtro]');
+
+            // Esconde a rodada inteira quando todas as partidas dela estão escondidas
+            function rodadas() {
+                lista.querySelectorAll('.cp-rodada').forEach(function (r) {
+                    var visivel = Array.prototype.some.call(r.querySelectorAll('.cp-partida'), function (p) { return p.offsetParent !== null; });
+                    r.hidden = !visivel;
+                });
+            }
+            function filtrar(tipo) {
+                lista.classList.toggle('so-pendentes', tipo === 'pendentes');
+                botoes.forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.filtro === tipo ? 'true' : 'false'); });
+                lista.querySelectorAll('.cp-rodada').forEach(function (r) { r.hidden = false; });
+                rodadas();
+            }
+            botoes.forEach(function (b) { b.addEventListener('click', function () { filtrar(b.dataset.filtro); }); });
+
+            // Voltando de um "Salvar", a partida do #âncora já está jogada: mostra todas
+            var alvo = location.hash ? document.getElementById(location.hash.slice(1)) : null;
+            if (alvo && alvo.classList.contains('jogada') && lista.classList.contains('so-pendentes')) {
+                filtrar('todas');
+                alvo.scrollIntoView({ block: 'center' });
+            } else {
+                rodadas();
+            }
+        })();
+    </script>
 }

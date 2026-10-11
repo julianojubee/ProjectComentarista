@@ -2,7 +2,7 @@
 
 @if (!Model.Artilharia.Any())
 {
-    <div class="cp-vazio"><span class="icone">🥅</span>Nenhum gol ou cartão lançado nas súmulas ainda.</div>
+    <div class="cp-vazio">Nenhum gol ou cartão lançado ainda. Eles entram pela súmula de cada partida.</div>
 }
 else
 {
@@ -13,10 +13,10 @@ else
                     <th>#</th>
                     <th class="esq">Jogador</th>
                     <th class="esq">Por</th>
-                    <th title="Gols">⚽</th>
-                    <th title="Assistências">👟</th>
-                    <th title="Cartões amarelos">🟨</th>
-                    <th title="Cartões vermelhos">🟥</th>
+                    <th>Gols</th>
+                    <th><abbr title="Assistências">Assist.</abbr></th>
+                    <th>Amarelos</th>
+                    <th>Vermelhos</th>
                 </tr>
             </thead>
             <tbody>
@@ -25,7 +25,7 @@ else
                 {
                     i++;
                     <tr>
-                        <td>@i</td>
+                        <td class="@(i <= 3 && a.Gols > 0 ? "cp-pos-top" : "")">@i</td>
                         <td class="esq"><strong>@a.Nome</strong></td>
                         <td class="esq" style="color:var(--text-dim)">@Model.NomeDe(a.ParticipanteId)</td>
                         <td class="destaque">@a.Gols</td>

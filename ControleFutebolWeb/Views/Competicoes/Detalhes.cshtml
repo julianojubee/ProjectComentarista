@@ -77,8 +77,19 @@
     var corPadrao = accent;
     var corCustom = capa?.Cor is string c && System.Text.RegularExpressions.Regex.IsMatch(c, "^#[0-9a-fA-F]{6}$") ? c : null;
     if (corCustom != null) accent = corCustom;
+
+    // Zonas configuradas em Competicoes/Edit: vão para a tabela geral (ou, sem ela, para
+    // as tabelas das fases de liga). O playoff de uma liga com zona de playoff
+    // configurada é o de rebaixamento — a aba diz isso em vez de "Playoffs".
+    var vdZonas = new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary(ViewData) { ["Zonas"] = Model.Competicao };
+    var rotuloPlayoff = Model.Competicao.ZonaPlayoffVagas is > 0 ? "Playoff de rebaixamento" : "Playoffs";
+    var tipoLabelMinusculo = tipoLabel.Length > 0 ? char.ToLowerInvariant(tipoLabel[0]) + tipoLabel[1..].ToLowerInvariant() : "";
+    // Artilheiros e assistências já ficam ao lado da tabela; o painel de playoffs só os
+    // repete quando ele é o principal (competição sem tabela de pontos).
+    var temPainelClassif = temTabelaGeral || (!temFases && tipoNorm != "GRUPOS" && tipoNorm != "MATA_MATA" && !ehJogoUnico);
 }
 
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
 <style>
     .cd-root, .cd-root *, .cd-root *::before, .cd-root *::after { box-sizing: border-box; }
     .cd-root { margin: 0 -12px; background: var(--p-0); border-radius: 14px; overflow: hidden; color: var(--text); font-family: 'Barlow', Arial, sans-serif; }
@@ -113,20 +124,22 @@
     .cd-hero-icon img { width: 78%; height: 78%; object-fit: contain; }
     .cd-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
     .cd-kicker-line { height: 2px; width: 24px; background: @accent; }
-    .cd-kicker span { font-size: .65rem; font-weight: 700; letter-spacing: .24em; color: @accent; text-transform: uppercase; }
+    .cd-kicker span { font-size: .9rem; font-weight: 600; color: @accent; }
     .cd-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3rem; font-weight: 800; color: var(--text-strong); margin: 0 0 6px; line-height: 1; }
     .cd-hero-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
     .cd-hero-temporada { display: flex; align-items: center; gap: 6px; }
     .cd-hero-temporada select { appearance: none; padding: 5px 10px; border-radius: 7px; border: 1px solid var(--line-strong); background: var(--p-2); color: var(--text-muted); font-size: .8rem; font-weight: 600; cursor: pointer; }
-    .cd-pill { font-size: .75rem; padding: 4px 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; color: var(--text-muted); font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
-    .cd-pill:hover { border-color: @accent; color: @accent; }
-    .cd-pill-accent { background: @(accent)1a; border-color: @(accent)48; color: @accent; }
-    .cd-pill-accent:hover { background: @(accent)33; }
+    /* .cd-root .cd-pill (e não só .cd-pill): ".cd-root a { color: inherit }" vencia e os
+       links do hero herdavam o texto escuro do tema claro sobre o fundo escuro. */
+    .cd-root .cd-pill { font-family: inherit; font-size: .82rem; padding: 6px 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.16); border-radius: 8px; color: #e7e5df; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+    .cd-root .cd-pill:hover { border-color: @accent; color: #fff; }
+    .cd-root .cd-pill-accent { background: @(accent)1a; border-color: @(accent)70; }
+    .cd-root .cd-pill-accent:hover { background: @(accent)33; }
 
     .cd-stats { display: flex; gap: 20px; flex-shrink: 0; padding: 14px 20px; background: rgba(0,0,0,0.3); border: 1px solid @(accent)4d; border-radius: 10px; margin-left: auto; }
     .cd-stat { text-align: center; }
     .cd-stat .val { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.6rem; font-weight: 800; color: @accent; line-height: 1; }
-    .cd-stat .lbl { font-size: .58rem; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: .08em; margin-top: 2px; }
+    .cd-stat .lbl { font-size: .78rem; color: rgba(255,255,255,.72); margin-top: 2px; }
     .cd-stat-sep { width: 1px; background: @(accent)4d; align-self: stretch; }
 
     /* ── Tabs ── */
@@ -142,38 +155,35 @@
     /* ── Tabela classificação ── */
     .cd-tablewrap { background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
     .cd-cols { display: grid; grid-template-columns: 4px 36px 28px 1fr 36px 36px 36px 36px 36px 44px 60px 80px; gap: 4px; padding: 10px 14px; padding-left: 0; background: var(--p-0); border-bottom: 1px solid var(--line-soft); align-items: center; }
-    .cd-cols span { font-size: .58rem; color: #374151; font-weight: 700; text-transform: uppercase; text-align: center; }
+    .cd-cols span { font-size: .75rem; color: var(--text-muted); font-weight: 600; text-align: center; }
     .cd-cols span.left { text-align: left; }
     .cd-row { display: grid; grid-template-columns: 4px 36px 28px 1fr 36px 36px 36px 36px 36px 44px 60px 80px; gap: 4px; padding: 9px 14px; padding-left: 0; border-bottom: 1px solid var(--line-soft); align-items: center; transition: background .12s; }
     .cd-row:last-child { border-bottom: none; }
     .cd-row:hover { background: var(--p-2); }
     .cd-zonebar { width: 4px; height: 100%; align-self: stretch; flex-shrink: 0; }
-    .cd-pos { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1rem; font-weight: 700; text-align: center; }
+    .cd-pos { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1rem; font-weight: 700; text-align: center; color: var(--text-muted); }
     .cd-escudo { width: 26px; height: 26px; border-radius: 50%; background: var(--p-0); border: 1px solid var(--line-strong); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
     .cd-escudo img { width: 90%; height: 90%; object-fit: contain; }
     .cd-nome { font-size: .86rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
     .cd-nome:hover { text-decoration: underline; }
     .cd-cell { font-size: .8rem; color: var(--text-muted); text-align: center; }
-    .cd-cell.v { color: var(--ok-2); font-weight: 600; }
-    .cd-cell.e { color: var(--warn); }
-    .cd-cell.d { color: var(--bad-2); }
     .cd-sg { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .88rem; font-weight: 700; text-align: center; }
     .cd-aprov { display: flex; flex-direction: column; gap: 2px; align-items: center; }
     .cd-aprov span { font-size: .72rem; color: var(--text-muted); font-weight: 600; }
     .cd-aprov-bar { width: 40px; height: 3px; background: var(--p-3); border-radius: 2px; overflow: hidden; }
-    .cd-aprov-bar div { height: 100%; border-radius: 2px; }
+    .cd-aprov-bar div { height: 100%; border-radius: 2px; background: #d4a520; opacity: .7; }
     .cd-pts { display: flex; align-items: center; justify-content: center; }
     .cd-pts span { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.05rem; font-weight: 900; padding: 2px 8px; border-radius: 6px; }
     .cd-legend { padding: 10px 18px; background: var(--p-0); border-top: 1px solid var(--line-soft); display: flex; gap: 14px; flex-wrap: wrap; }
     .cd-legend-item { display: flex; align-items: center; gap: 5px; }
     .cd-legend-dot { width: 10px; height: 3px; border-radius: 2px; }
-    .cd-legend-item span { font-size: .62rem; color: var(--text-dimmer); font-weight: 600; }
+    .cd-legend-item span { font-size: .8rem; color: var(--text-muted); font-weight: 600; }
 
     /* ── Sidebar ── */
     .cd-sidebar { display: flex; flex-direction: column; gap: 16px; }
     .cd-side-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
     .cd-side-header { padding: 12px 16px; background: var(--p-0); border-bottom: 1px solid var(--line-soft); }
-    .cd-side-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .88rem; font-weight: 700; color: var(--text-strong); text-transform: uppercase; }
+    .cd-side-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.1rem; font-weight: 700; color: var(--text-strong); }
     .cd-mini-jogo { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-bottom: 1px solid var(--line-soft); }
     .cd-mini-jogo:last-child { border-bottom: none; }
     .cd-mini-jogo:hover { background: var(--p-3); }
@@ -206,7 +216,7 @@
     .cd-grupo-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
     .cd-grupo-header { padding: 12px 16px; background: var(--p-0); border-bottom: 1px solid var(--line-soft); display: flex; align-items: center; gap: 10px; }
     .cd-grupo-letra { min-width: 28px; height: 28px; padding: 0 6px; border-radius: 8px; background: @(accent)26; border: 1px solid @(accent)4d; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .9rem; font-weight: 800; color: @accent; white-space: nowrap; flex-shrink: 0; }
-    .cd-grupo-nome { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .9rem; font-weight: 700; color: var(--text-strong); text-transform: uppercase; letter-spacing: .04em; }
+    .cd-grupo-nome { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .9rem; font-weight: 700; color: var(--text-strong); }
     .cd-grupo-cols { display: grid; grid-template-columns: 24px 28px 1fr 28px 28px 28px 28px 36px; gap: 4px; padding: 8px 14px; background: var(--p-0); border-bottom: 1px solid var(--line-soft); align-items: center; }
     .cd-grupo-cols span { font-size: .56rem; color: #374151; font-weight: 700; text-align: center; }
     .cd-grupo-row { display: grid; grid-template-columns: 24px 28px 1fr 28px 28px 28px 28px 36px; gap: 4px; padding: 9px 14px; border-bottom: 1px solid var(--line-soft); align-items: center; transition: background .12s; }
@@ -220,7 +230,7 @@
     .cd-mm-inner { display: flex; gap: 0; align-items: flex-start; min-width: max-content; }
     .cd-mm-fase-col { display: flex; gap: 0; align-items: flex-start; }
     .cd-mm-fase-wrap { width: 240px; flex-shrink: 0; }
-    .cd-mm-fase-nome { text-align: center; padding: 10px 0 16px; font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .82rem; font-weight: 800; color: @accent; text-transform: uppercase; letter-spacing: .1em; }
+    .cd-mm-fase-nome { text-align: center; padding: 10px 0 16px; font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1rem; font-weight: 800; color: @accent; }
     .cd-mm-confrontos { display: flex; flex-direction: column; gap: 12px; padding: 0 12px; }
     .cd-mm-confronto { background: var(--p-1); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; transition: border-color .15s; }
     .cd-mm-confronto:hover { border-color: var(--line); }
@@ -241,9 +251,9 @@
 
     /* ── Jogos (lista full-width) ── */
     .cd-jogos-wrap { background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
-    .cd-jogos-cols { display: grid; grid-template-columns: 90px 110px 1fr 100px 1fr 140px; gap: 12px; padding: 10px 16px; background: var(--p-0); border-bottom: 1px solid var(--line-soft); }
-    .cd-jogos-cols span { font-size: .6rem; color: #374151; font-weight: 700; text-transform: uppercase; }
-    .cd-jogo-row { display: grid; grid-template-columns: 90px 110px 1fr 100px 1fr 140px; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line-soft); align-items: center; transition: background .12s; }
+    .cd-jogos-cols { display: grid; grid-template-columns: 90px 150px 1fr 100px 1fr 120px; gap: 12px; padding: 10px 16px; background: var(--p-0); border-bottom: 1px solid var(--line-soft); }
+    .cd-jogos-cols span { font-size: .75rem; color: var(--text-muted); font-weight: 600; }
+    .cd-jogo-row { display: grid; grid-template-columns: 90px 150px 1fr 100px 1fr 120px; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line-soft); align-items: center; transition: background .12s; }
     .cd-jogo-row:last-child { border-bottom: none; }
     .cd-jogo-row:hover { background: var(--p-2); }
     .cd-jogo-row .data { font-size: .8rem; font-weight: 600; color: var(--text); }
@@ -259,8 +269,8 @@
     .cd-jogo-placar span { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.1rem; font-weight: 800; color: var(--text-strong); background: var(--p-0); padding: 2px 10px; border-radius: 6px; letter-spacing: .06em; }
     .cd-jogo-pen { font-size: .62rem; color: var(--text-dim); display: block; margin-top: 2px; text-align: center; }
     .cd-jogo-acao { display: flex; gap: 6px; justify-content: flex-end; }
-    .cd-btn-analisar { font-size: .68rem; padding: 4px 10px; background: transparent; border: 1px solid #3b82f6; border-radius: 6px; color: var(--info); font-weight: 700; }
-    .cd-btn-analisar:hover { background: rgba(59,130,246,0.1); }
+    .cd-root .cd-btn-analisar { font-size: .78rem; padding: 4px 10px; background: transparent; border: 1px solid var(--line-strong); border-radius: 6px; color: var(--text-2); font-weight: 600; }
+    .cd-root .cd-btn-analisar:hover { border-color: #d4a520; color: var(--gold-ink); }
 
     .cd-sem-dados { text-align: center; padding: 3rem 1rem; color: var(--text-dim); }
     .cd-sem-dados .icon { font-size: 2.5rem; margin-bottom: .8rem; }
@@ -282,7 +292,15 @@
         /* Tabelas em grid (colunas fixas): a área rolável fica dentro do card
            arredondado em vez de estourar/clipar contra o overflow:hidden do -root. */
         .cd-tablewrap, .cd-jogos-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        .cd-cols, .cd-row { min-width: 620px; }
+        /* Classificação no celular: o essencial cabe sem rolar (posição, clube, J, SG
+           e Pts — antes Pts ficava escondido atrás de uma rolagem lateral). "Ver todas
+           as colunas" (.completa) devolve V/E/D/GP/% com a rolagem. */
+        .cd-cols, .cd-row { grid-template-columns: 4px 26px 24px minmax(0, 1fr) 28px 40px 46px; }
+        .cd-tablewrap:not(.completa) .cd-opc { display: none; }
+        .cd-tablewrap.completa .cd-cols, .cd-tablewrap.completa .cd-row {
+            grid-template-columns: 4px 26px 24px 130px 32px 32px 32px 32px 32px 40px 56px 46px; min-width: 560px;
+        }
+        .cd-colunas-btn { display: block; }
         .cd-jogos-cols, .cd-jogo-row { min-width: 620px; }
 
         .cd-grupos-grid { gap: 14px; }
@@ -290,7 +308,40 @@
         .cd-grupo-cols, .cd-grupo-row { min-width: 320px; }
 
         .cd-mm-fase-wrap { width: 210px; }
+
+        /* Hero mais curto: contadores numa linha estreita, sem o degradê por cima */
+        .cd-hero-fade { display: none; }
+        .cd-stats { width: 100%; justify-content: space-around; }
+        .cd-hero-icon { width: 52px; height: 52px; }
     }
+
+    /* ── Tabela: saldo, pontos e botão de colunas ── */
+    .cd-sg.pos { color: var(--ok); }
+    .cd-sg.neg { color: var(--bad); }
+    .cd-pts span { color: var(--text-strong); }
+    .cd-pts span.lider { color: var(--gold-ink); background: rgba(212,165,32,0.14); }
+    .cd-desempate { display: block !important; font-size: .8rem; color: var(--text-dim); }
+    .cd-colunas-btn {
+        display: none; width: 100%; padding: 9px; border: none; border-top: 1px solid var(--line-soft);
+        background: var(--p-0); color: var(--gold-ink); font-family: inherit; font-size: .82rem; font-weight: 600; cursor: pointer;
+    }
+
+    /* ── Menu "Mais" do hero (editar, capa) ── */
+    .cd-mais { position: relative; }
+    .cd-mais > summary { list-style: none; }
+    .cd-mais > summary::-webkit-details-marker { display: none; }
+    .cd-mais:not([open]) .cd-mais-menu { display: none; }
+    .cd-mais-menu {
+        position: absolute; left: 0; top: calc(100% + 6px); z-index: 60; min-width: 200px;
+        display: flex; flex-direction: column; padding: 6px;
+        background: #1a1a1a; border: 1px solid #333; border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,.45);
+    }
+    .cd-root .cd-mais-menu .cd-pill { border: none; background: transparent; width: 100%; justify-content: flex-start; padding: 9px 10px; }
+    .cd-root .cd-mais-menu .cd-pill:hover { background: #262626; }
+    /* O menu aberto precisa escapar do hero (overflow: hidden) */
+    .cd-hero:has(.cd-mais[open]) { overflow: visible; z-index: 70; }
+
+    .cd-root :is(a, button, select, summary):focus-visible { outline: 2px solid #d4a520; outline-offset: 2px; }
 </style>
 
 <div class="cd-root">
@@ -333,7 +384,7 @@
             <div style="flex:1; min-width:220px;">
                 <div class="cd-kicker">
                     <div class="cd-kicker-line"></div>
-                    <span>@Model.Competicao.Regiao · @tipoLabel</span>
+                    <span>@(string.IsNullOrWhiteSpace(Model.Competicao.Regiao) ? tipoLabel : $"{Model.Competicao.Regiao}, {tipoLabelMinusculo}")</span>
                 </div>
                 <h1>@Model.Competicao.Nome</h1>
                 <div class="cd-hero-actions">
@@ -353,12 +404,20 @@
                     {
                         <form asp-action="BuscarJogos" asp-route-id="@Model.Competicao.Id" method="post" style="display:inline;">
                             @Html.AntiForgeryToken()
-                            <button type="submit" class="cd-pill" style="border:none;">🔄 @(semJogos ? "Importar Jogos" : "Sincronizar jogos")</button>
+                            <button type="submit" class="cd-pill cd-pill-accent">@(semJogos ? "Importar jogos" : "Sincronizar jogos")</button>
                         </form>
                     }
-                    <a href="@Url.Action("Index", "AnotacoesCompeticao", new { competicaoId = Model.Competicao.Id })" class="cd-pill">📝 Anotações</a>
-                    <a href="@Url.Action("Edit", "Competicoes", new { id = Model.Competicao.Id })" class="cd-pill cd-pill-accent">✏️ Editar competição</a>
-                    <button type="button" class="cd-pill" data-bs-toggle="modal" data-bs-target="#capaModal">🎨 Personalizar capa</button>
+                    <a href="@Url.Action("Index", "AnotacoesCompeticao", new { competicaoId = Model.Competicao.Id })" class="cd-pill">Anotações</a>
+                    @* Edição e capa são de vez em quando: ficam num menu, e o hero não empilha
+                       três botões no celular antes da tabela. *@
+                    <details class="cd-mais" id="cdMais">
+                        <summary class="cd-pill">Mais ▾</summary>
+                        <div class="cd-mais-menu">
+                            <a href="@Url.Action("Edit", "Competicoes", new { id = Model.Competicao.Id })" class="cd-pill">Editar competição e zonas da tabela</a>
+                            <button type="button" class="cd-pill" data-bs-toggle="modal" data-bs-target="#capaModal"
+                                    onclick="document.getElementById('cdMais').open = false;">Personalizar capa</button>
+                        </div>
+                    </details>
                 </div>
             </div>
 
@@ -392,40 +451,41 @@
             {
                 if (temTabelaGeral)
                 {
-                    <button type="button" class="cd-tab-btn @(tabInicial == "classif" ? "active" : "")" data-tab="classif">🏆 Tabela Geral</button>
+                    <button type="button" class="cd-tab-btn @(tabInicial == "classif" ? "active" : "")" data-tab="classif">Tabela geral</button>
                 }
                 foreach (var f in Model.Fases)
                 {
-                    <button type="button" class="cd-tab-btn @(tabInicial == $"fase-{f.Fase.Id}" ? "active" : "")" data-tab="fase-@f.Fase.Id">@IconeFase(f.Fase.Tipo) @f.Fase.Nome</button>
+                    <button type="button" class="cd-tab-btn @(tabInicial == $"fase-{f.Fase.Id}" ? "active" : "")" data-tab="fase-@f.Fase.Id">@f.Fase.Nome</button>
                 }
             }
             else if (tipoNorm == "GRUPOS")
             {
-                <button type="button" class="cd-tab-btn @(tabInicial == "grupos" ? "active" : "")" data-tab="grupos">🔢 Grupos</button>
+                <button type="button" class="cd-tab-btn @(tabInicial == "grupos" ? "active" : "")" data-tab="grupos">Grupos</button>
                 @if (Model.FasesMataMata.Any())
                 {
-                    <button type="button" class="cd-tab-btn" data-tab="bracket">⚔️ Mata-Mata</button>
+                    <button type="button" class="cd-tab-btn" data-tab="bracket">Mata-mata</button>
                 }
             }
             else if (ehJogoUnico)
             {
-                <button type="button" class="cd-tab-btn @(tabInicial == "bracket" ? "active" : "")" data-tab="bracket">🏆 Decisão</button>
+                <button type="button" class="cd-tab-btn @(tabInicial == "bracket" ? "active" : "")" data-tab="bracket">Decisão</button>
             }
             else if (tipoNorm == "MATA_MATA")
             {
-                <button type="button" class="cd-tab-btn @(tabInicial == "bracket" ? "active" : "")" data-tab="bracket">⚔️ Chaveamento</button>
+                <button type="button" class="cd-tab-btn @(tabInicial == "bracket" ? "active" : "")" data-tab="bracket">Chaveamento</button>
             }
             else
             {
-                <button type="button" class="cd-tab-btn @(tabInicial == "classif" ? "active" : "")" data-tab="classif">📊 Classificação</button>
+                <button type="button" class="cd-tab-btn @(tabInicial == "classif" ? "active" : "")" data-tab="classif">Classificação</button>
                 @if (Model.FasesMataMata.Any())
                 {
-                    <button type="button" class="cd-tab-btn" data-tab="bracket">⚔️ Playoffs</button>
+                    <button type="button" class="cd-tab-btn" data-tab="bracket">@rotuloPlayoff</button>
                 }
             }
-            <button type="button" class="cd-tab-btn" data-tab="estatisticas">📈 Estatísticas</button>
-            <button type="button" class="cd-tab-btn" data-tab="jogos">📋 Jogos Realizados</button>
-            <button type="button" class="cd-tab-btn" data-tab="proximos">📅 Próximos</button>
+            <button type="button" class="cd-tab-btn" data-tab="estatisticas" title="Estatísticas dos times na competição">Times</button>
+            <button type="button" class="cd-tab-btn" data-tab="estat-jogadores" title="Estatísticas dos jogadores na competição">Jogadores</button>
+            <button type="button" class="cd-tab-btn" data-tab="jogos">Resultados</button>
+            <button type="button" class="cd-tab-btn" data-tab="proximos">Próximos jogos</button>
         </div>
 
         <div class="cd-content">
@@ -449,7 +509,7 @@
                         else
                         {
                             <div class="cd-layout">
-                                @await Html.PartialAsync("_PainelClassificacao", f.Classificacao)
+                                @if (temTabelaGeral) { @await Html.PartialAsync("_PainelClassificacao", f.Classificacao) } else { @await Html.PartialAsync("_PainelClassificacao", f.Classificacao, vdZonas) }
                                 @await Html.PartialAsync("_DetalhesSidebar", Model.ProximosJogos)
                             </div>
                         }
@@ -462,7 +522,7 @@
             {
                 <div class="cd-panel" id="cd-panel-classif" style="@(tabInicial == "classif" ? "" : "display:none;")">
                     <div class="cd-layout">
-                        @await Html.PartialAsync("_PainelClassificacao", Model.Classificacao)
+                        @await Html.PartialAsync("_PainelClassificacao", Model.Classificacao, vdZonas)
                         @await Html.PartialAsync("_DetalhesSidebar", Model.ProximosJogos)
                     </div>
                 </div>
@@ -482,7 +542,10 @@
             {
                 <div class="cd-panel" id="cd-panel-bracket" style="@(tabInicial == "bracket" ? "" : "display:none;")">
                     @await Html.PartialAsync("_PainelChaveamento", Model.FasesMataMata)
-                    @await Html.PartialAsync("_ArtilheirosAssistencias", (Model.Competicao.Id, temporadaDetSel))
+                    @if (!temPainelClassif)
+                    {
+                        @await Html.PartialAsync("_ArtilheirosAssistencias", (Model.Competicao.Id, temporadaDetSel))
+                    }
                 </div>
             }
 
@@ -502,17 +565,22 @@
                 @await Html.PartialAsync("_PainelEstatisticas", ViewBag.EstatisticasTimes as List<ControleFutebolWeb.Models.ViewModels.EstatisticaTimeViewModel>)
             </div>
 
+            <!-- ══════ ESTATÍSTICAS JOGADORES (compartilhado; carrega ao abrir a aba) ══════ -->
+            <div class="cd-panel" id="cd-panel-estat-jogadores" style="display:none;">
+                @await Html.PartialAsync("_AbaEstatisticasJogadores", (Model.Competicao.Id, temporadaDetSel))
+            </div>
+
             <!-- ══════ JOGOS REALIZADOS (compartilhado) ══════ -->
             <div class="cd-panel" id="cd-panel-jogos" style="display:none;">
                 @if (!Model.JogosRealizados.Any())
                 {
-                    <div class="cd-sem-dados cd-jogos-wrap"><div class="icon">📋</div><p>Nenhum jogo realizado ainda.</p></div>
+                    <div class="cd-sem-dados cd-jogos-wrap"><p>Nenhum jogo realizado ainda nesta temporada.</p></div>
                 }
                 else
                 {
                     <div class="cd-jogos-wrap">
                         <div class="cd-jogos-cols">
-                            <span>Data</span><span>Rodada</span><span>Casa</span><span style="text-align:center;">Placar</span><span>Visitante</span><span style="text-align:right;">Ação</span>
+                            <span>Data</span><span>Rodada</span><span>Casa</span><span style="text-align:center;">Placar</span><span>Visitante</span><span style="text-align:right;"><span class="visually-hidden">Ação</span></span>
                         </div>
                         @foreach (var jr in Model.JogosRealizados)
                         {
@@ -522,7 +590,7 @@
                                     <div class="data">@DateHelper.FormatarData(jr.Data, "dd/MM/yyyy")</div>
                                     <div class="hora">@DateHelper.FormatarData(jr.Data, "HH:mm")</div>
                                 </div>
-                                <span class="rodada">@(!string.IsNullOrEmpty(jr.Grupo) ? jr.Grupo : jr.Rodada > 0 ? $"Rod. {jr.Rodada}" : "-")</span>
+                                <span class="rodada">@RodadaHelper.Rotulo(jr.Grupo, jr.Rodada)</span>
                                 <a class="cd-jogo-time" asp-controller="Times" asp-action="Details" asp-route-id="@jr.TimeCasaId" title="Ver @jr.TimeCasa?.Nome">
                                     @if (!string.IsNullOrEmpty(jr.TimeCasa?.EscudoUrl))
                                     {
@@ -557,7 +625,7 @@
             <div class="cd-panel" id="cd-panel-proximos" style="display:none;">
                 @if (!Model.ProximosJogos.Any())
                 {
-                    <div class="cd-sem-dados cd-jogos-wrap"><div class="icon">📅</div><p>Nenhum jogo agendado.</p></div>
+                    <div class="cd-sem-dados cd-jogos-wrap"><p>Nenhum jogo agendado. Os próximos aparecem aqui depois de sincronizar os jogos.</p></div>
                 }
                 else
                 {
@@ -571,7 +639,7 @@
                                 <div>
                                     <div class="data">@DateHelper.FormatarData(jp.Data, "dd/MM/yyyy")</div>
                                 </div>
-                                <span class="rodada">@(!string.IsNullOrEmpty(jp.Grupo) ? jp.Grupo : jp.Rodada > 0 ? $"Rod. {jp.Rodada}" : "-")</span>
+                                <span class="rodada">@RodadaHelper.Rotulo(jp.Grupo, jp.Rodada)</span>
                                 <a class="cd-jogo-time" asp-controller="Times" asp-action="Details" asp-route-id="@jp.TimeCasaId" title="Ver @jp.TimeCasa?.Nome">
                                     @if (!string.IsNullOrEmpty(jp.TimeCasa?.EscudoUrl))
                                     {

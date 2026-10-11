@@ -176,6 +176,10 @@
             if (wrap.classList.contains('sb-aberto')) desenhar();
         }).observe(select, { childList: true, subtree: true });
 
+        // Valor trocado por código (ex.: "Trocar lados" em /creators/escalacao)
+        // chega só pelo change do select: sem isto o gatilho mostrava o texto antigo.
+        select.addEventListener('change', atualizarLabel);
+
         atualizarLabel();
     }
 

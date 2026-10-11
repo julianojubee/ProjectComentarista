@@ -82,6 +82,21 @@ namespace ControleFutebolWeb.Services
             => writer.WriteStringValue(value);
     }
 
+    // A api-football devolve alguns textos com entidades HTML ("N. O&apos;Reilly").
+    // Decodifica na leitura para que o banco guarde o texto puro ("N. O'Reilly") —
+    // quem exibe é que escapa, conforme o contexto (Razor, JS, atributo).
+    public class AfHtmlDecodeStringConverter : JsonConverter<string>
+    {
+        public override string? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            var s = reader.TokenType == JsonTokenType.String ? reader.GetString() : null;
+            return s != null && s.Contains('&') ? System.Net.WebUtility.HtmlDecode(s) : s;
+        }
+
+        public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
+            => writer.WriteStringValue(value);
+    }
+
     public class AfFixtureInfo
     {
         [JsonPropertyName("id")]
@@ -139,6 +154,12 @@ namespace ControleFutebolWeb.Services
 
         [JsonPropertyName("group")]
         public string? Group { get; set; }
+
+        [JsonPropertyName("country")]
+        public string? Country { get; set; }
+
+        [JsonPropertyName("logo")]
+        public string? Logo { get; set; }
     }
 
     public class AfTeams

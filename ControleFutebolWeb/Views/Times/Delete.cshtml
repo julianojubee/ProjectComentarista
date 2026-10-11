@@ -1,20 +1,68 @@
-﻿@model ControleFutebolWeb.Models.Time
+@model ControleFutebolWeb.Models.Time
+@{
+    ViewData["Title"] = $"Excluir {Model.Nome}";
+    var jogos = (int)(ViewBag.TotalJogos ?? 0);
+    var jogadores = (int)(ViewBag.TotalJogadores ?? 0);
+    // Com jogos ou elenco o banco recusa a exclusão (são referenciados); em vez de
+    // deixar o usuário bater num erro, a tela explica e não oferece o botão.
+    var bloqueado = jogos > 0 || jogadores > 0;
+}
 
-<h2>Excluir Time</h2>
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/form-card.css" asp-append-version="true" />
 
-<div>
-    <h4>Você tem certeza que deseja excluir este time?</h4>
-    <dl class="row">
-        <dt class="col-sm-2">Nome</dt>
-        <dd class="col-sm-10">@Model.Nome</dd>
-        <dt class="col-sm-2">Cidade</dt>
-        <dd class="col-sm-10">@Model.Cidade</dd>
-    </dl>
+<div class="af">
+    <div class="af-card">
+        <a asp-action="Details" asp-route-id="@Model.Id" class="af-voltar">@Model.Nome</a>
+        <h1 class="af-title">Excluir time</h1>
+
+        @if (TempData["Erro"] != null)
+        {
+            <div class="af-alerta" role="alert">@TempData["Erro"]</div>
+        }
+
+        <div class="af-resumo">
+            @if (!string.IsNullOrEmpty(Model.EscudoUrl))
+            {
+                <img src="@Url.Action("Imagem", "MediaProxy", new { url = Model.EscudoUrl })" alt="" style="object-fit:contain;border-radius:8px;background:#fff;padding:4px" />
+            }
+            <div>
+                <div class="af-resumo-nome">@Model.Nome</div>
+                <div class="af-resumo-meta">
+                    @string.Join(", ", new[]
+                    {
+                        Model.Cidade,
+                        jogos == 1 ? "1 jogo" : $"{jogos} jogos",
+                        jogadores == 1 ? "1 jogador" : $"{jogadores} jogadores"
+                    }.Where(x => !string.IsNullOrWhiteSpace(x)))
+                </div>
+            </div>
+        </div>
+
+        @if (bloqueado)
+        {
+            <div class="af-alerta">
+                Este time não pode ser excluído porque tem
+                @(jogos > 0 && jogadores > 0 ? "jogos e jogadores" : jogos > 0 ? "jogos" : "jogadores") ligados a ele.
+                Para corrigir nome, cidade ou escudo, use a edição.
+            </div>
+            <div class="af-actions">
+                <a asp-action="Edit" asp-route-id="@Model.Id" class="af-cancel">Editar time</a>
+                <a asp-action="Details" asp-route-id="@Model.Id" class="af-cancel">Voltar</a>
+            </div>
+        }
+        else
+        {
+            <div class="af-alerta">
+                O cadastro de <strong>@Model.Nome</strong> será apagado. Essa ação não pode ser desfeita.
+            </div>
+            <form asp-action="Delete" method="post">
+                <input type="hidden" asp-for="Id" />
+                <div class="af-actions">
+                    <button type="submit" class="af-danger">Excluir time</button>
+                    <a asp-action="Details" asp-route-id="@Model.Id" class="af-cancel">Cancelar</a>
+                </div>
+            </form>
+        }
+    </div>
 </div>
-
-<form asp-action="Delete" method="post">
-    @Html.AntiForgeryToken()
-    <input type="hidden" asp-for="Id" />
-    <input type="submit" value="Excluir" class="btn btn-danger" />
-    <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
-</form>

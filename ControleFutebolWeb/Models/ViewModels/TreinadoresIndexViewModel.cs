@@ -8,11 +8,16 @@ namespace ControleFutebolWeb.Models.ViewModels
     public class TreinadorCardStats
     {
         public DateTime? Desde { get; set; }
+        // true quando "Desde" veio do histórico importado; false = data de cadastro do
+        // treinador, que não é o início real da passagem e não deve ser exibida como tal.
+        public bool DesdeDoHistorico { get; set; }
         public int Vitorias { get; set; }
         public int Empates { get; set; }
         public int Derrotas { get; set; }
         public int TotalJogos => Vitorias + Empates + Derrotas;
-        public int PercentualAproveitamento => TotalJogos == 0 ? 0 : (int)Math.Round(Vitorias * 100.0 / TotalJogos);
+        public int Pontos => Vitorias * 3 + Empates;
+        // Aproveitamento no sentido usual do futebol: pontos ganhos sobre os disputados.
+        public int PercentualAproveitamento => TotalJogos == 0 ? 0 : (int)Math.Round(Pontos * 100.0 / (TotalJogos * 3));
     }
 
     /// <summary>

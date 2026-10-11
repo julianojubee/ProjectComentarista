@@ -7,13 +7,19 @@ namespace ControleFutebolWeb.Models.ViewModels
     {
         public Treinador Treinador { get; set; } = null!;
 
-        /// <summary>Rótulo pequeno acima do nome ("Treinador", "Anotações", "Histórico"…).</summary>
-        public string Kicker { get; set; } = "Treinador";
+        /// <summary>
+        /// Nome da tela atual na trilha acima do nome ("Histórico", "Anotações"…). Null na
+        /// própria ficha: a trilha mostra só "Treinadores".
+        /// </summary>
+        public string? Kicker { get; set; }
 
         /// <summary>Item extra na linha de metadados (ex.: "Fonte: api-football").</summary>
         public string? MetaExtra { get; set; }
 
         public List<TreinadorHeroAcao> Acoes { get; set; } = new();
+
+        /// <summary>Ações secundárias, num menu "Mais" ao lado dos botões.</summary>
+        public List<TreinadorHeroAcao> Menu { get; set; } = new();
     }
 
     public class TreinadorHeroAcao
@@ -26,5 +32,20 @@ namespace ControleFutebolWeb.Models.ViewModels
 
         /// <summary>Botão de destaque (dourado). Só um por tela.</summary>
         public bool Destaque { get; set; }
+
+        /// <summary>Linha explicativa embaixo do item (só no menu).</summary>
+        public string? Detalhe { get; set; }
+
+        /// <summary>Item do menu que envia POST (com antiforgery) em vez de navegar.</summary>
+        public bool Post { get; set; }
+
+        /// <summary>Pergunta de confirmação antes do POST.</summary>
+        public string? Confirmar { get; set; }
+
+        /// <summary>Ação destrutiva: texto em vermelho.</summary>
+        public bool Perigo { get; set; }
+
+        /// <summary>Campos ocultos enviados junto no POST.</summary>
+        public Dictionary<string, string> Campos { get; set; } = new();
     }
 }

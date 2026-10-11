@@ -16,8 +16,8 @@
 <div class="cr-wrap cr-wrap-campo">
     <h1 class="cr-titulo">Escalações</h1>
     <p class="cr-sub">
-        Escolha dois times. Cada um entra com a última escalação titular registrada, e daí é seu:
-        arraste, substitua pelo elenco, marque movimentações. Nada é salvo.
+        Escolha dois times e o campo aparece com a última escalação titular de cada um.
+        Daí é seu: arraste, troque pelo elenco, desenhe movimentações. Nada é salvo.
     </p>
 
     @if (Model.Times.Count == 0)
@@ -28,11 +28,11 @@
     {
         @* data-buscavel: o select vira o combo com campo de digitação usado nas
            telas internas (js/select-buscavel.js, carregado pelo layout). Sem JS,
-           continua um select nativo e a tela funciona igual. *@
+           continua um select nativo. *@
         <div class="cr-barra">
             <div class="cr-campo-form">
                 <label for="crCompeticao">Competição</label>
-                <select id="crCompeticao" data-buscavel="Digite a competição…">
+                <select id="crCompeticao" class="cr-select" data-buscavel="Digite a competição">
                     <option value="">Todas as competições</option>
                     @foreach (var c in Model.Competicoes)
                     {
@@ -42,29 +42,33 @@
             </div>
             <div class="cr-campo-form">
                 <label for="crTimeCasa">Time da esquerda</label>
-                <select id="crTimeCasa" data-buscavel="Digite o time…">
-                    <option value="">Selecione…</option>
+                <select id="crTimeCasa" class="cr-select" data-buscavel="Digite o time">
+                    <option value="">Escolha o time</option>
                     @foreach (var t in Model.Times)
                     {
                         <option value="@t.Id">@t.Nome</option>
                     }
                 </select>
             </div>
+            <button type="button" id="crTrocar" class="cr-trocar" onclick="crTrocarLados()"
+                    title="Passa o time da esquerda para a direita e vice-versa" disabled>Trocar lados</button>
             <div class="cr-campo-form">
                 <label for="crTimeFora">Time da direita</label>
-                <select id="crTimeFora" data-buscavel="Digite o time…">
-                    <option value="">Selecione…</option>
+                <select id="crTimeFora" class="cr-select" data-buscavel="Digite o time">
+                    <option value="">Escolha o time</option>
                     @foreach (var t in Model.Times)
                     {
                         <option value="@t.Id">@t.Nome</option>
                     }
                 </select>
             </div>
-            <button type="button" class="cr-acao" onclick="crCarregarMatchUp()">Montar campo</button>
         </div>
 
-        <div id="crMatchUp">
-            <p class="cr-aviso">Escolha os dois times e clique em “Montar campo”.</p>
+        <div id="crMatchUp" aria-live="polite">
+            <div class="cr-vazio">
+                <b>Escolha os dois times</b>
+                O campo monta sozinho assim que os dois estiverem escolhidos.
+            </div>
         </div>
     }
 </div>
@@ -75,12 +79,33 @@
     <script src="~/js/jogador-tooltip.js" asp-append-version="true"></script>
     <script src="~/js/matchup.js" asp-append-version="true"></script>
     <script>
+        var crSelCasa = document.getElementById('crTimeCasa');
+        var crSelFora = document.getElementById('crTimeFora');
+        var crSelComp = document.getElementById('crCompeticao');
+
+        // Competição e times ficam na URL (?competicao=&casa=&fora=): o creator
+        // salva o link ou recarrega a página e o mesmo confronto volta montado.
+        function crAtualizarUrl() {
+            var q = new URLSearchParams();
+            if (crSelComp.value) q.set('competicao', crSelComp.value);
+            if (crSelCasa.value) q.set('casa', crSelCasa.value);
+            if (crSelFora.value) q.set('fora', crSelFora.value);
+            var qs = q.toString();
+            history.replaceState(null, '', location.pathname + (qs ? '?' + qs : ''));
+        }
+
+        function crEscolher(sel, valor) {
+            sel.value = valor || '';
+            if (sel.value !== String(valor || '')) sel.value = '';
+            // O combo com busca se atualiza pelo evento de change do select
+            sel.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
         // Trocar a competição repovoa os dois seletores de time — mesmo esquema de
-        // /Jogos. O select-buscavel observa as options e se atualiza sozinho.
-        // Quem já estava escolhido continua escolhido se ainda estiver na lista.
+        // /Jogos. Quem já estava escolhido continua escolhido se ainda estiver na lista.
         async function crFiltrarTimes() {
-            var comp = document.getElementById('crCompeticao').value;
-            var selects = [document.getElementById('crTimeCasa'), document.getElementById('crTimeFora')];
+            var comp = crSelComp.value;
+            var selects = [crSelCasa, crSelFora];
             var anteriores = selects.map(function (s) { return s.value; });
 
             try {
@@ -90,7 +115,7 @@
 
                 selects.forEach(function (sel, i) {
                     sel.innerHTML = '';
-                    sel.appendChild(new Option('Selecione…', ''));
+                    sel.appendChild(new Option('Escolha o time', ''));
                     times.forEach(function (t) {
                         var opt = new Option(t.nome, t.id);
                         if (String(t.id) === anteriores[i]) opt.selected = true;
@@ -100,41 +125,77 @@
             } catch (e) {
                 // Mantém as listas como estavam: pior sair sem filtro do que sem times.
             }
+            crAtualizarUrl();
         }
 
-        document.getElementById('crCompeticao').addEventListener('change', crFiltrarTimes);
+        function crTrocarLados() {
+            var casa = crSelCasa.value, fora = crSelFora.value;
+            crMontando = true;
+            crEscolher(crSelCasa, fora);
+            crEscolher(crSelFora, casa);
+            crMontando = false;
+            crCarregarMatchUp();
+        }
+
+        // Cada pedido ganha um número: se o creator troca de time antes da resposta
+        // chegar, a resposta antiga é descartada e não sobrescreve o campo novo.
+        var crPedido = 0;
+        var crMontando = false;
 
         async function crCarregarMatchUp() {
-            var casa = document.getElementById('crTimeCasa').value;
-            var fora = document.getElementById('crTimeFora').value;
+            var casa = crSelCasa.value;
+            var fora = crSelFora.value;
             var cont = document.getElementById('crMatchUp');
+            document.getElementById('crTrocar').disabled = !(casa || fora);
+            crAtualizarUrl();
 
             if (!casa || !fora) {
-                cont.innerHTML = '<p class="cr-aviso">Escolha os dois times.</p>';
+                cont.innerHTML = '<div class="cr-vazio"><b>' + (casa || fora ? 'Falta um time' : 'Escolha os dois times') + '</b>' +
+                    'O campo monta sozinho assim que os dois estiverem escolhidos.</div>';
                 return;
             }
             if (casa === fora) {
-                cont.innerHTML = '<p class="cr-aviso">Escolha dois times diferentes.</p>';
+                cont.innerHTML = '<div class="cr-vazio"><b>Escolha dois times diferentes</b>O mesmo time está nos dois lados.</div>';
                 return;
             }
 
-            cont.innerHTML = '<p class="cr-aviso">Carregando…</p>';
+            var meu = ++crPedido;
+            cont.innerHTML = '<p class="cr-aviso">Montando o campo...</p>';
             try {
                 var resp = await fetch('/creators/escalacao/dados?casa=' + encodeURIComponent(casa) + '&fora=' + encodeURIComponent(fora));
                 if (!resp.ok) throw new Error();
+                var dados = await resp.json();
+                if (meu !== crPedido) return;
                 // campo3d: só esta tela inclina o gramado e monta o estádio
                 // (a aba Match-up do modal Pré-jogo segue com o campo chapado).
                 // cores: cada elenco ganha o seletor da cor da borda dos seus jogadores.
                 // transmissao: botão que põe o campo em tela inteira para capturar no OBS.
                 // buscaJogador: campo de busca no elenco, para trazer quem não estava
-                // na última escalação (ex.: convocado novo).
-                muRender(await resp.json(), cont, {
-                    dica: 'Simulação — nada é salvo.', campo3d: true, cores: true, transmissao: true,
+                // na última escalação (ex.: convocado novo); fichaJogador traz o ℹ dele.
+                muRender(dados, cont, {
+                    dica: 'É só uma simulação, nada é salvo.', campo3d: true, cores: true, transmissao: true,
                     buscaJogador: '/creators/escalacao/buscar-jogador',
+                    fichaJogador: '/creators/escalacao/ficha-jogador',
                 });
             } catch (e) {
-                cont.innerHTML = '<p class="cr-erro">Não deu para carregar as escalações. Tente de novo.</p>';
+                if (meu !== crPedido) return;
+                cont.innerHTML = '<p class="cr-erro">Não deu para carregar as escalações. Escolha os times de novo para tentar outra vez.</p>';
             }
         }
+
+        crSelComp.addEventListener('change', crFiltrarTimes);
+        crSelCasa.addEventListener('change', function () { if (!crMontando) crCarregarMatchUp(); });
+        crSelFora.addEventListener('change', function () { if (!crMontando) crCarregarMatchUp(); });
+
+        // Link com ?casa=&fora=: já abre com o confronto montado
+        (function () {
+            var q = new URLSearchParams(location.search);
+            if (!q.get('casa') && !q.get('fora')) return;
+            crMontando = true;
+            crEscolher(crSelCasa, q.get('casa'));
+            crEscolher(crSelFora, q.get('fora'));
+            crMontando = false;
+            crCarregarMatchUp();
+        })();
     </script>
 }

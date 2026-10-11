@@ -4,13 +4,40 @@
 @{
     // Critérios de desempate cadastrados em Competicoes/Edit (null nas telas que não os passam).
     var criteriosDesempate = ViewBag.CriteriosDesempate as List<string>;
-    string ZonaCor(int pos, int total)
+
+    // Zonas da tabela, configuradas por competição em Competicoes/Edit. Só a tabela
+    // geral as recebe (ViewData["Zonas"]); a de uma fase/grupo não tem destino próprio.
+    // Sem zona nenhuma, destaca só o líder — antes a regra era fixa (4 de cima verdes,
+    // 4 de baixo vermelhos) e errava a maioria das ligas.
+    var comp = ViewData["Zonas"] as ControleFutebolWeb.Models.Competicao;
+    var total = Model.Count;
+    int topo = comp?.ZonaTopoVagas ?? 0;
+    int topo2 = comp?.ZonaTopo2Vagas ?? 0;
+    int rebaix = comp?.ZonaRebaixamentoVagas ?? 0;
+    int playoff = comp?.ZonaPlayoffVagas ?? 0;
+    var temZonas = topo + topo2 + rebaix + playoff > 0;
+
+    // Uma escala de dourado para cima e uma de vermelho para baixo: a cor diz "subiu"
+    // ou "caiu", e a intensidade diz quanto.
+    const string CorTopo = "#d4a520", CorTopo2 = "rgba(212,165,32,.45)",
+                 CorPlayoff = "rgba(239,68,68,.45)", CorRebaix = "#ef4444";
+
+    string? ZonaCor(int pos)
     {
-        if (pos == 1) return "#3b82f6";
-        if (pos <= 4) return "#22c55e";
-        if (total > 4 && pos > total - 4) return "#ef4444";
-        return "#374151";
+        if (!temZonas) return pos == 1 ? CorTopo : null;
+        if (pos <= topo) return CorTopo;
+        if (pos <= topo + topo2) return CorTopo2;
+        if (rebaix > 0 && pos > total - rebaix) return CorRebaix;
+        if (playoff > 0 && pos > total - rebaix - playoff) return CorPlayoff;
+        return null;
     }
+
+    var legenda = new List<(string Cor, string Rotulo)>();
+    if (!temZonas) legenda.Add((CorTopo, "Líder"));
+    if (topo > 0) legenda.Add((CorTopo, comp!.ZonaTopoRotulo ?? (topo == 1 ? "Campeão" : $"{topo} primeiros")));
+    if (topo2 > 0) legenda.Add((CorTopo2, comp!.ZonaTopo2Rotulo ?? "Segunda zona"));
+    if (playoff > 0) legenda.Add((CorPlayoff, "Playoff de rebaixamento"));
+    if (rebaix > 0) legenda.Add((CorRebaix, "Rebaixamento"));
 }
 
 <div class="cd-tablewrap">
@@ -20,23 +47,21 @@
         <span></span>
         <span class="left">Clube</span>
         <span>J</span>
-        <span style="color:var(--ok-2)">V</span>
-        <span style="color:var(--warn);">E</span>
-        <span style="color:var(--bad-2)">D</span>
-        <span>GP</span>
+        <span class="cd-opc">V</span>
+        <span class="cd-opc">E</span>
+        <span class="cd-opc">D</span>
+        <span class="cd-opc">GP</span>
         <span>SG</span>
-        <span>%</span>
-        <span style="color:var(--gold-ink)">Pts</span>
+        <span class="cd-opc">%</span>
+        <span>Pts</span>
     </div>
-    @{ var total = Model.Count; }
     @foreach (var c in Model)
     {
-        var zc = ZonaCor(c.Posicao, total);
+        var zc = ZonaCor(c.Posicao);
         var aprov = c.Jogos > 0 ? (int)Math.Round(c.Pontos / (double)(c.Jogos * 3) * 100) : 0;
-        var aprovColor = aprov >= 60 ? "#22c55e" : aprov >= 40 ? "#f59e0b" : "#ef4444";
         <div class="cd-row">
-            <div class="cd-zonebar" style="background:@zc;"></div>
-            <span class="cd-pos" style="color:@(c.Posicao <= 3 ? "var(--gold-ink)" : "var(--text-dim)");">@c.Posicao</span>
+            <div class="cd-zonebar" style="background:@(zc ?? "transparent");"></div>
+            <span class="cd-pos">@c.Posicao</span>
             <a class="cd-escudo" asp-controller="Times" asp-action="Details" asp-route-id="@c.Time?.Id" title="Ver @c.Time?.Nome">
                 @if (!string.IsNullOrEmpty(c.Time?.EscudoUrl))
                 {
@@ -47,28 +72,36 @@
                 <a asp-controller="Times" asp-action="Details" asp-route-id="@c.Time?.Id" class="cd-nome">@c.Time?.Nome</a>
             </div>
             <span class="cd-cell">@c.Jogos</span>
-            <span class="cd-cell v">@c.Vitorias</span>
-            <span class="cd-cell e">@c.Empates</span>
-            <span class="cd-cell d">@c.Derrotas</span>
-            <span class="cd-cell">@c.GolsPro</span>
-            <span class="cd-sg" style="color:@(c.SaldoGols > 0 ? "var(--ok)" : c.SaldoGols < 0 ? "var(--bad)" : "var(--text-dim)");">@(c.SaldoGols > 0 ? "+" : "")@c.SaldoGols</span>
-            <div class="cd-aprov">
+            <span class="cd-cell cd-opc">@c.Vitorias</span>
+            <span class="cd-cell cd-opc">@c.Empates</span>
+            <span class="cd-cell cd-opc">@c.Derrotas</span>
+            <span class="cd-cell cd-opc">@c.GolsPro</span>
+            <span class="cd-sg @(c.SaldoGols > 0 ? "pos" : c.SaldoGols < 0 ? "neg" : "")">@(c.SaldoGols > 0 ? "+" : "")@c.SaldoGols</span>
+            <div class="cd-aprov cd-opc" title="Aproveitamento: @aprov% dos pontos disputados">
                 <span>@(aprov)%</span>
-                <div class="cd-aprov-bar"><div style="width:@(aprov)%; background:@aprovColor;"></div></div>
+                <div class="cd-aprov-bar"><div style="width:@(aprov)%;"></div></div>
             </div>
             <div class="cd-pts">
-                <span style="color:@(c.Posicao == 1 ? "var(--gold-ink)" : "var(--text-strong)"); background:@(c.Posicao == 1 ? "rgba(212,165,32,0.12)" : "transparent");">@c.Pontos</span>
+                <span class="@(c.Posicao == 1 ? "lider" : "")">@c.Pontos</span>
             </div>
         </div>
     }
-    <div class="cd-legend">
-        <div class="cd-legend-item"><div class="cd-legend-dot" style="background:#3b82f6;"></div><span>Líder</span></div>
-        <div class="cd-legend-item"><div class="cd-legend-dot" style="background:#22c55e;"></div><span>Classificação</span></div>
-        <div class="cd-legend-item"><div class="cd-legend-dot" style="background:#ef4444;"></div><span>Zona de risco</span></div>
-    </div>
+    @if (legenda.Count > 0)
+    {
+        <div class="cd-legend">
+            @foreach (var (cor, rotulo) in legenda)
+            {
+                <div class="cd-legend-item"><div class="cd-legend-dot" style="background:@cor;"></div><span>@rotulo</span></div>
+            }
+        </div>
+    }
+    @* No celular a tabela mostra o essencial (posição, clube, jogos, saldo e pontos);
+       este botão devolve as colunas V/E/D/GP/% para quem quiser o detalhe. *@
+    <button type="button" class="cd-colunas-btn" aria-expanded="false"
+            onclick="var w = this.closest('.cd-tablewrap'); var c = w.classList.toggle('completa'); this.setAttribute('aria-expanded', c); this.textContent = c ? 'Ver só o essencial' : 'Ver todas as colunas';">Ver todas as colunas</button>
     @if (criteriosDesempate != null && criteriosDesempate.Count > 0)
     {
-        <div class="cd-legend" style="display:block; font-size:.78rem; color:var(--text-dim);">
+        <div class="cd-legend cd-desempate">
             <strong>Desempate:</strong>
             pontos › @string.Join(" › ", criteriosDesempate.Select(c => CriteriosDesempateHelper.RotuloDe(c).ToLowerInvariant()))
         </div>

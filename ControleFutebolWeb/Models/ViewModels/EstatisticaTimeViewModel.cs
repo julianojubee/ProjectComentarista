@@ -68,6 +68,10 @@ namespace ControleFutebolWeb.Models.ViewModels
         public double? DefesasGoleiro { get; set; }    // Goalkeeper Saves
         public double? GolsEvitados { get; set; }      // goals_prevented
 
+        // Não vem de Jogo.EstatisticasJson: é a soma das estatísticas por jogador
+        // (ver DesarmesPorTimeHelper), média nos jogos em que o time tinha o dado.
+        public double? Desarmes { get; set; }
+
         // Soma acumulada de cada estatística de partida, na mesma nomenclatura das
         // médias acima (fin, chutesArea, passes, …). Serve ao seletor "Totais ×
         // Por jogo" do painel: a média não dá pra multiplicar por J no cliente

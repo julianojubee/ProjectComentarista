@@ -781,6 +781,10 @@ namespace ControleFutebolWeb.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("disputaterceiro");
 
+                    b.Property<bool>("FinalJogoUnico")
+                        .HasColumnType("boolean")
+                        .HasColumnName("finaljogounico");
+
                     b.Property<bool>("IdaEVolta")
                         .HasColumnType("boolean")
                         .HasColumnName("idaevolta");
@@ -1294,6 +1298,30 @@ namespace ControleFutebolWeb.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("toptier");
 
+                    b.Property<int?>("ZonaPlayoffVagas")
+                        .HasColumnType("integer")
+                        .HasColumnName("zonaplayoffvagas");
+
+                    b.Property<int?>("ZonaRebaixamentoVagas")
+                        .HasColumnType("integer")
+                        .HasColumnName("zonarebaixamentovagas");
+
+                    b.Property<string>("ZonaTopo2Rotulo")
+                        .HasColumnType("text")
+                        .HasColumnName("zonatopo2rotulo");
+
+                    b.Property<int?>("ZonaTopo2Vagas")
+                        .HasColumnType("integer")
+                        .HasColumnName("zonatopo2vagas");
+
+                    b.Property<string>("ZonaTopoRotulo")
+                        .HasColumnType("text")
+                        .HasColumnName("zonatoporotulo");
+
+                    b.Property<int?>("ZonaTopoVagas")
+                        .HasColumnType("integer")
+                        .HasColumnName("zonatopovagas");
+
                     b.HasKey("Id");
 
                     b.ToTable("competicoes");
@@ -1590,6 +1618,43 @@ namespace ControleFutebolWeb.Migrations
                     b.HasIndex("UsuarioId");
 
                     b.ToTable("cronometrospartida");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.CuriosidadeRegistrada", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseSerialColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Chave")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("chave");
+
+                    b.Property<DateTime>("DtInc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("dtinc");
+
+                    b.Property<int>("JogoId")
+                        .HasColumnType("integer")
+                        .HasColumnName("jogoid");
+
+                    b.Property<string>("UsuarioId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("usuarioid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JogoId");
+
+                    b.HasIndex("UsuarioId", "JogoId", "Chave")
+                        .IsUnique();
+
+                    b.ToTable("curiosidadesregistradas");
                 });
 
             modelBuilder.Entity("ControleFutebolWeb.Models.CuriosidadeTime", b =>
@@ -2935,6 +3000,18 @@ namespace ControleFutebolWeb.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("formacaopadraoid");
 
+                    b.Property<int>("HeroImagemOpacidade")
+                        .HasColumnType("integer")
+                        .HasColumnName("heroimagemopacidade");
+
+                    b.Property<int>("HeroImagemPosicaoY")
+                        .HasColumnType("integer")
+                        .HasColumnName("heroimagemposicaoy");
+
+                    b.Property<string>("HeroImagemUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("heroimagemurl");
+
                     b.Property<int>("IdApi")
                         .HasColumnType("integer")
                         .HasColumnName("idapi");
@@ -4041,6 +4118,25 @@ namespace ControleFutebolWeb.Migrations
                 });
 
             modelBuilder.Entity("ControleFutebolWeb.Models.CronometroPartida", b =>
+                {
+                    b.HasOne("ControleFutebolWeb.Models.Jogo", "Jogo")
+                        .WithMany()
+                        .HasForeignKey("JogoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ControleFutebolWeb.Models.ApplicationUser", "Usuario")
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Jogo");
+
+                    b.Navigation("Usuario");
+                });
+
+            modelBuilder.Entity("ControleFutebolWeb.Models.CuriosidadeRegistrada", b =>
                 {
                     b.HasOne("ControleFutebolWeb.Models.Jogo", "Jogo")
                         .WithMany()

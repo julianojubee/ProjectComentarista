@@ -1,12 +1,19 @@
 @model IEnumerable<ControleFutebolWeb.Models.TreinadorHistorico>
+@using ControleFutebolWeb.Helpers
 @using ControleFutebolWeb.Models.ViewModels
 @{
     var treinador = (ControleFutebolWeb.Models.Treinador)ViewBag.Treinador;
-    ViewData["Title"] = $"Histórico — {treinador.Nome}";
+    ViewData["Title"] = $"Histórico de {treinador.Nome}";
 
     var passagens = Model.ToList();
+    var hoje = DateTime.Today;
+    var ptBR = new System.Globalization.CultureInfo("pt-BR");
+    string MesAno(DateTime d) => d.ToString("MMM yyyy", ptBR);
+
     var clubesDistintos = passagens.Select(h => h.TimeId).Distinct().Count();
-    var totalDias = passagens.Sum(h => h.Dias);
+    var mesesCarreira = passagens.Sum(h => DuracaoHelper.MesesCompletos(h.DtInicio, h.DtFim ?? hoje));
+    // Passagem mais longa: um dado que a lista sozinha não deixa ver de relance
+    var maisLonga = passagens.OrderByDescending(h => DuracaoHelper.MesesCompletos(h.DtInicio, h.DtFim ?? hoje)).FirstOrDefault();
 
     // Detalhe item a item de um salvamento via API (formato "STATUS|time|motivo",
     // separados por "~~" — ver SalvarHistoricoApi). Mostra exatamente o que aconteceu
@@ -19,10 +26,18 @@
         Kicker = "Histórico",
         Acoes = new List<TreinadorHeroAcao>
         {
-            new() { Texto = "Voltar ao treinador", Icone = "voltar", Url = Url.Action("Details", new { id = treinador.Id })! },
             new() { Texto = "Importar da API", Icone = "importar", Destaque = true, Url = Url.Action("PreVisualizarHistoricoApi", new { id = treinador.Id })! }
         }
     };
+    if (passagens.Any())
+    {
+        hero.Menu.Add(new()
+        {
+            Texto = "Limpar histórico", Detalhe = "Apaga todas as passagens salvas",
+            Url = Url.Action("LimparHistorico", new { id = treinador.Id })!, Post = true, Perigo = true,
+            Confirmar = $"Apagar as {passagens.Count} passagens do histórico de {treinador.Nome}? Essa ação não pode ser desfeita."
+        });
+    }
 }
 
 <link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
@@ -33,135 +48,125 @@
 
     <partial name="_TreinadorHero" model="hero" />
 
-    @if (TempData["Sucesso"] != null)
-    {
-        <div class="an-alert-ok m-3">@TempData["Sucesso"]</div>
-    }
-    @if (TempData["Erro"] != null)
-    {
-        <div class="th-alerta th-alerta-erro m-3">@TempData["Erro"]</div>
-    }
-    @if (TempData["Avisos"] != null)
-    {
-        <div class="th-alerta th-alerta-aviso m-3">⚠️ @TempData["Avisos"]</div>
-    }
-
     <div class="an-grid">
 
-        <!-- ── Esquerda: passagens ──────────────────── -->
         <div>
+            @if (TempData["Sucesso"] != null) { <div class="th-alerta th-alerta-ok" role="status">@TempData["Sucesso"]</div> }
+            @if (TempData["Erro"] != null) { <div class="th-alerta th-alerta-erro" role="alert">@TempData["Erro"]</div> }
+            @if (TempData["Avisos"] != null) { <div class="th-alerta th-alerta-aviso" role="status">@TempData["Avisos"]</div> }
+
             @if (!string.IsNullOrEmpty(detalhesRaw))
             {
-                <div class="th-sec-title">
-                    <span class="lbl">O que aconteceu ao salvar</span>
-                    <div class="line"></div>
-                </div>
+                <details class="th-salvamento" open>
+                    <summary class="th-sec-title" style="cursor:pointer">
+                        <h2>O que aconteceu ao salvar</h2>
+                    </summary>
+                    @foreach (var linha in detalhesRaw.Split("~~", StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        var partes = linha.Split('|');
+                        var status = partes[0];
+                        var nomeTime = partes.Length > 1 ? partes[1] : "";
+                        var motivo = partes.Length > 2 ? partes[2] : "";
 
-                @foreach (var linha in detalhesRaw.Split("~~", StringSplitOptions.RemoveEmptyEntries))
-                {
-                    var partes = linha.Split('|');
-                    var status = partes[0];
-                    var nomeTime = partes.Length > 1 ? partes[1] : "";
-                    var motivo = partes.Length > 2 ? partes[2] : "";
-
-                    <div class="th-linha th-linha-compacta">
-                        <span class="th-linha-nome">
-                            @nomeTime
-                            @if (status == "SALVO" && !string.IsNullOrEmpty(motivo))
+                        <div class="th-linha th-linha-compacta">
+                            <span class="th-linha-nome">
+                                @nomeTime
+                                @if (status == "SALVO" && !string.IsNullOrEmpty(motivo))
+                                {
+                                    <span class="th-obs">(@motivo)</span>
+                                }
+                            </span>
+                            @if (status == "SALVO")
                             {
-                                <span class="th-obs">(@motivo)</span>
+                                <span class="th-tag th-tag-ok">Salvo</span>
                             }
-                        </span>
-                        @if (status == "SALVO")
-                        {
-                            <span class="th-tag th-tag-ok">✅ salvo</span>
-                        }
-                        else if (status == "JASALVO")
-                        {
-                            <span class="th-tag th-tag-info">já estava salvo</span>
-                        }
-                        else
-                        {
-                            <span class="th-tag th-tag-aviso">ignorado — @motivo</span>
-                        }
-                    </div>
-                }
+                            else if (status == "JASALVO")
+                            {
+                                <span class="th-tag th-tag-info">Já estava salvo</span>
+                            }
+                            else
+                            {
+                                <span class="th-tag th-tag-aviso">Ignorado: @motivo</span>
+                            }
+                        </div>
+                    }
+                </details>
             }
 
-            <div class="th-sec-title" style="@(string.IsNullOrEmpty(detalhesRaw) ? "" : "margin-top:32px;")">
-                <span class="lbl">Histórico Salvo</span>
+            <div class="th-sec-title" style="@(string.IsNullOrEmpty(detalhesRaw) ? "" : "margin-top:28px;")">
+                <h2>Passagens</h2>
                 <div class="line"></div>
                 @if (passagens.Any())
                 {
-                    <span class="badge">@passagens.Count passagem(ns)</span>
+                    <span class="badge">@(passagens.Count == 1 ? "1 passagem" : $"{passagens.Count} passagens"), da mais recente para a mais antiga</span>
                 }
             </div>
 
             @if (!passagens.Any())
             {
                 <div class="an-empty">
-                    <div>Nenhum histórico salvo para este treinador.</div>
-                    <a asp-action="PreVisualizarHistoricoApi" asp-route-id="@treinador.Id"
-                       class="an-btn gold" style="display:inline-flex;margin-top:1rem;">
-                        Importar da API
-                    </a>
+                    <div>Nenhuma passagem salva para este treinador.</div>
+                    <div style="margin-top:.4rem;font-size:.86rem">A importação da api-football mostra uma prévia antes de gravar.</div>
                 </div>
             }
             else
             {
-                @foreach (var h in passagens)
-                {
-                    <div class="th-linha">
-                        @if (!string.IsNullOrEmpty(h.Time?.EscudoUrl))
-                        {
-                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = h.Time.EscudoUrl })" alt="@h.Time.Nome" />
-                        }
-                        <div class="th-linha-info">
-                            <div class="th-linha-nome">@h.Time?.Nome</div>
-                            <div class="th-linha-data">
-                                @h.DtInicio.ToString("dd/MM/yyyy") até @(h.DtFim?.ToString("dd/MM/yyyy") ?? "hoje")
-                                · @h.Dias dia(s)
-                            </div>
-                        </div>
-                        @if (h.DtFim == null)
-                        {
-                            <span class="th-tag th-tag-ok">Atual</span>
-                        }
-                    </div>
-                }
+                <ol class="th-tempo">
+                    @foreach (var h in passagens)
+                    {
+                        <li class="@(h.DtFim == null ? "atual" : "")">
+                            <span class="th-tempo-ano">@h.DtInicio.Year</span>
+                            <span>
+                                @if (!string.IsNullOrEmpty(h.Time?.EscudoUrl))
+                                {
+                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = h.Time.EscudoUrl })" alt="" loading="lazy" />
+                                }
+                            </span>
+                            <span class="th-linha-info">
+                                <span class="th-linha-nome"><a asp-controller="Times" asp-action="Details" asp-route-id="@h.TimeId">@h.Time?.Nome</a></span>
+                                <span class="th-linha-data" style="display:block">
+                                    @h.DtInicio.ToString("dd/MM/yyyy") a @(h.DtFim?.ToString("dd/MM/yyyy") ?? "hoje")
+                                </span>
+                            </span>
+                            <span class="th-tempo-dur">
+                                @if (h.DtFim == null)
+                                {
+                                    <span class="th-tag th-tag-gold">Atual, @DuracaoHelper.Formatar(h.DtInicio, null, hoje)</span>
+                                }
+                                else
+                                {
+                                    @DuracaoHelper.Formatar(h.DtInicio, h.DtFim, hoje)
+                                }
+                            </span>
+                        </li>
+                    }
+                </ol>
             }
         </div>
 
-        <!-- ── Direita: resumo + ações ──────────────── -->
         <div class="an-sidebar">
             <div class="an-resumo" style="margin-top:0;">
-                <div class="an-resumo-title">Resumo</div>
+                <h2 class="an-resumo-title">Resumo</h2>
                 <div class="an-resumo-row">
                     <div class="an-resumo-label"><span>Passagens</span></div>
                     <span class="an-resumo-count">@passagens.Count</span>
                 </div>
                 <div class="an-resumo-row">
-                    <div class="an-resumo-label"><span>Clubes distintos</span></div>
+                    <div class="an-resumo-label"><span>Clubes diferentes</span></div>
                     <span class="an-resumo-count">@clubesDistintos</span>
                 </div>
                 <div class="an-resumo-row">
-                    <div class="an-resumo-label"><span>Dias somados</span></div>
-                    <span class="an-resumo-count">@totalDias</span>
+                    <div class="an-resumo-label"><span>Tempo como técnico</span></div>
+                    <span class="an-resumo-count" style="font-size:1rem">@(passagens.Any() ? DuracaoHelper.Formatar(mesesCarreira) : "—")</span>
                 </div>
+                @if (maisLonga != null)
+                {
+                    <div class="an-resumo-row">
+                        <div class="an-resumo-label"><span>Passagem mais longa</span></div>
+                        <span class="an-resumo-count" style="font-size:1rem;text-align:right">@maisLonga.Time?.Nome</span>
+                    </div>
+                }
             </div>
-
-            @if (passagens.Any())
-            {
-                <div class="th-acoes">
-                    <form asp-action="LimparHistorico" asp-route-id="@treinador.Id" method="post">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" class="th-btn-perigo"
-                                onclick="return confirm('Apagar todas as @passagens.Count passagem(ns) do histórico de @treinador.Nome? Essa ação não pode ser desfeita.')">
-                            🗑️ Limpar Histórico
-                        </button>
-                    </form>
-                </div>
-            }
         </div>
 
     </div>

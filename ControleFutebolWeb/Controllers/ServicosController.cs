@@ -15,6 +15,7 @@ namespace ControleFutebolWeb.Controllers
     {
         private readonly ServicoMonitor _monitor;
         private readonly AtualizarJogadoresSemDataService _atualizarJogadores;
+        private readonly GerarCuriosidadesService _gerarCuriosidades;
         private readonly FutebolContext _context;
         private readonly EspnEstatisticasService _espn;
         private readonly EspnEscalacaoService _espnEscalacao;
@@ -27,6 +28,7 @@ namespace ControleFutebolWeb.Controllers
         public ServicosController(
             ServicoMonitor monitor,
             AtualizarJogadoresSemDataService atualizarJogadores,
+            GerarCuriosidadesService gerarCuriosidades,
             FutebolContext context,
             EspnEstatisticasService espn,
             EspnEscalacaoService espnEscalacao,
@@ -39,6 +41,7 @@ namespace ControleFutebolWeb.Controllers
             _fifaEstatisticas = fifaEstatisticas;
             _monitor = monitor;
             _atualizarJogadores = atualizarJogadores;
+            _gerarCuriosidades = gerarCuriosidades;
             _context = context;
             _espn = espn;
             _espnEscalacao = espnEscalacao;
@@ -78,6 +81,8 @@ namespace ControleFutebolWeb.Controllers
         {
             if (chave == AtualizarJogadoresSemDataService.Chave)
                 _atualizarJogadores.Parar();
+            else if (chave == GerarCuriosidadesService.Chave)
+                _gerarCuriosidades.Parar();
 
             TempData["Sucesso"] = "Serviço pausado.";
             return RedirectToAction(nameof(Index));
@@ -89,6 +94,8 @@ namespace ControleFutebolWeb.Controllers
         {
             if (chave == AtualizarJogadoresSemDataService.Chave)
                 _atualizarJogadores.Reiniciar();
+            else if (chave == GerarCuriosidadesService.Chave)
+                _gerarCuriosidades.Reiniciar();
 
             TempData["Sucesso"] = "Serviço reiniciado.";
             return RedirectToAction(nameof(Index));

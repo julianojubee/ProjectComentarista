@@ -50,15 +50,20 @@
 
     function iconesEventos(j) {
         var partes = [];
-        if (j.gols > 0) partes.push('<span style="font-size:.72rem; font-weight:700; color:#4ade80; display:inline-flex; align-items:center; gap:2px;">⚽ ' + j.gols + '</span>');
-        if (j.assistencias > 0) partes.push('<span style="font-size:.72rem; font-weight:700; color:#fb923c; display:inline-flex; align-items:center; gap:2px;">👟 ' + j.assistencias + '</span>');
+        if (j.gols > 0) partes.push('<span class="pgj-evt-gol">' + (j.gols === 1 ? 'gol' : j.gols + ' gols') + '</span>');
+        if (j.assistencias > 0) partes.push('<span class="pgj-evt-assist">' + (j.assistencias === 1 ? 'assistência' : j.assistencias + ' assistências') + '</span>');
         (j.cartoesAmarelos || []).forEach(function (m) {
-            partes.push('<span class="pgj-badge-amarelo">🟨 ' + m + "'</span>");
+            partes.push('<span class="pgj-evt-cartao" title="Cartão amarelo"><i class="pgj-cartao amarelo"></i>' + m + "'</span>");
         });
-        if (j.cartaoVermelho) partes.push('<span class="pgj-badge-vermelho">🟥 ' + j.cartaoVermelho + "'</span>");
-        if (j.saiuMinuto) partes.push('<span class="pgj-evt-saiu">↕ ' + j.saiuMinuto + "'</span>");
-        if (j.entrouMinuto) partes.push('<span class="pgj-evt-entrou">↑ ' + j.entrouMinuto + "'</span>");
+        if (j.cartaoVermelho) partes.push('<span class="pgj-evt-cartao" title="Cartão vermelho"><i class="pgj-cartao vermelho"></i>' + j.cartaoVermelho + "'</span>");
+        if (j.saiuMinuto) partes.push('<span class="pgj-evt-saiu">saiu ' + j.saiuMinuto + "'</span>");
+        if (j.entrouMinuto) partes.push('<span class="pgj-evt-entrou">entrou ' + j.entrouMinuto + "'</span>");
         return partes.join('');
+    }
+
+    // Média com vírgula, como se escreve em português
+    function decimal(n) {
+        return n == null ? '' : n.toFixed(1).replace('.', ',');
     }
 
     function corTime(lado) {
@@ -111,7 +116,7 @@
         var escudo = time && time.escudo ? '<img src="' + time.escudo + '" alt="">' : '';
         var header = '<div class="pgj-team-col-header">' + escudo +
             '<span class="pgj-team-col-nome">' + escHtml(time ? time.nome : '') + '</span>' +
-            (media != null ? '<span class="pgj-team-col-media">Média ' + media.toFixed(1) + '</span>' : '') +
+            (media != null ? '<span class="pgj-team-col-media">média ' + decimal(media) + '</span>' : '') +
         '</div>';
 
         var corpo = '<div class="pgj-subsection-label">Titulares</div>';
@@ -172,10 +177,14 @@
         '</div>';
     }
 
-    function formaBadges(forma) {
-        return (forma || []).map(function (f) {
-            var bg = f === 'V' ? '#22c55e' : f === 'E' ? '#6b7280' : '#ef4444';
-            return '<span style="background:' + bg + ';">' + f + '</span>';
+    var NOME_RESULTADO = { V: 'Vitória', E: 'Empate', D: 'Derrota' };
+
+    // Quadradinhos V/E/D, do mais antigo (esquerda) ao mais recente (direita).
+    // legendas[i], quando vem, descreve o jogo ("2 x 1 contra Santos, em casa, 12/08").
+    function formaBadges(forma, legendas) {
+        return (forma || []).map(function (f, i) {
+            var titulo = NOME_RESULTADO[f] + (legendas && legendas[i] ? ': ' + legendas[i] : '');
+            return '<span class="pj-res ' + f + '" title="' + escHtml(titulo) + '">' + f + '</span>';
         }).join('');
     }
 
@@ -199,8 +208,8 @@
             ? d.observacoes.map(function (o) {
                 var jogadorHtml = (o.tipo === 'JOGADOR' && o.jogadorNome) ? '<span class="pgj-obs-jogador">' + escHtml(o.jogadorNome) + '</span>' : '';
                 var acoes = op.somenteLeitura ? '' :
-                    '<button type="button" class="pgj-obs-editar" onclick="editarObsPosJogo(' + o.id + ')" title="Editar">&#9998;</button>' +
-                    '<button type="button" class="pgj-obs-remover" onclick="removerObsPosJogo(' + o.id + ')">✕</button>';
+                    '<button type="button" class="pgj-obs-editar" onclick="editarObsPosJogo(' + o.id + ')" title="Editar observação" aria-label="Editar observação">Editar</button>' +
+                    '<button type="button" class="pgj-obs-remover" onclick="removerObsPosJogo(' + o.id + ')" title="Remover observação" aria-label="Remover observação">Remover</button>';
                 return '<div class="pgj-obs-row" data-obs-id="' + o.id + '">' +
                     '<span class="pgj-obs-badge ' + o.tipo + '">' + rotuloTipoObs(o.tipo) + '</span>' +
                     jogadorHtml +
@@ -208,7 +217,7 @@
                     acoes +
                 '</div>';
             }).join('')
-            : '<div class="pgj-vazio">Nenhuma observação registrada para esta partida.</div>';
+            : '<div class="pgj-vazio">Nenhuma observação ainda. Escreva abaixo o que chamou atenção no jogo.</div>';
 
         if (op.somenteLeitura) return rows;
 
@@ -217,19 +226,52 @@
             .join('');
 
         var form = '<div class="pgj-obs-form">' +
+            '<label class="pgj-obs-form-tit" for="pgjObsTexto">Nova observação</label>' +
+            '<textarea id="pgjObsTexto" placeholder="O que chamou atenção? Use @ para mencionar um jogador." rows="3"></textarea>' +
             '<div class="pgj-obs-form-row">' +
-                '<select id="pgjObsTipo" onchange="document.getElementById(\'pgjObsJogadorWrap\').style.display = this.value === \'JOGADOR\' ? \'\' : \'none\';">' +
-                    '<option value="MANDANTE">Mandante</option><option value="VISITANTE">Visitante</option><option value="COMPETICAO">Competição</option><option value="JOGADOR">Jogador</option><option value="MARCO">Marco</option>' +
+                '<select id="pgjObsTipo" aria-label="Sobre o que é a observação" onchange="document.getElementById(\'pgjObsJogadorWrap\').style.display = this.value === \'JOGADOR\' ? \'\' : \'none\';">' +
+                    '<option value="MANDANTE">Sobre o mandante</option><option value="VISITANTE">Sobre o visitante</option><option value="COMPETICAO">Sobre a competição</option><option value="JOGADOR">Sobre um jogador</option><option value="MARCO">Marco do jogo</option>' +
                 '</select>' +
-                '<span id="pgjObsJogadorWrap" style="display:none;"><select id="pgjObsJogador">' + jogadorOpcoes + '</select></span>' +
-                '<button type="button" onclick="adicionarObsPosJogo()">Salvar</button>' +
+                '<span id="pgjObsJogadorWrap" style="display:none;"><select id="pgjObsJogador" aria-label="Jogador">' + jogadorOpcoes + '</select></span>' +
+                '<button type="button" onclick="adicionarObsPosJogo()">Salvar observação</button>' +
             '</div>' +
-            '<textarea id="pgjObsTexto" placeholder="Adicionar observação... use @ para mencionar um jogador" rows="3"></textarea>' +
         '</div>';
 
         return (d.observacoes && d.observacoes.length)
             ? '<div style="margin-bottom:16px;">' + rows + '</div>' + form
             : rows + form;
+    }
+
+    // Ícone de cada tipo de curiosidade (CuriosidadesJogoHelper.Curiosidade.Tipo)
+    var ICONES_CURIO = { recorde: '🏆', pessoal: '⭐', media: '📈', gol: '⚽', time: '📊' };
+
+    // Aba Curiosidades: o que esta partida teve de fora do comum, comparado com o
+    // campeonato e a temporada antes dela. Já vem ordenado por relevância.
+    function montarCuriosidades(d) {
+        var lista = d.curiosidades || [];
+        if (!lista.length)
+            return '<div class="pgj-vazio">Nenhuma curiosidade encontrada para esta partida — nada fora do comum em relação ao campeonato e à temporada, ou faltam estatísticas importadas.</div>';
+
+        var escudos = {
+            casa: d.casa && d.casa.escudo ? d.casa.escudo : null,
+            vis: d.visitante && d.visitante.escudo ? d.visitante.escudo : null
+        };
+        var cards = lista.map(function (c) {
+            var visual = c.foto
+                ? '<img class="pgj-curio-foto" src="' + escHtml(c.foto) + '" alt="" loading="lazy" onerror="this.onerror=null;this.src=\'/images/placeholder-jogador.png\'">'
+                : '<span class="pgj-curio-icone" aria-hidden="true">' + (ICONES_CURIO[c.tipo] || '•') + '</span>';
+            var escudo = c.lado && escudos[c.lado] ? '<img class="pgj-curio-escudo" src="' + escudos[c.lado] + '" alt="">' : '';
+            return '<div class="pgj-curio-card pgj-curio-' + escHtml(c.tipo) + '">' +
+                visual +
+                '<div class="pgj-curio-corpo">' +
+                    '<div class="pgj-curio-titulo">' + (c.foto ? (ICONES_CURIO[c.tipo] || '') + ' ' : '') + escHtml(c.titulo) + escudo + '</div>' +
+                    '<div class="pgj-curio-texto">' + escHtml(c.texto) + '</div>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+
+        return '<div class="pgj-curio-lista">' + cards + '</div>' +
+            '<div class="pgj-curio-rodape">Comparado com os jogos ' + (d.competicao ? 'de ' + escHtml(d.competicao) + ' ' : 'do campeonato ') + 'antes desta partida; recordes pessoais também olham a temporada inteira.</div>';
     }
 
     // HTML completo do pós-jogo (hero + abas + painéis).
@@ -239,39 +281,43 @@
         var escCasa = d.casa && d.casa.escudo ? '<img src="' + d.casa.escudo + '" alt="">' : '';
         var escVis = d.visitante && d.visitante.escudo ? '<img src="' + d.visitante.escudo + '" alt="">' : '';
 
-        var pillComp = (d.competicao ? escHtml(d.competicao) : '') + (d.rodada ? ' · Rod. ' + d.rodada : '');
+        var meta = [d.competicao ? escHtml(d.competicao) : '', d.rodada ? 'rodada ' + d.rodada : '', d.data ? escHtml(d.data) : '']
+            .filter(Boolean).join(', ');
+        // Média das notas dos titulares, embaixo do nome de cada time
+        var mediaHero = function (m) {
+            return m != null ? '<div class="pgj-hero-media">média <b>' + decimal(m) + '</b></div>' : '';
+        };
+        var tituloForma = 'Últimos jogos antes desta partida, o mais recente à direita';
         var hero = '<div class="pgj-hero">' +
-            (pillComp || d.data ? '<div class="pgj-hero-pills">' +
-                (pillComp ? '<span class="pgj-pill-comp">' + pillComp + '</span>' : '') +
-                (d.data ? '<span class="pgj-pill-date">' + escHtml(d.data) + '</span>' : '') +
-            '</div>' : '') +
+            (meta ? '<div class="pgj-hero-meta">' + meta + '</div>' : '') +
             '<div class="pgj-hero-teams">' +
                 '<div class="pgj-hero-team">' +
                     '<div class="pgj-hero-escudo">' + escCasa + '</div>' +
                     '<div class="pgj-hero-nome">' + escHtml(d.casa ? d.casa.nome : '') + '</div>' +
-                    '<div class="pgj-hero-forma">' + formaBadges(d.formaCasa) + '</div>' +
+                    mediaHero(d.mediaCasa) +
+                    (d.formaCasa && d.formaCasa.length ? '<div class="pgj-hero-forma" title="' + tituloForma + '">' + formaBadges(d.formaCasa) + '</div>' : '') +
                 '</div>' +
                 '<div class="pgj-hero-center">' +
-                    '<div class="pgj-hero-placar">' + (d.placarCasa ?? '-') + ' &ndash; ' + (d.placarVisitante ?? '-') + '</div>' +
-                    (d.penaltisCasa != null && d.penaltisVisitante != null ? '<div class="pgj-hero-pen">Pênaltis: ' + d.penaltisCasa + '–' + d.penaltisVisitante + '</div>' : '') +
-                    '<div class="pgj-hero-medias">' +
-                        (d.mediaCasa != null ? '<div class="pgj-hero-media"><span class="val">' + d.mediaCasa.toFixed(1) + '</span><span class="lbl">Média Casa</span></div>' : '') +
-                        (d.mediaVisitante != null ? '<div class="pgj-hero-media"><span class="val">' + d.mediaVisitante.toFixed(1) + '</span><span class="lbl">Média Visit.</span></div>' : '') +
-                    '</div>' +
+                    '<div class="pgj-hero-placar">' + (d.placarCasa ?? '-') + '<span class="x">x</span>' + (d.placarVisitante ?? '-') + '</div>' +
+                    (d.penaltisCasa != null && d.penaltisVisitante != null ? '<div class="pgj-hero-pen">' + d.penaltisCasa + ' x ' + d.penaltisVisitante + ' nos pênaltis</div>' : '') +
                 '</div>' +
                 '<div class="pgj-hero-team">' +
                     '<div class="pgj-hero-escudo">' + escVis + '</div>' +
                     '<div class="pgj-hero-nome">' + escHtml(d.visitante ? d.visitante.nome : '') + '</div>' +
-                    '<div class="pgj-hero-forma">' + formaBadges(d.formaVisitante) + '</div>' +
+                    mediaHero(d.mediaVisitante) +
+                    (d.formaVisitante && d.formaVisitante.length ? '<div class="pgj-hero-forma" title="' + tituloForma + '">' + formaBadges(d.formaVisitante) + '</div>' : '') +
                 '</div>' +
             '</div>' +
         '</div>';
 
-        var tabs = '<div class="pgj-tabs">' +
-            '<button type="button" class="pgj-tab" data-pgj-tab="notas" onclick="ativarTabPosJogo(\'notas\')">⭐ Notas dos Jogadores</button>' +
-            '<button type="button" class="pgj-tab" data-pgj-tab="campo" onclick="ativarTabPosJogo(\'campo\')">🟩 Campo</button>' +
-            '<button type="button" class="pgj-tab" data-pgj-tab="stats" onclick="ativarTabPosJogo(\'stats\')">📊 Estatísticas</button>' +
-            '<button type="button" class="pgj-tab" data-pgj-tab="obs" onclick="ativarTabPosJogo(\'obs\')">📝 Observações</button>' +
+        var nObs = (d.observacoes || []).length;
+        var nCurio = (d.curiosidades || []).length;
+        var tabs = '<div class="pgj-tabs" role="tablist">' +
+            '<button type="button" class="pgj-tab" role="tab" data-pgj-tab="notas" onclick="ativarTabPosJogo(\'notas\')">Notas</button>' +
+            '<button type="button" class="pgj-tab" role="tab" data-pgj-tab="campo" onclick="ativarTabPosJogo(\'campo\')">Campo</button>' +
+            '<button type="button" class="pgj-tab" role="tab" data-pgj-tab="stats" onclick="ativarTabPosJogo(\'stats\')">Estatísticas</button>' +
+            '<button type="button" class="pgj-tab" role="tab" data-pgj-tab="curio" onclick="ativarTabPosJogo(\'curio\')">Curiosidades' + (nCurio ? ' <span class="pgj-tab-n">' + nCurio + '</span>' : '') + '</button>' +
+            '<button type="button" class="pgj-tab" role="tab" data-pgj-tab="obs" onclick="ativarTabPosJogo(\'obs\')">Observações' + (nObs ? ' <span class="pgj-tab-n">' + nObs + '</span>' : '') + '</button>' +
         '</div>';
 
         var painelNotas = '<div class="pgj-panel" id="pgj-panel-notas"><div class="pgj-notas-grid">' +
@@ -279,107 +325,135 @@
         '</div></div>';
 
         var painelCampo = '<div class="pgj-panel" id="pgj-panel-campo"><div class="pgj-campo-grid">' +
-            '<div><div class="pgj-campo-col-label">' + escCasa + '<span>' + escHtml(d.casa ? d.casa.nome : '') + ' · Escalação Inicial</span></div>' + campoTime(d.campo.casa, 'casa', op) + '</div>' +
-            '<div><div class="pgj-campo-col-label">' + escVis + '<span>' + escHtml(d.visitante ? d.visitante.nome : '') + ' · Escalação Inicial</span></div>' + campoTime(d.campo.visitante, 'vis', op) + '</div>' +
+            '<div class="pgj-campo-col"><div class="pgj-campo-col-label">' + escCasa + '<span>' + escHtml(d.casa ? d.casa.nome : '') + '</span><small>escalação inicial</small></div>' + campoTime(d.campo.casa, 'casa', op) + '</div>' +
+            '<div class="pgj-campo-col"><div class="pgj-campo-col-label">' + escVis + '<span>' + escHtml(d.visitante ? d.visitante.nome : '') + '</span><small>escalação inicial</small></div>' + campoTime(d.campo.visitante, 'vis', op) + '</div>' +
         '</div></div>';
 
+        // Barras neutras: o lado com o número maior fica forte, o outro apagado. A cor
+        // da camisa não serve aqui (dois times de branco somem no fundo claro); ela
+        // fica só na faixa ao lado do nome do time.
+        var corCasa = corTime('casa'), corVis = corTime('vis');
         var statsRows = (d.estatisticas || []).map(function (m) {
-            var vc = parseFloat(String(m.casa).replace('%', '')) || 0;
-            var vv = parseFloat(String(m.vis).replace('%', '')) || 0;
+            var vc = parseFloat(String(m.casa).replace('%', '').replace(',', '.')) || 0;
+            var vv = parseFloat(String(m.vis).replace('%', '').replace(',', '.')) || 0;
             var total = vc + vv;
             var pc = total > 0 ? (vc / total * 100) : 50;
             var pv = 100 - pc;
             return '<div class="pgj-stat-row">' +
-                '<div class="pgj-stat-lbl">' + escHtml(m.label) + '</div>' +
-                '<div class="pgj-stat-vals">' +
-                    '<span class="num right">' + escHtml(m.casa) + '</span>' +
-                    '<div class="pgj-stat-bar"><div style="width:' + pc + '%; background:#dc2626;"></div><div style="width:' + pv + '%; background:#16a34a;"></div></div>' +
-                    '<span class="num">' + escHtml(m.vis) + '</span>' +
+                '<span class="num' + (vc < vv ? ' menor' : '') + '">' + escHtml(m.casa) + '</span>' +
+                '<div class="pgj-stat-meio">' +
+                    '<div class="pgj-stat-lbl">' + escHtml(m.label) + '</div>' +
+                    '<div class="pgj-stat-bar">' +
+                        '<div class="' + (vc < vv ? 'menor' : '') + '" style="width:' + pc + '%;"></div>' +
+                        '<div class="' + (vv < vc ? 'menor' : '') + '" style="width:' + pv + '%;"></div>' +
+                    '</div>' +
                 '</div>' +
+                '<span class="num direita' + (vv < vc ? ' menor' : '') + '">' + escHtml(m.vis) + '</span>' +
             '</div>';
         }).join('');
 
         var destaquesCards = (d.estatisticasJogador || []).map(function (m) {
-            var casaHtml = m.casa
-                ? '<div class="pgj-destaque-row">' + escCasa + '<span class="pgj-destaque-nome" style="color:#e5e7eb;">' + escHtml(m.casa.nome) + '</span><span class="pgj-destaque-val" style="color:#f1f5f9;">' + m.casa.valor + '</span></div>'
-                : '<div class="pgj-destaque-row"><span class="pgj-destaque-nome" style="color:#4b5563;">–</span></div>';
-            var visHtml = m.vis
-                ? '<div class="pgj-destaque-row">' + escVis + '<span class="pgj-destaque-nome" style="color:#9ca3af;">' + escHtml(m.vis.nome) + '</span><span class="pgj-destaque-val" style="color:#6b7280;">' + m.vis.valor + '</span></div>'
-                : '<div class="pgj-destaque-row"><span class="pgj-destaque-nome" style="color:#4b5563;">–</span></div>';
-            return '<div class="pgj-destaque-card"><div class="pgj-destaque-label">' + escHtml(m.label) + '</div>' + casaHtml + visHtml + '</div>';
+            var vc = m.casa ? parseFloat(m.casa.valor) || 0 : -1;
+            var vv = m.vis ? parseFloat(m.vis.valor) || 0 : -1;
+            var linha = function (x, esc, menor) {
+                return x
+                    ? '<div class="pgj-destaque-row' + (menor ? ' menor' : '') + '">' + esc + '<span class="pgj-destaque-nome">' + escHtml(x.nome) + '</span><span class="pgj-destaque-val">' + escHtml(x.valor) + '</span></div>'
+                    : '<div class="pgj-destaque-row menor"><span class="pgj-destaque-nome">Sem registro</span></div>';
+            };
+            return '<div class="pgj-destaque-card"><div class="pgj-destaque-label">' + escHtml(m.label) + '</div>' +
+                linha(m.casa, escCasa, vc < vv) + linha(m.vis, escVis, vv < vc) + '</div>';
         }).join('');
 
         var painelStats = '<div class="pgj-panel" id="pgj-panel-stats">' +
             (statsRows ? '<div class="pgj-stats-card">' +
                 '<div class="pgj-stats-head">' +
-                    '<div class="pgj-stats-head-team">' + escCasa + '<span style="color:#dc2626;">' + escHtml(d.casa ? d.casa.nome : '') + '</span></div>' +
-                    '<span class="pgj-stats-title">Estatísticas da Partida</span>' +
-                    '<div class="pgj-stats-head-team"><span style="color:#16a34a;">' + escHtml(d.visitante ? d.visitante.nome : '') + '</span>' + escVis + '</div>' +
+                    '<div class="pgj-stats-head-team" style="--cor:' + corCasa + '">' + escCasa + '<span>' + escHtml(d.casa ? d.casa.nome : '') + '</span></div>' +
+                    '<span class="pgj-stats-title">Estatísticas da partida</span>' +
+                    '<div class="pgj-stats-head-team direita" style="--cor:' + corVis + '"><span>' + escHtml(d.visitante ? d.visitante.nome : '') + '</span>' + escVis + '</div>' +
                 '</div>' + statsRows +
             '</div>' : '') +
             (destaquesCards ? '<div class="pgj-stats-card">' +
-                '<div class="pgj-stats-head"><span class="pgj-stats-title">Destaques Individuais</span></div>' +
+                '<div class="pgj-stats-head"><span class="pgj-stats-title">Líderes de cada time</span></div>' +
                 '<div class="pgj-destaques-grid">' + destaquesCards + '</div>' +
             '</div>' : '') +
             (!statsRows && !destaquesCards ? '<div class="pgj-vazio">Estatísticas ainda não disponíveis para esta partida.</div>' : '') +
         '</div>';
 
+        var painelCurio = '<div class="pgj-panel" id="pgj-panel-curio">' + montarCuriosidades(d) + '</div>';
+
         var painelObs = '<div class="pgj-panel" id="pgj-panel-obs">' + montarObservacoes(d, op) + '</div>';
 
-        return hero + tabs + '<div class="pgj-content">' + painelNotas + painelCampo + painelStats + painelObs + '</div>';
+        return hero + tabs + '<div class="pgj-content">' + painelNotas + painelCampo + painelStats + painelCurio + painelObs + '</div>';
     }
 
     function ativarTab(tab) {
-        document.querySelectorAll('.pgj-tab').forEach(function (b) { b.classList.toggle('active', b.dataset.pgjTab === tab); });
+        document.querySelectorAll('.pgj-tab').forEach(function (b) {
+            var ativa = b.dataset.pgjTab === tab;
+            b.classList.toggle('active', ativa);
+            b.setAttribute('aria-selected', ativa ? 'true' : 'false');
+        });
         document.querySelectorAll('.pgj-panel').forEach(function (p) { p.classList.toggle('active', p.id === 'pgj-panel-' + tab); });
     }
 
     // ── Pré-jogo: uma coluna por time (V/E/D, forma, destaques, observações) ──
+    // Tudo conta só os jogos da mesma competição e temporada ANTES desta partida.
     function colunaPreJogo(t, lado) {
         if (!t) return '';
         var escudo = t.escudo ? '<img src="' + t.escudo + '" alt="">' : '';
 
         var record = '<div class="pj-record">' +
-            '<div class="pj-rec-box pj-v"><div class="pj-rec-num">' + t.vitorias + '</div><div class="pj-rec-label">Vitórias</div></div>' +
-            '<div class="pj-rec-box pj-e"><div class="pj-rec-num">' + t.empates + '</div><div class="pj-rec-label">Empates</div></div>' +
-            '<div class="pj-rec-box pj-d"><div class="pj-rec-num">' + t.derrotas + '</div><div class="pj-rec-label">Derrotas</div></div>' +
+            '<div class="pj-rec-box pj-v"><div class="pj-rec-num">' + t.vitorias + '</div><div class="pj-rec-label">' + (t.vitorias === 1 ? 'vitória' : 'vitórias') + '</div></div>' +
+            '<div class="pj-rec-box pj-e"><div class="pj-rec-num">' + t.empates + '</div><div class="pj-rec-label">' + (t.empates === 1 ? 'empate' : 'empates') + '</div></div>' +
+            '<div class="pj-rec-box pj-d"><div class="pj-rec-num">' + t.derrotas + '</div><div class="pj-rec-label">' + (t.derrotas === 1 ? 'derrota' : 'derrotas') + '</div></div>' +
         '</div>';
 
+        var resumo = t.jogos > 0
+            ? '<div class="pj-aprov">' + t.jogos + (t.jogos === 1 ? ' jogo' : ' jogos') + ', <b>' + t.aproveitamento + '%</b> de aproveitamento</div>'
+            : '<div class="pj-aprov">Nenhum jogo finalizado antes desta partida.</div>';
+
         var form = (t.form && t.form.length)
-            ? '<div class="pj-section-title">Últimos jogos</div><div class="pj-form">' +
-              t.form.map(function (f) { return '<span class="' + f + '">' + f + '</span>'; }).join('') + '</div>'
+            ? '<div class="pj-section-title">Últimos jogos <small>o mais recente à direita</small></div>' +
+              '<div class="pj-form">' + formaBadges(t.form, t.formJogos) + '</div>'
             : '';
 
-        var players = '<div class="pj-section-title">Jogadores em destaque</div>';
+        var players = '';
         if (t.destaques && t.destaques.length) {
-            players += t.destaques.map(function (p) {
-                var foto = p.foto ? '<img src="' + p.foto + '" alt="">' : '<div class="pj-noimg"></div>';
-                var stat = [];
-                if (p.gols) stat.push('⚽ ' + p.gols);
-                if (p.assists) stat.push('🅰 ' + p.assists);
-                return '<div class="pj-player">' + foto +
-                    '<span class="pj-player-nome">' + escHtml(p.nome) + '</span>' +
-                    '<span class="pj-player-stat">' + stat.join(' · ') + '</span></div>';
-            }).join('');
-        } else {
-            players += '<div class="pj-vazio">Sem gols/assistências registrados.</div>';
+            players = '<div class="pj-section-title pj-player-cab"><span>Artilharia</span><span class="pj-num">gols</span><span class="pj-num">assist.</span></div>' +
+                t.destaques.map(function (p) {
+                    var foto = p.foto
+                        ? '<img src="' + escHtml(p.foto) + '" alt="" loading="lazy" onerror="this.onerror=null;this.src=\'/images/placeholder-jogador.png\'">'
+                        : '<div class="pj-noimg"></div>';
+                    return '<div class="pj-player">' + foto +
+                        '<span class="pj-player-nome">' + escHtml(p.nome) + '</span>' +
+                        '<span class="pj-num' + (p.gols ? '' : ' zero') + '">' + p.gols + '</span>' +
+                        '<span class="pj-num' + (p.assists ? '' : ' zero') + '">' + p.assists + '</span></div>';
+                }).join('');
+        } else if (t.jogos > 0) {
+            players = '<div class="pj-section-title">Artilharia</div><div class="pj-vazio">Nenhum gol ou assistência registrado.</div>';
         }
 
         var obs = (t.observacoes && t.observacoes.length)
-            ? '<div class="pj-section-title">Observações</div><ul class="pj-obs">' +
-              t.observacoes.map(function (o) { return '<li>' + escHtml(o) + '</li>'; }).join('') + '</ul>'
+            ? '<ul class="pj-obs">' + t.observacoes.map(function (o) { return '<li>' + escHtml(o) + '</li>'; }).join('') + '</ul>'
             : '';
 
         return '<div class="pj-col ' + lado + '">' +
             '<div class="pj-team-head">' + escudo + '<span class="pj-team-nome">' + escHtml(t.nome) + '</span></div>' +
-            record + form + players + obs +
+            record + resumo + obs + form + players +
         '</div>';
+    }
+
+    // Grade completa do resumo (as duas colunas + a origem dos números)
+    function resumoPreJogo(dados) {
+        var origem = [dados.competicao, dados.temporada].filter(Boolean).join(' ');
+        return '<div class="pj-grid">' + colunaPreJogo(dados.casa, 'casa') + colunaPreJogo(dados.visitante, 'vis') + '</div>' +
+            '<div class="pj-ind-rodape">' + (origem ? escHtml(origem) + ', s' : 'S') + 'ó os jogos antes desta partida.</div>';
     }
 
     window.PainelJogo = {
         montarPosJogo: montarPosJogo,
         ativarTab: ativarTab,
         colunaPreJogo: colunaPreJogo,
+        resumoPreJogo: resumoPreJogo,
         abrevPosicao: abrevPosicao,
         escHtml: escHtml
     };

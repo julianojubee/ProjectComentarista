@@ -1,4 +1,4 @@
-﻿@using ControleFutebolWeb.Controllers
+@using ControleFutebolWeb.Controllers
 @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
 @{
     ViewData["Title"] = "Copa do Brasil";
@@ -54,11 +54,11 @@
     .cb-hero-icon img { width: 74%; height: 74%; object-fit: contain; filter: brightness(0) invert(1); }
     .cb-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
     .cb-kicker-line { height: 2px; width: 24px; background: #fff; }
-    .cb-kicker span { font-size: .65rem; font-weight: 700; letter-spacing: .24em; color: rgba(255,255,255,.92); text-transform: uppercase; }
-    .cb-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3.2rem; font-weight: 800; color: #fff; margin: 0 0 6px; line-height: .95; text-transform: uppercase; letter-spacing: .01em; text-shadow: 0 2px 12px rgba(120,45,0,.25); }
-    .cb-hero-sub { color: rgba(255,255,255,.85); font-size: .85rem; margin: 0; }
+    .cb-kicker span { font-size: .86rem; font-weight: 600; color: rgba(255,255,255,.92); }
+    .cb-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3.2rem; font-weight: 800; color: #fff; margin: 0 0 6px; line-height: .95; text-shadow: 0 2px 12px rgba(120,45,0,.25); }
+    .cb-hero-sub { color: rgba(255,255,255,.9); font-size: .92rem; margin: 0; }
     .cb-hero-temporada { display: flex; align-items: center; gap: 6px; margin-left: auto; }
-    .cb-hero-temporada label { color: rgba(255,255,255,.9); font-size: .75rem; font-weight: 600; }
+    .cb-hero-temporada label { color: rgba(255,255,255,.9); font-size: .84rem; font-weight: 600; }
     .cb-hero-temporada select { appearance: none; padding: 5px 10px; border-radius: 7px; border: 1px solid rgba(255,255,255,.5); background: rgba(255,255,255,.16); color: #fff; font-size: .8rem; font-weight: 600; cursor: pointer; }
     .cb-hero-temporada select option { color: #111827; background: #fff; }
 
@@ -74,14 +74,14 @@
 
     /* ── Navegação de fases ── */
     .cb-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1.5rem; }
-    .cb-nav-btn { font-size: .75rem; padding: 5px 14px; background: var(--p-1); border: 1px solid var(--line); border-radius: 999px; color: var(--text-muted); font-weight: 600; transition: border-color .15s, color .15s; }
+    .cb-nav-btn { font-size: .84rem; padding: 6px 14px; background: var(--p-1); border: 1px solid var(--line); border-radius: 999px; color: var(--text-muted); font-weight: 600; transition: border-color .15s, color .15s; }
     .cb-nav-btn:hover { border-color: var(--cb-orange); color: var(--cb-orange-ink); }
     .cb-nav-btn.active { background: var(--cb-orange-soft); border-color: var(--cb-orange); color: var(--cb-orange-ink); font-weight: 700; }
 
     /* ── Cabeçalho da fase ── */
     .cb-fase-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1.2rem; }
-    .cb-fase-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--text-strong); text-transform: uppercase; letter-spacing: .04em; margin: 0; }
-    .cb-fase-badge { background: var(--cb-orange-soft); border: 1px solid var(--cb-orange-line); color: var(--cb-orange-ink); font-size: .68rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+    .cb-fase-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--text-strong); margin: 0; }
+    .cb-fase-badge { color: var(--text-dim); font-size: .88rem; font-weight: 500; }
 
     /* ── Grid de confrontos ── */
     .cb-confrontos { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
@@ -90,8 +90,8 @@
     .cb-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; transition: border-color .15s; }
     .cb-card:hover { border-color: var(--cb-orange); }
     .cb-card-header { background: var(--p-0); border-bottom: 1px solid var(--line-soft); padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; }
-    .cb-card-header-left { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .85rem; font-weight: 700; color: var(--cb-orange-ink); letter-spacing: .06em; text-transform: uppercase; }
-    .cb-card-header-right { font-size: .64rem; color: var(--text-dim); }
+    .cb-card-header-left { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .95rem; font-weight: 700; color: var(--cb-orange-ink); }
+    .cb-card-header-right { font-size: .78rem; color: var(--text-dim); }
     .cb-card-header-right .ok { color: var(--ok-2); }
 
     /* Agregado */
@@ -99,46 +99,45 @@
     .cb-agg-time { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 0; }
     .cb-agg-time.right { justify-content: flex-end; flex-direction: row-reverse; }
     .cb-agg-time img { width: 28px; height: 28px; object-fit: contain; border-radius: 50%; border: 1px solid var(--line-strong); background: var(--p-0); flex-shrink: 0; }
-    .cb-agg-name { font-size: .8rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cb-agg-name { font-size: .88rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .cb-agg-name:hover { text-decoration: underline; }
     .cb-agg-score { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
     .cb-agg-num { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.7rem; font-weight: 800; line-height: 1; color: var(--text-strong); min-width: 22px; text-align: center; }
     .cb-agg-num.leader { color: var(--ok-2); }
     .cb-agg-num.loser { color: var(--text-dimmer); }
     .cb-agg-sep { font-size: 18px; color: var(--line-strong); font-weight: 300; line-height: 1; }
-    .cb-agg-vs { font-size: .72rem; color: var(--text-dim); font-weight: 600; }
+    .cb-agg-vs { font-size: .8rem; color: var(--text-dim); font-weight: 600; }
 
     /* Classificado */
     .cb-classificado-wrap { padding: 6px 14px; text-align: center; border-bottom: 1px solid var(--line-soft); }
-    .cb-classificado { font-size: .66rem; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: var(--cb-orange-soft); border: 1px solid var(--cb-orange-line); color: var(--cb-orange-ink); white-space: nowrap; }
+    .cb-classificado { font-size: .8rem; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: var(--cb-orange-soft); border: 1px solid var(--cb-orange-line); color: var(--cb-orange-ink); white-space: nowrap; }
     .cb-classificado.pendente { background: var(--p-3); border-color: var(--line); color: var(--text-muted); }
 
     /* Jogos ida/volta */
     .cb-jogos { padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
-    .cb-jogo-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; background: var(--p-0); border: 1px solid var(--line-soft); font-size: .75rem; transition: border-color .15s; }
+    .cb-jogo-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; background: var(--p-0); border: 1px solid var(--line-soft); font-size: .82rem; transition: border-color .15s; }
     .cb-jogo-row:hover { border-color: var(--cb-orange-line); }
-    .cb-jogo-label { font-size: .6rem; font-weight: 700; color: #fff; background: var(--cb-orange); padding: 2px 7px; border-radius: 4px; flex-shrink: 0; }
+    .cb-jogo-label { font-size: .72rem; font-weight: 700; color: #fff; background: var(--cb-orange); padding: 2px 7px; border-radius: 4px; flex-shrink: 0; }
     .cb-jogo-label.volta { background: var(--p-4); color: var(--text); }
-    .cb-jogo-date { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .68rem; font-weight: 700; color: var(--text-dimmer); flex-shrink: 0; }
+    .cb-jogo-date { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .82rem; font-weight: 700; color: var(--text-dim); flex-shrink: 0; }
     .cb-jogo-times { display: flex; align-items: center; gap: 5px; flex: 1; justify-content: center; color: var(--text-muted); min-width: 0; }
     .cb-jogo-times .nome { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .cb-jogo-result { font-family: 'Barlow Condensed', Arial, sans-serif; font-weight: 700; font-size: .85rem; background: var(--p-4); color: var(--text-strong); padding: 1px 8px; border-radius: 5px; flex-shrink: 0; }
-    .cb-jogo-pen { font-size: .62rem; color: var(--text-muted); font-weight: 500; }
-    .cb-jogo-pending { font-size: .62rem; color: var(--text-dim); background: var(--p-2); padding: 2px 8px; border-radius: 5px; flex-shrink: 0; }
-    .cb-jogo-analisar { font-size: .68rem; color: var(--cb-orange-ink); font-weight: 700; flex-shrink: 0; border: 1px solid var(--cb-orange-line); padding: 2px 9px; border-radius: 5px; transition: background .15s, color .15s; }
+    .cb-jogo-pen { font-size: .74rem; color: var(--text-muted); font-weight: 500; }
+    .cb-jogo-pending { font-size: .74rem; color: var(--text-dim); background: var(--p-2); padding: 2px 8px; border-radius: 5px; flex-shrink: 0; }
+    .cb-jogo-analisar { font-size: .78rem; color: var(--cb-orange-ink); font-weight: 700; flex-shrink: 0; border: 1px solid var(--cb-orange-line); padding: 2px 9px; border-radius: 5px; transition: background .15s, color .15s; }
     .cb-jogo-analisar:hover { background: var(--cb-orange); color: #fff; border-color: var(--cb-orange); }
     .cb-jogo-vazio { justify-content: flex-start; color: var(--text-dim); }
-    .cb-jogo-vazio span.txt { font-size: .68rem; margin-left: 4px; }
+    .cb-jogo-vazio span.txt { font-size: .8rem; margin-left: 4px; }
 
     /* Sem dados */
-    .cb-empty { text-align: center; padding: 3.5rem 1rem; color: var(--text-dim); font-size: .8rem; background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; }
-    .cb-trophy { font-size: 2.5rem; margin-bottom: 10px; }
+    .cb-empty { text-align: center; padding: 3.5rem 1rem; color: var(--text-dim); font-size: .92rem; background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; }
 
     /* ── Abas (Confrontos / Estatísticas) ── */
     .cb-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; border-bottom: 1px solid var(--line); margin-bottom: 1.2rem; }
     .cb-tab {
         flex: 0 0 auto; background: var(--p-1); border: 1px solid var(--line); border-radius: 999px;
-        padding: 7px 16px; font-size: 12px; font-weight: 700; color: var(--text-muted); cursor: pointer; white-space: nowrap;
+        padding: 7px 16px; font-size: .86rem; font-weight: 700; color: var(--text-muted); cursor: pointer; white-space: nowrap;
         font-family: 'Barlow', Arial, sans-serif; transition: border-color .15s, color .15s;
     }
     .cb-tab:hover { border-color: var(--cb-orange); color: var(--cb-orange-ink); }
@@ -161,16 +160,16 @@
         <div class="cb-hero-fade"></div>
         <div class="cb-hero-inner">
             <div class="cb-hero-icon">
-                <img src="~/images/background/copadobrasil.png" alt="Copa do Brasil"
+                <img src="~/images/background/copadobrasil.png" alt=""
                      onerror="this.parentElement.style.display='none'" />
             </div>
             <div>
                 <div class="cb-kicker">
                     <div class="cb-kicker-line"></div>
-                    <span>Competição Nacional · Mata-Mata</span>
+                    <span>Competição nacional, mata-mata</span>
                 </div>
                 <h1>Copa do Brasil</h1>
-                <p class="cb-hero-sub">Fase atual · Confrontos de ida e volta</p>
+                <p class="cb-hero-sub">@(string.IsNullOrEmpty(vm.FaseChaveAtual) ? "Confrontos de ida e volta" : $"{vm.FaseAtual}, {(vm.JogoUnico ? "jogo único" : "jogos de ida e volta")}")</p>
                 <div style="margin-top:10px;">
                     @await Html.PartialAsync("_BotaoSincronizarJogos", 3)
                 </div>
@@ -193,52 +192,42 @@
     <div class="cb-content">
 
         <div class="cb-tabs" role="tablist">
-            <button type="button" class="cb-tab active" data-cb-tab="confrontos">🏆 Confrontos</button>
-            <button type="button" class="cb-tab" data-cb-tab="estatisticas">📈 Estatísticas</button>
+            <button type="button" class="cb-tab active" data-cb-tab="confrontos">Confrontos</button>
+            <button type="button" class="cb-tab" data-cb-tab="estatisticas">Estatísticas</button>
+            <button type="button" class="cb-tab" data-cb-tab="estat-jogadores">Jogadores</button>
         </div>
 
         <div class="cb-panel active" data-cb-panel="confrontos">
         @if (vm.FaseAtual == "Sem dados" || !vm.Confrontos.Any())
         {
             <div class="cb-empty">
-                <div class="cb-trophy">🏆</div>
-                Nenhum jogo da Copa do Brasil encontrado.<br />
-                <small>Importe os jogos com <strong>CompeticaoId = 3</strong> para ver os confrontos.</small>
+                Nenhum jogo da Copa do Brasil nesta temporada.<br />
+                <small>Use "Sincronizar jogos" acima para importar os confrontos.</small>
             </div>
         }
         else
         {
             <!-- ── Navegação de fases ── -->
-            @if (vm.RodasDisponiveis.Count > 1)
+            @if (vm.Fases.Count > 1)
             {
-                <div class="cb-nav">
-                    @foreach (var r in vm.RodasDisponiveis)
+                <nav class="cb-nav" aria-label="Fases">
+                    @foreach (var f in vm.Fases)
                     {
-                        var nomeR = r switch
-                        {
-                            1 => "1ª Fase",
-                            2 => "2ª Fase",
-                            3 => "3ª Fase",
-                            4 => "Oitavas",
-                            5 => "Quartas",
-                            6 => "Semifinal",
-                            7 => "Final",
-                            _ => $"Rodada {r}"
-                        };
                         <a asp-action="Index" asp-controller="CopaBrasil"
-                           asp-route-rodada="@r"
+                           asp-route-fase="@f.Chave"
                            asp-route-temporada="@temporadaCbSel"
-                           class="cb-nav-btn @(r == vm.RodadaAtual ? "active" : "")">
-                            @nomeR
+                           class="cb-nav-btn @(f.Chave == vm.FaseChaveAtual ? "active" : "")"
+                           aria-current="@(f.Chave == vm.FaseChaveAtual ? "page" : null)">
+                            @f.Rotulo
                         </a>
                     }
-                </div>
+                </nav>
             }
 
             <!-- ── Cabeçalho da fase ── -->
             <div class="cb-fase-header">
                 <h3 class="cb-fase-title">@vm.FaseAtual</h3>
-                <span class="cb-fase-badge">@vm.Confrontos.Count confronto(s)</span>
+                <span class="cb-fase-badge">@(vm.Confrontos.Count == 1 ? "1 confronto" : $"{vm.Confrontos.Count} confrontos"), @(vm.JogoUnico ? "jogo único" : "ida e volta")</span>
             </div>
 
             <!-- ── Confrontos ── -->
@@ -247,7 +236,9 @@
                 {
                     bool idaRealizada = c.JogoIda?.PlacarCasa.HasValue == true;
                     bool voltaRealizada = c.JogoVolta?.PlacarCasa.HasValue == true;
-                    bool ambosRealizados = idaRealizada && voltaRealizada;
+                    // Em jogo único, o confronto acaba no primeiro (e único) jogo
+                    bool ambosRealizados = idaRealizada && (vm.JogoUnico || voltaRealizada);
+                    var vencedor = c.Vencedor(vm.JogoUnico);
 
                     bool aLiderando = c.GolsTimeA > c.GolsTimeB;
                     bool bLiderando = c.GolsTimeB > c.GolsTimeA;
@@ -259,7 +250,7 @@
                             <span class="cb-card-header-right">
                                 @if (ambosRealizados)
                                 {
-                                    <span class="ok">✔ Encerrado</span>
+                                    <span class="ok">Encerrado</span>
                                 }
                                 else if (idaRealizada)
                                 {
@@ -278,7 +269,7 @@
                             <div class="cb-agg-time">
                                 @if (!string.IsNullOrEmpty(c.TimeA.EscudoUrl))
                                 {
-                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.TimeA.EscudoUrl })" alt="@c.TimeA.Nome" />
+                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.TimeA.EscudoUrl })" alt="" loading="lazy" />
                                 }
                                 <a class="cb-agg-name" title="@c.TimeA.Nome"
                                    href="@Url.Action("Details", "Times", new { id = c.TimeA.Id })">@c.TimeA.Nome</a>
@@ -291,7 +282,7 @@
                                     <span class="cb-agg-num @(aLiderando ? "leader" : (bLiderando ? "loser" : ""))">
                                         @c.GolsTimeA
                                     </span>
-                                    <span class="cb-agg-sep">–</span>
+                                    <span class="cb-agg-sep">x</span>
                                     <span class="cb-agg-num @(bLiderando ? "leader" : (aLiderando ? "loser" : ""))">
                                         @c.GolsTimeB
                                     </span>
@@ -306,7 +297,7 @@
                             <div class="cb-agg-time right">
                                 @if (!string.IsNullOrEmpty(c.TimeB.EscudoUrl))
                                 {
-                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.TimeB.EscudoUrl })" alt="@c.TimeB.Nome" />
+                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.TimeB.EscudoUrl })" alt="" loading="lazy" />
                                 }
                                 <a class="cb-agg-name" title="@c.TimeB.Nome"
                                    href="@Url.Action("Details", "Times", new { id = c.TimeB.Id })">@c.TimeB.Nome</a>
@@ -314,16 +305,16 @@
                         </div>
 
                         <!-- Badge classificado (se encerrado) -->
-                        @if (c.Classificado != null)
+                        @if (vencedor != null)
                         {
                             <div class="cb-classificado-wrap">
-                                <span class="cb-classificado">🏆 @c.Classificado.Nome classificado</span>
+                                <span class="cb-classificado">@vencedor.Nome avançou</span>
                             </div>
                         }
                         else if (ambosRealizados && c.GolsTimeA == c.GolsTimeB)
                         {
                             <div class="cb-classificado-wrap">
-                                <span class="cb-classificado pendente">⚽ Pênaltis / definição pendente</span>
+                                <span class="cb-classificado pendente">Empate, falta registrar os pênaltis</span>
                             </div>
                         }
 
@@ -334,7 +325,7 @@
                             @if (c.JogoIda != null)
                             {
                                 <div class="cb-jogo-row">
-                                    <span class="cb-jogo-label">IDA</span>
+                                    <span class="cb-jogo-label">@(vm.JogoUnico ? "Jogo" : "Ida")</span>
                                     <span class="cb-jogo-date">
                                         @ControleFutebolWeb.Helpers.DateHelper.FormatarData(c.JogoIda.Data, "dd/MM HH:mm")
                                     </span>
@@ -347,7 +338,7 @@
                                                 @c.JogoIda.PlacarCasa x @c.JogoIda.PlacarVisitante
                                                 @if (c.JogoIda.PenaltisCasa.HasValue && c.JogoIda.PenaltisVisitante.HasValue)
                                                 {
-                                                    <span class="cb-jogo-pen">(@c.JogoIda.PenaltisCasa-@c.JogoIda.PenaltisVisitante pên.)</span>
+                                                    <span class="cb-jogo-pen">(@c.JogoIda.PenaltisCasa x @c.JogoIda.PenaltisVisitante nos pênaltis)</span>
                                                 }
                                             </span>
                                         }
@@ -358,13 +349,13 @@
                                         <span class="nome">@c.JogoIda.TimeVisitante?.Nome</span>
                                     </div>
                                     <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@c.JogoIda.Id"
-                                       class="cb-jogo-analisar">→</a>
+                                       class="cb-jogo-analisar">Analisar</a>
                                 </div>
                             }
                             else
                             {
                                 <div class="cb-jogo-row cb-jogo-vazio">
-                                    <span class="cb-jogo-label">IDA</span>
+                                    <span class="cb-jogo-label">Ida</span>
                                     <span class="txt">Jogo de ida não cadastrado</span>
                                 </div>
                             }
@@ -373,7 +364,7 @@
                             @if (c.JogoVolta != null)
                             {
                                 <div class="cb-jogo-row">
-                                    <span class="cb-jogo-label volta">VOLTA</span>
+                                    <span class="cb-jogo-label volta">Volta</span>
                                     <span class="cb-jogo-date">
                                         @ControleFutebolWeb.Helpers.DateHelper.FormatarData(c.JogoVolta.Data, "dd/MM HH:mm")
                                     </span>
@@ -386,7 +377,7 @@
                                                 @c.JogoVolta.PlacarCasa x @c.JogoVolta.PlacarVisitante
                                                 @if (c.JogoVolta.PenaltisCasa.HasValue && c.JogoVolta.PenaltisVisitante.HasValue)
                                                 {
-                                                    <span class="cb-jogo-pen">(@c.JogoVolta.PenaltisCasa-@c.JogoVolta.PenaltisVisitante pên.)</span>
+                                                    <span class="cb-jogo-pen">(@c.JogoVolta.PenaltisCasa x @c.JogoVolta.PenaltisVisitante nos pênaltis)</span>
                                                 }
                                             </span>
                                         }
@@ -397,13 +388,13 @@
                                         <span class="nome">@c.JogoVolta.TimeVisitante?.Nome</span>
                                     </div>
                                     <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@c.JogoVolta.Id"
-                                       class="cb-jogo-analisar">→</a>
+                                       class="cb-jogo-analisar">Analisar</a>
                                 </div>
                             }
-                            else
+                            else if (!vm.JogoUnico)
                             {
                                 <div class="cb-jogo-row cb-jogo-vazio">
-                                    <span class="cb-jogo-label volta">VOLTA</span>
+                                    <span class="cb-jogo-label volta">Volta</span>
                                     <span class="txt">Jogo de volta ainda não cadastrado</span>
                                 </div>
                             }
@@ -417,6 +408,10 @@
         <div class="cb-panel" data-cb-panel="estatisticas">
             @await Html.PartialAsync("_LinksEstatisticasCompeticao", (3, temporadaCbSel))
             @await Html.PartialAsync("_PainelEstatisticas", estatisticasTimes)
+        </div>
+
+        <div class="cb-panel" data-cb-panel="estat-jogadores">
+            @await Html.PartialAsync("_AbaEstatisticasJogadores", (3, temporadaCbSel))
         </div>
     </div>
     @await Html.PartialAsync("_ArtilheirosAssistencias", (3, temporadaCbSel))

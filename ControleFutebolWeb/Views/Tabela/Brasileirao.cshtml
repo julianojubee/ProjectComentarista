@@ -1,4 +1,4 @@
-﻿@model List<ControleFutebolWeb.Models.ViewModels.ClassificacaoViewModel>
+@model List<ControleFutebolWeb.Models.ViewModels.ClassificacaoViewModel>
 @using System.Globalization
 @using ControleFutebolWeb.Helpers
 @using ControleFutebolWeb.Controllers
@@ -88,8 +88,8 @@
     .br-hero-crest img { width: 100%; height: 100%; object-fit: contain; }
     .br-hero-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
     .br-hero-kicker-line { height: 2px; width: 24px; background: var(--br-lime); }
-    .br-hero-kicker span { font-size: .65rem; font-weight: 700; letter-spacing: .24em; color: var(--br-lime); text-transform: uppercase; }
-    .br-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3.1rem; font-weight: 800; color: #fff; margin: 0 0 6px; line-height: 1; text-transform: uppercase; letter-spacing: .02em; }
+    .br-hero-kicker span { font-size: .86rem; font-weight: 600; color: var(--br-lime); }
+    .br-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3.1rem; font-weight: 800; color: #fff; margin: 0 0 6px; line-height: 1; }
     .br-hero p { font-size: .88rem; color: rgba(255,255,255,.72); margin: 0; }
     .br-hero-temporada select {
         margin-top: 6px; padding: 4px 10px; border-radius: 7px; border: 1px solid rgba(255,255,255,.4); background: rgba(255,255,255,.14); color: #fff; font-size: .8rem; font-weight: 600;
@@ -104,12 +104,12 @@
     .br-rodnav-btn:hover { border-color: var(--br-lime); color: var(--br-lime); }
     .br-rodnav-num { text-align: center; min-width: 80px; }
     .br-rodnav-num .val { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.6rem; font-weight: 800; color: #fff; line-height: 1; }
-    .br-rodnav-num .lbl { font-size: .62rem; color: rgba(255,255,255,.6); text-transform: uppercase; letter-spacing: .1em; margin-top: 2px; }
+    .br-rodnav-num .lbl { font-size: .78rem; color: rgba(255,255,255,.72); margin-top: 2px; }
 
     .br-stats { display: flex; gap: 20px; flex-shrink: 0; padding: 14px 20px; background: rgba(4,14,44,.45); border: 1px solid rgba(198,240,0,.28); border-radius: 10px; }
     .br-stat { text-align: center; }
     .br-stat .val { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--br-lime); line-height: 1; }
-    .br-stat .lbl { font-size: .58rem; color: rgba(255,255,255,.55); text-transform: uppercase; letter-spacing: .08em; margin-top: 2px; }
+    .br-stat .lbl { font-size: .76rem; color: rgba(255,255,255,.72); margin-top: 2px; }
     .br-stat-sep { width: 1px; background: rgba(198,240,0,.22); align-self: stretch; }
 
     /* ── Layout principal ── */
@@ -126,7 +126,7 @@
         display: grid; grid-template-columns: 36px 36px 1fr 36px 36px 36px 36px 36px 44px 60px 80px; gap: 4px;
         padding: 10px 14px; background: var(--p-0); border-bottom: 1px solid var(--line-soft); align-items: center;
     }
-    .br-cols span { font-size: .58rem; color: var(--text-dim); font-weight: 700; text-transform: uppercase; text-align: center; }
+    .br-cols span { font-size: .76rem; color: var(--text-dim); font-weight: 600; text-align: center; }
     .br-cols span.left { text-align: left; }
 
     .br-row { display: grid; grid-template-columns: 4px 36px 28px 1fr 36px 36px 36px 36px 36px 44px 60px 80px; gap: 4px; padding: 10px 14px; padding-left: 0; border-bottom: 1px solid var(--line-soft); align-items: center; transition: background .12s; }
@@ -163,7 +163,7 @@
     .br-sidebar { display: flex; flex-direction: column; gap: 16px; }
     .br-side-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
     .br-side-header { padding: 12px 16px; background: var(--p-0); border-bottom: 1px solid var(--line-soft); display: flex; align-items: center; gap: 8px; }
-    .br-side-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .88rem; font-weight: 700; color: var(--text-strong); text-transform: uppercase; letter-spacing: .04em; }
+    .br-side-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.2rem; font-weight: 700; color: var(--text-strong); }
     .br-side-badge { margin-left: auto; font-size: .65rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
     .br-side-badge.blue { color: var(--info); background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); }
     .br-side-badge.green { color: var(--br-ink); background: var(--br-soft); border: 1px solid var(--br-line); }
@@ -183,7 +183,7 @@
     .br-jogo { padding: 10px 14px; border-bottom: 1px solid var(--line-soft); transition: background .12s; }
     .br-jogo:last-child { border-bottom: none; }
     .br-jogo:hover { background: var(--p-3); }
-    .br-jogo-hora { font-size: .62rem; color: var(--br-ink); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 6px; }
+    .br-jogo-hora { font-size: .78rem; color: var(--br-ink); font-weight: 700; margin-bottom: 6px; }
     .br-jogo-teams { display: flex; align-items: center; gap: 8px; }
     .br-jogo-lado { flex: 1; display: flex; align-items: center; gap: 6px; min-width: 0; }
     .br-jogo-lado.casa { justify-content: flex-end; }
@@ -198,7 +198,7 @@
     .br-tabs { padding: 0 2.5rem; border-bottom: 1px solid var(--line-soft); display: flex; gap: 4px; }
     .br-tab {
         background: none; border: none; cursor: pointer; font-family: 'Barlow Condensed', Arial, sans-serif;
-        font-size: 16px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+        font-size: 17px; font-weight: 700;
         padding: .8rem 1.3rem; border-bottom: 3px solid transparent; color: var(--text-dim);
     }
     .br-tab:hover { color: var(--br-ink); }
@@ -225,16 +225,16 @@
         <div class="br-hero-fade"></div>
         <div class="br-hero-inner">
             <div class="br-hero-crest">
-                <img src="~/images/background/campeonatobrasileiro.png" alt="Brasileirão"
+                <img src="~/images/background/campeonatobrasileiro.png" alt=""
                      onerror="this.parentElement.style.display='none'" />
             </div>
             <div style="flex:1; min-width:180px;">
                 <div class="br-hero-kicker">
                     <div class="br-hero-kicker-line"></div>
-                    <span>Série A · Brasil@(temporadaBrSel.HasValue ? " · " + temporadaBrSel : "")</span>
+                    <span>Série A@(temporadaBrSel.HasValue ? $", temporada {temporadaBrSel}" : "")</span>
                 </div>
                 <h1>Brasileirão</h1>
-                <p>Classificação atualizada · Rodada @rodadaRef de @totalRodadas</p>
+                <p>Classificação até a rodada @rodadaRef de @totalRodadas</p>
                 @if (temporadasBr.Count > 1)
                 {
                     <form method="get" class="br-hero-temporada">
@@ -259,7 +259,7 @@
                 </a>
                 <div class="br-rodnav-num">
                     <div class="val">@(rodadaRef)ª</div>
-                    <div class="lbl">Rodada</div>
+                    <div class="lbl">rodada</div>
                 </div>
                 <a class="br-rodnav-btn" href="@linkRodada(Math.Min(rodadaMaxima, rodadaRef + 1))" aria-label="Próxima rodada">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6" /></svg>
@@ -268,11 +268,9 @@
 
             <!-- Stats strip -->
             <div class="br-stats">
-                <div class="br-stat"><div class="val">@Model.Count</div><div class="lbl">Times</div></div>
+                <div class="br-stat"><div class="val">@Model.Count</div><div class="lbl">times</div></div>
                 <div class="br-stat-sep"></div>
-                <div class="br-stat"><div class="val">@rodadaRef</div><div class="lbl">Rodadas</div></div>
-                <div class="br-stat-sep"></div>
-                <div class="br-stat"><div class="val">@totalGols</div><div class="lbl">Gols</div></div>
+                <div class="br-stat"><div class="val">@totalGols</div><div class="lbl">gols</div></div>
             </div>
         </div>
     </div>
@@ -281,6 +279,7 @@
     <div class="br-tabs">
         <button type="button" class="br-tab active" data-tab="classificacao">Classificação</button>
         <button type="button" class="br-tab" data-tab="estatisticas">Estatísticas</button>
+        <button type="button" class="br-tab" data-tab="estat-jogadores">Jogadores</button>
     </div>
 
     <div id="tab-classificacao" class="br-tabpane active">
@@ -368,7 +367,6 @@
             <!-- Artilheiros -->
             <div class="br-side-card">
                 <div class="br-side-header">
-                    <span style="font-size:1rem;">⚽</span>
                     <span class="br-side-title">Artilheiros</span>
                 </div>
                 @{ var rankColors = new[] { "var(--br-ink)", "var(--text-muted)", "#b45309", "var(--text-dimmer)", "var(--text-dimmer)" }; }
@@ -403,7 +401,7 @@
                                     <span>@(a.Jogador.Time?.Nome ?? "—")</span>
                                 </div>
                             </div>
-                            <span class="br-art-gols">@(a.Gols)⚽</span>
+                            <span class="br-art-gols">@(a.Gols)</span>
                         </div>
                     }
                 }
@@ -455,7 +453,6 @@
             <!-- Próxima Rodada -->
             <div class="br-side-card">
                 <div class="br-side-header">
-                    <span style="font-size:1rem;">📅</span>
                     <span class="br-side-title">Próxima Rodada</span>
                     <span class="br-side-badge blue">Rod. @rodadaRef</span>
                 </div>
@@ -468,7 +465,7 @@
                     foreach (var jg in proximaRodadaJogos)
                     {
                         <div class="br-jogo">
-                            <div class="br-jogo-hora">@DateHelper.FormatarData(jg.Data, "HH:mm") · @DateHelper.FormatarData(jg.Data, "dd/MM")</div>
+                            <div class="br-jogo-hora">@DateHelper.FormatarData(jg.Data, "dd/MM"), @DateHelper.FormatarData(jg.Data, "HH:mm")</div>
                             <div class="br-jogo-teams">
                                 <div class="br-jogo-lado casa">
                                     <span>@(jg.TimeCasa?.Nome ?? "?")</span>
@@ -494,7 +491,6 @@
             <!-- Últimos resultados -->
             <div class="br-side-card">
                 <div class="br-side-header">
-                    <span style="font-size:1rem;">🕘</span>
                     <span class="br-side-title">Última Rodada</span>
                     <span class="br-side-badge green">Rod. @ultimaRodadaNum</span>
                 </div>
@@ -539,6 +535,11 @@
     <div id="tab-estatisticas" class="br-tabpane">
         @await Html.PartialAsync("_LinksEstatisticasCompeticao", (1, temporadaBrSel))
         @await Html.PartialAsync("_PainelEstatisticas", estatisticasTimes)
+    </div>
+
+    <!-- ── Estatísticas dos jogadores (carrega ao abrir a aba) ── -->
+    <div id="tab-estat-jogadores" class="br-tabpane">
+        @await Html.PartialAsync("_AbaEstatisticasJogadores", (1, temporadaBrSel))
     </div>
 </div>
 

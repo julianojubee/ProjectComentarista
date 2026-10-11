@@ -120,6 +120,42 @@
         usa ordem alfabética. Sem nenhum critério marcado, vale a ordem padrão do Brasileirão.
     </p>
 
+    <hr class="my-4" />
+
+    <h5>Zonas da tabela</h5>
+    <p class="text-muted" style="font-size:.9rem;">
+        Quantas posições de cima e de baixo têm destino próprio — elas ganham cor e entram na
+        legenda da classificação. Deixe em branco o que a liga não tem. Sem nenhuma zona
+        preenchida, a tabela destaca só o líder.
+        Ex.: Bundesliga → 4 Champions League, 2 Europa League, 1 playoff, 2 rebaixados.
+    </p>
+    <div class="row g-3 mb-3">
+        <div class="col-sm-3">
+            <label asp-for="ZonaTopoVagas" class="form-label">Vagas da zona principal</label>
+            <input asp-for="ZonaTopoVagas" type="number" min="0" max="40" class="form-control" />
+        </div>
+        <div class="col-sm-3">
+            <label asp-for="ZonaTopoRotulo" class="form-label">Nome da zona principal</label>
+            <input asp-for="ZonaTopoRotulo" class="form-control" maxlength="40" placeholder="Ex.: Champions League" />
+        </div>
+        <div class="col-sm-3">
+            <label asp-for="ZonaTopo2Vagas" class="form-label">Vagas da segunda zona</label>
+            <input asp-for="ZonaTopo2Vagas" type="number" min="0" max="40" class="form-control" />
+        </div>
+        <div class="col-sm-3">
+            <label asp-for="ZonaTopo2Rotulo" class="form-label">Nome da segunda zona</label>
+            <input asp-for="ZonaTopo2Rotulo" class="form-control" maxlength="40" placeholder="Ex.: Europa League" />
+        </div>
+        <div class="col-sm-3">
+            <label asp-for="ZonaPlayoffVagas" class="form-label">Playoff de rebaixamento</label>
+            <input asp-for="ZonaPlayoffVagas" type="number" min="0" max="40" class="form-control" />
+        </div>
+        <div class="col-sm-3">
+            <label asp-for="ZonaRebaixamentoVagas" class="form-label">Rebaixados direto</label>
+            <input asp-for="ZonaRebaixamentoVagas" type="number" min="0" max="40" class="form-control" />
+        </div>
+    </div>
+
     <button type="submit" class="btn btn-primary">Salvar</button>
 </form>
 

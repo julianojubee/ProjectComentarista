@@ -234,19 +234,20 @@ namespace ControleFutebolWeb.Controllers
                 .OrderBy(c => c.Nome)
                 .ToListAsync();
 
-            // Contagem de jogos e times distintos por competição (para os cards da tela).
+            // Contagem de jogos por competição (para os cards da tela).
             var jogosPorCompeticao = await _context.Jogos
                 .GroupBy(j => j.CompeticaoId)
                 .Select(g => new { CompeticaoId = g.Key, Jogos = g.Count() })
                 .ToDictionaryAsync(g => g.CompeticaoId, g => g.Jogos);
 
-            var timesPorCompeticao = await _context.Jogos
-                .Select(j => new { j.CompeticaoId, j.TimeCasaId, j.TimeVisitanteId })
-                .ToListAsync();
-            var timesDict = timesPorCompeticao
-                .SelectMany(j => new[] { (j.CompeticaoId, TimeId: j.TimeCasaId), (j.CompeticaoId, TimeId: j.TimeVisitanteId) })
+            // Times distintos por competição, contados no banco (antes carregava todos
+            // os jogos na memória só para isso).
+            var timesDict = await _context.Jogos
+                .Select(j => new { j.CompeticaoId, TimeId = j.TimeCasaId })
+                .Union(_context.Jogos.Select(j => new { j.CompeticaoId, TimeId = j.TimeVisitanteId }))
                 .GroupBy(x => x.CompeticaoId)
-                .ToDictionary(g => g.Key, g => g.Select(x => x.TimeId).Distinct().Count());
+                .Select(g => new { CompeticaoId = g.Key, Times = g.Count() })
+                .ToDictionaryAsync(g => g.CompeticaoId, g => g.Times);
 
             // Injetar TopTier calculado por usuário via ViewBag
             ViewBag.TopTierIds = topTierIds;
@@ -271,7 +272,7 @@ namespace ControleFutebolWeb.Controllers
 
             await _context.SaveChangesAsync();
             _cache.Remove($"layout-menu:{uid}"); // menu do layout muda → invalida o cache
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction(nameof(Index), null, $"comp-{id}");
         }
 
         // Marca/desmarca a competição como participante da tabela de classificação da home.
@@ -289,7 +290,7 @@ namespace ControleFutebolWeb.Controllers
                 _context.CompeticoesHomeUsuario.Remove(registro);
 
             await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction(nameof(Index), null, $"comp-{id}");
         }
 
         // Capa (hero) da tela de detalhes. É preferência de usuário: cada um sobe a
@@ -764,7 +765,37 @@ namespace ControleFutebolWeb.Controllers
                 _context, jogoIds,
                 gols.Select(g => g.JogadorId).Concat(cartoes.Select(c => c.JogadorId))).ToList();
 
-            return View(EstatisticaTimeCalculator.Calcular(jogosRealizados, gols, cartoes, escalacoesEstat));
+            return View(EstatisticaTimeCalculator.Calcular(jogosRealizados, gols, cartoes, escalacoesEstat,
+                DesarmesPorTimeHelper.Carregar(_context, jogosRealizados)));
+        }
+
+        // GET: Competicoes/EstatisticasJogadores/5?temporada=2025&baseEstat=jogo&mando=casa&minJogos=3
+        // Conteúdo da aba "Estatísticas Jogadores" das telas de competição (as próprias —
+        // Brasileirão, Libertadores, Copa do Brasil, Champions, Copa do Mundo — e a
+        // dinâmica, Competicoes/Detalhes): os mesmos dados da aba de /Relatorios, só
+        // desta competição. Carregado sob demanda por _AbaEstatisticasJogadores, quando
+        // o usuário abre a aba, para não pesar a abertura da tela.
+        public async Task<IActionResult> EstatisticasJogadores(
+            int id, [FromServices] RelatoriosService relatorios,
+            int? temporada = null, string? baseEstat = null, string? mando = null, int minJogos = 1)
+        {
+            // Mesmos valores da query string de /Relatorios.
+            var baseCalculo = baseEstat switch
+            {
+                "total" => BaseEstatistica.Total,
+                "90"    => BaseEstatistica.Por90,
+                _       => BaseEstatistica.PorJogo
+            };
+            var mandoSel = mando switch
+            {
+                "casa" => MandoJogador.Casa,
+                "fora" => MandoJogador.Fora,
+                _      => MandoJogador.Todos
+            };
+
+            var vm = await relatorios.MontarEstatisticasJogadoresAsync(
+                id, temporada, _userManager.GetUserId(User), minJogos, baseCalculo, mandoSel);
+            return PartialView("_EstatisticasJogadores", vm);
         }
 
         public async Task<IActionResult> Detalhes(int id, int? temporada = null)
@@ -883,7 +914,8 @@ namespace ControleFutebolWeb.Controllers
                 _context, jogoIdsRealizados,
                 golsEstat.Select(g => g.JogadorId).Concat(cartoes.Select(c => c.JogadorId))).ToList();
             ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(
-                jogosRealizados, golsEstat, cartoes, escalacoesEstat);
+                jogosRealizados, golsEstat, cartoes, escalacoesEstat,
+                DesarmesPorTimeHelper.Carregar(_context, jogosRealizados));
 
             return View(vm);
         }
@@ -942,7 +974,8 @@ namespace ControleFutebolWeb.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id,
-            [Bind("Id,Nome,Regiao,Tipo,EhSelecaoNacional,LinkTransfermarket,IdApi")] Competicao competicao,
+            [Bind("Id,Nome,Regiao,Tipo,EhSelecaoNacional,LinkTransfermarket,IdApi," +
+                  "ZonaTopoVagas,ZonaTopoRotulo,ZonaTopo2Vagas,ZonaTopo2Rotulo,ZonaPlayoffVagas,ZonaRebaixamentoVagas")] Competicao competicao,
             List<string>? criterios = null)
         {
             if (id != competicao.Id) return NotFound();
@@ -974,6 +1007,16 @@ namespace ControleFutebolWeb.Controllers
             existente.LinkTransfermarket = competicao.LinkTransfermarket;
             existente.IdApi = competicao.IdApi;
             existente.CriteriosDesempate = CriteriosDesempateHelper.Serializar(criterios);
+
+            // Zonas da tabela: 0 ou vazio = a liga não tem essa zona.
+            static int? Vagas(int? v) => v is > 0 ? v : null;
+            static string? Rotulo(string? r) => string.IsNullOrWhiteSpace(r) ? null : r.Trim();
+            existente.ZonaTopoVagas = Vagas(competicao.ZonaTopoVagas);
+            existente.ZonaTopoRotulo = Rotulo(competicao.ZonaTopoRotulo);
+            existente.ZonaTopo2Vagas = Vagas(competicao.ZonaTopo2Vagas);
+            existente.ZonaTopo2Rotulo = Rotulo(competicao.ZonaTopo2Rotulo);
+            existente.ZonaPlayoffVagas = Vagas(competicao.ZonaPlayoffVagas);
+            existente.ZonaRebaixamentoVagas = Vagas(competicao.ZonaRebaixamentoVagas);
 
             await _context.SaveChangesAsync();
 

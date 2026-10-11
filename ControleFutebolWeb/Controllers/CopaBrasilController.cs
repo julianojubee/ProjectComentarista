@@ -1,4 +1,4 @@
-﻿using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Services;
@@ -36,15 +36,52 @@ namespace ControleFutebolWeb.Controllers
         }
 
         public string FaseName { get; set; } = "";
+
+        /// <summary>
+        /// Quem avançou, considerando pênaltis. Em jogo único vale o placar (ou os
+        /// pênaltis) do próprio jogo; em ida e volta, o agregado e, se empatado, os
+        /// pênaltis da volta. Null enquanto não há como saber.
+        /// </summary>
+        public Time? Vencedor(bool jogoUnico)
+        {
+            var ida = JogoIda;
+            if (ida == null || !ida.PlacarCasa.HasValue || !ida.PlacarVisitante.HasValue) return null;
+
+            if (jogoUnico)
+            {
+                if (ida.PlacarCasa > ida.PlacarVisitante) return TimeA;
+                if (ida.PlacarVisitante > ida.PlacarCasa) return TimeB;
+                if (ida.PenaltisCasa.HasValue && ida.PenaltisVisitante.HasValue && ida.PenaltisCasa != ida.PenaltisVisitante)
+                    return ida.PenaltisCasa > ida.PenaltisVisitante ? TimeA : TimeB;
+                return null;
+            }
+
+            var direto = Classificado;
+            if (direto != null) return direto;
+
+            // Agregado empatado: pênaltis da volta, onde o TimeB é o mandante
+            var v = JogoVolta;
+            if (v?.PlacarCasa.HasValue == true && GolsTimeA == GolsTimeB &&
+                v.PenaltisCasa.HasValue && v.PenaltisVisitante.HasValue && v.PenaltisCasa != v.PenaltisVisitante)
+                return v.PenaltisCasa > v.PenaltisVisitante ? TimeB : TimeA;
+
+            return null;
+        }
     }
+
+    // Uma fase da Copa do Brasil na navegação: a chave é o round gravado no jogo
+    // ("Round of 16"...) e o rótulo, a tradução dele.
+    public record FaseCopaBrasil(string Chave, string Rotulo);
 
     public class CopaBrasilViewModel
     {
         public string FaseAtual           { get; set; } = "";
-        public int    RodadaAtual         { get; set; }
+        public string FaseChaveAtual      { get; set; } = "";
+        // Fase em jogo único (nenhum confronto tem volta): o placar do jogo decide
+        public bool   JogoUnico           { get; set; }
         public List<ConfrontoMataMata> Confrontos { get; set; } = new();
-        // Todas as rodadas disponíveis para navegação
-        public List<int> RodasDisponiveis { get; set; } = new();
+        // Fases disponíveis para navegação, na ordem em que aconteceram
+        public List<FaseCopaBrasil> Fases { get; set; } = new();
     }
 
     // ─── Controller ─────────────────────────────────────────────────────────
@@ -52,24 +89,18 @@ namespace ControleFutebolWeb.Controllers
     {
         private readonly FutebolContext _context;
 
-        // Mapa rodada → nome da fase
-        private static readonly Dictionary<int, string> _fases = new()
-        {
-            { 1,  "1ª Fase" },
-            { 2,  "2ª Fase" },
-            { 3,  "3ª Fase" },
-            { 4,  "Oitavas de Final" },
-            { 5,  "Quartas de Final" },
-            { 6,  "Semifinal" },
-            { 7,  "Final" },
-        };
+        // A fase de um jogo é o round gravado no Grupo ("Round of 16"...). O número da
+        // rodada não serve: a importação grava 128/64/32/16 em umas temporadas, 1/2/3 em
+        // outras, e 0 para quartas, semi e final juntas.
+        private static string ChaveFase(Jogo j) =>
+            string.IsNullOrWhiteSpace(j.Grupo) ? $"rodada-{j.Rodada}" : j.Grupo.Trim();
 
         public CopaBrasilController(FutebolContext context)
         {
             _context = context;
         }
 
-        public IActionResult Index(int? rodada, int? temporada = null)
+        public IActionResult Index(string? fase, int? temporada = null)
         {
             var (temporadasDisponiveis, temporadaSel) =
                 TemporadaHelper.Resolver(_context, 3, temporada);
@@ -102,7 +133,8 @@ namespace ControleFutebolWeb.Controllers
                 _context, jogosRealizadosEstat.Select(j => j.Id),
                 golsEstat.Select(g => g.JogadorId).Concat(cartoesEstat.Select(c => c.JogadorId))).ToList();
 
-            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(jogosRealizadosEstat, golsEstat, cartoesEstat, escalacoesEstat);
+            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(jogosRealizadosEstat, golsEstat, cartoesEstat, escalacoesEstat,
+                DesarmesPorTimeHelper.Carregar(_context, jogosRealizadosEstat));
 
             if (!todos.Any())
             {
@@ -110,38 +142,39 @@ namespace ControleFutebolWeb.Controllers
                 return View();
             }
 
-            var rodadasDisponiveis = todos.Select(j => j.Rodada).Distinct().OrderBy(r => r).ToList();
+            // Fases na ordem em que começaram
+            var porFase = todos
+                .GroupBy(ChaveFase)
+                .OrderBy(g => g.Min(j => j.Data ?? DateTime.MaxValue))
+                .ToList();
+            // Antes das oitavas a CBF numera as fases (1ª, 2ª, 3ª fase...); a api-football
+            // chama as mesmas fases de "1/128-finals", "Round of 64" etc., que muda de um
+            // ano para o outro. Daí em diante vale o nome traduzido.
+            var nomeadas = new HashSet<string> { "Oitavas de final", "Quartas de final", "Semifinal", "Final" };
+            var fases = porFase
+                .Select((g, i) =>
+                {
+                    var rot = RodadaHelper.Rotulo(g.First().Grupo, g.First().Rodada);
+                    return new FaseCopaBrasil(g.Key, nomeadas.Contains(rot) ? rot : $"{i + 1}ª fase");
+                })
+                .ToList();
 
-            // Se não informada, detecta a rodada atual:
-            // a rodada mais alta que ainda tem ao menos um jogo sem placar,
-            // ou a mais alta de todas se todos já foram realizados.
-            int rodadaAlvo;
-            if (rodada.HasValue && rodadasDisponiveis.Contains(rodada.Value))
-            {
-                rodadaAlvo = rodada.Value;
-            }
-            else
-            {
-                var comPendente = todos
-                    .Where(j => !j.PlacarCasa.HasValue || !j.PlacarVisitante.HasValue)
-                    .Select(j => j.Rodada)
-                    .Distinct()
-                    .OrderBy(r => r)
-                    .FirstOrDefault();
+            // Sem fase escolhida: a primeira que ainda tem jogo sem placar; tudo jogado,
+            // a última.
+            var alvo = porFase.FirstOrDefault(g => g.Key == fase)
+                ?? porFase.FirstOrDefault(g => g.Any(j => !j.PlacarCasa.HasValue || !j.PlacarVisitante.HasValue))
+                ?? porFase.Last();
+            var rotulo = fases.First(f => f.Chave == alvo.Key).Rotulo;
 
-                rodadaAlvo = comPendente != 0 ? comPendente : rodadasDisponiveis.Last();
-            }
-
-            var jogosRodada = todos.Where(j => j.Rodada == rodadaAlvo).ToList();
-
-            var confrontos = MontarConfrontos(jogosRodada, rodadaAlvo);
+            var confrontos = MontarConfrontos(alvo.ToList(), rotulo);
 
             var vm = new CopaBrasilViewModel
             {
-                FaseAtual         = _fases.TryGetValue(rodadaAlvo, out var fn) ? fn : $"Rodada {rodadaAlvo}",
-                RodadaAtual       = rodadaAlvo,
-                Confrontos        = confrontos,
-                RodasDisponiveis  = rodadasDisponiveis,
+                FaseAtual      = rotulo,
+                FaseChaveAtual = alvo.Key,
+                JogoUnico      = !confrontos.Any(c => c.JogoVolta != null),
+                Confrontos     = confrontos,
+                Fases          = fases,
             };
 
             ViewBag.Vm = vm;
@@ -149,11 +182,10 @@ namespace ControleFutebolWeb.Controllers
         }
 
         // ── Monta pares ida/volta ───────────────────────────────────────────
-        private static List<ConfrontoMataMata> MontarConfrontos(List<Jogo> jogos, int rodada)
+        private static List<ConfrontoMataMata> MontarConfrontos(List<Jogo> jogos, string faseName)
         {
             var confrontos = new List<ConfrontoMataMata>();
             var usados = new HashSet<int>();
-            var faseName = _fases.TryGetValue(rodada, out var fn) ? fn : $"Rodada {rodada}";
 
             // Ordena por data para que a ida venha antes da volta
             var ordenados = jogos.OrderBy(j => j.Data).ToList();

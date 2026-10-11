@@ -1,0 +1,109 @@
+@model (ControleFutebolWeb.Models.ViewModels.CampeonatoDetalhesViewModel Vm, ControleFutebolWeb.Models.Campeonatos.PartidaCampeonato P, bool SoLeitura, bool Compacta, string? VoltarPara)
+@* Uma partida. Na tela do dono: pendente mostra os campos de placar; jogada mostra o
+   placar fixo e só vira formulário ao clicar em Editar (JS em _Partidas/Detalhes).
+   No link público (SoLeitura) é sempre só o placar. *@
+@{
+    var (vm, p, soLeitura, compacta, voltarPara) = Model;
+    var c = vm.Campeonato;
+    var aberta = p.ParticipanteCasaId == null || p.ParticipanteVisitanteId == null;
+    var mataMata = p.FaseId != null && c.Fases.Any(f => f.Id == p.FaseId && f.Tipo == "MATA_MATA");
+    var jogada = p.PlacarCasa.HasValue && p.PlacarVisitante.HasValue;
+    var editavel = !soLeitura && !aberta;
+    var nomeCasa = vm.NomeDe(p.ParticipanteCasaId);
+    var nomeVis = vm.NomeDe(p.ParticipanteVisitanteId);
+
+    // Quem venceu (placar, depois pênaltis) para apagar o perdedor
+    int? vencedor = null;
+    if (jogada)
+    {
+        if (p.PlacarCasa > p.PlacarVisitante) vencedor = 1;
+        else if (p.PlacarCasa < p.PlacarVisitante) vencedor = 2;
+        else if (p.PenaltisCasa != null && p.PenaltisVisitante != null && p.PenaltisCasa != p.PenaltisVisitante)
+            vencedor = p.PenaltisCasa > p.PenaltisVisitante ? 1 : 2;
+    }
+    string Classe(int lado) => vencedor == null ? "" : vencedor == lado ? "vence" : "perde";
+
+    var classes = "cp-partida"
+                  + (jogada ? " jogada" : " pendente")
+                  + (editavel ? " editavel" : "")
+                  + (compacta ? " compacta" : "");
+    var idForm = compacta ? $"prox-{p.Id}" : $"partida-{p.Id}";
+    var temPenaltisLinha = p.Grupo != null || (mataMata && !aberta && (p.PenaltisCasa != null || editavel));
+}
+<form class="@classes" id="@idForm" method="post" asp-antiforgery="false"
+      action="@(editavel ? Url.Action("SalvarPlacar", "Campeonatos", new { id = c.Id }) : null)">
+    @if (editavel)
+    {
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="partidaId" value="@p.Id" />
+        @if (voltarPara != null)
+        {
+            <input type="hidden" name="voltarPara" value="@voltarPara" />
+        }
+    }
+    <div class="cp-lado casa @(p.ParticipanteCasaId == null ? "aberto" : "") @Classe(1)">
+        <span>@nomeCasa</span>
+        @await Html.PartialAsync("~/Views/Campeonatos/_Escudo.cshtml", (vm.EscudoDe(p.ParticipanteCasaId), nomeCasa, (string?)null))
+    </div>
+    <div class="cp-gols casa">
+        <span class="fixo @Classe(1)">@(p.PlacarCasa?.ToString() ?? "–")</span>
+        @if (editavel)
+        {
+            <input type="number" name="placarCasa" min="0" max="99" value="@p.PlacarCasa" aria-label="Gols de @nomeCasa" />
+        }
+    </div>
+    <span class="x" aria-hidden="true">×</span>
+    <div class="cp-gols vis">
+        <span class="fixo @Classe(2)">@(p.PlacarVisitante?.ToString() ?? "–")</span>
+        @if (editavel)
+        {
+            <input type="number" name="placarVisitante" min="0" max="99" value="@p.PlacarVisitante" aria-label="Gols de @nomeVis" />
+        }
+    </div>
+    <div class="cp-lado vis @(p.ParticipanteVisitanteId == null ? "aberto" : "") @Classe(2)">
+        @await Html.PartialAsync("~/Views/Campeonatos/_Escudo.cshtml", (vm.EscudoDe(p.ParticipanteVisitanteId), nomeVis, (string?)null))
+        <span>@nomeVis</span>
+    </div>
+    @if (editavel)
+    {
+        <div class="cp-partida-acoes">
+            @if (jogada)
+            {
+                <button type="button" class="cp-btn mini so-fixo" data-editar>Editar</button>
+                <button type="submit" class="cp-btn mini cp-salvar so-editando">Salvar</button>
+                <button type="button" class="cp-btn mini so-editando" data-cancelar>Cancelar</button>
+            }
+            else
+            {
+                <button type="submit" class="cp-btn mini cp-salvar">Salvar</button>
+            }
+            @if (!compacta)
+            {
+                <a class="cp-btn mini" asp-action="Sumula" asp-controller="Campeonatos" asp-route-id="@c.Id" asp-route-partidaId="@p.Id">Súmula@(p.Eventos.Any() ? $" ({p.Eventos.Count})" : "")</a>
+            }
+        </div>
+    }
+    @if (temPenaltisLinha)
+    {
+        <div class="cp-penaltis">
+            @if (p.Grupo != null)
+            {
+                <span class="cp-etapa">@p.Grupo</span>
+            }
+            @if (mataMata && !aberta)
+            {
+                if (p.PenaltisCasa != null)
+                {
+                    <span class="@(editavel ? "so-fixo" : "")">Pênaltis @p.PenaltisCasa × @p.PenaltisVisitante</span>
+                }
+                if (editavel)
+                {
+                    <span class="@(jogada ? "so-editando" : "")">Pênaltis, se empatar:</span>
+                    <input type="number" name="penaltisCasa" min="0" max="99" value="@p.PenaltisCasa" aria-label="Pênaltis de @nomeCasa" />
+                    <span class="@(jogada ? "so-editando" : "")">×</span>
+                    <input type="number" name="penaltisVisitante" min="0" max="99" value="@p.PenaltisVisitante" aria-label="Pênaltis de @nomeVis" />
+                }
+            }
+        </div>
+    }
+</form>

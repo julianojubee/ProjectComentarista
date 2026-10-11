@@ -1,0 +1,130 @@
+/* Cards de ranking de /Relatorios e da aba "Estatísticas Jogadores"
+   (Views/Shared/_EstatisticasJogadores), usada também nas telas de competição.
+   As duas telas usam as mesmas regras. */
+
+/* Fundo de linha no hover; Relatorios redefine em .rpt-root com o mesmo tom. */
+:root { --hover-warm: rgba(212, 165, 32, .07); }
+
+/* ── Grid de cards ───────────────────────────────────────────────────── */
+.rpt-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+    gap: 14px;
+    align-items: start;
+}
+
+/* ── Card ────────────────────────────────────────────────────────────── */
+.rpt-card {
+    background: var(--p-1, var(--surface)); border: 1px solid var(--line, var(--border));
+    border-radius: 14px; overflow: hidden;
+}
+.rpt-card-header {
+    padding: 14px 16px 10px;
+    display: flex; align-items: center; gap: 8px;
+}
+/* Ícone colorido saiu do markup; a regra fica para telas antigas */
+.rpt-card-icon { display: none; }
+.rpt-card-title {
+    font-family: 'Barlow Condensed', Arial, sans-serif;
+    font-size: 1.2rem; font-weight: 700; color: var(--text-strong, var(--text));
+    margin: 0; line-height: 1.15;
+}
+.rpt-card-sub { font-size: .8rem; color: var(--text-dim, var(--text-muted)); margin: 2px 0 0; }
+.rpt-vazio { margin: 0; padding: 18px 16px 22px; font-size: .86rem; color: var(--text-dim, var(--text-muted)); }
+
+/* ── Linha de ranking ────────────────────────────────────────────────── */
+.rpt-lista { list-style: none; margin: 0; padding: 0; }
+.rpt-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 16px; border-top: 1px solid var(--line-soft, var(--border-subtle));
+    font-size: .88rem;
+}
+.rpt-row:hover { background: var(--hover-warm); }
+
+.rpt-rank {
+    width: 20px; font-size: .8rem; font-weight: 700; font-variant-numeric: tabular-nums;
+    color: var(--text-dim, var(--text-muted)); text-align: center; flex-shrink: 0;
+}
+
+.rpt-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--p-3, var(--surface-3)); border: 1px solid var(--line, var(--border));
+    display: flex; align-items: center; justify-content: center;
+    font-size: .68rem; font-weight: 700; color: var(--text-dim, var(--text-muted));
+    overflow: hidden; flex-shrink: 0;
+}
+.rpt-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.rpt-escudo { width: 28px; height: 28px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.rpt-escudo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+.rpt-name { flex: 1; min-width: 0; color: var(--text-strong, var(--text)); }
+.rpt-name > a, .rpt-name > span:first-child {
+    display: block; font-weight: 600; color: inherit; text-decoration: none;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rpt-name > a:hover { color: var(--gold-ink, var(--warn)); }
+.rpt-name small {
+    display: flex; align-items: center; gap: 5px; margin-top: 1px;
+    font-size: .76rem; color: var(--text-dim, var(--text-muted)); font-weight: 400;
+    overflow: hidden; white-space: nowrap;
+}
+.rpt-name small img { width: 13px; height: 13px; object-fit: contain; flex-shrink: 0; }
+.rpt-sigla { font-weight: 700; color: var(--text-muted); }
+
+/* Barra relativa ao líder do card; só o líder ganha o dourado */
+.rpt-bar {
+    flex: 0 0 64px; height: 4px; border-radius: 2px; overflow: hidden;
+    background: var(--line-soft, var(--surface-3));
+}
+.rpt-bar i { display: block; height: 100%; border-radius: 2px; background: var(--text-dimmer, #888); }
+
+.rpt-val, .rpt-badge-value {
+    flex-shrink: 0; min-width: 44px; text-align: right;
+    font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.15rem; font-weight: 800;
+    color: var(--text-strong, var(--text)); font-variant-numeric: tabular-nums; line-height: 1;
+}
+.rpt-val small, .rpt-badge-value small {
+    display: block; margin-top: 2px;
+    font-family: 'Barlow', Arial, sans-serif; font-size: .7rem; font-weight: 500; color: var(--text-dim, var(--text-muted));
+}
+
+/* Líder de cada ranking: linha mais alta, foto maior e valor em dourado */
+.rpt-row.lider { padding-top: 12px; padding-bottom: 12px; background: linear-gradient(90deg, rgba(212,165,32,.10), transparent 75%); }
+.rpt-row.lider .rpt-rank { color: var(--gold-ink, var(--warn)); }
+.rpt-row.lider .rpt-avatar, .rpt-row.lider .rpt-escudo { width: 42px; height: 42px; }
+.rpt-row.lider .rpt-name > a { font-size: 1rem; font-weight: 700; }
+.rpt-row.lider .rpt-bar i { background: #d4a520; }
+.rpt-row.lider .rpt-val, .rpt-row.lider .rpt-badge-value { font-size: 1.6rem; }
+.rpt-row.lider .rpt-val:not([style]), .rpt-row.lider .rpt-badge-value { color: var(--gold-ink, var(--warn)); }
+
+@media (max-width: 420px) {
+    .rpt-bar { display: none; }
+}
+
+/* ── Cards com seletor de métrica + paginação (Melhores/Recordes) ────── */
+.rpt-picker-bar { padding: 0 16px 10px; }
+.rpt-picker-bar select {
+    background: var(--p-2, var(--surface-2)); color: var(--text);
+    border: 1px solid var(--line-strong, var(--border)); border-radius: 8px;
+    padding: 7px 10px; font-size: .86rem; font-weight: 600;
+    font-family: inherit; cursor: pointer; max-width: 100%;
+}
+.rpt-picker-bar select:focus-visible { outline: 2px solid #d4a520; outline-offset: 2px; }
+.rpt-picker-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; padding: 8px 16px;
+    border-top: 1px solid var(--line-soft, var(--border-subtle));
+}
+.rpt-picker-footer button {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: transparent; color: var(--text-2);
+    border: 1px solid var(--line-strong, var(--border)); cursor: pointer;
+    font-size: 15px; line-height: 1; display: flex;
+    align-items: center; justify-content: center;
+}
+.rpt-picker-footer button:hover:not(:disabled) { color: var(--gold-ink, var(--warn)); border-color: #d4a520; }
+.rpt-picker-footer button:focus-visible { outline: 2px solid #d4a520; outline-offset: 2px; }
+.rpt-picker-footer button:disabled { opacity: .35; cursor: default; }
+.rpt-pg-label { flex: 1; text-align: center; font-size: .78rem; color: var(--text-dim, var(--text-muted)); }
+
+.rpt-rec-jogo img { width: 13px; height: 13px; object-fit: contain; }

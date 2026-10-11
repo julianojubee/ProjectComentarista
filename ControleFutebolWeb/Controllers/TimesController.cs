@@ -1,4 +1,4 @@
-﻿using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
@@ -40,13 +40,21 @@ namespace ControleFutebolWeb.Controllers
         }
 
         // GET: Times
-        // GET: Times
-        public async Task<IActionResult> Index(List<int>? competicaoIds, List<int>? timeIds)
+        //
+        // Lista paginada (48 por página) com busca por nome, clubes/seleções, filtro de
+        // competição e "só com elenco". Antes vinham os 612 times de uma vez (1,9 MB de
+        // HTML, 612 escudos pedidos juntos) e a forma recente lia todos os jogos
+        // encerrados de todos eles. timeIds continua aceito por compatibilidade.
+        public async Task<IActionResult> Index(List<int>? competicaoIds, List<int>? timeIds,
+            string? busca, string? tipo, bool comElenco = false, string? ordem = null, int page = 1)
         {
+            const int porPagina = 48;
             competicaoIds ??= new List<int>();
             timeIds ??= new List<int>();
+            tipo = tipo is "clubes" or "selecoes" ? tipo : "todos";
+            ordem = ordem is "jogadores" or "recentes" ? ordem : "nome";
 
-            var query = _context.Times.AsQueryable();
+            var query = _context.Times.AsNoTracking().AsQueryable();
 
             if (competicaoIds.Any())
             {
@@ -64,51 +72,138 @@ namespace ControleFutebolWeb.Controllers
             }
 
             if (timeIds.Any())
-            {
                 query = query.Where(t => timeIds.Contains(t.Id));
+
+            if (!string.IsNullOrWhiteSpace(busca))
+            {
+                var termo = busca.Trim().ToLower();
+                query = query.Where(t => t.Nome.ToLower().Contains(termo));
             }
 
-            var times = await query.Include(t => t.FormacaoPadrao).OrderBy(t => t.Nome).ToListAsync();
-            var timeIdsPagina = times.Select(t => t.Id).ToList();
+            if (comElenco)
+                query = query.Where(t => _context.Jogadores.Any(j => j.TimeId == t.Id));
 
-            // Jogadores por time (evita carregar a coleção inteira só pra contar)
-            var jogadoresPorTime = await _context.Jogadores
-                .Where(j => timeIdsPagina.Contains(j.TimeId))
+            // Contagem de cada aba (clubes/seleções) com os demais filtros aplicados
+            var porTipo = await query
+                .GroupBy(t => t.EhSelecao)
+                .Select(g => new { Selecao = g.Key, Qtd = g.Count() })
+                .ToListAsync();
+            ViewBag.QtdClubes = porTipo.Where(x => !x.Selecao).Sum(x => x.Qtd);
+            ViewBag.QtdSelecoes = porTipo.Where(x => x.Selecao).Sum(x => x.Qtd);
+
+            if (tipo == "clubes") query = query.Where(t => !t.EhSelecao);
+            else if (tipo == "selecoes") query = query.Where(t => t.EhSelecao);
+
+            // Lista leve (id + nome) do resultado inteiro — são no máximo algumas centenas
+            // de linhas — para ordenar e paginar; o time completo vem só para a página.
+            var candidatos = await query.Select(t => new { t.Id, t.Nome }).ToListAsync();
+            var idsCandidatos = candidatos.Select(c => c.Id).ToList();
+
+            var jogadoresPorTimeTodos = await _context.Jogadores
+                .Where(j => idsCandidatos.Contains(j.TimeId))
                 .GroupBy(j => j.TimeId)
                 .Select(g => new { TimeId = g.Key, Qtd = g.Count() })
                 .ToDictionaryAsync(x => x.TimeId, x => x.Qtd);
 
-            // Forma recente (últimos 5 jogos finalizados de cada time exibido)
-            var jogosRecentesPorTime = await _context.Jogos
+            // Ordem por nome ignora números/pontos do começo ("1. FC Köln", "1899
+            // Hoffenheim") — senão eles vinham antes do "A".
+            static string ChaveNome(string? nome) =>
+                System.Text.RegularExpressions.Regex.Replace(nome ?? "", @"^[\d\.\s]+", "").Trim();
+
+            List<int> ordenados;
+            if (ordem == "jogadores")
+            {
+                ordenados = candidatos
+                    .OrderByDescending(c => jogadoresPorTimeTodos.GetValueOrDefault(c.Id))
+                    .ThenBy(c => ChaveNome(c.Nome), StringComparer.CurrentCultureIgnoreCase)
+                    .Select(c => c.Id).ToList();
+            }
+            else if (ordem == "recentes")
+            {
+                // Data do último jogo de cada time (como mandante ou visitante)
+                var ultCasa = await _context.Jogos.Where(j => idsCandidatos.Contains(j.TimeCasaId) && j.Data != null)
+                    .GroupBy(j => j.TimeCasaId).Select(g => new { Id = g.Key, Data = g.Max(j => j.Data) }).ToListAsync();
+                var ultVis = await _context.Jogos.Where(j => idsCandidatos.Contains(j.TimeVisitanteId) && j.Data != null)
+                    .GroupBy(j => j.TimeVisitanteId).Select(g => new { Id = g.Key, Data = g.Max(j => j.Data) }).ToListAsync();
+                var ultimo = ultCasa.Concat(ultVis)
+                    .GroupBy(x => x.Id)
+                    .ToDictionary(g => g.Key, g => g.Max(x => x.Data));
+                ordenados = candidatos
+                    .OrderByDescending(c => ultimo.GetValueOrDefault(c.Id) ?? DateTime.MinValue)
+                    .ThenBy(c => ChaveNome(c.Nome), StringComparer.CurrentCultureIgnoreCase)
+                    .Select(c => c.Id).ToList();
+            }
+            else
+            {
+                ordenados = candidatos
+                    .OrderBy(c => ChaveNome(c.Nome), StringComparer.CurrentCultureIgnoreCase)
+                    .Select(c => c.Id).ToList();
+            }
+
+            var totalFiltrado = ordenados.Count;
+            var totalPaginas = Math.Max(1, (int)Math.Ceiling(totalFiltrado / (double)porPagina));
+            page = Math.Clamp(page, 1, totalPaginas);
+            var idsPagina = ordenados.Skip((page - 1) * porPagina).Take(porPagina).ToList();
+
+            var timesPagina = await _context.Times.AsNoTracking()
+                .Include(t => t.FormacaoPadrao)
+                .Where(t => idsPagina.Contains(t.Id))
+                .ToListAsync();
+            var times = idsPagina.Select(id => timesPagina.First(t => t.Id == id)).ToList();
+
+            // Forma recente e competição principal — só para os times da página
+            var jogosDaPagina = await _context.Jogos
                 .AsNoTracking()
-                .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue &&
-                    (timeIdsPagina.Contains(j.TimeCasaId) || timeIdsPagina.Contains(j.TimeVisitanteId)))
-                .OrderByDescending(j => j.Data)
-                .Select(j => new { j.TimeCasaId, j.TimeVisitanteId, j.PlacarCasa, j.PlacarVisitante })
+                .Where(j => idsPagina.Contains(j.TimeCasaId) || idsPagina.Contains(j.TimeVisitanteId))
+                .Select(j => new { j.TimeCasaId, j.TimeVisitanteId, j.PlacarCasa, j.PlacarVisitante, j.Data, j.CompeticaoId, Competicao = j.Competicao.Nome })
                 .ToListAsync();
 
             var formaPorTime = new Dictionary<int, List<char>>();
-            void AdicionarForma(int timeId, char resultado)
-            {
-                if (!timeIdsPagina.Contains(timeId)) return;
-                if (!formaPorTime.TryGetValue(timeId, out var lista))
-                    formaPorTime[timeId] = lista = new List<char>();
-                if (lista.Count < 5) lista.Add(resultado);
-            }
-            foreach (var j in jogosRecentesPorTime)
+            foreach (var j in jogosDaPagina
+                .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue)
+                .OrderByDescending(j => j.Data))
             {
                 int pc = j.PlacarCasa!.Value, pv = j.PlacarVisitante!.Value;
-                AdicionarForma(j.TimeCasaId, pc > pv ? 'V' : pc < pv ? 'D' : 'E');
-                AdicionarForma(j.TimeVisitanteId, pv > pc ? 'V' : pv < pc ? 'D' : 'E');
+                void Adicionar(int timeId, char r)
+                {
+                    if (!idsPagina.Contains(timeId)) return;
+                    if (!formaPorTime.TryGetValue(timeId, out var lista)) formaPorTime[timeId] = lista = new List<char>();
+                    if (lista.Count < 5) lista.Add(r);
+                }
+                Adicionar(j.TimeCasaId, pc > pv ? 'V' : pc < pv ? 'D' : 'E');
+                Adicionar(j.TimeVisitanteId, pv > pc ? 'V' : pv < pc ? 'D' : 'E');
             }
 
-            // Listas completas para os tag selectors
+            // Competição em que o time mais jogou: aparece no card no lugar da cidade
+            // quando ela não existe (567 dos 612 times diziam "Importado").
+            var competicaoPrincipal = jogosDaPagina
+                .SelectMany(j => new[] { (Time: j.TimeCasaId, j.Competicao), (Time: j.TimeVisitanteId, j.Competicao) })
+                .Where(x => idsPagina.Contains(x.Time) && !string.IsNullOrWhiteSpace(x.Competicao))
+                .GroupBy(x => x.Time)
+                .ToDictionary(g => g.Key, g => g.GroupBy(x => x.Competicao).OrderByDescending(c => c.Count()).First().Key);
+
+            // Formação que quase todos têm (a padrão do cadastro): o card só mostra a
+            // formação quando ela é diferente — 610 de 612 diziam "4-3-3".
+            ViewBag.FormacaoMaisComumId = await _context.Times
+                .GroupBy(t => t.FormacaoPadraoId)
+                .OrderByDescending(g => g.Count())
+                .Select(g => (int?)g.Key)
+                .FirstOrDefaultAsync();
+
             ViewBag.Competicoes = await _context.Competicoes.OrderBy(c => c.Nome).ToListAsync();
-            ViewBag.Times = await _context.Times.OrderBy(t => t.Nome).ToListAsync();
             ViewBag.CompeticaoIdsFiltro = competicaoIds;
             ViewBag.TimeIdsFiltro = timeIds;
-            ViewBag.JogadoresPorTime = jogadoresPorTime;
+            ViewBag.Busca = busca;
+            ViewBag.Tipo = tipo;
+            ViewBag.ComElenco = comElenco;
+            ViewBag.Ordem = ordem;
+            ViewBag.Pagina = page;
+            ViewBag.TotalPaginas = totalPaginas;
+            ViewBag.TotalFiltrado = totalFiltrado;
+            ViewBag.PorPagina = porPagina;
+            ViewBag.JogadoresPorTime = jogadoresPorTimeTodos;
             ViewBag.FormaPorTime = formaPorTime;
+            ViewBag.CompeticaoPrincipal = competicaoPrincipal;
             ViewBag.TitulosPorTime = await TitulosHelper.PorTimeAsync(_context);
 
             // KPIs do topo da página (totais globais, independentes do filtro aplicado)
@@ -297,10 +392,11 @@ namespace ControleFutebolWeb.Controllers
                 .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue && j.Data < agora)
                 .ToList();
 
-            // Lista de partidas é o calendário completo do time: os realizados do mais
-            // antigo ao mais recente e, em seguida, os agendados por data.
+            // Realizados do mais recente para o mais antigo: quem abre o time quer o
+            // último jogo primeiro (antes vinha o mais antigo, e os recentes ficavam no
+            // fim de uma lista com rolagem). Os agendados, por data, vão num bloco à parte.
             var jogosPassados = realizados
-                .OrderBy(j => j.Data)
+                .OrderByDescending(j => j.Data)
                 .ToList();
 
             var jogosFuturos = jogos
@@ -717,7 +813,8 @@ namespace ControleFutebolWeb.Controllers
                     if (!_context.Times.Any(e => e.Id == time.Id)) return NotFound();
                     throw;
                 }
-                return RedirectToAction(nameof(Index));
+                TempData["Mensagem"] = "Dados do time salvos.";
+                return RedirectToAction(nameof(Details), new { id });
             }
             return View(time);
         }
@@ -728,6 +825,8 @@ namespace ControleFutebolWeb.Controllers
             if (id == null) return NotFound();
             var time = await _context.Times.FirstOrDefaultAsync(m => m.Id == id);
             if (time == null) return NotFound();
+            ViewBag.TotalJogos = await _context.Jogos.CountAsync(j => j.TimeCasaId == id || j.TimeVisitanteId == id);
+            ViewBag.TotalJogadores = await _context.Jogadores.CountAsync(j => j.TimeId == id);
             return View(time);
         }
 
@@ -740,7 +839,17 @@ namespace ControleFutebolWeb.Controllers
             if (time != null)
             {
                 _context.Times.Remove(time);
-                await _context.SaveChangesAsync();
+                try
+                {
+                    await _context.SaveChangesAsync();
+                }
+                catch (DbUpdateException)
+                {
+                    // Outros cadastros (treinador, histórico, escalação...) ainda apontam
+                    // para o time: explica em vez de estourar erro 500.
+                    TempData["Erro"] = $"{time.Nome} ainda é usado em outros cadastros (treinador, histórico ou escalações) e não pode ser excluído.";
+                    return RedirectToAction(nameof(Delete), new { id });
+                }
             }
             return RedirectToAction(nameof(Index));
         }
@@ -1025,6 +1134,141 @@ namespace ControleFutebolWeb.Controllers
             return RedirectToAction(nameof(Details), new { id });
         }
 
+        // Calendário do time na temporada direto da api-football (/fixtures?team=X&season=Y),
+        // agrupado por competição. Serve para importar só os jogos deste time (ex.: amistosos
+        // do Brasil) sem sincronizar a liga inteira.
+        [HttpGet]
+        public async Task<IActionResult> JogosTemporadaApi(int id, int season, CancellationToken ct)
+        {
+            var time = await _context.Times.FindAsync(new object[] { id }, ct);
+            if (time == null) return NotFound();
+            if (time.IdApi <= 0)
+                return BadRequest(new { erro = "Este time não está vinculado à api-football." });
+
+            List<Services.AfFixture> fixtures;
+            try
+            {
+                fixtures = await _apiFootballService.BuscarFixturesDoTimeAsync(time.IdApi, season, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[JogosTemporadaApi] Falha ao buscar jogos do time {Id} (IdApi={IdApi}) season={S}", time.Id, time.IdApi, season);
+                return StatusCode(502, new { erro = "Não foi possível consultar a api-football." });
+            }
+
+            var links = fixtures.Select(f => $"apifoot:{f.League.Id}:{season}").Distinct().ToList();
+            var competicoes = await _context.Competicoes
+                .Where(c => c.LinkTransfermarket != null && links.Contains(c.LinkTransfermarket))
+                .Select(c => new { c.Id, c.Nome, c.LinkTransfermarket })
+                .ToListAsync(ct);
+
+            var fixtureIds = fixtures.Select(f => $"apifoot:{f.Fixture.Id}").ToList();
+            var importados = (await _context.Jogos
+                .Where(j => j.LinkDetalhes != null && fixtureIds.Contains(j.LinkDetalhes))
+                .Select(j => j.LinkDetalhes!)
+                .ToListAsync(ct)).ToHashSet();
+
+            var ligas = fixtures
+                .GroupBy(f => f.League.Id)
+                .Select(g =>
+                {
+                    var primeira = g.First().League;
+                    var comp = competicoes.FirstOrDefault(c => c.LinkTransfermarket == $"apifoot:{g.Key}:{season}");
+                    return new
+                    {
+                        leagueId = g.Key,
+                        nome = primeira.Name,
+                        pais = primeira.Country,
+                        logo = primeira.Logo,
+                        competicaoId = comp?.Id,
+                        competicaoNome = comp?.Nome,
+                        jogos = g.OrderBy(f => f.Fixture.Date).Select(f => new
+                        {
+                            data = f.Fixture.Date,
+                            rodada = f.League.Round,
+                            casa = f.Teams.Home.Name,
+                            fora = f.Teams.Away.Name,
+                            golsCasa = f.Goals.Home,
+                            golsFora = f.Goals.Away,
+                            status = f.Fixture.Status.Short,
+                            importado = importados.Contains($"apifoot:{f.Fixture.Id}")
+                        })
+                    };
+                })
+                .OrderBy(l => l.jogos.Min(j => j.data))
+                .ToList();
+
+            return Json(new { season, ligas });
+        }
+
+        // Importa só os jogos deste time numa competição da api-football. Se ainda não
+        // existe competição cadastrada com o link apifoot:LEAGUE:SEASON, cria uma.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ImportarJogosTemporada(int id, int leagueId, int season, CancellationToken ct)
+        {
+            var time = await _context.Times.FindAsync(new object[] { id }, ct);
+            if (time == null) return NotFound();
+            if (time.IdApi <= 0)
+                return BadRequest(new { erro = "Este time não está vinculado à api-football." });
+
+            var link = $"apifoot:{leagueId}:{season}";
+            var competicao = await _context.Competicoes.FirstOrDefaultAsync(c => c.LinkTransfermarket == link, ct);
+            var criada = false;
+
+            if (competicao == null)
+            {
+                var fixtures = await _apiFootballService.BuscarFixturesDoTimeAsync(time.IdApi, season, ct);
+                var liga = fixtures.Select(f => f.League).FirstOrDefault(l => l.Id == leagueId);
+                if (liga == null)
+                    return BadRequest(new { erro = "Competição não encontrada no calendário do time." });
+
+                var nome = liga.Name switch
+                {
+                    "Friendlies" => "Amistosos Internacionais",
+                    "Friendlies Clubs" => "Amistosos de Clubes",
+                    _ => liga.Name
+                };
+                if (await _context.Competicoes.AnyAsync(c => c.Nome == nome, ct))
+                    nome = $"{nome} {season}";
+
+                competicao = new Competicao
+                {
+                    Nome = nome,
+                    Regiao = string.IsNullOrWhiteSpace(liga.Country) ? "World" : liga.Country!,
+                    Tipo = "PONTOS_CORRIDOS",
+                    EhSelecaoNacional = time.EhSelecao,
+                    IdApi = leagueId,
+                    LinkTransfermarket = link,
+                    LogoUrl = liga.Logo
+                };
+                _context.Competicoes.Add(competicao);
+                await _context.SaveChangesAsync(ct);
+                criada = true;
+            }
+
+            try
+            {
+                var (jogos, times, erros, avisos) =
+                    await _apiFootballService.SincronizarCompeticaoAsync(_context, competicao, ct, time.IdApi);
+                return Json(new
+                {
+                    competicaoId = competicao.Id,
+                    competicaoNome = competicao.Nome,
+                    criada,
+                    jogos,
+                    timesCriados = times,
+                    erros,
+                    avisos
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[ImportarJogosTemporada] Falha time {Id} league={L} season={S}", time.Id, leagueId, season);
+                return StatusCode(502, new { erro = "Falha ao importar os jogos da api-football." });
+            }
+        }
+
         [HttpPost]
         public async Task<IActionResult> ImportarUniforme(int id, IFormFile arquivo, string tipo = "casa")
         {
@@ -1073,6 +1317,53 @@ namespace ControleFutebolWeb.Controllers
                 await _context.SaveChangesAsync();
             }
 
+            return RedirectToAction("Details", new { id });
+        }
+
+        // Imagem de fundo do hero em /Times/Details. O arquivo é opcional: sem ele,
+        // só a opacidade e o enquadramento da imagem já salva são atualizados.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SalvarHeroImagem(int id, IFormFile? heroFile, int opacidade = 35, int posicaoY = 50)
+        {
+            var time = await _context.Times.FindAsync(id);
+            if (time == null) return NotFound();
+
+            if (heroFile != null && heroFile.Length > 0)
+            {
+                var r = await UploadHelper.SalvarImagemAsync(heroFile, _env.WebRootPath, "images/hero-times", time.Nome);
+                if (!r.Sucesso)
+                {
+                    TempData["Mensagem"] = $"Erro na imagem do hero: {r.Erro}";
+                    return RedirectToAction("Details", new { id });
+                }
+                time.HeroImagemUrl = r.UrlRelativa;
+            }
+            else if (string.IsNullOrEmpty(time.HeroImagemUrl))
+            {
+                TempData["Mensagem"] = "Escolha uma imagem para o fundo do hero.";
+                return RedirectToAction("Details", new { id });
+            }
+
+            time.HeroImagemOpacidade = Math.Clamp(opacidade, 5, 100);
+            time.HeroImagemPosicaoY = Math.Clamp(posicaoY, 0, 100);
+            await _context.SaveChangesAsync();
+
+            TempData["Mensagem"] = "Imagem do hero atualizada.";
+            return RedirectToAction("Details", new { id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoverHeroImagem(int id)
+        {
+            var time = await _context.Times.FindAsync(id);
+            if (time == null) return NotFound();
+
+            time.HeroImagemUrl = null;
+            await _context.SaveChangesAsync();
+
+            TempData["Mensagem"] = "Hero voltou ao fundo padrão.";
             return RedirectToAction("Details", new { id });
         }
 

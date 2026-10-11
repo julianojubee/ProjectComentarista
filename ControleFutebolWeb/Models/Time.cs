@@ -11,6 +11,11 @@ public class Time
 
     public string? EscudoUrl { get; set; }
     public string? BackgroundUrl { get; set; }
+    // Imagem do clube exibida atrás do hero em /Times/Details, com transparência
+    // (opacidade 0–100) e enquadramento vertical (object-position Y, 0–100).
+    public string? HeroImagemUrl { get; set; }
+    public int HeroImagemOpacidade { get; set; } = 35;
+    public int HeroImagemPosicaoY { get; set; } = 50;
     public int IdApi { get; set; }
 
     // Indica se este "Time" representa uma seleção nacional (ex.: Brasil, Argentina)

@@ -1,4 +1,4 @@
-﻿/* Comportamento da tela de análise tática (/Jogos/Analisar).
+/* Comportamento da tela de análise tática (/Jogos/Analisar).
    Extraído dos blocos <script> inline da view: ~120 KB que eram retransmitidos
    a cada partida aberta. Aqui vira arquivo estático versionado
    (asp-append-version), que o navegador baixa uma vez.
@@ -16,6 +16,7 @@
             var aberto = toolbar.style.display !== 'none';
             toolbar.style.display = aberto ? 'none' : '';
             icon.style.transform = aberto ? 'rotate(0deg)' : 'rotate(180deg)';
+            document.getElementById('mbToolbarToggle').setAttribute('aria-expanded', String(!aberto));
         }
 
         function toggleOutrosEventos() {
@@ -24,6 +25,7 @@
             var aberto = tl.style.display !== 'none';
             tl.style.display = aberto ? 'none' : '';
             icon.style.transform = aberto ? 'rotate(0deg)' : 'rotate(180deg)';
+            document.getElementById('mbOutrosToggle').setAttribute('aria-expanded', String(!aberto));
         }
 
         function toggleEstatisticasPanel() {
@@ -35,7 +37,11 @@
             painel.style.display = aberto ? 'none' : '';
             if (!aberto) escalacao.style.display = 'none';
             else escalacao.style.display = '';
+            // Esconde junto o cabeçalho da prancheta (ferramentas, fases, formações),
+            // que fica fora do #painelEscalacao — ver .an-root.vendo-estatisticas
+            document.querySelector('.an-root')?.classList.toggle('vendo-estatisticas', !aberto);
             icon.style.transform = aberto ? 'rotate(0deg)' : 'rotate(180deg)';
+            document.getElementById('mbEstatisticasToggle').setAttribute('aria-expanded', String(!aberto));
             // Sincroniza com o tab btn legado
             if (document.getElementById('tabBtnEstatisticas')) {
                 document.getElementById('tabBtnEstatisticas').classList.toggle('active', !aberto);
@@ -101,7 +107,7 @@
         row.className = 'obs-tag-row';
         row.dataset.id = obs.id;
         const nomeJogadorHtml = obs.jogadorNome
-            ? `<span class="obs-tag-jogador-nome">${obs.jogadorNome}</span>`
+            ? `<span class="obs-tag-jogador-nome">${escHtml(obs.jogadorNome)}</span>`
             : '';
         row.innerHTML = `
             <span class="obs-tag-badge obs-tag-badge-${obs.tipo.toLowerCase()}">${rotulosObsTag[obs.tipo] || obs.tipo}</span>
@@ -277,6 +283,94 @@
         trocarVisualCampo(modo);
     })();
 
+    // ── Layout: lado a lado × mesmo campo ──────────────────────────────────
+    // O "Mesmo campo" não tem campo próprio: os DOIS campinhos verticais de
+    // sempre são levados para dentro de #campoUnico, girados 90° (casa com o
+    // gol à esquerda, visitante à direita) e esticados sobre o gramado INTEIRO,
+    // um por cima do outro. O campinho vertical já é um campo inteiro (o
+    // atacante lá em cima está perto da área adversária), então a posição é a
+    // real: qualquer jogador vai para qualquer ponto, e os dois layouts mostram
+    // sempre a mesma coisa. As coordenadas gravadas não mudam de significado.
+    // Listas e bancos vão junto para as laterais/rodapé. Tudo continua dentro
+    // do form, então Salvar, setas, notas e fases táticas nem ficam sabendo.
+    const LAYOUT_PECAS = [
+        ['listaPainelCasa', 'listaCasa'],
+        ['campoCasa', null],
+        ['campoVisitante', null],
+        ['bancoWrapCasa', 'bancoCasa'],
+        ['listaPainelVis', 'listaVis'],
+        ['bancoWrapVis', 'bancoVis'],
+    ];
+    const layoutMarcadores = new Map(); // peça → comentário no lugar original
+
+    function layoutUnicoAtivo() {
+        return document.querySelector('.an-root')?.classList.contains('layout-unico') === true;
+    }
+
+    // Ponto da tela → % do campo vertical daquele time. Girado, o retângulo na
+    // tela é o do campo já rodado (o gramado todo): casa gira +90° (o fundo, gol
+    // próprio, vai para a esquerda) e visitante −90° (fundo para a direita).
+    function pontoNoCampo(campoId, clientX, clientY, unico) {
+        const r = document.getElementById(campoId).getBoundingClientRect();
+        const u = (clientX - r.left) / r.width;
+        const v = (clientY - r.top) / r.height;
+        if (!unico) return { x: u * 100, y: v * 100 };
+
+        const p = campoId === 'campoCasa'
+            ? { x: v * 100, y: (1 - u) * 100 }
+            : { x: (1 - v) * 100, y: u * 100 };
+        return { x: Math.max(0, Math.min(100, p.x)), y: Math.max(0, Math.min(100, p.y)) };
+    }
+
+    // inicial: aplicação da preferência salva, que roda antes de o bloco das
+    // setas existir (setaOrigem/setasStore ainda na TDZ) — ele desenha sozinho.
+    function trocarLayoutAnalise(modo, inicial) {
+        const root = document.querySelector('.an-root');
+        const casca = document.getElementById('anUnico');
+        const ladoALado = document.getElementById('anLadoALado');
+        if (!root || !casca || !ladoALado) return;
+
+        const unico = modo === 'unico';
+        if (unico === layoutUnicoAtivo()) return;
+        if (!unico && emTransmissaoAnalise()) toggleTransmissaoAnalise();
+
+        LAYOUT_PECAS.forEach(([id, slot]) => {
+            const el = document.getElementById(id);
+            if (!el) return; // banco só existe com o banco de reservas ligado
+            if (unico) {
+                const marca = document.createComment('layout:' + id);
+                el.before(marca);
+                layoutMarcadores.set(el, marca);
+                const destino = slot
+                    ? casca.querySelector(`[data-slot="${slot}"]`)
+                    : document.getElementById('campoUnico');
+                destino.appendChild(el);
+            } else {
+                const marca = layoutMarcadores.get(el);
+                if (marca) { marca.replaceWith(el); layoutMarcadores.delete(el); }
+            }
+        });
+
+        casca.hidden = !unico;
+        ladoALado.hidden = unico;
+        root.classList.toggle('layout-unico', unico);
+        if (!inicial) {
+            limparOrigemSeta();
+            desenharTodasSetas();
+        }
+
+        try { localStorage.setItem('analisar.layout', unico ? 'unico' : 'lado'); } catch (e) { /* anônima */ }
+    }
+    window.trocarLayoutAnalise = trocarLayoutAnalise;
+
+    (function aplicarLayoutSalvo() {
+        let modo = 'lado';
+        try { modo = localStorage.getItem('analisar.layout') || 'lado'; } catch (e) { /* idem */ }
+        const sel = document.getElementById('layoutAnalise');
+        if (sel) sel.value = modo;
+        if (modo === 'unico') trocarLayoutAnalise(modo, true);
+    })();
+
     // ── Trocar dois jogadores de lugar ─────────────────────────────────────
     // Arrastar um titular sobre outro troca os dois de slot: cada um herda a
     // posição do outro (coordenadas no campo E posição nominal, porque o slot
@@ -369,6 +463,9 @@
         }
 
         const isCasa  = index.startsWith("casa_");
+        // Jogador do elenco de um time não entra no lugar do adversário — no
+        // "Mesmo campo" os dois times dividem o gramado e isso fica fácil de errar.
+        if ((time === 'casa') !== isCasa) return;
         const prefix  = isCasa ? "escalacaoCasa" : "escalacaoVisitante";
         const numIdx  = index.split("_")[1];
 
@@ -387,7 +484,7 @@
         posEl.innerHTML = `
             <span>${nomePosicao}</span>
             ${htmlCirculoCampo(jogadorId, jogadorNumero, circleClass)}
-            <div class="player-name">${jogadorNome}</div>`;
+            <div class="player-name">${escHtml(jogadorNome)}</div>`;
         posEl.appendChild(criarBotaoInfo(jogadorId));
     }
 
@@ -422,7 +519,7 @@
         card.innerHTML = `
             <span class="rem-btn" onclick="removerReserva('${time}', ${idx})">×</span>
             <div class="player-circle ${bancoCircleClass}" style="width:28px;height:28px;font-size:11px;">${jogadorNumero}</div>
-            <div style="max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:#fff;text-shadow:1px 1px 2px #000;">${jogadorNome}</div>`;
+            <div style="max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:#fff;text-shadow:1px 1px 2px #000;">${escHtml(jogadorNome)}</div>`;
         card.appendChild(criarBotaoInfo(jogadorId));
         banco.appendChild(card);
 
@@ -478,6 +575,28 @@
         draggingPosicao   = true;
         posicaoArrastando = index;
         ev.dataTransfer.setData("text/plain", index);
+        if (layoutUnicoAtivo()) definirFantasmaDeArrasto(ev, index);
+    }
+
+    // No "Mesmo campo" o slot mora num campo girado e o navegador fotografa a
+    // imagem do arrasto girada e deslocada (o "fantasma" no meio do gramado).
+    // Arrasta-se uma cópia de pé, fora da tela, dentro de um .campo para herdar
+    // o visual (foto/número); ela some logo depois de fotografada.
+    function definirFantasmaDeArrasto(ev, index) {
+        const slot = slotPorIndex(index);
+        if (!slot || !ev.dataTransfer?.setDragImage) return;
+
+        const caixa = document.createElement('div');
+        caixa.className = 'campo drag-fantasma-caixa';
+        const copia = slot.cloneNode(true);
+        copia.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+        copia.classList.remove('seta-origem', 'alvo-troca');
+        caixa.appendChild(copia);
+        document.querySelector('.an-root').appendChild(caixa);
+
+        const r = copia.getBoundingClientRect();
+        ev.dataTransfer.setDragImage(copia, r.width / 2, r.height / 2);
+        setTimeout(() => caixa.remove(), 0);
     }
 
     function dropNoCampo(ev, campoId) {
@@ -487,16 +606,20 @@
         if (!draggingPosicao || !posicaoArrastando) return;
 
         const index = posicaoArrastando;
-        const campo = document.getElementById(campoId);
-        const rect  = campo.getBoundingClientRect();
-
-        const newX = Math.round(((ev.clientX - rect.left)  / rect.width)  * 100);
-        const newY = Math.round(((ev.clientY - rect.top)   / rect.height) * 100);
-
-        if (newX < 0 || newX > 100 || newY < 0 || newY > 100) return;
-
         const el = document.querySelector(`.posicao-drop[data-index='${index}']`);
         if (!el) return;
+
+        // No "Mesmo campo" dá para soltar o jogador na metade do adversário: quem
+        // recebe o drop é o outro campo, mas a coordenada é sempre no campo do
+        // próprio time (limitada à linha do meio). Lado a lado segue como antes.
+        const unico = layoutUnicoAtivo();
+        if (unico) campoId = el.closest('.campo').id;
+
+        const p = pontoNoCampo(campoId, ev.clientX, ev.clientY, unico);
+        const newX = Math.round(p.x);
+        const newY = Math.round(p.y);
+
+        if (newX < 0 || newX > 100 || newY < 0 || newY > 100) return;
 
         el.style.left = newX + "%";
         el.style.top  = newY + "%";
@@ -621,11 +744,16 @@
             return;
         }
 
-        if (!setaOrigem || setaOrigem.campoId !== campoId) return;
+        if (!setaOrigem) return;
+        // Mesmo campo: a seta pode terminar na metade do adversário (o clique cai
+        // no outro campo) — vale o campo de quem ela sai, limitado à linha do meio.
+        const unico = layoutUnicoAtivo();
+        if (unico) campoId = setaOrigem.campoId;
+        else if (setaOrigem.campoId !== campoId) return;
 
-        const rect = document.getElementById(campoId).getBoundingClientRect();
-        const x = Math.max(0, Math.min(100, (ev.clientX - rect.left) / rect.width  * 100));
-        const y = Math.max(0, Math.min(100, (ev.clientY - rect.top)  / rect.height * 100));
+        const p = pontoNoCampo(campoId, ev.clientX, ev.clientY, unico);
+        const x = Math.max(0, Math.min(100, p.x));
+        const y = Math.max(0, Math.min(100, p.y));
         adicionarSeta(setaOrigem.escId, x, y);
         // Mantém a origem selecionada: permite adicionar várias setas ao mesmo jogador
     }
@@ -636,6 +764,14 @@
         campo.addEventListener('click', ev => onCampoClickSeta(ev, id));
         new ResizeObserver(() => desenharSetas(id)).observe(campo);
     });
+    // Mesmo campo: os dois campinhos ficam sem pointer-events (um cobriria o
+    // outro) e o clique no gramado vazio chega aqui. O campo que vale é o de
+    // quem a seta sai (onCampoClickSeta troca pelo da origem). Clique em slot
+    // já foi tratado pelo campo dele e não precisa passar de novo.
+    document.getElementById('campoUnico')?.addEventListener('click', ev => {
+        if (ev.target.closest('.posicao-drop')) return;
+        onCampoClickSeta(ev, setaOrigem?.campoId || 'campoCasa');
+    });
 
     document.addEventListener('keydown', ev => {
         if (ev.key === 'Escape' && modoSeta) {
@@ -645,6 +781,128 @@
     });
 
     desenharTodasSetas();
+
+    // ── Modo transmissão do "Mesmo campo" ──────────────────────────────────
+    // Mesma ideia do 📺 de /creators/escalacao (muToggleTransmissao): a casca
+    // #anUnico vira uma camada fixa do tamanho da janela, elencos e bancos
+    // recolhem (📋 traz de volta) e o campo cresce até a altura da tela. Os
+    // jogadores têm tamanho fixo em px e viravam formiguinhas no gramado grande,
+    // então escalam junto (--an-base, lido no transform do .posicao-drop).
+    // É o mesmo DOM de sempre: arrastar, notas, ℹ, setas e Salvar continuam
+    // valendo. O Salvar recarrega a página — a transmissão volta sozinha
+    // (sessionStorage, por aba do navegador).
+    const AN_ALTURA_REFERENCIA = 440; // px de campo em que o jogador sai no tamanho normal
+
+    function emTransmissaoAnalise() {
+        return document.getElementById('anUnico')?.classList.contains('an-transmissao') === true;
+    }
+
+    function ajustarEscalaTransmissao() {
+        const campo = document.getElementById('campoUnico');
+        if (!campo) return;
+        const base = emTransmissaoAnalise()
+            ? Math.min(Math.max(campo.clientHeight / AN_ALTURA_REFERENCIA, 1), 2.2)
+            : 1;
+        campo.style.setProperty('--an-base', base.toFixed(3));
+    }
+
+    function toggleTransmissaoAnalise(semAbertura) {
+        const casca = document.getElementById('anUnico');
+        if (!casca || !layoutUnicoAtivo()) return;
+        const ligar = !casca.classList.contains('an-transmissao');
+        casca.classList.toggle('an-transmissao', ligar);
+        casca.classList.remove('an-elencos-abertos', 'an-obs-aberta');
+
+        // Observações do jogo: na transmissão o #obsBox mora embaixo do campo
+        // (escondido até o 📝); saindo, volta ao lugar dele no form.
+        const obs = document.getElementById('obsBox');
+        if (obs && ligar) {
+            const marca = document.createComment('layout:obsBox');
+            obs.before(marca);
+            layoutMarcadores.set(obs, marca);
+            casca.querySelector('[data-slot="obs"]').appendChild(obs);
+        } else if (obs) {
+            const marca = layoutMarcadores.get(obs);
+            if (marca) { marca.replaceWith(obs); layoutMarcadores.delete(obs); }
+        }
+        ajustarAlturaObservacoes();
+        document.documentElement.classList.toggle('an-transmissao-aberta', ligar);
+        if (!ligar && document.fullscreenElement) document.exitFullscreen().catch(() => { });
+        const btn = document.getElementById('anBtnTransmissao');
+        if (btn) btn.textContent = ligar ? '✕ Sair da transmissão' : '📺 Transmissão';
+        try { sessionStorage.setItem('analisar.transmissao', ligar ? '1' : ''); } catch (e) { /* anônima */ }
+        ajustarEscalaTransmissao();
+        desenharTodasSetas();
+        // Abertura 3D (js/abertura-jogo.js) ao entrar pelo botão — não quando a
+        // transmissão só está voltando depois do Salvar (restaurarTransmissao).
+        if (ligar && !semAbertura) window.AberturaJogo?.tocar();
+    }
+    window.toggleTransmissaoAnalise = toggleTransmissaoAnalise;
+
+    function toggleElencosTransmissao() {
+        document.getElementById('anUnico')?.classList.toggle('an-elencos-abertos');
+        ajustarEscalaTransmissao();
+        desenharTodasSetas();
+    }
+    window.toggleElencosTransmissao = toggleElencosTransmissao;
+
+    // O campo encolhe exatamente a altura que o painel de observações ocupa
+    // (--an-obs-h): poucas observações = campo quase do tamanho cheio.
+    function ajustarAlturaObservacoes() {
+        const casca = document.getElementById('anUnico');
+        const slot = casca?.querySelector('[data-slot="obs"]');
+        if (!casca || !slot) return;
+        const h = casca.classList.contains('an-obs-aberta') ? slot.offsetHeight + 8 : 0;
+        casca.style.setProperty('--an-obs-h', h + 'px');
+    }
+
+    function toggleObservacoesTransmissao() {
+        const aberta = document.getElementById('anUnico')?.classList.toggle('an-obs-aberta');
+        ajustarAlturaObservacoes();
+        ajustarEscalaTransmissao();
+        desenharTodasSetas();
+        if (aberta) document.getElementById('obsTagTexto')?.focus({ preventScroll: true });
+    }
+    window.toggleObservacoesTransmissao = toggleObservacoesTransmissao;
+
+    const slotObs = document.querySelector('#anUnico [data-slot="obs"]');
+    if (slotObs) new ResizeObserver(ajustarAlturaObservacoes).observe(slotObs);
+
+    function alternarVisualTransmissao() {
+        const sel = document.getElementById('campoVisual');
+        const novo = document.querySelector('.an-root')?.classList.contains('campo-foto') ? 'numero' : 'foto';
+        if (sel) sel.value = novo;
+        trocarVisualCampo(novo);
+    }
+    window.alternarVisualTransmissao = alternarVisualTransmissao;
+
+    function toggleTelaCheiaAnalise() {
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => { });
+        else document.documentElement.requestFullscreen?.().catch(() => { });
+    }
+    window.toggleTelaCheiaAnalise = toggleTelaCheiaAnalise;
+
+    const campoUnicoEl = document.getElementById('campoUnico');
+    if (campoUnicoEl) new ResizeObserver(ajustarEscalaTransmissao).observe(campoUnicoEl);
+
+    // Esc sai da transmissão — em captura, para rodar ANTES do Esc do modo seta
+    // (que desliga o modo e deixaria este achar que não havia nada a fazer).
+    // Com modal aberto (nota, evento…) ou em tela cheia, o Esc é deles.
+    document.addEventListener('keydown', ev => {
+        if (ev.key !== 'Escape' || !emTransmissaoAnalise()) return;
+        if (document.body.classList.contains('modo-seta') || document.fullscreenElement) return;
+        // Digitando uma observação: o Esc é do campo (fecha a lista de menção @)
+        if (ev.target.closest?.('input, textarea, select, [contenteditable]')) return;
+        const modalAberto = [...document.querySelectorAll('[id^="modal-"]')]
+            .some(m => getComputedStyle(m).display !== 'none');
+        if (!modalAberto) toggleTransmissaoAnalise();
+    }, true);
+
+    (function restaurarTransmissao() {
+        let ligada = '';
+        try { ligada = sessionStorage.getItem('analisar.transmissao') || ''; } catch (e) { /* idem */ }
+        if (ligada && layoutUnicoAtivo()) toggleTransmissaoAnalise(true);
+    })();
 
     initUsados();
     atualizarSeletorJogadorObs();
@@ -1019,7 +1277,7 @@
             <div class="mb-pen-kick ${p.convertido ? 'ok' : 'fail'}">
                 <span class="mb-pen-ord">${i + 1}</span>
                 <span class="mb-pen-ball">${p.convertido ? '●' : '✖'}</span>
-                <span class="mb-pen-name">${p.nomeJogador || '?'}</span>
+                <span class="mb-pen-name">${escHtml(p.nomeJogador || '?')}</span>
             </div>`;
 
         const casa = lista.filter(p => p.isCasa);
@@ -1053,7 +1311,7 @@
 
         document.getElementById('mev-tipo-badge-wrap').innerHTML = `
             <div class="mev-tipo-badge" style="background:${cores[tipo]}22; color:${cores[tipo]}; border:1px solid ${cores[tipo]}44;">
-                ${icones[tipo]} ${tipo.charAt(0).toUpperCase() + tipo.slice(1)} — ${nomeTime}
+                ${icones[tipo]} ${tipo.charAt(0).toUpperCase() + tipo.slice(1)} — ${escHtml(nomeTime)}
             </div>`;
 
         // Assistência só para gol
@@ -1072,8 +1330,8 @@
         sel.innerHTML  = '<option value="">Selecione...</option>';
         selA.innerHTML = '<option value="">Nenhuma</option>';
         lista.forEach(j => {
-            sel.innerHTML  += `<option value="${j.id}">${j.nome}</option>`;
-            selA.innerHTML += `<option value="${j.id}">${j.nome}</option>`;
+            sel.innerHTML  += `<option value="${j.id}">${escHtml(j.nome)}</option>`;
+            selA.innerHTML += `<option value="${j.id}">${escHtml(j.nome)}</option>`;
         });
 
         document.getElementById('mev-minuto').value    = '';
@@ -1168,9 +1426,9 @@
         const icon   = ev.isContra ? '🔴⚽' : icones[ev.tipo] || '📌';
         const minStr = ev.acrescimo > 0 ? `${ev.minuto}+${ev.acrescimo}'` : `${ev.minuto}'`;
         const assistStr = ev.nomeAssistencia
-            ? `<small>Assist.: ${ev.nomeAssistencia}</small>` : '';
+            ? `<small>Assist.: ${escHtml(ev.nomeAssistencia)}</small>` : '';
         const subStr = ev.tipo === 'substituicao' && ev.nomeSaiu
-            ? `<small>↓ ${ev.nomeSaiu}</small>` : '';
+            ? `<small>↓ ${escHtml(ev.nomeSaiu)}</small>` : '';
         const ppStr = ev.tipo === 'penaltiPerdido'
             ? `<small>Pênalti perdido</small>` : '';
 
@@ -1189,7 +1447,7 @@
             <span class="mb-event-min">${minStr}</span>
             <span class="mb-event-icon">${icon}</span>
             <div class="mb-event-text">
-                <strong>${isSub ? '↑ ' : ''}${ev.nomeJogador || '?'}</strong>
+                <strong>${isSub ? '↑ ' : ''}${escHtml(ev.nomeJogador || '?')}</strong>
                 ${assistStr}${subStr}${ppStr}
             </div>
             ${delBtn}`;
@@ -1287,22 +1545,10 @@
         }
 
         // Atualiza visual
-        const icon  = document.getElementById('statusIcon');
-        const label = document.getElementById('statusLabel');
-
-        if (analisado === 1) {
-            icon.style.background    = 'rgba(34,197,94,0.12)';
-            icon.style.borderColor   = '#22c55e';
-            icon.textContent         = '✅';
-            label.style.color        = '#4ade80';
-            label.textContent        = 'Jogo analisado';
-        } else {
-            icon.style.background    = 'rgba(255,255,255,0.06)';
-            icon.style.borderColor   = '#333';
-            icon.textContent         = '⏳';
-            label.style.color        = '#9ca3af';
-            label.textContent        = 'Aguardando análise';
-        }
+        // O visual (marca e cor) sai da classe .feito no analisar.css
+        document.getElementById('anStatus').classList.toggle('feito', analisado === 1);
+        document.getElementById('statusLabel').textContent =
+            analisado === 1 ? 'Jogo analisado' : 'Aguardando análise';
     } catch (e) {
         checkbox.checked = !checkbox.checked;
         alert('Erro de conexão.');
@@ -1313,38 +1559,65 @@
         var modal = document.getElementById('modal-h2h');
         var corpo = document.getElementById('h2h-corpo');
         modal.style.display = 'flex';
-        corpo.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:2rem 0;">Carregando...</div>';
+        corpo.innerHTML = '<div class="pj-carregando">Carregando...</div>';
 
         try {
             var resp = await fetch('/Jogos/UltimosConfrontos/' + jogoId);
             if (!resp.ok) {
-                var msg = await resp.text();
-                corpo.innerHTML = '<div style="color:#f87171;text-align:center;padding:1rem;">' + msg + '</div>';
+                corpo.innerHTML = '<div class="pj-estado"><b>Não deu para carregar os confrontos.</b>' + escHtml(await resp.text()) + ' Tente de novo em instantes.</div>';
                 return;
             }
-            var dados = await resp.json();
-            if (!dados.length) {
-                corpo.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:1rem;">Nenhum confronto encontrado.</div>';
-                return;
-            }
-
-            corpo.innerHTML = dados.map(function(c) {
-                var corCasa = c.vencedor === 'home' ? 'h2h-venceu' : c.vencedor === 'draw' ? 'h2h-empate' : 'h2h-perdeu';
-                var corVis  = c.vencedor === 'away' ? 'h2h-venceu' : c.vencedor === 'draw' ? 'h2h-empate' : 'h2h-perdeu';
-                var logoMandante = c.logoMandante ? '<img src="' + c.logoMandante + '" alt="">' : '';
-                var logoVisitante = c.logoVisitante ? '<img src="' + c.logoVisitante + '" alt="">' : '';
-                return '<div class="h2h-card">' +
-                    '<div class="h2h-card-header">' + c.data + ' &bull; ' + c.competicao + ' ' + c.temporada + '</div>' +
-                    '<div class="h2h-placar">' +
-                        '<div class="h2h-time">' + logoMandante + '<span class="h2h-time-nome ' + corCasa + '">' + c.mandante + '</span></div>' +
-                        '<div class="h2h-gols">' + (c.placarMandante ?? '-') + '<span style="opacity:.4;font-size:14px;"> x </span>' + (c.placarVisitante ?? '-') + '</div>' +
-                        '<div class="h2h-time direita">' + logoVisitante + '<span class="h2h-time-nome ' + corVis + '">' + c.visitante + '</span></div>' +
-                    '</div>' +
-                '</div>';
-            }).join('');
-        } catch(e) {
-            corpo.innerHTML = '<div style="color:#f87171;text-align:center;padding:1rem;">Erro ao carregar confrontos.</div>';
+            corpo.innerHTML = montarH2H(await resp.json());
+        } catch (e) {
+            corpo.innerHTML = '<div class="pj-estado"><b>Não deu para carregar os confrontos.</b>Confira a conexão e tente de novo.</div>';
         }
+    }
+
+    // Placar geral no topo e a lista dos jogos, do mais recente ao mais antigo.
+    // "casa" e "visitante" são sempre os times DESTA partida, não os daquele jogo.
+    function montarH2H(d) {
+        if (d.semIdApi) {
+            return '<div class="pj-estado"><b>Sem como buscar os confrontos.</b>' +
+                'Um dos times está sem o código da api-football no cadastro.</div>';
+        }
+        if (!d.jogos.length) {
+            return '<div class="pj-estado"><b>Nenhum confronto antes desta partida.</b>' +
+                'A api-football não tem jogos anteriores entre os dois times.</div>';
+        }
+
+        var plural = function (n, um, varios) { return n + ' ' + (n === 1 ? um : varios); };
+        var escudo = function (t) { return t.escudo ? '<img src="' + escHtml(t.escudo) + '" alt="">' : ''; };
+        var lider = d.casa.vitorias === d.visitante.vitorias ? '' : d.casa.vitorias > d.visitante.vitorias ? 'casa' : 'visitante';
+
+        var resumo = '<div class="h2h-resumo">' +
+            '<div class="h2h-res-time' + (lider === 'visitante' ? ' menor' : '') + '">' + escudo(d.casa) +
+                '<div><span class="h2h-res-nome">' + escHtml(d.casa.nome) + '</span>' +
+                '<span class="h2h-res-num">' + plural(d.casa.vitorias, 'vitória', 'vitórias') + '</span></div></div>' +
+            '<div class="h2h-res-empates"><span class="h2h-res-num">' + plural(d.empates, 'empate', 'empates') + '</span></div>' +
+            '<div class="h2h-res-time direita' + (lider === 'casa' ? ' menor' : '') + '">' + escudo(d.visitante) +
+                '<div><span class="h2h-res-nome">' + escHtml(d.visitante.nome) + '</span>' +
+                '<span class="h2h-res-num">' + plural(d.visitante.vitorias, 'vitória', 'vitórias') + '</span></div></div>' +
+        '</div>';
+
+        var lista = d.jogos.map(function (c) {
+            var classe = function (lado) { return c.vencedor === 'empate' ? '' : c.vencedor === lado ? ' venceu' : ' perdeu'; };
+            var extra = c.penaltisMandante != null && c.penaltisVisitante != null
+                ? c.penaltisMandante + ' x ' + c.penaltisVisitante + ' nos pênaltis'
+                : c.prorrogacao ? 'na prorrogação' : '';
+            var meta = [c.data, c.competicao].filter(Boolean).map(escHtml).join(', ');
+            return '<li class="h2h-jogo">' +
+                '<div class="h2h-meta">' + meta + '</div>' +
+                '<div class="h2h-linha">' +
+                    '<span class="h2h-nome direita' + classe(c.mandante.lado) + '">' + escHtml(c.mandante.nome) + '</span>' +
+                    '<span class="h2h-gols">' + c.placarMandante + '<i>x</i>' + c.placarVisitante + '</span>' +
+                    '<span class="h2h-nome' + classe(c.visitante.lado) + '">' + escHtml(c.visitante.nome) + '</span>' +
+                '</div>' +
+                (extra ? '<div class="h2h-extra">' + extra + '</div>' : '') +
+            '</li>';
+        }).join('');
+
+        return resumo + '<ol class="h2h-lista">' + lista + '</ol>' +
+            '<div class="pj-ind-rodape">Mandante de cada jogo à esquerda. Dados da api-football.</div>';
     }
 
     function fecharH2H() {
@@ -1368,11 +1641,7 @@
                 corpo.innerHTML = '<div style="color:#f87171;text-align:center;padding:1rem;">' + msg + '</div>';
                 return;
             }
-            var dados = await resp.json();
-            corpo.innerHTML = '<div class="pj-grid">' +
-                colunaPreJogo(dados.casa, 'casa') +
-                colunaPreJogo(dados.visitante, 'vis') +
-            '</div>';
+            corpo.innerHTML = PainelJogo.resumoPreJogo(await resp.json());
         } catch (e) {
             corpo.innerHTML = '<div style="color:#f87171;text-align:center;padding:1rem;">Erro ao carregar dados do pré-jogo.</div>';
         }
@@ -1381,10 +1650,6 @@
     function escHtml(s) {
         return String(s == null ? '' : s)
             .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    }
-
-    function colunaPreJogo(t, lado) {
-        return PainelJogo.colunaPreJogo(t, lado);
     }
 
     function fecharPreJogo() {
@@ -1401,13 +1666,22 @@
         var btn = document.getElementById('pj-btn-maximizar');
         var maximizado = box.classList.toggle('pj-maximizado');
         if (btn) {
-            btn.textContent = maximizado ? '✕⛶' : '⛶';
-            btn.title = maximizado ? 'Restaurar tamanho' : 'Maximizar (tela cheia)';
+            btn.textContent = maximizado ? 'Restaurar' : 'Tela cheia';
+            btn.title = maximizado ? 'Voltar ao tamanho normal' : 'Ocupar a tela inteira';
+            btn.setAttribute('aria-pressed', maximizado ? 'true' : 'false');
         }
     }
 
     document.getElementById('modal-prejogo').addEventListener('click', function (e) {
         if (e.target === this) fecharPreJogo();
+    });
+
+    // Escape fecha o Pré-jogo e o Pós-jogo (o que estiver aberto)
+    document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Escape') return;
+        if (document.getElementById('modal-h2h').style.display === 'flex') fecharH2H();
+        else if (document.getElementById('modal-prejogo').style.display === 'flex') fecharPreJogo();
+        else if (document.getElementById('modal-posjogo').style.display === 'flex') fecharPosJogo();
     });
 
     // ── Abas do modal Pré-jogo (Resumo | Match-up) ─────────────────────────
@@ -1418,16 +1692,15 @@
     let momentoPreJogoCarregado = false;
 
     function mostrarAbaPreJogo(aba) {
-        document.getElementById('pj-tab-resumo').classList.toggle('active', aba === 'resumo');
-        document.getElementById('pj-tab-matchup').classList.toggle('active', aba === 'matchup');
-        document.getElementById('pj-tab-indisp').classList.toggle('active', aba === 'indisp');
-        document.getElementById('prejogo-corpo').style.display = aba === 'resumo' ? '' : 'none';
-        document.getElementById('prejogo-matchup').style.display = aba === 'matchup' ? '' : 'none';
-        document.getElementById('prejogo-indisp').style.display = aba === 'indisp' ? '' : 'none';
-        document.getElementById('pj-tab-momento').classList.toggle('active', aba === 'momento');
-        document.getElementById('prejogo-momento').style.display = aba === 'momento' ? '' : 'none';
-        // O match-up precisa de largura extra: campo horizontal + dois bancos
-        document.getElementById('prejogo-box').style.width = aba === 'matchup' || aba === 'momento' ? '1140px' : '780px';
+        // Largura e altura fixas para todas as abas (CSS): trocar de aba não faz o
+        // modal pular de tamanho.
+        [['resumo', 'prejogo-corpo'], ['matchup', 'prejogo-matchup'], ['indisp', 'prejogo-indisp'], ['momento', 'prejogo-momento']]
+            .forEach(function (par) {
+                var tab = document.getElementById('pj-tab-' + par[0]);
+                tab.classList.toggle('active', aba === par[0]);
+                tab.setAttribute('aria-selected', aba === par[0] ? 'true' : 'false');
+                document.getElementById(par[1]).style.display = aba === par[0] ? '' : 'none';
+            });
         if (aba === 'momento' && !momentoPreJogoCarregado) {
             momentoPreJogoCarregado = true;
             carregarMomentoPreJogo();
@@ -1465,9 +1738,10 @@
         // nesse caso quanto nas ligas sem essa cobertura, e afirmar elenco completo
         // com base nisso seria informar errado justamente quem escala o time.
         if (total === 0) {
-            return '<div style="text-align:center;color:rgba(255,255,255,.55);padding:2rem 1rem;font-size:12.5px;line-height:1.6">' +
-                'Nenhum desfalque informado para esta partida.<br>' +
-                '<span style="opacity:.7">A lista vem junto com o "🔄 Reimportar dados" — e nem toda liga tem essa cobertura na fonte.</span>' +
+            return '<div class="pj-estado">' +
+                '<b>Nenhum desfalque informado para esta partida.</b>' +
+                'A lista chega com o Reimportar dados, e nem toda liga tem essa cobertura na fonte. ' +
+                'Lista vazia não quer dizer elenco completo.' +
             '</div>';
         }
 
@@ -1475,7 +1749,7 @@
                 colunaIndisponiveis(d.casa, 'casa') +
                 colunaIndisponiveis(d.visitante, 'vis') +
             '</div>' +
-            (d.atualizadoEm ? '<div class="pj-ind-rodape">Atualizado em ' + escHtml(d.atualizadoEm) + ' · fonte: api-football</div>' : '');
+            (d.atualizadoEm ? '<div class="pj-ind-rodape">Atualizado em ' + escHtml(d.atualizadoEm) + ', pela api-football</div>' : '');
     }
 
     function colunaIndisponiveis(t, lado) {

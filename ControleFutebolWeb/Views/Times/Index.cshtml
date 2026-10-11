@@ -3,119 +3,58 @@
 @section Scripts {
     <script>
         (function () {
-            // Tag selector genérico: renderiza chips a partir dos checkboxes de um painel
-            function initMulti(wrapId, boxId, panelId, placeholder, onChange) {
-                var wrap  = document.getElementById(wrapId);
-                var box   = document.getElementById(boxId);
-                var panel = document.getElementById(panelId);
-                if (!wrap) return null;
+            // Seletor de competições (várias): chips a partir dos checkboxes do painel
+            var wrap = document.getElementById('compMulti');
+            if (!wrap) return;
+            var box = document.getElementById('compBox');
+            var panel = document.getElementById('compPanel');
 
-                function render() {
-                    var checks = panel.querySelectorAll('input[type=checkbox]');
-                    var marcados = Array.prototype.filter.call(checks, function (c) { return c.checked; });
-                    box.innerHTML = '';
-                    if (marcados.length === 0) {
-                        var ph = document.createElement('span');
-                        ph.className = 'ms-placeholder';
-                        ph.textContent = placeholder;
-                        box.appendChild(ph);
-                        return;
-                    }
-                    marcados.forEach(function (c) {
-                        var chip = document.createElement('span');
-                        chip.className = 'ms-chip';
-                        var txt = document.createElement('span');
-                        txt.textContent = c.dataset.nome;
-                        var x = document.createElement('span');
-                        x.className = 'ms-chip-x';
-                        x.textContent = '×';
-                        x.addEventListener('click', function (e) {
-                            e.stopPropagation();
-                            c.checked = false;
-                            render();
-                            if (onChange) onChange();
-                        });
-                        chip.appendChild(txt);
-                        chip.appendChild(x);
-                        box.appendChild(chip);
-                    });
+            function render() {
+                var marcados = Array.prototype.filter.call(panel.querySelectorAll('input[type=checkbox]'), function (c) { return c.checked; });
+                box.innerHTML = '';
+                if (marcados.length === 0) {
+                    var ph = document.createElement('span');
+                    ph.className = 'ms-placeholder';
+                    ph.textContent = 'Todas as competições';
+                    box.appendChild(ph);
+                    return;
                 }
-
-                function bindChecks() {
-                    panel.querySelectorAll('input[type=checkbox]').forEach(function (c) {
-                        c.addEventListener('change', function () { render(); if (onChange) onChange(); });
-                    });
-                }
-
-                box.addEventListener('click', function () { panel.classList.toggle('open'); });
-                box.addEventListener('keydown', function (e) {
-                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); panel.classList.toggle('open'); }
+                marcados.forEach(function (c) {
+                    var chip = document.createElement('span');
+                    chip.className = 'ms-chip';
+                    var txt = document.createElement('span');
+                    txt.textContent = c.dataset.nome;
+                    var x = document.createElement('button');
+                    x.type = 'button';
+                    x.className = 'ms-chip-x';
+                    x.setAttribute('aria-label', 'Remover ' + c.dataset.nome);
+                    x.textContent = '×';
+                    x.addEventListener('click', function (e) { e.stopPropagation(); c.checked = false; render(); });
+                    chip.appendChild(txt);
+                    chip.appendChild(x);
+                    box.appendChild(chip);
                 });
-                document.addEventListener('click', function (e) {
-                    if (!wrap.contains(e.target)) panel.classList.remove('open');
+            }
+
+            panel.querySelectorAll('input[type=checkbox]').forEach(function (c) { c.addEventListener('change', render); });
+            box.addEventListener('click', function () { panel.classList.toggle('open'); });
+            box.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); panel.classList.toggle('open'); }
+                if (e.key === 'Escape') panel.classList.remove('open');
+            });
+            document.addEventListener('click', function (e) { if (!wrap.contains(e.target)) panel.classList.remove('open'); });
+
+            var busca = document.getElementById('compSearch');
+            busca.addEventListener('input', function () {
+                var termo = busca.value.trim().toLowerCase();
+                panel.querySelectorAll('.ms-opt').forEach(function (lbl) {
+                    var nome = (lbl.querySelector('span')?.textContent || '').toLowerCase();
+                    lbl.style.display = (termo === '' || nome.indexOf(termo) !== -1) ? '' : 'none';
                 });
+            });
+            busca.addEventListener('click', function (e) { e.stopPropagation(); });
 
-                bindChecks();
-                render();
-                return { render: render, bindChecks: bindChecks, panel: panel };
-            }
-
-            // Busca/filtro genérico por nome dentro de um painel
-            function ligarBusca(inputId, optionsContainerId) {
-                var input = document.getElementById(inputId);
-                if (!input) return;
-                function filtrar() {
-                    var termo = input.value.trim().toLowerCase();
-                    document.querySelectorAll('#' + optionsContainerId + ' .ms-opt').forEach(function (lbl) {
-                        var nome = (lbl.querySelector('span')?.textContent || '').toLowerCase();
-                        lbl.style.display = (termo === '' || nome.indexOf(termo) !== -1) ? '' : 'none';
-                    });
-                }
-                input.addEventListener('input', filtrar);
-                input.addEventListener('click', function (e) { e.stopPropagation(); });
-            }
-
-            ligarBusca('compSearch', 'compOptions');
-            var timeCtl = initMulti('timeMulti', 'timeBox', 'timePanel', 'Todos os times');
-            ligarBusca('timeSearch', 'timeOptions');
-
-            // Ao mudar as competições, recarrega os times disponíveis (união das competições selecionadas)
-            function recarregarTimes() {
-                var compChecks = document.querySelectorAll('#compPanel input[type=checkbox]:checked');
-                var ids = Array.prototype.map.call(compChecks, function (c) { return c.value; });
-                if (!timeCtl) return;
-
-                var selecionados = Array.prototype.map.call(
-                    timeCtl.panel.querySelectorAll('input[type=checkbox]:checked'),
-                    function (c) { return c.value; });
-
-                var qs = ids.length ? ids.map(function (id) { return 'competicaoIds=' + id; }).join('&') : '';
-                fetch('/Jogos/TimesPorCompeticoes?' + qs)
-                    .then(function (r) { return r.json(); })
-                    .then(function (times) {
-                        var opts = document.getElementById('timeOptions');
-                        opts.innerHTML = '';
-                        times.forEach(function (t) {
-                            var lbl = document.createElement('label');
-                            lbl.className = 'ms-opt';
-                            var inp = document.createElement('input');
-                            inp.type = 'checkbox';
-                            inp.name = 'timeIds';
-                            inp.value = t.id;
-                            inp.dataset.nome = t.nome;
-                            if (selecionados.indexOf(String(t.id)) !== -1) inp.checked = true;
-                            var sp = document.createElement('span');
-                            sp.textContent = t.nome;
-                            lbl.appendChild(inp);
-                            lbl.appendChild(sp);
-                            opts.appendChild(lbl);
-                        });
-                        timeCtl.bindChecks();
-                        timeCtl.render();
-                    });
-            }
-
-            initMulti('compMulti', 'compBox', 'compPanel', 'Todas as competições', recarregarTimes);
+            render();
         })();
     </script>
 }
@@ -123,24 +62,66 @@
 @{
     ViewData["Title"] = "Times";
 
+    var ptBR = new System.Globalization.CultureInfo("pt-BR");
+    string Milhar(int n) => n.ToString("N0", ptBR);
+
     var competicoesLista = ViewBag.Competicoes as IEnumerable<ControleFutebolWeb.Models.Competicao> ?? Enumerable.Empty<ControleFutebolWeb.Models.Competicao>();
-    var timesLista = ViewBag.Times as IEnumerable<ControleFutebolWeb.Models.Time> ?? Enumerable.Empty<ControleFutebolWeb.Models.Time>();
     var compSel = ViewBag.CompeticaoIdsFiltro as List<int> ?? new List<int>();
     var timeSel = ViewBag.TimeIdsFiltro as List<int> ?? new List<int>();
     var jogadoresPorTime = ViewBag.JogadoresPorTime as Dictionary<int, int> ?? new Dictionary<int, int>();
     var formaPorTime = ViewBag.FormaPorTime as Dictionary<int, List<char>> ?? new Dictionary<int, List<char>>();
+    var competicaoPrincipal = ViewBag.CompeticaoPrincipal as Dictionary<int, string> ?? new Dictionary<int, string>();
     var titulosPorTime = ViewBag.TitulosPorTime as Dictionary<int, List<ControleFutebolWeb.Helpers.TitulosHelper.Titulo>>
         ?? new Dictionary<int, List<ControleFutebolWeb.Helpers.TitulosHelper.Titulo>>();
+    int? formacaoMaisComum = ViewBag.FormacaoMaisComumId as int?;
 
     int totalTimesGlobal = ViewBag.TotalTimesGlobal ?? 0;
     int totalJogadoresGlobal = ViewBag.TotalJogadoresGlobal ?? 0;
     int totalCompeticoesGlobal = ViewBag.TotalCompeticoesGlobal ?? 0;
 
-    bool temFiltro = compSel.Any() || timeSel.Any();
-    int exibidos = Model.Count();
-    string subtitulo = temFiltro ? $"{exibidos} de {totalTimesGlobal} times" : $"{totalTimesGlobal} times cadastrados";
+    string? busca = ViewBag.Busca as string;
+    string tipo = ViewBag.Tipo as string ?? "todos";
+    bool comElenco = ViewBag.ComElenco ?? false;
+    string ordem = ViewBag.Ordem as string ?? "nome";
+    int pagina = ViewBag.Pagina ?? 1;
+    int totalPaginas = ViewBag.TotalPaginas ?? 1;
+    int totalFiltrado = ViewBag.TotalFiltrado ?? 0;
+    int porPagina = ViewBag.PorPagina ?? 48;
+    int qtdClubes = ViewBag.QtdClubes ?? 0;
+    int qtdSelecoes = ViewBag.QtdSelecoes ?? 0;
 
-    string CorForma(char r) => r switch { 'V' => "#22c55e", 'D' => "#ef4444", _ => "var(--text-dim)" };
+    bool temFiltro = compSel.Any() || timeSel.Any() || !string.IsNullOrWhiteSpace(busca) || comElenco;
+
+    // Rota com os filtros atuais, para paginação e abas
+    Dictionary<string, string?> Rota(string? novoTipo = null, int? novaPagina = null, string? novaOrdem = null)
+    {
+        var d = new Dictionary<string, string?>
+        {
+            ["busca"] = string.IsNullOrWhiteSpace(busca) ? null : busca,
+            ["tipo"] = (novoTipo ?? tipo) == "todos" ? null : (novoTipo ?? tipo),
+            ["comElenco"] = comElenco ? "true" : null,
+            ["ordem"] = (novaOrdem ?? ordem) == "nome" ? null : (novaOrdem ?? ordem),
+            ["page"] = novaPagina is > 1 ? novaPagina.ToString() : null,
+        };
+        return d;
+    }
+    // competicaoIds é lista: vai na query string à mão (asp-all-route-data não repete chave)
+    string QsCompeticoes() => string.Concat(compSel.Select(id => $"&competicaoIds={id}"));
+    string Url_(string? novoTipo = null, int? novaPagina = null)
+    {
+        var baseUrl = Url.Action("Index", "Times", Rota(novoTipo, novaPagina)
+            .Where(kv => kv.Value != null).ToDictionary(kv => kv.Key, kv => (object?)kv.Value)) ?? "/Times";
+        var qs = QsCompeticoes();
+        return qs.Length == 0 ? baseUrl : baseUrl + (baseUrl.Contains('?') ? qs : "?" + qs[1..]);
+    }
+
+    // "Importado"/"Desconhecida" são valores de preenchimento, não lugares
+    static bool CidadeValida(string? c) =>
+        !string.IsNullOrWhiteSpace(c) && !c.Trim().Equals("Importado", StringComparison.OrdinalIgnoreCase)
+        && !c.Trim().Equals("Desconhecida", StringComparison.OrdinalIgnoreCase);
+
+    int primeiro = totalFiltrado == 0 ? 0 : (pagina - 1) * porPagina + 1;
+    int ultimo = Math.Min(pagina * porPagina, totalFiltrado);
 }
 
 <link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
@@ -156,337 +137,249 @@
         border-radius: 14px;
         overflow: hidden;
     }
-
     .cf-times a { text-decoration: none; color: inherit; }
-    .cf-times h1 { font-family: 'Barlow Condensed', Arial, sans-serif; }
+    .cf-times :is(a, button, select, input, [tabindex]):focus-visible { outline: 2px solid #d4a520; outline-offset: 2px; }
 
-    /* ── Hero ────────────────────────────────────── */
-    .cft-hero {
-        position: relative;
-        overflow: hidden;
+    /* ── Cabeçalho compacto ── */
+    .cft-cab {
+        padding: 1.5rem 2.5rem;
         background: linear-gradient(135deg, #0a1628 0%, #0f2040 55%, #0a1628 100%);
-        padding: 2.4rem 2.5rem;
+        border-left: 4px solid #d4a520;
     }
-
-    .cft-hero-pattern {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        opacity: 0.08;
-        pointer-events: none;
+    .cft-cab h1 {
+        font-family: 'Barlow Condensed', Arial, sans-serif;
+        font-size: 2.4rem; font-weight: 800; color: #f2f5fa; margin: 0; line-height: 1;
     }
+    .cft-cab p { margin: 6px 0 0; font-size: .92rem; color: rgba(255,255,255,.72); }
+    .cft-cab p strong { color: #f3d27a; font-weight: 700; }
 
-    .cft-hero-stripe {
-        position: absolute;
-        left: 0; top: 0; bottom: 0;
-        width: 3px;
-        background: #d4a520;
-    }
-
-    .cft-hero-content { position: relative; z-index: 1; }
-
-    .cft-hero-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-    .cft-hero-kicker-line { height: 2px; width: 28px; background: #d4a520; }
-    .cft-hero-kicker span {
-        font-size: 0.68rem; font-weight: 700; letter-spacing: 0.24em;
-        color: var(--gold-ink); text-transform: uppercase;
-    }
-
-    .cft-hero-row {
-        display: flex; align-items: flex-end; justify-content: space-between;
-        flex-wrap: wrap; gap: 20px;
-    }
-
-    .cft-hero h1 { font-size: 2.6rem; font-weight: 800; color: var(--text-strong); margin: 0 0 8px; line-height: 1; }
-    .cft-hero p { color: var(--text-muted); font-size: 0.92rem; margin: 0; max-width: 480px; }
-
-    .cft-kpis { display: flex; gap: 20px; flex-shrink: 0; }
-    .cft-kpi { text-align: center; }
-    .cft-kpi-num {
-        font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 2.1rem;
-        font-weight: 800; color: var(--gold-ink); line-height: 1;
-    }
-    .cft-kpi-label {
-        font-size: 0.63rem; font-weight: 700; letter-spacing: 0.1em;
-        color: var(--text-dim); text-transform: uppercase; margin-top: 3px;
-    }
-    .cft-kpi-sep { width: 1px; background: #1e3a5f; align-self: stretch; }
-
-    /* ── Filtros ─────────────────────────────────── */
+    /* ── Filtros ── */
     .cft-filters {
-        background: var(--p-1);
-        border-bottom: 1px solid var(--line);
-        padding: 16px 2.5rem;
-        display: flex;
-        align-items: flex-end;
-        gap: 14px;
-        flex-wrap: wrap;
+        background: var(--p-1); border-bottom: 1px solid var(--line); padding: 14px 2.5rem;
+        display: flex; align-items: flex-end; gap: 10px 12px; flex-wrap: wrap;
     }
-
-    .cft-filter-label {
-        font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
-        color: var(--text-dim); text-transform: uppercase; margin-bottom: 6px; display: block;
+    .cft-field { display: flex; flex-direction: column; gap: 4px; }
+    .cft-field > label, .cft-filter-label { font-size: .8rem; font-weight: 600; color: var(--text-muted); }
+    .cft-field.busca { flex: 1 1 220px; max-width: 320px; }
+    .cft-input, .cft-select {
+        width: 100%; background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 8px;
+        color: var(--text); font-family: inherit; font-size: .86rem; padding: 8px 12px; outline: none;
     }
+    .cft-input:focus, .cft-select:focus { border-color: #d4a520; }
+    .cft-check { display: flex; align-items: center; gap: 6px; padding-bottom: 9px; font-size: .84rem; color: var(--text-muted); }
+    .cft-check input { accent-color: #d4a520; }
 
-    .cft-subtitulo { margin-left: auto; font-size: 0.78rem; color: var(--text-dim); font-weight: 600; }
-
-    /* Tag selector — mesma lógica funcional, visual escuro */
+    /* Seletor de competições */
     .ms-wrap { position: relative; min-width: 240px; }
     .ms-box {
         display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
-        min-height: 40px; padding: 4px 30px 4px 10px; cursor: pointer;
-        border: 1px solid var(--line); border-radius: 8px; background: var(--p-2); font-size: 13px;
-        position: relative;
+        min-height: 38px; padding: 4px 30px 4px 10px; cursor: pointer;
+        border: 1px solid var(--line-strong); border-radius: 8px; background: var(--p-2); font-size: 13px; position: relative;
     }
-    .ms-box::after {
-        content: "▾"; position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-        color: var(--text-dim); pointer-events: none;
-    }
+    .ms-box::after { content: "▾"; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--text-dim); pointer-events: none; }
     .ms-placeholder { color: var(--text-dim); }
     .ms-chip {
-        display: inline-flex; align-items: center; gap: 4px;
-        background: rgba(212,165,32,0.14); color: #eecb6c; border: 1px solid rgba(212,165,32,0.3);
-        border-radius: 6px; padding: 2px 6px; font-size: 12px; font-weight: 600;
+        display: inline-flex; align-items: center; gap: 4px; background: rgba(212,165,32,0.14);
+        color: var(--text-strong); border: 1px solid rgba(212,165,32,0.4); border-radius: 6px; padding: 2px 6px; font-size: 12px; font-weight: 600;
     }
-    .ms-chip-x { cursor: pointer; font-weight: 700; line-height: 1; opacity: .7; }
+    .ms-chip-x { border: none; background: none; cursor: pointer; font-weight: 700; line-height: 1; opacity: .7; padding: 0 2px; color: inherit; }
     .ms-chip-x:hover { opacity: 1; }
     .ms-panel {
         position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50;
         background: var(--p-2); border: 1px solid var(--line); border-radius: 8px;
-        box-shadow: 0 8px 24px rgba(0,0,0,.5); max-height: 280px; overflow-y: auto;
-        display: none; padding: 4px;
+        box-shadow: 0 8px 24px rgba(0,0,0,.25); max-height: 280px; overflow-y: auto; display: none; padding: 4px;
     }
     .ms-panel.open { display: block; }
-    .ms-opt {
-        display: flex; align-items: center; gap: 8px; padding: 7px 10px;
-        border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text);
-    }
+    .ms-opt { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text); }
     .ms-opt:hover { background: var(--p-4); }
     .ms-opt input { cursor: pointer; accent-color: #d4a520; }
     .ms-search {
-        width: 100%; box-sizing: border-box; padding: 7px 10px; margin-bottom: 4px;
-        border: 1px solid var(--line); border-radius: 6px; font-size: 13px; outline: none;
+        width: 100%; padding: 7px 10px; margin-bottom: 4px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px; outline: none;
         position: sticky; top: 0; background: var(--p-1); color: var(--text);
     }
-    .ms-search::placeholder { color: #666; }
     .ms-search:focus { border-color: #d4a520; }
 
-    .cft-btn {
-        padding: 9px 18px; border-radius: 8px; font-size: 0.85rem; font-weight: 700;
-        border: none; cursor: pointer;
+    .cft-btn { display: inline-flex; align-items: center; padding: 8px 16px; border-radius: 8px; font-family: inherit; font-size: .85rem; font-weight: 700; border: 1px solid transparent; cursor: pointer; white-space: nowrap; }
+    .cf-times .cft-btn-primary { background: #d4a520; color: #141414; }
+    .cf-times .cft-btn-primary:hover { background: #e2b42c; }
+    .cf-times .cft-btn-ghost { background: var(--p-2); color: var(--text-2); border-color: var(--line-strong); }
+    .cf-times .cft-btn-ghost:hover { border-color: #d4a520; color: var(--text-strong); }
+
+    /* ── Abas clubes/seleções + resumo ── */
+    .cft-grid-wrap { padding: 18px 2.5rem 3rem; }
+    .cft-barra { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; margin-bottom: 14px; }
+    .cft-abas { display: inline-flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--p-1); border: 1px solid var(--line); }
+    .cf-times .cft-aba { padding: 6px 14px; border-radius: 8px; font-size: .86rem; font-weight: 600; color: var(--text-2); white-space: nowrap; }
+    .cf-times .cft-aba:hover { background: var(--p-3); }
+    .cf-times .cft-aba[aria-current="page"] { background: #d4a520; color: #141414; }
+    .cft-aba small { font-weight: 500; opacity: .8; margin-left: 3px; }
+    .cft-resumo { font-size: .86rem; color: var(--text-muted); }
+    .cft-resumo strong { color: var(--text-strong); }
+
+    /* ── Grade de cards ── */
+    .cft-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+    .cf-times .cft-card {
+        background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+        display: flex; flex-direction: column; gap: 12px; transition: border-color .15s, background .15s;
     }
-    .cft-btn-primary { background: #d4a520; color: #141414; }
-    .cft-btn-primary:hover { background: #c49918; }
-    .cft-btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--line); }
-    .cft-btn-ghost:hover { color: var(--text-strong); border-color: var(--line-strong); }
-
-    /* ── Grid de cards ───────────────────────────── */
-    .cft-grid-wrap { padding: 28px 2.5rem 3rem; }
-
-    .cft-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 16px;
-    }
-
-    .cft-card {
-        background: var(--p-1);
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        padding: 20px;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        transition: all 0.18s;
-    }
-
-    .cft-card:hover {
-        border-color: #d4a520;
-        background: var(--p-2);
-        transform: translateY(-2px);
-        box-shadow: 0 8px 32px rgba(212,165,32,0.06);
-    }
-
-    .cft-card-top { display: flex; align-items: flex-start; gap: 16px; }
-
+    .cf-times .cft-card:hover { border-color: #d4a520; background: var(--p-2); }
+    .cft-card-top { display: flex; align-items: center; gap: 12px; }
     .cft-badge {
-        width: 58px; height: 58px; border-radius: 50%;
-        background: var(--p-0); border: 1px solid var(--line-strong);
-        display: flex; align-items: center; justify-content: center;
-        overflow: hidden; flex-shrink: 0;
+        width: 48px; height: 48px; border-radius: 50%; background: var(--p-0); border: 1px solid var(--line-strong);
+        display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;
     }
-
     .cft-badge img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
     .cft-badge-abbr { font-size: 11px; font-weight: 700; color: var(--text-dim); }
-
-    .cft-card-info { flex: 1; min-width: 0; padding-top: 2px; }
-
+    .cft-card-info { flex: 1; min-width: 0; }
     .cft-nome {
-        font-size: 1.05rem; font-weight: 700; color: var(--text-strong);
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px;
+        font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.2rem; font-weight: 700; color: var(--text-strong);
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.15;
     }
+    .cft-local { font-size: .8rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cft-formacao { display: inline-block; margin-top: 4px; padding: 1px 8px; border-radius: 6px; background: var(--p-3); font-size: .75rem; font-weight: 700; color: var(--text-2); }
 
-    .cft-cidade { display: flex; align-items: center; gap: 5px; margin-bottom: 8px; }
-    .cft-cidade span { font-size: 0.75rem; color: var(--text-dim); }
-
-    .cft-formacao {
-        display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px;
-        background: rgba(212,165,32,0.1); border: 1px solid rgba(212,165,32,0.22); border-radius: 6px;
-    }
-    .cft-formacao span { font-size: 0.7rem; font-weight: 700; color: var(--gold-ink); letter-spacing: 0.06em; }
-
-    /* Troféus conquistados (uma taça por competição/temporada) */
-    .cft-trofeus { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+    .cft-trofeus { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
     .cft-trofeu {
         display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px;
-        background: rgba(212,165,32,0.12); border: 1px solid rgba(212,165,32,0.3); border-radius: 6px;
-        font-size: 0.68rem; font-weight: 700; color: #eecb6c; white-space: nowrap;
+        background: rgba(212,165,32,0.12); border: 1px solid rgba(212,165,32,0.35); border-radius: 6px;
+        font-size: .74rem; font-weight: 700; color: var(--gold-ink); white-space: nowrap;
     }
     .cft-trofeu img { width: 13px; height: 13px; object-fit: contain; }
-    .cft-trofeu-mais { color: var(--text-dim); font-size: 0.68rem; font-weight: 700; }
+    .cft-trofeu-mais { color: var(--text-dim); font-size: .74rem; font-weight: 700; }
 
-    .cft-divider { height: 1px; background: var(--p-3); }
+    .cft-card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
+    .cft-jogadores { font-size: .82rem; color: var(--text-muted); }
+    .cft-jogadores strong { color: var(--text-strong); font-weight: 700; }
+    .cft-jogadores.vazio { color: var(--text-dimmer); }
+    .cft-forma { display: inline-flex; gap: 3px; align-items: center; }
+    .cft-forma-item { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 4px; font-size: .66rem; font-weight: 800; }
+    .cft-forma-item.v { background: rgba(34,197,94,.18); color: var(--ok); }
+    .cft-forma-item.e { background: var(--p-3); color: var(--text-muted); }
+    .cft-forma-item.d { background: rgba(239,68,68,.15); color: var(--bad); }
 
-    .cft-card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-    .cft-stat-mini { display: flex; align-items: center; gap: 14px; }
-    .cft-jogadores { display: flex; align-items: center; gap: 5px; }
-    .cft-jogadores span { font-size: 0.78rem; color: var(--text-muted); font-weight: 600; }
+    .cft-empty { text-align: center; padding: 3rem 1rem; color: var(--text-muted); background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; }
+    .cft-empty a { color: var(--gold-ink); font-weight: 600; text-decoration: underline; }
 
-    .cft-forma { display: flex; gap: 3px; align-items: center; }
-    .cft-forma-item {
-        display: inline-flex; align-items: center; justify-content: center;
-        width: 16px; height: 16px; border-radius: 3px; color: #fff; font-size: 8px; font-weight: 800; flex-shrink: 0;
-    }
+    /* ── Paginação ── */
+    .cft-paginacao { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 24px; flex-wrap: wrap; }
+    .cf-times .cft-pag { padding: 8px 14px; background: var(--p-1); border: 1px solid var(--line-strong); border-radius: 8px; color: var(--text-2); font-size: .85rem; }
+    .cf-times .cft-pag:hover { border-color: #d4a520; color: var(--text-strong); }
+    .cf-times .cft-pag[aria-current="page"] { background: #d4a520; border-color: #d4a520; color: #141414; font-weight: 800; }
+    .cf-times .cft-pag.off { opacity: .4; pointer-events: none; }
+    .cft-pag-reti { color: var(--text-dimmer); padding: 0 4px; }
 
-    .cft-cta {
-        font-size: 0.72rem; color: var(--gold-ink); font-weight: 700;
-        display: flex; align-items: center; gap: 4px; flex-shrink: 0; white-space: nowrap;
-    }
-
-    .cft-empty {
-        text-align: center; padding: 3rem 1rem; color: var(--text-dim);
-        background: var(--p-1); border: 1px solid var(--line); border-radius: 14px;
-    }
-
-    @@media (max-width: 640px) {
-        .cft-hero, .cft-filters, .cft-grid-wrap { padding-left: 1.2rem; padding-right: 1.2rem; }
-        .cft-hero h1 { font-size: 2rem; }
-        .cft-subtitulo { margin-left: 0; width: 100%; }
+    @@media (max-width: 720px) {
+        .cft-cab, .cft-filters, .cft-grid-wrap { padding-left: 1rem; padding-right: 1rem; }
+        .cft-cab h1 { font-size: 2rem; }
+        .cft-field.busca { max-width: none; }
+        .ms-wrap { min-width: 0; width: 100%; }
+        .cft-field.comp { flex: 1 1 100%; }
+        /* Duas colunas compactas no celular */
+        .cft-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+        .cf-times .cft-card { padding: 10px; gap: 8px; }
+        .cft-card-top { flex-direction: column; align-items: flex-start; gap: 6px; }
+        .cft-badge { width: 40px; height: 40px; }
+        .cft-nome { font-size: 1.05rem; }
+        .cft-card-bottom { flex-direction: column; align-items: flex-start; gap: 6px; }
+        .cft-trofeus { display: none; }
     }
 </style>
 
 <div class="cf-times">
 
-    <!-- Hero -->
-    <div class="cft-hero theme-dark-zone">
-        <img class="cft-hero-pattern" src="~/Images/banner/escudos-pattern.svg" alt="" />
-        <div class="cft-hero-stripe"></div>
-        <div class="cft-hero-content">
-            <div class="cft-hero-kicker">
-                <div class="cft-hero-kicker-line"></div>
-                <span>Gestão</span>
-            </div>
-            <div class="cft-hero-row">
-                <div>
-                    <h1>Times</h1>
-                    <p>Gerencie escudos, uniformes, escalação padrão e acesse os detalhes de cada clube.</p>
-                </div>
-                <div class="cft-kpis">
-                    <div class="cft-kpi">
-                        <div class="cft-kpi-num">@totalTimesGlobal</div>
-                        <div class="cft-kpi-label">Times</div>
-                    </div>
-                    <div class="cft-kpi-sep"></div>
-                    <div class="cft-kpi">
-                        <div class="cft-kpi-num">@totalJogadoresGlobal</div>
-                        <div class="cft-kpi-label">Jogadores</div>
-                    </div>
-                    <div class="cft-kpi-sep"></div>
-                    <div class="cft-kpi">
-                        <div class="cft-kpi-num">@totalCompeticoesGlobal</div>
-                        <div class="cft-kpi-label">Competições</div>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="cft-cab theme-dark-zone">
+        <h1>Times</h1>
+        <p>
+            <strong>@Milhar(totalTimesGlobal)</strong> times,
+            <strong>@Milhar(totalJogadoresGlobal)</strong> jogadores e
+            <strong>@Milhar(totalCompeticoesGlobal)</strong> competições
+        </p>
     </div>
 
-    <!-- Filtros -->
-    <form asp-action="Index" method="get" class="cft-filters">
-        <div>
-            <span class="cft-filter-label">Competições</span>
+    <!-- Filtros: busca por nome (no lugar da lista de 612 caixinhas), competição e elenco -->
+    <form asp-action="Index" method="get" class="cft-filters" role="search">
+        @if (tipo != "todos") { <input type="hidden" name="tipo" value="@tipo" /> }
+        @foreach (var id in timeSel) { <input type="hidden" name="timeIds" value="@id" /> }
+
+        <div class="cft-field busca">
+            <label for="busca">Buscar time</label>
+            <input type="search" id="busca" name="busca" value="@busca" class="cft-input" placeholder="Nome do clube ou da seleção" />
+        </div>
+
+        <div class="cft-field comp">
+            <span class="cft-filter-label" id="rot-comp">Competições</span>
             <div class="ms-wrap" id="compMulti">
-                <div class="ms-box" id="compBox" tabindex="0"></div>
+                <div class="ms-box" id="compBox" tabindex="0" role="button" aria-labelledby="rot-comp"></div>
                 <div class="ms-panel" id="compPanel">
-                    <input type="text" class="ms-search" id="compSearch" placeholder="Buscar competição…" autocomplete="off" />
-                    <div id="compOptions">
-                        @foreach (var c in competicoesLista)
-                        {
-                            <label class="ms-opt">
-                                <input type="checkbox" name="competicaoIds" value="@c.Id"
-                                       data-nome="@c.Nome"
-                                       @(compSel.Contains(c.Id) ? "checked" : "") />
-                                <span>@c.Nome</span>
-                            </label>
-                        }
-                    </div>
+                    <input type="text" class="ms-search" id="compSearch" placeholder="Buscar competição…" autocomplete="off" aria-label="Buscar competição" />
+                    @foreach (var c in competicoesLista)
+                    {
+                        <label class="ms-opt">
+                            <input type="checkbox" name="competicaoIds" value="@c.Id" data-nome="@c.Nome" @(compSel.Contains(c.Id) ? "checked" : "") />
+                            <span>@c.Nome</span>
+                        </label>
+                    }
                 </div>
             </div>
         </div>
 
-        <div>
-            <span class="cft-filter-label">Times</span>
-            <div class="ms-wrap" id="timeMulti">
-                <div class="ms-box" id="timeBox" tabindex="0"></div>
-                <div class="ms-panel" id="timePanel">
-                    <input type="text" class="ms-search" id="timeSearch" placeholder="Buscar time…" autocomplete="off" />
-                    <div id="timeOptions">
-                        @foreach (var t in timesLista)
-                        {
-                            <label class="ms-opt">
-                                <input type="checkbox" name="timeIds" value="@t.Id"
-                                       data-nome="@t.Nome"
-                                       @(timeSel.Contains(t.Id) ? "checked" : "") />
-                                <span>@t.Nome</span>
-                            </label>
-                        }
-                    </div>
-                </div>
-            </div>
+        <div class="cft-field">
+            <label for="ordem">Ordenar por</label>
+            <select id="ordem" name="ordem" class="cft-select">
+                <option value="nome" selected="@(ordem == "nome")">Nome</option>
+                <option value="jogadores" selected="@(ordem == "jogadores")">Mais jogadores</option>
+                <option value="recentes" selected="@(ordem == "recentes")">Jogou por último</option>
+            </select>
         </div>
+
+        <label class="cft-check">
+            <input type="checkbox" name="comElenco" value="true" @(comElenco ? "checked" : "") />
+            Só com elenco cadastrado
+        </label>
 
         <button type="submit" class="cft-btn cft-btn-primary">Filtrar</button>
-        @if (temFiltro)
+        @if (temFiltro || tipo != "todos" || ordem != "nome")
         {
-            <a asp-action="Index" class="cft-btn cft-btn-ghost">✕ Limpar</a>
+            <a asp-action="Index" class="cft-btn cft-btn-ghost">Limpar filtros</a>
         }
-
-        <div class="cft-subtitulo">@subtitulo</div>
     </form>
 
     @if (TempData["Mensagem"] != null)
     {
         <div class="alert alert-success alert-dismissible fade show m-3" role="alert">
             @TempData["Mensagem"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
         </div>
     }
-
     @if (TempData["MensagemErro"] != null)
     {
         <div class="alert alert-danger alert-dismissible fade show m-3" role="alert">
             @TempData["MensagemErro"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
         </div>
     }
 
-    <!-- Grid -->
     <div class="cft-grid-wrap">
+        <div class="cft-barra">
+            <nav class="cft-abas" aria-label="Tipo de time">
+                <a class="cft-aba" href="@Url_("todos")" aria-current="@(tipo == "todos" ? "page" : null)">Todos<small>@Milhar(qtdClubes + qtdSelecoes)</small></a>
+                <a class="cft-aba" href="@Url_("clubes")" aria-current="@(tipo == "clubes" ? "page" : null)">Clubes<small>@Milhar(qtdClubes)</small></a>
+                <a class="cft-aba" href="@Url_("selecoes")" aria-current="@(tipo == "selecoes" ? "page" : null)">Seleções<small>@Milhar(qtdSelecoes)</small></a>
+            </nav>
+            <span class="cft-resumo">
+                @if (totalFiltrado > 0)
+                {
+                    <text>Mostrando <strong>@primeiro–@ultimo</strong> de <strong>@Milhar(totalFiltrado)</strong></text>
+                }
+            </span>
+        </div>
+
         @if (!Model.Any())
         {
-            <div class="cft-empty">Nenhum time encontrado com os filtros selecionados.</div>
+            <div class="cft-empty">
+                Nenhum time encontrado com esses filtros.
+                @if (temFiltro || tipo != "todos") { <a asp-action="Index">Limpar filtros</a> }
+            </div>
         }
         else
         {
@@ -499,89 +392,109 @@
                     // No card cabem poucas taças; o resto vira "+N" e a lista completa
                     // fica no title (a página do time mostra todas).
                     var titulosVisiveis = titulos.Take(3).ToList();
-                    var tituloResumo = string.Join(" · ", titulos.Select(t => $"{t.Competicao} {t.TemporadaRotulo}"));
+                    var tituloResumo = string.Join(", ", titulos.Select(t => $"{t.Competicao} {t.TemporadaRotulo}"));
+
+                    // Onde fica: cidade real, senão estádio, senão país, senão a competição
+                    // em que mais jogou — "Importado" não é lugar.
+                    var local = CidadeValida(time.Cidade) ? time.Cidade
+                              : !string.IsNullOrWhiteSpace(time.EstadioCidade) ? time.EstadioCidade
+                              : !string.IsNullOrWhiteSpace(time.PaisApi) ? ControleFutebolWeb.Helpers.CountryHelper.Traduzir(time.PaisApi)
+                              : competicaoPrincipal.GetValueOrDefault(time.Id);
+                    var mostraFormacao = time.FormacaoPadrao != null && time.FormacaoPadraoId != formacaoMaisComum;
+                    var formaTexto = string.Join(" ", forma.Select(r => r == 'V' ? "vitória" : r == 'D' ? "derrota" : "empate"));
 
                     <a asp-action="Details" asp-controller="Times" asp-route-id="@time.Id" class="cft-card">
                         <div class="cft-card-top">
                             <div class="cft-badge">
                                 @if (!string.IsNullOrEmpty(time.EscudoUrl))
                                 {
-                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = time.EscudoUrl })" alt="@time.Nome" />
+                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = time.EscudoUrl })" alt="" loading="lazy" decoding="async" width="48" height="48" />
                                 }
                                 else
                                 {
-                                    <span class="cft-badge-abbr">
-                                        @(time.Nome?.Length >= 3 ? time.Nome.Substring(0, 3).ToUpper() : time.Nome)
-                                    </span>
+                                    <span class="cft-badge-abbr">@(time.Nome?.Length >= 3 ? time.Nome.Substring(0, 3).ToUpper() : time.Nome)</span>
                                 }
                             </div>
                             <div class="cft-card-info">
                                 <div class="cft-nome">@time.Nome</div>
-                                <div class="cft-cidade">
-                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
-                                    <span>@time.Cidade</span>
-                                </div>
-                                @if (time.FormacaoPadrao != null)
+                                @if (!string.IsNullOrWhiteSpace(local))
                                 {
-                                    <div class="cft-formacao">
-                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#d4a520" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" /></svg>
-                                        <span>@time.FormacaoPadrao.Nome</span>
-                                    </div>
+                                    <div class="cft-local">@local</div>
                                 }
-                                @if (titulos.Any())
+                                @if (mostraFormacao)
                                 {
-                                    <div class="cft-trofeus" title="@tituloResumo">
-                                        @foreach (var t in titulosVisiveis)
-                                        {
-                                            <span class="cft-trofeu">
-                                                <span>🏆</span>
-                                                @if (!string.IsNullOrEmpty(t.LogoUrl))
-                                                {
-                                                    @* URL direta, como em /Competicoes/Index: o MediaProxy só
-                                                       aceita api-sports/flagcdn e recusaria o logo. Logo que não
-                                                       carrega sai de cena — o chip segue legível com taça e
-                                                       temporada, sem ícone de imagem quebrada. *@
-                                                    <img src="@t.LogoUrl" alt="" onerror="this.remove()" />
-                                                }
-                                                <span>@t.TemporadaRotulo</span>
-                                            </span>
-                                        }
-                                        @if (titulos.Count > titulosVisiveis.Count)
-                                        {
-                                            <span class="cft-trofeu-mais">+@(titulos.Count - titulosVisiveis.Count)</span>
-                                        }
-                                    </div>
+                                    <span class="cft-formacao" title="Formação padrão do time">@time.FormacaoPadrao.Nome</span>
                                 }
                             </div>
                         </div>
 
-                        <div class="cft-divider"></div>
-
-                        <div class="cft-card-bottom">
-                            <div class="cft-stat-mini">
-                                <div class="cft-jogadores">
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
-                                    <span>@qtdJogadores</span>
-                                </div>
-                                @if (forma.Any())
+                        @if (titulos.Any())
+                        {
+                            <div class="cft-trofeus" title="@tituloResumo">
+                                @foreach (var t in titulosVisiveis)
                                 {
-                                    <div class="cft-forma">
-                                        @foreach (var r in forma)
+                                    <span class="cft-trofeu">
+                                        <span aria-hidden="true">🏆</span>
+                                        @if (!string.IsNullOrEmpty(t.LogoUrl))
                                         {
-                                            <span class="cft-forma-item" style="background:@CorForma(r);">@r</span>
+                                            @* URL direta, como em /Competicoes/Index: o MediaProxy só
+                                               aceita api-sports/flagcdn e recusaria o logo. Logo que não
+                                               carrega sai de cena. *@
+                                            <img src="@t.LogoUrl" alt="" loading="lazy" onerror="this.remove()" />
                                         }
-                                    </div>
+                                        <span>@t.TemporadaRotulo</span>
+                                    </span>
+                                }
+                                @if (titulos.Count > titulosVisiveis.Count)
+                                {
+                                    <span class="cft-trofeu-mais">+@(titulos.Count - titulosVisiveis.Count)</span>
                                 }
                             </div>
-                            <span class="cft-cta">
-                                Ver detalhes
-                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                        }
+
+                        <div class="cft-card-bottom">
+                            <span class="cft-jogadores @(qtdJogadores == 0 ? "vazio" : "")">
+                                @if (qtdJogadores == 0) { <text>Sem elenco</text> }
+                                else { <strong>@qtdJogadores</strong> <text>@(qtdJogadores == 1 ? "jogador" : "jogadores")</text> }
                             </span>
+                            @if (forma.Any())
+                            {
+                                <span class="cft-forma" title="Últimos jogos, do mais recente: @formaTexto" aria-label="Últimos jogos: @formaTexto">
+                                    @foreach (var r in forma)
+                                    {
+                                        <span class="cft-forma-item @(char.ToLowerInvariant(r))" aria-hidden="true">@r</span>
+                                    }
+                                </span>
+                            }
                         </div>
                     </a>
                 }
             </div>
+
+            @if (totalPaginas > 1)
+            {
+                int janela = 2;
+                int inicio = Math.Max(1, pagina - janela);
+                int fim = Math.Min(totalPaginas, pagina + janela);
+                <nav class="cft-paginacao" aria-label="Paginação de times">
+                    <a class="cft-pag @(pagina <= 1 ? "off" : "")" href="@Url_(null, pagina - 1)" aria-label="Página anterior">«</a>
+                    @if (inicio > 1)
+                    {
+                        <a class="cft-pag" href="@Url_(null, 1)">1</a>
+                        @if (inicio > 2) { <span class="cft-pag-reti">…</span> }
+                    }
+                    @for (int p = inicio; p <= fim; p++)
+                    {
+                        <a class="cft-pag" href="@Url_(null, p)" aria-current="@(p == pagina ? "page" : null)">@p</a>
+                    }
+                    @if (fim < totalPaginas)
+                    {
+                        @if (fim < totalPaginas - 1) { <span class="cft-pag-reti">…</span> }
+                        <a class="cft-pag" href="@Url_(null, totalPaginas)">@totalPaginas</a>
+                    }
+                    <a class="cft-pag @(pagina >= totalPaginas ? "off" : "")" href="@Url_(null, pagina + 1)" aria-label="Próxima página">»</a>
+                </nav>
+            }
         }
     </div>
-
 </div>

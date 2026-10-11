@@ -1,4 +1,4 @@
-﻿@using ControleFutebolWeb.Models
+@using ControleFutebolWeb.Models
 @using ControleFutebolWeb.Models.ViewModels
 @using ControleFutebolWeb.Controllers
 @model ControleFutebolWeb.Models.ViewModels.ChampionsLeagueIndexViewModel
@@ -21,32 +21,6 @@
 
     string DataJogo(Jogo j, string fmt) => ControleFutebolWeb.Helpers.DateHelper.FormatarData(j.Data, fmt);
 
-    // Vencedor do confronto considerando pênaltis (agregado empatado → decisão na volta;
-    // Final em jogo único → placar/pênaltis do próprio jogo).
-    Time? Vencedor(ConfrontoMataMata c, bool jogoUnico)
-    {
-        if (jogoUnico)
-        {
-            var f = c.JogoIda;
-            if (f == null || !f.PlacarCasa.HasValue || !f.PlacarVisitante.HasValue) return null;
-            if (f.PlacarCasa > f.PlacarVisitante) return c.TimeA;
-            if (f.PlacarVisitante > f.PlacarCasa) return c.TimeB;
-            if (f.PenaltisCasa.HasValue && f.PenaltisVisitante.HasValue)
-                return f.PenaltisCasa > f.PenaltisVisitante ? c.TimeA : c.TimeB;
-            return null;
-        }
-
-        var direto = c.Classificado;
-        if (direto != null) return direto;
-
-        // agregado empatado: pênaltis do jogo de volta (TimeB manda na volta)
-        var v = c.JogoVolta;
-        if (c.JogoIda?.PlacarCasa.HasValue == true && v?.PlacarCasa.HasValue == true &&
-            c.GolsTimeA == c.GolsTimeB && v.PenaltisCasa.HasValue && v.PenaltisVisitante.HasValue)
-            return v.PenaltisCasa > v.PenaltisVisitante ? c.TimeB : c.TimeA;
-
-        return null;
-    }
 }
 
 <style>
@@ -76,15 +50,15 @@
     .ucl-hero-icon img { width: 78%; height: 78%; object-fit: contain; }
     .ucl-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
     .ucl-kicker-line { height: 2px; width: 24px; background: linear-gradient(90deg, #4f7cff, #e23fd5); }
-    .ucl-kicker span { font-size: .65rem; font-weight: 700; letter-spacing: .24em; color: #c9d4ff; text-transform: uppercase; }
+    .ucl-kicker span { font-size: .86rem; font-weight: 600; color: #c9d4ff; }
     .ucl-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3rem; font-weight: 800; color: #fff; margin: 0 0 6px; line-height: 1; letter-spacing: .02em; text-shadow: 0 2px 26px rgba(90,80,255,.55); }
-    .ucl-hero-sub { color: rgba(220,228,255,.78); font-size: .85rem; margin: 0; }
+    .ucl-hero-sub { color: rgba(220,228,255,.85); font-size: .92rem; margin: 0; }
     .ucl-hero-right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; margin-left: auto; }
     .ucl-hero-temporada { display: flex; align-items: center; gap: 6px; }
-    .ucl-hero-temporada label { color: rgba(220,228,255,.78); font-size: .75rem; font-weight: 600; }
+    .ucl-hero-temporada label { color: rgba(220,228,255,.85); font-size: .84rem; font-weight: 600; }
     .ucl-hero-temporada select { appearance: none; padding: 5px 10px; border-radius: 7px; border: 1px solid rgba(255,255,255,.25); background: rgba(10,15,60,.55); color: #e6ecff; font-size: .8rem; font-weight: 600; cursor: pointer; }
     .ucl-hero-stats { display: flex; gap: 8px; flex-wrap: wrap; }
-    .ucl-hero-stat { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.20); border-radius: 8px; padding: 4px 12px; font-size: .62rem; color: rgba(220,228,255,.80); text-align: center; backdrop-filter: blur(2px); }
+    .ucl-hero-stat { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.20); border-radius: 8px; padding: 4px 12px; font-size: .76rem; color: rgba(220,228,255,.85); text-align: center; backdrop-filter: blur(2px); }
     .ucl-hero-stat strong { display: block; color: #fff; font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.05rem; font-weight: 800; line-height: 1.1; }
 
     /* ── Conteúdo ── */
@@ -97,21 +71,21 @@
     @@media (max-width: 992px) { .ucl-layout { grid-template-columns: 1fr; } }
 
     .ucl-section-header { display: flex; align-items: center; gap: 10px; margin: 0 0 1rem; }
-    .ucl-section-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--text-strong); text-transform: uppercase; letter-spacing: .04em; margin: 0; }
+    .ucl-section-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--text-strong); margin: 0; }
     .ucl-section-badge { background: #d4a5201a; border: 1px solid #d4a52048; color: var(--gold-ink); font-size: .68rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
 
     /* ── Legenda ── */
-    .ucl-legenda { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 10px; font-size: .68rem; color: var(--text-muted); }
+    .ucl-legenda { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 10px; font-size: .8rem; color: var(--text-muted); }
     .ucl-leg-dot { width: 9px; height: 9px; border-radius: 2px; display: inline-block; margin-right: 5px; }
 
     /* ── Tabela de classificação ── */
     .ucl-ranking-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
     .ucl-ranking-header { background: var(--p-0); border-bottom: 1px solid var(--line-soft); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; }
-    .ucl-ranking-header b { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .95rem; font-weight: 700; color: var(--gold-ink); letter-spacing: .06em; text-transform: uppercase; }
-    .ucl-ranking-header span { font-size: .64rem; color: var(--text-dim); }
-    .ucl-table { width: 100%; border-collapse: collapse; font-size: .75rem; }
+    .ucl-ranking-header b { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--text-strong); }
+    .ucl-ranking-header span { font-size: .8rem; color: var(--text-dim); }
+    .ucl-table { width: 100%; border-collapse: collapse; font-size: .84rem; font-variant-numeric: tabular-nums; }
     .ucl-table thead tr { background: var(--p-0); border-bottom: 1px solid var(--line-soft); }
-    .ucl-table th { padding: 7px 8px; color: var(--text-dim); font-weight: 600; text-transform: uppercase; font-size: .6rem; letter-spacing: .5px; text-align: center; }
+    .ucl-table th { padding: 7px 8px; color: var(--text-dim); font-weight: 600; font-size: .76rem; text-align: center; }
     .ucl-table th:nth-child(2) { text-align: left; padding-left: 10px; }
     .ucl-table td { padding: 6px 8px; border-bottom: 1px solid var(--line-soft); text-align: center; vertical-align: middle; color: var(--text); }
     .ucl-table td:nth-child(2) { text-align: left; padding-left: 10px; }
@@ -125,14 +99,14 @@
     .ucl-sep-r16 td { border-bottom: 2px solid #d4a52080 !important; }
     .ucl-sep-playoff td { border-bottom: 2px solid #60a5fa66 !important; }
 
-    .ucl-pos { width: 20px; height: 20px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: .62rem; font-weight: 700; }
+    .ucl-pos { width: 22px; height: 22px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: .74rem; font-weight: 700; }
     .ucl-pos-r16 { background: #d4a520; color: #141414; }
     .ucl-pos-playoff { background: rgba(96,165,250,.18); border: 1px solid rgba(96,165,250,.4); color: var(--info); }
     .ucl-pos-out { background: var(--p-4); color: var(--text-dim); }
 
     .ucl-team-cell { display: flex; align-items: center; gap: 7px; min-width: 140px; }
     .ucl-team-cell img { width: 20px; height: 20px; object-fit: contain; border-radius: 50%; border: 1px solid var(--line-strong); background: var(--p-0); flex-shrink: 0; }
-    .ucl-team-cell a { font-size: .75rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
+    .ucl-team-cell a { font-size: .86rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
     .ucl-team-cell a:hover { text-decoration: underline; }
     .ucl-pts { font-family: 'Barlow Condensed', Arial, sans-serif; font-weight: 800; font-size: .9rem; color: var(--gold-ink); }
 
@@ -140,78 +114,77 @@
     .ucl-mata-section { margin-top: 28px; }
     .ucl-fase { margin-bottom: 22px; }
     .ucl-fase-header { display: flex; align-items: center; gap: 10px; margin-bottom: .8rem; }
-    .ucl-fase-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.15rem; font-weight: 800; color: var(--text-strong); text-transform: uppercase; letter-spacing: .04em; margin: 0; }
-    .ucl-fase-badge { background: #d4a5201a; border: 1px solid #d4a52048; color: var(--gold-ink); font-size: .62rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; }
+    .ucl-fase-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--text-strong); margin: 0; }
+    .ucl-fase-badge { color: var(--text-dim); font-size: .88rem; font-weight: 500; }
     .ucl-confrontos { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
 
     /* Card de confronto */
     .ucl-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; transition: border-color .15s; }
     .ucl-card:hover { border-color: var(--line-strong); }
     .ucl-card-header { background: var(--p-0); border-bottom: 1px solid var(--line-soft); padding: 7px 14px; display: flex; justify-content: space-between; align-items: center; }
-    .ucl-card-header-left { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .8rem; font-weight: 700; color: var(--gold-ink); letter-spacing: .06em; text-transform: uppercase; }
-    .ucl-card-header-right { font-size: .62rem; color: var(--text-dim); }
+    .ucl-card-header-left { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .95rem; font-weight: 700; color: var(--gold-ink); }
+    .ucl-card-header-right { font-size: .78rem; color: var(--text-dim); }
     .ucl-card-header-right .ok { color: var(--ok-2); }
 
     .ucl-agregado { padding: 11px 14px; display: flex; justify-content: center; align-items: center; gap: 12px; border-bottom: 1px solid var(--line-soft); }
     .ucl-agg-time { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 0; }
     .ucl-agg-time.right { justify-content: flex-end; flex-direction: row-reverse; }
     .ucl-agg-time img { width: 26px; height: 26px; object-fit: contain; border-radius: 50%; border: 1px solid var(--line-strong); background: var(--p-0); flex-shrink: 0; }
-    .ucl-agg-name { font-size: .78rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ucl-agg-name { font-size: .88rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .ucl-agg-name:hover { text-decoration: underline; }
     .ucl-agg-score { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
     .ucl-agg-num { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.6rem; font-weight: 800; line-height: 1; color: var(--text-strong); min-width: 20px; text-align: center; }
     .ucl-agg-num.leader { color: var(--ok-2); }
     .ucl-agg-num.loser { color: var(--text-dimmer); }
-    .ucl-agg-sep { font-size: 17px; color: #374151; font-weight: 300; line-height: 1; }
-    .ucl-agg-vs { font-size: .72rem; color: var(--text-dim); font-weight: 600; }
+    .ucl-agg-sep { font-size: 1rem; color: var(--text-dim); font-weight: 500; line-height: 1; }
+    .ucl-agg-vs { font-size: .8rem; color: var(--text-dim); font-weight: 600; }
 
     .ucl-classificado-wrap { padding: 6px 14px; text-align: center; border-bottom: 1px solid var(--line-soft); }
-    .ucl-classificado { font-size: .64rem; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: #d4a5201a; border: 1px solid #d4a52048; color: var(--gold-ink); white-space: nowrap; }
-    .ucl-classificado.pendente { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.12); color: var(--text-muted); }
+    .ucl-classificado { font-size: .8rem; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: #d4a5201a; border: 1px solid #d4a52048; color: var(--gold-ink); white-space: nowrap; }
+    .ucl-classificado.pendente { background: var(--p-3); border-color: var(--line); color: var(--text-muted); }
 
     .ucl-jogos { padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
-    .ucl-jogo-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; background: var(--p-0); border: 1px solid var(--line-soft); font-size: .72rem; transition: border-color .15s; }
+    .ucl-jogo-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; background: var(--p-0); border: 1px solid var(--line-soft); font-size: .82rem; transition: border-color .15s; }
     .ucl-jogo-row:hover { border-color: var(--line-strong); }
-    .ucl-jogo-label { font-size: .58rem; font-weight: 700; color: #0f0f0f; background: #d4a520; padding: 2px 7px; border-radius: 4px; flex-shrink: 0; }
+    .ucl-jogo-label { font-size: .72rem; font-weight: 700; color: #0f0f0f; background: #d4a520; padding: 2px 7px; border-radius: 4px; flex-shrink: 0; }
     .ucl-jogo-label.volta { background: var(--p-4); color: var(--text); }
-    .ucl-jogo-date { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .66rem; font-weight: 700; color: var(--text-dimmer); flex-shrink: 0; }
+    .ucl-jogo-date { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: .82rem; font-weight: 700; color: var(--text-dim); flex-shrink: 0; }
     .ucl-jogo-times { display: flex; align-items: center; gap: 5px; flex: 1; justify-content: center; color: var(--text-muted); min-width: 0; }
     .ucl-jogo-times .nome { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .ucl-jogo-result { font-family: 'Barlow Condensed', Arial, sans-serif; font-weight: 700; font-size: .82rem; background: var(--p-4); color: var(--text-strong); padding: 1px 8px; border-radius: 5px; flex-shrink: 0; }
-    .ucl-jogo-pen { font-size: .6rem; color: var(--text-muted); font-weight: 500; }
-    .ucl-jogo-pending { font-size: .6rem; color: var(--text-dim); background: var(--p-2); padding: 2px 8px; border-radius: 5px; flex-shrink: 0; }
-    .ucl-jogo-analisar { font-size: .66rem; color: var(--gold-ink); font-weight: 700; flex-shrink: 0; border: 1px solid #d4a52048; padding: 2px 9px; border-radius: 5px; transition: background .15s, color .15s; }
+    .ucl-jogo-pen { font-size: .74rem; color: var(--text-muted); font-weight: 500; }
+    .ucl-jogo-pending { font-size: .74rem; color: var(--text-dim); background: var(--p-2); padding: 2px 8px; border-radius: 5px; flex-shrink: 0; }
+    .ucl-jogo-analisar { font-size: .78rem; color: var(--gold-ink); font-weight: 700; flex-shrink: 0; border: 1px solid #d4a52048; padding: 2px 9px; border-radius: 5px; transition: background .15s, color .15s; }
     .ucl-jogo-analisar:hover { background: #d4a520; color: #0f0f0f; }
     .ucl-jogo-vazio { justify-content: flex-start; color: var(--text-dim); }
-    .ucl-jogo-vazio span.txt { font-size: .66rem; margin-left: 4px; }
+    .ucl-jogo-vazio span.txt { font-size: .8rem; margin-left: 4px; }
 
     /* ── Sidebar de jogos ── */
     .ucl-sidebar { position: sticky; top: 16px; }
-    .ucl-sidebar-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.15rem; font-weight: 800; color: var(--text-strong); text-transform: uppercase; letter-spacing: .04em; margin: 0 0 10px; }
+    .ucl-sidebar-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.4rem; font-weight: 800; color: var(--text-strong); margin: 0 0 10px; }
     .ucl-jogo-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; overflow: hidden; transition: border-color .15s; }
     .ucl-jogo-card:hover { border-color: var(--line-strong); }
-    .ucl-jogo-card-header { background: var(--p-0); border-bottom: 1px solid var(--line-soft); color: var(--text-dim); font-size: .6rem; font-weight: 600; padding: 5px 10px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
-    .ucl-fase-tag { background: #d4a5201a; border: 1px solid #d4a52048; color: var(--gold-ink); font-size: .56rem; padding: 1px 7px; border-radius: 999px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+    .ucl-jogo-card-header { background: var(--p-0); border-bottom: 1px solid var(--line-soft); color: var(--text-dim); font-size: .76rem; font-weight: 600; padding: 5px 10px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+    .ucl-fase-tag { background: #d4a5201a; border: 1px solid #d4a52048; color: var(--gold-ink); font-size: .72rem; padding: 1px 7px; border-radius: 999px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
     .ucl-jogo-body { padding: 10px 12px; }
     .ucl-jogo-teams { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
     .ucl-jogo-team { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 0; }
     .ucl-jogo-team img { width: 30px; height: 30px; object-fit: contain; border-radius: 50%; border: 1px solid var(--line-strong); background: var(--p-0); }
-    .ucl-jogo-team span { font-size: .66rem; font-weight: 500; color: var(--text-muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 92px; }
-    .ucl-vs { font-size: .66rem; font-weight: 700; color: var(--text-dimmer); flex-shrink: 0; }
+    .ucl-jogo-team span { font-size: .78rem; font-weight: 500; color: var(--text-muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 92px; }
+    .ucl-vs { font-size: .78rem; font-weight: 700; color: var(--text-dimmer); flex-shrink: 0; }
     .ucl-score { display: inline-flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', Arial, sans-serif; background: var(--p-4); color: var(--text-strong); font-weight: 800; font-size: .85rem; padding: 2px 10px; border-radius: 6px; min-width: 48px; }
-    .ucl-badge-agendado { font-size: .58rem; background: var(--p-2); color: var(--text-dim); padding: 2px 8px; border-radius: 6px; font-weight: 500; }
-    .ucl-jogo-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line-soft); font-size: .58rem; color: var(--text-dim); }
+    .ucl-badge-agendado { font-size: .74rem; background: var(--p-2); color: var(--text-dim); padding: 2px 8px; border-radius: 6px; font-weight: 500; }
+    .ucl-jogo-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line-soft); font-size: .74rem; color: var(--text-dim); }
     .ucl-realizado { color: var(--ok-2); font-weight: 600; }
 
     /* ── Sem dados ── */
-    .ucl-empty { text-align: center; padding: 3.5rem 1rem; color: var(--text-dim); font-size: .8rem; background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; }
-    .ucl-empty-icon { font-size: 2.5rem; margin-bottom: 10px; }
+    .ucl-empty { text-align: center; padding: 3.5rem 1rem; color: var(--text-dim); font-size: .92rem; background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; }
 
     /* ── Abas por fase (Liga / cada fase eliminatória / Estatísticas) ── */
     .ucl-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; border-bottom: 1px solid var(--line); margin-bottom: 1.2rem; -webkit-overflow-scrolling: touch; }
     .ucl-tab {
         flex: 0 0 auto; background: var(--p-1); border: 1px solid var(--line); border-radius: 999px;
-        padding: 7px 16px; font-size: 12px; font-weight: 700; color: var(--text-muted); cursor: pointer; white-space: nowrap;
+        padding: 7px 16px; font-size: .86rem; font-weight: 700; color: var(--text-muted); cursor: pointer; white-space: nowrap;
         font-family: 'Barlow', Arial, sans-serif; transition: border-color .15s, color .15s;
     }
     .ucl-tab:hover { border-color: #d4a520; color: var(--gold-ink); }
@@ -263,16 +236,16 @@
         <div class="ucl-hero-fade"></div>
         <div class="ucl-hero-inner">
             <div class="ucl-hero-icon">
-                <img src="@logoCompeticao" alt="@Model.NomeCompeticao"
+                <img src="@logoCompeticao" alt=""
                      onerror="this.parentElement.style.display='none'" />
             </div>
             <div>
                 <div class="ucl-kicker">
                     <div class="ucl-kicker-line"></div>
-                    <span>Competição Europeia · Liga + Mata-Mata</span>
+                    <span>Competição europeia de clubes</span>
                 </div>
                 <h1>@Model.NomeCompeticao</h1>
-                <p class="ucl-hero-sub">Fase de Liga · Fase Eliminatória</p>
+                <p class="ucl-hero-sub">Fase de liga com 36 clubes, depois mata-mata até a final</p>
             </div>
             <div class="ucl-hero-right">
                 @if (temporadas.Count > 1)
@@ -305,9 +278,8 @@
         @if (totalJogos == 0)
         {
             <div class="ucl-empty">
-                <div class="ucl-empty-icon">⭐</div>
-                Nenhum jogo da Champions League encontrado.<br />
-                <small>Importe os jogos com <strong>CompeticaoId = 6</strong> para ver a tabela.</small>
+                Nenhum jogo da Champions League nesta temporada.<br />
+                <small>Use "Sincronizar jogos" acima para importar a tabela.</small>
             </div>
         }
         else
@@ -319,27 +291,28 @@
                 <!-- ── Coluna principal ── -->
                 <div>
                     <div class="ucl-tabs" role="tablist">
-                        <button type="button" class="ucl-tab @(primeiraAba == "liga" ? "active" : "")" data-ucl-tab="liga">🏆 Fase de Liga</button>
+                        <button type="button" class="ucl-tab @(primeiraAba == "liga" ? "active" : "")" data-ucl-tab="liga">Fase de liga</button>
                         @for (int i = 0; i < fasesMata.Count; i++)
                         {
-                            <button type="button" class="ucl-tab @(primeiraAba == $"fase-{i}" ? "active" : "")" data-ucl-tab="fase-@i">⚡ @fasesMata[i].Nome</button>
+                            <button type="button" class="ucl-tab @(primeiraAba == $"fase-{i}" ? "active" : "")" data-ucl-tab="fase-@i">@fasesMata[i].Nome</button>
                         }
-                        <button type="button" class="ucl-tab @(primeiraAba == "estatisticas" ? "active" : "")" data-ucl-tab="estatisticas">📈 Estatísticas</button>
+                        <button type="button" class="ucl-tab @(primeiraAba == "estatisticas" ? "active" : "")" data-ucl-tab="estatisticas">Estatísticas</button>
+                        <button type="button" class="ucl-tab" data-ucl-tab="estat-jogadores">Jogadores</button>
                     </div>
 
                     <div class="ucl-panel @(primeiraAba == "liga" ? "active" : "")" data-ucl-panel="liga">
                     @if (ranking.Any())
                     {
                         <div class="ucl-legenda">
-                            <span><span class="ucl-leg-dot" style="background:#d4a520;"></span>Oitavas de Final (1º–8º)</span>
-                            <span><span class="ucl-leg-dot" style="background:#60a5fa;"></span>Playoff do Mata-Mata (9º–24º)</span>
-                            <span><span class="ucl-leg-dot" style="background:#4b5563;"></span>Eliminado (25º–36º)</span>
+                            <span><span class="ucl-leg-dot" style="background:#d4a520;"></span>Oitavas de final, do 1º ao 8º</span>
+                            <span><span class="ucl-leg-dot" style="background:#60a5fa;"></span>Playoff, do 9º ao 24º</span>
+                            <span><span class="ucl-leg-dot" style="background:#4b5563;"></span>Eliminado, do 25º ao 36º</span>
                         </div>
 
                         <div class="ucl-ranking-card">
                             <div class="ucl-ranking-header">
-                                <b>🏆 Fase de Liga — Classificação</b>
-                                <span>@ranking.Count time(s) · jogos realizados</span>
+                                <b>Classificação da fase de liga</b>
+                                <span>@ranking.Count times, só jogos realizados</span>
                             </div>
                             <table class="ucl-table">
                                 <thead>
@@ -350,9 +323,9 @@
                                         <th title="Vitórias">V</th>
                                         <th title="Empates">E</th>
                                         <th title="Derrotas">D</th>
-                                        <th title="Gols Pró">GP</th>
-                                        <th title="Gols Contra">GC</th>
-                                        <th title="Saldo de Gols">SG</th>
+                                        <th title="Gols pró">GP</th>
+                                        <th title="Gols contra">GC</th>
+                                        <th title="Saldo de gols">SG</th>
                                         <th title="Pontos">Pts</th>
                                     </tr>
                                 </thead>
@@ -374,7 +347,7 @@
                                                 <div class="ucl-team-cell">
                                                     @if (!string.IsNullOrEmpty(time.Time?.EscudoUrl))
                                                     {
-                                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = time.Time.EscudoUrl })" alt="@time.Time.Nome" />
+                                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = time.Time.EscudoUrl })" alt="" loading="lazy" />
                                                     }
                                                     <a href="@Url.Action("Details", "Times", new { id = time.Time?.Id })" title="@time.Time?.Nome">@time.Time?.Nome</a>
                                                 </div>
@@ -396,7 +369,6 @@
                     else
                     {
                         <div class="ucl-empty" style="padding:1.8rem;">
-                            <div style="font-size:1.5rem;margin-bottom:6px;">📋</div>
                             Nenhum jogo da fase de liga realizado ainda.
                         </div>
                     }
@@ -411,7 +383,7 @@
                                     <div class="ucl-fase-header">
                                         <h4 class="ucl-fase-title">@fase.Nome</h4>
                                         <span class="ucl-fase-badge">
-                                            @fase.Confrontos.Count confronto(s)@(fase.JogoUnico ? " · jogo único" : "")
+                                            @(fase.Confrontos.Count == 1 ? "1 confronto" : $"{fase.Confrontos.Count} confrontos"), @(fase.JogoUnico ? "jogo único" : "ida e volta")
                                         </span>
                                     </div>
 
@@ -421,7 +393,7 @@
                                             bool idaRealizada   = c.JogoIda?.PlacarCasa.HasValue == true;
                                             bool voltaRealizada = c.JogoVolta?.PlacarCasa.HasValue == true;
                                             bool encerrado      = fase.JogoUnico ? idaRealizada : (idaRealizada && voltaRealizada);
-                                            var vencedor        = Vencedor(c, fase.JogoUnico);
+                                            var vencedor        = c.Vencedor(fase.JogoUnico);
 
                                             int golsA = fase.JogoUnico ? (c.JogoIda?.PlacarCasa ?? 0) : c.GolsTimeA;
                                             int golsB = fase.JogoUnico ? (c.JogoIda?.PlacarVisitante ?? 0) : c.GolsTimeB;
@@ -434,7 +406,7 @@
                                                     <span class="ucl-card-header-right">
                                                         @if (encerrado)
                                                         {
-                                                            <span class="ok">✔ Encerrado</span>
+                                                            <span class="ok">Encerrado</span>
                                                         }
                                                         else if (idaRealizada)
                                                         {
@@ -452,7 +424,7 @@
                                                     <div class="ucl-agg-time">
                                                         @if (!string.IsNullOrEmpty(c.TimeA.EscudoUrl))
                                                         {
-                                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.TimeA.EscudoUrl })" alt="@c.TimeA.Nome" />
+                                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.TimeA.EscudoUrl })" alt="" loading="lazy" />
                                                         }
                                                         <a class="ucl-agg-name" title="@c.TimeA.Nome"
                                                            href="@Url.Action("Details", "Times", new { id = c.TimeA.Id })">@c.TimeA.Nome</a>
@@ -462,7 +434,7 @@
                                                         @if (idaRealizada)
                                                         {
                                                             <span class="ucl-agg-num @(aLidera ? "leader" : (bLidera ? "loser" : ""))">@golsA</span>
-                                                            <span class="ucl-agg-sep">–</span>
+                                                            <span class="ucl-agg-sep">x</span>
                                                             <span class="ucl-agg-num @(bLidera ? "leader" : (aLidera ? "loser" : ""))">@golsB</span>
                                                         }
                                                         else
@@ -474,7 +446,7 @@
                                                     <div class="ucl-agg-time right">
                                                         @if (!string.IsNullOrEmpty(c.TimeB.EscudoUrl))
                                                         {
-                                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.TimeB.EscudoUrl })" alt="@c.TimeB.Nome" />
+                                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.TimeB.EscudoUrl })" alt="" loading="lazy" />
                                                         }
                                                         <a class="ucl-agg-name" title="@c.TimeB.Nome"
                                                            href="@Url.Action("Details", "Times", new { id = c.TimeB.Id })">@c.TimeB.Nome</a>
@@ -485,14 +457,14 @@
                                                 {
                                                     <div class="ucl-classificado-wrap">
                                                         <span class="ucl-classificado">
-                                                            🏆 @vencedor.Nome @(fase.Nome == "Final" ? "campeão" : "classificado")
+                                                            @vencedor.Nome @(fase.Nome == "Final" ? "campeão" : "avançou")
                                                         </span>
                                                     </div>
                                                 }
                                                 else if (encerrado && golsA == golsB)
                                                 {
                                                     <div class="ucl-classificado-wrap">
-                                                        <span class="ucl-classificado pendente">⚽ Pênaltis / definição pendente</span>
+                                                        <span class="ucl-classificado pendente">Empate, falta registrar os pênaltis</span>
                                                     </div>
                                                 }
 
@@ -501,7 +473,7 @@
                                                     @if (c.JogoIda != null)
                                                     {
                                                         <div class="ucl-jogo-row">
-                                                            <span class="ucl-jogo-label">@(fase.JogoUnico ? "JOGO" : "IDA")</span>
+                                                            <span class="ucl-jogo-label">@(fase.JogoUnico ? "Jogo" : "Ida")</span>
                                                             <span class="ucl-jogo-date">@DataJogo(c.JogoIda, "dd/MM HH:mm")</span>
                                                             <div class="ucl-jogo-times">
                                                                 <span class="nome">@c.JogoIda.TimeCasa?.Nome</span>
@@ -511,7 +483,7 @@
                                                                         @c.JogoIda.PlacarCasa x @c.JogoIda.PlacarVisitante
                                                                         @if (c.JogoIda.PenaltisCasa.HasValue && c.JogoIda.PenaltisVisitante.HasValue)
                                                                         {
-                                                                            <span class="ucl-jogo-pen">(@c.JogoIda.PenaltisCasa-@c.JogoIda.PenaltisVisitante pên.)</span>
+                                                                            <span class="ucl-jogo-pen">(@c.JogoIda.PenaltisCasa x @c.JogoIda.PenaltisVisitante nos pênaltis)</span>
                                                                         }
                                                                     </span>
                                                                 }
@@ -522,7 +494,7 @@
                                                                 <span class="nome">@c.JogoIda.TimeVisitante?.Nome</span>
                                                             </div>
                                                             <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@c.JogoIda.Id"
-                                                               class="ucl-jogo-analisar">→</a>
+                                                               class="ucl-jogo-analisar">Analisar</a>
                                                         </div>
                                                     }
 
@@ -531,7 +503,7 @@
                                                         @if (c.JogoVolta != null)
                                                         {
                                                             <div class="ucl-jogo-row">
-                                                                <span class="ucl-jogo-label volta">VOLTA</span>
+                                                                <span class="ucl-jogo-label volta">Volta</span>
                                                                 <span class="ucl-jogo-date">@DataJogo(c.JogoVolta, "dd/MM HH:mm")</span>
                                                                 <div class="ucl-jogo-times">
                                                                     <span class="nome">@c.JogoVolta.TimeCasa?.Nome</span>
@@ -541,7 +513,7 @@
                                                                             @c.JogoVolta.PlacarCasa x @c.JogoVolta.PlacarVisitante
                                                                             @if (c.JogoVolta.PenaltisCasa.HasValue && c.JogoVolta.PenaltisVisitante.HasValue)
                                                                             {
-                                                                                <span class="ucl-jogo-pen">(@c.JogoVolta.PenaltisCasa-@c.JogoVolta.PenaltisVisitante pên.)</span>
+                                                                                <span class="ucl-jogo-pen">(@c.JogoVolta.PenaltisCasa x @c.JogoVolta.PenaltisVisitante nos pênaltis)</span>
                                                                             }
                                                                         </span>
                                                                     }
@@ -552,13 +524,13 @@
                                                                     <span class="nome">@c.JogoVolta.TimeVisitante?.Nome</span>
                                                                 </div>
                                                                 <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@c.JogoVolta.Id"
-                                                                   class="ucl-jogo-analisar">→</a>
+                                                                   class="ucl-jogo-analisar">Analisar</a>
                                                             </div>
                                                         }
                                                         else
                                                         {
                                                             <div class="ucl-jogo-row ucl-jogo-vazio">
-                                                                <span class="ucl-jogo-label volta">VOLTA</span>
+                                                                <span class="ucl-jogo-label volta">Volta</span>
                                                                 <span class="txt">Jogo de volta ainda não cadastrado</span>
                                                             </div>
                                                         }
@@ -574,6 +546,10 @@
                     <div class="ucl-panel @(primeiraAba == "estatisticas" ? "active" : "")" data-ucl-panel="estatisticas">
                         @await Html.PartialAsync("_LinksEstatisticasCompeticao", (6, Model.Temporada))
                         @await Html.PartialAsync("_PainelEstatisticas", ViewBag.EstatisticasTimes as List<ControleFutebolWeb.Models.ViewModels.EstatisticaTimeViewModel>)
+                    </div>
+
+                    <div class="ucl-panel" data-ucl-panel="estat-jogadores">
+                        @await Html.PartialAsync("_AbaEstatisticasJogadores", (6, Model.Temporada))
                     </div>
                 </div>
 
@@ -595,7 +571,7 @@
                                     <span>@DataJogo(jogo, "dd/MM/yyyy HH:mm")</span>
                                     @if (!string.IsNullOrEmpty(jogo.Grupo))
                                     {
-                                        <span class="ucl-fase-tag" title="@jogo.Grupo">@jogo.Grupo</span>
+                                        <span class="ucl-fase-tag">@ControleFutebolWeb.Helpers.RodadaHelper.Rotulo(jogo.Grupo, jogo.Rodada)</span>
                                     }
                                 </div>
                                 <div class="ucl-jogo-body">
@@ -603,7 +579,7 @@
                                         <div class="ucl-jogo-team">
                                             @if (!string.IsNullOrEmpty(jogo.TimeCasa?.EscudoUrl))
                                             {
-                                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa.EscudoUrl })" alt="@jogo.TimeCasa.Nome" />
+                                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa.EscudoUrl })" alt="" loading="lazy" />
                                             }
                                             <span>@jogo.TimeCasa?.Nome</span>
                                         </div>
@@ -620,7 +596,7 @@
                                         <div class="ucl-jogo-team">
                                             @if (!string.IsNullOrEmpty(jogo.TimeVisitante?.EscudoUrl))
                                             {
-                                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante.EscudoUrl })" alt="@jogo.TimeVisitante.Nome" />
+                                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante.EscudoUrl })" alt="" loading="lazy" />
                                             }
                                             <span>@jogo.TimeVisitante?.Nome</span>
                                         </div>
@@ -628,14 +604,14 @@
                                     <div class="ucl-jogo-footer">
                                         @if (realizado)
                                         {
-                                            <span class="ucl-realizado">✔ Realizado</span>
+                                            <span class="ucl-realizado">Encerrado</span>
                                         }
                                         else
                                         {
                                             <span class="ucl-badge-agendado">Agendado</span>
                                         }
                                         <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id"
-                                           class="ucl-jogo-analisar">Analisar →</a>
+                                           class="ucl-jogo-analisar">Analisar</a>
                                     </div>
                                 </div>
                             </div>

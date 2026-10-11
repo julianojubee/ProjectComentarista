@@ -1,4 +1,4 @@
-﻿using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
@@ -44,7 +44,8 @@ namespace ControleFutebolWeb.Controllers
             var vm = new JogadoresIndexViewModel
             {
                 // Configura parâmetros de ordenação
-                NomeSortParam = sortOrder == "Nome" ? "Nome_desc" : "Nome",
+                // Sem ordem escolhida já está por nome (A→Z): o clique em "Nome" inverte.
+                NomeSortParam = string.IsNullOrEmpty(sortOrder) || sortOrder == "Nome" ? "Nome_desc" : "Nome",
                 PosicaoSortParam = sortOrder == "Posicao" ? "Posicao_desc" : "Posicao",
                 IdadeSortParam = sortOrder == "Idade" ? "Idade_desc" : "Idade",
                 NacionalidadeSortParam = sortOrder == "Nacionalidade" ? "Nacionalidade_desc" : "Nacionalidade",
@@ -59,9 +60,17 @@ namespace ControleFutebolWeb.Controllers
                 .Include(j => j.Time)
                 .AsQueryable();
 
-            // Aplica filtros
+            // Aplica filtros. A busca olha também o nome completo (PrimeiroNome/UltimoNome),
+            // que é o que a lista mostra — "Ceza Gavilán" não achava quem está cadastrado
+            // com Nome = "A. Ceza".
             if (!string.IsNullOrEmpty(nome))
-                jogadores = jogadores.Where(j => j.Nome.ToLower().Contains(nome.ToLower()));
+            {
+                var termo = nome.Trim().ToLower();
+                jogadores = jogadores.Where(j => j.Nome.ToLower().Contains(termo)
+                    || (j.PrimeiroNome != null && j.PrimeiroNome.ToLower().Contains(termo))
+                    || (j.UltimoNome != null && j.UltimoNome.ToLower().Contains(termo))
+                    || ((j.PrimeiroNome ?? "") + " " + (j.UltimoNome ?? "")).ToLower().Contains(termo));
+            }
 
             if (!string.IsNullOrEmpty(posicao))
                 // Contains: a posição do jogador pode ser composta ("Lateral Direito/Zagueiro")
@@ -97,20 +106,35 @@ namespace ControleFutebolWeb.Controllers
                 }
             }
 
-            // Aplica ordenação
+            // Aplica ordenação — toda no banco. Ordem "por nome" é pelo SOBRENOME, como se
+            // lista jogador: UltimoNome quando existe; senão o Nome sem as iniciais do
+            // começo ("A. Addai" → "Addai"). Ordenar pelo Nome cru punha centenas de
+            // "A. Fulano" no topo e misturava com nomes completos — a ordem parecia aleatória.
+            // Idade = data de nascimento invertida (mais novo primeiro), sem idade por último.
+            // Antes, ordenar por idade trazia a tabela inteira para a memória.
+            var dataNascimentoMinimaValida = DateTime.Today.AddYears(-10);
+            // (Regex.Replace não é traduzido pelo provedor; Substring é. Tira até duas
+            // iniciais do tipo "A. " — cobre "A. Addai" e "A. A. Dominguez".)
+            System.Linq.Expressions.Expression<Func<Jogador, string>> nomeExibicao = j =>
+                j.UltimoNome != null && j.UltimoNome.Trim() != ""
+                    ? j.UltimoNome
+                    : j.Nome.Length > 3 && j.Nome.Substring(1, 2) == ". "
+                        ? (j.Nome.Length > 6 && j.Nome.Substring(4, 2) == ". " ? j.Nome.Substring(6) : j.Nome.Substring(3))
+                        : j.Nome;
             jogadores = sortOrder switch
             {
-                "Nome" => jogadores.OrderBy(j => j.Nome),
-                "Nome_desc" => jogadores.OrderByDescending(j => j.Nome),
-                "Posicao" => jogadores.OrderBy(j => j.Posicao),
-                "Posicao_desc" => jogadores.OrderByDescending(j => j.Posicao),
-                "Idade" => jogadores.AsEnumerable().OrderBy(j => j.Idade).AsQueryable(),
-                "Idade_desc" => jogadores.AsEnumerable().OrderByDescending(j => j.Idade).AsQueryable(),
-                "Nacionalidade" => jogadores.OrderBy(j => j.Nacionalidade.Nome),
-                "Nacionalidade_desc" => jogadores.OrderByDescending(j => j.Nacionalidade.Nome),
-                "Time" => jogadores.OrderBy(j => j.Time.Nome),
-                "Time_desc" => jogadores.OrderByDescending(j => j.Time.Nome),
-                _ => jogadores.OrderBy(j => j.Nome)
+                "Nome_desc" => jogadores.OrderByDescending(nomeExibicao),
+                "Posicao" => jogadores.OrderBy(j => j.Posicao).ThenBy(nomeExibicao),
+                "Posicao_desc" => jogadores.OrderByDescending(j => j.Posicao).ThenBy(nomeExibicao),
+                // Data de nascimento de menos de 10 anos atrás é cadastro errado (a tela
+                // mostra "—"): vai para o fim junto com quem não tem data.
+                "Idade" => jogadores.OrderBy(j => j.DataNascimento == null || j.DataNascimento > dataNascimentoMinimaValida).ThenByDescending(j => j.DataNascimento).ThenBy(nomeExibicao),
+                "Idade_desc" => jogadores.OrderBy(j => j.DataNascimento == null || j.DataNascimento > dataNascimentoMinimaValida).ThenBy(j => j.DataNascimento).ThenBy(nomeExibicao),
+                "Nacionalidade" => jogadores.OrderBy(j => j.Nacionalidade.Nome).ThenBy(nomeExibicao),
+                "Nacionalidade_desc" => jogadores.OrderByDescending(j => j.Nacionalidade.Nome).ThenBy(nomeExibicao),
+                "Time" => jogadores.OrderBy(j => j.Time.Nome).ThenBy(nomeExibicao),
+                "Time_desc" => jogadores.OrderByDescending(j => j.Time.Nome).ThenBy(nomeExibicao),
+                _ => jogadores.OrderBy(nomeExibicao)
             };
 
             vm.Nome = nome;
@@ -139,15 +163,16 @@ namespace ControleFutebolWeb.Controllers
                 .ToList();
             vm.Times = new SelectList(times, "Id", "Nome", timeId);
 
-            // Paginação (50 por página)
-            var listaOrdenada = jogadores.ToList();
-            var totalJogadores = listaOrdenada.Count;
+            // Paginação (50 por página), no banco: conta e traz só a página. Antes a
+            // lista inteira (14 mil jogadores, com time e nacionalidade) vinha para a
+            // memória a cada página aberta.
+            var totalJogadores = jogadores.Count();
             var totalPaginas = (int)Math.Ceiling(totalJogadores / (double)pageSize);
             if (totalPaginas < 1) totalPaginas = 1;
             if (page < 1) page = 1;
             if (page > totalPaginas) page = totalPaginas;
 
-            var jogadoresPagina = listaOrdenada
+            var jogadoresPagina = jogadores
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToList();
@@ -189,10 +214,16 @@ namespace ControleFutebolWeb.Controllers
         // GET: Jogadores/Create
         public IActionResult Create()
         {
-            ViewBag.TimeId = new SelectList(_context.Times, "Id", "Nome");
-            ViewBag.NacionalidadeId = new SelectList(_context.Nacionalidades, "Id", "Nome");
+            ViewBag.TimeId = new SelectList(_context.Times.OrderBy(t => t.Nome), "Id", "Nome");
+            ViewBag.NacionalidadeId = new SelectList(_context.Nacionalidades.OrderBy(n => n.Nome), "Id", "Nome");
+            ViewBag.Posicoes = PosicoesCadastradas();
             return View();
         }
+
+        // Posições já usadas no cadastro, sugeridas no campo (texto livre) de posição
+        private SelectList PosicoesCadastradas() => new(_context.Jogadores
+            .Where(j => j.Posicao != null && j.Posicao != "")
+            .Select(j => j.Posicao).Distinct().OrderBy(p => p).ToList());
 
         // POST: Jogadores/Create
         [HttpPost]
@@ -203,13 +234,15 @@ namespace ControleFutebolWeb.Controllers
             {
                 _context.Add(jogador);
                 await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                TempData["Mensagem"] = $"{jogador.Nome} cadastrado.";
+                return RedirectToAction(nameof(Index), new { nome = jogador.Nome });
             }
 
             LogModelStateErrors("Create");
 
-            ViewBag.TimeId = new SelectList(_context.Times, "Id", "Nome", jogador?.TimeId);
-            ViewBag.NacionalidadeId = new SelectList(_context.Nacionalidades, "Id", "Nome", jogador?.NacionalidadeId);
+            ViewBag.TimeId = new SelectList(_context.Times.OrderBy(t => t.Nome), "Id", "Nome", jogador?.TimeId);
+            ViewBag.NacionalidadeId = new SelectList(_context.Nacionalidades.OrderBy(n => n.Nome), "Id", "Nome", jogador?.NacionalidadeId);
+            ViewBag.Posicoes = PosicoesCadastradas();
             return View(jogador);
         }
 
@@ -251,8 +284,8 @@ namespace ControleFutebolWeb.Controllers
 
             ViewBag.Posicoes = new SelectList(posicoes);
 
-            ViewData["NacionalidadeId"] = new SelectList(_context.Nacionalidades, "Id", "Nome", jogador.NacionalidadeId);
-            ViewData["TimeId"] = new SelectList(_context.Times, "Id", "Nome", jogador.TimeId);
+            ViewData["NacionalidadeId"] = new SelectList(_context.Nacionalidades.OrderBy(n => n.Nome), "Id", "Nome", jogador.NacionalidadeId);
+            ViewData["TimeId"] = new SelectList(_context.Times.OrderBy(t => t.Nome), "Id", "Nome", jogador.TimeId);
 
             return View(jogador);
         }
@@ -333,6 +366,7 @@ namespace ControleFutebolWeb.Controllers
                         ? DateTime.SpecifyKind(jogador.DataNascimento.Value, DateTimeKind.Unspecified)
                         : null;
                     jogadorExistente.TimeId = jogador.TimeId;
+                    jogadorExistente.NumeroCamisa = jogador.NumeroCamisa;
                     jogadorExistente.NacionalidadeId = jogador.NacionalidadeId;
                     jogadorExistente.Altura = jogador.Altura;
                     jogadorExistente.Peso = jogador.Peso;
@@ -342,10 +376,10 @@ namespace ControleFutebolWeb.Controllers
 
                     await _context.SaveChangesAsync();
 
+                    // "Mensagem" vira o aviso flutuante do _Layout, em qualquer tela de volta
                     TempData["Mensagem"] = divergencias.Any()
-                        ? "Jogador atualizado. Atenção: " + string.Join(" | ", divergencias)
-                        : "Jogador atualizado com sucesso!";
-                    TempData["MensagemTipo"] = "sucesso";
+                        ? $"{jogadorExistente.Nome} atualizado. Confira: {string.Join("; ", divergencias)}."
+                        : $"{jogadorExistente.Nome} atualizado.";
 
                     return VoltarParaLista(returnUrl, new { timeId = jogador.TimeId });
                 }
@@ -362,8 +396,8 @@ namespace ControleFutebolWeb.Controllers
 
             ViewBag.Posicoes = new SelectList(await _context.Jogadores
                 .Select(j => j.Posicao).Distinct().OrderBy(p => p).ToListAsync(), jogador.Posicao);
-            ViewBag.TimeId = new SelectList(_context.Times, "Id", "Nome", jogador.TimeId);
-            ViewBag.NacionalidadeId = new SelectList(_context.Nacionalidades, "Id", "Nome", jogador.NacionalidadeId);
+            ViewBag.TimeId = new SelectList(_context.Times.OrderBy(t => t.Nome), "Id", "Nome", jogador.TimeId);
+            ViewBag.NacionalidadeId = new SelectList(_context.Nacionalidades.OrderBy(n => n.Nome), "Id", "Nome", jogador.NacionalidadeId);
             return View(jogador);
         }
 
@@ -395,9 +429,22 @@ namespace ControleFutebolWeb.Controllers
             if (jogador != null)
             {
                 _context.Jogadores.Remove(jogador);
-                await _context.SaveChangesAsync();
+                try
+                {
+                    await _context.SaveChangesAsync();
+                    TempData["Mensagem"] = $"{jogador.Nome} excluído.";
+                }
+                catch (DbUpdateException)
+                {
+                    // Escalações, estatísticas e eventos de jogo ainda apontam para ele
+                    TempData["Erro"] = $"{jogador.Nome} aparece em escalações ou estatísticas de jogos e não pode ser excluído.";
+                    return RedirectToAction(nameof(Delete), new { id, returnUrl });
+                }
             }
-            return VoltarParaLista(returnUrl);
+            // A página do jogador deixou de existir: sem returnUrl, volta para a lista
+            return returnUrl != null && returnUrl.Contains("/Jogadores/Estatisticas/")
+                ? RedirectToAction(nameof(Index))
+                : VoltarParaLista(returnUrl);
         }
 
         private void LogModelStateErrors(string contextAction)
@@ -469,7 +516,8 @@ namespace ControleFutebolWeb.Controllers
             jogador.IdFotMob = idExterno > 0 ? idExterno : null;
             await _context.SaveChangesAsync(ct);
 
-            TempData["Sucesso"] = idExterno > 0
+            // "Mensagem": as telas de estatísticas não exibem "Sucesso"; o aviso do _Layout sim
+            TempData["Mensagem"] = idExterno > 0
                 ? $"{jogador.Nome} identificado na base de estatísticas avançadas."
                 : $"Identificação de {jogador.Nome} removida.";
 
@@ -1206,9 +1254,8 @@ namespace ControleFutebolWeb.Controllers
                 eventos.Add(new EventoJogadorJogo
                 {
                     Minuto = g.Minuto,
-                    Icone = "⚽",
-                    Titulo = g.Contra ? "Gol contra" : "Gol",
-                    Cor = g.Contra ? "#f87171" : "#4ade80"
+                    Tipo = g.Contra ? "gol-contra" : "gol",
+                    Titulo = g.Contra ? "Gol contra" : "Gol"
                 });
 
             var assistsJogo = await _context.Assistencias.AsNoTracking()
@@ -1218,9 +1265,8 @@ namespace ControleFutebolWeb.Controllers
                 eventos.Add(new EventoJogadorJogo
                 {
                     Minuto = a.Minuto,
-                    Icone = "🅰️",
-                    Titulo = "Assistência",
-                    Cor = "#60a5fa"
+                    Tipo = "assistencia",
+                    Titulo = "Assistência"
                 });
 
             var cartoesJogo = await _context.Cartoes.AsNoTracking()
@@ -1232,9 +1278,8 @@ namespace ControleFutebolWeb.Controllers
                 eventos.Add(new EventoJogadorJogo
                 {
                     Minuto = c.Minuto,
-                    Icone = vermelho ? "🟥" : "🟨",
-                    Titulo = vermelho ? "Cartão vermelho" : "Cartão amarelo",
-                    Cor = vermelho ? "#f87171" : "#facc15"
+                    Tipo = vermelho ? "vermelho" : "amarelo",
+                    Titulo = vermelho ? "Cartão vermelho" : "Cartão amarelo"
                 });
             }
 
@@ -1249,19 +1294,17 @@ namespace ControleFutebolWeb.Controllers
                     eventos.Add(new EventoJogadorJogo
                     {
                         Minuto = s.Minuto,
-                        Icone = "🔺",
+                        Tipo = "entrou",
                         Titulo = "Entrou em campo",
-                        Detalhe = s.JogadorSaiu != null ? $"no lugar de {s.JogadorSaiu.NomeExibicao}" : null,
-                        Cor = "#4ade80"
+                        Detalhe = s.JogadorSaiu != null ? $"no lugar de {s.JogadorSaiu.NomeExibicao}" : null
                     });
                 if (s.JogadorSaiuId == id)
                     eventos.Add(new EventoJogadorJogo
                     {
                         Minuto = s.Minuto,
-                        Icone = "🔻",
+                        Tipo = "saiu",
                         Titulo = "Substituído",
-                        Detalhe = s.JogadorEntrou != null ? $"deu lugar a {s.JogadorEntrou.NomeExibicao}" : null,
-                        Cor = "#f87171"
+                        Detalhe = s.JogadorEntrou != null ? $"deu lugar a {s.JogadorEntrou.NomeExibicao}" : null
                     });
             }
 
@@ -1272,9 +1315,8 @@ namespace ControleFutebolWeb.Controllers
                 eventos.Add(new EventoJogadorJogo
                 {
                     Minuto = p.Minuto,
-                    Icone = "🚫",
-                    Titulo = "Pênalti perdido",
-                    Cor = "#f87171"
+                    Tipo = "penalti-perdido",
+                    Titulo = "Pênalti perdido"
                 });
 
             var penDisputaJogo = await _context.PenaltisDisputa.AsNoTracking()
@@ -1285,10 +1327,9 @@ namespace ControleFutebolWeb.Controllers
                 eventos.Add(new EventoJogadorJogo
                 {
                     Minuto = null,
-                    Icone = p.Convertido ? "✅" : "❌",
-                    Titulo = $"Disputa de pênaltis — {p.Ordem}ª cobrança",
-                    Detalhe = p.Convertido ? "converteu" : "perdeu",
-                    Cor = p.Convertido ? "#4ade80" : "#f87171"
+                    Tipo = p.Convertido ? "penalti-convertido" : "penalti-perdido",
+                    Titulo = p.Convertido ? "Converteu na disputa de pênaltis" : "Perdeu na disputa de pênaltis",
+                    Detalhe = $"{p.Ordem}ª cobrança"
                 });
 
             // Eventos sem minuto (disputa de pênaltis) ficam no fim — acontecem após o jogo.
@@ -1312,6 +1353,48 @@ namespace ControleFutebolWeb.Controllers
                 Eventos = eventos,
                 PontosHeatmap = pontosHeatmap
             };
+
+            // ── Nota do jogo (mesma régua de /Jogadores/Estatisticas) ───────
+            // Com análise do usuário: a nota manual ou a calculada pelos critérios.
+            // Sem análise: a automática sobre a estatística importada, só para quem
+            // entrou em campo (reserva não utilizado tem linha zerada da api).
+            var nota = await _context.Notas
+                .AsNoTracking()
+                .Include(n => n.Detalhes)
+                .FirstOrDefaultAsync(n => n.JogoId == jogoId && n.JogadorId == id && n.UsuarioId == uid);
+            var jogouComEstatistica = estatistica != null && estatistica.Minutos > 0;
+
+            if (nota != null || jogouComEstatistica)
+            {
+                var criterios = CriteriosNotaHelper.MergeCriterios(
+                    await _context.CriteriosNota.Where(c => c.UsuarioId == null).ToListAsync(),
+                    await _context.CriteriosNota.Where(c => c.UsuarioId == uid).ToListAsync());
+                var jogoIds = new List<int> { jogoId };
+                var contextos = await ContextoNotaHelper.CarregarAsync(_context, jogoIds, uid);
+
+                if (nota != null)
+                {
+                    vm.NotaSistema = nota.NotaManual.HasValue
+                        ? Math.Round(Math.Max(0, Math.Min(10, nota.NotaManual.Value)), 2)
+                        : CriteriosNotaHelper.NotaFinal(nota.Valor, criterios,
+                            ContextoNotaHelper.De(contextos, id, jogoId) with
+                            {
+                                Acoes = CriteriosNotaHelper.ContarAcoes(nota.Detalhes)
+                            });
+                    vm.NotaOrigem = "analise";
+                }
+                else
+                {
+                    // A calculadora lê o placar e a posição/time: liga as entidades já carregadas
+                    estatistica!.Jogo = jogo;
+                    estatistica.Jogador = jogador;
+                    var lados = await LadoJogadorHelper.CarregarAsync(_context, jogoIds, uid, new[] { id });
+                    var calculadora = await NotaAutomaticaHelper.CarregarAsync(
+                        _context, jogoIds, uid, criterios, lados, contextos);
+                    vm.NotaSistema = calculadora.De(estatistica).Nota;
+                    vm.NotaOrigem = "automatica";
+                }
+            }
 
             return View(vm);
         }
@@ -2091,6 +2174,17 @@ namespace ControleFutebolWeb.Controllers
         }
 
         [HttpGet]
+        /// <summary>
+        /// Preposições e artigos em minúscula no meio do nome da liga, como se escreve
+        /// em português ("Copa Do Brasil" → "Copa do Brasil"). A primeira palavra fica
+        /// como veio.
+        /// </summary>
+        internal static string? NomeLigaPtBr(string? nome) =>
+            string.IsNullOrWhiteSpace(nome)
+                ? nome
+                : System.Text.RegularExpressions.Regex.Replace(
+                    nome, @"(?<=\S\s)(Do|Da|De|Dos|Das|E)(?=\s)", m => m.Value.ToLowerInvariant());
+
         public async Task<IActionResult> EstatisticasTemporada(int id, int season)
         {
             var jogador = await _context.Jogadores.FindAsync(id);
@@ -2106,8 +2200,11 @@ namespace ControleFutebolWeb.Controllers
                     league = new
                     {
                         id = s.League.Id,
-                        name = s.League.Name,
-                        country = s.League.Country,
+                        // A fonte manda "Copa Do Brasil" e "Brazil": a tela é em português.
+                        name = NomeLigaPtBr(s.League.Name),
+                        country = string.IsNullOrWhiteSpace(s.League.Country)
+                            ? s.League.Country
+                            : CountryHelper.Traduzir(s.League.Country),
                         logo = s.League.Logo,
                         flag = s.League.Flag,
                         season = s.League.Season
@@ -2271,7 +2368,7 @@ namespace ControleFutebolWeb.Controllers
 
             if (!(jogador.IdApi > 0))
             {
-                TempData["Erro"] = $"{jogador.Nome} não possui IdApi cadastrado — não é possível buscar altura/peso pela API.";
+                TempData["Erro"] = $"{jogador.Nome} não tem perfil importado, então não há de onde buscar altura e peso.";
                 return RedirectToAction(nameof(Details), new { id });
             }
 
@@ -2280,7 +2377,7 @@ namespace ControleFutebolWeb.Controllers
                 var info = await _transfermarktService.BuscarPerfilJogadorAsync(jogador.IdApi!.Value);
                 if (info == null || (info.Altura == null && info.Peso == null))
                 {
-                    TempData["Erro"] = $"A API não retornou altura/peso para {jogador.Nome}.";
+                    TempData["Erro"] = $"O perfil importado de {jogador.Nome} não informa altura nem peso.";
                     return RedirectToAction(nameof(Details), new { id });
                 }
 
@@ -2289,12 +2386,13 @@ namespace ControleFutebolWeb.Controllers
                 jogador.DtAlt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
 
-                TempData["Sucesso"] = $"{jogador.Nome}: altura/peso atualizados ({jogador.Altura?.ToString() ?? "—"} cm, {jogador.Peso?.ToString() ?? "—"} kg).";
+                TempData["Sucesso"] = $"Altura e peso de {jogador.Nome} atualizados: " +
+                    string.Join(", ", new[] { jogador.Altura.HasValue ? $"{jogador.Altura} cm" : null, jogador.Peso.HasValue ? $"{jogador.Peso} kg" : null }.Where(x => x != null)) + ".";
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao buscar altura/peso do jogador {Nome} (IdApi={Id})", jogador.Nome, jogador.IdApi);
-                TempData["Erro"] = $"Erro ao buscar altura/peso de {jogador.Nome}: {ex.Message}";
+                TempData["Erro"] = $"Não foi possível buscar altura e peso de {jogador.Nome}: {ex.Message}";
             }
 
             return RedirectToAction(nameof(Details), new { id });

@@ -1,4 +1,4 @@
-﻿using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
@@ -50,7 +50,8 @@ namespace ControleFutebolWeb.Controllers
         // URL do proxy de mídia para o PainelJogoService (que não tem IUrlHelper).
         private string? ImagemUrl(string url) => Url.Action("Imagem", "MediaProxy", new { url });
 
-        // GET: Jogos/UltimosConfrontos/5 — retorna JSON com últimos H2H
+        // GET: Jogos/UltimosConfrontos/5 — últimos confrontos diretos (api-football),
+        // sempre ANTES desta partida e contados do ponto de vista dos dois times dela.
         [HttpGet]
         public async Task<IActionResult> UltimosConfrontos(int id)
         {
@@ -61,39 +62,81 @@ namespace ControleFutebolWeb.Controllers
 
             if (jogo == null) return NotFound();
 
-            if (jogo.TimeCasa?.IdApi == 0 || jogo.TimeVisitante?.IdApi == 0)
-                return BadRequest("Um dos times não tem ID da API configurado.");
+            var casa = jogo.TimeCasa!;
+            var visitante = jogo.TimeVisitante!;
+            if (casa.IdApi == 0 || visitante.IdApi == 0)
+                return Json(new { semIdApi = true });
 
+            List<AfFixture> confrontos;
             try
             {
-                var confrontos = await _transfermarkt.BuscarH2HAsync(
-                    jogo.TimeCasa!.IdApi, jogo.TimeVisitante!.IdApi, 5,
-                    HttpContext.RequestAborted);
-
-                var resultado = confrontos.Select(f => new
-                {
-                    data = f.Fixture.Date?.ToString("dd/MM/yyyy") ?? "-",
-                    competicao = f.League.Name,
-                    temporada = f.League.Season,
-                    mandante = f.Teams.Home.Name,
-                    visitante = f.Teams.Away.Name,
-                    placarMandante = f.Goals.Home,
-                    placarVisitante = f.Goals.Away,
-                    logoMandante = f.Teams.Home.Logo,
-                    logoVisitante = f.Teams.Away.Logo,
-                    status = f.Fixture.Status.Short,
-                    vencedor = f.Teams.Home.Winner == true ? "home"
-                             : f.Teams.Away.Winner == true ? "away"
-                             : "draw"
-                }).ToList();
-
-                return Json(resultado);
+                // Pede folga: a resposta traz os mais recentes, e nela podem vir esta
+                // partida e as que aconteceram depois dela (análise de jogo antigo).
+                confrontos = await _transfermarkt.BuscarH2HAsync(
+                    casa.IdApi, visitante.IdApi, 15, HttpContext.RequestAborted);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[H2H] Erro ao buscar confrontos para jogo {Id}", id);
-                return StatusCode(500, "Erro ao buscar confrontos na API.");
+                return StatusCode(500, "Não foi possível consultar os confrontos na api-football.");
             }
+
+            var finalizados = new[] { "FT", "AET", "PEN" };
+            // Margem de 3 horas: a mesma partida pode vir da API com horário um pouco diferente
+            var limite = jogo.Data?.AddHours(-3);
+            var anteriores = confrontos
+                .Where(f => finalizados.Contains(f.Fixture.Status.Short)
+                         && f.Goals.Home != null && f.Goals.Away != null
+                         && (limite == null || (f.Fixture.Date.HasValue && f.Fixture.Date.Value.UtcDateTime < limite)))
+                .OrderByDescending(f => f.Fixture.Date)
+                .Take(5)
+                .ToList();
+
+            // Nome da competição como está cadastrado aqui ("Campeonato Brasileiro", não "Serie A")
+            var idsLigas = anteriores.Select(f => (int?)f.League.Id).Distinct().ToList();
+            var nomesCompeticoes = await _context.Competicoes
+                .Where(c => c.IdApi != null && idsLigas.Contains(c.IdApi))
+                .Select(c => new { c.IdApi, c.Nome })
+                .ToListAsync();
+
+            string? Escudo(Time t) => string.IsNullOrEmpty(t.EscudoUrl) ? null : ImagemUrl(t.EscudoUrl);
+            // Lado de cada time da API: o mandante desta partida é "casa", mesmo quando
+            // naquele confronto ele jogou fora
+            string Lado(int idApi) => idApi == casa.IdApi ? "casa" : "visitante";
+            string Nome(AfTeam t) => t.Id == casa.IdApi ? casa.Nome : t.Id == visitante.IdApi ? visitante.Nome : ApiFootballService.TraduzirNomeClube(t.Name);
+
+            int vitoriasCasa = 0, vitoriasVisitante = 0, empates = 0;
+            var jogos = anteriores.Select(f =>
+            {
+                string vencedor = f.Teams.Home.Winner == true ? Lado(f.Teams.Home.Id)
+                                : f.Teams.Away.Winner == true ? Lado(f.Teams.Away.Id)
+                                : "empate";
+                if (vencedor == "casa") vitoriasCasa++;
+                else if (vencedor == "visitante") vitoriasVisitante++;
+                else empates++;
+
+                return new
+                {
+                    data = f.Fixture.Date.HasValue ? DateHelper.FormatarData(f.Fixture.Date.Value.UtcDateTime, "dd/MM/yyyy") : null,
+                    competicao = nomesCompeticoes.FirstOrDefault(c => c.IdApi == f.League.Id)?.Nome ?? f.League.Name,
+                    mandante = new { nome = Nome(f.Teams.Home), lado = Lado(f.Teams.Home.Id) },
+                    visitante = new { nome = Nome(f.Teams.Away), lado = Lado(f.Teams.Away.Id) },
+                    placarMandante = f.Goals.Home,
+                    placarVisitante = f.Goals.Away,
+                    penaltisMandante = f.Score.Penalty.Home,
+                    penaltisVisitante = f.Score.Penalty.Away,
+                    prorrogacao = f.Fixture.Status.Short == "AET",
+                    vencedor
+                };
+            }).ToList();
+
+            return Json(new
+            {
+                casa = new { nome = casa.Nome, escudo = Escudo(casa), vitorias = vitoriasCasa },
+                visitante = new { nome = visitante.Nome, escudo = Escudo(visitante), vitorias = vitoriasVisitante },
+                empates,
+                jogos
+            });
         }
 
         // GET: Jogos/PreJogo/5 — resumo pré-jogo (V/E/D, forma, destaques, observações)
@@ -197,7 +240,7 @@ namespace ControleFutebolWeb.Controllers
                 {
                     time = time?.Nome,
                     escudo = string.IsNullOrWhiteSpace(time?.EscudoUrl) ? null : ImagemUrl(time!.EscudoUrl!),
-                    escalacaoDe = t?.JogoOrigem?.Data?.ToString("dd/MM/yyyy"),
+                    escalacaoDe = t?.JogoOrigem?.Data == null ? null : DateHelper.FormatarData(t.JogoOrigem.Data, "dd/MM/yyyy"),
                     titulares = t?.Escalacao.Select(e => Jogador(e.Jogador, e.Posicao)).ToList() ?? new List<object>(),
                     reservas = t?.Elenco.Where(j => !j.Aposentado).OrderBy(j => j.Nome)
                         .Select(j => Jogador(j, null)).ToList() ?? new List<object>(),
@@ -318,7 +361,7 @@ namespace ControleFutebolWeb.Controllers
                     ? null
                     : Url.Action("Imagem", "MediaProxy", new { url = t.Time.EscudoUrl }),
                 adversario = t.JogoOrigemEhCasa ? t.JogoOrigem?.TimeVisitante?.Nome : t.JogoOrigem?.TimeCasa?.Nome,
-                data = t.JogoOrigem?.Data?.ToString("dd/MM/yyyy"),
+                data = t.JogoOrigem?.Data == null ? null : DateHelper.FormatarData(t.JogoOrigem.Data, "dd/MM/yyyy"),
                 escalacao = t.Escalacao.Select(e => new
                 {
                     id = e.Jogador.Id,
@@ -464,11 +507,13 @@ namespace ControleFutebolWeb.Controllers
 
         // GET: Jogos/PosJogo/5 — resumo pós-jogo (placar, notas dos jogadores,
         // observações digitadas na partida e estatísticas), no estilo do modal Pré-jogo.
+        // Abrir o pós-jogo também grava as curiosidades novas nas anotações dos
+        // jogadores e clubes do usuário (categoria "Curiosidade").
         [HttpGet]
         public async Task<IActionResult> PosJogo(int id)
         {
             var usuarioId = _userManager.GetUserId(User);
-            var dados = await _paineis.PosJogoAsync(id, usuarioId, ImagemUrl);
+            var dados = await _paineis.PosJogoAsync(id, usuarioId, ImagemUrl, registrarCuriosidades: usuarioId != null);
             return dados == null ? NotFound() : Json(dados);
         }
     }

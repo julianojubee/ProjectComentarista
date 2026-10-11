@@ -1,4 +1,4 @@
-﻿// ControleFutebolWeb/Controllers/RelatoriosController.cs
+// ControleFutebolWeb/Controllers/RelatoriosController.cs
 using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
@@ -213,7 +213,14 @@ namespace ControleFutebolWeb.Controllers
             var assisPorJogador     = assistencias.GroupBy(a => a.JogadorId).ToDictionary(g => g.Key, g => g.Count());
             var amareloPorJogador   = cartoes.Where(c => c.Tipo == "Amarelo").GroupBy(c => c.JogadorId).ToDictionary(g => g.Key, g => g.Count());
             var vermelhoPorJogador  = cartoes.Where(c => c.Tipo == "Vermelho").GroupBy(c => c.JogadorId).ToDictionary(g => g.Key, g => g.Count());
-            var jogosPorJogador     = escalacoes.GroupBy(e => e.JogadorId!.Value).ToDictionary(g => g.Key, g => g.Select(e => e.JogoId).Distinct().Count());
+            // Jogos em que o jogador ENTROU em campo: titular na escalação, minutos nas
+            // estatísticas ou nota no jogo. Contar toda escalação incluía as partidas em
+            // que ele só ficou no banco, o que inflava o JG e derrubava as médias por jogo.
+            var jogosPorJogador = escalacoes.Where(e => e.Titular).Select(e => (Jogador: e.JogadorId!.Value, e.JogoId))
+                .Concat(estatisticas.Select(e => (Jogador: e.JogadorId, e.JogoId)))
+                .Concat(notas.Select(n => (Jogador: n.JogadorId, n.JogoId)))
+                .GroupBy(x => x.Jogador)
+                .ToDictionary(g => g.Key, g => g.Select(x => x.JogoId).Distinct().Count());
             var estatsPorJogador    = estatisticas.GroupBy(e => e.JogadorId).ToDictionary(g => g.Key, g => g.ToList());
             var notasPorJogador     = notas.GroupBy(n => n.JogadorId).ToDictionary(g => g.Key, g => g.ToList());
 
@@ -224,10 +231,6 @@ namespace ControleFutebolWeb.Controllers
                 var jId = jogador.Id;
 
                 int jogosCount = jogosPorJogador.GetValueOrDefault(jId, 0);
-                if (jogosCount == 0 && estatsPorJogador.TryGetValue(jId, out var esTemp))
-                    jogosCount = esTemp.Select(e => e.JogoId).Distinct().Count();
-                if (jogosCount == 0 && notasPorJogador.TryGetValue(jId, out var nTemp))
-                    jogosCount = nTemp.Select(n => n.JogoId).Distinct().Count();
 
                 int gol      = golsPorJogador.GetValueOrDefault(jId, 0);
                 int ass      = assisPorJogador.GetValueOrDefault(jId, 0);
@@ -398,13 +401,14 @@ namespace ControleFutebolWeb.Controllers
             var ptBr = CultureInfo.GetCultureInfo("pt-BR");
             string F(double v, string fmt = "0.##") => v.ToString(fmt, ptBr);
 
-            var cores = new[] { "#7c3aed", "#0ea5e9", "#f59e0b" };
+            // Ouro, azul e rosa: distintos entre si nos dois temas
+            var cores = new[] { "#d4a520", "#38bdf8", "#f472b6" };
 
             // ── Cabeçalho de cada jogador ────────────────────────────────
             var jogadoresJson = perfis.Select((p, i) => new
             {
                 id = p.J.Id,
-                nome = p.J.NomeExibicao,
+                nome = p.J.Nome,
                 fotoUrl = p.J.FotoUrl,
                 posicao = p.J.Posicao,
                 idade = p.J.Idade,
@@ -450,7 +454,7 @@ namespace ControleFutebolWeb.Controllers
                 labels = eixos.Select(e => e.Label).ToArray(),
                 datasets = perfis.Select((p, i) => new
                 {
-                    label = p.J.NomeExibicao,
+                    label = p.J.Nome,
                     cor = cores[i],
                     data = valoresPorEixo.Select(vals =>
                     {
@@ -466,7 +470,7 @@ namespace ControleFutebolWeb.Controllers
                 labels = eixos.Select(e => e.Label).ToArray(),
                 datasets = perfis.Select((p, i) => new
                 {
-                    label = p.J.NomeExibicao,
+                    label = p.J.Nome,
                     cor = cores[i],
                     data = valoresPorEixo.Select(vals =>
                     {
@@ -486,7 +490,7 @@ namespace ControleFutebolWeb.Controllers
                 return new
                 {
                     label = e.Label,
-                    resumo = string.Join(" · ", vals.Select(v => Math.Round(v / soma * 100) + "%")),
+                    resumo = string.Join(" / ", vals.Select(v => Math.Round(v / soma * 100) + "%")),
                     segmentos = perfis.Select((p, i) => new
                     {
                         cor = cores[i],
@@ -513,7 +517,7 @@ namespace ControleFutebolWeb.Controllers
                         label,
                         linhas = perfis.Select((p, i) => new
                         {
-                            nome = p.J.NomeExibicao,
+                            nome = p.J.Nome,
                             cor = cores[i],
                             corTexto = Math.Abs(vals[i] - alvo) < 0.005 ? cores[i] : "var(--text-muted)",
                             opacidade = Math.Abs(vals[i] - alvo) < 0.005 ? 1.0 : 0.45,
@@ -568,10 +572,10 @@ namespace ControleFutebolWeb.Controllers
             // ── Prioridades da posição (texto + chips) ──────────────────
             var comuns = PerfilJogadorService.OrdemRoles.Where(r => perfis.All(p => p.Roles.Contains(r))).ToList();
             var todosRoles = PerfilJogadorService.OrdemRoles.Where(r => perfis.Any(p => p.Roles.Contains(r))).ToList();
-            var textoFuncoes = string.Join("; ", perfis.Select(p => $"{p.J.NomeExibicao} atua como {p.J.Posicao}"))
+            var textoFuncoes = string.Join("; ", perfis.Select(p => $"{p.J.Nome} atua como {p.J.Posicao}"))
                 + (comuns.Count > 0
                     ? $". {(perfis.Count > 2 ? "Os jogadores" : "Os dois")} podem exercer a função de {string.Join(" e ", comuns.Select(r => PerfilJogadorService.RoleInfo(r).Nome))}."
-                    : ". Funções diferentes — as métricas abaixo cobrem as prioridades de cada função do grupo.");
+                    : ". As funções são diferentes, então as métricas abaixo cobrem as prioridades de cada uma.");
 
             var prioridadesRole = new Dictionary<string, string[]>
             {
@@ -656,8 +660,8 @@ namespace ControleFutebolWeb.Controllers
                     {
                         var g = golsConfronto.Count(x => x.JogoId == j.Id && x.JogadorId == p.J.Id);
                         var a = assisConfronto.Count(x => x.JogoId == j.Id && x.JogadorId == p.J.Id);
-                        if (g > 0) participacoes.Add($"{g} gol{(g > 1 ? "s" : "")} ({p.J.NomeExibicao})");
-                        if (a > 0) participacoes.Add($"{a} assistência{(a > 1 ? "s" : "")} ({p.J.NomeExibicao})");
+                        if (g > 0) participacoes.Add($"{g} gol{(g > 1 ? "s" : "")} ({p.J.Nome})");
+                        if (a > 0) participacoes.Add($"{a} assistência{(a > 1 ? "s" : "")} ({p.J.Nome})");
                     }
 
                     var notas = perfis.Select(p => NotaDoJogo(p.J.Id, j.Id))
@@ -665,11 +669,11 @@ namespace ControleFutebolWeb.Controllers
 
                     return new
                     {
-                        data = j.Data.HasValue ? j.Data.Value.ToString("dd/MM/yyyy") : "—",
+                        data = j.Data.HasValue ? DateHelper.FormatarData(j.Data, "dd/MM/yyyy") : "—",
                         competicao = j.Competicao?.Nome ?? "—",
                         partida = $"{j.TimeCasa.Nome} {j.PlacarCasa} x {j.PlacarVisitante} {j.TimeVisitante.Nome}",
-                        participacoes = participacoes.Count > 0 ? string.Join(" · ", participacoes) : "—",
-                        notas = string.Join(" · ", notas),
+                        participacoes = participacoes.Count > 0 ? string.Join("; ", participacoes) : "—",
+                        notas = string.Join(" / ", notas),
                     };
                 }).ToList();
             }

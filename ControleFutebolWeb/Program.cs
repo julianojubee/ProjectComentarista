@@ -200,6 +200,9 @@ internal class Program
         builder.Services.AddSingleton<AtualizarJogosAoVivoService>();
         builder.Services.AddHostedService(sp =>
             sp.GetRequiredService<AtualizarJogosAoVivoService>());
+        builder.Services.AddSingleton<GerarCuriosidadesService>();
+        builder.Services.AddHostedService(sp =>
+            sp.GetRequiredService<GerarCuriosidadesService>());
         //builder.Services.AddHostedService<AtualizacaoJogosService>();
         //builder.Services.AddHostedService<AtualizarCopaSulAmericanaService>();
         builder.Services.AddHttpClient();

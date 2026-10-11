@@ -155,7 +155,7 @@ namespace ControleFutebolWeb.Controllers
 
             await SincronizarMencoesAsync(model);
 
-            TempData["Sucesso"] = "✅ Anotação salva.";
+            TempData["Sucesso"] = "Anotação salva.";
             return RedirectToAction(nameof(Index), new { timeId = model.TimeId });
         }
 
@@ -201,7 +201,7 @@ namespace ControleFutebolWeb.Controllers
 
             await SincronizarMencoesAsync(existing);
 
-            TempData["Sucesso"] = "✅ Anotação atualizada.";
+            TempData["Sucesso"] = "Anotação atualizada.";
             return RedirectToAction(nameof(Index), new { timeId = existing.TimeId });
         }
 
@@ -218,7 +218,7 @@ namespace ControleFutebolWeb.Controllers
             _context.AnotacoesTime.Remove(anotacao);
             await _context.SaveChangesAsync();
 
-            TempData["Sucesso"] = "🗑️ Anotação excluída.";
+            TempData["Sucesso"] = "Anotação excluída.";
             return RedirectToAction(nameof(Index), new { timeId });
         }
     }

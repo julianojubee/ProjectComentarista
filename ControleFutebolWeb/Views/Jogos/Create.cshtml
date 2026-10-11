@@ -1,71 +1,93 @@
-﻿@model ControleFutebolWeb.Models.Jogo
+@model ControleFutebolWeb.Models.Jogo
+@{ ViewData["Title"] = "Novo jogo"; }
 
-<h2>Cadastrar Novo Jogo</h2>
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/form-card.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/select-buscavel.css" asp-append-version="true" />
 
-<form id="jogoForm" asp-action="Create" method="post">
-    @Html.AntiForgeryToken()
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+<div class="af">
+    <div class="af-card">
+        <a asp-action="Index" class="af-voltar">Jogos</a>
+        <h1 class="af-title">Novo jogo</h1>
+        <div class="af-sub">
+            Os jogos costumam chegar pela importação da competição. Cadastre à mão só o que a
+            importação não traz.
+        </div>
 
-    <div class="form-group">
-        <label asp-for="Data" class="control-label"></label>
-        <input asp-for="Data" type="date" class="form-control" />
-        <span asp-validation-for="Data" class="text-danger"></span>
+        <form id="jogoForm" asp-action="Create" method="post">
+            <div asp-validation-summary="ModelOnly" class="af-alerta"></div>
+
+            <div class="af-field">
+                <label class="af-label" for="CompeticaoId">Competição</label>
+                <select asp-for="CompeticaoId" class="af-select" asp-items="ViewBag.CompeticaoId" data-buscavel="Buscar competição" required>
+                    <option value="">Selecione</option>
+                </select>
+                <span asp-validation-for="CompeticaoId" class="af-validation"></span>
+            </div>
+
+            <div class="af-linha">
+                <div class="af-field">
+                    <label class="af-label" for="Data">Data e hora <small>(de Brasília)</small></label>
+                    <input asp-for="Data" type="datetime-local" class="af-input" required />
+                    <span asp-validation-for="Data" class="af-validation"></span>
+                </div>
+                <div class="af-field af-curto">
+                    <label class="af-label" for="Rodada">Rodada</label>
+                    <input asp-for="Rodada" type="number" min="0" class="af-input" />
+                </div>
+            </div>
+
+            <div class="af-linha">
+                <div class="af-field">
+                    <label class="af-label" for="TimeCasaId">Mandante</label>
+                    <select asp-for="TimeCasaId" class="af-select" asp-items="ViewBag.TimeCasaId" data-buscavel="Buscar time" required>
+                        <option value="">Selecione</option>
+                    </select>
+                    <span asp-validation-for="TimeCasaId" class="af-validation"></span>
+                </div>
+                <div class="af-field af-curto">
+                    <label class="af-label" for="PlacarCasa">Gols <small>(opcional)</small></label>
+                    <input asp-for="PlacarCasa" type="number" min="0" class="af-input" />
+                </div>
+            </div>
+
+            <div class="af-linha">
+                <div class="af-field">
+                    <label class="af-label" for="TimeVisitanteId">Visitante</label>
+                    <select asp-for="TimeVisitanteId" class="af-select" asp-items="ViewBag.TimeVisitanteId" data-buscavel="Buscar time" required>
+                        <option value="">Selecione</option>
+                    </select>
+                    <span asp-validation-for="TimeVisitanteId" class="af-validation"></span>
+                </div>
+                <div class="af-field af-curto">
+                    <label class="af-label" for="PlacarVisitante">Gols <small>(opcional)</small></label>
+                    <input asp-for="PlacarVisitante" type="number" min="0" class="af-input" />
+                </div>
+            </div>
+            <div class="af-hint" style="margin:-.6rem 0 1.25rem">Deixe os gols em branco para um jogo que ainda não aconteceu.</div>
+
+            <div class="af-linha">
+                <div class="af-field">
+                    <label class="af-label" for="FormacaoCasaId">Formação do mandante <small>(opcional)</small></label>
+                    <select asp-for="FormacaoCasaId" class="af-select" asp-items="ViewBag.FormacaoCasaId">
+                        <option value="">Sem formação</option>
+                    </select>
+                </div>
+                <div class="af-field">
+                    <label class="af-label" for="FormacaoVisitanteId">Formação do visitante <small>(opcional)</small></label>
+                    <select asp-for="FormacaoVisitanteId" class="af-select" asp-items="ViewBag.FormacaoVisitanteId">
+                        <option value="">Sem formação</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="af-actions">
+                <button id="btnCadastrar" type="submit" class="af-save">Cadastrar jogo</button>
+                <a asp-action="Index" class="af-cancel">Cancelar</a>
+            </div>
+        </form>
     </div>
-
-    <div class="form-group">
-        <label asp-for="Rodada" class="control-label"></label>
-        <input asp-for="Rodada" type="number" min="1" class="form-control" />
-        <span asp-validation-for="Rodada" class="text-danger"></span>
-    </div>
-
-    <div class="form-group">
-        <label asp-for="CompeticaoId" class="control-label">Competição</label>
-        <select asp-for="CompeticaoId" class="form-control" asp-items="ViewBag.CompeticaoId">
-            <option value="">-- Selecione --</option>
-        </select>
-        <span asp-validation-for="CompeticaoId" class="text-danger"></span>
-    </div>
-
-    <div class="form-group">
-        <label asp-for="TimeCasaId" class="control-label">Time da Casa</label>
-        <select asp-for="TimeCasaId" class="form-control" asp-items="ViewBag.TimeCasaId"></select>
-        <span asp-validation-for="TimeCasaId" class="text-danger"></span>
-    </div>
-
-    <div class="form-group">
-        <label asp-for="PlacarCasa" class="control-label">Placar Casa</label>
-        <input asp-for="PlacarCasa" type="number" min="0" class="form-control" />
-        <span asp-validation-for="PlacarCasa" class="text-danger"></span>
-    </div>
-
-    <div class="form-group">
-        <label asp-for="TimeVisitanteId" class="control-label">Time Visitante</label>
-        <select asp-for="TimeVisitanteId" class="form-control" asp-items="ViewBag.TimeVisitanteId"></select>
-        <span asp-validation-for="TimeVisitanteId" class="text-danger"></span>
-    </div>
-
-    <div class="form-group">
-        <label asp-for="PlacarVisitante" class="control-label">Placar Visitante</label>
-        <input asp-for="PlacarVisitante" type="number" min="0" class="form-control" />
-        <span asp-validation-for="PlacarVisitante" class="text-danger"></span>
-    </div>
-
-    <div class="form-group">
-        <label asp-for="FormacaoCasaId" class="control-label">Formação Time da Casa</label>
-        <select asp-for="FormacaoCasaId" class="form-control"
-                asp-items="ViewBag.FormacaoCasaId"></select>
-    </div>
-
-    <div class="form-group">
-        <label asp-for="FormacaoVisitanteId" class="control-label">Formação Time Visitante</label>
-        <select asp-for="FormacaoVisitanteId" class="form-control"
-                asp-items="ViewBag.FormacaoVisitanteId"></select>
-    </div>
-
-
-    <button id="btnCadastrar" type="submit" class="btn btn-primary">Cadastrar</button>
-    <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
-</form>
+</div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

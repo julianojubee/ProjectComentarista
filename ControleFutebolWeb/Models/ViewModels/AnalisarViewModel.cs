@@ -128,6 +128,13 @@ namespace ControleFutebolWeb.Models.ViewModels
 
         // Nota que elegeu o craque, para o tooltip da coroa.
         public double CraqueNota { get; set; }
+
+        // Desarmes de cada time na partida, somados das estatísticas por jogador —
+        // as estatísticas de time (Jogo.EstatisticasJson) não trazem esse número.
+        // Null quando o lado não tem estatística por jogador ou alguma linha veio de
+        // uma fonte que não publica desarme (ESPN, FIFA): ali o 0 gravado não é zero.
+        public int? DesarmesCasa { get; set; }
+        public int? DesarmesVisitante { get; set; }
     }
 
     /// <summary>

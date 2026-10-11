@@ -377,9 +377,19 @@
        gramado e a metade de baixo (nome, gols/assistências) fica enterrada
        sob a grama. Levantar meia altura resolve — e é o mesmo destaque que a
        escalação de transmissão dá, com o jogador flutuando sobre o campo. */
+    /* Resolução do jogador (--mu-res): com perspective o Chrome rasteriza cada
+       slot no tamanho de layout (círculo de 34px) e depois inclina e estica essa
+       textura — --mu-k e, na transmissão, --mu-base de até 2,4× —, e as fotos
+       saíam borradas perto das da Analisar, que é chapada. O zoom desenha o
+       slot N vezes maior e o scale devolve ao mesmo tamanho na tela: posição e
+       tamanho iguais, textura com N vezes mais pixels. O zoom também multiplica
+       os px do transform, daí o translateZ dividido por N. */
     .mu-campo-3d .mu-slot {
-        transform: translate(-50%, -50%) translateZ(var(--mu-z, 30px))
-                   rotateX(calc(-1 * var(--mu-ang, 30deg))) scale(calc(var(--mu-k, 1) * var(--mu-base, 1)));
+        --mu-res: 3;
+        zoom: var(--mu-res);
+        transform: translate(-50%, -50%) translateZ(calc(var(--mu-z, 30px) / var(--mu-res)))
+                   rotateX(calc(-1 * var(--mu-ang, 30deg)))
+                   scale(calc(var(--mu-k, 1) * var(--mu-base, 1) / var(--mu-res)));
     }
     /* Em preserve-3d o z-index não ordena: quem está sendo arrastado sobe no eixo Z */
     .mu-campo-3d .mu-slot.mu-arrastando { --mu-z: 70px; }
@@ -459,7 +469,7 @@
         .mu-cena-3d > .mu-campo-3d { transform: none !important; overflow: hidden; box-shadow: none; }
         .mu-gol-frame, .mu-gol-teto, .mu-gol-lado, .mu-gol-sombra { display: none; }
         .mu-campo-3d .mu-gol-esq, .mu-campo-3d .mu-gol-dir { display: block; }
-        .mu-campo-3d .mu-slot { transform: translate(-50%, -50%) scale(var(--mu-base, 1)); }
+        .mu-campo-3d .mu-slot { zoom: 1; transform: translate(-50%, -50%) scale(var(--mu-base, 1)); }
     }
 
     /* ══ Modo transmissão (OBS) ═══════════════════════════════════════════════

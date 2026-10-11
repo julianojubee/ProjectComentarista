@@ -270,6 +270,8 @@
         const c3d = !!(opts && opts.campo3d);
         muCores = !!(opts && opts.cores);
         muBuscaUrl = (opts && opts.buscaJogador) || null;
+        muFichaUrl = (opts && opts.fichaJogador) || null;
+        muTimeIds = { 1: d.casa && d.casa.id, 2: d.visitante && d.visitante.id };
         const comTransmissao = !!(opts && opts.transmissao);
         if (muRoot && muRoot !== cont) muRoot.classList.remove('mu-transmissao');
         cont.classList.remove('mu-transmissao');
@@ -287,8 +289,8 @@
         var t1 = d.casa, t2 = d.visitante;
         var escudo1 = t1.escudo ? '<img src="' + t1.escudo + '" alt="">' : '';
         var escudo2 = t2.escudo ? '<img src="' + t2.escudo + '" alt="">' : '';
-        var jogo1 = 'Última escalação: vs ' + muEsc(t1.adversario || '?') + ' — ' + muEsc(t1.data || 'data desconhecida');
-        var jogo2 = 'Última escalação: vs ' + muEsc(t2.adversario || '?') + ' — ' + muEsc(t2.data || 'data desconhecida');
+        var jogo1 = 'Última escalação contra ' + muEsc(t1.adversario || '?') + (t1.data ? ', em ' + muEsc(t1.data) : '');
+        var jogo2 = 'Última escalação contra ' + muEsc(t2.adversario || '?') + (t2.data ? ', em ' + muEsc(t2.data) : '');
 
         cont.innerHTML =
             '<div class="mu-header">' +
@@ -337,7 +339,7 @@
                 '</div>' +
                 muBancoHtml(2, t2.nome, t2.elenco) +
             '</div>' +
-            '<p class="mu-dica">Arraste um jogador para qualquer ponto do campo, solte sobre um companheiro para trocar as posições, arraste alguém do elenco sobre um titular para substituí-lo ou sobre uma área vazia para incluí-lo no campo (até 11 por time). O × no jogador o devolve ao elenco. O botão + do elenco cria um jogador avulso (ex.: garoto da base ainda fora da API)' + (muBuscaUrl ? '; a busca abaixo dele traz qualquer jogador cadastrado, de qualquer time (ex.: um convocado que não jogou a última)' : '') + '. ' + muEsc((opts && opts.dica) || 'Simulação de pré-jogo — nada é salvo.') + '</p>';
+            '<p class="mu-dica">Arraste um jogador para qualquer ponto do campo, solte sobre um companheiro para trocar as posições, arraste alguém do elenco sobre um titular para substituí-lo ou sobre uma área vazia para incluí-lo no campo (até 11 por time). O × no jogador o devolve ao elenco. O botão + do elenco cria um jogador avulso (ex.: garoto da base ainda fora da API)' + (muBuscaUrl ? '; a busca abaixo dele traz qualquer jogador cadastrado, de qualquer time (ex.: um convocado que não jogou a última)' : '') + '. ' + muEsc((opts && opts.dica) || 'É só uma simulação de pré-jogo, nada é salvo.') + '</p>';
 
         // Ângulo e perspectiva saem daqui para o CSS: assim o JS que projeta o
         // cursor e o CSS que inclina o gramado não têm como divergir.
@@ -416,7 +418,7 @@
         return '<div id="muBancoBox' + time + '" class="mu-banco">' +
             '<div class="mu-banco-header">' +
                 '<button type="button" class="mu-banco-toggle" title="Recolher/expandir o elenco" onclick="muToggleBanco(' + time + ')">' + (time === 1 ? '‹' : '›') + '</button>' +
-                '<span class="mu-banco-nome-time">' + muEsc(nome) + ' — elenco</span>' +
+                '<span class="mu-banco-nome-time">' + muEsc(nome) + '</span>' +
                 (muCores ? '<input type="color" class="mu-banco-cor" value="' + MU_COR_PADRAO[time] + '"' +
                     ' title="Cor da borda dos jogadores deste time"' +
                     ' oninput="muSetCorTime(' + time + ', this.value)">' : '') +
@@ -741,6 +743,8 @@
     // id, foto e posição de verdade. Só existe quando muRender recebe
     // opts.buscaJogador (hoje /creators/escalacao).
     let muBuscaUrl = null;
+    let muFichaUrl = null;     // ficha do ℹ do escolhido (opts.fichaJogador)
+    let muTimeIds = {};        // time (1/2) -> id do time, para o escopo da ficha
     let muBuscaTimer = {};
     let muBuscaSeq = {};       // descarta resposta atrasada de uma busca antiga
     let muBuscaAchados = {};   // time -> resultados da última busca
@@ -791,7 +795,19 @@
         if (limpar && input) input.value = '';
     }
 
-    function muEscolherBusca(time, i) {
+    // O pacote do ℹ que veio com o Match Up só cobre escalação e elenco dos dois
+    // times; o jogador buscado precisa da ficha dele, pedida à parte. Falhou ou
+    // não tem ficha: entra sem ℹ, como antes.
+    async function muCarregarFichaBusca(time, jogadorId) {
+        if (!muFichaUrl || !window.JogadorTooltip || JogadorTooltip.dados(jogadorId) || !muTimeIds[time]) return;
+        try {
+            const resp = await fetch(muFichaUrl + (muFichaUrl.includes('?') ? '&' : '?') +
+                'id=' + encodeURIComponent(jogadorId) + '&time=' + encodeURIComponent(muTimeIds[time]));
+            if (resp.ok) JogadorTooltip.acrescentar(await resp.json());
+        } catch (e) { }
+    }
+
+    async function muEscolherBusca(time, i) {
         const j = (muBuscaAchados[time] || [])[i];
         if (!j) return;
         muFecharBusca(time, true);
@@ -803,6 +819,12 @@
         const existente = banco.querySelector(sel) ||
             Array.from(campo.querySelectorAll('.mu-slot' + sel)).find(s => s.id.startsWith('mu-slot-' + time + '-'));
         if (existente) { muPiscar(existente); return; }
+
+        // Antes de criar o item: quando ele for arrastado ao campo, o slot já
+        // encontra a ficha e desenha o ℹ.
+        await muCarregarFichaBusca(time, j.id);
+        if (!document.getElementById('muBanco' + time)) return; // campo remontado no meio
+        if (document.getElementById('muBanco' + time).querySelector(sel)) return; // clique duplo
 
         muCriarItemBanco(time, { jogadorid: j.id, numero: j.numero, nome: j.nome, sigla: j.sigla, foto: j.foto });
         muPiscar(banco.firstElementChild);

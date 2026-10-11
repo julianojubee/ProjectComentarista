@@ -116,9 +116,12 @@ namespace ControleFutebolWeb.Helpers.Campeonatos
         /// <paramref name="terceiroLugar"/>: cria também o jogo de 3º lugar, na rodada
         /// da final, com as vagas em aberto para os perdedores das semifinais. Precisa
         /// de 4 participantes ou mais — com 3, quem perde a única semifinal já é o 3º.
+        ///
+        /// <paramref name="finalJogoUnico"/>: com ida e volta, a final (e o 3º lugar)
+        /// sai com uma partida só, como a da Libertadores. Sem ida e volta não muda nada.
         /// </summary>
         public static List<PartidaCampeonato> MataMata(IReadOnlyList<int> participantesPorForca, bool idaEVolta, int rodadaInicial,
-            bool terceiroLugar = false)
+            bool terceiroLugar = false, bool finalJogoUnico = false)
         {
             var partidas = new List<PartidaCampeonato>();
             var n = participantesPorForca.Count;
@@ -140,6 +143,7 @@ namespace ControleFutebolWeb.Helpers.Campeonatos
                 var confrontos = vagas.Count / 2;
                 var nome = NomeEtapa(confrontos);
                 var proximas = new List<int?>();
+                var comVolta = idaEVolta && !(confrontos == 1 && finalJogoUnico);
 
                 for (var c = 1; c <= confrontos; c++)
                 {
@@ -155,18 +159,18 @@ namespace ControleFutebolWeb.Helpers.Campeonatos
                     }
 
                     partidas.Add(Nova(rodada, a, b, nome, c));
-                    if (idaEVolta) partidas.Add(Nova(rodada + 1, b, a, nome, c));
+                    if (comVolta) partidas.Add(Nova(rodada + 1, b, a, nome, c));
                     proximas.Add(null);
                 }
 
                 if (confrontos == 1 && terceiroLugar && n >= 4)
                 {
                     partidas.Add(Nova(rodada, null, null, NomeTerceiroLugar, 1));
-                    if (idaEVolta) partidas.Add(Nova(rodada + 1, null, null, NomeTerceiroLugar, 1));
+                    if (comVolta) partidas.Add(Nova(rodada + 1, null, null, NomeTerceiroLugar, 1));
                 }
 
                 vagas = proximas;
-                rodada += idaEVolta ? 2 : 1;
+                rodada += comVolta ? 2 : 1;
                 primeiraEtapa = false;
             }
 

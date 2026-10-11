@@ -224,7 +224,8 @@ namespace ControleFutebolWeb.Controllers
                 _context, jogos.Select(j => j.Id),
                 golsEstat.Select(g => g.JogadorId).Concat(cartoesEstat.Select(c => c.JogadorId))).ToListAsync();
 
-            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(jogos, golsEstat, cartoesEstat, escalacoesEstat);
+            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(jogos, golsEstat, cartoesEstat, escalacoesEstat,
+                DesarmesPorTimeHelper.Carregar(_context, jogos));
 
             return View(tabela);
         }

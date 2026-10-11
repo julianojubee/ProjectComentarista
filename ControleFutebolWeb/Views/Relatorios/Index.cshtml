@@ -1,6 +1,7 @@
-﻿@* ControleFutebolWeb/Views/Relatorios/Index.cshtml *@
+@* ControleFutebolWeb/Views/Relatorios/Index.cshtml *@
 @model ControleFutebolWeb.Models.ViewModels.RelatoriosViewModel
 @using ControleFutebolWeb.Helpers
+@using ControleFutebolWeb.Models.ViewModels
 @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
 @{
     ViewData["Title"] = "Relatórios";
@@ -19,339 +20,427 @@
     // Percentual em % para width de CSS: sempre com ponto decimal. Com a cultura
     // pt-BR do servidor, @w% renderizava "45,3" — CSS inválido (barra some).
     string Coord(double v) => v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+    static readonly System.Globalization.CultureInfo PtBR = new("pt-BR");
+    string Milhar(int n) => n.ToString("N0", PtBR);
+    string Dec(double v, string formato = "0.#") => v.ToString(formato, PtBR);
+    string Img(string? url) => Url.Action("Imagem", "MediaProxy", new { url })!;
+    string Iniciais(string nome) => nome.Length >= 2 ? nome.Substring(0, 2).ToUpper() : "?";
+    string Plural(int n, string um, string varios) => n == 1 ? $"1 {um}" : $"{Milhar(n)} {varios}";
 }
 
+@{
+    var baseAtual = Model.BaseFiltro switch
+    {
+        BaseEstatistica.Total => "total",
+        BaseEstatistica.Por90 => "90",
+        _ => "jogo"
+    };
+    var mandoAtual = Model.MandoFiltro switch
+    {
+        MandoJogador.Casa => "casa",
+        MandoJogador.Fora => "fora",
+        _ => "todos"
+    };
+    // Ajustes que só mexem nos rankings individuais ficam recolhidos; o número
+    // no resumo avisa quando algum está fora do padrão.
+    int ajustesAtivos = (Model.MinJogos > 1 ? 1 : 0) + (baseAtual != "jogo" ? 1 : 0) + (mandoAtual != "todos" ? 1 : 0);
+    bool temFiltro = Model.CompeticaoIdsFiltro.Any() || Model.TimeIdsFiltro.Any() || Model.IncluirNaoAnalisados || ajustesAtivos > 0;
+
+    // Resumo do recorte, em texto corrido, para o cabeçalho
+    var compsSel = Model.Competicoes.Where(c => Model.CompeticaoIdsFiltro.Contains(c.Id)).Select(c => c.Nome).ToList();
+    var timesSel = Model.Times.Where(t => Model.TimeIdsFiltro.Contains(t.Id)).Select(t => t.Nome).ToList();
+    string Lista(List<string> nomes, string todos, string plural) =>
+        nomes.Count == 0 ? todos : nomes.Count <= 2 ? string.Join(" e ", nomes) : $"{nomes.Count} {plural}";
+    var partesResumo = new List<string>();
+    if (Model.TemporadaFiltro.HasValue) partesResumo.Add($"Temporada {Model.TemporadaFiltro}");
+    partesResumo.Add(Lista(compsSel, "todas as competições", "competições"));
+    if (timesSel.Any()) partesResumo.Add(Lista(timesSel, "", "times"));
+    partesResumo.Add(Model.IncluirNaoAnalisados ? "todos os jogos com placar" : "só jogos analisados");
+    var resumo = string.Join(", ", partesResumo);
+    resumo = char.ToUpper(resumo[0]) + resumo[1..];
+
+    // Gols por jogo conta também os gols contra (são gols do placar)
+    var golsPlacar = Model.TotalGols + Model.TotalGolsContra;
+
+    // Atalho do estado vazio: mesma URL, ligando "Incluir jogos não analisados"
+    var qsAtual = Context.Request.QueryString.HasValue ? Context.Request.QueryString.Value + "&" : "?";
+    var urlComNaoAnalisados = Context.Request.Path + qsAtual + "incluirNaoAnalisados=true";
+
+    // ── Peças de lista reaproveitadas por todos os cards de ranking ──
+    void Cab(string titulo, string? sub)
+    {
+        <header class="rpt-card-header">
+            <div>
+                <h3 class="rpt-card-title">@titulo</h3>
+                @if (!string.IsNullOrEmpty(sub)) { <p class="rpt-card-sub">@sub</p> }
+            </div>
+        </header>
+    }
+
+    void Vazio(string msg)
+    {
+        <p class="rpt-vazio">@msg</p>
+    }
+
+    void Avatar(ControleFutebolWeb.Models.Jogador j)
+    {
+        <span class="rpt-avatar">
+            @if (!string.IsNullOrEmpty(j.FotoUrl))
+            {
+                <img src="@Img(j.FotoUrl)" alt="" loading="lazy" />
+            }
+            else
+            {
+                <text>@Iniciais(j.Nome)</text>
+            }
+        </span>
+    }
+
+    // Linha de jogador: posição, foto, nome com time, barra relativa ao líder e valor.
+    // pct null = sem barra (rankings em que "mais" não é melhor nem pior).
+    void LinhaJogador(int i, ControleFutebolWeb.Models.Jogador j, string valor, string? unidade, double? pct, string? cor = null)
+    {
+        var te = TimeExibicao(j);
+        var sigla = PosicaoJogadorHelper.Sigla(j.Posicao);
+        <li class="rpt-row @(i == 0 ? "lider" : "")">
+            <span class="rpt-rank">@(i + 1)</span>
+            @{ Avatar(j); }
+            <span class="rpt-name">
+                <a href="@Url.Action("Estatisticas", "Jogadores", new { id = j.Id })">@j.Nome</a>
+                <small>
+                    @if (!string.IsNullOrEmpty(sigla)) { <span class="rpt-sigla">@sigla</span> }
+                    @if (!string.IsNullOrEmpty(te.Escudo)) { <img src="@Img(te.Escudo)" alt="" loading="lazy" /> }
+                    @te.Nome
+                </small>
+            </span>
+            @if (pct.HasValue)
+            {
+                <span class="rpt-bar" aria-hidden="true"><i style="width:@Coord(pct.Value)%"></i></span>
+            }
+            <span class="rpt-val" style="@(cor != null ? "color:" + cor : null)">@(valor)@if (!string.IsNullOrEmpty(unidade)) {<small>@unidade</small>}</span>
+        </li>
+    }
+
+    void LinhaTime(int i, ControleFutebolWeb.Models.Time t, string valor, string? unidade, double? pct, string sub)
+    {
+        <li class="rpt-row @(i == 0 ? "lider" : "")">
+            <span class="rpt-rank">@(i + 1)</span>
+            <span class="rpt-escudo">
+                @if (!string.IsNullOrEmpty(t.EscudoUrl)) { <img src="@Img(t.EscudoUrl)" alt="" loading="lazy" /> }
+            </span>
+            <span class="rpt-name">
+                <a href="@Url.Action("Details", "Times", new { id = t.Id })">@t.Nome</a>
+                <small>@sub</small>
+            </span>
+            @if (pct.HasValue)
+            {
+                <span class="rpt-bar" aria-hidden="true"><i style="width:@Coord(pct.Value)%"></i></span>
+            }
+            <span class="rpt-val">@(valor)@if (!string.IsNullOrEmpty(unidade)) {<small>@unidade</small>}</span>
+        </li>
+    }
+
+    // Card de ranking de jogadores com valor inteiro (gols, cartões, presenças...)
+    void CardJogadores(string titulo, string sub, List<JogadorEstatistica> lista, string um, string varios, string vazio, bool barra = true)
+    {
+        var max = lista.Any() ? Math.Max(1, lista.Max(x => x.Valor)) : 1;
+        <section class="rpt-card">
+            @{ Cab(titulo, sub); }
+            @if (!lista.Any())
+            {
+                Vazio(vazio);
+            }
+            else
+            {
+                <ol class="rpt-lista">
+                    @for (int i = 0; i < lista.Count; i++)
+                    {
+                        var x = lista[i];
+                        LinhaJogador(i, x.Jogador, Milhar(x.Valor), x.Valor == 1 ? um : varios, barra ? (double)x.Valor / max * 100 : null);
+                    }
+                </ol>
+            }
+        </section>
+    }
+
+    void CardNotas(string titulo, List<RankingNotaItem> lista)
+    {
+        <section class="rpt-card">
+            @{ Cab(titulo, "Os 10 com melhor nota média"); }
+            <ol class="rpt-lista">
+                @for (int i = 0; i < lista.Count; i++)
+                {
+                    var item = lista[i];
+                    LinhaJogador(i, item.Jogador, Dec(item.NotaFinal, "0.0"), Plural(item.Partidas, "jogo", "jogos"), null, item.NotaColor);
+                }
+            </ol>
+        </section>
+    }
+}
+
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/estatisticas-jogadores.css" asp-append-version="true" />
 <style>
-    @@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap');
+    .rpt-root, .rpt-root *, .rpt-root *::before, .rpt-root *::after { box-sizing: border-box; }
 
-    /* ── Reset ─────────────────────────────────────────────────────────── */
-    .rpt-root * { box-sizing: border-box; }
-
-    /* O tom âmbar é a identidade desta tela (Central de Dados); o resto das
-       cores vem dos tokens globais, então a página acompanha o toggle
-       claro/escuro do site. */
     .rpt-root {
         margin: 0 -12px;
         background: var(--p-0);
         border-radius: 14px;
-        overflow: hidden;
         color: var(--text);
         font-family: 'Barlow', Arial, sans-serif;
+        --hover-warm: rgba(212, 165, 32, .07);
+    }
+    .rpt-root a { color: inherit; text-decoration: none; }
+    .rpt-root :is(a, button, input, select, summary, [tabindex]):focus-visible { outline: 2px solid #d4a520; outline-offset: 2px; }
 
-        --hover-warm: rgba(245, 158, 11, .08);
-        --amber-text: var(--warn);
+    /* ── Cabeçalho compacto (cores fixas: sempre escuro) ── */
+    .rl-cab {
+        padding: 1.5rem 2.5rem;
+        background: linear-gradient(135deg, #0a1628 0%, #0f2040 55%, #0a1628 100%);
+        border-left: 4px solid #d4a520; border-radius: 14px 14px 0 0;
+        display: flex; align-items: center; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap;
     }
+    .rl-cab h1 {
+        font-family: 'Barlow Condensed', Arial, sans-serif;
+        font-size: 2.4rem; font-weight: 800; color: #f2f5fa; margin: 0; line-height: 1;
+    }
+    .rl-cab p { margin: 6px 0 0; font-size: .92rem; color: rgba(255,255,255,.72); }
+    .rpt-root .rl-cab-btn {
+        display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 8px;
+        border: 1px solid rgba(255,255,255,.25); color: #e8edf5; font-size: .88rem; font-weight: 600; white-space: nowrap;
+    }
+    .rpt-root .rl-cab-btn:hover { border-color: #d4a520; color: #f3d27a; }
 
-    /* ── Hero ──────────────────────────────────────────────────────────── */
-    .rpt-hero {
-        position: relative;
-        background: linear-gradient(135deg, #0a1628 0%, #111e35 55%, #0a1628 100%);
-        padding: 44px 2.5rem 38px;
-        overflow: hidden;
+    /* ── Filtros ── */
+    .rl-filtros { background: var(--p-1); border-bottom: 1px solid var(--line); padding: 14px 2.5rem; }
+    .rl-filtros form { display: flex; align-items: flex-end; gap: 10px 14px; flex-wrap: wrap; margin: 0; }
+    .rl-campo { display: flex; flex-direction: column; gap: 4px; }
+    .rl-campo > .rl-rot { font-size: .78rem; font-weight: 600; color: var(--text-muted); }
+    .rl-filtros select, .rl-filtros input[type=number] {
+        height: 38px; border: 1px solid var(--line-strong); border-radius: 8px; padding: 0 10px;
+        font-family: inherit; font-size: .86rem; color: var(--text); background: var(--p-2);
     }
-    .rpt-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #d4a520; }
-    .rpt-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(to top, var(--page-bg), transparent); pointer-events: none; }
-    .rpt-hero::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        opacity: .07;
-        background-image:
-            radial-gradient(circle at 50% 50%, transparent 28%, #fff 28.5%, #fff 29.2%, transparent 29.8%),
-            linear-gradient(90deg, transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%),
-            linear-gradient(transparent 49.5%, #fff 49.5%, #fff 50.5%, transparent 50.5%);
+    .rl-filtros select:focus, .rl-filtros input:focus { border-color: #d4a520; outline: none; }
+    .rl-filtros input[type=number] { width: 72px; }
+    .rl-check {
+        display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px;
+        border: 1px solid var(--line-strong); border-radius: 8px; background: var(--p-2);
+        font-size: .84rem; font-weight: 600; color: var(--text-2); cursor: pointer; user-select: none;
     }
-    .rpt-hero-content { position: relative; z-index: 1; text-align: center; }
-    .rpt-hero-badge {
-        display: inline-block;
-        background: rgba(245,158,11,.15);
-        color: var(--warn);
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
-        padding: 4px 14px; border-radius: 999px;
-        border: 1px solid rgba(245,158,11,.3);
-        margin-bottom: .8rem;
+    .rl-check:hover { border-color: #d4a520; }
+    .rl-check input { accent-color: #d4a520; width: 15px; height: 15px; margin: 0; }
+    .rl-acoes { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+    .rl-aplicar {
+        height: 38px; padding: 0 18px; border-radius: 8px; border: none; cursor: pointer;
+        background: #d4a520; color: #141414; font-family: inherit; font-size: .88rem; font-weight: 700;
     }
-    .rpt-hero h1 {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 2.4rem; font-weight: 900; color: #fff;
-        letter-spacing: -.3px; margin: 0 0 .4rem;
-    }
-    .rpt-hero p { color: rgba(255,255,255,.55); margin: 0; font-size: .9rem; }
+    .rl-aplicar:hover { background: #e2b532; }
+    .rpt-root .rl-limpar { font-size: .84rem; font-weight: 600; color: var(--text-muted); padding: 0 4px; }
+    .rpt-root .rl-limpar:hover { color: var(--text-strong); text-decoration: underline; }
 
-    /* ── Filtro ─────────────────────────────────────────────────────────── */
-    .rpt-filter {
-        display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-        margin-bottom: 1.4rem;
-        padding: .85rem 1rem;
-        background: var(--surface); border: .5px solid var(--border); border-radius: 12px;
+    /* "Mais filtros": ajustes dos rankings individuais */
+    .rl-mais { position: relative; }
+    .rl-mais > summary {
+        list-style: none; display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 12px;
+        border: 1px solid var(--line-strong); border-radius: 8px; background: var(--p-2);
+        font-size: .84rem; font-weight: 600; color: var(--text-2); cursor: pointer;
     }
-    .rpt-filter label { font-size: 12px; font-weight: 600; color: var(--text-2); }
-    .rpt-filter select {
-        border: 1px solid var(--border-strong); border-radius: 8px;
-        padding: 7px 12px; font-size: 13px; color: var(--text);
-        background: var(--input-bg);
+    .rl-mais > summary::-webkit-details-marker { display: none; }
+    .rl-mais > summary:hover, .rl-mais[open] > summary { border-color: #d4a520; }
+    .rl-mais-n { background: #d4a520; color: #141414; border-radius: 999px; font-size: .72rem; font-weight: 800; padding: 1px 7px; }
+    .rl-mais-painel {
+        position: absolute; left: 0; top: calc(100% + 6px); z-index: 120; width: min(360px, calc(100vw - 32px));
+        display: flex; flex-direction: column; gap: 14px; padding: 14px;
+        background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: 0 12px 28px rgba(0,0,0,.22);
     }
-    .rpt-filter button {
-        padding: 8px 16px; border-radius: 8px;
-        background: #f59e0b; color: #fff; border: none;
-        font-size: 13px; font-weight: 600; cursor: pointer;
+    .rl-mais-painel p { margin: 0; font-size: .78rem; color: var(--text-dim); }
+    .rl-seg { border: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+    .rl-seg legend { font-size: .8rem; font-weight: 700; color: var(--text-strong); margin: 0; float: none; padding: 0; }
+    .rl-seg-opcoes { display: flex; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; }
+    .rl-seg-opcoes label { flex: 1; margin: 0; }
+    .rl-seg-opcoes input { position: absolute; opacity: 0; pointer-events: none; }
+    .rl-seg-opcoes span {
+        display: block; text-align: center; padding: 7px 6px; font-size: .82rem; font-weight: 600;
+        color: var(--text-muted); cursor: pointer; border-left: 1px solid var(--line-strong);
     }
-    .rpt-filter button:hover { background: #d97706; }
-    .rpt-filter .rpt-clear {
-        background: var(--surface-3); color: var(--text-2); border: .5px solid var(--border);
-        font-weight: 500;
-    }
-    .rpt-filter .rpt-clear:hover { background: var(--border); }
-    .rpt-check-wrap {
-        display: flex; align-items: center; gap: 7px;
-        padding: 6px 12px; border-radius: 8px;
-        border: 1px solid var(--border); background: var(--surface-2);
-        cursor: pointer; user-select: none;
-        transition: border-color .15s, background .15s;
-    }
-    .rpt-check-wrap:hover { border-color: #f59e0b; background: var(--hover-warm); }
-    .rpt-check-wrap input[type=checkbox] { accent-color: #f59e0b; width: 15px; height: 15px; cursor: pointer; }
-    .rpt-check-wrap span { font-size: 12px; font-weight: 600; color: var(--text-2); }
-    .rpt-num-wrap {
-        display: flex; align-items: center; gap: 7px;
-        padding: 6px 12px; border-radius: 8px;
-        border: 1px solid var(--border); background: var(--surface-2);
-    }
-    .rpt-num-wrap:focus-within { border-color: #f59e0b; background: var(--hover-warm); }
-    .rpt-num-wrap span { font-size: 12px; font-weight: 600; color: var(--text-2); white-space: nowrap; }
-    .rpt-num-wrap input[type=number] {
-        width: 54px; border: 1px solid var(--border-strong); border-radius: 6px;
-        padding: 4px 6px; font-size: 13px; color: var(--text); background: var(--input-bg);
-    }
+    .rl-seg-opcoes label:first-child span { border-left: none; }
+    .rl-seg-opcoes input:checked + span { background: var(--text-strong); color: var(--p-0); }
+    .rl-seg-opcoes input:focus-visible + span { outline: 2px solid #d4a520; outline-offset: -2px; }
+    .rl-seg small { font-size: .74rem; color: var(--text-dim); }
+    .rl-linha-num { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .rl-linha-num label { font-size: .8rem; font-weight: 700; color: var(--text-strong); margin: 0; }
 
-    /* ── Toolbar (alertas, scout, filtros) ───────────────────────────────── */
-    .rpt-toolbar { padding: 20px 2.5rem 0; }
-    .rpt-toolbar .alert-success {
-        background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); color: var(--ok);
+    /* Multi-select de competições/times */
+    .ms-wrap { position: relative; min-width: 220px; }
+    .ms-box {
+        display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
+        min-height: 38px; padding: 4px 30px 4px 8px; cursor: pointer;
+        border: 1px solid var(--line-strong); border-radius: 8px; background: var(--p-2); font-size: .86rem;
     }
-    .rpt-toolbar .alert-success .btn-close { filter: invert(1); }
-
-    /* ── Totalizadores ───────────────────────────────────────────────────── */
-    .rpt-totals-bar { background: var(--p-0); border-bottom: 1px solid var(--line-soft); padding: 0 2.5rem; }
-    .rpt-totals {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        max-width: 1544px; margin: 0 auto;
+    .ms-box:hover { border-color: #d4a520; }
+    .ms-box::after {
+        content: ""; position: absolute; right: 12px; top: 50%; width: 7px; height: 7px; margin-top: -5px;
+        border-right: 1.5px solid var(--text-muted); border-bottom: 1.5px solid var(--text-muted); transform: rotate(45deg);
+        pointer-events: none;
     }
-    .rpt-total-card {
-        background: none; border: none; border-right: 1px solid var(--line-soft);
-        border-radius: 0; padding: 16px 12px; text-align: center;
-    }
-    .rpt-total-num {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 1.7rem; font-weight: 800; color: var(--warn);
-        line-height: 1; margin-bottom: 3px;
-    }
-    .rpt-total-label { font-size: .6rem; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }
-
-    /* ── Tabs ────────────────────────────────────────────────────────────── */
-    .rpt-tabs-bar {
-        background: var(--p-0); border-bottom: 1px solid var(--line-soft); padding: 0 2.5rem;
-        position: sticky; top: 62px; z-index: 50;
-    }
-    .rpt-tabs {
-        display: flex; gap: 0; overflow-x: auto; max-width: 1544px; margin: 0 auto;
-    }
-    .rpt-tab {
-        padding: 14px 18px; border-radius: 0;
-        border: none; background: transparent; border-bottom: 2px solid transparent;
-        font-size: .8rem; font-weight: 600; color: var(--text-muted);
-        cursor: pointer; transition: color .15s; user-select: none; white-space: nowrap;
-    }
-    .rpt-tab:hover { color: var(--amber-text); }
-    .rpt-tab.active {
-        background: transparent; color: var(--amber-text); font-weight: 700;
-        border-bottom-color: var(--amber-text); box-shadow: none;
-    }
-    /* Aba desabilitada (ex.: Match Up sem exatamente 2 times no filtro) — sem
-       onclick no elemento, só o estilo apagado; o title continua funcionando
-       porque não usamos pointer-events:none. */
-    .rpt-tab.disabled { opacity: .35; cursor: not-allowed; }
-    .rpt-tab.disabled:hover { color: var(--text-muted); }
-
-    /* ── Conteúdo ────────────────────────────────────────────────────────── */
-    .rpt-main { padding: 24px 2.5rem 48px; max-width: 1544px; margin: 0 auto; }
-
-    /* ── Seções ──────────────────────────────────────────────────────────── */
-    .rpt-section { display: none; }
-    .rpt-section.visible { display: block; }
-
-    /* ── Grid de cards ───────────────────────────────────────────────────── */
-    .rpt-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-        gap: 14px;
-    }
-
-    /* ── Card ────────────────────────────────────────────────────────────── */
-    .rpt-card {
-        background: var(--surface); border: .5px solid var(--border);
-        border-radius: 14px; overflow: hidden;
-    }
-    .rpt-card-header {
-        padding: 12px 16px 10px;
-        border-bottom: .5px solid var(--border-subtle);
-        display: flex; align-items: center; gap: 8px;
-    }
-    .rpt-card-icon {
-        width: 28px; height: 28px; border-radius: 8px;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 14px; flex-shrink: 0;
-    }
-    .rpt-card-title {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 1rem; font-weight: 700; color: var(--text);
-        text-transform: uppercase; letter-spacing: .5px;
-        margin: 0;
-    }
-    .rpt-card-sub { font-size: 11px; color: var(--text-muted); margin: 0; }
-
-    /* ── Linha de ranking ────────────────────────────────────────────────── */
-    .rpt-row {
-        display: flex; align-items: center; gap: 10px;
-        padding: 9px 16px; border-bottom: .5px solid var(--border-subtle);
-        font-size: 13px; transition: background .12s;
-    }
-    .rpt-row:last-child { border-bottom: none; }
-    .rpt-row:hover { background: var(--hover-warm); }
-
-    .rpt-rank {
-        width: 22px; font-size: 11px; font-weight: 700;
-        color: var(--text-muted); text-align: center; flex-shrink: 0;
-    }
-    .rpt-rank.gold   { color: var(--warn); }
-    .rpt-rank.silver { color: var(--text-muted); }
-    .rpt-rank.bronze { color: #b45309; }
-
-    .rpt-avatar {
-        width: 32px; height: 32px; border-radius: 50%;
-        background: var(--surface-3); border: .5px solid var(--border);
-        display: flex; align-items: center; justify-content: center;
-        font-size: 10px; font-weight: 700; color: var(--text-muted);
-        overflow: hidden; flex-shrink: 0;
-    }
-    .rpt-avatar img { width: 100%; height: 100%; object-fit: cover; }
-
-    .rpt-name { flex: 1; font-weight: 500; color: var(--text); min-width: 0; }
-    .rpt-name small { display: block; font-size: 11px; color: var(--text-muted); font-weight: 400; }
-
-    .rpt-badge-value {
-        padding: 3px 10px; border-radius: 6px;
-        font-size: 12px; font-weight: 700;
-        flex-shrink: 0;
-    }
-
-    /* ── Nota badge ──────────────────────────────────────────────────────── */
-    .nota-circle {
-        width: 44px; height: 44px; border-radius: 50%;
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        font-family: 'Barlow Condensed', sans-serif;
-        flex-shrink: 0;
-        border: 2px solid currentColor;
-    }
-    .nota-num  { font-size: 15px; font-weight: 800; line-height: 1; }
-    .nota-lbl  { font-size: 8px; font-weight: 600; opacity: .7; letter-spacing: .3px; }
-
-    /* ── Barra de progresso ──────────────────────────────────────────────── */
-    .rpt-bar-wrap { flex: 1; }
-    .rpt-bar-bg { background: var(--surface-3); border-radius: 4px; height: 6px; overflow: hidden; }
-    .rpt-bar-fill { height: 100%; border-radius: 4px; transition: width .4s; }
-
-    /* ── Nota breakdown row ───────────────────────────────────────────────── */
-    .nota-meta {
-        display: flex; gap: 12px; flex-wrap: wrap;
-        font-size: 10px; color: var(--text-muted); margin-top: 2px;
-    }
-    .nota-meta span { display: flex; align-items: center; gap: 3px; }
-
-    /* ── Time row ─────────────────────────────────────────────────────────── */
-    .rpt-team-badge {
-        width: 26px; height: 26px; border-radius: 50%;
-        border: .5px solid var(--border); background: var(--surface-2);
-        object-fit: contain; flex-shrink: 0;
-    }
-
-    .rpt-chip {
+    .ms-placeholder { color: var(--text-muted); }
+    .ms-chip {
         display: inline-flex; align-items: center; gap: 4px;
-        padding: 2px 8px; border-radius: 999px;
-        font-size: 11px; font-weight: 600;
+        background: rgba(212,165,32,.12); color: var(--gold-ink); border: 1px solid rgba(212,165,32,.35);
+        border-radius: 6px; padding: 1px 6px; font-size: .8rem; font-weight: 600;
     }
+    .ms-chip-x { cursor: pointer; font-weight: 700; line-height: 1; opacity: .7; }
+    .ms-chip-x:hover { opacity: 1; }
+    .ms-panel {
+        position: absolute; top: calc(100% + 4px); left: 0; min-width: 100%; width: max-content; max-width: min(360px, calc(100vw - 32px));
+        z-index: 120; background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 10px;
+        box-shadow: 0 12px 28px rgba(0,0,0,.22); max-height: 300px; overflow-y: auto; display: none; padding: 4px;
+    }
+    .ms-panel.open { display: block; }
+    .ms-opt {
+        display: flex; align-items: center; gap: 8px; padding: 7px 10px; margin: 0;
+        border-radius: 6px; cursor: pointer; font-size: .86rem; color: var(--text);
+    }
+    .ms-opt:hover { background: var(--p-4); }
+    .ms-opt input { cursor: pointer; accent-color: #d4a520; }
+    .ms-search {
+        width: 100%; padding: 7px 10px; margin-bottom: 4px;
+        border: 1px solid var(--line-strong); border-radius: 6px; font-size: .86rem; outline: none;
+        position: sticky; top: 0; background: var(--p-1); color: var(--text);
+    }
+    .ms-search:focus { border-color: #d4a520; }
 
-    /* ── Gols por rodada ─────────────────────────────────────────────────── */
-    .rodada-chart { padding: 14px 16px; }
-    .rodada-bars { display: flex; gap: 4px; align-items: flex-end; height: 100px; }
-    .rodada-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
-    .rodada-bar {
-        width: 100%; min-height: 4px; border-radius: 3px 3px 0 0;
-        background: linear-gradient(180deg, #f59e0b, #d97706);
-        transition: height .3s;
+    /* ── Totais do recorte ── */
+    .rl-totais {
+        display: flex; flex-wrap: wrap; gap: 6px 28px; padding: 16px 2.5rem; margin: 0;
+        border-bottom: 1px solid var(--line-soft); list-style: none;
     }
-    .rodada-bar-label { font-size: 9px; color: var(--text-muted); }
-    .rodada-bar-val   { font-size: 10px; font-weight: 700; color: var(--text-2); }
+    .rl-totais li { display: flex; align-items: baseline; gap: 6px; }
+    .rl-totais strong {
+        font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.7rem; font-weight: 800;
+        color: var(--text-strong); line-height: 1; font-variant-numeric: tabular-nums;
+    }
+    .rl-totais span { font-size: .86rem; color: var(--text-muted); }
 
-    /* ── Cards com seletor de métrica + paginação (Melhores/Recordes) ────── */
-    .rpt-picker-bar { padding: 10px 16px 4px; }
-    .rpt-picker-bar select {
-        background: var(--surface-2); color: var(--text);
-        border: .5px solid var(--border); border-radius: 8px;
-        padding: 6px 10px; font-size: 12px; font-weight: 600;
-        font-family: inherit; cursor: pointer; max-width: 100%;
+    .rl-aviso {
+        margin: 20px 2.5rem 0; padding: 14px 16px; border-radius: 12px;
+        border: 1px solid rgba(212,165,32,.4); background: rgba(212,165,32,.08);
+        display: flex; align-items: center; justify-content: space-between; gap: 10px 18px; flex-wrap: wrap;
     }
-    .rpt-picker-footer {
-        display: flex; align-items: center; justify-content: space-between;
-        gap: 10px; padding: 8px 16px;
-        border-top: .5px solid var(--border-subtle);
+    .rl-aviso strong { display: block; color: var(--text-strong); font-size: .95rem; }
+    .rl-aviso span { font-size: .86rem; color: var(--text-muted); }
+    .rpt-root .rl-aviso a {
+        padding: 8px 14px; border-radius: 8px; background: #d4a520; color: #141414; font-size: .86rem; font-weight: 700; white-space: nowrap;
     }
-    .rpt-picker-footer button {
-        width: 28px; height: 28px; border-radius: 50%;
-        background: var(--surface-2); color: var(--text-2);
-        border: .5px solid var(--border); cursor: pointer;
-        font-size: 14px; line-height: 1; display: flex;
-        align-items: center; justify-content: center;
+    .rl-alerta {
+        margin: 16px 2.5rem 0; padding: .8rem 1.1rem; border-radius: 10px; font-size: .88rem;
+        background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); color: var(--ok);
+        display: flex; justify-content: space-between; gap: 1rem;
     }
-    .rpt-picker-footer button:hover:not(:disabled) { color: var(--warn); border-color: #fbbf24; }
-    .rpt-picker-footer button:disabled { opacity: .35; cursor: default; }
-    .rpt-pg-label { flex: 1; text-align: center; font-size: 11px; color: var(--text-muted); }
+    .rl-alerta button { background: none; border: none; color: inherit; cursor: pointer; opacity: .7; }
 
-    .rpt-rec-jogo { display: flex; align-items: center; gap: 5px; }
-    .rpt-rec-jogo img { width: 14px; height: 14px; border-radius: 50%; object-fit: contain; }
-
-    /* ── Posição badge ───────────────────────────────────────────────────── */
-    .pos-badge {
-        font-size: 10px; font-weight: 700; padding: 2px 7px;
-        border-radius: 5px; text-transform: uppercase; letter-spacing: .3px;
+    /* ── Abas ── */
+    .rpt-tabs-bar {
+        background: var(--p-0); border-bottom: 1px solid var(--line); padding: 0 2.5rem;
+        position: sticky; top: 0; z-index: 50;
     }
-    .pos-GL { background: rgba(59,130,246,.15); color: var(--info); }
-    .pos-ZG { background: rgba(34,197,94,.15); color: var(--ok); }
-    .pos-MC { background: rgba(168,85,247,.15); color: var(--purple); }
-    .pos-AT { background: rgba(249,115,22,.15); color: var(--warn); }
-    .pos-xx { background: var(--surface-2); color: var(--text-muted); }
-
-    @@media (max-width: 600px) {
-        .rpt-grid { grid-template-columns: 1fr; }
-        .rpt-hero { padding: 1.6rem 1rem 1.4rem; }
-        .rpt-hero h1 { font-size: 1.7rem; }
-        .rpt-filter { flex-direction: column; align-items: stretch; }
-        .rpt-filter select,
-        .rpt-filter button { width: 100%; }
-        .rpt-totals { grid-template-columns: repeat(2, 1fr); }
-        .rpt-tabs { gap: 4px; }
-        .rpt-tab { padding: 6px 10px; font-size: 11px; }
-        .nota-circle { width: 36px; height: 36px; }
-        .nota-num { font-size: 13px; }
+    .rpt-tabs { display: flex; overflow-x: auto; scrollbar-width: none; max-width: 1500px; margin: 0 auto; }
+    .rpt-tabs::-webkit-scrollbar { display: none; }
+    .rpt-tab {
+        padding: 13px 14px; border: none; background: transparent; border-bottom: 2px solid transparent;
+        font-family: inherit; font-size: .9rem; font-weight: 600; color: var(--text-muted);
+        cursor: pointer; white-space: nowrap;
     }
+    .rpt-tab:hover { color: var(--text-strong); }
+    .rpt-tab[aria-selected="true"] { color: var(--gold-ink); border-bottom-color: #d4a520; font-weight: 700; }
+    .rpt-tab[aria-disabled="true"] { opacity: .45; cursor: help; }
+    .rpt-tab[aria-disabled="true"]:hover { color: var(--text-muted); }
+
+    /* ── Conteúdo ── */
+    .rpt-main { padding: 24px 2.5rem 56px; max-width: 1500px; margin: 0 auto; }
+    .rpt-section[hidden] { display: none; }
+    .rl-grupo { margin-bottom: 28px; }
+    .rl-grupo > h2 {
+        font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.35rem; font-weight: 700;
+        color: var(--text-strong); margin: 0 0 4px;
+    }
+    .rl-grupo > p { margin: 0 0 12px; font-size: .84rem; color: var(--text-dim); }
+    .rl-largo { grid-column: 1 / -1; }
+
+    /* Tabela do ranking geral de notas */
+    .rl-tabela { width: 100%; border-collapse: collapse; font-size: .88rem; }
+    .rl-tabela th {
+        padding: 8px 10px; font-size: .78rem; font-weight: 600; color: var(--text-dim);
+        text-align: center; border-bottom: 1px solid var(--line); white-space: nowrap;
+    }
+    .rl-rank th:nth-child(2) { text-align: left; }
+    .rl-tabela td { padding: 8px 10px; text-align: center; border-bottom: 1px solid var(--line-soft); font-variant-numeric: tabular-nums; }
+    .rl-tabela tr:last-child td { border-bottom: none; }
+    .rl-tabela tbody tr:hover { background: var(--hover-warm); }
+    .rl-rank td:first-child { width: 40px; color: var(--text-dim); font-weight: 700; }
+    .rl-rank tbody tr:first-child td:first-child { color: var(--gold-ink); }
+    .rl-tabela .rl-jog { text-align: left; }
+    .rl-jog-in { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .rl-jog-in .rpt-name a { font-weight: 600; }
+    .rl-nota { display: inline-flex; flex-direction: column; align-items: center; line-height: 1; }
+    .rl-nota b { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.3rem; font-weight: 800; }
+    .rl-nota small { font-size: .7rem; font-weight: 600; opacity: .85; margin-top: 2px; }
+    .rl-v { color: var(--ok); font-weight: 600; }
+    .rl-d { color: var(--bad); font-weight: 600; }
+    .rl-zero { color: var(--text-dimmer); }
+
+    /* Média por posição */
+    .rl-media { display: grid; grid-template-columns: 110px 1fr auto; align-items: center; gap: 4px 12px; padding: 12px 16px; }
+    .rl-media dt { font-size: .86rem; font-weight: 600; color: var(--text-2); }
+    .rl-media dd { margin: 0; }
+    .rl-media .rpt-bar { flex: none; width: 100%; }
+    .rl-media-val { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.1rem; font-weight: 800; color: var(--text-strong); text-align: right; }
+    .rl-media-val small { font-family: 'Barlow', Arial, sans-serif; font-size: .74rem; font-weight: 500; color: var(--text-dim); margin-left: 6px; }
+
+    /* ── Rodadas ── */
+    .rodada-chart { padding: 16px; overflow-x: auto; }
+    .rodada-bars { display: flex; gap: 4px; align-items: flex-end; height: 120px; min-width: max-content; }
+    .rodada-bar-col { flex: 1 0 22px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .rodada-bar { width: 100%; min-height: 4px; border-radius: 3px 3px 0 0; background: var(--text-dimmer); }
+    .rodada-bar-col.topo .rodada-bar { background: #d4a520; }
+    .rodada-bar-label { font-size: .68rem; color: var(--text-dim); }
+    .rodada-bar-val { font-size: .74rem; font-weight: 700; color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+    /* ── Competições ── */
+    .rl-comp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 14px; }
+    .rl-comp { background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+    .rl-comp h3 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.3rem; font-weight: 700; color: var(--text-strong); margin: 0; line-height: 1.1; }
+    .rl-comp-sub { font-size: .82rem; color: var(--text-dim); margin-top: 2px; }
+    .rl-comp-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 14px; margin: 0; }
+    .rl-comp-nums div { display: flex; flex-direction: column-reverse; }
+    .rl-comp-nums dt { font-size: .76rem; font-weight: 500; color: var(--text-dim); }
+    .rl-comp-nums dd { margin: 0; font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.45rem; font-weight: 800; color: var(--text-strong); line-height: 1.1; font-variant-numeric: tabular-nums; }
+    .rl-res-barra { display: flex; height: 10px; border-radius: 5px; overflow: hidden; gap: 2px; }
+    .rl-res-barra i { display: block; min-width: 4px; }
+    .rl-res-m { background: #d4a520; }
+    .rl-res-e { background: var(--text-dimmer); }
+    .rl-res-v { background: var(--text-muted); }
+    .rl-res-leg { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; font-size: .8rem; color: var(--text-muted); }
+    .rl-res-leg span { display: inline-flex; align-items: center; gap: 6px; }
+    .rl-res-leg i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+    .rl-res-leg b { color: var(--text-strong); font-weight: 700; }
+    .rl-dest { margin: 0; border-top: 1px solid var(--line-soft); }
+    .rl-dest > div { display: grid; grid-template-columns: 150px 1fr auto; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+    .rl-dest > div:last-child { border-bottom: none; padding-bottom: 0; }
+    .rl-dest dt { font-size: .82rem; font-weight: 500; color: var(--text-dim); }
+    .rl-dest dd { margin: 0; display: flex; align-items: center; gap: 7px; min-width: 0; font-weight: 600; color: var(--text-strong); font-size: .9rem; }
+    .rl-dest dd span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rl-dest dd img { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; }
+    .rl-dest .rl-dest-val { font-size: .82rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+    .rpt-root .rl-dest a:hover { color: var(--gold-ink); }
 
     /* ── Seleção: campinho vertical único (mesmo estilo do campo de
-       /Jogos/Analisar), com o jogador de melhor nota em cada posição. ──── */
+       /Jogos/Analisar), com o jogador de melhor nota em cada posição. ── */
     .sel-header { text-align: center; margin-bottom: 1rem; }
-    .sel-formacao-nome { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 900; color: var(--amber-text); }
-    .sel-formacao-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .sel-formacao-nome { font-family: 'Barlow Condensed', sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--text-strong); }
+    .sel-formacao-sub { font-size: .86rem; color: var(--text-dim); margin-top: 2px; }
     .sel-campo-wrap { max-width: 420px; margin: 0 auto; }
     .sel-campo {
         position: relative; width: 100%; aspect-ratio: 2 / 3;
@@ -370,37 +459,32 @@
         position: absolute; text-align: center; color: #fff; width: 70px;
         font-size: 11px; text-shadow: 1px 1px 2px #000; transform: translate(-50%,-50%);
     }
-    .sel-slot-sigla {
-        font-size: 9px; font-weight: 700; color: var(--amber-text);
-        text-shadow: 1px 1px 2px #000; display: block; margin-bottom: 1px;
-    }
-    .sel-slot-nota {
-        font-size: 10px; font-weight: 700; margin-top: 1px;
-    }
-    .player-circle-sel { background: #f59e0b; color: #111; }
+    .rpt-root .sel-slot a { color: #fff; }
+    .sel-slot-sigla { font-size: 9px; font-weight: 700; color: #f3d27a; text-shadow: 1px 1px 2px #000; display: block; margin-bottom: 1px; }
+    .sel-slot-nota { font-size: 10px; font-weight: 700; margin-top: 1px; }
+    .player-circle-sel { background: #d4a520; color: #111; }
     .sel-slot.sel-vazio .player-circle { background: rgba(255,255,255,.08); border: 2px dashed rgba(255,255,255,.3); }
-    .sel-slot.sel-vazio .player-name { color: var(--text-muted); }
-    .sel-lista { max-width: 640px; margin: 1.5rem auto 0; }
+    .sel-slot.sel-vazio .player-name { color: rgba(255,255,255,.6); }
+    .sel-lista { max-width: 640px; margin: 1.5rem auto 0; padding: 0; list-style: none; }
     .sel-lista-item {
-        display: flex; align-items: center; gap: 10px; padding: 6px 10px;
-        border-bottom: 1px solid var(--border-subtle); font-size: 13px;
+        display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+        border-bottom: 1px solid var(--line-soft); font-size: .9rem;
     }
-    .sel-lista-slot { flex: 0 0 130px; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
-    .sel-lista-nome { flex: 1 1 auto; font-weight: 600; color: var(--text); }
-    .sel-lista-nota { flex: 0 0 auto; font-weight: 800; font-family: 'Barlow Condensed', sans-serif; }
+    .sel-lista-slot { flex: 0 0 150px; color: var(--text-dim); font-size: .82rem; }
+    .rpt-root .sel-lista-nome { flex: 1 1 auto; font-weight: 600; color: var(--text-strong); }
+    .rpt-root a.sel-lista-nome:hover { color: var(--gold-ink); }
+    .sel-lista-vazio { flex: 1 1 auto; color: var(--text-dim); }
+    .sel-lista-nota { flex: 0 0 auto; font-weight: 800; font-family: 'Barlow Condensed', sans-serif; font-size: 1.1rem; }
 
     /* ── Match Up: campo único na horizontal com os dois times frente a
-       frente (estilo escalação de transmissão de TV). ──────────────────── */
-    .mu-header {
-        display: flex; align-items: center; justify-content: center; gap: 1.5rem;
-        margin-bottom: 1rem; flex-wrap: wrap;
-    }
+       frente (estilo escalação de transmissão de TV). ── */
+    .mu-header { display: flex; align-items: center; justify-content: center; gap: 1.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
     .mu-time-info { display: flex; align-items: center; gap: 10px; text-align: left; }
     .mu-time-info.mu-dir { text-align: right; flex-direction: row-reverse; }
     .mu-time-info img { width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; }
-    .mu-time-nome { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 800; color: var(--text); }
-    .mu-time-jogo { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-    .mu-vs { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 900; color: var(--amber-text); }
+    .mu-time-nome { font-family: 'Barlow Condensed', sans-serif; font-size: 1.3rem; font-weight: 800; color: var(--text-strong); }
+    .mu-time-jogo { font-size: .8rem; color: var(--text-dim); margin-top: 2px; }
+    .mu-vs { font-family: 'Barlow Condensed', sans-serif; font-size: 1.4rem; font-weight: 800; color: var(--text-dim); }
 
     .mu-campo {
         position: relative; width: 100%; aspect-ratio: 1.8 / 1;
@@ -408,10 +492,7 @@
         border: 2px solid rgba(255,255,255,.15); border-radius: 10px; overflow: hidden;
     }
     .mu-linha-meio { position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: rgba(255,255,255,.22); }
-    .mu-circulo {
-        position: absolute; left: 50%; top: 50%; height: 46%; aspect-ratio: 1;
-        border: 1.5px solid rgba(255,255,255,.2); border-radius: 50%; transform: translate(-50%,-50%);
-    }
+    .mu-circulo { position: absolute; left: 50%; top: 50%; height: 46%; aspect-ratio: 1; border: 1.5px solid rgba(255,255,255,.2); border-radius: 50%; transform: translate(-50%,-50%); }
     .mu-area-esq, .mu-area-dir { position: absolute; top: 18%; bottom: 18%; width: 11%; border: 1.5px solid rgba(255,255,255,.2); }
     .mu-area-esq { left: -1px; border-left: none; }
     .mu-area-dir { right: -1px; border-right: none; }
@@ -436,216 +517,167 @@
     .mu-slot * { pointer-events: none; }
     /* Marcações do campo nunca participam de hit-test */
     .mu-linha-meio, .mu-circulo, .mu-area-esq, .mu-area-dir, .mu-gol-esq, .mu-gol-dir { pointer-events: none; }
-    .mu-slot-sigla {
-        font-size: 9px; font-weight: 700; color: var(--amber-text);
-        text-shadow: 1px 1px 2px #000; display: block; margin-bottom: 1px;
-    }
+    .mu-slot-sigla { font-size: 9px; font-weight: 700; color: #f3d27a; text-shadow: 1px 1px 2px #000; display: block; margin-bottom: 1px; }
 
     /* Layout: banco do time 1 | campo | banco do time 2 */
     .mu-layout { display: grid; grid-template-columns: 200px 1fr 200px; gap: 12px; align-items: start; }
     @@media (max-width: 900px) { .mu-layout { grid-template-columns: 1fr; } }
 
-    .mu-banco {
-        background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-        overflow: hidden;
-    }
+    .mu-banco { background: var(--p-1); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
     .mu-banco-header {
-        display: flex; align-items: center; gap: 6px; padding: 8px 10px;
-        background: var(--p-0); border-bottom: 1px solid var(--border-subtle);
-        font-size: .68rem; font-weight: 700; color: var(--text-muted);
-        text-transform: uppercase; letter-spacing: .1em;
+        padding: 9px 10px; background: var(--p-2); border-bottom: 1px solid var(--line-soft);
+        font-size: .84rem; font-weight: 700; color: var(--text-strong);
     }
     .mu-banco-lista { max-height: 520px; overflow-y: auto; }
-    .mu-banco-lista::-webkit-scrollbar { width: 5px; }
-    .mu-banco-lista::-webkit-scrollbar-track { background: var(--p-0); }
-    .mu-banco-lista::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
     .mu-banco-item {
-        display: flex; align-items: center; gap: 8px; padding: 5px 10px;
-        font-size: 12px; color: var(--text-2); cursor: grab; user-select: none;
-        border-bottom: 1px solid var(--border-subtle);
+        display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+        font-size: .84rem; color: var(--text-2); cursor: grab; user-select: none;
+        border-bottom: 1px solid var(--line-soft);
     }
-    .mu-banco-item:hover { background: var(--surface-3); }
+    .mu-banco-item:hover { background: var(--hover-warm); }
     .mu-banco-item:active { cursor: grabbing; }
     .mu-banco-item * { pointer-events: none; }
-    .mu-banco-num {
-        flex: 0 0 24px; text-align: center; font-weight: 700;
-        font-family: 'Barlow Condensed', sans-serif; color: var(--amber-text);
-    }
+    .mu-banco-num { flex: 0 0 24px; text-align: center; font-weight: 700; font-family: 'Barlow Condensed', sans-serif; color: var(--gold-ink); }
     .mu-banco-nome { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .mu-banco-pos { flex: 0 0 auto; font-size: 10px; font-weight: 700; color: var(--text-muted); }
+    .mu-banco-pos { flex: 0 0 auto; font-size: .72rem; font-weight: 700; color: var(--text-dim); }
+    .mu-dica { text-align: center; color: var(--text-dim); font-size: .8rem; margin-top: 10px; }
+    .rl-msg { text-align: center; color: var(--text-dim); padding: 2.5rem 1rem; margin: 0; }
+
+    @@media (max-width: 760px) {
+        .rl-cab, .rl-filtros, .rpt-main, .rpt-tabs-bar, .rl-totais { padding-left: 1rem; padding-right: 1rem; }
+        .rl-aviso, .rl-alerta { margin-left: 1rem; margin-right: 1rem; }
+        .rl-cab h1 { font-size: 2rem; }
+        .rl-campo, .ms-wrap { flex: 1 1 100%; min-width: 0; }
+        .rl-campo-curto { flex: 1 1 auto; }
+        .rl-check { flex: 1 1 auto; }
+        .rl-acoes { margin-left: 0; flex: 1 1 auto; }
+        .rl-cab { padding-top: 1.1rem; padding-bottom: 1.1rem; }
+        .rl-filtros { padding-top: 12px; padding-bottom: 12px; }
+        .rl-filtros form { gap: 8px 10px; }
+        .rl-aplicar { flex: 1; }
+        .rl-totais { gap: 4px 18px; }
+        .rl-totais strong { font-size: 1.4rem; }
+        .rl-comp-grid { grid-template-columns: 1fr; }
+        .rl-dest > div { grid-template-columns: 1fr auto; }
+        .rl-dest dt { grid-column: 1 / -1; }
+        .rl-tabela .rl-opc { display: none; }
+        .sel-lista-slot { flex-basis: 110px; }
+    }
 </style>
 
 <div class="rpt-root">
 
-    <!-- Hero -->
-    <div class="rpt-hero theme-dark-zone">
-        <div class="rpt-hero-stripe"></div>
-        <div class="rpt-hero-fade"></div>
-        <div class="rpt-hero-content">
-            <div class="rpt-hero-badge">📊 Central de Dados</div>
+    <div class="rl-cab theme-dark-zone">
+        <div>
             <h1>Relatórios</h1>
-            <p>Estatísticas completas de jogadores e times com avaliação de desempenho.</p>
+            <p>@resumo</p>
         </div>
-    </div>
-
-    <div class="rpt-toolbar">
-    @if (TempData["Sucesso"] != null)
-    {
-        <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
-            @TempData["Sucesso"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    }
-
-    <!-- Scout + Manutenção -->
-    <div style="text-align:right;margin-bottom:8px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
-        <a asp-action="Scout" asp-controller="Relatorios"
-           style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;border:1px solid rgba(124,58,237,.4);background:rgba(124,58,237,.12);color:var(--purple);font-size:13px;font-weight:600;text-decoration:none">
-            🔍 Scout de Jogadores
+        <a asp-action="Scout" asp-controller="Relatorios" class="rl-cab-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" /></svg>
+            Scout de jogadores
         </a>
     </div>
 
-    <!-- Filtros -->
-    <style>
-        .ms-wrap { position: relative; min-width: 240px; }
-        .ms-box {
-            display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
-            min-height: 38px; padding: 4px 30px 4px 8px; cursor: pointer;
-            border: 1px solid var(--border-strong); border-radius: 8px; background: var(--input-bg); font-size: 13px;
-        }
-        .ms-box::after {
-            content: "▾"; position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-            color: var(--text-muted); pointer-events: none;
-        }
-        .ms-placeholder { color: var(--text-muted); }
-        .ms-chip {
-            display: inline-flex; align-items: center; gap: 4px;
-            background: rgba(245,158,11,.12); color: var(--warn); border: 1px solid rgba(245,158,11,.3);
-            border-radius: 6px; padding: 2px 6px; font-size: 12px; font-weight: 600;
-        }
-        .ms-chip-x { cursor: pointer; font-weight: 700; line-height: 1; opacity: .7; }
-        .ms-chip-x:hover { opacity: 1; }
-        .ms-panel {
-            position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 100;
-            background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px;
-            box-shadow: 0 8px 24px rgba(0,0,0,.12); max-height: 280px; overflow-y: auto;
-            display: none; padding: 4px;
-        }
-        .ms-panel.open { display: block; }
-        .ms-opt {
-            display: flex; align-items: center; gap: 8px; padding: 7px 10px;
-            border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text);
-        }
-        .ms-opt:hover { background: var(--surface-3); }
-        .ms-opt input { cursor: pointer; }
-        .ms-search {
-            width: 100%; box-sizing: border-box; padding: 7px 10px; margin-bottom: 4px;
-            border: 1px solid var(--border-strong); border-radius: 6px; font-size: 13px; outline: none;
-            position: sticky; top: 0; background: var(--input-bg);
-        }
-        .ms-search:focus { border-color: #6366f1; }
-    </style>
-
-    <form method="get" asp-action="Index" asp-controller="Relatorios" class="rpt-filter">
-        <label>Competições:</label>
-        <div class="ms-wrap" id="compMulti">
-            <div class="ms-box" id="compBox" tabindex="0"></div>
-            <div class="ms-panel" id="compPanel">
-                @foreach (var c in Model.Competicoes)
-                {
-                    <label class="ms-opt">
-                        <input type="checkbox" name="competicaoIds" value="@c.Id"
-                               data-nome="@c.Nome"
-                               @(Model.CompeticaoIdsFiltro.Contains(c.Id) ? "checked" : "") />
-                        <span>@c.Nome</span>
-                    </label>
-                }
-            </div>
-        </div>
-
-        <label>Times:</label>
-        <div class="ms-wrap" id="timeMulti">
-            <div class="ms-box" id="timeBox" tabindex="0"></div>
-            <div class="ms-panel" id="timePanel">
-                <input type="text" class="ms-search" id="timeSearch" placeholder="Buscar time…" autocomplete="off" />
-                <div id="timeOptions">
-                    @foreach (var t in Model.Times)
-                    {
-                        <label class="ms-opt">
-                            <input type="checkbox" name="timeIds" value="@t.Id"
-                                   data-nome="@t.Nome"
-                                   @(Model.TimeIdsFiltro.Contains(t.Id) ? "checked" : "") />
-                            <span>@t.Nome</span>
-                        </label>
-                    }
+    <div class="rl-filtros">
+        <form method="get" asp-action="Index" asp-controller="Relatorios">
+            <div class="rl-campo">
+                <span class="rl-rot" id="rotComp">Competições</span>
+                <div class="ms-wrap" id="compMulti">
+                    <div class="ms-box" id="compBox" tabindex="0" role="button" aria-labelledby="rotComp" aria-haspopup="true"></div>
+                    <div class="ms-panel" id="compPanel">
+                        @foreach (var c in Model.Competicoes)
+                        {
+                            <label class="ms-opt">
+                                <input type="checkbox" name="competicaoIds" value="@c.Id"
+                                       data-nome="@c.Nome"
+                                       @(Model.CompeticaoIdsFiltro.Contains(c.Id) ? "checked" : "") />
+                                <span>@c.Nome</span>
+                            </label>
+                        }
+                    </div>
                 </div>
             </div>
-        </div>
 
-        @if (Model.TemporadasDisponiveis.Any())
-        {
-            <label for="temporadaFilter">Temporada:</label>
-            <select id="temporadaFilter" name="temporada" onchange="this.form.submit()">
-                @foreach (var temp in Model.TemporadasDisponiveis)
+            <div class="rl-campo">
+                <span class="rl-rot" id="rotTimes">Times</span>
+                <div class="ms-wrap" id="timeMulti">
+                    <div class="ms-box" id="timeBox" tabindex="0" role="button" aria-labelledby="rotTimes" aria-haspopup="true"></div>
+                    <div class="ms-panel" id="timePanel">
+                        <input type="text" class="ms-search" id="timeSearch" placeholder="Buscar time" autocomplete="off" aria-label="Buscar time" />
+                        <div id="timeOptions">
+                            @foreach (var t in Model.Times)
+                            {
+                                <label class="ms-opt">
+                                    <input type="checkbox" name="timeIds" value="@t.Id"
+                                           data-nome="@t.Nome"
+                                           @(Model.TimeIdsFiltro.Contains(t.Id) ? "checked" : "") />
+                                    <span>@t.Nome</span>
+                                </label>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @if (Model.TemporadasDisponiveis.Any())
+            {
+                <div class="rl-campo rl-campo-curto">
+                    <label class="rl-rot" for="temporadaFilter">Temporada</label>
+                    <select id="temporadaFilter" name="temporada" onchange="this.form.submit()">
+                        @foreach (var temp in Model.TemporadasDisponiveis)
+                        {
+                            <option value="@temp" @(Model.TemporadaFiltro == temp ? "selected" : "")>@temp</option>
+                        }
+                    </select>
+                </div>
+            }
+
+            <label class="rl-check" title="Conta também jogos com placar que você ainda não analisou">
+                <input type="checkbox" name="incluirNaoAnalisados" value="true"
+                       @(Model.IncluirNaoAnalisados ? "checked" : "") />
+                Incluir jogos não analisados
+            </label>
+
+            <details class="rl-mais">
+                <summary>
+                    Ajustes dos rankings
+                    @if (ajustesAtivos > 0) { <span class="rl-mais-n">@ajustesAtivos</span> }
+                </summary>
+                <div class="rl-mais-painel">
+                    <div class="rl-linha-num">
+                        <label for="minJogos">Mínimo de jogos por jogador</label>
+                        <input type="number" id="minJogos" name="minJogos" min="1" max="500" value="@Model.MinJogos" />
+                    </div>
+                    <fieldset class="rl-seg">
+                        <legend>Números individuais</legend>
+                        <div class="rl-seg-opcoes">
+                            <label><input type="radio" name="baseEstat" value="jogo" @(baseAtual == "jogo" ? "checked" : "") /><span>Por jogo</span></label>
+                            <label><input type="radio" name="baseEstat" value="total" @(baseAtual == "total" ? "checked" : "") /><span>Totais</span></label>
+                            <label><input type="radio" name="baseEstat" value="90" @(baseAtual == "90" ? "checked" : "") /><span>Por 90 min</span></label>
+                        </div>
+                        <small>Por 90 min compara titular com reserva e exige 270 minutos em campo.</small>
+                    </fieldset>
+                    <fieldset class="rl-seg">
+                        <legend>Mando</legend>
+                        <div class="rl-seg-opcoes">
+                            <label><input type="radio" name="mando" value="todos" @(mandoAtual == "todos" ? "checked" : "") /><span>Geral</span></label>
+                            <label><input type="radio" name="mando" value="casa" @(mandoAtual == "casa" ? "checked" : "") /><span>Em casa</span></label>
+                            <label><input type="radio" name="mando" value="fora" @(mandoAtual == "fora" ? "checked" : "") /><span>Fora</span></label>
+                        </div>
+                    </fieldset>
+                    <p>Valem para a aba Estatísticas. O mínimo de jogos vale também para o ranking de notas.</p>
+                </div>
+            </details>
+
+            <div class="rl-acoes">
+                @if (temFiltro)
                 {
-                    <option value="@temp" @(Model.TemporadaFiltro == temp ? "selected" : "")>@temp</option>
+                    <a asp-action="Index" asp-controller="Relatorios" class="rl-limpar">Limpar filtros</a>
                 }
-            </select>
-        }
-
-        <label class="rpt-check-wrap" title="Inclui jogos com placar mas ainda não analisados">
-            <input type="checkbox" name="incluirNaoAnalisados" value="true"
-                   @(Model.IncluirNaoAnalisados ? "checked" : "") />
-            <span>Incluir não analisados</span>
-        </label>
-
-        <label class="rpt-num-wrap" title="Na aba Estatísticas Jogadores, só lista quem tem pelo menos esse número de jogos. 1 = sem filtro.">
-            <span>Mín. de jogos:</span>
-            <input type="number" name="minJogos" min="1" max="500" value="@Model.MinJogos" />
-        </label>
-
-        @{
-            var baseAtual = Model.BaseFiltro switch
-            {
-                ControleFutebolWeb.Models.ViewModels.BaseEstatistica.Total => "total",
-                ControleFutebolWeb.Models.ViewModels.BaseEstatistica.Por90 => "90",
-                _ => "jogo"
-            };
-        }
-        <label class="rpt-num-wrap" title="Base dos rankings individuais. 'Por 90 min' compara quem joga muito com quem entra do banco; exige pelo menos 270 minutos no período.">
-            <span>Acumulado:</span>
-            <select name="baseEstat">
-                <option value="jogo" @(baseAtual == "jogo" ? "selected" : "")>Por jogo</option>
-                <option value="total" @(baseAtual == "total" ? "selected" : "")>Totais</option>
-                <option value="90" @(baseAtual == "90" ? "selected" : "")>Por 90 min</option>
-            </select>
-        </label>
-
-        @{
-            var mandoAtual = Model.MandoFiltro switch
-            {
-                ControleFutebolWeb.Models.ViewModels.MandoJogador.Casa => "casa",
-                ControleFutebolWeb.Models.ViewModels.MandoJogador.Fora => "fora",
-                _ => "todos"
-            };
-        }
-        <label class="rpt-num-wrap" title="Recorte de mando dos rankings individuais. O lado vem da escalação da época, então transferências não bagunçam os jogos antigos.">
-            <span>Mando:</span>
-            <select name="mando">
-                <option value="todos" @(mandoAtual == "todos" ? "selected" : "")>Geral</option>
-                <option value="casa" @(mandoAtual == "casa" ? "selected" : "")>🏠 Casa</option>
-                <option value="fora" @(mandoAtual == "fora" ? "selected" : "")>✈️ Fora</option>
-            </select>
-        </label>
-
-        <button type="submit">Filtrar</button>
-        @if (Model.CompeticaoIdsFiltro.Any() || Model.TimeIdsFiltro.Any() || Model.IncluirNaoAnalisados || Model.MinJogos > 1 || baseAtual != "jogo" || mandoAtual != "todos")
-        {
-            <a asp-action="Index" asp-controller="Relatorios" class="rpt-filter rpt-clear"
-               style="text-decoration:none; padding:8px 16px; border-radius:8px; font-size:13px;">✕ Limpar filtro</a>
-        }
-    </form>
-
+                <button type="submit" class="rl-aplicar">Aplicar filtros</button>
+            </div>
+        </form>
+    </div>
     <script>
     (function () {
         // Tag selector genérico: renderiza chips a partir dos checkboxes de um painel
@@ -764,1355 +796,438 @@
         initMulti('compMulti', 'compBox', 'compPanel', 'Todas as competições', recarregarTimes);
     })();
     </script>
-    </div><!-- /.rpt-toolbar -->
 
-    <!-- Totalizadores -->
-    <div class="rpt-totals-bar">
-        <div class="rpt-totals">
-            <div class="rpt-total-card">
-                <div class="rpt-total-num">@Model.TotalJogos</div>
-                <div class="rpt-total-label">Partidas</div>
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="rl-alerta" role="status">
+            <span>@TempData["Sucesso"]</span>
+            <button type="button" aria-label="Fechar" onclick="this.parentElement.remove()">✕</button>
+        </div>
+    }
+
+    @if (Model.TotalJogos == 0)
+    {
+        <div class="rl-aviso">
+            <div>
+                <strong>Nenhum jogo neste recorte</strong>
+                @if (!Model.IncluirNaoAnalisados)
+                {
+                    <span>Os relatórios contam só os jogos que você analisou. Inclua os demais jogos com placar para ver os números da temporada.</span>
+                }
+                else
+                {
+                    <span>Troque a temporada ou as competições para ver números.</span>
+                }
             </div>
-            <div class="rpt-total-card">
-                <div class="rpt-total-num">@Model.TotalGols</div>
-                <div class="rpt-total-label">Gols</div>
-            </div>
-            <div class="rpt-total-card">
-                <div class="rpt-total-num" style="color:var(--bad-2)">@Model.TotalGolsContra</div>
-                <div class="rpt-total-label">Gols Contra</div>
-            </div>
-            <div class="rpt-total-card">
-                <div class="rpt-total-num" style="color:var(--warn);">@Model.TotalCartaoAmarelo</div>
-                <div class="rpt-total-label">Cart. Amarelos</div>
-            </div>
-            <div class="rpt-total-card">
-                <div class="rpt-total-num" style="color:var(--bad)">@Model.TotalCartaoVermelho</div>
-                <div class="rpt-total-label">Cart. Vermelhos</div>
-            </div>
-            @if (Model.TotalJogos > 0)
+            @if (!Model.IncluirNaoAnalisados)
             {
-                <div class="rpt-total-card">
-                    <div class="rpt-total-num" style="color:#34d399;">@(Math.Round((double)Model.TotalGols / Model.TotalJogos, 1))</div>
-                    <div class="rpt-total-label">Média Gols/Jogo</div>
-                </div>
+                <a href="@urlComNaoAnalisados">Incluir jogos não analisados</a>
             }
         </div>
-    </div>
+    }
+    else
+    {
+        <ul class="rl-totais" aria-label="Totais do recorte">
+            <li><strong>@Milhar(Model.TotalJogos)</strong><span>@(Model.TotalJogos == 1 ? "partida" : "partidas")</span></li>
+            <li><strong>@Milhar(golsPlacar)</strong><span>gols</span></li>
+            <li><strong>@Dec((double)golsPlacar / Model.TotalJogos, "0.0")</strong><span>gols por jogo</span></li>
+            <li><strong>@Milhar(Model.TotalGolsContra)</strong><span>gols contra</span></li>
+            <li><strong>@Milhar(Model.TotalCartaoAmarelo)</strong><span>amarelos</span></li>
+            <li><strong>@Milhar(Model.TotalCartaoVermelho)</strong><span>vermelhos</span></li>
+        </ul>
+    }
 
-    <!-- Tabs -->
     <div class="rpt-tabs-bar">
-        <div class="rpt-tabs">
-            <div class="rpt-tab active" onclick="showSection('notas')">⭐ Notas</div>
-            <div class="rpt-tab" onclick="showSection('gols')">⚽ Artilharia</div>
-            <div class="rpt-tab" onclick="showSection('partidas')">🎽 Partidas</div>
-            <div class="rpt-tab" onclick="showSection('cartoes')">🟨 Disciplina</div>
-            <div class="rpt-tab" onclick="showSection('times')">🏟️ Times</div>
-            <div class="rpt-tab" onclick="showSection('rodadas')">📈 Rodadas</div>
-            <div class="rpt-tab" onclick="showSection('estat-jogadores')">📊 Estatísticas Jogadores</div>
-            <div class="rpt-tab" onclick="showSection('estat-competicoes')">🏆 Estatísticas Competições</div>
-            <div class="rpt-tab" onclick="showSection('selecao')">🏅 Seleção</div>
+        <div class="rpt-tabs" role="tablist" aria-label="Relatórios">
+            <button type="button" class="rpt-tab" role="tab" data-sec="notas" aria-selected="true">Notas</button>
+            <button type="button" class="rpt-tab" role="tab" data-sec="artilharia" aria-selected="false">Artilharia</button>
+            <button type="button" class="rpt-tab" role="tab" data-sec="presenca" aria-selected="false">Presença e cartões</button>
+            <button type="button" class="rpt-tab" role="tab" data-sec="times" aria-selected="false">Times</button>
+            <button type="button" class="rpt-tab" role="tab" data-sec="estatisticas" aria-selected="false">Estatísticas</button>
+            <button type="button" class="rpt-tab" role="tab" data-sec="competicoes" aria-selected="false">Competições</button>
+            <button type="button" class="rpt-tab" role="tab" data-sec="rodadas" aria-selected="false">Rodadas</button>
+            <button type="button" class="rpt-tab" role="tab" data-sec="selecao" aria-selected="false">Seleção</button>
             @if (Model.TimeIdsFiltro.Count == 2)
             {
-                <div class="rpt-tab" onclick="showSection('matchup')">⚔️ Match Up</div>
+                <button type="button" class="rpt-tab" role="tab" data-sec="matchup" aria-selected="false">Match Up</button>
             }
             else
             {
-                <div class="rpt-tab disabled" title="Selecione exatamente 2 times no filtro para usar o Match Up">⚔️ Match Up</div>
+                <button type="button" class="rpt-tab" role="tab" data-sec="matchup" aria-selected="false" aria-disabled="true"
+                        title="Escolha exatamente 2 times no filtro para montar o Match Up">Match Up</button>
             }
         </div>
     </div>
 
     <div class="rpt-main">
 
-    <!-- ══ SEÇÃO: NOTAS ══════════════════════════════════════════════════════ -->
-    <div id="sec-notas" class="rpt-section visible">
-
+    <!-- ══ NOTAS ═══════════════════════════════════════════════════════════ -->
+    <div id="sec-notas" class="rpt-section" role="tabpanel">
         <div class="rpt-grid">
-            <!-- Ranking de Notas -->
-            <div class="rpt-card" style="grid-column: 1 / -1;">
-                <div class="rpt-card-header">
-                    <div class="rpt-card-icon" style="background:#fef3c7;">⭐</div>
-                    <div>
-                        <h3 class="rpt-card-title">Ranking de Desempenho</h3>
-                        <p class="rpt-card-sub">Top 20 jogadores por média das notas finais (base 4 + ações, mínima 4)</p>
-                    </div>
-                </div>
-
+            <section class="rpt-card rl-largo">
+                @{ Cab("Ranking de desempenho", Model.MinJogos > 1
+                       ? $"Os 20 jogadores com melhor nota média, com pelo menos {Model.MinJogos} jogos"
+                       : "Os 20 jogadores com melhor nota média no recorte"); }
                 @if (!Model.RankingNotas.Any())
                 {
-                    <div style="padding:2rem;text-align:center;color:var(--text-muted);font-size:13px;">
-                        Nenhuma avaliação registrada ainda. Avalie jogadores na tela de análise de jogo.
-                    </div>
+                    Vazio("Nenhuma nota no recorte. As notas vêm das suas análises e, com jogos não analisados incluídos, da nota automática pela estatística.");
                 }
                 else
                 {
-                    <div style="overflow-x:auto;">
-                        <table style="width:100%;border-collapse:collapse;">
+                    <div style="overflow-x:auto">
+                        <table class="rl-tabela rl-rank">
                             <thead>
-                                <tr style="background:var(--surface-2);font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">
-                                    <th style="padding:8px 16px;text-align:left;width:32px;">#</th>
-                                    <th style="padding:8px 8px;text-align:left;">Jogador</th>
-                                    <th style="padding:8px;text-align:center;">Nota</th>
-                                    <th style="padding:8px;text-align:center;min-width:120px;">Barra</th>
-                                    <th style="padding:8px;text-align:center;">J</th>
-                                    <th style="padding:8px;text-align:center;">V</th>
-                                    <th style="padding:8px;text-align:center;">E</th>
-                                    <th style="padding:8px;text-align:center;">D</th>
+                                <tr>
+                                    <th scope="col"><span class="visually-hidden">Posição</span></th>
+                                    <th scope="col">Jogador</th>
+                                    <th scope="col">Nota</th>
+                                    <th scope="col">Jogos</th>
+                                    <th scope="col" class="rl-opc" title="Vitórias">V</th>
+                                    <th scope="col" class="rl-opc" title="Empates">E</th>
+                                    <th scope="col" class="rl-opc" title="Derrotas">D</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @for (int i = 0; i < Model.RankingNotas.Count; i++)
                                 {
                                     var item = Model.RankingNotas[i];
-                                    var pos = item.Jogador.Posicao ?? "";
-                                    var posCls = pos.ToUpper() switch {
-                                        "GL" => "pos-GL",
-                                        "ZG" or "ZG." => "pos-ZG",
-                                        "MC" => "pos-MC",
-                                        "AT" => "pos-AT",
-                                        var s when s.Contains("GOL") => "pos-GL",
-                                        var s when s.Contains("ZAG") || s.Contains("LAT") || s.Contains("DEF") => "pos-ZG",
-                                        var s when s.Contains("MEI") || s.Contains("VOL") => "pos-MC",
-                                        var s when s.Contains("ATA") || s.Contains("PON") || s.Contains("CEN") => "pos-AT",
-                                        _ => "pos-xx"
-                                    };
-                                    <tr style="border-bottom:.5px solid var(--border-subtle);font-size:12px;" onmouseover="this.style.background='var(--hover-warm)'" onmouseout="this.style.background=''">
-                                        <td style="padding:9px 16px;font-weight:700;color:@(i==0?"var(--warn)":i==1?"var(--text-muted)":i==2?"#b45309":"var(--text-2)");">
-                                            @(i + 1)
-                                        </td>
-                                        <td style="padding:9px 8px;">
-                                            <div style="display:flex;align-items:center;gap:8px;">
-                                                @if (!string.IsNullOrEmpty(item.Jogador.FotoUrl))
-                                                {
-                                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = item.Jogador.FotoUrl })" style="width:30px;height:30px;border-radius:50%;object-fit:cover;border:.5px solid var(--border);" />
-                                                }
-                                                else
-                                                {
-                                                    <div style="width:30px;height:30px;border-radius:50%;background:var(--surface-3);border:.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-muted);">👤</div>
-                                                }
-                                                <div>
-                                                    <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@item.Jogador.Id"
-                                                       style="font-weight:600;color:inherit;text-decoration:none;">@item.Jogador.Nome</a>
-                                                    <div style="display:flex;gap:4px;margin-top:2px;">
-                                                        <span class="pos-badge @posCls">@(string.IsNullOrEmpty(pos) ? "—" : PosicaoJogadorHelper.Sigla(pos))</span>
-                                                        @{ var teRank = TimeExibicao(item.Jogador); }
-                                                        @if (!string.IsNullOrEmpty(teRank.Nome))
-                                                        {
-                                                            <span style="font-size:10px;color:var(--text-muted);display:inline-flex;align-items:center;gap:3px;">
-                                                                @if (!string.IsNullOrEmpty(teRank.Escudo))
-                                                                {
-                                                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = teRank.Escudo })" style="width:12px;height:12px;border-radius:50%;object-fit:cover;" />
-                                                                }
-                                                                @teRank.Nome
-                                                            </span>
-                                                        }
-                                                    </div>
-                                                </div>
+                                    var te = TimeExibicao(item.Jogador);
+                                    var sigla = PosicaoJogadorHelper.Sigla(item.Jogador.Posicao);
+                                    <tr>
+                                        <td>@(i + 1)</td>
+                                        <td class="rl-jog">
+                                            <div class="rl-jog-in">
+                                                @{ Avatar(item.Jogador); }
+                                                <span class="rpt-name">
+                                                    <a href="@Url.Action("Estatisticas", "Jogadores", new { id = item.Jogador.Id })">@item.Jogador.Nome</a>
+                                                    <small>
+                                                        @if (!string.IsNullOrEmpty(sigla)) { <span class="rpt-sigla">@sigla</span> }
+                                                        @if (!string.IsNullOrEmpty(te.Escudo)) { <img src="@Img(te.Escudo)" alt="" loading="lazy" /> }
+                                                        @te.Nome
+                                                    </small>
+                                                </span>
                                             </div>
                                         </td>
-                                        <td style="padding:9px 8px;text-align:center;">
-                                            <div class="nota-circle" style="color:@item.NotaColor;margin:0 auto;">
-                                                <span class="nota-num">@item.NotaFinal.ToString("0.0")</span>
-                                                <span class="nota-lbl">@item.NotaLabel</span>
-                                            </div>
+                                        <td>
+                                            <span class="rl-nota" style="color:@item.NotaColor">
+                                                <b>@Dec(item.NotaFinal, "0.0")</b>
+                                                <small>@item.NotaLabel</small>
+                                            </span>
                                         </td>
-                                        <td style="padding:9px 12px;min-width:160px;">
-                                            <div class="rpt-bar-wrap">
-                                                <div class="rpt-bar-bg">
-                                                    <div class="rpt-bar-fill" style="width:@(Coord(Math.Round(item.NotaFinal / 10.0 * 100, 1)))%;background:linear-gradient(90deg,@item.NotaColor,transparent);"></div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td style="text-align:center;font-weight:600;">@item.Partidas</td>
-                                        <td style="text-align:center;color:#16a34a;font-weight:600;">@item.Vitorias</td>
-                                        <td style="text-align:center;color:#d97706;font-weight:600;">@item.Empates</td>
-                                        <td style="text-align:center;color:#dc2626;font-weight:600;">@item.Derrotas</td>
+                                        <td>@item.Partidas</td>
+                                        <td class="rl-opc @(item.Vitorias > 0 ? "rl-v" : "rl-zero")">@item.Vitorias</td>
+                                        <td class="rl-opc @(item.Empates > 0 ? "" : "rl-zero")">@item.Empates</td>
+                                        <td class="rl-opc @(item.Derrotas > 0 ? "rl-d" : "rl-zero")">@item.Derrotas</td>
                                     </tr>
                                 }
                             </tbody>
                         </table>
                     </div>
                 }
-            </div>
+            </section>
 
-            <!-- Rankings por posição -->
-            @{
-                var rankingsPosicao = new[]
-                {
-                    (icone: "🧤", titulo: "Melhores Goleiros",   cor: "#dbeafe", lista: Model.RankingGoleiros),
-                    (icone: "🛡️", titulo: "Melhores Defensores", cor: "#dcfce7", lista: Model.RankingDefensores),
-                    (icone: "⚙️",  titulo: "Melhores Meias",      cor: "#fef9c3", lista: Model.RankingMeias),
-                    (icone: "⚡",  titulo: "Melhores Atacantes",  cor: "#fee2e2", lista: Model.RankingAtacantes),
-                };
-            }
-            @foreach (var rp in rankingsPosicao)
-            {
-                if (!rp.lista.Any()) { continue; }
-                <div class="rpt-card">
-                    <div class="rpt-card-header">
-                        <div class="rpt-card-icon" style="background:@rp.cor;">@rp.icone</div>
-                        <div>
-                            <h3 class="rpt-card-title">@rp.titulo</h3>
-                            <p class="rpt-card-sub">Top 10 por nota média</p>
-                        </div>
-                    </div>
-                    @for (int i = 0; i < rp.lista.Count; i++)
-                    {
-                        var item = rp.lista[i];
-                        <div class="rpt-row">
-                            <div style="width:20px;font-size:11px;font-weight:700;color:@(i==0?"var(--warn)":i==1?"var(--text-muted)":i==2?"#b45309":"var(--text-2)");">@(i+1)</div>
-                            @if (!string.IsNullOrEmpty(item.Jogador.FotoUrl))
-                            {
-                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = item.Jogador.FotoUrl })" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:.5px solid var(--border);flex-shrink:0;" />
-                            }
-                            else
-                            {
-                                <div style="width:26px;height:26px;border-radius:50%;background:var(--surface-3);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text-muted);flex-shrink:0;">👤</div>
-                            }
-                            <div style="flex:1;min-width:0;">
-                                <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@item.Jogador.Id"
-                                   style="font-size:12px;font-weight:600;color:inherit;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;">
-                                    @item.Jogador.Nome
-                                </a>
-                                @{ var teItem = TimeExibicao(item.Jogador); }
-                                @if (!string.IsNullOrEmpty(teItem.Nome))
-                                {
-                                    <div style="font-size:10px;color:var(--text-muted);">
-                                        @if (!string.IsNullOrEmpty(teItem.Escudo))
-                                        {
-                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = teItem.Escudo })" style="width:12px;height:12px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:3px;" />
-                                        }
-                                        @teItem.Nome · @item.Partidas j
-                                    </div>
-                                }
-                            </div>
-                            <div class="nota-circle" style="color:@item.NotaColor;width:38px;height:38px;flex-shrink:0;">
-                                <span class="nota-num" style="font-size:13px;">@item.NotaFinal.ToString("0.0")</span>
-                                <span class="nota-lbl">@item.NotaLabel</span>
-                            </div>
-                        </div>
-                    }
-                </div>
-            }
+            @if (Model.RankingGoleiros.Any()) { CardNotas("Goleiros", Model.RankingGoleiros); }
+            @if (Model.RankingDefensores.Any()) { CardNotas("Defensores", Model.RankingDefensores); }
+            @if (Model.RankingMeias.Any()) { CardNotas("Meias", Model.RankingMeias); }
+            @if (Model.RankingAtacantes.Any()) { CardNotas("Atacantes", Model.RankingAtacantes); }
 
-            <!-- Médias por posição -->
             @if (Model.MediasPorPosicao.Any())
             {
-                <div class="rpt-card">
-                    <div class="rpt-card-header">
-                        <div class="rpt-card-icon" style="background:#f0fdf4;">🧩</div>
-                        <div>
-                            <h3 class="rpt-card-title">Média por Posição</h3>
-                            <p class="rpt-card-sub">Desempenho médio agrupado por função</p>
-                        </div>
-                    </div>
-                    @foreach (var mp in Model.MediasPorPosicao)
-                    {
-                        var barWidth = Math.Round((mp.Media / 10.0) * 100, 1);
-                        <div class="rpt-row">
-                            <div style="width:90px;font-size:12px;font-weight:600;color:var(--text-2);">@mp.Posicao</div>
-                            <div class="rpt-bar-wrap">
-                                <div class="rpt-bar-bg">
-                                    <div class="rpt-bar-fill" style="width:@(Coord(barWidth))%;background:linear-gradient(90deg,#f59e0b,#fbbf24);"></div>
-                                </div>
-                            </div>
-                            <div style="font-size:13px;font-weight:700;color:inherit;min-width:36px;text-align:right;">@mp.Media</div>
-                            <div style="font-size:10px;color:var(--text-muted);min-width:40px;text-align:right;">@mp.TotalJogadores jog.</div>
-                        </div>
-                    }
-                </div>
+                <section class="rpt-card">
+                    @{ Cab("Média por posição", "Nota média de cada função no recorte"); }
+                    <dl class="rl-media">
+                        @foreach (var mp in Model.MediasPorPosicao)
+                        {
+                            <dt>@mp.Posicao</dt>
+                            <dd><span class="rpt-bar" aria-hidden="true"><i style="width:@Coord(mp.Media / 10.0 * 100)%"></i></span></dd>
+                            <dd class="rl-media-val">@Dec(mp.Media, "0.0")<small>@Plural(mp.TotalJogadores, "jogador", "jogadores")</small></dd>
+                        }
+                    </dl>
+                </section>
             }
 
-            <!-- Craques da partida -->
-            <div class="rpt-card">
-                <div class="rpt-card-header">
-                    <div class="rpt-card-icon" style="background:#fef3c7;">👑</div>
-                    <div>
-                        <h3 class="rpt-card-title">Craques da Partida</h3>
-                        <p class="rpt-card-sub">Quem mais levou a coroa de maior nota do jogo</p>
-                    </div>
-                </div>
-                @if (!Model.CraquesDaPartida.Any())
-                {
-                    <div style="padding:1.5rem;text-align:center;color:var(--text-muted);font-size:13px;">
-                        Nenhum craque eleito ainda — depende de nota ou estatística nos jogos do filtro.
-                    </div>
-                }
-                @{
-                    var maxCraques = Model.CraquesDaPartida.Any() ? Model.CraquesDaPartida.Max(c => c.Valor) : 1;
-                }
-                @for (int i = 0; i < Model.CraquesDaPartida.Count; i++)
-                {
-                    var cr = Model.CraquesDaPartida[i];
-                    var wCr = Math.Round((double)cr.Valor / maxCraques * 100, 1);
-                    <div class="rpt-row">
-                        <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
-                        @if (!string.IsNullOrEmpty(cr.Jogador.FotoUrl))
-                        {
-                            <div class="rpt-avatar"><img src="@Url.Action("Imagem", "MediaProxy", new { url = cr.Jogador.FotoUrl })" /></div>
-                        }
-                        else { <div class="rpt-avatar">@(cr.Jogador.Nome.Length >= 2 ? cr.Jogador.Nome.Substring(0,2).ToUpper() : "?")</div> }
-                        <div class="rpt-name">
-                            <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@cr.Jogador.Id"
-                               style="color:inherit;text-decoration:none;font-weight:500;">@cr.Jogador.Nome</a>
-                            <small>
-                                @PosicaoJogadorHelper.Sigla(cr.Jogador.Posicao) ·
-                                @{ var teCr = TimeExibicao(cr.Jogador); }
-                                @if (!string.IsNullOrEmpty(teCr.Escudo))
-                                {
-                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = teCr.Escudo })" style="width:12px;height:12px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:3px;" />
-                                }
-                                @teCr.Nome
-                            </small>
-                        </div>
-                        <div class="rpt-bar-wrap" style="max-width:80px;">
-                            <div class="rpt-bar-bg">
-                                <div class="rpt-bar-fill" style="width:@(Coord(wCr))%;background:#f59e0b;"></div>
-                            </div>
-                        </div>
-                        <span class="rpt-badge-value" style="background:#fef3c7;color:#b45309;">@cr.Valor 👑</span>
-                    </div>
-                }
-            </div>
+            @{ CardJogadores("Craques da partida", "Quem mais vezes teve a maior nota do jogo", Model.CraquesDaPartida, "vez", "vezes",
+                   "Nenhum craque no recorte. Depende de nota ou estatística nos jogos."); }
         </div>
     </div>
 
-    <!-- ══ SEÇÃO: GOLS ══════════════════════════════════════════════════════ -->
-    <div id="sec-gols" class="rpt-section">
+    <!-- ══ ARTILHARIA ═════════════════════════════════════════════════════ -->
+    <div id="sec-artilharia" class="rpt-section" role="tabpanel" hidden>
         <div class="rpt-grid">
-
-            <!-- Artilheiros -->
-            <div class="rpt-card">
-                <div class="rpt-card-header">
-                    <div class="rpt-card-icon" style="background:#f0fdf4;">⚽</div>
-                    <div>
-                        <h3 class="rpt-card-title">Artilheiros</h3>
-                        <p class="rpt-card-sub">Jogadores com mais gols marcados</p>
-                    </div>
-                </div>
-                @if (!Model.Artilheiros.Any())
-                {
-                    <div style="padding:1.5rem;text-align:center;color:var(--text-muted);font-size:13px;">Nenhum gol registrado.</div>
-                }
-                @{
-                    var maxGols = Model.Artilheiros.Any() ? Model.Artilheiros.Max(a => a.Valor) : 1;
-                }
-                @for (int i = 0; i < Model.Artilheiros.Count; i++)
-                {
-                    var a = Model.Artilheiros[i];
-                    var w = Math.Round((double)a.Valor / maxGols * 100, 1);
-                    <div class="rpt-row">
-                        <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
-                        @if (!string.IsNullOrEmpty(a.Jogador.FotoUrl))
-                        {
-                            <div class="rpt-avatar"><img src="@Url.Action("Imagem", "MediaProxy", new { url = a.Jogador.FotoUrl })" /></div>
-                        }
-                        else { <div class="rpt-avatar">@(a.Jogador.Nome.Length >= 2 ? a.Jogador.Nome.Substring(0,2).ToUpper() : "?")</div> }
-                        <div class="rpt-name">
-                            <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@a.Jogador.Id"
-                               style="color:inherit;text-decoration:none;font-weight:500;">@a.Jogador.Nome</a>
-                            <small>
-                                @PosicaoJogadorHelper.Sigla(a.Jogador.Posicao) ·
-                                @{ var teA = TimeExibicao(a.Jogador); }
-                                @if (!string.IsNullOrEmpty(teA.Escudo))
-                                {
-                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = teA.Escudo })" style="width:12px;height:12px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:3px;" />
-                                }
-                                @teA.Nome
-                            </small>
-                        </div>
-                        <div class="rpt-bar-wrap" style="max-width:80px;">
-                            <div class="rpt-bar-bg">
-                                <div class="rpt-bar-fill" style="width:@(Coord(w))%;background:#22c55e;"></div>
-                            </div>
-                        </div>
-                        <span class="rpt-badge-value" style="background:#dcfce7;color:#15803d;">@a.Valor ⚽</span>
-                    </div>
-                }
-            </div>
-
-            <!-- Assistências -->
-            <div class="rpt-card">
-                <div class="rpt-card-header">
-                    <div class="rpt-card-icon" style="background:#eff6ff;">🎯</div>
-                    <div>
-                        <h3 class="rpt-card-title">Assistências</h3>
-                        <p class="rpt-card-sub">Jogadores com mais passes para gol</p>
-                    </div>
-                </div>
-                @if (!Model.Assistencias.Any())
-                {
-                    <div style="padding:1.5rem;text-align:center;color:var(--text-muted);font-size:13px;">Nenhuma assistência registrada.</div>
-                }
-                @{
-                    var maxAssist = Model.Assistencias.Any() ? Model.Assistencias.Max(a => a.Valor) : 1;
-                }
-                @for (int i = 0; i < Model.Assistencias.Count; i++)
-                {
-                    var a = Model.Assistencias[i];
-                    var w = Math.Round((double)a.Valor / maxAssist * 100, 1);
-                    <div class="rpt-row">
-                        <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
-                        @if (!string.IsNullOrEmpty(a.Jogador.FotoUrl))
-                        {
-                            <div class="rpt-avatar"><img src="@Url.Action("Imagem", "MediaProxy", new { url = a.Jogador.FotoUrl })" /></div>
-                        }
-                        else { <div class="rpt-avatar">@(a.Jogador.Nome.Length >= 2 ? a.Jogador.Nome.Substring(0,2).ToUpper() : "?")</div> }
-                        <div class="rpt-name">
-                            <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@a.Jogador.Id"
-                               style="color:inherit;text-decoration:none;font-weight:500;">@a.Jogador.Nome</a>
-                            <small>
-                                @PosicaoJogadorHelper.Sigla(a.Jogador.Posicao) ·
-                                @{ var teA = TimeExibicao(a.Jogador); }
-                                @if (!string.IsNullOrEmpty(teA.Escudo))
-                                {
-                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = teA.Escudo })" style="width:12px;height:12px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:3px;" />
-                                }
-                                @teA.Nome
-                            </small>
-                        </div>
-                        <div class="rpt-bar-wrap" style="max-width:80px;">
-                            <div class="rpt-bar-bg">
-                                <div class="rpt-bar-fill" style="width:@(Coord(w))%;background:#3b82f6;"></div>
-                            </div>
-                        </div>
-                        <span class="rpt-badge-value" style="background:#dbeafe;color:#1d4ed8;">@a.Valor 🎯</span>
-                    </div>
-                }
-            </div>
-
-            <!-- Gols Contra -->
+            @{ CardJogadores("Artilheiros", "Mais gols marcados", Model.Artilheiros, "gol", "gols", "Nenhum gol no recorte."); }
+            @{ CardJogadores("Assistências", "Mais passes para gol", Model.Assistencias, "assist.", "assist.", "Nenhuma assistência no recorte."); }
             @if (Model.GolsContraRanking.Any())
             {
-                <div class="rpt-card">
-                    <div class="rpt-card-header">
-                        <div class="rpt-card-icon" style="background:#fef2f2;">🔴</div>
-                        <div>
-                            <h3 class="rpt-card-title">Gols Contra</h3>
-                            <p class="rpt-card-sub">Gols marcados na própria rede</p>
-                        </div>
-                    </div>
-                    @for (int i = 0; i < Model.GolsContraRanking.Count; i++)
-                    {
-                        var a = Model.GolsContraRanking[i];
-                        <div class="rpt-row">
-                            <span class="rpt-rank">@(i+1)</span>
-                            @if (!string.IsNullOrEmpty(a.Jogador.FotoUrl))
-                            {
-                                <div class="rpt-avatar"><img src="@Url.Action("Imagem", "MediaProxy", new { url = a.Jogador.FotoUrl })" /></div>
-                            }
-                            else { <div class="rpt-avatar">@(a.Jogador.Nome.Length >= 2 ? a.Jogador.Nome.Substring(0,2).ToUpper() : "?")</div> }
-                            <div class="rpt-name">
-                                @a.Jogador.Nome
-                                <small>
-                                @PosicaoJogadorHelper.Sigla(a.Jogador.Posicao) ·
-                                @{ var teA = TimeExibicao(a.Jogador); }
-                                @if (!string.IsNullOrEmpty(teA.Escudo))
-                                {
-                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = teA.Escudo })" style="width:12px;height:12px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:3px;" />
-                                }
-                                @teA.Nome
-                            </small>
-                            </div>
-                            <span class="rpt-badge-value" style="background:#fee2e2;color:#b91c1c;">@a.Valor</span>
-                        </div>
-                    }
-                </div>
+                CardJogadores("Gols contra", "Gols marcados na própria rede", Model.GolsContraRanking, "gol", "gols", "", barra: false);
             }
-
         </div>
     </div>
 
-    <!-- ══ SEÇÃO: PARTIDAS ═════════════════════════════════════════════════ -->
-    <div id="sec-partidas" class="rpt-section">
+    <!-- ══ PRESENÇA E CARTÕES ═════════════════════════════════════════════ -->
+    <div id="sec-presenca" class="rpt-section" role="tabpanel" hidden>
         <div class="rpt-grid">
-            <div class="rpt-card">
-                <div class="rpt-card-header">
-                    <div class="rpt-card-icon" style="background:#eff6ff;">🎽</div>
-                    <div>
-                        <h3 class="rpt-card-title">Mais Partidas Jogadas</h3>
-                        <p class="rpt-card-sub">Jogadores titulares com mais presenças</p>
-                    </div>
-                </div>
-                @if (!Model.MaisPartidas.Any())
-                {
-                    <div style="padding:1.5rem;text-align:center;color:var(--text-muted);font-size:13px;">Nenhuma escalação registrada.</div>
-                }
-                @{
-                    var maxP = Model.MaisPartidas.Any() ? Model.MaisPartidas.Max(a => a.Valor) : 1;
-                }
-                @for (int i = 0; i < Model.MaisPartidas.Count; i++)
-                {
-                    var a = Model.MaisPartidas[i];
-                    var w = Math.Round((double)a.Valor / maxP * 100, 1);
-                    <div class="rpt-row">
-                        <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
-                        @if (!string.IsNullOrEmpty(a.Jogador.FotoUrl))
-                        {
-                            <div class="rpt-avatar"><img src="@Url.Action("Imagem", "MediaProxy", new { url = a.Jogador.FotoUrl })" /></div>
-                        }
-                        else { <div class="rpt-avatar">@(a.Jogador.Nome.Length >= 2 ? a.Jogador.Nome.Substring(0,2).ToUpper() : "?")</div> }
-                        <div class="rpt-name">
-                            <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@a.Jogador.Id"
-                               style="color:inherit;text-decoration:none;font-weight:500;">@a.Jogador.Nome</a>
-                            <small>
-                                @PosicaoJogadorHelper.Sigla(a.Jogador.Posicao) ·
-                                @{ var teA = TimeExibicao(a.Jogador); }
-                                @if (!string.IsNullOrEmpty(teA.Escudo))
-                                {
-                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = teA.Escudo })" style="width:12px;height:12px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:3px;" />
-                                }
-                                @teA.Nome
-                            </small>
-                        </div>
-                        <div class="rpt-bar-wrap" style="max-width:100px;">
-                            <div class="rpt-bar-bg">
-                                <div class="rpt-bar-fill" style="width:@(Coord(w))%;background:#3b82f6;"></div>
-                            </div>
-                        </div>
-                        <span class="rpt-badge-value" style="background:#eff6ff;color:#1d4ed8;">@a.Valor</span>
-                    </div>
-                }
-            </div>
+            @{ CardJogadores("Mais partidas", "Jogos como titular", Model.MaisPartidas, "jogo", "jogos", "Nenhuma escalação no recorte."); }
+            @{ CardJogadores("Cartões amarelos", "Mais advertidos", Model.MaisCartoesAmarelos, "amarelo", "amarelos", "Nenhum cartão amarelo no recorte.", barra: false); }
+            @{ CardJogadores("Cartões vermelhos", "Mais expulsos", Model.MaisCartoesVermelhos, "vermelho", "vermelhos", "Nenhuma expulsão no recorte.", barra: false); }
         </div>
     </div>
 
-    <!-- ══ SEÇÃO: DISCIPLINA ══════════════════════════════════════════════ -->
-    <div id="sec-cartoes" class="rpt-section">
-        <div class="rpt-grid">
-
-            <div class="rpt-card">
-                <div class="rpt-card-header">
-                    <div class="rpt-card-icon" style="background:#fefce8;">🟨</div>
-                    <div>
-                        <h3 class="rpt-card-title">Mais Cartões Amarelos</h3>
-                        <p class="rpt-card-sub">Infrações leves acumuladas</p>
-                    </div>
-                </div>
-                @for (int i = 0; i < Model.MaisCartoesAmarelos.Count; i++)
-                {
-                    var c = Model.MaisCartoesAmarelos[i];
-                    <div class="rpt-row">
-                        <span class="rpt-rank">@(i+1)</span>
-                        @if (!string.IsNullOrEmpty(c.Jogador.FotoUrl))
-                        {
-                            <div class="rpt-avatar"><img src="@Url.Action("Imagem", "MediaProxy", new { url = c.Jogador.FotoUrl })" /></div>
-                        }
-                        else { <div class="rpt-avatar">@(c.Jogador.Nome.Length >= 2 ? c.Jogador.Nome.Substring(0,2).ToUpper() : "?")</div> }
-                        <div class="rpt-name">
-                            @c.Jogador.Nome
-                            <small>
-                                @PosicaoJogadorHelper.Sigla(c.Jogador.Posicao) ·
-                                @{ var teC = TimeExibicao(c.Jogador); }
-                                @if (!string.IsNullOrEmpty(teC.Escudo))
-                                {
-                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = teC.Escudo })" style="width:12px;height:12px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:3px;" />
-                                }
-                                @teC.Nome
-                            </small>
-                        </div>
-                        <span class="rpt-badge-value" style="background:#fef9c3;color:#a16207;">🟨 @c.Valor</span>
-                    </div>
-                }
-                @if (!Model.MaisCartoesAmarelos.Any())
-                {
-                    <div style="padding:1.5rem;text-align:center;color:var(--text-muted);font-size:13px;">Sem cartões registrados.</div>
-                }
-            </div>
-
-            <div class="rpt-card">
-                <div class="rpt-card-header">
-                    <div class="rpt-card-icon" style="background:#fef2f2;">🟥</div>
-                    <div>
-                        <h3 class="rpt-card-title">Mais Cartões Vermelhos</h3>
-                        <p class="rpt-card-sub">Expulsões registradas</p>
-                    </div>
-                </div>
-                @for (int i = 0; i < Model.MaisCartoesVermelhos.Count; i++)
-                {
-                    var c = Model.MaisCartoesVermelhos[i];
-                    <div class="rpt-row">
-                        <span class="rpt-rank">@(i+1)</span>
-                        @if (!string.IsNullOrEmpty(c.Jogador.FotoUrl))
-                        {
-                            <div class="rpt-avatar"><img src="@Url.Action("Imagem", "MediaProxy", new { url = c.Jogador.FotoUrl })" /></div>
-                        }
-                        else { <div class="rpt-avatar">@(c.Jogador.Nome.Length >= 2 ? c.Jogador.Nome.Substring(0,2).ToUpper() : "?")</div> }
-                        <div class="rpt-name">
-                            @c.Jogador.Nome
-                            <small>
-                                @PosicaoJogadorHelper.Sigla(c.Jogador.Posicao) ·
-                                @{ var teC = TimeExibicao(c.Jogador); }
-                                @if (!string.IsNullOrEmpty(teC.Escudo))
-                                {
-                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = teC.Escudo })" style="width:12px;height:12px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:3px;" />
-                                }
-                                @teC.Nome
-                            </small>
-                        </div>
-                        <span class="rpt-badge-value" style="background:#fee2e2;color:#b91c1c;">🟥 @c.Valor</span>
-                    </div>
-                }
-                @if (!Model.MaisCartoesVermelhos.Any())
-                {
-                    <div style="padding:1.5rem;text-align:center;color:var(--text-muted);font-size:13px;">Sem expulsões registradas.</div>
-                }
-            </div>
-
-        </div>
-    </div>
-
-    <!-- ══ SEÇÃO: TIMES ════════════════════════════════════════════════════ -->
-    <div id="sec-times" class="rpt-section">
-        <div class="rpt-grid">
-
-            <!-- Mais pontos -->
-            <div class="rpt-card">
-                <div class="rpt-card-header">
-                    <div class="rpt-card-icon" style="background:#fef3c7;">🏆</div>
-                    <div>
-                        <h3 class="rpt-card-title">Mais Pontos</h3>
-                        <p class="rpt-card-sub">Classificação geral de pontos</p>
-                    </div>
-                </div>
-                @{ var maxPts = Model.TimesMaisPontos.Any() ? Model.TimesMaisPontos.Max(t => t.Pontos) : 1; }
-                @for (int i = 0; i < Model.TimesMaisPontos.Count; i++)
-                {
-                    var t = Model.TimesMaisPontos[i];
-                    var w = Math.Round((double)t.Pontos / maxPts * 100, 1);
-                    <div class="rpt-row">
-                        <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
-                        @if (!string.IsNullOrEmpty(t.Time.EscudoUrl))
-                        {
-                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.Time.EscudoUrl })" class="rpt-team-badge" />
-                        }
-                        <div class="rpt-name">
-                            @t.Time.Nome
-                            <small>@t.Jogos J · @t.Vitorias V · @t.Empates E · @t.Derrotas D</small>
-                        </div>
-                        <div class="rpt-bar-wrap" style="max-width:70px;">
-                            <div class="rpt-bar-bg">
-                                <div class="rpt-bar-fill" style="width:@(Coord(w))%;background:#f59e0b;"></div>
-                            </div>
-                        </div>
-                        <span class="rpt-badge-value" style="background:#fffbeb;color:#d97706;">@t.Pontos pts</span>
-                    </div>
-                }
-            </div>
-
-            <!-- Mais gols -->
-            <div class="rpt-card">
-                <div class="rpt-card-header">
-                    <div class="rpt-card-icon" style="background:#f0fdf4;">⚽</div>
-                    <div>
-                        <h3 class="rpt-card-title">Mais Gols Marcados</h3>
-                        <p class="rpt-card-sub">Times com maior poder ofensivo</p>
-                    </div>
-                </div>
-                @{ var maxGT = Model.TimesGols.Any() ? Model.TimesGols.Max(t => t.GolsPro) : 1; }
-                @for (int i = 0; i < Model.TimesGols.Count; i++)
-                {
-                    var t = Model.TimesGols[i];
-                    var w = Math.Round((double)t.GolsPro / maxGT * 100, 1);
-                    <div class="rpt-row">
-                        <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
-                        @if (!string.IsNullOrEmpty(t.Time.EscudoUrl))
-                        {
-                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.Time.EscudoUrl })" class="rpt-team-badge" />
-                        }
-                        <div class="rpt-name">
-                            @t.Time.Nome
-                            <small>Saldo: @(t.SaldoGols >= 0 ? "+" : "")@t.SaldoGols · @t.Jogos jogo(s)</small>
-                        </div>
-                        <div class="rpt-bar-wrap" style="max-width:70px;">
-                            <div class="rpt-bar-bg">
-                                <div class="rpt-bar-fill" style="width:@(Coord(w))%;background:#22c55e;"></div>
-                            </div>
-                        </div>
-                        <span class="rpt-badge-value" style="background:#dcfce7;color:#15803d;">@t.GolsPro ⚽</span>
-                    </div>
-                }
-            </div>
-
-            <!-- Mais vitórias -->
-            <div class="rpt-card">
-                <div class="rpt-card-header">
-                    <div class="rpt-card-icon" style="background:#eff6ff;">🥇</div>
-                    <div>
-                        <h3 class="rpt-card-title">Mais Vitórias</h3>
-                        <p class="rpt-card-sub">Times com melhor desempenho</p>
-                    </div>
-                </div>
-                @{ var maxV = Model.TimesVitorias.Any() ? Model.TimesVitorias.Max(t => t.Vitorias) : 1; }
-                @for (int i = 0; i < Model.TimesVitorias.Count; i++)
-                {
-                    var t = Model.TimesVitorias[i];
-                    var w = Math.Round((double)t.Vitorias / maxV * 100, 1);
-                    <div class="rpt-row">
-                        <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
-                        @if (!string.IsNullOrEmpty(t.Time.EscudoUrl))
-                        {
-                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.Time.EscudoUrl })" class="rpt-team-badge" />
-                        }
-                        <div class="rpt-name">
-                            @t.Time.Nome
-                            <small>@t.Aproveitamento% aprov. · @t.Jogos jogo(s)</small>
-                        </div>
-                        <div class="rpt-bar-wrap" style="max-width:70px;">
-                            <div class="rpt-bar-bg">
-                                <div class="rpt-bar-fill" style="width:@(Coord(w))%;background:#3b82f6;"></div>
-                            </div>
-                        </div>
-                        <span class="rpt-badge-value" style="background:#eff6ff;color:#1d4ed8;">@t.Vitorias V</span>
-                    </div>
-                }
-            </div>
-
-            <!-- Menos gols sofridos -->
-            <div class="rpt-card">
-                <div class="rpt-card-header">
-                    <div class="rpt-card-icon" style="background:#fdf4ff;">🛡️</div>
-                    <div>
-                        <h3 class="rpt-card-title">Menos Gols Sofridos</h3>
-                        <p class="rpt-card-sub">Defesas mais sólidas (mín. 2 jogos)</p>
-                    </div>
-                </div>
-                @for (int i = 0; i < Model.TimesMenosGolsSofridos.Count; i++)
-                {
-                    var t = Model.TimesMenosGolsSofridos[i];
-                    <div class="rpt-row">
-                        <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
-                        @if (!string.IsNullOrEmpty(t.Time.EscudoUrl))
-                        {
-                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.Time.EscudoUrl })" class="rpt-team-badge" />
-                        }
-                        <div class="rpt-name">
-                            @t.Time.Nome
-                            <small>@(Math.Round((double)t.GolsContra / t.Jogos, 1)) gols/jogo · @t.Jogos jogo(s)</small>
-                        </div>
-                        <span class="rpt-badge-value" style="background:#fdf4ff;color:#7e22ce;">@t.GolsContra sofridos</span>
-                    </div>
-                }
-            </div>
-
-            <!-- Aproveitamento -->
-            <div class="rpt-card">
-                <div class="rpt-card-header">
-                    <div class="rpt-card-icon" style="background:#fff7ed;">📊</div>
-                    <div>
-                        <h3 class="rpt-card-title">Melhor Aproveitamento</h3>
-                        <p class="rpt-card-sub">% de pontos sobre possível (mín. 2 jogos)</p>
-                    </div>
-                </div>
-                @for (int i = 0; i < Model.TimesAproveitamento.Count; i++)
-                {
-                    var t = Model.TimesAproveitamento[i];
-                    <div class="rpt-row">
-                        <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
-                        @if (!string.IsNullOrEmpty(t.Time.EscudoUrl))
-                        {
-                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.Time.EscudoUrl })" class="rpt-team-badge" />
-                        }
-                        <div class="rpt-name">
-                            @t.Time.Nome
-                            <small>@t.Pontos pts · @t.Jogos jogo(s)</small>
-                        </div>
-                        <div class="rpt-bar-wrap" style="max-width:80px;">
-                            <div class="rpt-bar-bg">
-                                <div class="rpt-bar-fill" style="width:@(Coord(t.Aproveitamento))%;background:linear-gradient(90deg,#f97316,#fbbf24);"></div>
-                            </div>
-                        </div>
-                        <span class="rpt-badge-value" style="background:#fff7ed;color:#c2410c;">@t.Aproveitamento%</span>
-                    </div>
-                }
-            </div>
-
-            <!-- Vitórias em Casa -->
-            <div class="rpt-card">
-                <div class="rpt-card-header" style="border-left:4px solid #16a34a;">
-                    <div class="rpt-card-icon" style="background:#dcfce7;color:#16a34a;">🏠</div>
-                    <div>
-                        <h3 class="rpt-card-title">Mais Vitórias em Casa</h3>
-                        <p class="rpt-card-sub">Times imbatíveis no seu estádio</p>
-                    </div>
-                </div>
-                @{ var maxVC = Model.TimesVitoriasCasa.Any() ? Model.TimesVitoriasCasa.Max(t => t.VitoriasCasa) : 1; }
-                @for (int i = 0; i < Model.TimesVitoriasCasa.Count; i++)
-                {
-                    var t = Model.TimesVitoriasCasa[i];
-                    var w = Math.Round((double)t.VitoriasCasa / maxVC * 100, 1);
-                    <div class="rpt-row">
-                        <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
-                        @if (!string.IsNullOrEmpty(t.Time.EscudoUrl))
-                        {
-                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.Time.EscudoUrl })" class="rpt-team-badge" />
-                        }
-                        <div class="rpt-name">
-                            @t.Time.Nome
-                            <small>@t.VitoriasCasa vitória(s) em casa</small>
-                        </div>
-                        <div class="rpt-bar-wrap">
-                            <div class="rpt-bar-bg">
-                                <div class="rpt-bar-fill" style="width:@(Coord(w))%;background:linear-gradient(90deg,#16a34a,#4ade80);"></div>
-                            </div>
-                        </div>
-                        <span class="rpt-badge-value" style="background:#dcfce7;color:#15803d;">@t.VitoriasCasa</span>
-                    </div>
-                }
-            </div>
-
-            <!-- Vitórias Fora de Casa -->
-            <div class="rpt-card">
-                <div class="rpt-card-header" style="border-left:4px solid #7c3aed;">
-                    <div class="rpt-card-icon" style="background:#ede9fe;color:#7c3aed;">✈️</div>
-                    <div>
-                        <h3 class="rpt-card-title">Mais Vitórias Fora</h3>
-                        <p class="rpt-card-sub">Times que vencem longe de casa</p>
-                    </div>
-                </div>
-                @{ var maxVF = Model.TimesVitoriasVisitante.Any() ? Model.TimesVitoriasVisitante.Max(t => t.VitoriasVisitante) : 1; }
-                @for (int i = 0; i < Model.TimesVitoriasVisitante.Count; i++)
-                {
-                    var t = Model.TimesVitoriasVisitante[i];
-                    var w = Math.Round((double)t.VitoriasVisitante / maxVF * 100, 1);
-                    <div class="rpt-row">
-                        <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
-                        @if (!string.IsNullOrEmpty(t.Time.EscudoUrl))
-                        {
-                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.Time.EscudoUrl })" class="rpt-team-badge" />
-                        }
-                        <div class="rpt-name">
-                            @t.Time.Nome
-                            <small>@t.VitoriasVisitante vitória(s) fora</small>
-                        </div>
-                        <div class="rpt-bar-wrap">
-                            <div class="rpt-bar-bg">
-                                <div class="rpt-bar-fill" style="width:@(Coord(w))%;background:linear-gradient(90deg,#7c3aed,#a78bfa);"></div>
-                            </div>
-                        </div>
-                        <span class="rpt-badge-value" style="background:#ede9fe;color:#6d28d9;">@t.VitoriasVisitante</span>
-                    </div>
-                }
-            </div>
-
-            @{
-                var statsCards = new[]
-                {
-                    (icone:"🎯", titulo:"Mais Finalizações/Jogo",    sub:"Média de chutes totais por partida",       cor:"#fef3c7", barCor:"#f59e0b", bgVal:"#fffbeb", fgVal:"#d97706", sufixo:"fin/j",   lista:Model.TimesFinalizacoes),
-                    (icone:"⚡", titulo:"Mais Chutes no Gol/Jogo",   sub:"Média de finalizações certas por partida", cor:"#dcfce7", barCor:"#22c55e", bgVal:"#dcfce7", fgVal:"#15803d", sufixo:"no gol",  lista:Model.TimesFinalizacoesNoGol),
-                    (icone:"🏳️", titulo:"Mais Escanteios/Jogo",      sub:"Média de escanteios por partida",          cor:"#eff6ff", barCor:"#3b82f6", bgVal:"#eff6ff", fgVal:"#1d4ed8", sufixo:"esc/j",   lista:Model.TimesEscanteios),
-                    (icone:"🎮", titulo:"Mais Passes Certos/Jogo",   sub:"Média de passes precisos por partida",     cor:"#fdf4ff", barCor:"#a855f7", bgVal:"#fdf4ff", fgVal:"#7e22ce", sufixo:"passes",  lista:Model.TimesPassesCertos),
-                    (icone:"⚽", titulo:"Maior Posse de Bola",        sub:"Média de posse de bola por partida",       cor:"#fff1f2", barCor:"#f43f5e", bgVal:"#fff1f2", fgVal:"#be123c", sufixo:"%",       lista:Model.TimesPosseBola),
-                    (icone:"📈", titulo:"Maior xG (Gols Esperados)",  sub:"Média de gols esperados (xG) por partida", cor:"#ecfdf5", barCor:"#10b981", bgVal:"#ecfdf5", fgVal:"#047857", sufixo:"xG/j",    lista:Model.TimesExpectedGoals),
-                    (icone:"🧤", titulo:"Mais Gols Evitados",        sub:"Média de gols evitados pelo goleiro (xG concedido − gols sofridos) por partida", cor:"#eef2ff", barCor:"#6366f1", bgVal:"#eef2ff", fgVal:"#4338ca", sufixo:"/j", lista:Model.TimesGolsEvitados),
-                    (icone:"📍", titulo:"Mais Chutes na Área/Jogo",  sub:"Média de finalizações de dentro da área por partida", cor:"#fef3c7", barCor:"#f59e0b", bgVal:"#fffbeb", fgVal:"#d97706", sufixo:"na área", lista:Model.TimesChutesArea),
-                    (icone:"🚀", titulo:"Mais Chutes de Fora/Jogo",  sub:"Média de finalizações de fora da área por partida",   cor:"var(--text-strong)", barCor:"#64748b", bgVal:"var(--text-strong)", fgVal:"#334155", sufixo:"de fora", lista:Model.TimesChutesForaArea),
-                    (icone:"🔁", titulo:"Mais Passes Tentados/Jogo", sub:"Média de passes tentados por partida — volume de posse trabalhada", cor:"#fdf4ff", barCor:"#a855f7", bgVal:"#fdf4ff", fgVal:"#7e22ce", sufixo:"passes", lista:Model.TimesPasses),
-                    (icone:"🎯", titulo:"Maior Precisão de Passe",   sub:"Percentual de passes concluídos por partida",         cor:"#ecfeff", barCor:"#06b6d4", bgVal:"#ecfeff", fgVal:"#0e7490", sufixo:"%",       lista:Model.TimesPrecisaoPasses),
-                    (icone:"🥅", titulo:"Mais Defesas do Goleiro",   sub:"Média de defesas por partida — bom goleiro ou defesa exposta", cor:"#eef2ff", barCor:"#6366f1", bgVal:"#eef2ff", fgVal:"#4338ca", sufixo:"def/j", lista:Model.TimesDefesasGoleiro),
-                    (icone:"🚨", titulo:"Mais Faltas Cometidas",     sub:"Média de faltas cometidas por partida",               cor:"#fff1f2", barCor:"#f43f5e", bgVal:"#fff1f2", fgVal:"#be123c", sufixo:"faltas", lista:Model.TimesFaltas),
-                    (icone:"🚩", titulo:"Mais Impedimentos",         sub:"Média de impedimentos por partida",                   cor:"#fff7ed", barCor:"#fb923c", bgVal:"#fff7ed", fgVal:"#c2410c", sufixo:"imp/j",  lista:Model.TimesImpedimentos),
-                };
-            }
-            @foreach (var sc in statsCards)
+    <!-- ══ TIMES ══════════════════════════════════════════════════════════ -->
+    <div id="sec-times" class="rpt-section" role="tabpanel" hidden>
+        @{
+            void CardTimes(string titulo, string sub, List<TimeEstatistica> lista, Func<TimeEstatistica, double> valor,
+                           Func<TimeEstatistica, string> texto, string? unidade, Func<TimeEstatistica, string> linha, bool barra = true)
             {
-                if (!sc.lista.Any()) { continue; }
-                var maxVal = sc.lista.Max(x => x.Valor);
-                <div class="rpt-card">
-                    <div class="rpt-card-header">
-                        <div class="rpt-card-icon" style="background:@sc.cor;">@sc.icone</div>
-                        <div>
-                            <h3 class="rpt-card-title">@sc.titulo</h3>
-                            <p class="rpt-card-sub">@sc.sub</p>
-                        </div>
-                    </div>
-                    @for (int i = 0; i < sc.lista.Count; i++)
-                    {
-                        var s = sc.lista[i];
-                        var w = maxVal > 0 ? Math.Round(s.Valor / maxVal * 100, 1) : 0;
-                        <div class="rpt-row">
-                            <span class="rpt-rank @(i==0?"gold":i==1?"silver":i==2?"bronze":"")">@(i+1)</span>
-                            @if (!string.IsNullOrEmpty(s.Time.EscudoUrl))
-                            {
-                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = s.Time.EscudoUrl })" class="rpt-team-badge" />
-                            }
-                            <div class="rpt-name">
-                                @s.Time.Nome
-                                <small>@s.Jogos jogo(s) analisado(s)</small>
-                            </div>
-                            <div class="rpt-bar-wrap" style="max-width:70px;">
-                                <div class="rpt-bar-bg">
-                                    <div class="rpt-bar-fill" style="width:@(Coord(w))%;background:@sc.barCor;"></div>
-                                </div>
-                            </div>
-                            <span class="rpt-badge-value" style="background:@sc.bgVal;color:@sc.fgVal;">@s.Valor @sc.sufixo</span>
-                        </div>
-                    }
-                </div>
+                if (!lista.Any()) { return; }
+                var max = Math.Max(1, lista.Max(valor));
+                <section class="rpt-card">
+                    @{ Cab(titulo, sub); }
+                    <ol class="rpt-lista">
+                        @for (int i = 0; i < lista.Count; i++)
+                        {
+                            var t = lista[i];
+                            LinhaTime(i, t.Time, texto(t), unidade, barra ? valor(t) / max * 100 : null, linha(t));
+                        }
+                    </ol>
+                </section>
             }
+            string Jogos(TimeEstatistica t) => Plural(t.Jogos, "jogo", "jogos");
+        }
 
-        </div>
-    </div>
-
-    <!-- ══ SEÇÃO: RODADAS ══════════════════════════════════════════════════ -->
-    <div id="sec-rodadas" class="rpt-section">
-        @if (!Model.GolsPorRodada.Any())
+        @if (!Model.TimesMaisPontos.Any() && !Model.TimesGols.Any())
         {
-            <div class="rpt-card">
-                <div style="padding:2rem;text-align:center;color:var(--text-muted);font-size:13px;">
-                    Nenhum dado de rodada disponível.
-                </div>
-            </div>
+            <p class="rl-msg">Nenhum time com jogos no recorte.</p>
         }
         else
         {
-            <div class="rpt-card">
-                <div class="rpt-card-header">
-                    <div class="rpt-card-icon" style="background:#fef3c7;">📈</div>
-                    <div>
-                        <h3 class="rpt-card-title">Gols por Rodada</h3>
-                        <p class="rpt-card-sub">Volume de gols e média por partida</p>
-                    </div>
+            <div class="rl-grupo">
+                <h2>Resultados</h2>
+                <p>Pontos, gols e vitórias nos jogos do recorte.</p>
+                <div class="rpt-grid">
+                    @{
+                        CardTimes("Mais pontos", "Soma de pontos no recorte", Model.TimesMaisPontos, t => t.Pontos, t => Milhar(t.Pontos), "pts",
+                            t => $"{Jogos(t)}, {t.Vitorias} V, {t.Empates} E, {t.Derrotas} D");
+                        CardTimes("Melhor aproveitamento", "Pontos ganhos sobre os possíveis, mínimo de 2 jogos", Model.TimesAproveitamento, t => t.Aproveitamento, t => Dec(t.Aproveitamento) + "%", null,
+                            t => $"{t.Pontos} pts em {Jogos(t)}");
+                        CardTimes("Mais vitórias", "Vitórias no recorte", Model.TimesVitorias, t => t.Vitorias, t => Milhar(t.Vitorias), null,
+                            t => $"{Jogos(t)}, {Dec(t.Aproveitamento)}% de aproveitamento");
+                        CardTimes("Mais gols marcados", "Ataques mais produtivos", Model.TimesGols, t => t.GolsPro, t => Milhar(t.GolsPro), "gols",
+                            t => $"Saldo {(t.SaldoGols > 0 ? "+" : "")}{t.SaldoGols}, {Jogos(t)}");
+                        CardTimes("Menos gols sofridos", "Defesas mais sólidas, mínimo de 2 jogos", Model.TimesMenosGolsSofridos, t => t.GolsContra, t => Milhar(t.GolsContra), "sofridos",
+                            t => $"{Dec(t.Jogos > 0 ? (double)t.GolsContra / t.Jogos : 0)} por jogo, {Jogos(t)}", barra: false);
+                        CardTimes("Mais vitórias em casa", "Vitórias como mandante", Model.TimesVitoriasCasa, t => t.VitoriasCasa, t => Milhar(t.VitoriasCasa), null,
+                            t => Jogos(t) + " no total");
+                        CardTimes("Mais vitórias fora", "Vitórias como visitante", Model.TimesVitoriasVisitante, t => t.VitoriasVisitante, t => Milhar(t.VitoriasVisitante), null,
+                            t => Jogos(t) + " no total");
+                    }
                 </div>
-                @{
-                    var maxGR = Model.GolsPorRodada.Any() ? Model.GolsPorRodada.Max(r => r.TotalGols) : 1;
+            </div>
+        }
+
+        @{
+            var statsCards = new (string titulo, string sub, string unidade, List<TimeStatJogo> lista)[]
+            {
+                ("Finalizações",          "Chutes por jogo",                                     "",   Model.TimesFinalizacoes),
+                ("Chutes no gol",         "Finalizações certas por jogo",                        "",   Model.TimesFinalizacoesNoGol),
+                ("Chutes de dentro da área", "Finalizações da área por jogo",                    "",   Model.TimesChutesArea),
+                ("Chutes de fora da área",   "Finalizações de longe por jogo",                   "",   Model.TimesChutesForaArea),
+                ("Gols esperados (xG)",   "xG médio por jogo",                                   "",   Model.TimesExpectedGoals),
+                ("Escanteios",            "Escanteios a favor por jogo",                         "",   Model.TimesEscanteios),
+                ("Posse de bola",         "Posse média por jogo",                                "%",  Model.TimesPosseBola),
+                ("Passes tentados",       "Volume de passes por jogo",                           "",   Model.TimesPasses),
+                ("Passes certos",         "Passes concluídos por jogo",                          "",   Model.TimesPassesCertos),
+                ("Precisão de passe",     "Passes concluídos sobre os tentados",                 "%",  Model.TimesPrecisaoPasses),
+                ("Defesas do goleiro",    "Defesas por jogo: goleiro bom ou defesa exposta",     "",   Model.TimesDefesasGoleiro),
+                ("Gols evitados",         "xG sofrido menos gols sofridos, por jogo",            "",   Model.TimesGolsEvitados),
+                ("Faltas cometidas",      "Faltas por jogo",                                     "",   Model.TimesFaltas),
+                ("Impedimentos",          "Impedimentos por jogo",                               "",   Model.TimesImpedimentos),
+            };
+        }
+        @if (statsCards.Any(s => s.lista.Any()))
+        {
+            <div class="rl-grupo">
+                <h2>Números por jogo</h2>
+                <p>Médias das estatísticas importadas. Cada time entra só com os jogos que têm estatística.</p>
+                <div class="rpt-grid">
+                    @foreach (var sc in statsCards)
+                    {
+                        if (!sc.lista.Any()) { continue; }
+                        var maxVal = sc.lista.Max(x => x.Valor);
+                        <section class="rpt-card">
+                            @{ Cab(sc.titulo, sc.sub); }
+                            <ol class="rpt-lista">
+                                @for (int i = 0; i < sc.lista.Count; i++)
+                                {
+                                    var s = sc.lista[i];
+                                    LinhaTime(i, s.Time, Dec(s.Valor, "0.##") + sc.unidade, null,
+                                        maxVal > 0 ? s.Valor / maxVal * 100 : 0,
+                                        Plural(s.Jogos, "jogo com estatística", "jogos com estatística"));
+                                }
+                            </ol>
+                        </section>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- ══ ESTATÍSTICAS DOS JOGADORES ═════════════════════════════════════ -->
+    <div id="sec-estatisticas" class="rpt-section" role="tabpanel" hidden>
+        <partial name="_EstatisticasJogadores" model="Model" />
+    </div>
+
+    <!-- ══ COMPETIÇÕES ════════════════════════════════════════════════════ -->
+    <div id="sec-competicoes" class="rpt-section" role="tabpanel" hidden>
+        @if (!Model.EstatisticasCompeticoes.Any())
+        {
+            <p class="rl-msg">Nenhuma competição com jogos no recorte.</p>
+        }
+        else
+        {
+            <div class="rl-comp-grid">
+                @foreach (var ec in Model.EstatisticasCompeticoes)
+                {
+                    <article class="rl-comp">
+                        <div>
+                            <h3>@ec.Competicao.Nome</h3>
+                            <div class="rl-comp-sub">@Plural(ec.TotalJogos, "jogo", "jogos"), @Plural(ec.JogosAnalisados, "analisado", "analisados")</div>
+                        </div>
+
+                        <dl class="rl-comp-nums">
+                            <div><dt>gols</dt><dd>@Milhar(ec.TotalGols + ec.TotalGolsContra)</dd></div>
+                            <div><dt>gols por jogo</dt><dd>@Dec(ec.MediaGolsPorJogo, "0.00")</dd></div>
+                            <div><dt>gols contra</dt><dd>@Milhar(ec.TotalGolsContra)</dd></div>
+                            <div><dt>amarelos</dt><dd>@Milhar(ec.TotalCartaoAmarelo)</dd></div>
+                            <div><dt>vermelhos</dt><dd>@Milhar(ec.TotalCartaoVermelho)</dd></div>
+                            <div><dt>cartões por jogo</dt><dd>@Dec(ec.MediaCartoesPorJogo, "0.00")</dd></div>
+                        </dl>
+
+                        @if (ec.TotalJogos > 0)
+                        {
+                            <div>
+                                <div class="rl-res-barra" role="img"
+                                     aria-label="Mandante venceu @Dec(ec.PctVitoriasMandante)%, empates @Dec(ec.PctEmpates)%, visitante venceu @Dec(ec.PctVitoriasVisitante)%">
+                                    <i class="rl-res-m" style="flex:@Coord(ec.PctVitoriasMandante)"></i>
+                                    <i class="rl-res-e" style="flex:@Coord(ec.PctEmpates)"></i>
+                                    <i class="rl-res-v" style="flex:@Coord(ec.PctVitoriasVisitante)"></i>
+                                </div>
+                                <div class="rl-res-leg">
+                                    <span><i class="rl-res-m"></i>Mandante venceu <b>@ec.VitoriasMandante</b> (@Dec(ec.PctVitoriasMandante)%)</span>
+                                    <span><i class="rl-res-e"></i>Empates <b>@ec.Empates</b></span>
+                                    <span><i class="rl-res-v"></i>Visitante venceu <b>@ec.VitoriasVisitante</b></span>
+                                </div>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(ec.ArtilheiroNome) || !string.IsNullOrEmpty(ec.AssistenteNome)
+                             || !string.IsNullOrEmpty(ec.TimeMaisVitorias) || !string.IsNullOrEmpty(ec.JogoMaisGols))
+                        {
+                            <dl class="rl-dest">
+                                @if (!string.IsNullOrEmpty(ec.ArtilheiroNome))
+                                {
+                                    <div>
+                                        <dt>Artilheiro</dt>
+                                        <dd>
+                                            @if (!string.IsNullOrEmpty(ec.ArtilheiroEscudoUrl)) { <img src="@Img(ec.ArtilheiroEscudoUrl)" alt="" loading="lazy" /> }
+                                            <a href="@Url.Action("Estatisticas", "Jogadores", new { id = ec.ArtilheiroId })"><span>@ec.ArtilheiroNome</span></a>
+                                        </dd>
+                                        <dd class="rl-dest-val">@Plural(ec.ArtilheiroGols, "gol", "gols")</dd>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(ec.AssistenteNome))
+                                {
+                                    <div>
+                                        <dt>Mais assistências</dt>
+                                        <dd>
+                                            @if (!string.IsNullOrEmpty(ec.AssistenteEscudoUrl)) { <img src="@Img(ec.AssistenteEscudoUrl)" alt="" loading="lazy" /> }
+                                            <a href="@Url.Action("Estatisticas", "Jogadores", new { id = ec.AssistenteId })"><span>@ec.AssistenteNome</span></a>
+                                        </dd>
+                                        <dd class="rl-dest-val">@Plural(ec.AssistenciasTotal, "assistência", "assistências")</dd>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(ec.TimeMaisVitorias))
+                                {
+                                    <div>
+                                        <dt>Mais vitórias</dt>
+                                        <dd>
+                                            @if (!string.IsNullOrEmpty(ec.TimeMaisVitoriasEscudoUrl)) { <img src="@Img(ec.TimeMaisVitoriasEscudoUrl)" alt="" loading="lazy" /> }
+                                            <span>@ec.TimeMaisVitorias</span>
+                                        </dd>
+                                        <dd class="rl-dest-val">@Plural(ec.TimeMaisVitoriasQtd, "vitória", "vitórias")</dd>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(ec.JogoMaisGols))
+                                {
+                                    <div>
+                                        <dt>Jogo com mais gols</dt>
+                                        <dd><span>@ec.JogoMaisGols</span></dd>
+                                        <dd class="rl-dest-val">@Plural(ec.JogoMaisGolsTotal, "gol", "gols")</dd>
+                                    </div>
+                                }
+                            </dl>
+                        }
+                    </article>
                 }
+            </div>
+        }
+    </div>
+
+    <!-- ══ RODADAS ════════════════════════════════════════════════════════ -->
+    <div id="sec-rodadas" class="rpt-section" role="tabpanel" hidden>
+        @if (!Model.GolsPorRodada.Any())
+        {
+            <p class="rl-msg">Nenhuma rodada no recorte.</p>
+        }
+        else
+        {
+            var maxGR = Math.Max(1, Model.GolsPorRodada.Max(r => r.TotalGols));
+            <section class="rpt-card">
+                @{ Cab("Gols por rodada", "A rodada com mais gols fica em destaque"); }
                 <div class="rodada-chart">
                     <div class="rodada-bars">
                         @foreach (var r in Model.GolsPorRodada)
                         {
-                            var pct = maxGR > 0 ? (double)r.TotalGols / maxGR * 90 : 0;
-                            <div class="rodada-bar-col">
+                            var alt = (double)r.TotalGols / maxGR * 96;
+                            <div class="rodada-bar-col @(r.TotalGols == maxGR ? "topo" : "")">
                                 <div class="rodada-bar-val">@r.TotalGols</div>
-                                <div class="rodada-bar" style="height:@(Math.Max(4, pct))px;" title="Rodada @r.Rodada: @r.TotalGols gols em @r.Jogos jogo(s)"></div>
-                                <div class="rodada-bar-label">R@r.Rodada</div>
+                                <div class="rodada-bar" style="height:@Coord(Math.Max(4, alt))px" title="Rodada @r.Rodada: @Plural(r.TotalGols, "gol", "gols") em @Plural(r.Jogos, "jogo", "jogos")"></div>
+                                <div class="rodada-bar-label">@r.Rodada</div>
                             </div>
                         }
                     </div>
                 </div>
-
-                <div style="overflow-x:auto;">
-                    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                <div style="overflow-x:auto">
+                    <table class="rl-tabela">
                         <thead>
-                            <tr style="background:var(--surface-2);color:var(--text-muted);font-size:10px;text-transform:uppercase;">
-                                <th style="padding:7px 16px;text-align:left;">Rodada</th>
-                                <th style="padding:7px;text-align:center;">Jogos</th>
-                                <th style="padding:7px;text-align:center;">Total Gols</th>
-                                <th style="padding:7px;text-align:center;">Média / Jogo</th>
+                            <tr>
+                                <th scope="col">Rodada</th>
+                                <th scope="col">Jogos</th>
+                                <th scope="col">Gols</th>
+                                <th scope="col">Gols por jogo</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var r in Model.GolsPorRodada)
                             {
-                                <tr style="border-bottom:.5px solid var(--border-subtle);">
-                                    <td style="padding:8px 16px;font-weight:600;">Rodada @r.Rodada</td>
-                                    <td style="text-align:center;">@r.Jogos</td>
-                                    <td style="text-align:center;font-weight:700;color:var(--warn);">@r.TotalGols</td>
-                                    <td style="text-align:center;">@r.MediaGols</td>
+                                <tr>
+                                    <td style="color:var(--text-strong);font-weight:600">@r.Rodada</td>
+                                    <td>@r.Jogos</td>
+                                    <td style="font-weight:700;color:var(--text-strong)">@r.TotalGols</td>
+                                    <td>@Dec(r.MediaGols, "0.0#")</td>
                                 </tr>
                             }
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </section>
         }
     </div>
 
-    <div id="sec-estat-jogadores" class="rpt-section">
-
-        <!-- ── Melhores jogadores / Recordes em um jogo (métrica selecionável) ── -->
-        @if (Model.MelhoresJogadores.Any() || Model.RecordesEmUmJogo.Any())
-        {
-            <div class="rpt-grid" style="margin-bottom:14px">
-
-                @if (Model.MelhoresJogadores.Any())
-                {
-                    <div class="rpt-card rpt-picker">
-                        <div class="rpt-card-header">
-                            <div class="rpt-card-icon" style="background:#f59e0b22;font-size:18px">🏅</div>
-                            <div>
-                                <h3 class="rpt-card-title">Melhores jogadores</h3>
-                                <p class="rpt-card-sub">Total acumulado nos jogos do filtro</p>
-                            </div>
-                        </div>
-                        <div class="rpt-picker-bar">
-                            <select class="rpt-metric-select">
-                                @foreach (var m in Model.MelhoresJogadores)
-                                {
-                                    <option value="@m.Chave">@m.Nome</option>
-                                }
-                            </select>
-                        </div>
-                        @foreach (var m in Model.MelhoresJogadores)
-                        {
-                            <div class="rpt-metric-list" data-chave="@m.Chave" style="display:none">
-                                @{ var pos = 0; }
-                                @foreach (var item in m.Itens)
-                                {
-                                    pos++;
-                                    var te = TimeExibicao(item.Jogador);
-                                    <div class="rpt-row">
-                                        <div class="rpt-rank @(pos == 1 ? "gold" : pos == 2 ? "silver" : pos == 3 ? "bronze" : "")">@pos</div>
-                                        @if (!string.IsNullOrEmpty(item.Jogador.FotoUrl))
-                                        {
-                                            <div class="rpt-avatar"><img src="@Url.Action("Imagem", "MediaProxy", new { url = item.Jogador.FotoUrl })" alt="" /></div>
-                                        }
-                                        else
-                                        {
-                                            <div class="rpt-avatar">@(item.Jogador.Nome.Length >= 2 ? item.Jogador.Nome.Substring(0, 2).ToUpper() : "?")</div>
-                                        }
-                                        <div class="rpt-name">
-                                            <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@item.Jogador.Id"
-                                               style="color:inherit;text-decoration:none;font-weight:500">@item.Jogador.NomeExibicao</a>
-                                            <small>
-                                                @if (!string.IsNullOrEmpty(te.Escudo))
-                                                {
-                                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = te.Escudo })" style="width:12px;height:12px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:3px" alt="" />
-                                                }
-                                                @PosicaoJogadorHelper.Sigla(item.Jogador.Posicao) · @te.Nome
-                                            </small>
-                                        </div>
-                                        <div class="rpt-badge-value" style="background:rgba(245,158,11,.15);color:var(--warn)">@item.Valor</div>
-                                    </div>
-                                }
-                            </div>
-                        }
-                        <div class="rpt-picker-footer">
-                            <button type="button" data-nav="prev" aria-label="Anterior">‹</button>
-                            <span class="rpt-pg-label"></span>
-                            <button type="button" data-nav="next" aria-label="Próximo">›</button>
-                        </div>
-                    </div>
-                }
-
-                @if (Model.RecordesEmUmJogo.Any())
-                {
-                    <div class="rpt-card rpt-picker">
-                        <div class="rpt-card-header">
-                            <div class="rpt-card-icon" style="background:#8b5cf622;font-size:18px">🎯</div>
-                            <div>
-                                <h3 class="rpt-card-title">Recordes em um jogo</h3>
-                                <p class="rpt-card-sub">Maiores marcas numa única partida</p>
-                            </div>
-                        </div>
-                        <div class="rpt-picker-bar">
-                            <select class="rpt-metric-select">
-                                @foreach (var m in Model.RecordesEmUmJogo)
-                                {
-                                    <option value="@m.Chave">@m.Nome</option>
-                                }
-                            </select>
-                        </div>
-                        @foreach (var m in Model.RecordesEmUmJogo)
-                        {
-                            <div class="rpt-metric-list" data-chave="@m.Chave" style="display:none">
-                                @{ var pos = 0; }
-                                @foreach (var item in m.Itens)
-                                {
-                                    pos++;
-                                    var jg = item.Jogo;
-                                    var titulo = $"{jg.TimeCasa?.Nome} {jg.PlacarCasa} x {jg.PlacarVisitante} {jg.TimeVisitante?.Nome} — {DateHelper.FormatarData(jg.Data, "dd/MM/yyyy")}";
-                                    <div class="rpt-row">
-                                        <div class="rpt-rank @(pos == 1 ? "gold" : pos == 2 ? "silver" : pos == 3 ? "bronze" : "")">@pos</div>
-                                        @if (!string.IsNullOrEmpty(item.Jogador.FotoUrl))
-                                        {
-                                            <div class="rpt-avatar"><img src="@Url.Action("Imagem", "MediaProxy", new { url = item.Jogador.FotoUrl })" alt="" /></div>
-                                        }
-                                        else
-                                        {
-                                            <div class="rpt-avatar">@(item.Jogador.Nome.Length >= 2 ? item.Jogador.Nome.Substring(0, 2).ToUpper() : "?")</div>
-                                        }
-                                        <div class="rpt-name">
-                                            <a asp-controller="Jogadores" asp-action="EstatisticasJogo" asp-route-id="@item.Jogador.Id" asp-route-jogoId="@jg.Id"
-                                               style="color:inherit;text-decoration:none;font-weight:500">@item.Jogador.NomeExibicao</a>
-                                            <small class="rpt-rec-jogo" title="@titulo">
-                                                @if (!string.IsNullOrEmpty(jg.TimeCasa?.EscudoUrl))
-                                                {
-                                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = jg.TimeCasa.EscudoUrl })" alt="" />
-                                                }
-                                                <span>@jg.PlacarCasa - @jg.PlacarVisitante</span>
-                                                @if (!string.IsNullOrEmpty(jg.TimeVisitante?.EscudoUrl))
-                                                {
-                                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = jg.TimeVisitante.EscudoUrl })" alt="" />
-                                                }
-                                            </small>
-                                        </div>
-                                        <div class="rpt-badge-value" style="background:rgba(139,92,246,.15);color:var(--purple)">@item.Valor</div>
-                                    </div>
-                                }
-                            </div>
-                        }
-                        <div class="rpt-picker-footer">
-                            <button type="button" data-nav="prev" aria-label="Anterior">‹</button>
-                            <span class="rpt-pg-label"></span>
-                            <button type="button" data-nav="next" aria-label="Próximo">›</button>
-                        </div>
-                    </div>
-                }
-
-            </div>
-        }
-
-        @{
-            var baseVm = Model.BaseFiltro;
-            // O rótulo dos cards acompanha a base escolhida — "Média de Desarmes"
-            // continuaria mentindo se a tabela passasse a mostrar totais ou por 90.
-            var prefixo = baseVm switch
-            {
-                ControleFutebolWeb.Models.ViewModels.BaseEstatistica.Total => "Total de ",
-                ControleFutebolWeb.Models.ViewModels.BaseEstatistica.Por90 => "",
-                _ => "Média de "
-            };
-            var sufixoTitulo = baseVm == ControleFutebolWeb.Models.ViewModels.BaseEstatistica.Por90 ? " por 90 min" : "";
-            var porBase = baseVm switch
-            {
-                ControleFutebolWeb.Models.ViewModels.BaseEstatistica.Total => "no período",
-                ControleFutebolWeb.Models.ViewModels.BaseEstatistica.Por90 => "a cada 90 minutos em campo",
-                _ => "por partida"
-            };
-            var sufixoMando = Model.MandoFiltro switch
-            {
-                ControleFutebolWeb.Models.ViewModels.MandoJogador.Casa => ", só jogando em casa",
-                ControleFutebolWeb.Models.ViewModels.MandoJogador.Fora => ", só jogando fora",
-                _ => ""
-            };
-            porBase += sufixoMando;
-            string T(string nome) => prefixo + nome + sufixoTitulo;
-
-            var rankingsEstat = new (string Titulo, string Sub, string Icone, string Cor, string Unidade, IEnumerable<ControleFutebolWeb.Models.ViewModels.RankingEstatJogador> Lista)[]
-            {
-                (T("Finalizações no Alvo"), $"Chutes que exigiram o goleiro {porBase}", "🎯", "#3b82f6", "base", Model.RankFinalizacoesNoGol),
-                (T("Passes-Chave"),         $"Passes que geraram chances claras {porBase}", "🎯", "#8b5cf6", "base", Model.RankPassesChave),
-                (T("Passes Certos"),        $"Passes concluídos {porBase}",                 "🔁", "#a855f7", "base", Model.RankPassesCertos),
-                ("Maior Precisão de Passe", "% de passes concluídos no período (mín. 50 passes tentados)", "🎯", "#06b6d4", "%", Model.RankPrecisaoPasses),
-                (T("Desarmes"),             $"Disputas defensivas vencidas {porBase}",      "⚔️", "#f59e0b", "base", Model.RankDesarmes),
-                (T("Bloqueios"),            $"Chutes/passes bloqueados {porBase}",          "🛡️", "#0ea5e9", "base", Model.RankBloqueios),
-                (T("Interceptações"),       $"Bolas interceptadas {porBase}",               "✋", "#10b981", "base", Model.RankInterceptacoes),
-                (T("Dribles Certos"),       $"Dribles bem-sucedidos {porBase}",             "💨", "#f97316", "base", Model.RankDrilesCertos),
-                (T("Impedimentos"),         $"Posições irregulares registradas {porBase}",  "🚩", "#ef4444", "base", Model.RankImpedimentos),
-                ("Pênaltis Defendidos",     "Total de pênaltis defendidos",                 "🧤", "#6366f1", "total", Model.RankPenaltisDefendidos),
-                ("Mais Vezes Capitão",      "Partidas em que foi capitão do time",          "🎖️", "#eab308", "total", Model.RankVezesCapitao),
-            };
-        }
-
-        @if (!rankingsEstat.Any(r => r.Lista.Any()))
-        {
-            <div class="rpt-card">
-                <div style="padding:2rem;text-align:center;color:var(--text-muted);font-size:13px;">
-                    Nenhuma estatística individual disponível para os filtros selecionados.<br>
-                    <small>As estatísticas são importadas via API ao analisar cada jogo.</small>
-                </div>
-            </div>
-        }
-        else
-        {
-            <div class="rpt-grid">
-                @foreach (var (titulo, sub, icone, cor, unidade, lista) in rankingsEstat)
-                {
-                    <div class="rpt-card">
-                        <div class="rpt-card-header">
-                            <div class="rpt-card-icon" style="background:@(cor)22; font-size:18px;">@icone</div>
-                            <div>
-                                <h3 class="rpt-card-title">@titulo</h3>
-                                <p class="rpt-card-sub">@sub</p>
-                            </div>
-                        </div>
-                        @if (!lista.Any())
-                        {
-                            <div style="padding:1rem 0;text-align:center;color:var(--text-muted);font-size:12px;">Sem dados</div>
-                        }
-                        else
-                        {
-                            // "base" acompanha o seletor Acumulado; "total" e "%" são fixos
-                            // porque não têm leitura por jogo nem por 90 que faça sentido.
-                            Func<ControleFutebolWeb.Models.ViewModels.RankingEstatJogador, double> ler = unidade switch
-                            {
-                                "total" => r => r.Total,
-                                "%"     => r => r.Media,
-                                _       => r => r.Valor(baseVm)
-                            };
-                            var mostraTotalInteiro = unidade == "total"
-                                || (unidade == "base" && baseVm == ControleFutebolWeb.Models.ViewModels.BaseEstatistica.Total);
-                            var maxVal = lista.Max(ler);
-                            <ol style="list-style:none;padding:0;margin:0">
-                                @foreach (var item in lista)
-                                {
-                                    var val = ler(item);
-                                    var bar = maxVal > 0 ? val / maxVal * 100 : 0;
-                                    <li style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:.5px solid var(--border-subtle);">
-                                        @{
-                                            // Usa a seleção quando a competição filtrada é de seleções OU quando filtrado pela própria seleção
-                                            bool usarSelecao = item.Jogador.Selecao != null
-                                                && (Model.ExibirSelecao || (item.Jogador.SelecaoId.HasValue && Model.TimeIdsFiltro.Contains(item.Jogador.SelecaoId.Value)));
-                                            var logoUrl = usarSelecao ? item.Jogador.Selecao?.EscudoUrl : item.Jogador.Time?.EscudoUrl;
-                                            var nomeAbrev = usarSelecao ? item.Jogador.Selecao?.Nome : item.Jogador.Time?.Nome;
-                                        }
-                                        <div style="width:26px;height:26px;border-radius:50%;overflow:hidden;border:1px solid var(--border);background:var(--surface-3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:var(--text-muted);">
-                                            @if (!string.IsNullOrWhiteSpace(logoUrl))
-                                            {
-                                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = logoUrl })" style="width:100%;height:100%;object-fit:contain;" />
-                                            }
-                                            else
-                                            {
-                                                @(nomeAbrev?.Length >= 3 ? nomeAbrev[..3].ToUpper() : nomeAbrev)
-                                            }
-                                        </div>
-                                        <div style="flex:1;min-width:0;">
-                                            <div style="font-size:12px;font-weight:600;color:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                                                <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@item.Jogador.Id" style="color:inherit;text-decoration:none;">@item.Jogador.Nome</a>
-                                            </div>
-                                            <div style="height:4px;background:var(--surface-3);border-radius:2px;margin-top:3px;">
-                                                <div style="height:100%;width:@(bar.ToString("F1", System.Globalization.CultureInfo.InvariantCulture))%;background:@cor;border-radius:2px;"></div>
-                                            </div>
-                                        </div>
-                                        <div style="text-align:right;flex-shrink:0">
-                                            <div style="font-size:14px;font-weight:700;color:@cor">@(mostraTotalInteiro ? val.ToString("F0") : unidade == "%" ? val.ToString("F1") + "%" : val.ToString("F2"))</div>
-                                            @* Por 90 min mostra os minutos: é o denominador da conta, e sem ele
-                                               não dá pra julgar se o número veio de amostra grande ou pequena. *@
-                                            <div style="font-size:10px;color:var(--text-muted)">
-                                                @(unidade == "base" && baseVm == ControleFutebolWeb.Models.ViewModels.BaseEstatistica.Por90
-                                                    ? $"{item.Minutos} min · {item.Partidas} jogo(s)"
-                                                    : $"{item.Partidas} jogo(s)")
-                                            </div>
-                                        </div>
-                                    </li>
-                                }
-                            </ol>
-                        }
-                    </div>
-                }
-            </div>
-        }
-    </div>
-
-    <!-- ══ SEÇÃO: ESTATÍSTICAS COMPETIÇÕES ══════════════════════════════════ -->
-    <div id="sec-estat-competicoes" class="rpt-section">
-        @if (!Model.EstatisticasCompeticoes.Any())
-        {
-            <p style="text-align:center;color:var(--text-muted);padding:2rem;">Nenhuma competição com jogos analisados.</p>
-        }
-        else
-        {
-            foreach (var ec in Model.EstatisticasCompeticoes)
-            {
-                <div style="background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:1.5rem;margin-bottom:1.5rem;">
-                    <!-- Cabeçalho da competição -->
-                    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem;border-bottom:1px solid #1e293b;padding-bottom:1rem;">
-                        <div>
-                            <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:var(--text-strong);letter-spacing:.5px">@ec.Competicao.Nome</div>
-                            <div style="font-size:12px;color:var(--text-muted)">@ec.TotalJogos jogo(s) · @ec.JogosAnalisados analisado(s)</div>
-                        </div>
-                    </div>
-
-                    <!-- Grid de estatísticas -->
-                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1rem;margin-bottom:1.25rem;">
-                        @{
-                            void StatBox(string label, string valor, string cor, string icone)
-                            {
-                                <div style="background:#1e293b;border-radius:10px;padding:.9rem 1rem;">
-                                    <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:.3rem">@icone @label</div>
-                                    <div style="font-size:22px;font-weight:800;font-family:'Barlow Condensed',sans-serif;color:@cor;">@valor</div>
-                                </div>
-                            }
-                        }
-                        @{ StatBox("Gols", ec.TotalGols.ToString(), "#22c55e", "⚽"); }
-                        @{ StatBox("Gols contra", ec.TotalGolsContra.ToString(), "#ef4444", "🙈"); }
-                        @{ StatBox("Média gols/jogo", ec.MediaGolsPorJogo.ToString("F2"), "#f59e0b", "📊"); }
-                        @{ StatBox("Cartões amarelos", ec.TotalCartaoAmarelo.ToString(), "var(--warn)", "🟨"); }
-                        @{ StatBox("Cartões vermelhos", ec.TotalCartaoVermelho.ToString(), "#ef4444", "🟥"); }
-                        @{ StatBox("Média cartões/jogo", ec.MediaCartoesPorJogo.ToString("F2"), "var(--text-muted)", "📋"); }
-                    </div>
-
-                    <!-- Resultados: vitórias mandante / empate / visitante -->
-                    <div style="margin-bottom:1.25rem;">
-                        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:.6rem">Resultados</div>
-                        <div style="display:flex;gap:0;border-radius:8px;overflow:hidden;height:36px;">
-                            @if (ec.TotalJogos > 0)
-                            {
-                                <div style="flex:@ec.PctVitoriasMandante;background:#22c55e;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;min-width:30px;" title="Mandante @ec.PctVitoriasMandante%">
-                                    @ec.PctVitoriasMandante%
-                                </div>
-                                <div style="flex:@ec.PctEmpates;background:#6b7280;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;min-width:30px;" title="Empates @ec.PctEmpates%">
-                                    @ec.PctEmpates%
-                                </div>
-                                <div style="flex:@ec.PctVitoriasVisitante;background:#3b82f6;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;min-width:30px;" title="Visitante @ec.PctVitoriasVisitante%">
-                                    @ec.PctVitoriasVisitante%
-                                </div>
-                            }
-                        </div>
-                        <div style="display:flex;gap:1.5rem;margin-top:.5rem;">
-                            <span style="font-size:11px;color:var(--ok-2)">🟢 Mandante: @ec.VitoriasMandante</span>
-                            @* Bloco sempre-escuro: cinza fixo, não usa token (no tema claro o token escurece) *@
-                            <span style="font-size:11px;color:var(--text-muted)">⬜ Empates: @ec.Empates</span>
-                            <span style="font-size:11px;color:#3b82f6;">🔵 Visitante: @ec.VitoriasVisitante</span>
-                        </div>
-                    </div>
-
-                    <!-- Destaques: artilheiro, assistente, time, jogo -->
-                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.75rem;">
-                        @if (!string.IsNullOrEmpty(ec.ArtilheiroNome))
-                        {
-                            <div style="background:#1e293b;border-radius:10px;padding:.8rem 1rem;">
-                                <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">⚽ Artilheiro</div>
-                                <div style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem;">
-                                    @if (!string.IsNullOrEmpty(ec.ArtilheiroEscudoUrl))
-                                    {
-                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = ec.ArtilheiroEscudoUrl })" alt="" style="width:20px;height:20px;object-fit:contain;flex-shrink:0;" />
-                                    }
-                                    <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@ec.ArtilheiroId"
-                                       style="font-size:14px;font-weight:700;color:var(--text-strong);text-decoration:none">@ec.ArtilheiroNome</a>
-                                </div>
-                                <div style="font-size:12px;color:var(--ok-2)">@ec.ArtilheiroGols gol(s)</div>
-                            </div>
-                        }
-                        @if (!string.IsNullOrEmpty(ec.AssistenteNome))
-                        {
-                            <div style="background:#1e293b;border-radius:10px;padding:.8rem 1rem;">
-                                <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">🎯 Mais assistências</div>
-                                <div style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem;">
-                                    @if (!string.IsNullOrEmpty(ec.AssistenteEscudoUrl))
-                                    {
-                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = ec.AssistenteEscudoUrl })" alt="" style="width:20px;height:20px;object-fit:contain;flex-shrink:0;" />
-                                    }
-                                    <a asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@ec.AssistenteId"
-                                       style="font-size:14px;font-weight:700;color:var(--text-strong);text-decoration:none">@ec.AssistenteNome</a>
-                                </div>
-                                <div style="font-size:12px;color:#3b82f6;">@ec.AssistenciasTotal assist.</div>
-                            </div>
-                        }
-                        @if (!string.IsNullOrEmpty(ec.TimeMaisVitorias))
-                        {
-                            <div style="background:#1e293b;border-radius:10px;padding:.8rem 1rem;">
-                                <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">🏆 Mais vitórias</div>
-                                <div style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem;">
-                                    @if (!string.IsNullOrEmpty(ec.TimeMaisVitoriasEscudoUrl))
-                                    {
-                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = ec.TimeMaisVitoriasEscudoUrl })" alt="" style="width:20px;height:20px;object-fit:contain;flex-shrink:0;" />
-                                    }
-                                    <span style="font-size:14px;font-weight:700;color:var(--text-strong)">@ec.TimeMaisVitorias</span>
-                                </div>
-                                <div style="font-size:12px;color:#f59e0b;">@ec.TimeMaisVitoriasQtd vitória(s)</div>
-                            </div>
-                        }
-                        @if (!string.IsNullOrEmpty(ec.JogoMaisGols))
-                        {
-                            <div style="background:#1e293b;border-radius:10px;padding:.8rem 1rem;">
-                                <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">🔥 Jogo com mais gols</div>
-                                <div style="font-size:13px;font-weight:700;color:var(--text-strong);margin-top:.25rem">@ec.JogoMaisGols</div>
-                                <div style="font-size:12px;color:var(--bad-2)">@ec.JogoMaisGolsTotal gol(s)</div>
-                            </div>
-                        }
-                    </div>
-                </div>
-            }
-        }
-    </div>
-
-    <!-- ══ SEÇÃO: SELEÇÃO ════════════════════════════════════════════════════ -->
-    <div id="sec-selecao" class="rpt-section">
+    <!-- ══ SELEÇÃO ═════════════════════════════════════════════════════════ -->
+    <div id="sec-selecao" class="rpt-section" role="tabpanel" hidden>
         @if (Model.Selecao == null)
         {
-            <p style="text-align:center;color:var(--text-muted);padding:2rem;">Sem dados suficientes (nenhum jogo do filtro atual tem formação registrada).</p>
+            <p class="rl-msg">Nenhum jogo do recorte tem formação registrada, então não dá para montar a seleção.</p>
         }
         else
         {
@@ -2143,7 +1258,7 @@
 
             <div class="sel-header">
                 <div class="sel-formacao-nome">@sel.Formacao.Nome</div>
-                <div class="sel-formacao-sub">Formação mais usada pelo filtro atual · melhor nota em cada posição</div>
+                <div class="sel-formacao-sub">Formação mais usada no recorte, com a melhor nota em cada posição</div>
             </div>
 
             <div class="sel-campo-wrap">
@@ -2159,10 +1274,10 @@
                 </div>
             </div>
 
-            <div class="sel-lista">
+            <ul class="sel-lista">
                 @foreach (var slot in sel.Slots)
                 {
-                    <div class="sel-lista-item">
+                    <li class="sel-lista-item">
                         <div class="sel-lista-slot">@slot.NomePosicao</div>
                         @if (slot.Jogador != null)
                         {
@@ -2171,26 +1286,26 @@
                         }
                         else
                         {
-                            <div class="sel-lista-nome">— sem jogador elegível</div>
+                            <div class="sel-lista-vazio">Sem jogador elegível</div>
                         }
-                    </div>
+                    </li>
                 }
-            </div>
+            </ul>
         }
     </div>
 
-    <!-- ══ SEÇÃO: MATCH UP ═══════════════════════════════════════════════════ -->
-    <div id="sec-matchup" class="rpt-section">
+    <!-- ══ MATCH UP ═════════════════════════════════════════════════════════ -->
+    <div id="sec-matchup" class="rpt-section" role="tabpanel" hidden>
         @if (Model.TimeIdsFiltro.Count != 2)
         {
-            <p style="text-align:center;color:var(--text-muted);padding:2rem;">Selecione exatamente 2 times no filtro para usar o Match Up.</p>
+            <p class="rl-msg">Escolha exatamente 2 times no filtro para montar o Match Up com a última escalação de cada um.</p>
         }
         else if (Model.MatchUpTime1 == null || Model.MatchUpTime2 == null)
         {
             var nomesSemEscalacao = new List<string>();
             if (Model.MatchUpTime1 == null) nomesSemEscalacao.Add(Model.Times.FirstOrDefault(t => t.Id == Model.TimeIdsFiltro[0])?.Nome ?? "1º time");
             if (Model.MatchUpTime2 == null) nomesSemEscalacao.Add(Model.Times.FirstOrDefault(t => t.Id == Model.TimeIdsFiltro[1])?.Nome ?? "2º time");
-            <p style="text-align:center;color:var(--text-muted);padding:2rem;">Sem escalação titular registrada para: @string.Join(" e ", nomesSemEscalacao).</p>
+            <p class="rl-msg">Sem escalação titular registrada para @string.Join(" e ", nomesSemEscalacao).</p>
         }
         else
         {
@@ -2209,10 +1324,10 @@
                     }
                     <div>
                         <div class="mu-time-nome">@t1.Time.Nome</div>
-                        <div class="mu-time-jogo">Última escalação: vs @adv1 — @data1</div>
+                        <div class="mu-time-jogo">Última escalação contra @adv1, em @data1</div>
                     </div>
                 </div>
-                <div class="mu-vs">×</div>
+                <div class="mu-vs">x</div>
                 <div class="mu-time-info mu-dir">
                     @if (!string.IsNullOrEmpty(t2.Time.EscudoUrl))
                     {
@@ -2220,7 +1335,7 @@
                     }
                     <div>
                         <div class="mu-time-nome">@t2.Time.Nome</div>
-                        <div class="mu-time-jogo">Última escalação: vs @adv2 — @data2</div>
+                        <div class="mu-time-jogo">Última escalação contra @adv2, em @data2</div>
                     </div>
                 </div>
             </div>
@@ -2263,7 +1378,7 @@
 
             <div class="mu-layout">
                 <div class="mu-banco">
-                    <div class="mu-banco-header">@t1.Time.Nome — elenco</div>
+                    <div class="mu-banco-header">Elenco, @t1.Time.Nome</div>
                     <div id="muBanco1" class="mu-banco-lista">
                         @foreach (var j in t1.Elenco) { MuBancoItem(1, j); }
                     </div>
@@ -2286,14 +1401,15 @@
                 </div>
 
                 <div class="mu-banco">
-                    <div class="mu-banco-header">@t2.Time.Nome — elenco</div>
+                    <div class="mu-banco-header">Elenco, @t2.Time.Nome</div>
                     <div id="muBanco2" class="mu-banco-lista">
                         @foreach (var j in t2.Elenco) { MuBancoItem(2, j); }
                     </div>
                 </div>
             </div>
-            <p style="text-align:center;color:var(--text-muted);font-size:11px;margin-top:8px;">
-                Arraste um jogador para qualquer ponto do campo, solte sobre um companheiro para trocar as posições, ou arraste alguém do elenco sobre um titular para substituí-lo (simulação de pré-jogo — nada é salvo).
+            <p class="mu-dica">
+                Arraste um jogador para qualquer ponto do campo, solte sobre um companheiro para trocar as posições
+                ou arraste alguém do elenco sobre um titular para substituí-lo. É só uma simulação: nada é salvo.
             </p>
         }
     </div>
@@ -2301,51 +1417,37 @@
     </div><!-- /.rpt-main -->
 </div><!-- /.rpt-root -->
 
+<script src="~/js/estatisticas-jogadores.js" asp-append-version="true"></script>
 <script>
-    function showSection(name) {
-        document.querySelectorAll('.rpt-section').forEach(s => s.classList.remove('visible'));
-        document.querySelectorAll('.rpt-tab').forEach(t => t.classList.remove('active'));
-        document.getElementById('sec-' + name)?.classList.add('visible');
-        event.currentTarget.classList.add('active');
-    }
+    // Abas: o painel ativo fica no hash (#times, #rodadas...), então recarregar
+    // depois de aplicar um filtro ou voltar do perfil de um jogador mantém a aba.
+    (function () {
+        const abas = Array.from(document.querySelectorAll('.rpt-tab'));
+        const filtro = document.querySelector('.rl-filtros form');
 
-    // ── Cards "Melhores jogadores"/"Recordes em um jogo" ───────────────────
-    // Todas as métricas já vêm renderizadas (uma .rpt-metric-list por métrica);
-    // aqui só alternamos qual fica visível e paginamos de 5 em 5 linhas.
-    document.querySelectorAll('.rpt-picker').forEach(card => {
-        const sel   = card.querySelector('.rpt-metric-select');
-        const prev  = card.querySelector('[data-nav="prev"]');
-        const next  = card.querySelector('[data-nav="next"]');
-        const label = card.querySelector('.rpt-pg-label');
-        const listas = card.querySelectorAll('.rpt-metric-list');
-        const TAM = 5;
-        let pagina = 0;
-
-        function render() {
-            listas.forEach(l => l.style.display = 'none');
-            const lista = card.querySelector('.rpt-metric-list[data-chave="' + sel.value + '"]');
-            if (!lista) return;
-            lista.style.display = '';
-
-            const linhas = Array.from(lista.children);
-            const ultima = Math.max(0, Math.ceil(linhas.length / TAM) - 1);
-            if (pagina > ultima) pagina = ultima;
-
-            const ini = pagina * TAM;
-            linhas.forEach((li, i) => li.style.display = (i >= ini && i < ini + TAM) ? '' : 'none');
-
-            label.textContent = linhas.length
-                ? (ini + 1) + '-' + Math.min(linhas.length, ini + TAM) + ' de ' + linhas.length
-                : 'Sem dados';
-            prev.disabled = pagina === 0;
-            next.disabled = pagina >= ultima;
+        function mostrar(nome, atualizarHash) {
+            const aba = abas.find(a => a.dataset.sec === nome && a.getAttribute('aria-disabled') !== 'true');
+            if (!aba) return false;
+            abas.forEach(a => a.setAttribute('aria-selected', a === aba ? 'true' : 'false'));
+            document.querySelectorAll('.rpt-section').forEach(s => s.hidden = s.id !== 'sec-' + nome);
+            if (atualizarHash) {
+                history.replaceState(null, '', '#' + nome);
+                // Trocando de aba lá embaixo, volta para o começo do painel novo
+                const barra = document.querySelector('.rpt-tabs-bar');
+                const inicio = document.getElementById('sec-' + nome).getBoundingClientRect().top + scrollY - barra.offsetHeight - 12;
+                if (scrollY > inicio) window.scrollTo({ top: inicio });
+            }
+            if (filtro) filtro.action = filtro.action.split('#')[0] + '#' + nome;
+            aba.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            return true;
         }
 
-        sel.addEventListener('change', () => { pagina = 0; render(); });
-        prev.addEventListener('click', () => { if (pagina > 0) { pagina--; render(); } });
-        next.addEventListener('click', () => { pagina++; render(); });
-        render();
-    });
+        abas.forEach(a => a.addEventListener('click', () => mostrar(a.dataset.sec, true)));
+        mostrar(location.hash.slice(1), false) || mostrar('notas', false);
+    })();
+
+    // Cards com seletor de métrica da aba Estatísticas (js/estatisticas-jogadores.js).
+    iniciarPickersEstatJogadores(document);
 
     // ── Match Up: arrasto 100% client-side, só para simulação visual.
     // Três gestos, sempre dentro do mesmo time (mesmo espírito do Analisar):

@@ -19,11 +19,12 @@
                 @await Html.PartialAsync("_Escudo", (p.EscudoUrlSnapshot, p.NomeExibicao, p.TimeProprio?.CorPrincipal ?? p.Time?.CorPrincipal))
                 <div>
                     <div class="nome">@p.NomeExibicao</div>
-                    <div class="detalhe">
-                        @(p.TimeProprioId != null ? "Time próprio" : p.TimeId != null ? "Time real" : "Sem time fixo")
-                        @if (p.Grupo != null) { <span> · Grupo @p.Grupo</span> }
-                        @if (p.Semente != null) { <span> · Cabeça de chave @p.Semente</span> }
-                    </div>
+                    <div class="detalhe">@string.Join(", ", new[]
+                        {
+                            p.TimeProprioId != null ? "Time próprio" : p.TimeId != null ? "Time real" : "Sem time fixo",
+                            p.Grupo != null ? $"grupo {p.Grupo}" : null,
+                            p.Semente != null ? $"cabeça de chave {p.Semente}" : null
+                        }.Where(s => s != null))</div>
                 </div>
                 @if (!travado)
                 {

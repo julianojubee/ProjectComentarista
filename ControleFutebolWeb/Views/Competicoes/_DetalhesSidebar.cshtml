@@ -8,15 +8,13 @@
 }
 
 <div class="cd-sidebar">
+    @* Só aparece com jogo agendado: vazio, repetia o "Nenhum jogo agendado" da aba
+       Próximos jogos e empurrava os artilheiros para baixo. *@
+    @if (Model.Any())
+    {
     <div class="cd-side-card">
-        <div class="cd-side-header"><span class="cd-side-title">📅 Próximos</span></div>
-        @if (!Model.Any())
-        {
-            <div class="cd-vazio">Nenhum jogo agendado.</div>
-        }
-        else
-        {
-            foreach (var j in Model.Take(4))
+        <div class="cd-side-header"><span class="cd-side-title">Próximos jogos</span></div>
+        @foreach (var j in Model.Take(4))
             {
                 <div class="cd-mini-jogo">
                     <a class="cd-mini-lado casa" asp-controller="Times" asp-action="Details" asp-route-id="@j.TimeCasaId" title="Ver @j.TimeCasa?.Nome">
@@ -36,11 +34,11 @@
                     </a>
                 </div>
             }
-        }
     </div>
+    }
 
     <div class="cd-side-card">
-        <div class="cd-side-header"><span class="cd-side-title">⚽ Artilheiros</span></div>
+        <div class="cd-side-header"><span class="cd-side-title">Artilheiros</span></div>
         @if (!artilheiros.Any())
         {
             <div class="cd-vazio">Nenhum gol registrado ainda.</div>
@@ -78,7 +76,7 @@
     </div>
 
     <div class="cd-side-card">
-        <div class="cd-side-header"><span class="cd-side-title">🅰️ Assistências</span></div>
+        <div class="cd-side-header"><span class="cd-side-title">Assistências</span></div>
         @if (!assistentes.Any())
         {
             <div class="cd-vazio">Nenhuma assistência registrada ainda.</div>

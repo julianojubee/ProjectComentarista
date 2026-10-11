@@ -1,4 +1,4 @@
-﻿using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
@@ -115,7 +115,8 @@ namespace ControleFutebolWeb.Controllers
                 _context, jogosRealizadosEstat.Select(j => j.Id),
                 golsEstat.Select(g => g.JogadorId).Concat(cartoesEstat.Select(c => c.JogadorId))).ToList();
 
-            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(jogosRealizadosEstat, golsEstat, cartoesEstat, escalacoesEstat);
+            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(jogosRealizadosEstat, golsEstat, cartoesEstat, escalacoesEstat,
+                DesarmesPorTimeHelper.Carregar(_context, jogosRealizadosEstat));
 
             return View(vm);
         }
@@ -156,14 +157,14 @@ namespace ControleFutebolWeb.Controllers
         private static string NomeFase(string fase)
         {
             var f = fase.ToLower().Replace("-", " ");
-            if (f.Contains("1st qualifying")) return "1ª Pré-Eliminatória";
-            if (f.Contains("2nd qualifying")) return "2ª Pré-Eliminatória";
-            if (f.Contains("3rd qualifying")) return "3ª Pré-Eliminatória";
-            if (f.Contains("qualifying")) return "Pré-Eliminatória";
-            if (f.Contains("play off") || f.Contains("playoff") || f.Contains("knockout")) return "Playoff do Mata-Mata";
-            if (f.Contains("round of 32")) return "16 Avos de Final";
-            if (f.Contains("round of 16") || f.Contains("oitavas")) return "Oitavas de Final";
-            if (f.Contains("quarter") || f.Contains("quartas")) return "Quartas de Final";
+            if (f.Contains("1st qualifying")) return "1ª pré-eliminatória";
+            if (f.Contains("2nd qualifying")) return "2ª pré-eliminatória";
+            if (f.Contains("3rd qualifying")) return "3ª pré-eliminatória";
+            if (f.Contains("qualifying")) return "Pré-eliminatória";
+            if (f.Contains("play off") || f.Contains("playoff") || f.Contains("knockout")) return "Playoff";
+            if (f.Contains("round of 32")) return "16-avos de final";
+            if (f.Contains("round of 16") || f.Contains("oitavas")) return "Oitavas de final";
+            if (f.Contains("quarter") || f.Contains("quartas")) return "Quartas de final";
             if (f.Contains("semi")) return "Semifinal";
             if (f.Contains("final")) return "Final";
             return fase;

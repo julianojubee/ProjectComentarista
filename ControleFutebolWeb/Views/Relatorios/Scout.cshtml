@@ -2,7 +2,7 @@
 @using ControleFutebolWeb.Helpers
 @using ControleFutebolWeb.Models.ViewModels
 @{
-    ViewData["Title"] = "Scout de Jogadores";
+    ViewData["Title"] = "Scout de jogadores";
     var f = Model.Filtro;
 
     // Colunas da tabela de resultados, agrupadas como no construtor de
@@ -41,8 +41,8 @@
         ("Goleiro",    "GS",   "Gols sofridos",            r => r.GolsSofridos,      false),
         ("Goleiro",    "PDF",  "Pênaltis defendidos",      r => r.PenaltiDefendido,  false),
 
-        ("Disciplina", "🟨",   "Cartões amarelos",         r => r.CartaoAmarelo,     false),
-        ("Disciplina", "🟥",   "Cartões vermelhos",        r => r.CartaoVermelho,    false),
+        ("Disciplina", "CA",   "Cartões amarelos",         r => r.CartaoAmarelo,     false),
+        ("Disciplina", "CV",   "Cartões vermelhos",        r => r.CartaoVermelho,    false),
         ("Disciplina", "FCM",  "Faltas cometidas",         r => r.FaltasCometidas,   false),
         ("Disciplina", "FSF",  "Faltas sofridas",          r => r.FaltasSofridas,    false),
         ("Disciplina", "IMP",  "Impedimentos",             r => r.Impedimentos,      false),
@@ -54,340 +54,329 @@
     // Goleiro fica fora por padrão: são 3 colunas vazias para 90% do elenco.
     var gruposScout = new[] { "Ataque", "Passe", "Defesa", "Goleiro", "Disciplina", "Uso" };
     var gruposPadrao = new[] { "Ataque", "Passe", "Defesa", "Disciplina" };
+
+    // Quantos critérios de desempenho estão preenchidos: com algum, o bloco abre sozinho
+    var criteriosDesempenho = new object?[]
+    {
+        f.MinJogos, f.MinGols, f.MinAssistencias, f.MinPassesChave, f.MinDesarmes, f.MinBloqueios,
+        f.MinInterceptacoes, f.MinDuelosVencidos, f.MinFinalizacoesNoGol, f.MinDrilesCertos, f.MinNota,
+        f.MediaPassesChave, f.MediaDesarmes, f.MediaBloqueios, f.MediaInterceptacoes, f.MediaDuelosVencidos,
+        f.MediaFinalizacoesNoGol, f.MediaDrilesCertos, f.MaxCartaoAmarelo, f.MaxCartaoVermelho
+    }.Count(v => v != null);
+
+    void CampoNumero(string nome, string rotulo, int? valor, string exemplo)
+    {
+        <div class="sc-field">
+            <label for="@nome">@rotulo</label>
+            <input type="number" id="@nome" name="@nome" min="0" value="@valor" />
+        </div>
+    }
+
+    void CampoMedia(string nome, string rotulo, double? valor, string exemplo)
+    {
+        <div class="sc-field">
+            <label for="@nome">@rotulo</label>
+            <input type="number" id="@nome" name="@nome" min="0" step="0.1" value="@(valor?.ToString(System.Globalization.CultureInfo.InvariantCulture))" />
+        </div>
+    }
 }
 
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+
 <style>
-    /* ── Tag selector ────────────────────────────────────────────── */
+    .sc-root, .sc-root *, .sc-root *::before, .sc-root *::after { box-sizing: border-box; }
+    .sc-root {
+        margin: 0 -12px; background: var(--p-0); border-radius: 14px; color: var(--text);
+        font-family: 'Barlow', Arial, sans-serif; padding-bottom: 1.5rem;
+    }
+    .sc-root a { color: inherit; text-decoration: none; }
+    .sc-root :is(a, button, input, select, summary, [tabindex]):focus-visible { outline: 2px solid #d4a520; outline-offset: 2px; }
+
+    /* ── Cabeçalho compacto, igual ao de Relatórios (cores fixas: sempre escuro) ── */
+    .sc-cab {
+        padding: 1.5rem 2.5rem;
+        background: linear-gradient(135deg, #0a1628 0%, #0f2040 55%, #0a1628 100%);
+        border-left: 4px solid #d4a520; border-radius: 14px 14px 0 0;
+        display: flex; align-items: center; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap;
+    }
+    .sc-cab h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 2.4rem; font-weight: 800; color: #f2f5fa; margin: 0; line-height: 1; }
+    .sc-cab p { margin: 6px 0 0; font-size: .92rem; color: rgba(255,255,255,.72); max-width: 62ch; }
+    .sc-root .sc-cab-btn {
+        display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 8px;
+        border: 1px solid rgba(255,255,255,.25); color: #e8edf5; font-size: .88rem; font-weight: 600; white-space: nowrap;
+    }
+    .sc-root .sc-cab-btn:hover { border-color: #d4a520; color: #f3d27a; }
+
+    /* ── Abas Buscar / Comparar ── */
+    .sc-tabs { display: flex; gap: 4px; padding: 0 2.5rem; background: var(--p-1); border-bottom: 1px solid var(--line); }
+    .sc-tab-btn {
+        padding: 12px 14px 10px; font-size: .95rem; font-weight: 600; font-family: inherit; cursor: pointer;
+        background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-muted);
+    }
+    .sc-tab-btn:hover { color: var(--text-strong); }
+    .sc-tab-btn.active { color: var(--gold-ink); border-bottom-color: #d4a520; font-weight: 700; }
+
+    .sc-corpo { padding: 1.25rem 2.5rem 0; }
+
+    /* ── Filtros ── */
+    .sc-panel { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem 1.25rem; margin-bottom: 1rem; }
+    .sc-panel-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--text-strong); margin: 0 0 .8rem; }
+    .sc-subtitulo { font-size: .86rem; font-weight: 700; color: var(--text-2); margin: 1.1rem 0 .55rem; }
+    .sc-subtitulo small { font-weight: 400; color: var(--text-muted); margin-left: .35rem; }
+    .sc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px 14px; }
+    .sc-field { min-width: 0; }
+    .sc-field.largo { grid-column: span 2; }
+    /* Perfil: quatro colunas fixas, as listas ocupam duas cada */
+    .sc-grid.sc-perfil { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .sc-field > label, .sc-rot { display: block; font-size: .8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; }
+    .sc-field input, .sc-field select {
+        width: 100%; height: 38px; border: 1px solid var(--line-strong); border-radius: 8px; padding: 0 10px;
+        font-family: inherit; font-size: .88rem; color: var(--text); background: var(--p-2); outline: none;
+    }
+    .sc-field input:focus, .sc-field select:focus { border-color: #d4a520; }
+    .sc-field input::placeholder { color: var(--text-dimmer); opacity: 1; }
+    /* Faixa "de / até" num campo só */
+    .sc-faixa { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; }
+    .sc-faixa span { font-size: .8rem; color: var(--text-muted); }
+
+    /* Desempenho: recolhido, abre sozinho quando há critério preenchido */
+    .sc-desempenho > summary {
+        list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px;
+        font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--text-strong);
+    }
+    .sc-desempenho > summary::-webkit-details-marker { display: none; }
+    .sc-desempenho > summary::after {
+        content: ""; width: 8px; height: 8px; margin-left: 2px; border-right: 2px solid var(--text-muted); border-bottom: 2px solid var(--text-muted);
+        transform: rotate(45deg) translateY(-3px); transition: transform .15s;
+    }
+    .sc-desempenho[open] > summary::after { transform: rotate(225deg) translateY(-1px); }
+    .sc-desempenho > summary small { font-family: 'Barlow', Arial, sans-serif; font-size: .82rem; font-weight: 600; color: var(--text-muted); }
+    .sc-desempenho[open] > summary { margin-bottom: .2rem; }
+
+    .sc-actions { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin: 0 0 1.5rem; }
+    .sc-btn-search {
+        height: 40px; padding: 0 22px; border-radius: 8px; border: none; cursor: pointer;
+        background: #d4a520; color: #141414; font-family: inherit; font-size: .92rem; font-weight: 700;
+    }
+    .sc-btn-search:hover { background: #e2b532; }
+    .sc-root .sc-btn-clear { font-size: .86rem; font-weight: 600; color: var(--text-muted); }
+    .sc-root .sc-btn-clear:hover { color: var(--text-strong); text-decoration: underline; }
+    .sc-btn-sec {
+        height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--p-2);
+        color: var(--text-2); font-family: inherit; font-size: .84rem; font-weight: 600; cursor: pointer;
+    }
+    .sc-btn-sec:hover { border-color: #d4a520; color: var(--text-strong); }
+
+    /* ── Seletor de várias opções (mesmo de Relatórios) ── */
     .ms-wrap { position: relative; }
     .ms-box {
         display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
         min-height: 38px; padding: 4px 30px 4px 8px; cursor: pointer;
-        border: 1px solid var(--border-strong); border-radius: 8px; background: var(--input-bg);
-        font-size: 13px; transition: border-color .15s;
+        border: 1px solid var(--line-strong); border-radius: 8px; background: var(--p-2); font-size: .88rem;
     }
-    .ms-box:focus { outline: none; border-color: #8b5cf6; }
+    .ms-box:hover { border-color: #d4a520; }
+    .ms-box::after {
+        content: ""; position: absolute; right: 12px; top: 19px; width: 7px; height: 7px; margin-top: -5px;
+        border-right: 1.5px solid var(--text-muted); border-bottom: 1.5px solid var(--text-muted); transform: rotate(45deg);
+        pointer-events: none;
+    }
     .ms-placeholder { color: var(--text-muted); }
     .ms-chip {
         display: inline-flex; align-items: center; gap: 4px;
-        background: #ede9fe; color: #5b21b6;
-        border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 600;
+        background: rgba(212,165,32,.12); color: var(--gold-ink); border: 1px solid rgba(212,165,32,.35);
+        border-radius: 6px; padding: 1px 6px; font-size: .8rem; font-weight: 600;
     }
-    .ms-chip-x { cursor: pointer; font-size: 14px; line-height: 1; }
-    .ms-arrow {
-        position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-        pointer-events: none; color: var(--text-muted); font-size: 10px;
-    }
+    .ms-chip-x { cursor: pointer; font-weight: 700; line-height: 1; opacity: .7; }
+    .ms-chip-x:hover { opacity: 1; }
     .ms-panel {
-        position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 200;
-        background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-        box-shadow: 0 8px 24px rgba(0,0,0,.12); max-height: 260px; overflow-y: auto;
-        display: none; padding: 4px;
+        position: absolute; top: calc(100% + 4px); left: 0; min-width: 100%; width: max-content; max-width: min(360px, calc(100vw - 32px));
+        z-index: 120; background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 10px;
+        box-shadow: 0 12px 28px rgba(0,0,0,.22); max-height: 300px; overflow-y: auto; display: none; padding: 4px;
     }
     .ms-panel.open { display: block; }
-    .ms-opt {
-        display: flex; align-items: center; gap: 8px; padding: 7px 10px;
-        border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text);
-    }
-    .ms-opt:hover { background: var(--surface-3); }
-    .ms-opt input { cursor: pointer; accent-color: #7c3aed; }
+    .ms-opt { display: flex; align-items: center; gap: 8px; padding: 7px 10px; margin: 0; border-radius: 6px; cursor: pointer; font-size: .86rem; color: var(--text); }
+    .ms-opt:hover { background: var(--p-4); }
+    .ms-opt input { cursor: pointer; accent-color: #d4a520; width: auto; height: auto; }
     .ms-search {
-        width: 100%; box-sizing: border-box; padding: 7px 10px; margin-bottom: 4px;
-        border: 1px solid var(--border-strong); border-radius: 6px; font-size: 13px; outline: none;
-        position: sticky; top: 0; background: var(--input-bg);
+        width: 100%; height: auto !important; padding: 7px 10px !important; margin-bottom: 4px;
+        border: 1px solid var(--line-strong); border-radius: 6px; font-size: .86rem; outline: none;
+        position: sticky; top: 0; background: var(--p-1) !important; color: var(--text);
     }
-</style>
 
-<style>
-    @@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;800;900&family=Barlow:wght@400;500;600&display=swap');
+    /* ── Resultado ── */
+    .sc-result-header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 0 0 .7rem; scroll-margin-top: 12px; }
+    .sc-result-count { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.45rem; font-weight: 800; color: var(--text-strong); margin: 0; }
+    .sc-result-dica { font-size: .84rem; color: var(--text-muted); }
 
-    .sc-root * { box-sizing: border-box; }
+    .sc-acumulado { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; margin: 0 0 10px; font-size: .84rem; color: var(--text-muted); }
+    .sc-seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; }
+    .sc-seg button {
+        border: none; cursor: pointer; background: var(--p-2); color: var(--text-muted);
+        font-family: inherit; font-size: .84rem; font-weight: 600; padding: .38rem .8rem;
+    }
+    .sc-seg button + button { border-left: 1px solid var(--line-strong); }
+    .sc-seg button.active { background: var(--p-4); color: var(--text-strong); }
+    .sc-acumulado-nota { font-size: .8rem; }
+    .sc-grupos { display: inline-flex; gap: 6px 12px; flex-wrap: wrap; margin-left: auto; align-items: center; }
+    .sc-grupos label { display: inline-flex; align-items: center; gap: 5px; font-size: .84rem; font-weight: 600; color: var(--text-2); cursor: pointer; }
+    .sc-grupos input { accent-color: #d4a520; }
+    .sc-col-off { display: none; }
 
-    /* Hero */
-    .sc-hero {
-        background: linear-gradient(135deg, #0a1628 0%, #111e35 55%, #0a1628 100%);
-        border-radius: 16px; padding: 2.2rem 2rem 1.8rem;
-        margin-bottom: 1.4rem; text-align: center;
-    }
-    .sc-badge {
-        display: inline-block; margin-bottom: .6rem;
-        background: rgba(139,92,246,.18); color: #c4b5fd;
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
-        padding: 4px 14px; border-radius: 999px; border: 1px solid rgba(139,92,246,.35);
-    }
-    .sc-hero h1 {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 2.2rem; font-weight: 900; color: #fff; margin: 0 0 .3rem;
-    }
-    .sc-hero p { color: rgba(255,255,255,.5); margin: 0; font-size: .88rem; }
-
-    /* Painel de filtros */
-    .sc-panel {
-        background: var(--surface); border: .5px solid var(--border);
-        border-radius: 14px; padding: 1.2rem 1.4rem; margin-bottom: 1.2rem;
-    }
-    .sc-panel-title {
-        font-size: 12px; font-weight: 700; text-transform: uppercase;
-        letter-spacing: .8px; color: var(--text-muted); margin-bottom: .9rem;
-        padding-bottom: .5rem; border-bottom: 1px solid var(--border-subtle);
-    }
-    .sc-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-        gap: 10px 14px;
-    }
-    .sc-field label {
-        display: block; font-size: 11px; font-weight: 600;
-        color: var(--text-2); margin-bottom: 4px;
-    }
-    .sc-field input, .sc-field select {
-        width: 100%; border: 1px solid var(--border-strong); border-radius: 8px;
-        padding: 7px 10px; font-size: 13px; color: var(--text);
-        background: var(--input-bg); outline: none;
-        transition: border-color .15s;
-    }
-    .sc-field input:focus, .sc-field select:focus { border-color: #8b5cf6; background: var(--surface); }
-
-    .sc-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 1.1rem; }
-    .sc-btn-search {
-        padding: 9px 22px; border-radius: 9px; border: none; cursor: pointer;
-        background: #7c3aed; color: #fff;
-        font-size: 13px; font-weight: 700; letter-spacing: .2px;
-        transition: background .15s;
-    }
-    .sc-btn-search:hover { background: #6d28d9; }
-    .sc-btn-clear {
-        padding: 9px 16px; border-radius: 9px; border: 1px solid var(--border);
-        background: var(--surface-2); color: var(--text-2); font-size: 13px; font-weight: 600;
-        text-decoration: none; transition: background .15s;
-    }
-    .sc-btn-clear:hover { background: var(--surface-3); }
-    .sc-back { margin-left: auto; font-size: 13px; color: var(--text-muted); text-decoration: none; }
-    .sc-back:hover { color: var(--text-2); }
-
-    /* Resultado */
-    .sc-result-header {
-        display: flex; align-items: center; gap: 10px;
-        margin-bottom: .8rem;
-    }
-    .sc-result-count {
-        font-size: 13px; color: var(--text-muted);
-    }
-    .sc-result-count strong { color: var(--text); }
-
-    /* Tabela compacta: com 18 colunas, padding/fonte reduzidos e nomes com
-       reticências para caber tudo na largura da tela sem rolagem horizontal
-       (o overflow-x fica só como salvaguarda para telas muito estreitas). */
-    .sc-table-wrap { overflow-x: auto; border-radius: 12px; border: .5px solid var(--border); }
-    table.sc-table {
-        width: 100%; border-collapse: collapse;
-        font-size: 12px; background: var(--surface);
-    }
-    .sc-table thead tr { background: var(--surface-2); }
+    .sc-table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--line); }
+    table.sc-table { width: 100%; border-collapse: collapse; font-size: .84rem; background: var(--p-1); font-variant-numeric: tabular-nums; }
+    .sc-table thead tr { background: var(--p-2); }
     .sc-table th {
-        padding: 8px 6px; text-align: left;
-        font-size: 10px; font-weight: 700; text-transform: uppercase;
-        letter-spacing: .4px; color: var(--text-muted);
-        border-bottom: 1px solid var(--border); white-space: nowrap;
+        padding: 9px 7px; text-align: right; font-size: .76rem; font-weight: 700; color: var(--text-muted);
+        border-bottom: 1px solid var(--line); white-space: nowrap;
     }
+    .sc-table th.sc-txt, .sc-table td.sc-txt { text-align: left; }
     .sc-table th.sc-th-sortable { cursor: pointer; user-select: none; }
-    .sc-table th.sc-th-sortable:hover { color: #7c3aed; }
-    .sc-table th.sc-sort-asc::after  { content: " ▲"; font-size: 9px; }
-    .sc-table th.sc-sort-desc::after { content: " ▼"; font-size: 9px; }
-    .sc-table td {
-        padding: 6px 6px; border-bottom: .5px solid var(--border-subtle);
-        vertical-align: middle; white-space: nowrap;
-    }
+    .sc-table th.sc-th-sortable:hover { color: var(--text-strong); }
+    .sc-table th.sc-sort-asc, .sc-table th.sc-sort-desc { color: var(--gold-ink); }
+    .sc-table th.sc-sort-asc::after  { content: " ▲"; font-size: .6rem; }
+    .sc-table th.sc-sort-desc::after { content: " ▼"; font-size: .6rem; }
+    .sc-table td { padding: 7px 7px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; white-space: nowrap; text-align: right; color: var(--text-2); }
     .sc-table tbody tr:last-child td { border-bottom: none; }
-    .sc-table tbody tr:hover td { background: var(--surface-2); }
+    .sc-table tbody tr:hover td { background: var(--p-2); }
+    .sc-table td.sc-zero { color: var(--text-dimmer); }
+    .sc-pos-n { color: var(--text-dimmer); }
 
     .sc-player-cell { display: flex; align-items: center; gap: 8px; }
-    .sc-photo {
-        width: 28px; height: 28px; border-radius: 50%;
-        background: var(--surface-3); border: .5px solid var(--border);
-        display: flex; align-items: center; justify-content: center;
-        overflow: hidden; flex-shrink: 0;
-    }
-    .sc-photo img { width: 100%; height: 100%; object-fit: cover; }
-    .sc-pname {
-        font-weight: 600; color: var(--text); display: block; text-decoration: none;
-        max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    }
-    a.sc-pname:hover { color: #7c3aed; text-decoration: underline; }
-    .sc-pmeta {
-        font-size: 10px; color: var(--text-muted);
-        max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    }
-    .sc-tname {
-        display: inline-block; max-width: 120px;
-        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-        vertical-align: middle;
-    }
+    .sc-photo { width: 30px; height: 30px; border-radius: 50%; background: var(--p-3); overflow: hidden; flex-shrink: 0; }
+    .sc-photo img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+    .sc-root .sc-pname { font-weight: 700; color: var(--text-strong); display: block; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sc-root a.sc-pname:hover { color: var(--gold-ink); text-decoration: underline; }
+    .sc-pmeta { font-size: .76rem; color: var(--text-muted); max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sc-time { display: inline-flex; align-items: center; gap: 6px; }
+    .sc-time img { width: 18px; height: 18px; object-fit: contain; }
+    .sc-tname { display: inline-block; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+    .sc-nota { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 22px; border-radius: 6px; font-size: .78rem; font-weight: 700; color: #fff; }
+    .sc-tag-pos { display: inline-block; padding: 1px 7px; border-radius: 5px; font-size: .74rem; font-weight: 700; background: var(--p-3); color: var(--text-2); }
 
-    .sc-nota {
-        display: inline-flex; align-items: center; justify-content: center;
-        width: 36px; height: 22px; border-radius: 6px;
-        font-size: 11px; font-weight: 700; color: #fff;
-    }
-    .sc-tag-pos {
-        display: inline-block; padding: 2px 6px; border-radius: 999px;
-        font-size: 10px; font-weight: 600;
-        background: var(--surface-3); color: var(--text-2);
-    }
+    .sc-empty { text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); font-size: .92rem; line-height: 1.6; background: var(--p-1); border: 1px dashed var(--line-strong); border-radius: 12px; }
+    .sc-empty b { display: block; color: var(--text-strong); font-size: 1rem; }
 
-    .sc-empty {
-        text-align: center; padding: 3rem 1rem; color: var(--text-muted); font-size: 14px;
-    }
-
-    @@media (max-width: 640px) {
-        .sc-grid { grid-template-columns: 1fr 1fr; }
-        .sc-hero h1 { font-size: 1.6rem; }
-    }
-
-    /* ── Abas Buscar / Comparar ─────────────────────────────────────── */
-    .sc-tabs { display: flex; align-items: flex-end; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 1.2rem; }
-    .sc-tab-btn {
-        padding: 10px 16px; font-size: 13px; font-weight: 700; font-family: inherit;
-        cursor: pointer; background: none; border: none; border-bottom: 2px solid transparent;
-        color: var(--text-muted);
-    }
-    .sc-tab-btn.active { color: #7c3aed; border-bottom-color: #7c3aed; }
-    .sc-tab-btn:hover:not(.active) { color: var(--text-2); }
-
-    /* ── Aba Comparar ────────────────────────────────────────────────── */
-    .cmp-panel-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: .9rem; padding-bottom: .5rem; border-bottom: 1px solid var(--border-subtle); }
-    .cmp-hint { font-size: 11px; color: var(--text-muted); }
-    .cmp-select-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; align-items: end; }
+    /* ── Aba Comparar ── */
+    .cmp-panel-head { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; margin-bottom: .9rem; }
+    .cmp-panel-head .sc-panel-title { margin: 0; }
+    .cmp-hint { font-size: .84rem; color: var(--text-muted); }
+    .cmp-acoes { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+    .cmp-acoes select { height: 34px; border: 1px solid var(--line-strong); border-radius: 8px; padding: 0 9px; font-size: .84rem; background: var(--p-2); color: var(--text); font-family: inherit; }
+    .cmp-select-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; align-items: end; }
     .cmp-busca-wrap { position: relative; }
     .cmp-busca-panel {
         position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 200;
-        background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-        box-shadow: 0 8px 24px rgba(0,0,0,.12); max-height: 260px; overflow-y: auto; padding: 4px;
-        display: none;
+        background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 10px;
+        box-shadow: 0 12px 28px rgba(0,0,0,.22); max-height: 260px; overflow-y: auto; padding: 4px; display: none;
     }
     .cmp-busca-panel.open { display: block; }
-    .cmp-busca-opt { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text); }
-    .cmp-busca-opt:hover { background: var(--surface-3); }
+    .cmp-busca-opt { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: .86rem; color: var(--text); }
+    .cmp-busca-opt:hover, .cmp-busca-opt:focus { background: var(--p-4); outline: none; }
     .cmp-busca-opt small { color: var(--text-muted); font-weight: 400; }
 
     .cmp-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin-bottom: 1rem; }
-    .cmp-card { background: var(--surface); border: .5px solid var(--border); border-top: 3px solid; border-radius: 12px; padding: .9rem 1rem; display: flex; gap: .8rem; align-items: flex-start; }
-    .cmp-card-photo {
-        width: 54px; height: 54px; border-radius: 10px; flex-shrink: 0; overflow: hidden;
-        background: var(--surface-3); border: .5px solid var(--border);
-        display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 22px;
+    .cmp-card { background: var(--p-1); border: 1px solid var(--line); border-top: 3px solid; border-radius: 12px; padding: .9rem 1rem; display: flex; gap: .8rem; align-items: flex-start; }
+    .cmp-card-photo { width: 54px; height: 54px; border-radius: 10px; flex-shrink: 0; overflow: hidden; background: var(--p-3); }
+    .cmp-card-photo img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+    .sc-root .cmp-card-nome { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.25rem; font-weight: 800; color: var(--text-strong); line-height: 1.1; display: block; }
+    .sc-root a.cmp-card-nome:hover { color: var(--gold-ink); }
+    .cmp-card-meta { font-size: .8rem; color: var(--text-muted); margin-top: 2px; }
+    .cmp-card-clube { font-size: .84rem; color: var(--text-2); font-weight: 600; margin-top: 2px; }
+    .cmp-card-stats { display: flex; gap: 14px; margin-top: .55rem; }
+    .cmp-card-stat-v { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.15rem; font-weight: 800; color: var(--text-strong); line-height: 1; }
+    .cmp-card-stat-l { font-size: .74rem; color: var(--text-muted); }
+    .cmp-card-remove {
+        background: transparent; border: 1px solid var(--line-strong); color: var(--text-muted);
+        height: 28px; padding: 0 9px; border-radius: 7px; cursor: pointer; font-size: .78rem; font-weight: 600; flex-shrink: 0; font-family: inherit;
     }
-    .cmp-card-photo img { width: 100%; height: 100%; object-fit: cover; }
-    .cmp-card-nome { font-family: 'Barlow Condensed', sans-serif; font-size: 1.25rem; font-weight: 800; color: var(--text); line-height: 1.1; display: block; }
-    .cmp-card-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-    .cmp-card-clube { font-size: 12px; color: var(--text-2); font-weight: 600; margin-top: 2px; }
-    .cmp-card-stats { display: flex; gap: 12px; margin-top: .55rem; }
-    .cmp-card-stat-v { font-family: 'Barlow Condensed', sans-serif; font-size: 1.1rem; font-weight: 800; color: var(--text); line-height: 1; }
-    .cmp-card-stat-l { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); }
-    .cmp-card-remove { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-muted); width: 26px; height: 26px; border-radius: 7px; cursor: pointer; font-size: 12px; flex-shrink: 0; }
+    .cmp-card-remove:hover { color: var(--bad); border-color: var(--bad); }
     .cmp-card-placeholder {
-        background: var(--surface-2); border: 1px dashed var(--border-strong); border-radius: 12px; padding: 1rem;
-        color: var(--text-muted); font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center;
-        text-align: center; min-height: 96px;
+        background: transparent; border: 1px dashed var(--line-strong); border-radius: 12px; padding: 1rem;
+        color: var(--text-muted); font-size: .88rem; display: flex; align-items: center; justify-content: center; text-align: center; min-height: 96px;
     }
 
     .cmp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-    .cmp-chip { background: #ede9fe; color: #5b21b6; border-radius: 999px; padding: 3px 10px; font-size: 11px; font-weight: 600; }
+    .cmp-chip { background: rgba(212,165,32,.12); color: var(--gold-ink); border: 1px solid rgba(212,165,32,.3); border-radius: 6px; padding: 2px 9px; font-size: .8rem; font-weight: 600; }
 
     .cmp-graficos-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; margin-bottom: 1rem; }
+    .cmp-graficos-grid .sc-panel { margin-bottom: 0; }
     .cmp-chart-wrap { height: 300px; position: relative; }
-    .cmp-panel-subtitle { font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text-muted); }
+    .cmp-panel-subtitle { font-family: 'Barlow', Arial, sans-serif; font-size: .84rem; font-weight: 400; color: var(--text-muted); }
     .cmp-legenda { display: flex; gap: 12px; margin-left: auto; flex-wrap: wrap; }
-    .cmp-legenda-item { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: var(--text-2); }
+    .cmp-legenda-item { display: inline-flex; align-items: center; gap: 5px; font-size: .82rem; font-weight: 600; color: var(--text-2); }
     .cmp-legenda-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 
-    .cmp-divisao-row { margin-bottom: .7rem; }
-    .cmp-divisao-head { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 3px; }
-    .cmp-divisao-head strong { color: var(--text-2); font-weight: 600; }
-    .cmp-divisao-bar { display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: var(--surface-3); }
+    .cmp-divisao-row { margin-bottom: .75rem; }
+    .cmp-divisao-head { display: flex; justify-content: space-between; gap: 10px; font-size: .84rem; color: var(--text-2); margin-bottom: 4px; }
+    .cmp-divisao-head strong { color: var(--text-strong); font-weight: 700; font-variant-numeric: tabular-nums; }
+    .cmp-divisao-bar { display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: var(--p-3); gap: 2px; }
 
-    .cmp-grupo-titulo { font-size: 11px; font-weight: 700; letter-spacing: .14em; color: var(--text-muted); text-transform: uppercase; margin-bottom: .6rem; padding-bottom: .4rem; border-bottom: 1px solid var(--border-subtle); }
+    .cmp-grupo-titulo { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.1rem; font-weight: 700; color: var(--text-strong); margin-bottom: .5rem; padding-bottom: .35rem; border-bottom: 1px solid var(--line-soft); }
     .cmp-metrica-row { display: grid; grid-template-columns: minmax(140px, 220px) 1fr; gap: 14px; align-items: center; padding: .35rem 0; }
-    .cmp-metrica-label { font-size: 12px; color: var(--text-2); }
+    .cmp-metrica-label { font-size: .86rem; color: var(--text-2); }
     .cmp-metrica-linhas { display: grid; gap: 4px; }
     .cmp-metrica-linha { display: grid; grid-template-columns: 1fr 56px; gap: 8px; align-items: center; }
-    .cmp-metrica-track { height: 8px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+    .cmp-metrica-track { height: 8px; border-radius: 999px; background: var(--p-3); overflow: hidden; }
     .cmp-metrica-fill { height: 100%; border-radius: 999px; }
-    .cmp-metrica-valor { font-size: 12px; font-weight: 700; text-align: right; }
+    .cmp-metrica-valor { font-size: .84rem; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+    .cmp-confrontos td { text-align: left; white-space: normal; }
 
-    @@media (max-width: 640px) {
+    @@media (max-width: 767.98px) {
+        .sc-cab, .sc-tabs, .sc-corpo { padding-left: 1rem; padding-right: 1rem; }
+        .sc-cab { padding-top: 1.1rem; padding-bottom: 1.1rem; }
+        .sc-cab h1 { font-size: 2rem; }
+        .sc-panel { padding: 1rem .9rem; }
+        .sc-grid, .sc-grid.sc-perfil { grid-template-columns: 1fr 1fr; }
+        .sc-field.largo { grid-column: 1 / -1; }
+        .sc-grupos { margin-left: 0; }
         .cmp-select-grid { grid-template-columns: 1fr 1fr; }
         .cmp-graficos-grid { grid-template-columns: 1fr; }
-    }
+        .cmp-acoes { margin-left: 0; }
 
-    /* ── Responsivo (celular): a tabela rola na horizontal dentro do
-       .sc-table-wrap; a coluna do jogador fica fixa (sticky) para não perder
-       de vista de quem é a linha enquanto rola as estatísticas. ── */
-    @@media (max-width: 767.98px) {
-        .sc-hero { padding: 1.4rem 1rem 1.1rem; }
-        .sc-panel { padding: 1rem .9rem; }
-
-        .sc-table th:nth-child(2), .sc-table td:nth-child(2) {
-            position: sticky; left: 0; z-index: 2;
-            background: var(--surface);
-        }
-        .sc-table thead th:nth-child(2) { background: var(--surface-2); z-index: 3; }
-        .sc-table tbody tr:hover td:nth-child(2) { background: var(--surface-2); }
-        /* sombra na borda direita da coluna fixa indicando conteúdo rolando atrás */
+        /* A tabela rola na horizontal; a coluna do jogador fica presa à esquerda */
+        .sc-table th:nth-child(2), .sc-table td:nth-child(2) { position: sticky; left: 0; z-index: 2; background: var(--p-1); }
+        .sc-table thead th:nth-child(2) { background: var(--p-2); z-index: 3; }
+        .sc-table tbody tr:hover td:nth-child(2) { background: var(--p-2); }
         .sc-table th:nth-child(2)::after, .sc-table td:nth-child(2)::after {
-            content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 6px;
-            transform: translateX(100%);
-            background: linear-gradient(90deg, rgba(0,0,0,.14), transparent);
-            pointer-events: none;
+            content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 6px; transform: translateX(100%);
+            background: linear-gradient(90deg, rgba(0,0,0,.14), transparent); pointer-events: none;
         }
-        /* nomes longos não alargam a coluna fixa */
-        .sc-pname { max-width: 132px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .sc-pmeta { max-width: 132px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sc-root .sc-pname, .sc-pmeta { max-width: 120px; }
     }
 
-    .sc-acumulado { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 10px; font-size: 12px; color: var(--text-muted); }
-    .sc-seg { display: inline-flex; border: .5px solid var(--border); border-radius: 8px; overflow: hidden; }
-    .sc-seg button {
-        border: none; cursor: pointer; background: transparent; color: var(--text-muted);
-        font-family: inherit; font-size: 12px; font-weight: 600; padding: .35rem .8rem;
+    @@media print {
+        .sc-cab, .sc-tabs, #abaComparar > .sc-panel:first-child, .cmp-card-remove, .cmp-card-placeholder { display: none !important; }
     }
-    .sc-seg button + button { border-left: .5px solid var(--border); }
-    .sc-seg button.active { background: var(--surface-3); color: var(--text); }
-    .sc-acumulado-nota { font-size: 11px; }
-    .sc-grupos { display: inline-flex; gap: 10px; flex-wrap: wrap; }
-    .sc-grupos label { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; cursor: pointer; }
-    /* coluna desligada some da tabela inteira (cabeçalho + células) */
-    .sc-col-off { display: none; }
 </style>
 
 <div class="sc-root">
 
-    <div class="sc-hero theme-dark-zone">
-        <div class="sc-badge">Relatórios</div>
-        <h1>🔍 Scout de Jogadores</h1>
-        <p>Encontre jogadores por critérios combinados de desempenho e perfil.</p>
+    <div class="sc-cab theme-dark-zone">
+        <div>
+            <h1>Scout de jogadores</h1>
+            <p>Filtre por perfil e desempenho para encontrar jogadores, ou compare até três lado a lado.</p>
+        </div>
+        <a href="@Url.Action("Index", "Relatorios")" class="sc-cab-btn">Voltar para Relatórios</a>
     </div>
 
-    <div class="sc-tabs">
-        <button type="button" id="tabBuscarBtn" class="sc-tab-btn active">🔍 Buscar</button>
-        <button type="button" id="tabCompararBtn" class="sc-tab-btn">⚖️ Comparar</button>
+    <div class="sc-tabs" role="tablist">
+        <button type="button" id="tabBuscarBtn" class="sc-tab-btn active" role="tab" aria-selected="true">Buscar</button>
+        <button type="button" id="tabCompararBtn" class="sc-tab-btn" role="tab" aria-selected="false">Comparar</button>
     </div>
 
+    <div class="sc-corpo">
     <div id="abaBuscar">
     <form method="get" asp-action="Scout">
         <input type="hidden" name="pesquisou" value="true" />
 
-        <!-- Dados do Jogador -->
         <div class="sc-panel">
-            <div class="sc-panel-title">Perfil do Jogador</div>
-            <div class="sc-grid">
+            <h2 class="sc-panel-title">Perfil</h2>
+            <div class="sc-grid sc-perfil">
 
-                <!-- Posição (tag selector) -->
-                <div class="sc-field" style="grid-column: span 2;">
-                    <label>Posição</label>
+                <div class="sc-field largo">
+                    <span class="sc-rot" id="rotPos">Posição</span>
                     <div class="ms-wrap" id="posWrap">
-                        <div class="ms-box" id="posBox" tabindex="0"></div>
-                        <span class="ms-arrow">▼</span>
+                        <div class="ms-box" id="posBox" tabindex="0" role="button" aria-haspopup="true" aria-labelledby="rotPos"></div>
                         <div class="ms-panel" id="posPanel">
                             @foreach (var p in Model.Posicoes)
                             {
@@ -402,14 +391,12 @@
                     </div>
                 </div>
 
-                <!-- Time (tag selector) -->
-                <div class="sc-field" style="grid-column: span 2;">
-                    <label>Time</label>
+                <div class="sc-field largo">
+                    <span class="sc-rot" id="rotTime">Time</span>
                     <div class="ms-wrap" id="timeWrap">
-                        <div class="ms-box" id="timeBox" tabindex="0"></div>
-                        <span class="ms-arrow">▼</span>
+                        <div class="ms-box" id="timeBox" tabindex="0" role="button" aria-haspopup="true" aria-labelledby="rotTime"></div>
                         <div class="ms-panel" id="timePanel">
-                            <input type="text" class="ms-search" id="timeSearch" placeholder="Buscar time…" autocomplete="off" />
+                            <input type="text" class="ms-search" id="timeSearch" placeholder="Buscar time" autocomplete="off" aria-label="Buscar time" />
                             @foreach (var t in Model.Times)
                             {
                                 <label class="ms-opt">
@@ -423,14 +410,32 @@
                     </div>
                 </div>
 
-                <!-- Nacionalidade (tag selector) -->
-                <div class="sc-field" style="grid-column: span 2;">
-                    <label>Nacionalidade</label>
+                <div class="sc-field largo">
+                    <span class="sc-rot" id="rotComp">Competição</span>
+                    <div class="ms-wrap" id="compWrap">
+                        <div class="ms-box" id="compBox" tabindex="0" role="button" aria-haspopup="true" aria-labelledby="rotComp"></div>
+                        <div class="ms-panel" id="compPanel">
+                            <input type="text" class="ms-search" id="compSearch" placeholder="Buscar competição" autocomplete="off" aria-label="Buscar competição" />
+                            @foreach (var c in Model.Competicoes)
+                            {
+                                <label class="ms-opt">
+                                    <input type="checkbox" name="competicaoIds" value="@c.Id"
+                                           data-nome="@c.Nome"
+                                           @(f.CompeticaoIds.Contains(c.Id) ? "checked" : "") />
+                                    <span>@c.Nome</span>
+                                </label>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+
+                <div class="sc-field largo">
+                    <span class="sc-rot" id="rotNac">Nacionalidade</span>
                     <div class="ms-wrap" id="nacWrap">
-                        <div class="ms-box" id="nacBox" tabindex="0"></div>
-                        <span class="ms-arrow">▼</span>
+                        <div class="ms-box" id="nacBox" tabindex="0" role="button" aria-haspopup="true" aria-labelledby="rotNac"></div>
                         <div class="ms-panel" id="nacPanel">
-                            <input type="text" class="ms-search" id="nacSearch" placeholder="Buscar nacionalidade…" autocomplete="off" />
+                            <input type="text" class="ms-search" id="nacSearch" placeholder="Buscar nacionalidade" autocomplete="off" aria-label="Buscar nacionalidade" />
                             @foreach (var n in Model.Nacionalidades)
                             {
                                 <label class="ms-opt">
@@ -445,55 +450,8 @@
                 </div>
 
                 <div class="sc-field">
-                    <label>Idade mínima</label>
-                    <input type="number" name="idadeMin" min="15" max="50" value="@f.IdadeMin" placeholder="ex: 18" />
-                </div>
-                <div class="sc-field">
-                    <label>Idade máxima</label>
-                    <input type="number" name="idadeMax" min="15" max="50" value="@f.IdadeMax" placeholder="ex: 30" />
-                </div>
-
-                <div class="sc-field">
-                    <label>Altura mín. (cm)</label>
-                    <input type="number" name="alturaMin" min="140" max="220" value="@f.AlturaMin" placeholder="ex: 180" />
-                </div>
-                <div class="sc-field">
-                    <label>Altura máx. (cm)</label>
-                    <input type="number" name="alturaMax" min="140" max="220" value="@f.AlturaMax" placeholder="ex: 195" />
-                </div>
-                <div class="sc-field">
-                    <label>Peso mín. (kg)</label>
-                    <input type="number" name="pesoMin" min="50" max="120" value="@f.PesoMin" placeholder="ex: 70" />
-                </div>
-                <div class="sc-field">
-                    <label>Peso máx. (kg)</label>
-                    <input type="number" name="pesoMax" min="50" max="120" value="@f.PesoMax" placeholder="ex: 90" />
-                </div>
-
-                <!-- Competição (tag selector) -->
-                <div class="sc-field" style="grid-column: span 2;">
-                    <label>Competição</label>
-                    <div class="ms-wrap" id="compWrap">
-                        <div class="ms-box" id="compBox" tabindex="0"></div>
-                        <span class="ms-arrow">▼</span>
-                        <div class="ms-panel" id="compPanel">
-                            <input type="text" class="ms-search" id="compSearch" placeholder="Buscar competição…" autocomplete="off" />
-                            @foreach (var c in Model.Competicoes)
-                            {
-                                <label class="ms-opt">
-                                    <input type="checkbox" name="competicaoIds" value="@c.Id"
-                                           data-nome="@c.Nome"
-                                           @(f.CompeticaoIds.Contains(c.Id) ? "checked" : "") />
-                                    <span>@c.Nome</span>
-                                </label>
-                            }
-                        </div>
-                    </div>
-                </div>
-
-                <div class="sc-field">
-                    <label>Temporada</label>
-                    <select name="temporada">
+                    <label for="scTemporada">Temporada</label>
+                    <select name="temporada" id="scTemporada">
                         <option value="">Todas</option>
                         @foreach (var t in Model.Temporadas)
                         {
@@ -501,119 +459,99 @@
                         }
                     </select>
                 </div>
+
+                <div class="sc-field">
+                    <span class="sc-rot">Idade</span>
+                    <div class="sc-faixa">
+                        <input type="number" name="idadeMin" min="15" max="50" value="@f.IdadeMin" placeholder="mín." aria-label="Idade mínima" />
+                        <span>a</span>
+                        <input type="number" name="idadeMax" min="15" max="50" value="@f.IdadeMax" placeholder="máx." aria-label="Idade máxima" />
+                    </div>
+                </div>
+                <div class="sc-field">
+                    <span class="sc-rot">Altura <small>(cm)</small></span>
+                    <div class="sc-faixa">
+                        <input type="number" name="alturaMin" min="140" max="220" value="@f.AlturaMin" placeholder="mín." aria-label="Altura mínima em centímetros" />
+                        <span>a</span>
+                        <input type="number" name="alturaMax" min="140" max="220" value="@f.AlturaMax" placeholder="máx." aria-label="Altura máxima em centímetros" />
+                    </div>
+                </div>
+                <div class="sc-field">
+                    <span class="sc-rot">Peso <small>(kg)</small></span>
+                    <div class="sc-faixa">
+                        <input type="number" name="pesoMin" min="50" max="120" value="@f.PesoMin" placeholder="mín." aria-label="Peso mínimo em quilos" />
+                        <span>a</span>
+                        <input type="number" name="pesoMax" min="50" max="120" value="@f.PesoMax" placeholder="máx." aria-label="Peso máximo em quilos" />
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- Critérios de Desempenho -->
-        <div class="sc-panel">
-            <div class="sc-panel-title">Critérios de Desempenho</div>
+        <details class="sc-panel sc-desempenho" @(criteriosDesempenho > 0 ? "open" : "")>
+            <summary>
+                Desempenho
+                <small>@(criteriosDesempenho == 0 ? "nenhum critério" : criteriosDesempenho == 1 ? "1 critério" : $"{criteriosDesempenho} critérios")</small>
+            </summary>
+
+            <div class="sc-subtitulo">Totais mínimos <small>somados nos jogos filtrados</small></div>
             <div class="sc-grid">
+                @{ CampoNumero("minJogos", "Jogos", f.MinJogos, "10"); }
+                @{ CampoNumero("minGols", "Gols", f.MinGols, "5"); }
+                @{ CampoNumero("minAssistencias", "Assistências", f.MinAssistencias, "3"); }
+                @{ CampoNumero("minPassesChave", "Passes-chave", f.MinPassesChave, "20"); }
+                @{ CampoNumero("minDesarmes", "Desarmes", f.MinDesarmes, "15"); }
+                @{ CampoNumero("minBloqueios", "Bloqueios", f.MinBloqueios, "10"); }
+                @{ CampoNumero("minInterceptacoes", "Interceptações", f.MinInterceptacoes, "10"); }
+                @{ CampoNumero("minDuelosVencidos", "Duelos vencidos", f.MinDuelosVencidos, "50"); }
+                @{ CampoNumero("minFinalizacoesNoGol", "Finalizações no gol", f.MinFinalizacoesNoGol, "10"); }
+                @{ CampoNumero("minDrilesCertos", "Dribles certos", f.MinDrilesCertos, "8"); }
                 <div class="sc-field">
-                    <label>Mín. jogos</label>
-                    <input type="number" name="minJogos" min="0" value="@f.MinJogos" placeholder="ex: 10" />
-                </div>
-                <div class="sc-field">
-                    <label>Mín. gols</label>
-                    <input type="number" name="minGols" min="0" value="@f.MinGols" placeholder="ex: 5" />
-                </div>
-                <div class="sc-field">
-                    <label>Mín. assistências</label>
-                    <input type="number" name="minAssistencias" min="0" value="@f.MinAssistencias" placeholder="ex: 3" />
-                </div>
-                <div class="sc-field">
-                    <label>Mín. nota média</label>
-                    <input type="number" name="minNota" min="0" max="10" step="0.1" value="@f.MinNota" placeholder="ex: 6.5" />
-                </div>
-                <div class="sc-field">
-                    <label>Mín. passes-chave</label>
-                    <input type="number" name="minPassesChave" min="0" value="@f.MinPassesChave" placeholder="ex: 20" />
-                </div>
-                <div class="sc-field">
-                    <label>Mín. desarmes</label>
-                    <input type="number" name="minDesarmes" min="0" value="@f.MinDesarmes" placeholder="ex: 15" />
-                </div>
-                <div class="sc-field">
-                    <label>Mín. bloqueios</label>
-                    <input type="number" name="minBloqueios" min="0" value="@f.MinBloqueios" placeholder="ex: 10" />
-                </div>
-                <div class="sc-field">
-                    <label>Mín. interceptações</label>
-                    <input type="number" name="minInterceptacoes" min="0" value="@f.MinInterceptacoes" placeholder="ex: 10" />
-                </div>
-                <div class="sc-field">
-                    <label>Mín. duelos vencidos</label>
-                    <input type="number" name="minDuelosVencidos" min="0" value="@f.MinDuelosVencidos" placeholder="ex: 50" />
-                </div>
-                <div class="sc-field">
-                    <label>Mín. fin. no gol</label>
-                    <input type="number" name="minFinalizacoesNoGol" min="0" value="@f.MinFinalizacoesNoGol" placeholder="ex: 10" />
-                </div>
-                <div class="sc-field">
-                    <label>Mín. dribles certos</label>
-                    <input type="number" name="minDrilesCertos" min="0" value="@f.MinDrilesCertos" placeholder="ex: 8" />
-                </div>
-                <div class="sc-field">
-                    <label>Máx. cartões amarelos</label>
-                    <input type="number" name="maxCartaoAmarelo" min="0" value="@f.MaxCartaoAmarelo" placeholder="ex: 5" />
-                </div>
-                <div class="sc-field">
-                    <label>Máx. cartões vermelhos</label>
-                    <input type="number" name="maxCartaoVermelho" min="0" value="@f.MaxCartaoVermelho" placeholder="ex: 1" />
+                    <label for="minNota">Nota média</label>
+                    <input type="number" id="minNota" name="minNota" min="0" max="10" step="0.1" value="@(f.MinNota?.ToString(System.Globalization.CultureInfo.InvariantCulture))" />
                 </div>
             </div>
 
-            <div class="sc-panel-title" style="margin-top:1.25rem;">Médias por Jogo (mínimo)</div>
+            <div class="sc-subtitulo">Médias por jogo mínimas</div>
             <div class="sc-grid">
-                <div class="sc-field">
-                    <label>Méd. passes-chave</label>
-                    <input type="number" name="mediaPassesChave" min="0" step="0.1" value="@f.MediaPassesChave" placeholder="ex: 1.5" />
-                </div>
-                <div class="sc-field">
-                    <label>Méd. desarmes</label>
-                    <input type="number" name="mediaDesarmes" min="0" step="0.1" value="@f.MediaDesarmes" placeholder="ex: 2" />
-                </div>
-                <div class="sc-field">
-                    <label>Méd. bloqueios</label>
-                    <input type="number" name="mediaBloqueios" min="0" step="0.1" value="@f.MediaBloqueios" placeholder="ex: 0.5" />
-                </div>
-                <div class="sc-field">
-                    <label>Méd. interceptações</label>
-                    <input type="number" name="mediaInterceptacoes" min="0" step="0.1" value="@f.MediaInterceptacoes" placeholder="ex: 1" />
-                </div>
-                <div class="sc-field">
-                    <label>Méd. duelos vencidos</label>
-                    <input type="number" name="mediaDuelosVencidos" min="0" step="0.1" value="@f.MediaDuelosVencidos" placeholder="ex: 4" />
-                </div>
-                <div class="sc-field">
-                    <label>Méd. fin. no gol</label>
-                    <input type="number" name="mediaFinalizacoesNoGol" min="0" step="0.1" value="@f.MediaFinalizacoesNoGol" placeholder="ex: 1" />
-                </div>
-                <div class="sc-field">
-                    <label>Méd. dribles certos</label>
-                    <input type="number" name="mediaDrilesCertos" min="0" step="0.1" value="@f.MediaDrilesCertos" placeholder="ex: 1.5" />
-                </div>
+                @{ CampoMedia("mediaPassesChave", "Passes-chave", f.MediaPassesChave, "1,5"); }
+                @{ CampoMedia("mediaDesarmes", "Desarmes", f.MediaDesarmes, "2"); }
+                @{ CampoMedia("mediaBloqueios", "Bloqueios", f.MediaBloqueios, "0,5"); }
+                @{ CampoMedia("mediaInterceptacoes", "Interceptações", f.MediaInterceptacoes, "1"); }
+                @{ CampoMedia("mediaDuelosVencidos", "Duelos vencidos", f.MediaDuelosVencidos, "4"); }
+                @{ CampoMedia("mediaFinalizacoesNoGol", "Finalizações no gol", f.MediaFinalizacoesNoGol, "1"); }
+                @{ CampoMedia("mediaDrilesCertos", "Dribles certos", f.MediaDrilesCertos, "1,5"); }
             </div>
 
-            <div class="sc-actions">
-                <button type="submit" class="sc-btn-search">🔍 Buscar jogadores</button>
-                <a href="@Url.Action("Scout", "Relatorios")" class="sc-btn-clear">Limpar</a>
-                <a href="@Url.Action("Index", "Relatorios")" class="sc-back">← Voltar para Relatórios</a>
+            <div class="sc-subtitulo">Disciplina <small>no máximo</small></div>
+            <div class="sc-grid">
+                @{ CampoNumero("maxCartaoAmarelo", "Cartões amarelos", f.MaxCartaoAmarelo, "5"); }
+                @{ CampoNumero("maxCartaoVermelho", "Cartões vermelhos", f.MaxCartaoVermelho, "1"); }
             </div>
+        </details>
+
+        <div class="sc-actions">
+            <button type="submit" class="sc-btn-search">Buscar jogadores</button>
+            <a href="@Url.Action("Scout", "Relatorios")" class="sc-btn-clear">Limpar filtros</a>
         </div>
     </form>
 
     @if (Model.Pesquisou)
     {
-        <div class="sc-result-header">
-            <span class="sc-result-count">
-                <strong>@Model.Resultados.Count</strong> jogador(es) encontrado(s)
-            </span>
+        <div class="sc-result-header" id="resultados">
+            <h2 class="sc-result-count">
+                @(Model.Resultados.Count == 0 ? "Nenhum jogador encontrado" : Model.Resultados.Count == 1 ? "1 jogador encontrado" : $"{Model.Resultados.Count} jogadores encontrados")
+            </h2>
+            @if (Model.Resultados.Any())
+            {
+                <span class="sc-result-dica">Ordenados pela nota média. Clique no nome de uma coluna para reordenar.</span>
+            }
         </div>
 
         @if (!Model.Resultados.Any())
         {
             <div class="sc-empty">
-                Nenhum jogador encontrado com os critérios informados.
+                <b>Ninguém passa por todos os filtros ao mesmo tempo.</b>
+                Afrouxe um critério de desempenho, tire uma posição ou escolha mais competições.
             </div>
         }
         else
@@ -622,16 +560,16 @@
                fazer isso aqui porque o Scout devolve todos os resultados — não há
                corte de top-N que a mudança de base tornaria inválido. *@
             <div class="sc-acumulado">
-                <span>Acumulado:</span>
-                <div class="sc-seg" id="sc-base">
-                    <button type="button" data-b="total" class="active">Totais</button>
-                    <button type="button" data-b="jogo">Por jogo</button>
-                    <button type="button" data-b="90">Por 90 min</button>
+                <span>Mostrar</span>
+                <div class="sc-seg" id="sc-base" role="group" aria-label="Base dos números">
+                    <button type="button" data-b="total" class="active" aria-pressed="true">Totais</button>
+                    <button type="button" data-b="jogo" aria-pressed="false">Por jogo</button>
+                    <button type="button" data-b="90" aria-pressed="false">Por 90 min</button>
                 </div>
                 <span class="sc-acumulado-nota" id="sc-base-nota"></span>
 
-                <span style="margin-left:auto">Colunas:</span>
                 <div class="sc-grupos" id="sc-grupos">
+                    <span>Colunas</span>
                     @foreach (var g in gruposScout)
                     {
                         <label><input type="checkbox" data-g="@g" @(gruposPadrao.Contains(g) ? "checked" : "") /> @g</label>
@@ -643,19 +581,19 @@
                 <table class="sc-table" id="sc-tabela">
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>Jogador</th>
-                            <th>Pos.</th>
-                            <th>Idade</th>
-                            <th>Time</th>
-                            <th title="Jogos">JG</th>
-                            <th title="Minutos jogados">MIN</th>
+                            <th class="sc-txt" title="Posição na ordenação atual">#</th>
+                            <th class="sc-txt" data-tipo="texto">Jogador</th>
+                            <th class="sc-txt" data-tipo="texto" title="Posição">Pos.</th>
+                            <th data-tipo="num">Idade</th>
+                            <th class="sc-txt" data-tipo="texto">Time</th>
+                            <th data-tipo="num" title="Jogos em que entrou em campo">JG</th>
+                            <th data-tipo="num" title="Minutos jogados">MIN</th>
                             @foreach (var c in colunasScout)
                             {
-                                <th title="@c.Titulo" data-grupo="@c.Grupo"
+                                <th title="@c.Titulo" data-grupo="@c.Grupo" data-tipo="num"
                                     class="@(gruposPadrao.Contains(c.Grupo) ? "" : "sc-col-off")">@c.Sigla</th>
                             }
-                            <th>Nota</th>
+                            <th data-tipo="num" title="Nota média">Nota</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -675,17 +613,13 @@
                             };
                             @* jogos e minutos ficam na linha: são os denominadores da reescala *@
                             <tr data-jogos="@r.Jogos" data-min="@r.Minutos">
-                                <td style="color:var(--text-muted);font-size:12px">@idx</td>
-                                <td>
+                                <td class="sc-txt sc-pos-n">@idx</td>
+                                <td class="sc-txt">
                                     <div class="sc-player-cell">
                                         <div class="sc-photo">
                                             @if (!string.IsNullOrEmpty(j.FotoUrl))
                                             {
-                                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.FotoUrl })" alt="@j.Nome" />
-                                            }
-                                            else
-                                            {
-                                                <span style="color:var(--text-muted);font-size:14px;">👤</span>
+                                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.FotoUrl })" alt="" loading="lazy" onerror="this.remove()" />
                                             }
                                         </div>
                                         <div>
@@ -696,23 +630,22 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td><span class="sc-tag-pos">@PosicaoJogadorHelper.Sigla(j.Posicao)</span></td>
+                                <td class="sc-txt"><span class="sc-tag-pos" title="@j.Posicao">@PosicaoJogadorHelper.Sigla(j.Posicao)</span></td>
                                 <td>@(j.Idade > 0 ? j.Idade.ToString() : "—")</td>
-                                <td>
+                                <td class="sc-txt">
                                     @if (j.Time != null)
                                     {
-                                        <span style="display:inline-flex;align-items:center;gap:6px;">
+                                        <span class="sc-time">
                                             @if (!string.IsNullOrEmpty(j.Time.EscudoUrl))
                                             {
-                                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.Time.EscudoUrl })"
-                                                     style="width:18px;height:18px;object-fit:contain;" alt="" />
+                                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.Time.EscudoUrl })" alt="" loading="lazy" />
                                             }
                                             <span class="sc-tname" title="@j.Time.Nome">@j.Time.Nome</span>
                                         </span>
                                     }
                                     else { <span>—</span> }
                                 </td>
-                                <td style="font-weight:600">@r.Jogos</td>
+                                <td style="font-weight:700;color:var(--text-strong)">@r.Jogos</td>
                                 <td>@(r.Minutos > 0 ? r.Minutos.ToString() : "—")</td>
                                 @foreach (var c in colunasScout)
                                 {
@@ -725,7 +658,7 @@
                                     }
                                     else
                                     {
-                                        <td class="sc-num@(oculta)" data-grupo="@c.Grupo" data-total="@((int)(v ?? 0))">@((int)(v ?? 0))</td>
+                                        <td class="sc-num@(oculta)@((v ?? 0) == 0 ? " sc-zero" : "")" data-grupo="@c.Grupo" data-total="@((int)(v ?? 0))">@((int)(v ?? 0))</td>
                                     }
                                 }
                                 <td>
@@ -733,7 +666,7 @@
                                     {
                                         <span class="sc-nota" style="background:@notaColor;">@r.NotaMedia.Value.ToString("F1")</span>
                                     }
-                                    else { <span style="color:var(--border-strong);">—</span> }
+                                    else { <span class="sc-zero">—</span> }
                                 </td>
                             </tr>
                         }
@@ -770,17 +703,18 @@
                             if (base === 'jogo') v = jogos > 0 ? total / jogos : 0;
                             else if (base === '90') v = min > 0 ? total / min * 90 : 0;
                             else v = total;
-                            td.textContent = base === 'total' ? String(total) : v.toFixed(2);
+                            td.textContent = base === 'total' ? String(total) : v.toFixed(2).replace('.', ',');
                         });
                     });
                     nota.textContent = base === '90'
-                        ? `dividido pelos minutos em campo · ${ocultos} jogador(es) abaixo de ${MIN_MINUTOS_90} min em cinza`
-                        : base === 'jogo' ? 'dividido pelo número de jogos' : '';
+                        ? `por 90 minutos em campo; ${ocultos === 1 ? '1 jogador' : ocultos + ' jogadores'} com menos de ${MIN_MINUTOS_90} min ficam apagados`
+                        : base === 'jogo' ? 'divididos pelos jogos em que entrou' : '';
                 }
 
                 seg.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
-                    seg.querySelectorAll('button').forEach((x) => x.classList.remove('active'));
+                    seg.querySelectorAll('button').forEach((x) => { x.classList.remove('active'); x.setAttribute('aria-pressed', 'false'); });
                     b.classList.add('active');
+                    b.setAttribute('aria-pressed', 'true');
                     aplicar(b.dataset.b);
                 }));
 
@@ -805,41 +739,41 @@
 
         <div class="sc-panel">
             <div class="cmp-panel-head">
-                <div class="sc-panel-title" style="margin:0;padding:0;border:none;">Escolher jogadores</div>
-                <span class="cmp-hint">até 3 · liga → time → jogador, ou busque pelo nome</span>
-                <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
-                    <select id="cmpTemporada" style="border:1px solid var(--border-strong);border-radius:8px;padding:6px 9px;font-size:12px;background:var(--input-bg);color:var(--text);font-family:inherit;">
+                <h2 class="sc-panel-title">Escolher jogadores</h2>
+                <span class="cmp-hint">Até três, pela competição e pelo time ou pelo nome.</span>
+                <div class="cmp-acoes">
+                    <select id="cmpTemporada" aria-label="Temporada da comparação">
                         <option value="">Todas as temporadas</option>
                         @foreach (var t in Model.Temporadas)
                         {
                             <option value="@t">Temporada @t</option>
                         }
                     </select>
-                    <button type="button" id="cmpExportar" class="sc-btn-clear">🖨 Exportar</button>
+                    <button type="button" id="cmpExportar" class="sc-btn-sec">Imprimir</button>
                 </div>
             </div>
             <div class="cmp-select-grid">
                 <div class="sc-field">
-                    <label>Liga</label>
+                    <label for="cmpLiga">Competição</label>
                     <select id="cmpLiga">
                         <option value="">Todas as competições</option>
                     </select>
                 </div>
                 <div class="sc-field">
-                    <label>Time</label>
+                    <label for="cmpTime">Time</label>
                     <select id="cmpTime">
                         <option value="">Todos os times</option>
                     </select>
                 </div>
                 <div class="sc-field">
-                    <label>Jogador</label>
+                    <label for="cmpJogador">Jogador</label>
                     <select id="cmpJogador">
                         <option value="">Adicionar jogador…</option>
                     </select>
                 </div>
                 <div class="sc-field cmp-busca-wrap">
-                    <label>ou buscar por nome</label>
-                    <input type="text" id="cmpBusca" placeholder="Digite o nome do jogador…" autocomplete="off" />
+                    <label for="cmpBusca">Ou busque pelo nome</label>
+                    <input type="text" id="cmpBusca" placeholder="Nome do jogador" autocomplete="off" />
                     <div id="cmpBuscaPanel" class="cmp-busca-panel"></div>
                 </div>
             </div>
@@ -847,29 +781,29 @@
 
         <div id="cmpCards" class="cmp-cards"></div>
 
-        <div id="cmpVazio" class="sc-empty">Escolha ao menos 2 jogadores para comparar.</div>
+        <div id="cmpVazio" class="sc-empty"><b>Escolha pelo menos dois jogadores.</b>A comparação aparece aqui assim que o segundo for escolhido.</div>
 
         <div id="cmpResultado" style="display:none;">
             <div class="sc-panel">
-                <div class="sc-panel-title">Prioridades da posição</div>
-                <div id="cmpTextoFuncoes" style="font-size:13px;color:var(--text-2);margin-bottom:.6rem;"></div>
+                <h2 class="sc-panel-title">Prioridades da posição</h2>
+                <div id="cmpTextoFuncoes" style="font-size:.9rem;color:var(--text-2);margin-bottom:.6rem;max-width:80ch;"></div>
                 <div id="cmpChips" class="cmp-chips"></div>
             </div>
 
             <div class="cmp-graficos-grid">
                 <div class="sc-panel">
-                    <div class="sc-panel-title">Atributos-chave da posição</div>
+                    <h2 class="sc-panel-title">Atributos-chave da posição</h2>
                     <div class="cmp-chart-wrap"><canvas id="cmpRadarCanvas"></canvas></div>
                 </div>
                 <div class="sc-panel">
-                    <div class="sc-panel-title">Percentil na liga <span class="cmp-panel-subtitle">(50 = média da liga)</span></div>
+                    <h2 class="sc-panel-title">Percentil na competição <span class="cmp-panel-subtitle">50 é a média</span></h2>
                     <div class="cmp-chart-wrap"><canvas id="cmpPercentilCanvas"></canvas></div>
                 </div>
             </div>
 
             <div class="sc-panel">
                 <div class="cmp-panel-head">
-                    <div class="sc-panel-title" style="margin:0;padding:0;border:none;">Divisão das métricas prioritárias</div>
+                    <h2 class="sc-panel-title">Divisão das métricas prioritárias</h2>
                     <div id="cmpLegenda" class="cmp-legenda"></div>
                 </div>
                 <div id="cmpDivisao"></div>
@@ -878,16 +812,16 @@
             <div class="sc-panel" id="cmpGruposPanel"></div>
 
             <div class="sc-panel" id="cmpConfrontosPanel" style="display:none;">
-                <div class="sc-panel-title">Confrontos diretos</div>
+                <h2 class="sc-panel-title">Confrontos diretos</h2>
                 <div class="sc-table-wrap">
-                    <table class="sc-table">
+                    <table class="sc-table cmp-confrontos">
                         <thead>
                             <tr>
-                                <th>Data</th>
-                                <th>Competição</th>
-                                <th>Partida</th>
-                                <th>Participações</th>
-                                <th style="text-align:right;">Notas</th>
+                                <th class="sc-txt">Data</th>
+                                <th class="sc-txt">Competição</th>
+                                <th class="sc-txt">Partida</th>
+                                <th class="sc-txt">Gols e assistências</th>
+                                <th style="text-align:right;">Notas <small style="font-weight:400">(na ordem dos cartões)</small></th>
                             </tr>
                         </thead>
                         <tbody id="cmpConfrontosBody"></tbody>
@@ -896,6 +830,7 @@
             </div>
         </div>
     </div>
+    </div><!-- /.sc-corpo -->
 
 </div>
 
@@ -978,71 +913,62 @@
 </script>
 
 <script>
-// Ordenação client-side da tabela de resultados do scout: clicar num cabeçalho
-// ordena as linhas já filtradas por aquela coluna. Numéricas começam decrescente
-// ("mais" no topo); texto começa crescente. Clicar de novo inverte.
+// Ordenação da tabela de resultados: clicar num cabeçalho ordena as linhas por
+// aquela coluna. Números começam do maior; texto, em ordem alfabética. Clicar de
+// novo inverte. O tipo vem do data-tipo de cada <th> (as colunas variam de grupo).
 (function () {
-    var table = document.querySelector('.sc-table');
-    if (!table || !table.tHead || !table.tBodies.length) return;
+    var res0 = document.getElementById('resultados');
+    var table = document.getElementById('sc-tabela');
+    if (!table) { if (res0) res0.scrollIntoView({ block: 'start' }); return; }
 
     var tbody   = table.tBodies[0];
     var headers = table.tHead.rows[0].cells;
-
-    // Índice da coluna → tipo. 0=#, 1=Jogador, 2=Pos, 3=Idade, 4=Time,
-    // 5..14=estatísticas, 15=amarelos, 16=vermelhos, 17=Nota.
-    var tipos = {
-        1: 'text', 2: 'text', 3: 'num', 4: 'text',
-        5: 'num', 6: 'num', 7: 'num', 8: 'num', 9: 'num', 10: 'num',
-        11: 'num', 12: 'num', 13: 'num', 14: 'num', 15: 'num', 16: 'num', 17: 'num'
-    };
-
-    var estado = { col: -1, dir: 1 };
+    var estado  = { col: -1, dir: 1 };
 
     function valor(row, col, tipo) {
         var cell = row.cells[col];
         if (!cell) return tipo === 'num' ? -Infinity : '';
         if (tipo === 'num') {
-            var n = parseFloat(cell.textContent.trim().replace(',', '.'));
-            return isNaN(n) ? -Infinity : n; // "—" vai para o fim no decrescente
+            var n = parseFloat(cell.textContent.trim().replace('%', '').replace(',', '.'));
+            return isNaN(n) ? -Infinity : n; // "—" vai para o fim
         }
         var nome = cell.querySelector('.sc-pname');
         return (nome ? nome.textContent : cell.textContent).trim().toLowerCase();
     }
 
     function ordenar(col, tipo) {
-        var dir;
-        if (estado.col === col) dir = -estado.dir;     // mesma coluna: inverte
-        else dir = (tipo === 'num') ? -1 : 1;          // 1ª vez: num desc, texto asc
+        var dir = estado.col === col ? -estado.dir : (tipo === 'num' ? -1 : 1);
         estado = { col: col, dir: dir };
 
-        var linhas = Array.prototype.slice.call(tbody.rows);
-        linhas.sort(function (a, b) {
-            var va = valor(a, col, tipo), vb = valor(b, col, tipo);
-            if (va < vb) return -1 * dir;
-            if (va > vb) return 1 * dir;
-            return 0;
-        });
-        linhas.forEach(function (r) { tbody.appendChild(r); });
+        Array.prototype.slice.call(tbody.rows)
+            .sort(function (a, b) {
+                var va = valor(a, col, tipo), vb = valor(b, col, tipo);
+                return va < vb ? -dir : va > vb ? dir : 0;
+            })
+            .forEach(function (r, i) { tbody.appendChild(r); r.cells[0].textContent = i + 1; });
 
-        // Renumera a coluna "#"
-        Array.prototype.forEach.call(tbody.rows, function (r, i) {
-            if (r.cells[0]) r.cells[0].textContent = i + 1;
-        });
-
-        // Indicador visual no cabeçalho
         Array.prototype.forEach.call(headers, function (h) {
             h.classList.remove('sc-sort-asc', 'sc-sort-desc');
+            if (h.dataset.tipo) h.setAttribute('aria-sort', 'none');
         });
         headers[col].classList.add(dir > 0 ? 'sc-sort-asc' : 'sc-sort-desc');
+        headers[col].setAttribute('aria-sort', dir > 0 ? 'ascending' : 'descending');
     }
 
-    Object.keys(tipos).forEach(function (k) {
-        var col = parseInt(k, 10);
-        var th = headers[col];
-        if (!th) return;
+    Array.prototype.forEach.call(headers, function (th, col) {
+        var tipo = th.dataset.tipo;
+        if (!tipo) return;
         th.classList.add('sc-th-sortable');
-        th.addEventListener('click', function () { ordenar(col, tipos[col]); });
+        th.tabIndex = 0;
+        th.addEventListener('click', function () { ordenar(col, tipo); });
+        th.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ordenar(col, tipo); }
+        });
     });
+
+    // Depois de buscar, a página abre já nos resultados (o formulário é longo)
+    var res = document.getElementById('resultados');
+    if (res) res.scrollIntoView({ block: 'start' });
 })();
 </script>
 
@@ -1058,7 +984,7 @@
     var jogadoresListaUrl = '@Url.Action("CompararJogadoresLista", "Jogadores")';
     var compararDadosUrl = '@Url.Action("ScoutCompararDados", "Relatorios")';
 
-    var CORES = ['#7c3aed', '#0ea5e9', '#f59e0b'];
+    var CORES = ['#d4a520', '#38bdf8', '#f472b6']; // as mesmas do servidor
     var cmpIds = [];
     var cmpInfo = {};
     var cascataInit = false;
@@ -1078,6 +1004,8 @@
         document.getElementById('abaComparar').style.display = buscar ? 'none' : '';
         document.getElementById('tabBuscarBtn').classList.toggle('active', buscar);
         document.getElementById('tabCompararBtn').classList.toggle('active', !buscar);
+        document.getElementById('tabBuscarBtn').setAttribute('aria-selected', buscar ? 'true' : 'false');
+        document.getElementById('tabCompararBtn').setAttribute('aria-selected', buscar ? 'false' : 'true');
         if (!buscar) {
             initCascataOnce();
             if (radarChart) radarChart.resize();
@@ -1125,7 +1053,7 @@
             (jogadores || []).forEach(function (j) {
                 var opt = document.createElement('option');
                 opt.value = j.id;
-                opt.textContent = j.nome + (j.posicao ? (' — ' + j.posicao) : '');
+                opt.textContent = j.nome + (j.posicao ? (' (' + j.posicao + ')') : '');
                 opt.dataset.nome = j.nome;
                 opt.dataset.posicao = j.posicao || '';
                 opt.dataset.clube = j.clube || '';
@@ -1162,13 +1090,17 @@
                 jogadores.forEach(function (j) {
                     var opt = document.createElement('div');
                     opt.className = 'cmp-busca-opt';
+                    opt.tabIndex = 0;
+                    opt.setAttribute('role', 'button');
                     opt.innerHTML = '<span>' + escapeHtml(j.nome) + '</span>&nbsp;<small>' + escapeHtml(j.clube || '') + '</small>';
-                    opt.addEventListener('click', function () {
+                    var escolher = function () {
                         addJogador(j);
                         buscaInput.value = '';
                         buscaPanel.classList.remove('open');
                         buscaPanel.innerHTML = '';
-                    });
+                    };
+                    opt.addEventListener('click', escolher);
+                    opt.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); escolher(); } });
                     buscaPanel.appendChild(opt);
                 });
                 buscaPanel.classList.add('open');
@@ -1208,14 +1140,14 @@
             div.className = 'cmp-card';
             div.style.borderTopColor = cor;
             var fotoHtml = info.fotoUrl
-                ? '<img src="' + mediaProxyBase + '?url=' + encodeURIComponent(info.fotoUrl) + '" alt="">'
-                : '👤';
+                ? '<img src="' + mediaProxyBase + '?url=' + encodeURIComponent(info.fotoUrl) + '" alt="" onerror="this.remove()">'
+                : '';
             var statsHtml = '';
             if (info.jogos !== undefined) {
                 statsHtml = '<div class="cmp-card-stats">' +
                     statBlock(info.jogos, 'Jogos') +
                     statBlock(info.gols, 'Gols') +
-                    statBlock(info.assistencias, 'Ass.') +
+                    statBlock(info.assistencias, 'Assist.') +
                     statBlock(info.notaFmt, 'Nota', cor) +
                     '</div>';
             }
@@ -1225,12 +1157,12 @@
                 '<div style="min-width:0;flex:1;">' +
                     '<a class="cmp-card-nome" href="' + estatisticasBase + '?id=' + id + '">' + escapeHtml(info.nome || '') + '</a>' +
                     '<div class="cmp-card-meta">' + escapeHtml(info.posicao || '') +
-                        (info.idade ? (' · ' + info.idade + ' anos') : '') +
-                        (info.pais ? (' · ' + escapeHtml(info.pais)) : '') + '</div>' +
+                        (info.idade ? (', ' + info.idade + ' anos') : '') +
+                        (info.pais ? (', ' + escapeHtml(info.pais)) : '') + '</div>' +
                     '<div class="cmp-card-clube">' + escapeHtml(info.clube || '') + '</div>' +
                     statsHtml +
                 '</div>' +
-                (removivel ? '<button type="button" class="cmp-card-remove" data-id="' + id + '">✕</button>' : '');
+                (removivel ? '<button type="button" class="cmp-card-remove" data-id="' + id + '" aria-label="Tirar ' + escapeHtml(info.nome || '') + ' da comparação">Remover</button>' : '');
             cards.appendChild(div);
         });
 
@@ -1238,8 +1170,8 @@
             var ph = document.createElement('div');
             ph.className = 'cmp-card-placeholder';
             ph.textContent = cmpIds.length < 2
-                ? 'Use os campos acima para escolher jogadores'
-                : '+ Use os campos acima para adicionar um 3º jogador';
+                ? 'Escolha um jogador nos campos acima'
+                : 'Escolha mais um jogador acima para comparar os três';
             cards.appendChild(ph);
         }
 
@@ -1346,10 +1278,10 @@
         panel.style.display = '';
         body.innerHTML = confrontos.map(function (c) {
             return '<tr>' +
-                '<td style="color:var(--text-muted);white-space:nowrap;">' + escapeHtml(c.data) + '</td>' +
-                '<td>' + escapeHtml(c.competicao) + '</td>' +
-                '<td style="font-weight:600;color:var(--text);">' + escapeHtml(c.partida) + '</td>' +
-                '<td style="color:var(--text-2);">' + escapeHtml(c.participacoes) + '</td>' +
+                '<td class="sc-txt" style="color:var(--text-muted);white-space:nowrap;">' + escapeHtml(c.data) + '</td>' +
+                '<td class="sc-txt">' + escapeHtml(c.competicao) + '</td>' +
+                '<td class="sc-txt" style="font-weight:600;color:var(--text-strong);">' + escapeHtml(c.partida) + '</td>' +
+                '<td class="sc-txt" style="color:var(--text-2);">' + escapeHtml(c.participacoes) + '</td>' +
                 '<td style="text-align:right;font-weight:700;color:var(--text-2);">' + escapeHtml(c.notas) + '</td>' +
                 '</tr>';
         }).join('');

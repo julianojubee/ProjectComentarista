@@ -157,7 +157,7 @@ namespace ControleFutebolWeb.Controllers
             _context.AnotacoesJogador.Add(model);
             await _context.SaveChangesAsync();
 
-            TempData["Sucesso"] = "✅ Anotação salva.";
+            TempData["Sucesso"] = "Anotação salva.";
             return RedirectToAction(nameof(Index), new { jogadorId = model.JogadorId });
         }
 
@@ -199,7 +199,7 @@ namespace ControleFutebolWeb.Controllers
 
             await _context.SaveChangesAsync();
 
-            TempData["Sucesso"] = "✅ Anotação atualizada.";
+            TempData["Sucesso"] = "Anotação atualizada.";
             return RedirectToAction(nameof(Index), new { jogadorId = existing.JogadorId });
         }
 
@@ -216,7 +216,7 @@ namespace ControleFutebolWeb.Controllers
             _context.AnotacoesJogador.Remove(anotacao);
             await _context.SaveChangesAsync();
 
-            TempData["Sucesso"] = "🗑️ Anotação excluída.";
+            TempData["Sucesso"] = "Anotação excluída.";
             return RedirectToAction(nameof(Index), new { jogadorId });
         }
     }

@@ -1,0 +1,133 @@
+@model (int CompeticaoId, int? Temporada)
+@*
+    Aba "Estatísticas Jogadores" das telas de competição: os mesmos dados da aba
+    de /Relatorios (melhores jogadores, recordes em um jogo, rankings individuais),
+    só da competição/temporada que a tela está mostrando.
+
+    O conteúdo vem de Competicoes/EstatisticasJogadores (partial _EstatisticasJogadores)
+    e só é buscado quando este bloco ganha tamanho na página — igual ao
+    _PainelEstatisticas, funciona dentro de qualquer sistema de abas (a aba
+    escondida tem display:none e tamanho zero). Os filtros base/mando/mínimo de
+    jogos são os mesmos da barra de filtros de /Relatorios e rebuscam o conteúdo.
+*@
+@{
+    var uid = Guid.NewGuid().ToString("N").Substring(0, 8);
+    var url = Url.Action("EstatisticasJogadores", "Competicoes", new { id = Model.CompeticaoId, temporada = Model.Temporada });
+}
+
+<link rel="stylesheet" href="~/css/estatisticas-jogadores.css" asp-append-version="true" />
+<style>
+    .ej-root { padding: 24px 2.5rem 64px; display: flex; flex-direction: column; gap: 16px; }
+    .ej-filtros { display: flex; gap: .75rem; align-items: flex-end; flex-wrap: wrap; }
+    .ej-filtros label { font-size: 11px; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: .35rem; font-weight: 700; }
+    .ej-seg { display: flex; background: var(--p-1); border: 1px solid var(--line); border-radius: 8px; padding: 3px; gap: 3px; }
+    .ej-seg button {
+        border: none; cursor: pointer; font-family: 'Barlow', Arial, sans-serif; font-size: 12px; font-weight: 700;
+        padding: .35rem .85rem; border-radius: 6px; background: transparent; color: var(--text-dim);
+    }
+    .ej-seg button.active { background: var(--p-4); color: var(--text-strong); }
+    .ej-filtros input[type=number] {
+        width: 64px; border: 1px solid var(--line); border-radius: 8px; padding: .35rem .5rem;
+        font-size: 12px; font-weight: 700; color: var(--text); background: var(--p-1);
+    }
+    .ej-nota { margin-left: auto; font-size: 11px; color: var(--text-dimmer); align-self: flex-end; max-width: 380px; }
+    .ej-status { padding: 2rem; text-align: center; color: var(--text-muted); font-size: 13px; }
+    .ej-conteudo.carregando { opacity: .45; pointer-events: none; }
+
+    @@media (max-width: 768px) {
+        .ej-root { padding: 18px 1.1rem 40px; }
+        .ej-nota { margin-left: 0; }
+    }
+</style>
+
+<div class="ej-root" data-ej-root="@uid" data-url="@url">
+    <div class="ej-filtros">
+        <div>
+            <label>Base</label>
+            <div class="ej-seg" data-ej-filtro="baseEstat">
+                <button type="button" data-v="jogo" class="active">Por jogo</button>
+                <button type="button" data-v="total">Total</button>
+                <button type="button" data-v="90">Por 90 min</button>
+            </div>
+        </div>
+        <div>
+            <label>Mando</label>
+            <div class="ej-seg" data-ej-filtro="mando">
+                <button type="button" data-v="" class="active">Todos</button>
+                <button type="button" data-v="casa">Em casa</button>
+                <button type="button" data-v="fora">Fora</button>
+            </div>
+        </div>
+        <div>
+            <label for="ej-min-@uid">Mín. jogos</label>
+            <input type="number" id="ej-min-@uid" min="1" value="1"
+                   title="Só lista nos rankings quem tem pelo menos esse número de jogos. 1 = sem filtro." />
+        </div>
+        <div class="ej-nota">
+            Estatísticas importadas por jogador, em todos os jogos realizados da competição na temporada.
+            Base e mando valem para os rankings individuais; melhores jogadores e recordes cobrem tudo.
+        </div>
+    </div>
+
+    <div class="ej-conteudo" data-ej-conteudo>
+        <div class="ej-status">Carregando estatísticas dos jogadores…</div>
+    </div>
+</div>
+
+<script src="~/js/estatisticas-jogadores.js" asp-append-version="true"></script>
+<script>
+(function () {
+    const raiz = document.querySelector('[data-ej-root="@uid"]');
+    if (!raiz) return;
+    const conteudo = raiz.querySelector('[data-ej-conteudo]');
+    const inputMin = raiz.querySelector('#ej-min-@uid');
+    const filtros = { baseEstat: 'jogo', mando: '' };
+    let carregou = false;
+    let pedido = 0;
+
+    async function carregar() {
+        carregou = true;
+        const meu = ++pedido;
+        const params = new URLSearchParams();
+        if (filtros.baseEstat !== 'jogo') params.set('baseEstat', filtros.baseEstat);
+        if (filtros.mando) params.set('mando', filtros.mando);
+        const min = parseInt(inputMin.value, 10);
+        if (min > 1) params.set('minJogos', min);
+
+        const qs = params.toString();
+        const url = raiz.dataset.url + (qs ? (raiz.dataset.url.includes('?') ? '&' : '?') + qs : '');
+        conteudo.classList.add('carregando');
+        try {
+            const resp = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const html = await resp.text();
+            // Resposta de um filtro antigo chegando depois da do filtro novo: descarta.
+            if (meu !== pedido) return;
+            conteudo.innerHTML = html;
+            iniciarPickersEstatJogadores(conteudo);
+        } catch (e) {
+            if (meu !== pedido) return;
+            conteudo.innerHTML = '<div class="ej-status">Não foi possível carregar as estatísticas dos jogadores.</div>';
+        } finally {
+            if (meu === pedido) conteudo.classList.remove('carregando');
+        }
+    }
+
+    raiz.querySelectorAll('[data-ej-filtro]').forEach((seg) => {
+        seg.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+            if (b.classList.contains('active')) return;
+            seg.querySelectorAll('button').forEach((x) => x.classList.toggle('active', x === b));
+            filtros[seg.dataset.ejFiltro] = b.dataset.v;
+            carregar();
+        }));
+    });
+    inputMin.addEventListener('change', carregar);
+
+    // Só busca quando a aba fica visível (ganha tamanho): abrir a tela da
+    // competição não paga o custo dos rankings de quem nunca abre esta aba.
+    const ro = new ResizeObserver(() => {
+        if (!carregou && raiz.offsetWidth > 0) { ro.disconnect(); carregar(); }
+    });
+    ro.observe(raiz);
+})();
+</script>

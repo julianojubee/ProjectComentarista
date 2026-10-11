@@ -615,6 +615,9 @@ namespace ControleFutebolWeb.Services
                     AdversarioId = Id64(j, "opponentTeamId"),
                     Mandante = casa,
                     Placar = golsCasa == null || golsFora == null ? null : $"{golsCasa} x {golsFora}",
+                    // Do ponto de vista do time do jogador, para a tela dizer V/E/D.
+                    GolsTime = casa ? golsCasa : golsFora,
+                    GolsAdversario = casa ? golsFora : golsCasa,
                     Minutos = Inteiro(j, "minutesPlayed"),
                     Gols = Inteiro(j, "goals") ?? 0,
                     Assistencias = Inteiro(j, "assists") ?? 0,
@@ -678,9 +681,11 @@ namespace ControleFutebolWeb.Services
                     // repete a própria taxa no per90, e mostrá-la seria ruído.
                     var percentual = Texto(m, "statFormat") == "percent";
 
+                    var idMetrica = Texto(m, "localizedTitleId");
                     linhas.Add(new MetricaFotMob
                     {
-                        Nome = TraduzirMetrica(Texto(m, "localizedTitleId"), titulo),
+                        Nome = TraduzirMetrica(idMetrica, titulo),
+                        MenosEhMelhor = MenosEhMelhor(idMetrica, titulo),
                         Valor = ComVirgula(Texto(m, "statValue")),
                         EhPercentual = percentual,
                         Por90 = percentual ? null : Numero(m, "per90"),
@@ -768,8 +773,70 @@ namespace ControleFutebolWeb.Services
             "yellow_cards" => "Cartões amarelos",
             "red_cards" => "Cartões vermelhos",
 
-            _ => original,
+            _ => TraduzirPorTitulo(original),
         };
+
+        /// <summary>
+        /// Reserva do de-para por id: o título em inglês que o FotMob manda. Cobre as
+        /// métricas cujo localizedTitleId ainda não foi conferido num payload real —
+        /// as de goleiro, sobretudo, que apareciam em inglês na tela ("Saves", "High
+        /// claims"). O que não estiver em nenhum dos dois continua no original, para
+        /// métrica nova aparecer em vez de sumir.
+        /// </summary>
+        private static string TraduzirPorTitulo(string original) =>
+            _metricasPorTitulo.TryGetValue(original.Trim(), out var pt) ? pt : original;
+
+        private static readonly Dictionary<string, string> _metricasPorTitulo =
+            new(StringComparer.OrdinalIgnoreCase)
+            {
+                // Goleiro
+                ["Saves"] = "Defesas",
+                ["Save percentage"] = "Aproveitamento em defesas",
+                ["Goals conceded"] = "Gols sofridos",
+                ["Goals prevented"] = "Gols evitados",
+                ["Clean sheets"] = "Jogos sem sofrer gol",
+                ["Error led to goal"] = "Erros que viraram gol",
+                ["Errors led to goal"] = "Erros que viraram gol",
+                ["Acted as sweeper"] = "Saídas como líbero",
+                ["High claims"] = "Bolas altas agarradas",
+                ["Punches"] = "Socos na bola",
+                ["Penalties saved"] = "Pênaltis defendidos",
+                ["Penalties faced"] = "Pênaltis enfrentados",
+                ["Penalty goals conceded"] = "Gols de pênalti sofridos",
+                ["Saves inside box"] = "Defesas dentro da área",
+                ["Throws"] = "Reposições com a mão",
+                ["Goal kicks"] = "Tiros de meta",
+
+                // Linha
+                ["Headed shots"] = "Finalizações de cabeça",
+                ["Penalty goals"] = "Gols de pênalti",
+                ["Big chances missed"] = "Grandes chances perdidas",
+                ["Shots off target"] = "Finalizações para fora",
+                ["Hit woodwork"] = "Bolas na trave",
+                ["Offsides"] = "Impedimentos",
+                ["Fouls committed"] = "Faltas cometidas",
+                ["Was fouled"] = "Faltas sofridas",
+                ["Possession won final 3rd"] = "Posse recuperada no último terço",
+            };
+
+        /// <summary>
+        /// Métricas em que um número MENOR é o bom (gols sofridos, erros, cartões,
+        /// perdas de posse...). O percentil do FotMob já vem orientado ("melhor que X%"
+        /// também nelas: quem não leva cartão fica perto de 100), então a barra não é
+        /// invertida — a marca serve à tela para avisar o leitor de que ali menos é
+        /// melhor e para tratar o empate no zero (ver a view).
+        /// </summary>
+        internal static bool MenosEhMelhor(string? id, string titulo) =>
+            id is "yellow_cards" or "red_cards" or "dispossessed" or "fouls" or "dribbled_past"
+                or "goals_conceded_while_on_pitch" or "expected_goals_against_while_on_pitch"
+            || _menosEhMelhorTitulos.Contains(titulo.Trim());
+
+        private static readonly HashSet<string> _menosEhMelhorTitulos =
+            new(StringComparer.OrdinalIgnoreCase)
+            {
+                "Goals conceded", "Error led to goal", "Errors led to goal",
+                "Penalty goals conceded", "Big chances missed", "Fouls committed",
+            };
 
         // ── Situação física ───────────────────────────────────────────────────
 
@@ -1340,6 +1407,8 @@ namespace ControleFutebolWeb.Services
             "possession" => "Posse",
             "defending" => "Defesa",
             "discipline" => "Disciplina",
+            "goalkeeping" => "Goleiro",
+            "distribution" => "Distribuição",
             _ => id ?? "Outras",
         };
     }

@@ -84,12 +84,15 @@
     .je h1 { font-family: 'Barlow Condensed', Arial, sans-serif; }
 
     /* ── Voltar ── */
-    .je-top { padding: 20px 2.5rem 0; }
+    /* Topo, cabeçalho e conteúdo usam a MESMA largura útil (1164px), para foto,
+       cards e tabelas começarem na mesma margem. */
+    .je-top { padding: 20px 2.5rem 0; max-width: 1244px; margin: 0 auto; }
     .je-voltar {
         display: inline-flex; align-items: center; gap: .4rem;
-        font-size: .8rem; color: var(--text-dim); margin-bottom: 14px;
+        font-size: .85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 14px;
     }
-    .je-voltar:hover { color: var(--gold-ink); }
+    .je-voltar:hover { color: var(--gold-ink); text-decoration: underline; }
+    .je :is(a, button, select, summary):focus-visible { outline: 2px solid #d4a520; outline-offset: 2px; }
 
     /* ── Header do jogador ── */
     .je-header {
@@ -98,7 +101,7 @@
         padding: 32px 2.5rem 28px;
     }
     .je-header-inner {
-        max-width: 1100px; margin: 0 auto;
+        max-width: 1164px; margin: 0 auto;
         display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
     }
 
@@ -137,7 +140,39 @@
     a.je-meta-clube { text-decoration: none; }
     a.je-meta-clube:hover { color: var(--gold-ink); text-decoration: underline; }
 
-    .je-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; flex-wrap: wrap; }
+    /* ── Filtros e ações ─────────────────────────────────────────────────
+       Linha inteira embaixo da identificação, que QUEBRA: antes não quebrava e, no
+       celular, os cinco botões ficavam fora da tela (cortados pelo cabeçalho).
+       Uma cor só para todos — a cor não significava nada. Os dois atalhos mais
+       usados ficam à vista; os outros três num menu "Mais". */
+    .je-acoes { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 4px; }
+    .je-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; }
+    .je-acoes-links { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
+    .je .je-acao {
+        display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 8px;
+        border: 1px solid #3a3a3a; background: transparent; color: #e7e5df;
+        font-family: inherit; font-size: .85rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+        text-decoration: none;
+    }
+    .je .je-acao:hover { border-color: #d4a520; color: #f3d27a; }
+    .je .je-acao.principal { border-color: rgba(212,165,32,.65); color: #f3d27a; }
+    .je-mais { position: relative; }
+    .je-mais > summary { list-style: none; }
+    .je-mais:not([open]) .je-mais-menu { display: none; }
+    .je-mais > summary::-webkit-details-marker { display: none; }
+    .je-mais-menu {
+        position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 210px;
+        display: flex; flex-direction: column; padding: 6px;
+        background: #1a1a1a; border: 1px solid #333; border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,.45);
+    }
+    .je .je-mais-menu .je-acao { border: none; width: 100%; justify-content: flex-start; padding: 9px 10px; }
+    .je .je-mais-menu .je-acao:hover { background: #262626; }
+    @@media (max-width: 640px) {
+        .je-acoes-links { margin-left: 0; }
+        .je-filtros, .je-filtros .je-select-wrap { width: 100%; }
+        .je-filtros .je-select { width: 100%; }
+        .je-mais-menu { right: 0; left: auto; }
+    }
     .je-select-wrap { position: relative; }
     .je-select {
         appearance: none; background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 8px;
@@ -185,16 +220,22 @@
     .je-main { padding: 28px 2.5rem 64px; max-width: 1244px; margin: 0 auto; }
 
     .je-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    /* Resumo: neutro, com um destaque só (a média). O índice de desempenho, que
+       repetia a média numa faixa própria, virou a régua dentro deste card. */
     .je-resumo-card {
         background: var(--p-1); border: 1px solid var(--line); border-radius: 12px;
-        padding: 18px 14px; text-align: center; position: relative; overflow: hidden;
+        padding: 14px 16px; position: relative; overflow: hidden;
     }
-    .je-resumo-card::before {
-        content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-        background: var(--je-cor, #22c55e);
+    .je-resumo-card.destaque { border-color: rgba(212,165,32,.6); background: rgba(212,165,32,.07); }
+    .je-resumo-label { font-size: .85rem; color: var(--text-muted); font-weight: 600; }
+    .je-resumo-valor {
+        font-family: 'Barlow Condensed', Arial, sans-serif;
+        font-size: 2.4rem; font-weight: 800; line-height: 1.05; color: var(--text-strong);
+        font-variant-numeric: tabular-nums;
     }
-    .je-resumo-valor { font-size: 2.4rem; font-weight: 800; line-height: 1; color: var(--je-cor, var(--ok-2)); }
-    .je-resumo-label { font-size: .68rem; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: .1em; font-weight: 700; margin-top: 4px; }
+    .je-resumo-det { font-size: .78rem; color: var(--text-dim); margin-top: 2px; }
+    .je-resumo-regua { height: 5px; border-radius: 3px; background: var(--p-3); margin-top: 8px; overflow: hidden; }
+    .je-resumo-regua > span { display: block; height: 100%; border-radius: 3px; background: #d4a520; }
 
     .je-perf { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; }
     .je-perf-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 6px; }
@@ -210,7 +251,12 @@
     .je-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 20px; position: relative; }
     /* padding-right reservado pro botão "Ampliar", que é posicionado no canto
        (em vez de entrar no fluxo do título, que varia de card pra card). */
-    .je-card-titulo { font-size: .68rem; font-weight: 700; letter-spacing: .14em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 16px; padding-right: 92px; }
+    .je-card-titulo {
+        font-family: 'Barlow Condensed', Arial, sans-serif;
+        font-size: 1.15rem; font-weight: 700; color: var(--text-strong);
+        margin-bottom: 14px; padding-right: 92px;
+    }
+    .je-card-nota { font-family: 'Barlow', Arial, sans-serif; font-size: .78rem; font-weight: 400; color: var(--text-dim); }
 
     /* ── Ampliar card (tela cheia) ──────────────────────────────────────────
        O card é movido para um overlay em document.body (position:fixed puro
@@ -301,7 +347,7 @@
     .je-heatmap-body { display: flex; flex-direction: column; align-items: center; }
     .je-heatmap-pitch { position: relative; width: 100%; max-width: 210px; aspect-ratio: 68/105; border-radius: 6px; overflow: hidden; }
     .je-heatmap-legend { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; width: 100%; max-width: 210px; }
-    .je-heatmap-legend span { font-size: .6rem; color: #374151; font-weight: 600; }
+    .je-heatmap-legend span { font-size: .72rem; color: var(--text-dim); font-weight: 600; }
     .je-heatmap-legend-bar { flex: 1; margin: 0 10px; height: 5px; border-radius: 3px; background: linear-gradient(90deg, #4ade80, #facc15, #f97316, #ef4444); }
 
     .je-pos-lista { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
@@ -311,10 +357,10 @@
         font-size: .72rem; font-weight: 800; background: var(--p-alt-3); color: var(--text-strong);
     }
     .je-pos-item-principal .je-pos-sigla { background: #facc15; color: #0f172a; }
-    .je-pos-nome { font-size: .82rem; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .je-pos-sub { font-size: .68rem; color: var(--text-dim); }
+    .je-pos-nome { font-size: .85rem; font-weight: 600; color: var(--text); line-height: 1.2; }
+    .je-pos-sub { font-size: .75rem; color: var(--text-dim); }
 
-    .je-destaques-label { font-size: .6rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
+    .je-destaques-label { font-size: .82rem; font-weight: 600; color: var(--text-muted); margin-bottom: 10px; }
     .je-donuts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
     .je-donut { text-align: center; min-width: 0; }
     .je-donut-ring { width: 74px; height: 74px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
@@ -322,16 +368,16 @@
     .je-donut-label { font-size: .82rem; font-weight: 600; color: var(--text); margin-top: 6px; }
     .je-donut-sub { font-size: .68rem; color: var(--text-dim); margin-top: 2px; }
 
-    .je-chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    .je-chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 8px; }
     @@media (max-width: 560px) { .je-chips { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     .je-chip { background: rgba(255,255,255,.03); border: 1px solid var(--line); border-radius: 10px; padding: 8px 4px; text-align: center; min-width: 0; }
     .je-chip-valor { font-size: 1.05rem; font-weight: 800; color: var(--text-strong); line-height: 1; }
-    .je-chip-label { font-size: .56rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .04em; margin-top: 3px; overflow-wrap: break-word; }
+    .je-chip-label { font-size: .74rem; color: var(--text-dim); margin-top: 3px; line-height: 1.2; hyphens: auto; }
 
     .je-section { margin-bottom: 24px; }
     .je-section-row { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; cursor: pointer; background: none; border: none; width: 100%; padding: 0 0 16px; border-bottom: 1px solid transparent; }
     .je-section-row.je-com-linha { border-bottom-color: var(--line); }
-    .je-section-titulo { font-size: .7rem; font-weight: 700; letter-spacing: .18em; color: var(--text-dim); text-transform: uppercase; white-space: nowrap; }
+    .je-section-titulo { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.35rem; font-weight: 700; color: var(--text-strong); white-space: nowrap; }
     .je-section-linha { flex: 1; height: 1px; background: var(--p-3); }
     .je-section-badge { font-size: .68rem; padding: 2px 10px; background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 999px; color: var(--text-dim); font-weight: 600; }
     .je-section-chevron { color: var(--text-dim); flex-shrink: 0; transition: transform .15s; }
@@ -358,11 +404,11 @@
     }
     .je-rating-grupo { display: flex; gap: .4rem; align-items: center; flex-shrink: 0; }
     .je-rating-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-    .je-rating-fonte { font-size: .52rem; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; color: var(--text-dimmer); }
+    .je-rating-fonte { font-size: .7rem; font-weight: 600; color: var(--text-dim); }
     .je-temporada-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
     .je-stat-box { padding: 14px 8px; text-align: center; border-right: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }
     .je-stat-val { font-size: 1.5rem; font-weight: 800; line-height: 1; color: var(--text-strong); }
-    .je-stat-lbl { font-size: .58rem; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: .06em; margin-top: 3px; font-weight: 700; }
+    .je-stat-lbl { font-size: .74rem; color: var(--text-dim); margin-top: 3px; font-weight: 600; }
     .je-stat-val.hl-green  { color: var(--ok); }
     .je-stat-val.hl-blue   { color: var(--info); }
     .je-stat-val.hl-orange { color: var(--warn); }
@@ -604,11 +650,79 @@
     .je-cmp-bar .seg-b { background: rgba(96,165,250,.3); }
     .je-cmp-bar .seg-a.vence { background: #facc15; }
     .je-cmp-bar .seg-b.vence { background: #60a5fa; }
+
+    /* ── Cabeçalho de seção (histórico) — fixo, não recolhe mais ── */
+    .je-sec-cab { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 12px; }
+    .je-sec-cab .je-section-titulo { margin: 0; }
+    .je-sec-nota { font-size: .82rem; color: var(--text-dim); }
+
+    /* Filtro do histórico: todos os jogos com escalação ou só os que jogou */
+    .je-hist-filtro { display: inline-flex; gap: 4px; margin-left: auto; }
+    .je-hist-filtro button {
+        padding: 5px 12px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--p-2);
+        color: var(--text-2); font-family: inherit; font-size: .8rem; font-weight: 600; cursor: pointer;
+    }
+    .je-hist-filtro button[aria-pressed="true"] { background: #d4a520; border-color: #d4a520; color: #141414; }
+
+    /* ── Histórico por jogo: uma linha por partida ── */
+    /* position: relative prende o rótulo visually-hidden (absoluto) dentro da caixa
+       que rola; sem isso ele escapava e alargava a página inteira no celular. */
+    .je-hist-scroll { position: relative; overflow-x: auto; background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; }
+    .je-hist { width: 100%; border-collapse: collapse; font-size: .88rem; }
+    .je-hist th {
+        text-align: left; padding: 9px 10px; font-size: .78rem; font-weight: 600; color: var(--text-muted);
+        border-bottom: 1px solid var(--line-strong); white-space: nowrap;
+    }
+    .je-hist td { padding: 8px 10px; border-bottom: 1px solid var(--line-soft); color: var(--text-2); vertical-align: middle; white-space: nowrap; }
+    .je-hist .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .je-hist tr.je-hist-jogo { cursor: pointer; }
+    .je-hist tr.je-hist-jogo:hover td { background: var(--p-3); }
+    .je-hist tr.banco td { color: var(--text-dim); }
+    .je-hist tr.banco .je-hist-adv { font-weight: 500; }
+    /* Filtro "em campo" esconde as linhas de banco; "ver todos" (classe .todos)
+       libera as linhas além das primeiras 20 de cada filtro. */
+    .je-hist.so-campo tr.banco, .je-hist.so-campo tr.banco + tr.je-hist-analise { display: none; }
+    .je-hist:not(.so-campo):not(.todos) tr.mais-todos { display: none; }
+    .je-hist.so-campo:not(.todos) tr.mais-campo { display: none; }
+
+    .je-hist-adv { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text-strong); }
+    .je .je-hist-adv a:hover { color: var(--gold-ink); text-decoration: underline; }
+    .je-hist-adv img { width: 18px; height: 18px; object-fit: contain; }
+    .je-hist-adv .vazio { width: 18px; height: 18px; border-radius: 50%; background: var(--p-3); display: inline-block; }
+    .je-hist-fora { font-size: .75rem; color: var(--text-dim); font-weight: 500; }
+    .je-hist-tags { display: inline-flex; gap: 4px; margin-left: 6px; }
+
+    .je-res { display: inline-flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; }
+    .je-res-tag { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-size: .75rem; font-weight: 800; }
+    .je-res-tag.v { background: rgba(34,197,94,.18); color: var(--ok); }
+    .je-res-tag.e { background: var(--p-3); color: var(--text-muted); }
+    .je-res-tag.d { background: rgba(239,68,68,.15); color: var(--bad); }
+    .je-res-tag.x { background: var(--p-3); color: var(--text-dim); }
+    .je-res-pen { font-size: .75rem; color: var(--text-dim); }
+
+    .je-hist-nota { display: inline-flex; align-items: baseline; gap: 6px; }
+    .je-hist-nota strong { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.15rem; font-weight: 800; }
+    .je-hist-nota small { font-size: .72rem; color: var(--text-dim); }
+    .je-hist-acoes { display: inline-flex; gap: 6px; }
+    .je-hist-acoes .je-ver-analise { font-size: .78rem; padding: 4px 10px; }
+    .je-hist tr.je-hist-analise > td { padding: 0; white-space: normal; background: var(--p-0); }
+    .je-hist tr.je-hist-analise .je-analise-panel { border-top: none; }
+    .je-hist-mostrar {
+        display: block; width: 100%; padding: 10px; border: none; border-top: 1px solid var(--line);
+        background: transparent; color: var(--gold-ink); font-family: inherit; font-weight: 600; font-size: .85rem; cursor: pointer;
+    }
+    .je-hist-mostrar:hover { background: var(--p-3); }
+
+    /* Na composição da nota os textos eram brancos fixos (sumiam no tema claro) */
+    .je-analise-comp-titulo { color: var(--text-dim) !important; text-transform: none !important; font-size: .78rem !important; letter-spacing: 0 !important; }
+    .je-analise-comp span { color: var(--text-muted) !important; }
 </style>
 
 <div class="je">
     <div class="je-top">
-        <a href="javascript:history.back()" class="je-voltar">← Voltar à lista</a>
+        @* Para a lista de verdade: history.back() levava de volta para onde quer que a
+           pessoa tivesse vindo (a busca da home, o campinho da análise), não para "a lista". *@
+        <a asp-controller="Jogadores" asp-action="Index" class="je-voltar">← Jogadores</a>
     </div>
 
     <!-- ── Header do jogador ─────────────────────────────────────────── -->
@@ -699,15 +813,15 @@
                 </div>
             </div>
 
-            <div class="je-actions">
+            <div class="je-acoes">
                 @if (competicoes.Count > 1 || temporadas.Count > 1)
                 {
-                    <form method="get" style="display:flex; align-items:center; gap:8px;">
+                    <form method="get" class="je-filtros">
                         <input type="hidden" name="id" value="@Model.Jogador.Id" />
                         @if (competicoes.Count > 1)
                         {
                             <div class="je-select-wrap">
-                                <select name="competicaoId" class="je-select" onchange="this.form.submit()">
+                                <select name="competicaoId" class="je-select" aria-label="Competição" onchange="this.form.submit()">
                                     <option value="">Todas as competições</option>
                                     @foreach (var c in competicoes)
                                     {
@@ -726,7 +840,7 @@
                         @if (temporadas.Count > 1)
                         {
                             <div class="je-select-wrap">
-                                <select name="temporada" class="je-select" onchange="this.form.submit()">
+                                <select name="temporada" class="je-select" aria-label="Temporada" onchange="this.form.submit()">
                                     <option value="">Todas as temporadas</option>
                                     @foreach (var t in temporadas)
                                     {
@@ -741,42 +855,41 @@
                     </form>
                     @if (competicaoAtual.HasValue || temporadaAtual.HasValue)
                     {
-                        <a href="/Jogadores/Estatisticas/@Model.Jogador.Id" class="je-clear">✕ limpar</a>
+                        <a href="/Jogadores/Estatisticas/@Model.Jogador.Id" class="je-clear">Limpar filtros</a>
                     }
                 }
-                <button type="button" class="je-btn-semelhantes" onclick="abrirSemelhantes()">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-                    Semelhantes
-                </button>
-                <a href="/AnotacoesJogador?jogadorId=@Model.Jogador.Id" class="je-btn-observacoes">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-                    Observações
-                </a>
-                <button type="button" class="je-btn-comparar" onclick="abrirComparar()">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 11 21 7 17 3" /><line x1="21" y1="7" x2="9" y2="7" /><polyline points="7 21 3 17 7 13" /><line x1="15" y1="17" x2="3" y2="17" /></svg>
-                    Comparar com
-                </button>
-                <button type="button" class="je-btn-transferencias" onclick="abrirTransferencias()">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8" /><line x1="21" y1="3" x2="13" y2="11" /><polyline points="8 21 3 21 3 16" /><line x1="3" y1="21" x2="11" y2="13" /></svg>
-                    Transferências
-                </button>
-                @* Único ponto da tela que leva a dados externos. A busca no FotMob só
-                   acontece depois do clique — esta página não chama ninguém. Sem
-                   vínculo o botão fica visível e inerte, com o motivo no title: some
-                   seria pior, porque ninguém descobriria que a função existe. *@
-                @{
-                    var temVinculoFotMob = Model.Jogador.IdFotMob != null;
-                }
-                <a href="@(temVinculoFotMob
-                            ? $"/Jogadores/EstatisticasAvancadas/{Model.Jogador.Id}"
-                            : $"/Jogadores/VincularEstatisticas/{Model.Jogador.Id}")"
-                   class="je-btn-avancadas"
-                   title="@(temVinculoFotMob
-                            ? "xG, xGOT e a posição do jogador entre os outros da competição."
-                            : "Este jogador ainda não está identificado na base avançada — clique para escolher.")">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>
-                    Estatísticas avançadas@(temVinculoFotMob ? "" : " · identificar")
-                </a>
+
+                <div class="je-acoes-links">
+                    @* Único ponto da tela que leva a dados externos. A busca no FotMob só
+                       acontece depois do clique — esta página não chama ninguém. Sem
+                       vínculo o botão fica visível e leva à identificação: sumir seria
+                       pior, porque ninguém descobriria que a função existe. *@
+                    @{
+                        var temVinculoFotMob = Model.Jogador.IdFotMob != null;
+                    }
+                    <a href="@(temVinculoFotMob
+                                ? $"/Jogadores/EstatisticasAvancadas/{Model.Jogador.Id}"
+                                : $"/Jogadores/VincularEstatisticas/{Model.Jogador.Id}")"
+                       class="je-acao principal"
+                       title="@(temVinculoFotMob
+                                ? "xG, xGOT e a posição do jogador entre os outros da competição."
+                                : "Este jogador ainda não está identificado na base avançada — clique para escolher.")">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>
+                        @(temVinculoFotMob ? "Estatísticas avançadas" : "Identificar para estatísticas avançadas")
+                    </a>
+                    <a href="/AnotacoesJogador?jogadorId=@Model.Jogador.Id" class="je-acao">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+                        Observações
+                    </a>
+                    <details class="je-mais" id="jeMais">
+                        <summary class="je-acao">Mais ▾</summary>
+                        <div class="je-mais-menu">
+                            <button type="button" class="je-acao" onclick="fecharMais(); abrirSemelhantes()">Jogadores semelhantes</button>
+                            <button type="button" class="je-acao" onclick="fecharMais(); abrirComparar()">Comparar com outro jogador</button>
+                            <button type="button" class="je-acao" onclick="fecharMais(); abrirTransferencias()">Transferências</button>
+                        </div>
+                    </details>
+                </div>
             </div>
         </div>
     </div>
@@ -785,51 +898,47 @@
     <div class="je-main">
 
         <!-- Cards de resumo -->
-        <div class="je-resumo">
-            <div class="je-resumo-card" style="--je-cor:#facc15;">
-                <div class="je-resumo-valor">@Model.MediaNotas.ToString("0.0")</div>
-                <div class="je-resumo-label">Média Geral</div>
-            </div>
-            <div class="je-resumo-card" style="--je-cor:#60a5fa;">
-                <div class="je-resumo-valor">@Model.TotalJogosParticipados</div>
-                <div class="je-resumo-label">Jogos</div>
-            </div>
-            <div class="je-resumo-card" style="--je-cor:#a78bfa;">
-                <div class="je-resumo-valor">@Model.TotalMinutos.ToString("N0")</div>
-                <div class="je-resumo-label">Minutos</div>
-            </div>
-            <div class="je-resumo-card" style="--je-cor:#22c55e;">
-                <div class="je-resumo-valor">@Model.TotalGols</div>
-                <div class="je-resumo-label">Gols</div>
-            </div>
-            @if (Model.TotalAssistencias > 0)
-            {
-                <div class="je-resumo-card" style="--je-cor:#fb923c;">
-                    <div class="je-resumo-valor">@Model.TotalAssistencias</div>
-                    <div class="je-resumo-label">Assistências</div>
-                </div>
-            }
-        </div>
-
-        <!-- Índice de desempenho -->
-        @if (Model.TotalJogos > 0)
-        {
-            <div class="je-perf">
-                <div class="je-perf-top">
-                    <span class="je-perf-label">Índice de Desempenho</span>
-                    <span class="je-perf-valor" style="color:@CorNota(Model.MediaNotas);">
-                        @Model.MediaNotas.ToString("0.0") / 10 — @LabelNota(Model.MediaNotas)
-                    </span>
-                </div>
-                <div class="je-perf-track">
-                    <div class="je-perf-fill"
-                         style="width:@((Model.MediaNotas / 10.0 * 100).ToString("0", inv))%; background: linear-gradient(90deg, #16a34a, @CorNota(Model.MediaNotas));"></div>
-                </div>
-                <div class="je-perf-escala">
-                    <span>0</span><span>5</span><span>10</span>
-                </div>
-            </div>
+        @{
+            var temNota = Model.TotalJogos > 0;
+            var convocadoEm = Model.TotalJogosParticipados;
         }
+        <div class="je-resumo">
+            <div class="je-resumo-card destaque">
+                <div class="je-resumo-label">Média geral</div>
+                <div class="je-resumo-valor">@(temNota ? Model.MediaNotas.ToString("0.0") : "–")</div>
+                @if (temNota)
+                {
+                    <div class="je-resumo-regua" role="img" aria-label="Média @Model.MediaNotas.ToString("0.0") de 10">
+                        <span style="width:@((Model.MediaNotas / 10.0 * 100).ToString("0", inv))%"></span>
+                    </div>
+                    <div class="je-resumo-det">@LabelNota(Model.MediaNotas) em @Model.TotalJogos @(Model.TotalJogos == 1 ? "jogo avaliado" : "jogos avaliados")</div>
+                }
+                else
+                {
+                    <div class="je-resumo-det">Nenhum jogo avaliado ainda</div>
+                }
+            </div>
+            <div class="je-resumo-card">
+                <div class="je-resumo-label">Jogos</div>
+                <div class="je-resumo-valor">@Model.JogosEmCampo</div>
+                <div class="je-resumo-det" title="Partidas com escalação, contando as em que ficou só no banco">
+                    @(convocadoEm > Model.JogosEmCampo ? $"em campo, de {convocadoEm} relacionados" : "em campo")
+                </div>
+            </div>
+            <div class="je-resumo-card">
+                <div class="je-resumo-label">Minutos</div>
+                <div class="je-resumo-valor">@Model.TotalMinutos.ToString("N0")</div>
+                <div class="je-resumo-det">@(Model.MinutosPorJogo is int mpj ? $"{mpj} por jogo" : "sem minutagem importada")</div>
+            </div>
+            <div class="je-resumo-card">
+                <div class="je-resumo-label">Gols</div>
+                <div class="je-resumo-valor">@Model.TotalGols</div>
+            </div>
+            <div class="je-resumo-card">
+                <div class="je-resumo-label">Assistências</div>
+                <div class="je-resumo-valor">@Model.TotalAssistencias</div>
+            </div>
+        </div>
 
         <!-- Perfil tático: posições em campo + mapa de calor + médias por jogo -->
         @{
@@ -843,7 +952,7 @@
                 @if (Model.PosicoesJogadas.Any())
                 {
                     <div class="je-card">
-                        <div class="je-card-titulo">Posições em Campo</div>
+                        <div class="je-card-titulo">Posições em campo</div>
                         <div class="je-campo-row">
                             <div class="je-campo theme-dark-zone">
                                 <div class="je-campo-linha"></div>
@@ -868,7 +977,7 @@
                                         <span class="je-pos-sigla">@SiglaPosicao(p.Posicao)</span>
                                         <div style="flex:1; min-width:0;">
                                             <div class="je-pos-nome">@NomePosicao(p.Posicao)</div>
-                                            <div class="je-pos-sub">@p.Jogos jogos · @p.Pct%</div>
+                                            <div class="je-pos-sub">@p.Jogos @(p.Jogos == 1 ? "jogo" : "jogos") (@p.Pct%)</div>
                                         </div>
                                     </div>
                                 }
@@ -881,7 +990,7 @@
                 {
                     <div class="je-card">
                         <div class="je-card-titulo" style="display:flex; align-items:center; justify-content:space-between;">
-                            <span>🔥 Mapa de Calor</span>
+                            <span>Mapa de calor</span>
                             <span class="je-heatmap-badge">@competicaoNomeAtual</span>
                         </div>
                         <div class="je-heatmap-body">
@@ -924,7 +1033,7 @@
                 {
                     var m = Model.Medias;
                     <div class="je-card">
-                        <div class="je-card-titulo">Médias por Jogo <span style="text-transform:none; letter-spacing:0; font-weight:400; color:var(--text-dimmer)">(@m.Jogos jogo@(m.Jogos == 1 ? "" : "s") com estatísticas importadas)</span></div>
+                        <div class="je-card-titulo">Médias por jogo <span class="je-card-nota">em @m.Jogos jogo@(m.Jogos == 1 ? "" : "s") com estatísticas importadas</span></div>
 
                         @{
                             // Os donuts são os 3 fundamentos em que o jogador melhor
@@ -936,18 +1045,18 @@
 
                         @if (destaques.Any())
                         {
-                            <div class="je-destaques-label">⭐ Destaques do jogador</div>
+                            <div class="je-destaques-label">Onde ele mais se destaca</div>
                             <div class="je-donuts">
                                 @foreach (var met in destaques)
                                 {
                                     <div class="je-donut">
-                                        <div class="je-donut-ring" style="background: conic-gradient(@met.Cor 0 @(met.PreenchimentoPct)%, #1e293b @(met.PreenchimentoPct)% 100%);">
+                                        <div class="je-donut-ring" style="background: conic-gradient(@met.Cor 0 @(met.PreenchimentoPct)%, var(--p-3) @(met.PreenchimentoPct)% 100%);">
                                             <div class="je-donut-hole">@(met.Pct.HasValue ? $"{met.Pct}%" : met.Media.ToString("0.#"))</div>
                                         </div>
                                         <div class="je-donut-label">@met.Rotulo</div>
                                         <div class="je-donut-sub">
                                             @(met.Pct.HasValue
-                                                ? $"{met.Media.ToString("0.#")}/jogo · {met.SufixoPct}"
+                                                ? $"{met.Media.ToString("0.#")} por jogo, {met.SufixoPct}"
                                                 : "por jogo")
                                         </div>
                                     </div>
@@ -973,45 +1082,49 @@
         }
 
 
-        <!-- Histórico por Temporada -->
+        <!-- Histórico por Temporada (aberto: carrega junto com a página) -->
         @if (Model.Jogador.IdApi.HasValue)
         {
-            <div class="je-section">
-                <button type="button" class="je-section-row" onclick="toggleTemporada()" id="temporadaTitulo">
-                    <span class="je-section-titulo">Histórico por Temporada</span>
-                    <div class="je-section-linha"></div>
-                    <svg id="temporadaChevron" class="je-section-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg>
-                </button>
-
-                <div id="temporadaWrapper" style="display:none;">
-                    <div class="je-season-selector" id="seasonSelector">
-                        @{
-                            var anoAtual = DateTime.Now.Year;
-                        }
-                        @for (int ano = anoAtual; ano >= anoAtual - 3; ano--)
-                        {
-                            <button class="je-season-btn @(ano == anoAtual ? "active" : "")"
-                                    onclick="carregarTemporada(@Model.Jogador.Id, @ano, this)">
-                                @ano
-                            </button>
-                        }
-                    </div>
-
-                    <div id="temporadaContainer"></div>
+            <section class="je-section">
+                <div class="je-sec-cab">
+                    <h2 class="je-section-titulo">Histórico por temporada</h2>
+                    <span class="je-sec-nota">Números de cada competição na temporada, segundo a importação.</span>
                 </div>
-            </div>
+                <div class="je-season-selector" id="seasonSelector" role="group" aria-label="Temporada">
+                    @{
+                        var anoAtual = DateTime.Now.Year;
+                    }
+                    @for (int ano = anoAtual; ano >= anoAtual - 3; ano--)
+                    {
+                        <button type="button" class="je-season-btn @(ano == anoAtual ? "active" : "")"
+                                aria-pressed="@(ano == anoAtual ? "true" : "false")"
+                                onclick="carregarTemporada(@Model.Jogador.Id, @ano, this)">
+                            @ano
+                        </button>
+                    }
+                </div>
+                <div id="temporadaContainer"></div>
+            </section>
         }
 
-        <!-- Histórico por Jogo -->
-        <div class="je-section">
-            <button type="button" class="je-section-row je-com-linha" onclick="toggleHistorico()" id="historicoTitulo">
-                <span class="je-section-titulo">Histórico por Jogo</span>
-                <div class="je-section-linha" style="background:transparent;"></div>
-                <span class="je-section-badge">@Model.NotasPorJogo.Count jogos</span>
-                <svg id="historicoChevron" class="je-section-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg>
-            </button>
-
-            <div id="historicoWrapper" style="display:none;">
+        <!-- Histórico por Jogo: uma linha por partida, aberto -->
+        @{
+            var jogosEmCampo = Model.NotasPorJogo.Count(x => x.EntrouEmCampo);
+            var soBanco = Model.NotasPorJogo.Count - jogosEmCampo;
+            const int linhasVisiveis = 20;
+        }
+        <section class="je-section">
+            <div class="je-sec-cab">
+                <h2 class="je-section-titulo">Histórico por jogo</h2>
+                <span class="je-sec-nota">Clique numa linha para abrir a análise da partida.</span>
+                @if (soBanco > 0 && jogosEmCampo > 0)
+                {
+                    <div class="je-hist-filtro" role="group" aria-label="Quais jogos mostrar">
+                        <button type="button" aria-pressed="true" data-hist="campo" onclick="filtrarHistorico('campo')">Em campo (@jogosEmCampo)</button>
+                        <button type="button" aria-pressed="false" data-hist="todos" onclick="filtrarHistorico('todos')">Todos (@Model.NotasPorJogo.Count)</button>
+                    </div>
+                }
+            </div>
 
             @if (!Model.NotasPorJogo.Any())
             {
@@ -1021,8 +1134,23 @@
             }
             else
             {
-                <div id="historicoLista" class="je-jogos-lista je-historico-collapsed">
-                @{ var idx = 0; }
+                <div class="je-hist-scroll">
+                <table class="je-hist @(soBanco > 0 && jogosEmCampo > 0 ? "so-campo" : "")" id="historicoLista">
+                    <thead>
+                        <tr>
+                            <th scope="col">Data</th>
+                            <th scope="col">Adversário</th>
+                            <th scope="col">Resultado</th>
+                            <th scope="col">Posição</th>
+                            <th scope="col" class="num">Min.</th>
+                            <th scope="col" class="num">Gols</th>
+                            <th scope="col" class="num">Assist.</th>
+                            <th scope="col">Nota</th>
+                            <th scope="col"><span class="visually-hidden">Ações</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                @{ var idx = 0; var visiveisEmCampo = 0; var visiveisTodos = 0; }
                 @foreach (var item in Model.NotasPorJogo)
                 {
                     // Lado do jogador NAQUELE jogo (vem da escalação da época, via item.IsCasa)
@@ -1041,25 +1169,18 @@
                         ? item.Jogo.TimeVisitanteId
                         : item.Jogo.TimeCasaId;
 
-                    var placar = (item.Jogo.PlacarCasa.HasValue && item.Jogo.PlacarVisitante.HasValue)
-                        ? $"{item.GolsPro} x {item.GolsContra}"
-                        : "–";
+                    var temPlacar = item.Jogo.PlacarCasa.HasValue && item.Jogo.PlacarVisitante.HasValue;
 
                     var penaltis = (item.Jogo.PenaltisCasa.HasValue && item.Jogo.PenaltisVisitante.HasValue)
                         ? (isCasaJogador
-                            ? $"({item.Jogo.PenaltisCasa}-{item.Jogo.PenaltisVisitante} pên.)"
-                            : $"({item.Jogo.PenaltisVisitante}-{item.Jogo.PenaltisCasa} pên.)")
+                            ? $"({item.Jogo.PenaltisCasa}–{item.Jogo.PenaltisVisitante} nos pênaltis)"
+                            : $"({item.Jogo.PenaltisVisitante}–{item.Jogo.PenaltisCasa} nos pênaltis)")
                         : null;
 
-                    var resBg = item.Resultado switch
-                    {
-                        "V" => "#16a34a",
-                        "E" => "#b45309",
-                        "D" => "#dc2626",
-                        _   => "#334155"
-                    };
+                    var resClasse = item.Resultado switch { "V" => "v", "E" => "e", "D" => "d", _ => "x" };
+                    var resNome = item.Resultado switch { "V" => "Vitória", "E" => "Empate", "D" => "Derrota", _ => "Sem placar" };
 
-                    string notaColor = item.Analisado ? CorNota(item.NotaFinal) : "#334155";
+                    string notaColor = item.Analisado ? CorNota(item.NotaFinal) : "var(--text-dim)";
                     string notaLabel = item.Analisado ? LabelNota(item.NotaFinal) : "Sem nota";
                     // Parcelas que entraram por cima de "base + ações" (pisos e bônus).
                     var ajustes = new List<(string Rotulo, double Valor, string Titulo)>
@@ -1078,7 +1199,6 @@
                             "Marcou o gol que decidiu a partida"),
                     }.Where(a => a.Valor > 0).ToList();
 
-                    var temMinutagem = item.Minutos.HasValue;
                     var temPosicao = !string.IsNullOrWhiteSpace(item.Posicao);
                     // Menções via "@Nome" (feature de /Jogos/Analisar) podem existir mesmo em
                     // jogos ainda não analisados (sem Nota/EstatisticaJogador) — por isso
@@ -1087,92 +1207,79 @@
                     var temAnalise = item.ObservacoesJogador.Any()
                         || (item.Analisado && (item.Detalhes.Any(d => d.Quantidade > 0) || !string.IsNullOrWhiteSpace(item.Comentario) || item.NotaManual.HasValue));
 
-                    <div class="je-jogo-card" style="@(!item.Analisado ? "opacity:.75;" : "")">
+                    // "Ver todos": as primeiras linhas de cada filtro ficam à vista, o resto
+                    // espera o clique. Conta separado para o filtro "em campo" e "todos".
+                    var emCampo = item.EntrouEmCampo;
+                    var maisCampo = emCampo && visiveisEmCampo++ >= linhasVisiveis;
+                    var maisTodos = visiveisTodos++ >= linhasVisiveis;
 
-                        <!-- Linha principal -->
-                        <div class="je-jogo-row" onclick="irParaJogo(event, @item.Jogo.Id)" title="Ver jogo">
-                            <div class="je-jogo-badge" style="background:@resBg;">@item.Resultado</div>
-
-                            <div class="je-jogo-info">
-                                <div class="je-jogo-linha1">
-                                    @if (!string.IsNullOrEmpty(adversarioEscudo))
-                                    {
-                                        <a href="/Times/Details/@adversarioId" onclick="event.stopPropagation()" title="Ver @adversario">
-                                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = adversarioEscudo })" class="je-jogo-escudo" alt="" />
-                                        </a>
-                                    }
-                                    <span class="je-jogo-adv">vs <a class="je-jogo-adv-link" href="/Times/Details/@adversarioId" onclick="event.stopPropagation()" title="Ver @adversario">@adversario</a><span class="je-jogo-placar">@placar @penaltis</span></span>
-                                    @if (item.Craque)
-                                    {
-                                        <span class="je-tag je-tag-craque" title="Craque da partida — maior nota do jogo">👑</span>
-                                    }
-                                    @if (item.Gols > 0)
-                                    {
-                                        <span class="je-tag je-tag-gol">⚽ @item.Gols</span>
-                                    }
-                                    @if (item.Assistencias > 0)
-                                    {
-                                        <span class="je-tag je-tag-assist">🅰️ @item.Assistencias</span>
-                                    }
-                                    @if (!item.Analisado)
-                                    {
-                                        <span class="je-tag-sem">sem análise</span>
-                                    }
-                                    else if (!item.OrigemManual)
-                                    {
-                                        <span class="je-tag-auto">nota automática</span>
-                                    }
-                                </div>
-                                <div class="je-jogo-data">
-                                    @DateHelper.FormatarData(item.Jogo.Data, "dd/MM/yyyy")
-                                    @if (item.Jogo.Rodada > 0) { <text> — Rodada @item.Jogo.Rodada</text> }
-                                </div>
-                            </div>
-
-                            <div class="je-nota-circle" style="border:2px solid @notaColor; color:@notaColor;">
-                                @if (item.Analisado)
+                    <tr class="je-hist-jogo @(emCampo ? "" : "banco") @(maisTodos ? "mais-todos" : "") @(maisCampo ? "mais-campo" : "")"
+                        onclick="irParaJogo(event, @item.Jogo.Id)" title="Abrir a análise da partida">
+                        <td>@DateHelper.FormatarData(item.Jogo.Data, "dd/MM/yyyy")</td>
+                        <td>
+                            <span class="je-hist-adv">
+                                @if (!string.IsNullOrEmpty(adversarioEscudo))
                                 {
-                                    <span class="je-nota-val">@item.NotaFinal.ToString("0.0")</span>
-                                    <span class="je-nota-label">@notaLabel</span>
+                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = adversarioEscudo })" alt="" />
                                 }
                                 else
                                 {
-                                    <span style="font-size:18px; opacity:.4;">–</span>
+                                    <span class="vazio" aria-hidden="true"></span>
                                 }
-                            </div>
-
-                            @if (temAnalise)
+                                <a href="/Times/Details/@adversarioId" onclick="event.stopPropagation()" title="Ver @adversario">@adversario</a>
+                                @if (!isCasaJogador) { <span class="je-hist-fora">fora</span> }
+                            </span>
+                            @if (item.Craque || item.Gols > 0 || item.Assistencias > 0 || !emCampo)
                             {
-                                <button type="button" class="je-ver-analise" onclick="event.stopPropagation(); toggleAnalise(this, 'analise-@idx')">Ver análise</button>
+                                <span class="je-hist-tags">
+                                    @if (item.Craque) { <span class="je-tag je-tag-craque" title="Craque da partida: maior nota do jogo">👑</span> }
+                                    @if (!emCampo) { <span class="je-tag-sem" title="Relacionado, mas não entrou em campo">banco</span> }
+                                </span>
                             }
-                            <a class="je-ver-analise" style="text-decoration:none; text-align:center;"
-                               href="@Url.Action("EstatisticasJogo", "Jogadores", new { id = Model.Jogador.Id, jogoId = item.Jogo.Id })"
-                               onclick="event.stopPropagation();" title="Todas as ações e estatísticas deste jogador nesta partida">Estatísticas</a>
-                        </div>
+                        </td>
+                        <td>
+                            <span class="je-res">
+                                <span class="je-res-tag @resClasse" title="@resNome" aria-label="@resNome">@(item.Resultado == "?" ? "–" : item.Resultado)</span>
+                                @(temPlacar ? $"{item.GolsPro} – {item.GolsContra}" : "–")
+                                @if (penaltis != null) { <span class="je-res-pen">@penaltis</span> }
+                            </span>
+                        </td>
+                        <td>@(temPosicao ? PosicaoJogadorHelper.Sigla(item.Posicao) : "—")</td>
+                        <td class="num">@(item.Minutos.HasValue ? $"{item.Minutos}'" : "—")</td>
+                        <td class="num">@item.Gols</td>
+                        <td class="num">@item.Assistencias</td>
+                        <td>
+                            @if (item.Analisado)
+                            {
+                                <span class="je-hist-nota" title="@(item.OrigemManual ? "Nota da sua análise" : "Nota automática, calculada das estatísticas importadas")">
+                                    <strong style="color:@notaColor;">@item.NotaFinal.ToString("0.0")</strong>
+                                    <small>@notaLabel@(item.OrigemManual ? "" : ", automática")</small>
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="je-hist-nota" title="Jogo ainda não analisado"><small>sem nota</small></span>
+                            }
+                        </td>
+                        <td>
+                            <span class="je-hist-acoes">
+                                @if (temAnalise)
+                                {
+                                    <button type="button" class="je-ver-analise" aria-expanded="false"
+                                            onclick="event.stopPropagation(); toggleAnalise(this, 'analise-@idx')">Ver análise</button>
+                                }
+                                <a class="je-ver-analise"
+                                   href="@Url.Action("EstatisticasJogo", "Jogadores", new { id = Model.Jogador.Id, jogoId = item.Jogo.Id })"
+                                   onclick="event.stopPropagation();" title="Todas as ações e estatísticas deste jogador nesta partida">Estatísticas</a>
+                            </span>
+                        </td>
+                    </tr>
 
-                        <!-- Stats resumidos -->
-                        <div class="je-stats-mini">
-                            <div class="je-stat-mini">
-                                <div class="je-stat-mini-val">@(temPosicao ? PosicaoJogadorHelper.Sigla(item.Posicao) : "—")</div>
-                                <div class="je-stat-mini-lbl">Posição</div>
-                            </div>
-                            <div class="je-stat-mini">
-                                <div class="je-stat-mini-val">@(temMinutagem ? $"{item.Minutos}'" : "—")</div>
-                                <div class="je-stat-mini-lbl">Minutos</div>
-                            </div>
-                            <div class="je-stat-mini">
-                                <div class="je-stat-mini-val">@item.Gols</div>
-                                <div class="je-stat-mini-lbl">Gols</div>
-                            </div>
-                            <div class="je-stat-mini">
-                                <div class="je-stat-mini-val">@item.Assistencias</div>
-                                <div class="je-stat-mini-lbl">Assistências</div>
-                            </div>
-                        </div>
-
-                        @if (temAnalise)
-                        {
-                            <div class="je-analise-panel" data-analise="analise-@idx">
+                    @if (temAnalise)
+                    {
+                        <tr class="je-hist-analise" data-analise-row="analise-@idx" hidden>
+                            <td colspan="9">
+                            <div class="je-analise-panel aberto" data-analise="analise-@idx">
                                 @if (item.Analisado)
                                 {
                                     <div class="je-analise-comp">
@@ -1180,7 +1287,7 @@
                                         @if (item.NotaManual.HasValue)
                                         {
                                             <span>Nota manual <strong style="color:@notaColor;">@item.NotaFinal.ToString("0.00")</strong></span>
-                                            <span style="color:rgba(255,255,255,.35); font-size:10px;">ações registradas abaixo (sem peso na nota)</span>
+                                            <span style="font-size:11px;">ações registradas abaixo (sem peso na nota)</span>
                                         }
                                         else
                                         {
@@ -1229,23 +1336,23 @@
                                     </div>
                                 }
                             </div>
-                        }
-
-                    </div>
+                            </td>
+                        </tr>
+                    }
                     idx++;
                 }
-                </div>
-
-                @if (Model.NotasPorJogo.Count > 3)
+                    </tbody>
+                </table>
+                @if (Model.NotasPorJogo.Count > linhasVisiveis)
                 {
-                    <button class="je-btn-expand" id="btnExpandHistorico" onclick="expandirHistorico()">
-                        Ver todos os @Model.NotasPorJogo.Count jogos ▼
+                    <button type="button" class="je-hist-mostrar" id="btnExpandHistorico" onclick="expandirHistorico()"
+                            data-campo="@jogosEmCampo" data-todos="@Model.NotasPorJogo.Count">
+                        Ver todos os jogos
                     </button>
                 }
+                </div>
             }
-
-            </div><!-- /#historicoWrapper -->
-        </div>
+        </section>
 
     </div>
 </div>
@@ -1466,58 +1573,78 @@
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape') restaurar(); });
     })();
 
-    // ── Histórico por jogo colapsável ─────────────────────────────────────────
-    function toggleHistorico() {
-        const wrapper = document.getElementById('historicoWrapper');
-        const chevron = document.getElementById('historicoChevron');
-        const isVisible = wrapper.style.display !== 'none';
-        wrapper.style.display = isVisible ? 'none' : 'block';
-        chevron.style.transform = isVisible ? '' : 'rotate(180deg)';
+    // ── Histórico por jogo: filtro "em campo / todos" e "ver todos" ──────────
+    const LINHAS_VISIVEIS = 20;
+
+    function atualizarBotaoHistorico() {
+        const lista = document.getElementById('historicoLista');
+        const btn = document.getElementById('btnExpandHistorico');
+        if (!lista || !btn) return;
+        const total = parseInt(lista.classList.contains('so-campo') ? btn.dataset.campo : btn.dataset.todos, 10);
+        const todos = lista.classList.contains('todos');
+        btn.hidden = total <= LINHAS_VISIVEIS;
+        btn.textContent = todos ? `Mostrar só os ${LINHAS_VISIVEIS} mais recentes` : `Ver todos os ${total} jogos`;
+    }
+
+    function filtrarHistorico(modo) {
+        const lista = document.getElementById('historicoLista');
+        if (!lista) return;
+        lista.classList.toggle('so-campo', modo === 'campo');
+        document.querySelectorAll('[data-hist]').forEach(b =>
+            b.setAttribute('aria-pressed', b.dataset.hist === modo ? 'true' : 'false'));
+        atualizarBotaoHistorico();
     }
 
     function expandirHistorico() {
         const lista = document.getElementById('historicoLista');
-        const btn = document.getElementById('btnExpandHistorico');
-        if (lista) lista.classList.remove('je-historico-collapsed');
-        if (btn) btn.style.display = 'none';
+        if (lista) lista.classList.toggle('todos');
+        atualizarBotaoHistorico();
     }
 
-    // ── Ir para a tela do jogo ao clicar no card ────────────────────────────
+    // ── Ir para a tela do jogo ao clicar na linha ───────────────────────────
     function irParaJogo(e, jogoId) {
-        if (e.target.closest('.je-ver-analise')) return;
+        if (e.target.closest('a, button')) return;
         window.location.href = `/Jogos/Analisar/${jogoId}`;
     }
 
-    // ── Ver análise (composição da nota) por jogo ───────────────────────────
+    // ── Ver análise (composição da nota) por jogo: linha logo abaixo ────────
     function toggleAnalise(btn, key) {
-        const card = btn.closest('.je-jogo-card');
-        if (!card) return;
-        const painel = card.querySelector(`.je-analise-panel[data-analise="${key}"]`);
-        if (!painel) return;
-        const aberto = painel.classList.toggle('aberto');
+        const linha = document.querySelector(`tr[data-analise-row="${key}"]`);
+        if (!linha) return;
+        linha.hidden = !linha.hidden;
+        const aberto = !linha.hidden;
         btn.classList.toggle('aberto', aberto);
+        btn.setAttribute('aria-expanded', aberto ? 'true' : 'false');
         btn.textContent = aberto ? 'Ocultar análise' : 'Ver análise';
     }
 
+    // ── Menu "Mais" do cabeçalho: fecha ao escolher e ao clicar fora ─────────
+    function fecharMais() {
+        const mais = document.getElementById('jeMais');
+        if (mais) mais.open = false;
+    }
+    document.addEventListener('click', (e) => {
+        const mais = document.getElementById('jeMais');
+        if (mais && mais.open && !mais.contains(e.target)) mais.open = false;
+    });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharMais(); });
+
     // ── Histórico por Temporada ───────────────────────────────────────────────
     const jogadorId = @Model.Jogador.Id;
-    let temporadaCarregada = false;
 
-    function toggleTemporada() {
-        const wrapper = document.getElementById('temporadaWrapper');
-        const chevron = document.getElementById('temporadaChevron');
-        const isVisible = wrapper.style.display !== 'none';
-        wrapper.style.display = isVisible ? 'none' : 'block';
-        chevron.style.transform = isVisible ? '' : 'rotate(180deg)';
-        if (!isVisible && !temporadaCarregada) {
-            temporadaCarregada = true;
+    // Aberto por padrão: carrega a temporada atual assim que a página fica pronta
+    // (antes só carregava ao abrir a seção recolhida).
+    document.addEventListener('DOMContentLoaded', () => {
+        atualizarBotaoHistorico();
+        if (document.getElementById('temporadaContainer'))
             carregarTemporada(jogadorId, @DateTime.Now.Year, document.querySelector('.je-season-btn.active'));
-        }
-    }
+    });
 
     function carregarTemporada(jogId, season, btnEl) {
-        document.querySelectorAll('.je-season-btn').forEach(b => b.classList.remove('active'));
-        if (btnEl) btnEl.classList.add('active');
+        document.querySelectorAll('.je-season-btn').forEach(b => {
+            b.classList.toggle('active', b === btnEl);
+            b.setAttribute('aria-pressed', b === btnEl ? 'true' : 'false');
+        });
 
         const container = document.getElementById('temporadaContainer');
         if (!container) return;
@@ -1537,10 +1664,15 @@
             });
     }
 
-    function statBox(val, label, cls) {
-        cls = cls || '';
-        const display = (val === null || val === undefined || val === 0 || val === '0') ? '<span style="opacity:.3">–</span>' : val;
-        return `<div class="je-stat-box"><div class="je-stat-val ${cls}">${display}</div><div class="je-stat-lbl">${label}</div></div>`;
+    // Zero é zero: o "–" apagado que aparecia no lugar deixava em dúvida se era
+    // "nenhum" ou "sem dado". Traço só quando o valor não veio.
+    function statBox(val, label) {
+        const display = (val === null || val === undefined || val === '') ? '<span style="opacity:.35">–</span>' : val;
+        return `<div class="je-stat-box"><div class="je-stat-val">${display}</div><div class="je-stat-lbl">${label}</div></div>`;
+    }
+
+    function textoSeguro(s) {
+        return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
     function renderTemporada(data, container) {
@@ -1588,24 +1720,27 @@
                 <div class="je-temporada-header">
                     ${logoLeague}
                     <div style="flex:1;min-width:0;">
-                        <div class="je-temporada-nome">${s.league.name}</div>
-                        <div class="je-temporada-pais">${flag} ${s.league.country || ''} &nbsp;·&nbsp; ${logoTeam} ${s.team.name}</div>
+                        <div class="je-temporada-nome">${textoSeguro(s.league.name)}</div>
+                        <div class="je-temporada-pais">
+                            <span style="display:inline-flex;align-items:center;gap:5px;">${flag} ${textoSeguro(s.league.country || '')}</span>
+                            <span style="display:inline-flex;align-items:center;gap:5px;margin-left:12px;">${logoTeam} ${textoSeguro(s.team.name)}</span>
+                        </div>
                     </div>
                     ${rating}
                 </div>
                 <div class="je-temporada-stats">
-                    ${statBox(s.games.appearences || null, 'Jogos', 'hl-blue')}
-                    ${statBox(s.goals.total || null, 'Gols', 'hl-green')}
-                    ${statBox(s.goals.assists || null, 'Assist.', 'hl-orange')}
-                    ${statBox(s.shots.total || null, 'Finalizações', '')}
-                    ${statBox(s.shots.on || null, 'No Alvo', '')}
-                    ${statBox(s.passes.total || null, 'Passes', '')}
-                    ${statBox(s.passes.key || null, 'P. Chave', 'hl-yellow')}
-                    ${statBox(s.passes.accuracy ? s.passes.accuracy + '%' : null, 'Precisão', '')}
-                    ${statBox(s.tackles.total || null, 'Desarmes', '')}
-                    ${statBox(s.tackles.interceptions || null, 'Intercept.', '')}
-                    ${statBox(duelPct, 'Duelos Ganhos', '')}
-                    ${statBox(dribPct, 'Dribles %', '')}
+                    ${statBox(s.games.appearences, 'Jogos')}
+                    ${statBox(s.goals.total, 'Gols')}
+                    ${statBox(s.goals.assists, 'Assistências')}
+                    ${statBox(s.shots.total, 'Finalizações')}
+                    ${statBox(s.shots.on, 'No gol')}
+                    ${statBox(s.passes.total, 'Passes')}
+                    ${statBox(s.passes.key, 'Passes-chave')}
+                    ${statBox(s.passes.accuracy ? s.passes.accuracy + '%' : null, 'Precisão de passe')}
+                    ${statBox(s.tackles.total, 'Desarmes')}
+                    ${statBox(s.tackles.interceptions, 'Interceptações')}
+                    ${statBox(duelPct, 'Duelos ganhos')}
+                    ${statBox(dribPct, 'Dribles certos')}
                 </div>
                 ${footerHtml}
             </div>`;

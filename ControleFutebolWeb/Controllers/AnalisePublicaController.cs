@@ -1,4 +1,5 @@
 using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
 using ControleFutebolWeb.Services;
@@ -63,10 +64,10 @@ namespace ControleFutebolWeb.Controllers
             _ => null
         };
 
-        // ?tab=... só aceita as quatro abas do painel — o valor entra no HTML e
+        // ?tab=... só aceita as abas do painel — o valor entra no HTML e
         // vira chamada de JS, então nada de string arbitrária da URL.
         private static string NormalizarAba(string? tab) =>
-            tab is "notas" or "campo" or "stats" or "obs" ? tab : "notas";
+            tab is "notas" or "campo" or "stats" or "curio" or "obs" ? tab : "notas";
 
         // GET /analise/{token} — a página em si (casca; o conteúdo vem por JSON).
         [HttpGet("{token}")]
@@ -89,6 +90,9 @@ namespace ControleFutebolWeb.Controllers
                         .SetProperty(a => a.Visualizacoes, a => a.Visualizacoes + 1)
                         .SetProperty(a => a.UltimoAcessoEm, DateTime.UtcNow));
             }
+
+            // Só em memória: página pública não grava no jogo.
+            await CoresUniformeHelper.PreencherFaltantesAsync(_context, link.Jogo);
 
             static string Cor(string? valor, string padrao) =>
                 string.IsNullOrWhiteSpace(valor) ? padrao : valor;

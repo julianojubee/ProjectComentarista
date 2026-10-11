@@ -16,7 +16,8 @@ namespace ControleFutebolWeb.Models.ViewModels
         public bool Titular { get; set; }
         public bool TemEscalacao { get; set; }
 
-        // Linha de estatísticas importadas da api-football para este jogo (pode não existir).
+        // Linha de estatísticas importadas para este jogo (pode não existir). A fonte
+        // (Estatistica.Fonte) diz o que foi publicado — ver FonteEstatistica.Cobre.
         public EstatisticaJogador? Estatistica { get; set; }
 
         // Ações do jogador no jogo, em ordem de minuto.
@@ -24,6 +25,12 @@ namespace ControleFutebolWeb.Models.ViewModels
 
         // Posições registradas só deste jogo (fases salvas + destinos de seta).
         public List<PontoHeatmap> PontosHeatmap { get; set; } = new();
+
+        // Nota do jogo na régua do site: a da análise do usuário (manual ou pelos
+        // critérios) quando ele analisou; senão a automática sobre a estatística.
+        public double? NotaSistema { get; set; }
+        // "analise" ou "automatica" — de onde veio NotaSistema.
+        public string? NotaOrigem { get; set; }
     }
 
     // Uma ação do jogador no jogo (gol, assistência, cartão, substituição, pênalti).
@@ -31,9 +38,10 @@ namespace ControleFutebolWeb.Models.ViewModels
     {
         // Nulo em eventos sem minuto (ex.: cobrança da disputa de pênaltis).
         public int? Minuto { get; set; }
-        public string Icone { get; set; } = "";
+        // gol, gol-contra, assistencia, amarelo, vermelho, entrou, saiu,
+        // penalti-perdido, penalti-convertido — vira ícone e cor na view.
+        public string Tipo { get; set; } = "";
         public string Titulo { get; set; } = "";
         public string? Detalhe { get; set; }
-        public string Cor { get; set; } = "#e2e8f0";
     }
 }

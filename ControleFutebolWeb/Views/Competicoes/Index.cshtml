@@ -28,36 +28,51 @@
     };
 
     // Competicao.Tipo é o FORMATO da competição (ver Create/Edit: PONTOS_CORRIDOS,
-    // GRUPOS, MATA_MATA, JOGO_UNICO) — não uma classificação geográfica. Usamos isso para
-    // colorir o header do card (mantém a variedade visual do mock, mas fiel ao dado real).
-    (string bg, string accent) CorTipo(string? tipoRaw)
+    // GRUPOS, MATA_MATA, JOGO_UNICO) — não uma classificação geográfica.
+    static string ChaveTipo(string? tipoRaw) => (tipoRaw ?? "").Trim().ToUpperInvariant();
+    static string LabelTipo(string chave) => chave switch
     {
-        return (tipoRaw ?? "").Trim().ToUpperInvariant() switch
-        {
-            "MATA_MATA"       => ("linear-gradient(135deg,#1a0a0a,#2d1010)", "#dc2626"),
-            "JOGO_UNICO"      => ("linear-gradient(135deg,#1a0012,#2a0020)", "#c026d3"),
-            "GRUPOS"          => ("linear-gradient(135deg,#0a0a1a,#101028)", "#3b82f6"),
-            "PONTOS_CORRIDOS" => ("linear-gradient(135deg,#0a1a0a,#102810)", "#22c55e"),
-            _                 => ("linear-gradient(135deg,#141414,#1c1c1c)", "#d4a520")
-        };
-    }
-
-    string LabelTipo(string? tipoRaw) => (tipoRaw ?? "").Trim().ToUpperInvariant() switch
-    {
-        "MATA_MATA"       => "Mata-Mata",
-        "JOGO_UNICO"      => "Jogo Único",
+        "MATA_MATA"       => "Mata-mata",
+        "JOGO_UNICO"      => "Jogo único",
         "GRUPOS"          => "Grupos",
-        "PONTOS_CORRIDOS" => "Pontos Corridos",
-        _                 => tipoRaw ?? ""
+        "PONTOS_CORRIDOS" => "Pontos corridos",
+        _                 => ""
     };
 
     var jogosPorCompeticao = ViewBag.JogosPorCompeticao as Dictionary<int, int> ?? new();
     var timesPorCompeticao = ViewBag.TimesPorCompeticao as Dictionary<int, int> ?? new();
     var topTierIds = (HashSet<int>)(ViewBag.TopTierIds ?? new HashSet<int>());
     var homeIds = (HashSet<int>)(ViewBag.HomeIds ?? new HashSet<int>());
-    var topTier = Model.Where(c => topTierIds.Contains(c.Id)).OrderBy(c => c.Nome).ToList();
-    var demais = Model.Where(c => !topTierIds.Contains(c.Id)).OrderBy(c => c.Nome).ToList();
+
+    // Competições de teste (nome começando com "TESTE") ficam num bloco à parte, no fim
+    static bool EhTeste(Competicao c) => (c.Nome ?? "").TrimStart().StartsWith("TESTE", StringComparison.OrdinalIgnoreCase);
+
+    var todas = Model.OrderBy(c => c.Nome).ToList();
+    var reais = todas.Where(c => !EhTeste(c)).ToList();
+    var testes = todas.Where(EhTeste).ToList();
+
+    var principais = reais.Where(c => topTierIds.Contains(c.Id)).ToList();
+    var naHome = reais.Where(c => !topTierIds.Contains(c.Id) && homeIds.Contains(c.Id)).ToList();
+    var porBloco = reais
+        .Where(c => !topTierIds.Contains(c.Id) && !homeIds.Contains(c.Id))
+        .GroupBy(c => RegiaoCompeticaoHelper.Bloco(c.Regiao))
+        .OrderBy(g => RegiaoCompeticaoHelper.OrdemBloco(g.Key)).ThenBy(g => g.Key)
+        .ToList();
+
+    // Abas por formato: só os formatos que existem no cadastro
+    var formatos = todas
+        .GroupBy(c => ChaveTipo(c.Tipo))
+        .Where(g => LabelTipo(g.Key) != "")
+        .Select(g => (Chave: g.Key, Rotulo: LabelTipo(g.Key), Qtd: g.Count()))
+        .OrderByDescending(f => f.Qtd)
+        .ToList();
+
+    int qtdHome = todas.Count(c => homeIds.Contains(c.Id));
+    var ptBR = new System.Globalization.CultureInfo("pt-BR");
+    string Milhar(int n) => n.ToString("N0", ptBR);
 }
+
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
 
 <style>
     .co, .co *, .co *::before, .co *::after { box-sizing: border-box; }
@@ -71,41 +86,73 @@
         overflow: hidden;
     }
     .co a { text-decoration: none; color: inherit; }
+    .co :is(a, button, input, summary):focus-visible { outline: 2px solid #d4a520; outline-offset: 2px; }
 
-    /* ── Hero ── */
-    .co-hero {
-        position: relative;
-        overflow: hidden;
+    /* ── Cabeçalho compacto ── */
+    .co-cab {
+        padding: 1.5rem 2.5rem;
         background: linear-gradient(135deg, #0a1628 0%, #0f2040 55%, #0a1628 100%);
-        padding: 52px 2.5rem 44px;
+        border-left: 4px solid #d4a520;
+        display: flex; align-items: center; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap;
     }
-    .co-hero-pattern { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.06; pointer-events: none; }
-    .co-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #d4a520; }
-    .co-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(to top, var(--page-bg), transparent); pointer-events: none; }
-    .co-hero-content { position: relative; z-index: 1; text-align: center; }
-    .co-hero-badge {
-        display: inline-flex; align-items: center; gap: 8px; padding: 4px 16px;
-        background: rgba(212,165,32,0.12); border: 1px solid rgba(212,165,32,0.28); border-radius: 999px; margin-bottom: 16px;
+    .co-cab h1 {
+        font-family: 'Barlow Condensed', Arial, sans-serif;
+        font-size: 2.4rem; font-weight: 800; color: #f2f5fa; margin: 0; line-height: 1;
     }
-    .co-hero-badge span { font-size: .65rem; font-weight: 700; letter-spacing: .2em; color: var(--gold-ink); text-transform: uppercase; }
-    .co-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3.2rem; font-weight: 800; color: var(--text-strong); margin: 0 0 10px; line-height: 1; }
-    .co-hero p { font-size: .9rem; color: var(--text-dim); margin: 0; }
+    .co-cab p { margin: 6px 0 0; font-size: .92rem; color: rgba(255,255,255,.72); }
+    .co-cab p strong { color: #f3d27a; font-weight: 700; }
+    .co-cab-acoes { display: flex; align-items: center; gap: 8px; }
+    .co .co-nova {
+        display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: 8px;
+        background: #d4a520; color: #141414; font-size: .88rem; font-weight: 700; white-space: nowrap;
+    }
+    .co .co-nova:hover { background: #e2b532; color: #141414; }
+    .co-cab .co-menu > summary {
+        display: inline-flex; align-items: center; padding: 8px 14px; border-radius: 8px; cursor: pointer;
+        border: 1px solid rgba(255,255,255,.25); color: #e8edf5; font-size: .88rem; font-weight: 600;
+    }
+    .co-cab .co-menu > summary:hover { border-color: #d4a520; color: #f3d27a; }
 
-    .co-hero-acoes { position: absolute; top: 24px; right: 2.5rem; z-index: 2; display: flex; gap: 10px; }
-    .co-hero-nova {
-        display: flex; align-items: center; gap: 7px; padding: 8px 16px;
-        background: #d4a520; color: #141414; font-size: .82rem; font-weight: 800; border-radius: 8px; border: none; cursor: pointer;
+    /* ── Menus (Mais / ⋯) ── */
+    .co-menu { position: relative; }
+    .co-menu > summary { list-style: none; }
+    .co-menu > summary::-webkit-details-marker { display: none; }
+    .co-menu:not([open]) .co-menu-lista { display: none; }
+    .co-menu-lista {
+        position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 220px;
+        display: flex; flex-direction: column; padding: 6px;
+        background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: 0 10px 24px rgba(0,0,0,.18);
     }
-    .co-hero-nova:hover { background: #c49918; }
-    .co-hero-api {
-        display: flex; align-items: center; gap: 7px; padding: 8px 16px;
-        background: transparent; color: var(--gold-ink); font-size: .82rem; font-weight: 800;
-        border-radius: 8px; border: 1px solid #d4a52055; cursor: pointer;
+    .co-menu-lista form { margin: 0; }
+    .co .co-menu-item {
+        display: block; width: 100%; text-align: left; padding: 8px 10px; border-radius: 7px; border: none;
+        background: transparent; color: var(--text); font-family: inherit; font-size: .86rem; font-weight: 600; cursor: pointer;
     }
-    .co-hero-api:hover { background: #d4a52015; }
+    .co .co-menu-item:hover { background: var(--p-4); color: var(--text-strong); }
+    .co-menu-item small { display: block; font-weight: 400; color: var(--text-dim); font-size: .76rem; margin-top: 1px; }
+
+    /* ── Busca e abas ── */
+    .co-filtros {
+        background: var(--p-1); border-bottom: 1px solid var(--line); padding: 14px 2.5rem;
+        display: flex; align-items: center; gap: 10px 16px; flex-wrap: wrap;
+    }
+    .co-busca {
+        flex: 1 1 220px; max-width: 320px; background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 8px;
+        color: var(--text); font-family: inherit; font-size: .86rem; padding: 8px 12px; outline: none;
+    }
+    .co-busca:focus { border-color: #d4a520; }
+    .co-abas { display: flex; gap: 4px; flex-wrap: wrap; }
+    .co-aba {
+        padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line-strong); background: transparent;
+        color: var(--text-muted); font-family: inherit; font-size: .84rem; font-weight: 600; cursor: pointer;
+    }
+    .co-aba span { color: var(--text-dim); font-weight: 500; margin-left: 2px; }
+    .co-aba:hover { color: var(--text-strong); }
+    .co-aba[aria-pressed="true"] { background: var(--text-strong); border-color: var(--text-strong); color: var(--p-0); }
+    .co-aba[aria-pressed="true"] span { color: inherit; opacity: .7; }
 
     /* ── Conteúdo ── */
-    .co-main { padding: 32px 2.5rem 64px; max-width: 1500px; margin: 0 auto; }
+    .co-main { padding: 24px 2.5rem 56px; max-width: 1500px; margin: 0 auto; }
 
     .co-alert {
         border-radius: 10px; padding: .8rem 1.1rem; margin-bottom: 1rem; font-size: .88rem;
@@ -116,283 +163,342 @@
     .co-alert-close { background: none; border: none; color: inherit; font-size: 1rem; cursor: pointer; opacity: .7; }
     .co-alert-close:hover { opacity: 1; }
 
-    .co-section-row { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
-    .co-section-titulo {
-        font-size: .65rem; font-weight: 700; letter-spacing: .18em; color: var(--text-dim); text-transform: uppercase;
-        white-space: nowrap; display: flex; align-items: center; gap: 5px;
+    .co-secao { margin-bottom: 32px; }
+    .co-secao > h2, .co-testes > summary {
+        font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.35rem; font-weight: 700; color: var(--text-strong);
+        margin: 0 0 12px; display: flex; align-items: baseline; gap: 8px;
     }
-    .co-section-titulo.co-principais-titulo { color: var(--gold-ink); }
-    .co-section-linha { flex: 1; height: 1px; background: var(--p-3); }
+    .co-secao > h2 small, .co-testes > summary small { font-family: 'Barlow', Arial, sans-serif; font-size: .82rem; font-weight: 500; color: var(--text-dim); }
+    .co-testes > summary { cursor: pointer; list-style: none; }
+    .co-testes > summary::-webkit-details-marker { display: none; }
+    .co-testes > summary::before { content: "▸"; font-size: .9rem; color: var(--text-dim); align-self: center; }
+    .co-testes[open] > summary::before { content: "▾"; }
 
-    .co-nova-inline {
-        display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px;
-        background: #d4a520; color: #141414; font-size: .82rem; font-weight: 800; border-radius: 8px; border: none; cursor: pointer;
-        margin-bottom: 20px;
-    }
-    .co-nova-inline:hover { background: #c49918; }
+    .co-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
 
-    /* ── Grid principais ── */
-    .co-grid-principais { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 40px; }
+    /* ── Card ── */
     .co-card {
-        display: flex; flex-direction: column; background: var(--p-1); border: 1px solid var(--line); border-radius: 14px;
-        overflow: hidden; transition: all .18s;
+        position: relative; display: flex; flex-direction: column; gap: 12px;
+        background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 14px;
+        scroll-margin-top: 90px;
     }
-    .co-card:hover { border-color: #d4a520; background: var(--p-2); }
-    .co-card-header { padding: 20px 16px 16px; text-align: center; position: relative; }
-    .co-escudo-circle {
-        width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,.12);
-        display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; overflow: hidden;
+    .co-card:hover { border-color: var(--line-strong); background: var(--p-2); }
+    .co-card:target { border-color: #d4a520; }
+    .co-card-topo { display: flex; align-items: center; gap: 12px; }
+    .co-logo {
+        width: 44px; height: 44px; flex-shrink: 0; border-radius: 10px; background: #fff; padding: 4px;
+        display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 1px rgba(0,0,0,.08);
     }
-    .co-escudo-circle img { width: 100%; height: 100%; object-fit: cover; }
-    .co-card-nome { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.1rem; font-weight: 800; color: var(--text-strong); margin-bottom: 2px; }
-    .co-card-sub { font-size: .68rem; color: rgba(255,255,255,.5); }
-    .co-card-footer { padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
-    .co-stats { display: flex; gap: 10px; }
-    .co-stat { text-align: center; }
-    .co-stat-val { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.1rem; font-weight: 800; color: var(--text-strong); line-height: 1; }
-    .co-stat-lbl { font-size: .58rem; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: .08em; margin-top: 1px; }
-    .co-stat-sep { width: 1px; background: var(--p-3); align-self: stretch; }
-    .co-abrir { font-size: .72rem; color: var(--gold-ink); font-weight: 700; display: flex; align-items: center; gap: 3px; }
+    .co-logo img { width: 100%; height: 100%; object-fit: contain; }
+    .co-card-info { min-width: 0; }
+    /* O link do nome cobre o card inteiro; as ações ficam por cima dele */
+    .co .co-card-nome {
+        font-size: .98rem; font-weight: 700; color: var(--text-strong); line-height: 1.2;
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .co .co-card-nome::after { content: ""; position: absolute; inset: 0; border-radius: 12px; }
+    .co .co-card:hover .co-card-nome { color: var(--gold-ink); }
+    .co-card-sub { font-size: .8rem; color: var(--text-dim); margin-top: 2px; }
+    .co-card-base {
+        display: flex; align-items: center; justify-content: space-between; gap: 8px;
+        border-top: 1px solid var(--line-soft); padding-top: 10px;
+    }
+    .co-card-num { margin-top: 4px; font-size: .82rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+    .co-card-num strong { color: var(--text-strong); font-weight: 700; }
+    .co-card-num.vazio { color: var(--text-dimmer); }
+    .co-card-acoes { position: relative; z-index: 2; display: flex; align-items: center; gap: 2px; }
+    /* Todas as barras de ação estão na camada 2, e o card seguinte vem depois no
+       HTML: sem isto, o menu "⋯" aberto ficava por baixo do card de baixo. */
+    .co-card-acoes:has(.co-menu[open]) { z-index: 40; }
+    .co-card-acoes form { margin: 0; }
+    .co .co-acao {
+        display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; border-radius: 7px;
+        border: 1px solid transparent; background: transparent; color: var(--text-muted);
+        font-family: inherit; font-size: .8rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+    }
+    .co .co-acao:hover { border-color: var(--line-strong); color: var(--text-strong); background: var(--p-0); }
+    .co .co-acao svg { flex-shrink: 0; }
+    /* Liga/desliga: dourado quando ligado, apagado quando não */
+    .co .co-toggle { color: var(--text-dimmer); }
+    .co .co-toggle[aria-pressed="true"] { color: var(--gold-ink); background: rgba(212,165,32,.12); }
+    .co .co-toggle[aria-pressed="true"] svg { fill: currentColor; }
 
-    .co-card-actions {
-        display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 0 16px 14px;
-        border-top: 1px solid var(--line-soft); padding-top: 10px; margin: 0 16px 14px; padding-left: 0; padding-right: 0;
-    }
-
-    /* ── Grid todas ── */
-    .co-grid-todas { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
-    .co-row-card {
-        background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
-        display: flex; flex-direction: column; transition: all .15s;
-    }
-    .co-row-card:hover { border-color: var(--line); background: var(--p-2); }
-    .co-row-main { display: flex; align-items: flex-start; gap: 12px; }
-    .co-row-badge {
-        width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
-        flex-shrink: 0; overflow: hidden;
-    }
-    .co-row-badge img { width: 100%; height: 100%; object-fit: cover; }
-    .co-row-info { flex: 1; min-width: 0; }
-    .co-row-nome {
-        font-size: .88rem; font-weight: 700; color: var(--text-strong); white-space: nowrap; overflow: hidden;
-        text-overflow: ellipsis; margin-bottom: 2px; display: block;
-    }
-    .co-row-sub { font-size: .68rem; color: var(--text-dim); }
-    .co-row-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; align-items: flex-end; }
-    .co-row-actions-row { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
-
-    /* ── Botões pill (compartilhados) ── */
-    .co-pill {
-        font-size: .65rem; padding: 2px 8px; border-radius: 5px; font-weight: 600; white-space: nowrap;
-        border: 1px solid var(--line-strong); background: var(--p-3); color: var(--text-muted); cursor: pointer;
-    }
-    .co-pill:hover { border-color: #d4a520; color: var(--gold-ink); }
-    .co-pill-abrir { background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.2); color: var(--ok); }
-    .co-pill-abrir:hover { background: rgba(34,197,94,0.14); color: var(--ok); border-color: rgba(34,197,94,0.2); }
-    .co-pill-principal { background: rgba(212,165,32,0.1); border-color: rgba(212,165,32,0.3); color: var(--gold-ink); }
-    .co-pill-principal:hover { background: rgba(212,165,32,0.18); color: var(--gold-ink); }
-    .co-pill-home { background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.3); color: #7fb0ff; }
-    .co-pill-home:hover { background: rgba(59,130,246,0.18); color: #7fb0ff; }
-    .co-pill-home-off { color: var(--text); }
-    .co-pill-sucesso { background: rgba(34,197,94,0.1); border-color: rgba(34,197,94,0.3); color: var(--ok); }
-    .co-pill-sucesso:hover { background: rgba(34,197,94,0.18); color: var(--ok); }
+    .co-vazio { padding: 40px 0; text-align: center; color: var(--text-dim); }
 
     /* ── Modais (Bootstrap) reskin dark ── */
-    .co .modal-content { background: var(--p-1); border: 1px solid var(--line); color: var(--text); }
-    .co .modal-header, .co .modal-footer { border-color: var(--line); }
-    .co .modal-title { color: var(--text-strong); }
-    .co .form-control { background: var(--p-2); border-color: var(--line-strong); color: var(--text); }
-    .co .form-control:focus { background: var(--p-2); border-color: #d4a520; color: var(--text); box-shadow: none; }
-    .co .form-text { color: var(--text-dim); }
-    .co .btn-close { filter: invert(1); }
+    .co-modais .modal-content { background: var(--p-1); border: 1px solid var(--line); color: var(--text); }
+    .co-modais .modal-header, .co-modais .modal-footer { border-color: var(--line); }
+    .co-modais .modal-title { color: var(--text-strong); }
+    .co-modais .form-control { background: var(--p-2); border-color: var(--line-strong); color: var(--text); }
+    .co-modais .form-control:focus { background: var(--p-2); border-color: #d4a520; color: var(--text); box-shadow: none; }
+    .co-modais .form-text { color: var(--text-dim); }
+    .co-modais .btn-close { filter: invert(1); }
+
+    @@media (max-width: 640px) {
+        .co-cab, .co-filtros, .co-main { padding-left: 1rem; padding-right: 1rem; }
+        .co-cab h1 { font-size: 2rem; }
+        .co-busca { max-width: none; flex-basis: 100%; }
+        .co-cab .co-menu-lista { right: auto; left: 0; }
+        .co-grid { grid-template-columns: 1fr; }
+    }
 </style>
 
-<div class="co">
-    <!-- ── Hero ── -->
-    <div class="co-hero theme-dark-zone">
-        <img src="~/Images/banner/escudos-pattern.svg" class="co-hero-pattern" alt="" />
-        <div class="co-hero-stripe"></div>
-        <div class="co-hero-fade"></div>
-        <div class="co-hero-acoes">
-            <button type="button" class="co-hero-api" onclick="window.location.href='@Url.Action("CompeticoesApi", "Competicoes")'"
-                    title="Catálogo de ligas da api-football (temporada 2026) com o código para registro">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
-                Competições API
-            </button>
-            <form asp-action="SincronizarEscudos" method="post" style="display:inline;"
-                  onsubmit="return confirm('Substituir o escudo de todas as competições com link da API pelo escudo publicado pela api-football?');">
-                @Html.AntiForgeryToken()
-                <button type="submit" class="co-hero-api"
-                        title="Adota o escudo da api-football em todas as competições com link apifoot:, substituindo o logo atual">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6" /><path d="M3 12a9 9 0 0 1 15-6.7L21 8" /><path d="M3 22v-6h6" /><path d="M21 12a9 9 0 0 1-15 6.7L3 16" /></svg>
-                    Sincronizar escudos
-                </button>
-            </form>
-            <button type="button" class="co-hero-nova" onclick="window.location.href='@Url.Action("Create", "Competicoes")'">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                Nova Competição
-            </button>
-        </div>
-        <div class="co-hero-content">
-            <div class="co-hero-badge">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#d4a520" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" /></svg>
-                <span>Painel de Competições</span>
+@{
+    // Card de uma competição (mesmo desenho em todas as seções)
+    async Task Card(Competicao comp)
+    {
+        var chaveTipo = ChaveTipo(comp.Tipo);
+        var regiao = RegiaoCompeticaoHelper.Normalizar(comp.Regiao);
+        var tipoTxt = LabelTipo(chaveTipo);
+        var sub = string.Join(", ", new[] { regiao, tipoTxt.ToLowerInvariant() }.Where(s => s != ""));
+        if (sub.Length > 0) sub = char.ToUpper(sub[0]) + sub[1..];
+        var jogos = jogosPorCompeticao.TryGetValue(comp.Id, out var j) ? j : 0;
+        var times = timesPorCompeticao.TryGetValue(comp.Id, out var t) ? t : 0;
+        var principal = topTierIds.Contains(comp.Id);
+        var home = homeIds.Contains(comp.Id);
+
+        <article class="co-card" id="comp-@comp.Id" data-nome="@comp.Nome" data-tipo="@chaveTipo">
+            <div class="co-card-topo">
+                <div class="co-logo">
+                    <img src="@CompeticaoHelper.GetLogoCompeticao(comp.Id, comp.LogoUrl)" alt="" loading="lazy" />
+                </div>
+                <div class="co-card-info">
+                    <a href="@rotaCompeticao(comp)" class="co-card-nome" title="@comp.Nome">@comp.Nome</a>
+                    @if (sub.Length > 0)
+                    {
+                        <div class="co-card-sub">@sub</div>
+                    }
+                    @if (jogos == 0)
+                    {
+                        <div class="co-card-num vazio">Sem jogos importados</div>
+                    }
+                    else
+                    {
+                        <div class="co-card-num"><strong>@times</strong> times, <strong>@Milhar(jogos)</strong> jogos</div>
+                    }
+                </div>
             </div>
+            <div class="co-card-base">
+                <div class="co-card-acoes">
+                    <form asp-action="ToggleTopTier" asp-route-id="@comp.Id" method="post">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="co-acao co-toggle" aria-pressed="@(principal ? "true" : "false")"
+                                title="@(principal ? "Tirar dos principais" : "Marcar como principal (aparece no menu e no topo desta lista)")">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                            <span>Principal</span>
+                        </button>
+                    </form>
+                    <form asp-action="ToggleHome" asp-route-id="@comp.Id" method="post">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="co-acao co-toggle" aria-pressed="@(home ? "true" : "false")"
+                                title="@(home ? "Tirar da tabela da home" : "Mostrar na tabela da home")">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" /></svg>
+                            <span>Home</span>
+                        </button>
+                    </form>
+                </div>
+                <div class="co-card-acoes">
+                    <a asp-action="Edit" asp-route-id="@comp.Id" class="co-acao">Editar</a>
+                    <details class="co-menu">
+                        <summary class="co-acao" aria-label="Mais ações para @comp.Nome" title="Mais ações">⋯</summary>
+                        <div class="co-menu-lista">
+                            <button type="button" class="co-menu-item" data-bs-toggle="modal" data-bs-target="#linkModal-@comp.Id">
+                                Link de importação
+                                <small>@(string.IsNullOrWhiteSpace(comp.LinkTransfermarket) ? "Nenhum link informado" : "Trocar o link atual")</small>
+                            </button>
+                            <button type="button" class="co-menu-item" data-bs-toggle="modal" data-bs-target="#logoModal-@comp.Id">Trocar escudo</button>
+                            @if (!string.IsNullOrWhiteSpace(comp.LinkTransfermarket))
+                            {
+                                <form asp-action="BuscarJogos" asp-route-id="@comp.Id" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="co-menu-item"
+                                            onclick="this.disabled=true; this.firstChild.textContent='Buscando jogos...'; this.form.submit();">Buscar jogos<small>Importa os jogos pelo link</small></button>
+                                </form>
+                            }
+                        </div>
+                    </details>
+                </div>
+            </div>
+        </article>
+    }
+
+    async Task Secao(string titulo, string? nota, IEnumerable<Competicao> comps)
+    {
+        var lista = comps.ToList();
+        <section class="co-secao" data-secao>
+            <h2>@titulo <small>@(nota ?? lista.Count.ToString())</small></h2>
+            <div class="co-grid">
+                @foreach (var c in lista) { await Card(c); }
+            </div>
+        </section>
+    }
+}
+
+<div class="co">
+    <div class="co-cab theme-dark-zone">
+        <div>
             <h1>Competições</h1>
-            <p>Acompanhe campeonatos, acesse classificações, grupos e tabelas.</p>
+            <p>
+                <strong>@todas.Count</strong> cadastradas,
+                @if (qtdHome == 0)
+                {
+                    <text>nenhuma na tabela da home ainda</text>
+                }
+                else
+                {
+                    <strong>@qtdHome</strong> <text>na tabela da home</text>
+                }
+            </p>
+        </div>
+        <div class="co-cab-acoes">
+            <details class="co-menu">
+                <summary>Mais</summary>
+                <div class="co-menu-lista">
+                    <a asp-action="CompeticoesApi" class="co-menu-item">
+                        Catálogo da api-football
+                        <small>Ligas da temporada com o código para cadastro</small>
+                    </a>
+                    <form asp-action="SincronizarEscudos" method="post"
+                          onsubmit="return confirm('Substituir o escudo de todas as competições com link da API pelo escudo publicado pela api-football?');">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="co-menu-item">
+                            Sincronizar escudos
+                            <small>Usa o escudo da api-football em todas com link da API</small>
+                        </button>
+                    </form>
+                </div>
+            </details>
+            <a asp-action="Create" class="co-nova">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                Nova competição
+            </a>
         </div>
     </div>
 
-    <div class="co-main">
+    <div class="co-filtros">
+        <label for="coBusca" class="visually-hidden">Buscar competição</label>
+        <input type="search" id="coBusca" class="co-busca" placeholder="Buscar competição" autocomplete="off" />
+        @if (formatos.Count > 1)
+        {
+            <div class="co-abas" role="group" aria-label="Formato">
+                <button type="button" class="co-aba" data-tipo="" aria-pressed="true">Todas <span>@todas.Count</span></button>
+                @foreach (var f in formatos)
+                {
+                    <button type="button" class="co-aba" data-tipo="@f.Chave" aria-pressed="false">@f.Rotulo <span>@f.Qtd</span></button>
+                }
+            </div>
+        }
+    </div>
 
+    <div class="co-main">
         @if (TempData["Sucesso"] != null)
         {
-            <div class="co-alert co-alert-sucesso">
+            <div class="co-alert co-alert-sucesso" role="status">
                 <span>@TempData["Sucesso"]</span>
-                <button type="button" class="co-alert-close" onclick="this.parentElement.remove()">✕</button>
+                <button type="button" class="co-alert-close" aria-label="Fechar" onclick="this.parentElement.remove()">✕</button>
             </div>
         }
         @if (TempData["Erro"] != null)
         {
-            <div class="co-alert co-alert-erro">
+            <div class="co-alert co-alert-erro" role="alert">
                 <span>@TempData["Erro"]</span>
-                <button type="button" class="co-alert-close" onclick="this.parentElement.remove()">✕</button>
+                <button type="button" class="co-alert-close" aria-label="Fechar" onclick="this.parentElement.remove()">✕</button>
             </div>
         }
 
-        @if (topTier.Any())
+        @if (!todas.Any())
         {
-            <div class="co-section-row">
-                <span class="co-section-titulo co-principais-titulo">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#d4a520" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
-                    Principais
-                </span>
-                <div class="co-section-linha"></div>
-            </div>
-
-            <div class="co-grid-principais">
-                @foreach (var comp in topTier)
-                {
-                    var (bg, accent) = CorTipo(comp.Tipo);
-                    var jogos = jogosPorCompeticao.TryGetValue(comp.Id, out var j) ? j : 0;
-                    var times = timesPorCompeticao.TryGetValue(comp.Id, out var t) ? t : 0;
-
-                    <div class="co-card">
-                        <a href="@rotaCompeticao(comp)">
-                            <div class="co-card-header" style="background:@bg; border-bottom:2px solid @(accent)20;">
-                                <div class="co-escudo-circle">
-                                    <img src="@CompeticaoHelper.GetLogoCompeticao(comp.Id, comp.LogoUrl)" alt="@comp.Nome" />
-                                </div>
-                                <div class="co-card-nome">@comp.Nome</div>
-                                <div class="co-card-sub">@comp.Regiao · @LabelTipo(comp.Tipo)</div>
-                            </div>
-                            <div class="co-card-footer">
-                                <div class="co-stats">
-                                    <div class="co-stat"><div class="co-stat-val">@times</div><div class="co-stat-lbl">Times</div></div>
-                                    <div class="co-stat-sep"></div>
-                                    <div class="co-stat"><div class="co-stat-val">@jogos</div><div class="co-stat-lbl">Jogos</div></div>
-                                </div>
-                                <span class="co-abrir">
-                                    Abrir
-                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-                                </span>
-                            </div>
-                        </a>
-                        <div class="co-card-actions">
-                            <a asp-action="Edit" asp-route-id="@comp.Id" class="co-pill">Editar</a>
-                            <button type="button" class="co-pill" data-bs-toggle="modal" data-bs-target="#linkModal-@comp.Id">Link</button>
-                            <button type="button" class="co-pill" data-bs-toggle="modal" data-bs-target="#logoModal-@comp.Id">🖼 Escudo</button>
-                            @if (!string.IsNullOrWhiteSpace(comp.LinkTransfermarket))
-                            {
-                                <form asp-action="BuscarJogos" asp-route-id="@comp.Id" method="post" style="display:inline;">
-                                    @Html.AntiForgeryToken()
-                                    <button type="submit" class="co-pill co-pill-sucesso"
-                                            onclick="this.disabled=true; this.innerText='Buscando...'; this.form.submit();">
-                                        Buscar Jogos
-                                    </button>
-                                </form>
-                            }
-                            <form asp-action="ToggleTopTier" asp-route-id="@comp.Id" method="post" style="display:inline;">
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="co-pill co-pill-principal" title="Remover dos principais">⭐ Principal</button>
-                            </form>
-                            <form asp-action="ToggleHome" asp-route-id="@comp.Id" method="post" style="display:inline;">
-                                @Html.AntiForgeryToken()
-                                @if (homeIds.Contains(comp.Id))
-                                {
-                                    <button type="submit" class="co-pill co-pill-home" title="Tirar da tabela da home">🏠 Home</button>
-                                }
-                                else
-                                {
-                                    <button type="submit" class="co-pill co-pill-home-off" title="Somar na tabela da home">🏠 Home</button>
-                                }
-                            </form>
-                        </div>
-                    </div>
-
-                    @await Html.PartialAsync("_CompeticaoModais", comp)
-                }
+            <div class="co-vazio">
+                Nenhuma competição cadastrada. Crie a primeira em <a asp-action="Create">Nova competição</a>
+                ou veja o <a asp-action="CompeticoesApi">catálogo da api-football</a>.
             </div>
         }
 
-        <div class="co-section-row">
-            <span class="co-section-titulo">Todas as Competições</span>
-            <div class="co-section-linha"></div>
-        </div>
-
-        <div class="co-grid-todas">
-            @foreach (var comp in demais)
-            {
-                var (bg, accent) = CorTipo(comp.Tipo);
-
-                <div class="co-row-card">
-                    <div class="co-row-main">
-                        <div class="co-row-badge" style="background:@bg; border:1px solid @(accent)30;">
-                            <img src="@CompeticaoHelper.GetLogoCompeticao(comp.Id, comp.LogoUrl)" alt="@comp.Nome" />
-                        </div>
-                        <a href="@rotaCompeticao(comp)" class="co-row-info">
-                            <span class="co-row-nome">@comp.Nome</span>
-                            <div class="co-row-sub">@comp.Regiao · @LabelTipo(comp.Tipo)</div>
-                        </a>
-                        <div class="co-row-actions">
-                            <a asp-action="Edit" asp-route-id="@comp.Id" class="co-pill">Editar</a>
-                            <a href="@rotaCompeticao(comp)" class="co-pill co-pill-abrir">Abrir →</a>
-                        </div>
-                    </div>
-                    <div class="co-row-actions-row">
-                        <button type="button" class="co-pill" data-bs-toggle="modal" data-bs-target="#linkModal-@comp.Id">Link</button>
-                        <button type="button" class="co-pill" data-bs-toggle="modal" data-bs-target="#logoModal-@comp.Id">🖼 Escudo</button>
-                        @if (!string.IsNullOrWhiteSpace(comp.LinkTransfermarket))
-                        {
-                            <form asp-action="BuscarJogos" asp-route-id="@comp.Id" method="post" style="display:inline;">
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="co-pill co-pill-sucesso"
-                                        onclick="this.disabled=true; this.innerText='...'; this.form.submit();">
-                                    Buscar Jogos
-                                </button>
-                            </form>
-                        }
-                        <form asp-action="ToggleTopTier" asp-route-id="@comp.Id" method="post" style="display:inline;">
-                            @Html.AntiForgeryToken()
-                            <button type="submit" class="co-pill co-pill-principal" title="Marcar como principal">☆ Principal</button>
-                        </form>
-                        <form asp-action="ToggleHome" asp-route-id="@comp.Id" method="post" style="display:inline;">
-                            @Html.AntiForgeryToken()
-                            @if (homeIds.Contains(comp.Id))
-                            {
-                                <button type="submit" class="co-pill co-pill-home" title="Tirar da tabela da home">🏠 Home</button>
-                            }
-                            else
-                            {
-                                <button type="submit" class="co-pill co-pill-home-off" title="Somar na tabela da home">🏠 Home</button>
-                            }
-                        </form>
-                    </div>
+        @if (principais.Any())
+        {
+            await Secao("Principais", null, principais);
+        }
+        @if (naHome.Any())
+        {
+            await Secao("Na tabela da home", null, naHome);
+        }
+        @foreach (var bloco in porBloco)
+        {
+            await Secao(bloco.Key, null, bloco);
+        }
+        @if (testes.Any())
+        {
+            <details class="co-testes co-secao" data-secao>
+                <summary>Testes <small>@testes.Count</small></summary>
+                <div class="co-grid">
+                    @foreach (var c in testes) { await Card(c); }
                 </div>
+            </details>
+        }
 
-                @await Html.PartialAsync("_CompeticaoModais", comp)
-            }
-        </div>
-
+        <p class="co-vazio" id="coSemResultado" hidden>Nenhuma competição encontrada. Tente outro nome ou volte para "Todas".</p>
     </div>
 </div>
+
+<div class="co-modais">
+    @foreach (var comp in todas)
+    {
+        @await Html.PartialAsync("_CompeticaoModais", comp)
+    }
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var busca = document.getElementById('coBusca');
+            var abas = document.querySelectorAll('.co-aba');
+            var semResultado = document.getElementById('coSemResultado');
+            var tipoAtual = '';
+
+            function normalizar(s) {
+                return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+            }
+
+            function filtrar() {
+                var termo = normalizar(busca.value);
+                var filtrando = termo !== '' || tipoAtual !== '';
+                var total = 0;
+                document.querySelectorAll('[data-secao]').forEach(function (secao) {
+                    var visiveis = 0;
+                    secao.querySelectorAll('.co-card').forEach(function (card) {
+                        var ok = (termo === '' || normalizar(card.dataset.nome).indexOf(termo) !== -1)
+                            && (tipoAtual === '' || card.dataset.tipo === tipoAtual);
+                        card.hidden = !ok;
+                        if (ok) visiveis++;
+                    });
+                    secao.hidden = visiveis === 0;
+                    // Busca ou filtro ativo abre o bloco de testes se ele tiver resultado
+                    if (secao.tagName === 'DETAILS' && filtrando && visiveis > 0) secao.open = true;
+                    total += visiveis;
+                });
+                semResultado.hidden = total > 0;
+            }
+
+            busca.addEventListener('input', filtrar);
+            abas.forEach(function (aba) {
+                aba.addEventListener('click', function () {
+                    tipoAtual = aba.dataset.tipo;
+                    abas.forEach(function (a) { a.setAttribute('aria-pressed', a === aba ? 'true' : 'false'); });
+                    filtrar();
+                });
+            });
+
+            // Fecha os menus (Mais / ⋯) ao clicar fora ou com Esc
+            document.addEventListener('click', function (e) {
+                document.querySelectorAll('.co-menu[open]').forEach(function (m) { if (!m.contains(e.target)) m.open = false; });
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') document.querySelectorAll('.co-menu[open]').forEach(function (m) { m.open = false; });
+            });
+            // Abrir um modal a partir do menu fecha o menu
+            document.querySelectorAll('.co-menu [data-bs-toggle="modal"]').forEach(function (b) {
+                b.addEventListener('click', function () { var m = b.closest('.co-menu'); if (m) m.open = false; });
+            });
+        })();
+    </script>
+}

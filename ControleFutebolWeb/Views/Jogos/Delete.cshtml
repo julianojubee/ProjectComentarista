@@ -1,38 +1,51 @@
-﻿@model ControleFutebolWeb.Models.Jogo
+@model ControleFutebolWeb.Models.Jogo
+@using ControleFutebolWeb.Helpers
+@{
+    ViewData["Title"] = "Excluir jogo";
+    bool comPlacar = Model.PlacarCasa.HasValue && Model.PlacarVisitante.HasValue;
+}
 
-<h2>Excluir Jogo</h2>
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/form-card.css" asp-append-version="true" />
 
-<div>
-    <h4>Você tem certeza que deseja excluir este jogo?</h4>
-    <dl class="row">
-        <dt class="col-sm-2">Data</dt>
-        <dd class="col-sm-10">@ControleFutebolWeb.Helpers.DateHelper.FormatarData(Model.Data, "d")</dd>
+<div class="af">
+    <div class="af-card">
+        <a asp-action="Index" class="af-voltar">Jogos</a>
+        <h1 class="af-title">Excluir jogo</h1>
 
-        <dt class="col-sm-2">Rodada</dt>
-        <dd class="col-sm-10">@Model.Rodada</dd>
-
-        <dt class="col-sm-2">Time da Casa</dt>
-        <dd class="col-sm-10">@Model.TimeCasa?.Nome</dd>
-
-        <dt class="col-sm-2">Placar Casa</dt>
-        <dd class="col-sm-10">@Model.PlacarCasa</dd>
-
-        <dt class="col-sm-2">Time Visitante</dt>
-        <dd class="col-sm-10">@Model.TimeVisitante?.Nome</dd>
-
-        <dt class="col-sm-2">Placar Fora</dt>
-        <dd class="col-sm-10">@Model.PlacarVisitante</dd>
-
-        @if (Model.PenaltisCasa.HasValue && Model.PenaltisVisitante.HasValue)
+        @if (TempData["Erro"] != null)
         {
-            <dt class="col-sm-2">Pênaltis</dt>
-            <dd class="col-sm-10">@Model.PenaltisCasa - @Model.PenaltisVisitante</dd>
+            <div class="af-alerta" role="alert">@TempData["Erro"]</div>
         }
-    </dl>
-</div>
 
-<form asp-action="Delete">
-    <input type="hidden" asp-for="Id" />
-    <input type="submit" value="Excluir" class="btn btn-danger" />
-    <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
-</form>
+        <div class="af-resumo">
+            <div>
+                <div class="af-resumo-nome">
+                    @Model.TimeCasa?.Nome @(comPlacar ? $"{Model.PlacarCasa} x {Model.PlacarVisitante}" : "x") @Model.TimeVisitante?.Nome
+                </div>
+                <div class="af-resumo-meta">
+                    @string.Join(", ", new[]
+                    {
+                        Model.Competicao?.Nome,
+                        Model.Rodada > 0 ? $"rodada {Model.Rodada}" : null,
+                        Model.Data.HasValue ? DateHelper.FormatarData(Model.Data, "dd/MM/yyyy HH:mm") : null,
+                        Model.PenaltisCasa.HasValue && Model.PenaltisVisitante.HasValue ? $"{Model.PenaltisCasa} x {Model.PenaltisVisitante} nos pênaltis" : null
+                    }.Where(x => !string.IsNullOrWhiteSpace(x)))
+                </div>
+            </div>
+        </div>
+
+        <div class="af-alerta">
+            A escalação, os gols, os cartões e a análise deste jogo serão apagados junto.
+            Essa ação não pode ser desfeita.
+        </div>
+
+        <form asp-action="Delete" method="post">
+            <input type="hidden" asp-for="Id" />
+            <div class="af-actions">
+                <button type="submit" class="af-danger">Excluir jogo</button>
+                <a asp-action="Analisar" asp-route-id="@Model.Id" class="af-cancel">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>

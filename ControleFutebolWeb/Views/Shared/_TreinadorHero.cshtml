@@ -6,11 +6,11 @@
     // Ícones inline por chave — evita repetir os <svg> em cada tela que monta o hero.
     Func<string?, Microsoft.AspNetCore.Html.IHtmlContent> icone = chave => chave switch
     {
-        "voltar" => Html.Raw("<svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><polyline points='15 18 9 12 15 6'/></svg>"),
-        "editar" => Html.Raw("<svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7'/><path d='M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z'/></svg>"),
-        "anotacoes" => Html.Raw("<svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z'/><polyline points='14 2 14 8 20 8'/></svg>"),
-        "mais" => Html.Raw("<svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5'><line x1='12' y1='5' x2='12' y2='19'/><line x1='5' y1='12' x2='19' y2='12'/></svg>"),
-        "importar" => Html.Raw("<svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/><polyline points='7 10 12 15 17 10'/><line x1='12' y1='15' x2='12' y2='3'/></svg>"),
+        "voltar" => Html.Raw("<svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' aria-hidden='true'><polyline points='15 18 9 12 15 6'/></svg>"),
+        "editar" => Html.Raw("<svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' aria-hidden='true'><path d='M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7'/><path d='M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z'/></svg>"),
+        "anotacoes" => Html.Raw("<svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' aria-hidden='true'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z'/><polyline points='14 2 14 8 20 8'/></svg>"),
+        "mais" => Html.Raw("<svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' aria-hidden='true'><line x1='12' y1='5' x2='12' y2='19'/><line x1='5' y1='12' x2='19' y2='12'/></svg>"),
+        "importar" => Html.Raw("<svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' aria-hidden='true'><path d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/><polyline points='7 10 12 15 17 10'/><line x1='12' y1='15' x2='12' y2='3'/></svg>"),
         _ => Html.Raw("")
     };
 }
@@ -22,14 +22,33 @@
         <div class="an-foto">
             @* FotoSrc (e não o MediaProxy direto) porque a foto pode ser uma URL colada
                à mão em /Treinadores/Edit — o proxy tem allowlist e bloquearia o host. *@
-            <img src="@(Url.FotoSrc(t.FotoUrl) ?? Url.Content("~/images/placeholder-treinador.png"))" alt="@t.Nome" />
+            <img src="@(Url.FotoSrc(t.FotoUrl) ?? Url.Content("~/images/placeholder-treinador.png"))" alt="" />
         </div>
         <div class="an-hero-info">
-            <div class="an-hero-kicker">
-                <div class="an-hero-kicker-line"></div>
-                <span>@Model.Kicker</span>
-            </div>
-            <h1>@t.Nome</h1>
+            <nav class="an-hero-kicker" aria-label="Trilha">
+                <a asp-controller="Treinadores" asp-action="Index">Treinadores</a>
+                @if (!string.IsNullOrEmpty(Model.Kicker))
+                {
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
+                    <span>@Model.Kicker</span>
+                }
+            </nav>
+            @if (string.IsNullOrEmpty(Model.Kicker))
+            {
+                <h1>@t.Nome</h1>
+            }
+            else
+            {
+                @* Nas telas internas o nome leva de volta à ficha *@
+                <h1><a asp-controller="Treinadores" asp-action="Details" asp-route-id="@t.Id" class="an-hero-nome">@t.Nome</a></h1>
+            }
+            @{
+                // Metadados separados por vírgula: clube, nacionalidade, idade, extra
+                var meta = new List<string>();
+                if (t.Nacionalidade != null) meta.Add(t.Nacionalidade.Nome);
+                if (t.Idade > 0) meta.Add($"{t.Idade} anos");
+                if (!string.IsNullOrWhiteSpace(Model.MetaExtra)) meta.Add(Model.MetaExtra);
+            }
             <p>
                 @if (t.Time != null)
                 {
@@ -38,27 +57,16 @@
                         {
                             <img src="@Url.Action("Imagem", "MediaProxy", new { url = t.Time.EscudoUrl })" alt="" />
                         }
-                        <span>@t.Time.Nome</span>
+                        <span>@t.Time.Nome@(meta.Any() ? "," : "")</span>
                     </a>
                 }
-                @if (t.Nacionalidade != null)
+                @if (meta.Any())
                 {
-                    <span>·</span>
-                    <span>@FlagHelper.GetFlagEmoji(t.Nacionalidade.Nome) @t.Nacionalidade.Nome</span>
-                }
-                @if (t.Idade > 0)
-                {
-                    <span>·</span>
-                    <span>@t.Idade anos</span>
-                }
-                @if (!string.IsNullOrWhiteSpace(Model.MetaExtra))
-                {
-                    <span>·</span>
-                    <span>@Model.MetaExtra</span>
+                    <span>@string.Join(", ", meta)</span>
                 }
             </p>
         </div>
-        @if (Model.Acoes.Any())
+        @if (Model.Acoes.Any() || Model.Menu.Any())
         {
             <div class="an-hero-actions">
                 @foreach (var acao in Model.Acoes)
@@ -67,6 +75,39 @@
                         @icone(acao.Icone)
                         @acao.Texto
                     </a>
+                }
+                @if (Model.Menu.Any())
+                {
+                    <details class="an-menu">
+                        <summary class="an-btn">Mais</summary>
+                        <div class="an-menu-lista">
+                            @foreach (var item in Model.Menu)
+                            {
+                                if (item.Post)
+                                {
+                                    <form action="@item.Url" method="post"
+                                          onsubmit="@(item.Confirmar != null ? $"return confirm({System.Text.Json.JsonSerializer.Serialize(item.Confirmar)})" : null)">
+                                        @Html.AntiForgeryToken()
+                                        @foreach (var campo in item.Campos)
+                                        {
+                                            <input type="hidden" name="@campo.Key" value="@campo.Value" />
+                                        }
+                                        <button type="submit" class="an-menu-item @(item.Perigo ? "perigo" : "")">
+                                            @item.Texto
+                                            @if (item.Detalhe != null) { <small>@item.Detalhe</small> }
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <a href="@item.Url" class="an-menu-item @(item.Perigo ? "perigo" : "")">
+                                        @item.Texto
+                                        @if (item.Detalhe != null) { <small>@item.Detalhe</small> }
+                                    </a>
+                                }
+                            }
+                        </div>
+                    </details>
                 }
             </div>
         }

@@ -1,4 +1,4 @@
-﻿@using ControleFutebolWeb.Models
+@using ControleFutebolWeb.Models
 @model ControleFutebolWeb.Models.ViewModels.LibertadoresIndexViewModel
 @using ControleFutebolWeb.Models.ViewModels
 @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
@@ -122,10 +122,8 @@
         display: inline-block;
         background: rgba(212, 160, 42, 0.12);
         color: #f3d38a;
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 700;
-        letter-spacing: 1px;
-        text-transform: uppercase;
         padding: 4px 12px;
         border-radius: 999px;
         border: 1px solid rgba(212, 160, 42, 0.38);
@@ -258,9 +256,7 @@
             padding: 6px 8px;
             color: var(--text-dim);
             font-weight: 600;
-            text-transform: uppercase;
-            font-size: 10px;
-            letter-spacing: 0.5px;
+            font-size: 12px;
             text-align: center;
         }
 
@@ -293,7 +289,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 700;
         color: #fff;
     }
@@ -405,7 +401,7 @@
     .lib-jogo-header {
         background: var(--lib-strip);
         color: var(--lib-strip-ink);
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 600;
         padding: 5px 10px;
         display: flex;
@@ -475,7 +471,7 @@
     }
 
     .lib-badge-agendado {
-        font-size: 10px;
+        font-size: 11px;
         background: var(--surface-3);
         color: var(--text-dim);
         padding: 2px 8px;
@@ -490,12 +486,12 @@
         margin-top: 8px;
         padding-top: 6px;
         border-top: 0.5px solid var(--line-soft);
-        font-size: 10px;
+        font-size: 11px;
         color: var(--text-muted);
     }
 
     .lib-analisar-btn {
-        font-size: 10px;
+        font-size: 11px;
         padding: 3px 10px;
         border-radius: 6px;
         border: 1px solid var(--lib-gold-ink);
@@ -515,7 +511,7 @@
     .lib-grupo-tag {
         background: rgba(212,165,32,0.18);
         color: var(--lib-strip-ink);
-        font-size: 9px;
+        font-size: 11px;
         padding: 1px 6px;
         border-radius: 999px;
         font-weight: 600;
@@ -574,8 +570,8 @@
     .bkt-side { display: flex; gap: var(--bkt-gap); align-items: stretch; }
     .bkt-colwrap { width: var(--bkt-w); display: flex; flex-direction: column; }
     .bkt-col-label {
-        text-align: center; font-size: 11px; font-weight: 800; letter-spacing: 1px;
-        text-transform: uppercase; color: var(--text-muted); padding-bottom: 10px;
+        text-align: center; font-size: 13px; font-weight: 700;
+        color: var(--text-muted); padding-bottom: 10px;
     }
     .bkt-col { flex: 1; display: flex; flex-direction: column; }
     /* min-height precisa conter o card inteiro (cabeçalho + 2 times + rodapé
@@ -592,7 +588,7 @@
     .bkt-match-no {
         display: flex; justify-content: space-between; align-items: center;
         background: var(--lib-strip); color: var(--lib-strip-ink);
-        font-size: 9px; font-weight: 700; padding: 3px 8px; letter-spacing: .3px;
+        font-size: 11px; font-weight: 700; padding: 3px 8px; letter-spacing: .3px;
     }
     .bkt-team { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--line-soft); }
     .bkt-team:last-of-type { border-bottom: none; }
@@ -604,10 +600,10 @@
     .bkt-team.win { background: var(--lib-gold-soft); }
     .bkt-score { font-size: 13px; font-weight: 800; color: var(--text); min-width: 18px; text-align: center; flex-shrink: 0; }
     .bkt-foot { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 4px 8px; border-top: 1px solid var(--line-soft); background: var(--surface-2); }
-    .bkt-date { font-size: 9px; color: var(--text-muted); }
+    .bkt-date { font-size: 11px; color: var(--text-muted); }
     .bkt-leglinks { display: flex; gap: 5px; }
     .bkt-analisar {
-        font-size: 9px; padding: 2px 8px; border-radius: 5px; border: 1px solid var(--lib-gold-ink);
+        font-size: 11px; padding: 2px 8px; border-radius: 5px; border: 1px solid var(--lib-gold-ink);
         color: var(--lib-gold-ink); background: transparent; text-decoration: none; font-weight: 700;
         transition: background .15s,color .15s; white-space: nowrap;
     }
@@ -646,7 +642,7 @@
     .bkt-center .bkt-col-label { color: var(--lib-gold-ink); }
     .bkt-final-wrap { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; }
     .bkt-center .bkt-cell { flex: 0 0 auto; min-height: 0; width: 100%; }
-    .bkt-trophy { font-size: 30px; line-height: 1; filter: drop-shadow(0 2px 6px rgba(0,0,0,.2)); }
+    
     .bkt-final-cell .bkt-match { border-color: var(--lib-gold); box-shadow: 0 2px 14px rgba(212,165,32,.35); }
     .bkt-final-cell .bkt-match-no { background: linear-gradient(90deg,#8a6a0a,#f0cf78 50%,#8a6a0a); color: #2a1e00; }
     .bkt-final-cell .bkt-team.win .bkt-tname { color: var(--lib-gold-ink); }
@@ -664,9 +660,9 @@
     <span class="lib-hero-arc inner left"></span>
     <span class="lib-hero-arc inner right"></span>
     <div class="lib-hero-content">
-        <span class="lib-badge">Competição Continental</span>
+        <span class="lib-badge">Competição continental</span>
         <div class="lib-title-wrap">
-            <img src="~/images/background/libertadores.png" alt="Libertadores" class="lib-logo" />
+            <img src="~/images/background/libertadores.png" alt="" class="lib-logo" />
             <h2 class="lib-title">Libertadores</h2>
             <p class="lib-tagline">A Glória Eterna</p>
         </div>
@@ -678,7 +674,7 @@
         @if (temporadasLib.Count > 1)
         {
             <form method="get" style="margin-top:10px;">
-                <label style="color:#fff;font-size:12px;font-weight:600;margin-right:6px;">Temporada:</label>
+                <label style="color:#fff;font-size:13px;font-weight:600;margin-right:6px;">Temporada</label>
                 <select name="temporada" onchange="this.form.submit()"
                         style="padding:5px 10px;border-radius:7px;border:none;font-size:13px;font-weight:600;">
                     @foreach (var temp in temporadasLib)
@@ -744,8 +740,8 @@
                 <div class="bkt-foot">
                     @if (t.JogoIds.Count == 1)
                     {
-                        <span class="bkt-date">@(t.Data.HasValue ? ControleFutebolWeb.Helpers.DateHelper.FormatarData(t.Data, "dd/MM HH:mm") : "—")</span>
-                        <a href="@Url.Action("Analisar", "Jogos", new { id = t.JogoIds[0] })" class="bkt-analisar">Analisar →</a>
+                        <span class="bkt-date">@(t.Data.HasValue ? ControleFutebolWeb.Helpers.DateHelper.FormatarData(t.Data, "dd/MM HH:mm") : "Sem data")</span>
+                        <a href="@Url.Action("Analisar", "Jogos", new { id = t.JogoIds[0] })" class="bkt-analisar">Analisar</a>
                     }
                     else
                     {
@@ -765,29 +761,29 @@
 @if (!temGrupos && !temChave && !temEstatisticas)
 {
     <div class="lib-empty">
-        <div style="font-size:2rem;margin-bottom:8px;">🏆</div>
-        Nenhum jogo com grupo definido encontrado para a Libertadores.<br>
-        <small>Importe os jogos com o campo <strong>Grupo</strong> preenchido para ver a classificação.</small>
+        Nenhum jogo da Libertadores nesta temporada.<br>
+        <small>Use "Sincronizar jogos" acima para importar a fase de grupos.</small>
     </div>
 }
 else
 {
     <div class="cdm-bracket">
         <div class="cdm-bracket-head">
-            <h3>🏆 Fase de Grupos &amp; Mata-Mata</h3>
-            <small>Selecione uma aba para ver a classificação dos grupos ou o caminho até a final.</small>
+            <h3>Fase de grupos e mata-mata</h3>
+            <small>A classificação dos grupos e o caminho até a final.</small>
         </div>
 
         <div class="cdm-tabs" role="tablist">
             @if (temGrupos)
             {
-                <button type="button" class="cdm-tab active" data-cdm-tab="grupos">📊 Grupos</button>
+                <button type="button" class="cdm-tab active" data-cdm-tab="grupos">Grupos</button>
             }
             @if (temChave)
             {
-                <button type="button" class="cdm-tab @(!temGrupos ? "active" : "")" data-cdm-tab="chave">⚔️ Mata-Mata</button>
+                <button type="button" class="cdm-tab @(!temGrupos ? "active" : "")" data-cdm-tab="chave">Mata-mata</button>
             }
-            <button type="button" class="cdm-tab @(!temGrupos && !temChave ? "active" : "")" data-cdm-tab="estatisticas">📈 Estatísticas</button>
+            <button type="button" class="cdm-tab @(!temGrupos && !temChave ? "active" : "")" data-cdm-tab="estatisticas">Estatísticas</button>
+            <button type="button" class="cdm-tab" data-cdm-tab="estat-jogadores">Jogadores</button>
         </div>
 
         @if (temGrupos)
@@ -799,8 +795,8 @@ else
         <div>
             <!-- Legenda -->
             <div class="lib-legenda">
-                <span><span class="lib-leg-dot" style="background:linear-gradient(135deg,#f0cf78,#b8860b);"></span>Classificado para Oitavas</span>
-                <span><span class="lib-leg-dot" style="background:var(--lib-bronze);"></span>Repescagem Sul-Americana</span>
+                <span><span class="lib-leg-dot" style="background:linear-gradient(135deg,#f0cf78,#b8860b);"></span>Classificado para as oitavas</span>
+                <span><span class="lib-leg-dot" style="background:var(--lib-bronze);"></span>Vai para a Sul-Americana</span>
                 <span><span class="lib-leg-dot" style="background:var(--surface-3);border:1px solid var(--border);"></span>Eliminado</span>
             </div>
 
@@ -809,8 +805,8 @@ else
                 {
                     <div class="lib-grupo-card">
                         <div class="lib-grupo-header">
-                            <img src="~/images/background/libertadores.png" alt="Libertadores" />
-                            Grupo @grupo.Nome
+                            <img src="~/images/background/libertadores.png" alt="" />
+                            @ControleFutebolWeb.Helpers.RodadaHelper.RotuloGrupo(grupo.Nome)
                         </div>
 
                         @if (!grupo.Times.Any())
@@ -830,7 +826,7 @@ else
                                         <th title="Vitórias">V</th>
                                         <th title="Empates">E</th>
                                         <th title="Derrotas">D</th>
-                                        <th title="Saldo de Gols">SG</th>
+                                        <th title="Saldo de gols">SG</th>
                                         <th title="Pontos">Pts</th>
                                     </tr>
                                 </thead>
@@ -901,7 +897,7 @@ else
                             <span>@ControleFutebolWeb.Helpers.DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy HH:mm")</span>
                             @if (!string.IsNullOrEmpty(jogo.Grupo))
                             {
-                                <span class="lib-grupo-tag">Grupo @jogo.Grupo</span>
+                                <span class="lib-grupo-tag">@ControleFutebolWeb.Helpers.RodadaHelper.Rotulo(jogo.Grupo, jogo.Rodada)</span>
                             }
                         </div>
                         <div class="lib-jogo-body">
@@ -920,7 +916,7 @@ else
                                         <span class="lib-score">@jogo.PlacarCasa x @jogo.PlacarVisitante</span>
                                         @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
                                         {
-                                            <span class="lib-pen">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</span>
+                                            <span class="lib-pen">(@jogo.PenaltisCasa x @jogo.PenaltisVisitante nos pênaltis)</span>
                                         }
                                     }
                                     else
@@ -941,7 +937,7 @@ else
                             <div class="lib-jogo-footer">
                                 @if (realizado)
                                 {
-                                    <span style="color:var(--ok-2);font-weight:600">✔ Realizado</span>
+                                    <span style="color:var(--ok-2);font-weight:600">Encerrado</span>
                                 }
                                 else
                                 {
@@ -949,7 +945,7 @@ else
                                 }
                                 <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id"
                                    class="lib-analisar-btn">
-                                    Analisar →
+                                    Analisar
                                 </a>
                             </div>
                         </div>
@@ -987,7 +983,7 @@ else
                                 </div>
                             </div>
                             <div class="bkt-colwrap">
-                                <div class="bkt-col-label">Semi</div>
+                                <div class="bkt-col-label">Semifinal</div>
                                 <div class="bkt-col bkt-sf">
                                     <div class="bkt-cell">@renderMatch(chaveamento.SemiEsq)</div>
                                 </div>
@@ -998,7 +994,6 @@ else
                         <div class="bkt-center">
                             <div class="bkt-col-label">Final</div>
                             <div class="bkt-final-wrap">
-                                <div class="bkt-trophy">🏆</div>
                                 <div class="bkt-cell bkt-final-cell">@renderMatch(chaveamento.Final)</div>
                             </div>
                         </div>
@@ -1006,7 +1001,7 @@ else
                         <!-- ── Lado direito ── -->
                         <div class="bkt-side bkt-right">
                             <div class="bkt-colwrap">
-                                <div class="bkt-col-label">Semi</div>
+                                <div class="bkt-col-label">Semifinal</div>
                                 <div class="bkt-col bkt-sf">
                                     <div class="bkt-cell">@renderMatch(chaveamento.SemiDir)</div>
                                 </div>
@@ -1032,6 +1027,10 @@ else
         <div class="cdm-panel @(!temGrupos && !temChave ? "active" : "")" data-cdm-panel="estatisticas">
             @await Html.PartialAsync("_LinksEstatisticasCompeticao", (2, Model.Temporada))
             @await Html.PartialAsync("_PainelEstatisticas", estatisticasTimes)
+        </div>
+
+        <div class="cdm-panel" data-cdm-panel="estat-jogadores">
+            @await Html.PartialAsync("_AbaEstatisticasJogadores", (2, Model.Temporada))
         </div>
     </div>
 

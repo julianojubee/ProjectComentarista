@@ -7,8 +7,25 @@ namespace ControleFutebolWeb.Models.ViewModels
         public Jogador Jogador { get; set; }
         public double MediaNotas { get; set; }
         public int TotalJogos { get; set; }          // jogos analisados
-        public int TotalJogosParticipados { get; set; } // total com escalação
+        public int TotalJogosParticipados { get; set; } // total com escalação (inclui banco)
         public int TotalMinutos { get; set; }     // soma dos minutos das estatísticas importadas (respeita os filtros)
+
+        /// <summary>
+        /// Jogos em que entrou em campo — o "Jogos" do resumo. TotalJogosParticipados
+        /// conta também as partidas em que ficou só no banco, e "30 jogos e 272 minutos"
+        /// fazia parecer que ele jogava 9 minutos por partida.
+        /// </summary>
+        public int JogosEmCampo => NotasPorJogo?.Count(x => x.EntrouEmCampo) ?? 0;
+
+        /// <summary>Minutos por jogo, só sobre os jogos que têm minutagem importada.</summary>
+        public int? MinutosPorJogo
+        {
+            get
+            {
+                var comMinutos = NotasPorJogo?.Count(x => x.Minutos is > 0) ?? 0;
+                return comMinutos > 0 ? (int)Math.Round((double)TotalMinutos / comMinutos) : null;
+            }
+        }
         public int TotalGols { get; set; }
         public int TotalAssistencias { get; set; }
         public List<NotaJogoItem> NotasPorJogo { get; set; }
@@ -105,6 +122,15 @@ namespace ControleFutebolWeb.Models.ViewModels
         public string Comentario { get; set; }
         public string? Posicao { get; set; }         // posição escalada nesse jogo (fase INICIAL, ou FINAL se só entrou depois)
         public int? Minutos { get; set; }            // minutos jogados (só quando há estatística importada)
+
+        /// <summary>
+        /// Entrou em campo neste jogo: tem minutos, ou (sem estatística importada) foi
+        /// escalado numa posição ou recebeu nota. Fica de fora quem só estava no banco
+        /// — o histórico lista toda partida com escalação, inclusive essas.
+        /// </summary>
+        public bool EntrouEmCampo => Minutos is int m
+            ? m > 0
+            : !string.IsNullOrWhiteSpace(Posicao) || Analisado;
         public int Gols { get; set; }
         public int Assistencias { get; set; }
         public int Cartoes { get; set; }

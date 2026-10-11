@@ -1,50 +1,67 @@
-﻿@model ControleFutebolWeb.Models.Jogo
+@model ControleFutebolWeb.Models.Jogo
+@{
+    ViewData["Title"] = "Editar jogo";
+    var resumo = ViewBag.Resumo as string;
+}
 
-<h2>Editar Jogo</h2>
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/form-card.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/select-buscavel.css" asp-append-version="true" />
 
-<form asp-action="Edit" method="post">
-    @Html.AntiForgeryToken()
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+<div class="af">
+    <div class="af-card">
+        <a asp-action="Analisar" asp-route-id="@Model.Id" class="af-voltar">Análise do jogo</a>
+        <h1 class="af-title">Editar jogo</h1>
+        @if (!string.IsNullOrEmpty(resumo))
+        {
+            <div class="af-sub">@resumo. Placar, gols e escalações são editados na análise do jogo.</div>
+        }
 
-    <input type="hidden" asp-for="Id" />
+        <form asp-action="Edit" method="post">
+            <div asp-validation-summary="ModelOnly" class="af-alerta"></div>
+            <input type="hidden" asp-for="Id" />
 
-    <div class="form-group">
-        <label asp-for="Data" class="control-label">Data do Jogo</label>
-        <input asp-for="Data" type="datetime-local" class="form-control" step="1" />
-        <span asp-validation-for="Data" class="text-danger"></span>
+            <div class="af-field">
+                <label class="af-label" for="Data">Data e hora <small>(de Brasília)</small></label>
+                <input asp-for="Data" type="datetime-local" class="af-input" step="60" />
+                <span asp-validation-for="Data" class="af-validation"></span>
+            </div>
+
+            <div class="af-linha">
+                <div class="af-field">
+                    <label class="af-label" for="TimeCasaId">Mandante</label>
+                    <select asp-for="TimeCasaId" class="af-select" asp-items="ViewBag.TimeCasaId" data-buscavel="Buscar time"></select>
+                </div>
+                <div class="af-field">
+                    <label class="af-label" for="FormacaoCasaId">Formação <small>(opcional)</small></label>
+                    <select asp-for="FormacaoCasaId" class="af-select" asp-items="ViewBag.FormacaoCasaId">
+                        <option value="">Sem formação</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="af-linha">
+                <div class="af-field">
+                    <label class="af-label" for="TimeVisitanteId">Visitante</label>
+                    <select asp-for="TimeVisitanteId" class="af-select" asp-items="ViewBag.TimeVisitanteId" data-buscavel="Buscar time"></select>
+                </div>
+                <div class="af-field">
+                    <label class="af-label" for="FormacaoVisitanteId">Formação <small>(opcional)</small></label>
+                    <select asp-for="FormacaoVisitanteId" class="af-select" asp-items="ViewBag.FormacaoVisitanteId">
+                        <option value="">Sem formação</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="af-actions">
+                <button type="submit" class="af-save">Salvar alterações</button>
+                <a asp-action="Index" class="af-cancel">Cancelar</a>
+                <a asp-action="Delete" asp-route-id="@Model.Id" class="af-perigo-link">Excluir jogo</a>
+            </div>
+        </form>
     </div>
+</div>
 
-    <div class="form-group">
-        <label asp-for="TimeCasaId" class="control-label">Time da Casa</label>
-        <select asp-for="TimeCasaId" class="form-control" asp-items="ViewBag.TimeCasaId"></select>
-    </div>
-
-    <div class="form-group">
-        <label asp-for="FormacaoCasaId" class="control-label">Formação Casa</label>
-        <select asp-for="FormacaoCasaId" class="form-control"
-                asp-items="ViewBag.FormacaoCasaId"></select>
-        <span asp-validation-for="FormacaoCasaId" class="text-danger"></span>
-    </div>
-
-    <div class="form-group">
-        <label asp-for="FormacaoVisitanteId" class="control-label">Formação Visitante</label>
-        <select asp-for="FormacaoVisitanteId" class="form-control"
-                asp-items="ViewBag.FormacaoVisitanteId"></select>
-        <span asp-validation-for="FormacaoVisitanteId" class="text-danger"></span>
-    </div>
-
-    <div class="form-group">
-        <label asp-for="TimeVisitanteId" class="control-label">Time Visitante</label>
-        <select asp-for="TimeVisitanteId" class="form-control" asp-items="ViewBag.TimeVisitanteId"></select>
-    </div>
-
-
-
-    <div class="form-group mt-2">
-        <input type="submit" value="Salvar Alterações" class="btn btn-primary" />
-        <a asp-action="Index" class="btn btn-secondary">Voltar</a>
-    </div>
-</form>
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 }

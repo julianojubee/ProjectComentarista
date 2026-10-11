@@ -3,7 +3,9 @@
    O campo do Match Up (/creators/escalacao) vem de matchup.css. */
 
 /* ── Topo e rodapé (_LayoutCreators) ─────────────────────────────────────── */
+body { font-family: 'Barlow', Arial, sans-serif; }
 .cr-topo { border-bottom: 1px solid var(--line-soft); background: var(--p-1); }
+:is(.cr-topo, .cr-wrap) :is(a, button, select, input, [tabindex]):focus-visible { outline: 2px solid #d4a520; outline-offset: 2px; }
 .cr-topo-inner {
     max-width: 1320px; margin: 0 auto; padding: 12px 1.5rem;
     display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
@@ -14,8 +16,8 @@
 
 .cr-nav { display: flex; gap: 4px; flex-wrap: wrap; }
 .cr-nav-link {
-    text-decoration: none; color: var(--text-dim); font-size: .78rem; font-weight: 700;
-    text-transform: uppercase; letter-spacing: .06em; padding: 6px 12px; border-radius: 8px;
+    text-decoration: none; color: var(--text-dim); font-size: .92rem; font-weight: 600;
+    padding: 6px 12px; border-radius: 8px;
 }
 .cr-nav-link:hover { color: var(--text-strong); background: var(--p-2, rgba(127,127,127,.12)); }
 .cr-nav-link.ativo { color: var(--gold-ink); background: rgba(212,165,32,.12); }
@@ -40,26 +42,41 @@
    toda a largura extra vai para o campo). */
 .cr-wrap-campo { max-width: min(1680px, 96vw); }
 .cr-titulo { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 2rem; font-weight: 800; color: var(--text-strong); margin: 0; line-height: 1.1; }
-.cr-sub { font-size: .82rem; color: var(--text-dim); margin: 4px 0 0; max-width: 70ch; }
+.cr-sub { font-size: .92rem; color: var(--text-dim); margin: 6px 0 0; max-width: 70ch; line-height: 1.5; }
 
 .cr-barra {
     display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap;
     margin: 20px 0 18px; padding: 14px 16px;
     background: var(--p-1); border: 1px solid var(--line-soft); border-radius: 12px;
 }
-.cr-campo-form { display: flex; flex-direction: column; gap: 4px; min-width: 190px; }
-.cr-campo-form label { font-size: .64rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); }
-.cr-campo-form select {
-    background: var(--p-0); border: 1px solid var(--line); color: var(--text-2);
-    border-radius: 8px; font-size: .82rem; font-weight: 600; padding: .42rem .6rem;
+.cr-campo-form { display: flex; flex-direction: column; gap: 4px; min-width: 210px; }
+.cr-campo-form label { font-size: .82rem; font-weight: 600; color: var(--text-muted); }
+/* Vale para o select e para o combo com busca (que copia as classes do select) */
+.cr-select {
+    height: 38px; background: var(--p-0); border: 1px solid var(--line-strong); color: var(--text);
+    border-radius: 8px; font-family: inherit; font-size: .9rem; font-weight: 600; padding: 0 .7rem; cursor: pointer;
 }
+.cr-select:hover { border-color: #d4a520; }
+.cr-trocar {
+    height: 38px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--p-0);
+    color: var(--text-2); font-family: inherit; font-size: .86rem; font-weight: 600; cursor: pointer;
+}
+.cr-trocar:hover:not(:disabled) { border-color: #d4a520; color: var(--text-strong); }
+.cr-trocar:disabled { opacity: .45; cursor: default; }
 .cr-acao {
     background: #d4a520; border: none; border-radius: 8px; color: #111;
     font-size: .8rem; font-weight: 800; padding: .5rem 1.1rem; cursor: pointer;
 }
 .cr-acao:disabled { opacity: .5; cursor: default; }
-.cr-aviso { color: var(--text-dim); font-size: .82rem; padding: 2.5rem 0; text-align: center; }
-.cr-erro { color: #f87171; font-size: .82rem; padding: 2rem 0; text-align: center; }
+.cr-aviso { color: var(--text-dim); font-size: .92rem; padding: 2.5rem 0; text-align: center; }
+.cr-erro { color: var(--bad, #ef4444); font-size: .92rem; padding: 2rem 0; text-align: center; }
+/* Antes de escolher os times: o lugar do campo já aparece, com o próximo passo */
+.cr-vazio {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    min-height: 320px; border: 1px dashed var(--line-strong); border-radius: 14px; padding: 2rem 1rem;
+    text-align: center; color: var(--text-dim); font-size: .92rem;
+}
+.cr-vazio b { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.35rem; font-weight: 800; color: var(--text-strong); }
 
 /* ── Hub (/creators) ─────────────────────────────────────────────────────── */
 .cr-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 26px; }
@@ -168,3 +185,10 @@
 .cr-confronto-pen { flex: 0 0 auto; font-size: .68rem; color: var(--text-dim); }
 .cr-confronto-rodape { margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--line-soft); font-size: .66rem; color: var(--text-dim); }
 .cr-campeao { color: var(--gold-ink); font-weight: 800; }
+
+/* Celular: cada filtro da barra ocupa a linha inteira */
+@media (max-width: 600px) {
+    .cr-campo-form { flex: 1 1 100%; min-width: 0; }
+    .cr-campo-form .sb-wrap { display: flex; }
+    .cr-trocar { flex: 1 1 100%; }
+}

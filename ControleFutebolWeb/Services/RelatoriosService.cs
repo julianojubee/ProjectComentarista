@@ -299,22 +299,10 @@ namespace ControleFutebolWeb.Services
 
                 MediasPorPosicao = new List<RelatoriosViewModel>()
                     .Select(x => new MediaPosicao()).ToList(), // placeholder, preenchido abaixo
-
-                RankImpedimentos        = RankEstatJogador(estatisticasParaRankings, e => e.Offsides, minPartidas: minJogosEstat, baseCalculo: baseEstatistica),
-                RankFinalizacoesNoGol   = RankEstatJogador(estatisticasParaRankings, e => e.FinalizacoesNoGol, minPartidas: minJogosEstat, baseCalculo: baseEstatistica),
-                RankPassesChave         = RankEstatJogador(estatisticasParaRankings, e => e.PassesChave, minPartidas: minJogosEstat, baseCalculo: baseEstatistica),
-                RankPassesCertos        = RankEstatJogador(estatisticasParaRankings, e => e.PassesCertos, minPartidas: minJogosEstat, baseCalculo: baseEstatistica),
-                RankPrecisaoPasses      = RankPrecisaoPassesJogador(estatisticasParaRankings, minPartidas: minJogosEstat),
-                RankDesarmes            = RankEstatJogador(estatisticasParaRankings, e => e.Desarmes, minPartidas: minJogosEstat, baseCalculo: baseEstatistica),
-                RankBloqueios           = RankEstatJogador(estatisticasParaRankings, e => e.Bloqueios, minPartidas: minJogosEstat, baseCalculo: baseEstatistica),
-                RankInterceptacoes      = RankEstatJogador(estatisticasParaRankings, e => e.Interceptacoes, minPartidas: minJogosEstat, baseCalculo: baseEstatistica),
-                RankDrilesCertos        = RankEstatJogador(estatisticasParaRankings, e => e.DriblesCertos, minPartidas: minJogosEstat, baseCalculo: baseEstatistica),
-                RankPenaltisDefendidos  = RankEstatJogador(estatisticasParaRankings, e => e.PenaltiDefendido, minPartidas: minJogosEstat, ordenarPorTotal: true),
-                RankVezesCapitao        = RankEstatJogador(estatisticasParaRankings, e => e.Capitao ? 1 : 0, minPartidas: minJogosEstat, ordenarPorTotal: true),
             };
 
-            vm.MelhoresJogadores = CalcularMelhoresJogadores(gols, assistencias, cartoes, estatisticasJogadores, top: 50);
-            vm.RecordesEmUmJogo  = CalcularRecordesEmUmJogo(gols, assistencias, estatisticasJogadores, jogos, top: 10);
+            PreencherEstatisticasJogadores(vm, gols, assistencias, cartoes, estatisticasJogadores,
+                estatisticasParaRankings, jogos, minJogosEstat, baseEstatistica);
 
             // Rankings por posição (usa ranking completo, sem limite de 20)
             var rankingCompleto = CalcularRankingMisto(notas, estatisticasJogadores, resultadoPorJogoTime, jogos, int.MaxValue, usuarioId, ladoPorJogadorJogo, minPartidas: minJogosEstat, contextos: contextosNota, calculadoraNota: calculadoraNota);
@@ -1002,6 +990,120 @@ namespace ControleFutebolWeb.Services
                 .OrderByDescending(x => x.Valor)
                 .Take(top)
                 .ToList();
+        }
+
+        // ── Aba "Estatísticas Jogadores" só de uma competição ──────────────────
+        // Mesmos dados da aba de /Relatorios, para a aba das telas de competição.
+        // Monta só o que ela exibe — MontarAsync calcula a tela inteira (notas,
+        // times, Match Up), caro demais para uma aba carregada sob demanda.
+        //
+        // Cobre todos os jogos realizados da competição na temporada, não só os
+        // analisados pelo usuário: a tela da competição mostra a competição inteira
+        // (a aba Estatísticas dos times também não filtra por análise).
+        public async Task<RelatoriosViewModel> MontarEstatisticasJogadoresAsync(
+            int competicaoId, int? temporada, string? usuarioId,
+            int minJogos = 1,
+            BaseEstatistica baseEstatistica = BaseEstatistica.PorJogo,
+            MandoJogador mando = MandoJogador.Todos)
+        {
+            var minJogosEstat = minJogos < 1 ? 1 : minJogos;
+
+            var jogosQuery = _context.Jogos
+                .AsNoTrackingWithIdentityResolution()
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .Where(j => j.CompeticaoId == competicaoId
+                         && j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue);
+
+            int? temporadaSelecionada = temporada
+                ?? await jogosQuery.Select(j => (int?)j.Temporada).MaxAsync();
+            if (temporadaSelecionada.HasValue)
+                jogosQuery = jogosQuery.Where(j => j.Temporada == temporadaSelecionada.Value);
+
+            var jogos = await jogosQuery.ToListAsync();
+            var jogoIds = jogos.Select(j => j.Id).ToHashSet();
+
+            var gols = await _context.Gols
+                .AsNoTrackingWithIdentityResolution()
+                .Include(g => g.Jogador).ThenInclude(j => j!.Time)
+                .Include(g => g.Jogador).ThenInclude(j => j!.Selecao)
+                .Where(g => jogoIds.Contains(g.JogoId))
+                .ToListAsync();
+
+            var assistencias = await _context.Assistencias
+                .AsNoTrackingWithIdentityResolution()
+                .Include(a => a.Jogador).ThenInclude(j => j!.Time)
+                .Include(a => a.Jogador).ThenInclude(j => j!.Selecao)
+                .Where(a => jogoIds.Contains(a.JogoId))
+                .ToListAsync();
+
+            var cartoes = await _context.Cartoes
+                .AsNoTrackingWithIdentityResolution()
+                .Include(c => c.Jogador).ThenInclude(j => j!.Time)
+                .Include(c => c.Jogador).ThenInclude(j => j!.Selecao)
+                .Where(c => jogoIds.Contains(c.JogoId))
+                .ToListAsync();
+
+            // Mesmo recorte de MontarAsync: reserva não utilizado não conta como jogo.
+            var estatisticasJogadores = await _context.EstatisticasJogador
+                .AsNoTrackingWithIdentityResolution()
+                .Include(e => e.Jogador).ThenInclude(j => j!.Time)
+                .Include(e => e.Jogador).ThenInclude(j => j!.Selecao)
+                .Where(e => jogoIds.Contains(e.JogoId) && e.Minutos != null && e.Minutos > 0)
+                .ToListAsync();
+
+            var estatisticasParaRankings = estatisticasJogadores;
+            if (mando != MandoJogador.Todos)
+            {
+                var lados = await LadoJogadorHelper.CarregarAsync(_context, jogoIds, usuarioId);
+                estatisticasParaRankings = estatisticasJogadores
+                    .Where(e => lados.TryGetValue((e.JogadorId, e.JogoId), out var atuacao)
+                             && atuacao.IsTimeCasa == (mando == MandoJogador.Casa))
+                    .ToList();
+            }
+
+            var vm = new RelatoriosViewModel
+            {
+                CompeticaoIdsFiltro = new List<int> { competicaoId },
+                TemporadaFiltro = temporadaSelecionada,
+                IncluirNaoAnalisados = true,
+                MinJogos = minJogosEstat,
+                BaseFiltro = baseEstatistica,
+                MandoFiltro = mando,
+                ExibirSelecao = await _context.Competicoes
+                    .Where(c => c.Id == competicaoId).Select(c => c.EhSelecaoNacional).FirstOrDefaultAsync(),
+                TotalJogos = jogos.Count,
+            };
+
+            PreencherEstatisticasJogadores(vm, gols, assistencias, cartoes, estatisticasJogadores,
+                estatisticasParaRankings, jogos, minJogosEstat, baseEstatistica);
+            return vm;
+        }
+
+        // Tudo o que a aba "Estatísticas Jogadores" exibe (Views/Shared/_EstatisticasJogadores).
+        // estatisticasParaRankings já vem com o recorte de mando; os cards de
+        // melhores jogadores e recordes cobrem tudo, como sempre fizeram.
+        private static void PreencherEstatisticasJogadores(
+            RelatoriosViewModel vm,
+            List<Gol> gols, List<Assistencia> assistencias, List<Cartao> cartoes,
+            List<EstatisticaJogador> estatisticasJogadores,
+            List<EstatisticaJogador> estatisticasParaRankings,
+            List<Jogo> jogos, int minJogosEstat, BaseEstatistica baseEstatistica)
+        {
+            vm.RankImpedimentos       = RankEstatJogador(estatisticasParaRankings, e => e.Offsides, minPartidas: minJogosEstat, baseCalculo: baseEstatistica);
+            vm.RankFinalizacoesNoGol  = RankEstatJogador(estatisticasParaRankings, e => e.FinalizacoesNoGol, minPartidas: minJogosEstat, baseCalculo: baseEstatistica);
+            vm.RankPassesChave        = RankEstatJogador(estatisticasParaRankings, e => e.PassesChave, minPartidas: minJogosEstat, baseCalculo: baseEstatistica);
+            vm.RankPassesCertos       = RankEstatJogador(estatisticasParaRankings, e => e.PassesCertos, minPartidas: minJogosEstat, baseCalculo: baseEstatistica);
+            vm.RankPrecisaoPasses     = RankPrecisaoPassesJogador(estatisticasParaRankings, minPartidas: minJogosEstat);
+            vm.RankDesarmes           = RankEstatJogador(estatisticasParaRankings, e => e.Desarmes, minPartidas: minJogosEstat, baseCalculo: baseEstatistica);
+            vm.RankBloqueios          = RankEstatJogador(estatisticasParaRankings, e => e.Bloqueios, minPartidas: minJogosEstat, baseCalculo: baseEstatistica);
+            vm.RankInterceptacoes     = RankEstatJogador(estatisticasParaRankings, e => e.Interceptacoes, minPartidas: minJogosEstat, baseCalculo: baseEstatistica);
+            vm.RankDrilesCertos       = RankEstatJogador(estatisticasParaRankings, e => e.DriblesCertos, minPartidas: minJogosEstat, baseCalculo: baseEstatistica);
+            vm.RankPenaltisDefendidos = RankEstatJogador(estatisticasParaRankings, e => e.PenaltiDefendido, minPartidas: minJogosEstat, ordenarPorTotal: true);
+            vm.RankVezesCapitao       = RankEstatJogador(estatisticasParaRankings, e => e.Capitao ? 1 : 0, minPartidas: minJogosEstat, ordenarPorTotal: true);
+
+            vm.MelhoresJogadores = CalcularMelhoresJogadores(gols, assistencias, cartoes, estatisticasJogadores, top: 50);
+            vm.RecordesEmUmJogo  = CalcularRecordesEmUmJogo(gols, assistencias, estatisticasJogadores, jogos, top: 10);
         }
 
         // ── "Melhores jogadores" ────────────────────────────────────────────────

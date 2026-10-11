@@ -5,9 +5,8 @@
     ViewData["Title"] = "Jogos";
 
     var competicoesMap = Model.CompeticoesMap ?? new Dictionary<int, string>();
-    var totalJogos = Model.TotalJogos;
-    var jogosFinalizados = Model.TotalFinalizados;
-    var jogosAgendados = Model.TotalAgendados;
+    var ptBR = new System.Globalization.CultureInfo("pt-BR");
+    string Milhar(int n) => n.ToString("N0", ptBR);
 
     // Preserva os filtros atuais nos links de paginação
     Func<int, Dictionary<string, string?>> rotaPagina = (p) => new Dictionary<string, string?>
@@ -22,380 +21,357 @@
     };
 
     bool temFiltro = Model.CompeticaoIdFiltro.HasValue || Model.TeamIdFiltro.HasValue
-        || !string.IsNullOrEmpty(Model.StatusFiltro) && Model.StatusFiltro != "all"
+        || (!string.IsNullOrEmpty(Model.StatusFiltro) && Model.StatusFiltro != "all")
         || !string.IsNullOrEmpty(Model.StartDate) || !string.IsNullOrEmpty(Model.EndDate);
 
-    // Cores por competição (igual ao layout enviado: cada campeonato tem uma cor de badge)
-    (string bg, string border, string text) CorCompeticao(string? nome)
+    // Lista agrupada pelo dia no horário de Brasília (a lista já vem do mais novo pro mais antigo)
+    var agora = DateTime.UtcNow;
+    var hojeBr = DateHelper.ParaBrasilia(agora)!.Value.Date;
+    var dias = Model.Jogos
+        .GroupBy(j => DateHelper.ParaBrasilia(j.Data)?.Date)
+        .ToList();
+    string RotuloDia(DateTime? d)
     {
-        var n = (nome ?? "").ToLowerInvariant();
-        if (n.Contains("brasileir"))      return ("rgba(34,197,94,0.12)",  "rgba(34,197,94,0.3)",  "var(--ok)");
-        if (n.Contains("copa do brasil")) return ("rgba(255,215,0,0.12)",  "rgba(255,215,0,0.3)",  "var(--warn)");
-        if (n.Contains("libertadores"))   return ("rgba(59,130,246,0.12)","rgba(59,130,246,0.3)", "var(--info)");
-        if (n.Contains("champions"))      return ("rgba(168,85,247,0.12)","rgba(168,85,247,0.3)", "var(--purple)");
-        return ("rgba(107,114,128,0.12)", "rgba(107,114,128,0.3)", "var(--text-muted)");
+        if (d == null) return "Sem data";
+        var dia = d.Value;
+        var prefixo = dia == hojeBr ? "Hoje, " : dia == hojeBr.AddDays(-1) ? "Ontem, " : dia == hojeBr.AddDays(1) ? "Amanhã, " : "";
+        var texto = dia.ToString(dia.Year == hojeBr.Year ? "dddd, d 'de' MMMM" : "dddd, d 'de' MMMM 'de' yyyy", ptBR);
+        texto = prefixo + texto;
+        return char.ToUpper(texto[0]) + texto[1..];
     }
+
+    string Iniciais(string? nome) => string.IsNullOrEmpty(nome) ? "?" : nome.Length >= 3 ? nome[..3].ToUpper() : nome.ToUpper();
 }
 
 <link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
 
 <style>
-    .jgs * { box-sizing: border-box; }
-
+    .jgs, .jgs *, .jgs *::before, .jgs *::after { box-sizing: border-box; }
     .jgs {
-        margin: 0 -12px;
-        background: var(--p-0);
-        color: var(--text);
-        font-family: 'Barlow', Arial, sans-serif;
-        border-radius: 14px;
-        overflow: hidden;
+        margin: 0 -12px; background: var(--p-0); color: var(--text);
+        font-family: 'Barlow', Arial, sans-serif; border-radius: 14px;
     }
     .jgs a { text-decoration: none; color: inherit; }
-    .jgs h1 { font-family: 'Barlow Condensed', Arial, sans-serif; }
+    .jgs :is(a, button, input, select, summary):focus-visible { outline: 2px solid #d4a520; outline-offset: 2px; }
 
-    /* ── Hero ────────────────────────────────────── */
-    .jgs-hero {
-        position: relative;
-        overflow: hidden;
-        background: linear-gradient(135deg, #060d1a 0%, #0d1e35 55%, #060d1a 100%);
-        padding: 44px 72px 38px;
+    /* ── Cabeçalho compacto (sempre escuro: cores fixas) ── */
+    .jgs-cab {
+        padding: 1.5rem 2.5rem; border-radius: 14px 14px 0 0;
+        background: linear-gradient(135deg, #0a1628 0%, #0f2040 55%, #0a1628 100%);
+        border-left: 4px solid #d4a520;
+        display: flex; align-items: center; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap;
     }
-    .jgs-hero-pattern { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.05; pointer-events: none; }
-    .jgs-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #d4a520; }
-    .jgs-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(to top, var(--page-bg), transparent); pointer-events: none; }
-
-    .jgs-hero-scene { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 290px; z-index: 0; }
-    .jgs-hero-scene img {
-        display: block; width: 100%; height: auto;
-        mix-blend-mode: screen;
-        filter: brightness(0.7) contrast(8);
+    .jgs-cab h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 2.4rem; font-weight: 800; color: #f2f5fa; margin: 0; line-height: 1; }
+    .jgs-cab p { margin: 6px 0 0; font-size: .92rem; color: rgba(255,255,255,.72); }
+    .jgs-cab p strong { color: #f3d27a; font-weight: 700; }
+    .jgs-cab-acoes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .jgs .jgs-cab-btn {
+        display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 8px;
+        border: 1px solid rgba(255,255,255,.25); color: #e8edf5; font-size: .88rem; font-weight: 600; white-space: nowrap;
     }
-    @@media (max-width: 1100px) { .jgs-hero-scene { display: none; } }
+    .jgs .jgs-cab-btn:hover { border-color: #d4a520; color: #f3d27a; }
+    .jgs .jgs-novo { background: #d4a520; border-color: #d4a520; color: #141414; font-weight: 700; }
+    .jgs .jgs-novo:hover { background: #e2b532; color: #141414; }
 
-    .jgs-hero-row {
-        position: relative; z-index: 1;
-        display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 24px;
+    /* ── Filtros ── */
+    .jgs-filtros { background: var(--p-1); border-bottom: 1px solid var(--line); padding: 14px 2.5rem; }
+    .jgs-filtros form { display: flex; align-items: flex-end; gap: 10px 12px; flex-wrap: wrap; margin: 0; }
+    .jgs-campo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .jgs-campo label { font-size: .78rem; font-weight: 600; color: var(--text-muted); margin: 0; }
+    /* .jgs-sel vale para o <select> e para o botão que o select-buscavel.js põe no
+       lugar dele (o componente copia as classes do select original). */
+    .jgs .jgs-sel, .jgs-filtros input[type=date] {
+        height: 38px; background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 8px;
+        color: var(--text); font-size: .86rem; padding: 0 10px; font-family: inherit; max-width: 240px; cursor: pointer;
     }
-    .jgs-hero-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-    .jgs-hero-kicker-line { height: 2px; width: 28px; background: #d4a520; }
-    .jgs-hero-kicker span { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.28em; color: var(--gold-ink); text-transform: uppercase; }
-    .jgs-hero h1 { font-size: 3.4rem; font-weight: 800; color: var(--text-strong); margin: 0 0 8px; line-height: 1; }
-    .jgs-hero p { font-size: 0.9rem; color: var(--text-dim); margin: 0; }
-
-    .jgs-kpis { display: flex; gap: 28px; align-items: center; flex-shrink: 0; }
-    .jgs-kpi-num { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 2.2rem; font-weight: 800; line-height: 1; }
-    .jgs-kpi-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; color: var(--text-dimmer); text-transform: uppercase; margin-top: 3px; }
-    .jgs-kpi-sep { width: 1px; height: 36px; background: #1e2d45; }
-
-    /* ── Filtros ─────────────────────────────────── */
-    .jgs-filters { background: var(--p-1); border-bottom: 1px solid var(--line); padding: 14px 72px; position: sticky; top: 62px; z-index: 50; }
-    .jgs-filters-row { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-
-    .jgs-select-wrap { position: relative; }
-    .jgs-select-chevron { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: var(--text-dimmer); pointer-events: none; }
-
-    .jgs-select {
-        appearance: none; background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 8px;
-        color: var(--text-muted); font-size: 0.83rem; padding: 9px 28px 9px 12px; cursor: pointer; outline: none;
-        font-family: inherit;
+    .jgs .jgs-sel:focus, .jgs-filtros input:focus { border-color: #d4a520; outline: none; }
+    .jgs .jgs-sel:disabled { opacity: .5; cursor: default; }
+    .jgs-campo.largo .jgs-sel, .jgs-campo.largo .sb-wrap { width: 230px; max-width: 100%; }
+    .jgs-acoes-filtro { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+    .jgs-aplicar {
+        height: 38px; padding: 0 18px; border-radius: 8px; border: none; cursor: pointer;
+        background: var(--text-strong); color: var(--p-0); font-family: inherit; font-size: .88rem; font-weight: 700;
     }
-    .jgs-select:focus { border-color: #d4a520; }
+    .jgs-aplicar:hover { opacity: .88; }
+    .jgs .jgs-limpar { font-size: .84rem; font-weight: 600; color: var(--text-muted); }
+    .jgs .jgs-limpar:hover { color: var(--text-strong); text-decoration: underline; }
 
-    .jgs-date {
-        background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 8px; color: var(--text-muted);
-        font-size: 0.83rem; padding: 9px 12px; outline: none; cursor: pointer; font-family: inherit;
-        color-scheme: dark;
+    /* ── Lista ── */
+    .jgs-lista { padding: 8px 2.5rem 56px; max-width: 1400px; margin: 0 auto; }
+    .jgs-alerta { margin: 16px 0 0; padding: .8rem 1rem; border-radius: 10px; font-size: .88rem; }
+    .jgs-alerta.ok { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); color: var(--ok); }
+    .jgs-alerta.aviso { background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.3); color: var(--warn); }
+    .jgs-alerta.erro { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); color: var(--bad); }
+
+    .jgs-dia { margin-top: 22px; scroll-margin-top: 12px; }
+    .jgs-dia > h2 {
+        font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.3rem; font-weight: 700;
+        color: var(--text-strong); margin: 0 0 8px; display: flex; align-items: baseline; gap: 8px;
     }
-    .jgs-date:focus { border-color: #d4a520; }
-    .jgs-date-sep { color: var(--text-dimmer); font-size: 0.8rem; }
-
-    .jgs-subtitulo { font-size: 0.75rem; color: var(--text-dimmer); font-weight: 600; }
-
-    .jgs-btn { display: flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 8px; font-size: 0.82rem; font-weight: 800; border: none; cursor: pointer; flex-shrink: 0; }
-    .jgs-btn-gold { background: #d4a520; color: #141414; }
-    .jgs-btn-gold:hover { background: #c49918; }
-    .jgs-btn-green { background: #16a34a; color: #fff; }
-    .jgs-btn-green:hover { background: #15803d; }
-    .jgs-btn-ghost { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: var(--text-muted); }
-    .jgs-btn-ghost:hover { border-color: #d4a520; color: var(--gold-ink); }
-
-    /* ── Lista ───────────────────────────────────── */
-    .jgs-list-wrap { padding: 24px 72px 64px; max-width: 1544px; margin: 0 auto; }
-
-    .jgs-col-headers {
-        display: grid; grid-template-columns: 100px 160px 1fr 120px 1fr 220px; gap: 12px;
-        padding: 8px 16px; margin-bottom: 4px;
-    }
-    .jgs-col-headers span { font-size: 0.62rem; color: #374151; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }
+    .jgs-dia > h2 small { font-family: 'Barlow', Arial, sans-serif; font-size: .82rem; font-weight: 500; color: var(--text-dim); }
+    .jgs-dia-lista { list-style: none; margin: 0; padding: 0; background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; }
 
     .jgs-row {
-        display: grid; grid-template-columns: 100px 160px 1fr 120px 1fr 220px; gap: 12px; align-items: center;
-        padding: 11px 16px; background: var(--p-1); border: 1px solid var(--line-soft); border-radius: 10px;
-        margin-bottom: 6px; transition: border-color 0.15s, background 0.15s;
+        position: relative; display: grid; align-items: center; gap: 12px;
+        grid-template-columns: 54px minmax(0, 1fr) 96px minmax(0, 1fr) minmax(0, 190px) auto;
+        padding: 10px 14px; border-top: 1px solid var(--line-soft);
     }
-    .jgs-row:hover { background: var(--p-2); border-color: var(--line-strong); }
+    .jgs-row:first-child { border-top: none; border-radius: 12px 12px 0 0; }
+    .jgs-row:last-child { border-radius: 0 0 12px 12px; }
+    .jgs-row:hover { background: var(--p-2); }
+    .jgs-hora { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.05rem; font-weight: 700; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 
-    .jgs-data-dia { font-size: 0.8rem; font-weight: 600; color: var(--text); }
-    .jgs-data-hora { font-size: 0.68rem; color: var(--text-dimmer); margin-top: 1px; }
-
-    .jgs-comp-badge {
-        display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 5px;
-        font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; white-space: nowrap;
-        overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+    .jgs-time { display: flex; align-items: center; gap: 9px; min-width: 0; font-size: .92rem; color: var(--text-muted); }
+    .jgs-time.casa { justify-content: flex-end; text-align: right; }
+    .jgs-time span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .jgs-time.venceu { color: var(--text-strong); font-weight: 700; }
+    .jgs-escudo {
+        width: 26px; height: 26px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+        font-size: .62rem; font-weight: 700; color: var(--text-dim);
     }
+    .jgs-escudo img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
-    .jgs-team-cell { display: flex; align-items: center; gap: 8px; min-width: 0; }
-    .jgs-team-badge {
-        width: 28px; height: 28px; border-radius: 50%; background: var(--p-0); border: 1px solid var(--line-strong);
-        display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;
-        font-size: 9px; font-weight: 700; color: var(--text-dim);
-    }
-    .jgs-team-badge img { width: 90%; height: 90%; object-fit: contain; }
-    .jgs-team-cell span { font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* O link do placar cobre a linha inteira (abre a análise); ações ficam por cima */
+    .jgs .jgs-placar { text-align: center; line-height: 1.1; }
+    .jgs .jgs-placar::after { content: ""; position: absolute; inset: 0; }
+    .jgs-placar b { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.35rem; font-weight: 800; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+    .jgs-placar small { display: block; font-size: .72rem; color: var(--text-dim); }
+    .jgs-placar .futuro { font-size: .84rem; font-weight: 600; color: var(--text-dim); }
+    .jgs-placar .pendente { font-size: .8rem; font-weight: 600; color: var(--warn); }
+    .jgs .jgs-row:hover .jgs-placar b { color: var(--gold-ink); }
 
-    .jgs-score-wrap { text-align: center; }
-    .jgs-score {
-        font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.2rem; font-weight: 800; color: var(--text-strong);
-        background: var(--p-0); padding: 3px 12px; border-radius: 6px; letter-spacing: 0.08em; white-space: nowrap;
-    }
-    .jgs-pen { display: block; font-size: 0.6rem; color: var(--text-dim); margin-top: 2px; }
-    .jgs-agendado {
-        font-size: 0.72rem; font-weight: 600; color: var(--info); background: rgba(59,130,246,0.1);
-        border: 1px solid rgba(59,130,246,0.25); padding: 3px 10px; border-radius: 6px; white-space: nowrap;
-    }
+    .jgs .jgs-comp { position: relative; z-index: 1; font-size: .82rem; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .jgs .jgs-comp:hover { color: var(--text-strong); text-decoration: underline; }
 
-    .jgs-actions { display: flex; align-items: center; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
-    .jgs-actions a {
-        font-size: 0.7rem; padding: 4px 10px; border-radius: 6px; font-weight: 700; flex-shrink: 0; white-space: nowrap;
+    .jgs-acoes { position: relative; z-index: 2; display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
+    .jgs-analisado { font-size: .76rem; font-weight: 600; color: var(--ok); white-space: nowrap; margin-right: 4px; }
+    .jgs .jgs-acao {
+        display: inline-flex; align-items: center; padding: 5px 9px; border-radius: 7px; border: 1px solid transparent;
+        background: transparent; color: var(--text-muted); font-family: inherit; font-size: .84rem; font-weight: 600; cursor: pointer;
     }
-    .jgs-act-detalhes { background: transparent; border: 1px solid #3b82f6; color: var(--info); }
-    .jgs-act-detalhes:hover { background: rgba(59,130,246,0.1); }
-    .jgs-badge-analisado {
-        font-size: 0.65rem; padding: 3px 8px; background: rgba(34,197,94,0.1);
-        border: 1px solid rgba(34,197,94,0.25); border-radius: 5px; color: var(--ok); font-weight: 700;
-        white-space: nowrap;
+    .jgs .jgs-acao:hover { border-color: var(--line-strong); color: var(--text-strong); background: var(--p-0); }
+    .jgs-menu { position: relative; }
+    .jgs-menu > summary { list-style: none; }
+    .jgs-menu > summary::-webkit-details-marker { display: none; }
+    .jgs-menu:not([open]) .jgs-menu-lista { display: none; }
+    .jgs-menu-lista {
+        position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 170px;
+        display: flex; flex-direction: column; padding: 6px;
+        background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: 0 10px 24px rgba(0,0,0,.18);
     }
-    .jgs-act-editar { background: #d97706; border: 1px solid #d97706; color: #fff; }
-    .jgs-act-editar:hover { background: #b45309; }
-    .jgs-act-excluir { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: var(--bad); }
-    .jgs-act-excluir:hover { background: rgba(239,68,68,0.15); }
+    .jgs .jgs-menu-item { display: block; padding: 8px 10px; border-radius: 7px; font-size: .86rem; font-weight: 600; color: var(--text); }
+    .jgs .jgs-menu-item:hover { background: var(--p-4); color: var(--text-strong); }
+    .jgs .jgs-menu-item.perigo { color: var(--bad); }
 
-    .jgs-empty { text-align: center; color: var(--text-dim); padding: 3rem 1rem; font-size: 0.9rem; background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; }
+    .jgs-vazio { margin-top: 22px; text-align: center; color: var(--text-dim); padding: 3rem 1rem; background: var(--p-1); border: 1px dashed var(--line); border-radius: 12px; }
+    .jgs .jgs-vazio a { color: var(--gold-ink); text-decoration: underline; }
 
-    /* ── Paginação ───────────────────────────────── */
-    .jgs-pager { display: flex; align-items: center; justify-content: space-between; margin-top: 28px; flex-wrap: wrap; gap: 12px; }
-    .jgs-pager-info { font-size: 0.75rem; color: var(--text-dimmer); }
+    /* ── Paginação ── */
+    .jgs-pager { display: flex; align-items: center; justify-content: space-between; margin-top: 24px; flex-wrap: wrap; gap: 12px; }
+    .jgs-pager-info { font-size: .86rem; color: var(--text-dim); }
     .jgs-pager-nav { display: flex; align-items: center; gap: 8px; }
-    .jgs-pager-btn {
-        padding: 8px 16px; background: var(--p-1); border: 1px solid var(--line-strong); border-radius: 8px;
-        color: var(--text-dim); font-size: 0.82rem; cursor: pointer; font-weight: 600;
-    }
-    .jgs-pager-btn:hover { border-color: #d4a520; color: var(--gold-ink); }
-    .jgs-pager-btn.disabled { opacity: 0.4; pointer-events: none; }
-    .jgs-pager-cur { font-size: 0.78rem; color: var(--text-dimmer); padding: 0 8px; }
+    .jgs .jgs-pager-btn { padding: 8px 14px; background: var(--p-1); border: 1px solid var(--line-strong); border-radius: 8px; color: var(--text-muted); font-size: .86rem; font-weight: 600; }
+    .jgs .jgs-pager-btn:hover { border-color: #d4a520; color: var(--gold-ink); }
+    .jgs-pager-btn.disabled { opacity: .4; pointer-events: none; }
+    .jgs-pager-cur { font-size: .86rem; color: var(--text-dim); padding: 0 6px; }
 
     @@media (max-width: 900px) {
-        .jgs-row, .jgs-col-headers { grid-template-columns: 90px 1fr 100px; }
-        .jgs-col-headers span:nth-child(2), .jgs-col-headers span:nth-child(5), .jgs-col-headers span:nth-child(6) { display: none; }
-        .jgs-row { grid-template-areas: "data comp comp" "casa casa placar" "vis vis placar" "acoes acoes acoes"; grid-template-columns: 1fr 1fr 100px; }
-        .jgs-row > *:nth-child(1) { grid-area: data; }
-        .jgs-row > *:nth-child(2) { grid-area: comp; }
-        .jgs-row > *:nth-child(3) { grid-area: casa; }
-        .jgs-row > *:nth-child(4) { grid-area: placar; }
-        .jgs-row > *:nth-child(5) { grid-area: vis; }
-        .jgs-row > *:nth-child(6) { grid-area: acoes; margin-top: 6px; justify-content: flex-start; }
+        .jgs-row {
+            grid-template-columns: 46px minmax(0, 1fr) auto;
+            grid-template-areas: "hora casa placar" "hora vis placar" "comp comp acoes";
+            row-gap: 4px;
+        }
+        .jgs-row > .jgs-hora { grid-area: hora; align-self: start; padding-top: 3px; }
+        .jgs-row > .jgs-time.casa { grid-area: casa; justify-content: flex-end; text-align: left; flex-direction: row-reverse; }
+        .jgs-row > .jgs-placar { grid-area: placar; }
+        .jgs-row > .jgs-time.vis { grid-area: vis; }
+        .jgs-row > .jgs-comp { grid-area: comp; padding-left: 0; }
+        .jgs-row > .jgs-acoes { grid-area: acoes; }
     }
-    @@media (max-width: 640px) {
-        .jgs-hero, .jgs-filters, .jgs-list-wrap { padding-left: 1.2rem; padding-right: 1.2rem; }
-        .jgs-hero h1 { font-size: 2rem; }
+    @@media (max-width: 760px) {
+        .jgs-cab, .jgs-filtros, .jgs-lista { padding-left: 1rem; padding-right: 1rem; }
+        .jgs-cab h1 { font-size: 2rem; }
+        .jgs-campo { flex: 1 1 45%; }
+        .jgs-campo.largo { flex-basis: 100%; }
+        .jgs .jgs-sel, .jgs-filtros input[type=date], .jgs-campo .sb-wrap,
+        .jgs-campo.largo .jgs-sel, .jgs-campo.largo .sb-wrap { max-width: none; width: 100%; }
+        .jgs-acoes-filtro { margin-left: 0; flex: 1 1 100%; }
+        .jgs-aplicar { flex: 1; }
     }
 </style>
 
 <div class="jgs">
 
-    @if (TempData["Sucesso"] != null)
-    {
-        <div class="alert alert-success m-3">@TempData["Sucesso"]</div>
-    }
-    @if (TempData["Aviso"] != null)
-    {
-        <div class="alert alert-warning m-3">@TempData["Aviso"]</div>
-    }
-    @if (TempData["Erro"] != null)
-    {
-        <div class="alert alert-danger m-3">@TempData["Erro"]</div>
-    }
-
-    <!-- Hero -->
-    <div class="jgs-hero theme-dark-zone">
-        <img class="jgs-hero-pattern" src="~/Images/banner/escudos-pattern.svg" alt="" />
-        <div class="jgs-hero-stripe"></div>
-        <div class="jgs-hero-fade"></div>
-        <div class="jgs-hero-scene" aria-hidden="true">
-            <img src="~/Images/banner/calendario.png" alt="" />
+    <div class="jgs-cab theme-dark-zone">
+        <div>
+            <h1>Jogos</h1>
+            <p>
+                <strong>@Milhar(Model.TotalJogos)</strong> @(Model.TotalJogos == 1 ? "jogo" : "jogos")@(temFiltro ? " com os filtros" : ""),
+                @Milhar(Model.TotalFinalizados) com placar e @Milhar(Model.TotalAgendados) sem placar
+            </p>
         </div>
-        <div class="jgs-hero-row">
-            <div>
-                <div class="jgs-hero-kicker">
-                    <div class="jgs-hero-kicker-line"></div>
-                    <span>Central de partidas</span>
-                </div>
-                <h1>Jogos</h1>
-                <p>Visualize confrontos, placares e acesse o detalhe de cada partida.</p>
-            </div>
-            <div class="jgs-kpis">
-                <div>
-                    <div class="jgs-kpi-num" style="color:var(--gold-ink)">@totalJogos</div>
-                    <div class="jgs-kpi-label">Total</div>
-                </div>
-                <div class="jgs-kpi-sep"></div>
-                <div>
-                    <div class="jgs-kpi-num" style="color:var(--ok-2)">@jogosFinalizados</div>
-                    <div class="jgs-kpi-label">Finalizados</div>
-                </div>
-                <div class="jgs-kpi-sep"></div>
-                <div>
-                    <div class="jgs-kpi-num" style="color:var(--info)">@jogosAgendados</div>
-                    <div class="jgs-kpi-label">Agendados</div>
-                </div>
-            </div>
+        <div class="jgs-cab-acoes">
+            <a asp-action="Hoje" class="jgs-cab-btn">Jogos de hoje</a>
+            <a asp-action="Create" class="jgs-cab-btn jgs-novo">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                Novo jogo
+            </a>
         </div>
     </div>
 
-    <!-- Filtros -->
-    <div class="jgs-filters">
-        <form method="get" asp-action="Index" class="jgs-filters-row">
-            <div class="jgs-select-wrap">
-                <select id="competicaoId" name="competicaoId" asp-items="Model.CompeticaoList" class="jgs-select" data-buscavel="Buscar campeonato…">
-                    <option value="">Todos os campeonatos</option>
+    <div class="jgs-filtros">
+        <form method="get" asp-action="Index">
+            <div class="jgs-campo largo">
+                <label for="competicaoId">Competição</label>
+                <select id="competicaoId" name="competicaoId" class="jgs-sel" asp-items="Model.CompeticaoList" data-buscavel="Buscar competição">
+                    <option value="">Todas</option>
                 </select>
-                <div class="jgs-select-chevron"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg></div>
             </div>
-
-            <div class="jgs-select-wrap">
-                <select id="teamId" name="teamId" asp-items="Model.TimeList" class="jgs-select" data-buscavel="Buscar time…">
-                    <option value="">Todos os times</option>
+            <div class="jgs-campo largo">
+                <label for="teamId">Time</label>
+                <select id="teamId" name="teamId" class="jgs-sel" asp-items="Model.TimeList" data-buscavel="Buscar time">
+                    <option value="">Todos</option>
                 </select>
-                <div class="jgs-select-chevron"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg></div>
             </div>
-
-            <div class="jgs-select-wrap">
-                <select id="status" name="status" asp-items="Model.StatusList" class="jgs-select"></select>
-                <div class="jgs-select-chevron"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg></div>
+            <div class="jgs-campo">
+                <label for="location">Mando do time</label>
+                <select id="location" name="location" class="jgs-sel" asp-items="Model.LocationList" disabled="@(!Model.TeamIdFiltro.HasValue)"></select>
             </div>
-
-            <input type="date" id="startDate" name="startDate" value="@Model.StartDate" class="jgs-date" />
-            <span class="jgs-date-sep">–</span>
-            <input type="date" id="endDate" name="endDate" value="@Model.EndDate" class="jgs-date" />
-
-            <span class="jgs-subtitulo">@totalJogos jogo@(totalJogos == 1 ? "" : "s")</span>
-
-            <div style="flex:1;"></div>
-
-            @if (temFiltro)
-            {
-                <a asp-action="Index" class="jgs-btn jgs-btn-ghost">✕ Limpar</a>
-            }
-            <button type="submit" class="jgs-btn jgs-btn-gold" style="display:inline-block;">Filtrar</button>
-            <a asp-action="Create" class="jgs-btn jgs-btn-green">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                Novo Jogo
-            </a>
+            <div class="jgs-campo">
+                <label for="status">Placar</label>
+                <select id="status" name="status" class="jgs-sel" asp-items="Model.StatusList"></select>
+            </div>
+            <div class="jgs-campo">
+                <label for="startDate">De</label>
+                <input type="date" id="startDate" name="startDate" value="@Model.StartDate" />
+            </div>
+            <div class="jgs-campo">
+                <label for="endDate">Até</label>
+                <input type="date" id="endDate" name="endDate" value="@Model.EndDate" />
+            </div>
+            <div class="jgs-acoes-filtro">
+                @if (temFiltro)
+                {
+                    <a asp-action="Index" class="jgs-limpar">Limpar filtros</a>
+                }
+                <button type="submit" class="jgs-aplicar">Aplicar filtros</button>
+            </div>
         </form>
     </div>
 
-    <div class="jgs-list-wrap">
-
-        <div class="jgs-col-headers">
-            <span>Data</span>
-            <span>Competição</span>
-            <span>Casa</span>
-            <span style="text-align:center;">Placar</span>
-            <span>Visitante</span>
-            <span style="text-align:right;">Ações</span>
-        </div>
+    <div class="jgs-lista">
+        @if (TempData["Sucesso"] != null) { <div class="jgs-alerta ok" role="status">@TempData["Sucesso"]</div> }
+        @if (TempData["Aviso"] != null) { <div class="jgs-alerta aviso" role="status">@TempData["Aviso"]</div> }
+        @if (TempData["Erro"] != null) { <div class="jgs-alerta erro" role="alert">@TempData["Erro"]</div> }
 
         @if (!Model.Jogos.Any())
         {
-            <div class="jgs-empty">Nenhum jogo encontrado com os filtros selecionados.</div>
+            <div class="jgs-vazio">
+                @if (temFiltro)
+                {
+                    <text>Nenhum jogo com esses filtros. <a asp-action="Index">Limpar filtros</a></text>
+                }
+                else
+                {
+                    <text>Nenhum jogo cadastrado. Importe os jogos pela página da competição ou <a asp-action="Create">cadastre um</a>.</text>
+                }
+            </div>
         }
-        else
+
+        @{
+            // Primeiro dia que já chegou (hoje ou o mais recente antes dele): é onde a
+            // tela para quando abre "na data de hoje".
+            var diaAtual = dias.FirstOrDefault(d => d.Key.HasValue && d.Key.Value <= hojeBr)?.Key;
+        }
+        @foreach (var dia in dias)
         {
-            @foreach (var jogo in Model.Jogos)
-            {
-                var nomeCompeticao = competicoesMap.TryGetValue(jogo.CompeticaoId, out var nome) ? nome : "Sem competição";
-                var linkCompeticao = jogo.CompeticaoId == 1
-                    ? Url.Action("Brasileirao", "Tabela")
-                    : Url.Action("Detalhes", "Competicoes", new { id = jogo.CompeticaoId });
-                bool finalizado = jogo.PlacarCasa >= 0 && jogo.PlacarVisitante >= 0;
-                bool casaVenceu = finalizado && jogo.PlacarCasa > jogo.PlacarVisitante;
-                bool visVenceu = finalizado && jogo.PlacarVisitante > jogo.PlacarCasa;
-                var cor = CorCompeticao(nomeCompeticao);
+            <section class="jgs-dia" id="@(Model.AbriuEmHoje && dia.Key == diaAtual ? "hoje" : null)">
+                <h2>@RotuloDia(dia.Key) <small>@(dia.Count() == 1 ? "1 jogo" : $"{dia.Count()} jogos")</small></h2>
+                <ul class="jgs-dia-lista">
+                    @* Dentro do dia, na ordem do horário (a lista em si vem do dia mais novo para o mais antigo) *@
+                    @foreach (var jogo in dia.OrderBy(j => j.Data))
+                    {
+                        var nomeCompeticao = competicoesMap.TryGetValue(jogo.CompeticaoId, out var nome) ? nome : "Sem competição";
+                        bool finalizado = jogo.PlacarCasa >= 0 && jogo.PlacarVisitante >= 0;
+                        bool casaVenceu = finalizado && (jogo.PlacarCasa > jogo.PlacarVisitante
+                            || (jogo.PlacarCasa == jogo.PlacarVisitante && jogo.PenaltisCasa > jogo.PenaltisVisitante));
+                        bool visVenceu = finalizado && (jogo.PlacarVisitante > jogo.PlacarCasa
+                            || (jogo.PlacarCasa == jogo.PlacarVisitante && jogo.PenaltisVisitante > jogo.PenaltisCasa));
+                        bool jaPassou = jogo.Data.HasValue && jogo.Data.Value < agora;
 
-                <div class="jgs-row">
-                    <div>
-                        <div class="jgs-data-dia">@DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy")</div>
-                        <div class="jgs-data-hora">@DateHelper.FormatarData(jogo.Data, "HH:mm")</div>
-                    </div>
+                        <li class="jgs-row">
+                            <span class="jgs-hora">@(jogo.Data.HasValue ? DateHelper.FormatarData(jogo.Data, "HH:mm") : "")</span>
 
-                    <div>
-                        <a href="@linkCompeticao" class="jgs-comp-badge" style="background:@cor.bg;border:1px solid @cor.border;color:@cor.text;">@nomeCompeticao</a>
-                    </div>
+                            <span class="jgs-time casa @(casaVenceu ? "venceu" : "")">
+                                <span>@jogo.TimeCasa?.Nome</span>
+                                <span class="jgs-escudo">
+                                    @if (!string.IsNullOrWhiteSpace(jogo.TimeCasa?.EscudoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa.EscudoUrl })" alt="" loading="lazy" />
+                                    }
+                                    else
+                                    {
+                                        <text>@Iniciais(jogo.TimeCasa?.Nome)</text>
+                                    }
+                                </span>
+                            </span>
 
-                    <div class="jgs-team-cell">
-                        <div class="jgs-team-badge">
-                            @if (!string.IsNullOrWhiteSpace(jogo.TimeCasa?.EscudoUrl))
-                            {
-                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa.EscudoUrl })" alt="@jogo.TimeCasa.Nome" />
-                            }
-                            else
-                            {
-                                @(jogo.TimeCasa?.Nome?.Length >= 3 ? jogo.TimeCasa.Nome.Substring(0, 3).ToUpper() : jogo.TimeCasa?.Nome)
-                            }
-                        </div>
-                        <span style="font-weight:@(casaVenceu ? "700" : "500"); color:@(casaVenceu ? "var(--text-strong)" : "var(--text-dim)");">@jogo.TimeCasa?.Nome</span>
-                    </div>
+                            <a asp-action="Analisar" asp-route-id="@jogo.Id" class="jgs-placar"
+                               aria-label="Analisar @jogo.TimeCasa?.Nome x @jogo.TimeVisitante?.Nome">
+                                @if (finalizado)
+                                {
+                                    <b>@jogo.PlacarCasa x @jogo.PlacarVisitante</b>
+                                    @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
+                                    {
+                                        <small>@jogo.PenaltisCasa x @jogo.PenaltisVisitante nos pênaltis</small>
+                                    }
+                                }
+                                else if (jaPassou)
+                                {
+                                    <span class="pendente">Sem placar</span>
+                                }
+                                else
+                                {
+                                    <span class="futuro">A jogar</span>
+                                }
+                            </a>
 
-                    <div class="jgs-score-wrap">
-                        @if (finalizado)
-                        {
-                            <span class="jgs-score">@jogo.PlacarCasa &ndash; @jogo.PlacarVisitante</span>
-                            @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
-                            {
-                                <span class="jgs-pen">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</span>
-                            }
-                        }
-                        else
-                        {
-                            <span class="jgs-agendado">Agendado</span>
-                        }
-                    </div>
+                            <span class="jgs-time vis @(visVenceu ? "venceu" : "")">
+                                <span class="jgs-escudo">
+                                    @if (!string.IsNullOrWhiteSpace(jogo.TimeVisitante?.EscudoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante.EscudoUrl })" alt="" loading="lazy" />
+                                    }
+                                    else
+                                    {
+                                        <text>@Iniciais(jogo.TimeVisitante?.Nome)</text>
+                                    }
+                                </span>
+                                <span>@jogo.TimeVisitante?.Nome</span>
+                            </span>
 
-                    <div class="jgs-team-cell">
-                        <div class="jgs-team-badge">
-                            @if (!string.IsNullOrWhiteSpace(jogo.TimeVisitante?.EscudoUrl))
-                            {
-                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante.EscudoUrl })" alt="@jogo.TimeVisitante.Nome" />
-                            }
-                            else
-                            {
-                                @(jogo.TimeVisitante?.Nome?.Length >= 3 ? jogo.TimeVisitante.Nome.Substring(0, 3).ToUpper() : jogo.TimeVisitante?.Nome)
-                            }
-                        </div>
-                        <span style="font-weight:@(visVenceu ? "700" : "500"); color:@(visVenceu ? "var(--text-strong)" : "var(--text-dim)");">@jogo.TimeVisitante?.Nome</span>
-                    </div>
+                            <a href="@CompeticaoRotaHelper.Url(Url, jogo.CompeticaoId, nomeCompeticao)" class="jgs-comp" title="@nomeCompeticao">@nomeCompeticao</a>
 
-                    <div class="jgs-actions">
-                        @if (jogo.Analisado == 1)
-                        {
-                            <span class="jgs-badge-analisado">✓ Analisado</span>
-                        }
-                        <a asp-action="Analisar" asp-route-id="@jogo.Id" class="jgs-act-detalhes">Analisar</a>
-                        <a asp-action="Edit" asp-route-id="@jogo.Id" class="jgs-act-editar">Editar</a>
-                        <a asp-action="Delete" asp-route-id="@jogo.Id" class="jgs-act-excluir">Excluir</a>
-                    </div>
-                </div>
-            }
+                            <span class="jgs-acoes">
+                                @if (jogo.Analisado == 1)
+                                {
+                                    <span class="jgs-analisado">Analisado</span>
+                                }
+                                <details class="jgs-menu">
+                                    <summary class="jgs-acao" aria-label="Mais ações">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>
+                                    </summary>
+                                    <span class="jgs-menu-lista">
+                                        <a asp-action="Analisar" asp-route-id="@jogo.Id" class="jgs-menu-item">Analisar</a>
+                                        <a asp-action="Edit" asp-route-id="@jogo.Id" class="jgs-menu-item">Editar</a>
+                                        <a asp-action="Delete" asp-route-id="@jogo.Id" class="jgs-menu-item perigo">Excluir</a>
+                                    </span>
+                                </details>
+                            </span>
+                        </li>
+                    }
+                </ul>
+            </section>
         }
 
         @if (Model.TotalPaginas > 1)
@@ -403,24 +379,24 @@
             var ini = (Model.PaginaAtual - 1) * Model.PageSize + 1;
             var fim = Math.Min(Model.PaginaAtual * Model.PageSize, Model.TotalJogos);
             <div class="jgs-pager">
-                <span class="jgs-pager-info">Mostrando @ini&ndash;@fim de @Model.TotalJogos jogos</span>
-                <nav class="jgs-pager-nav">
+                <span class="jgs-pager-info">Mostrando @Milhar(ini) a @Milhar(fim) de @Milhar(Model.TotalJogos) jogos, do mais recente para o mais antigo</span>
+                <nav class="jgs-pager-nav" aria-label="Páginas">
                     @if (Model.PaginaAtual > 1)
                     {
-                        <a class="jgs-pager-btn" asp-action="Index" asp-all-route-data="rotaPagina(Model.PaginaAtual - 1)">« Anterior</a>
+                        <a class="jgs-pager-btn" asp-action="Index" asp-all-route-data="rotaPagina(Model.PaginaAtual - 1)">Anterior</a>
                     }
                     else
                     {
-                        <span class="jgs-pager-btn disabled">« Anterior</span>
+                        <span class="jgs-pager-btn disabled">Anterior</span>
                     }
                     <span class="jgs-pager-cur">Página @Model.PaginaAtual de @Model.TotalPaginas</span>
                     @if (Model.PaginaAtual < Model.TotalPaginas)
                     {
-                        <a class="jgs-pager-btn" asp-action="Index" asp-all-route-data="rotaPagina(Model.PaginaAtual + 1)">Próxima »</a>
+                        <a class="jgs-pager-btn" asp-action="Index" asp-all-route-data="rotaPagina(Model.PaginaAtual + 1)">Próxima</a>
                     }
                     else
                     {
-                        <span class="jgs-pager-btn disabled">Próxima »</span>
+                        <span class="jgs-pager-btn disabled">Próxima</span>
                     }
                 </nav>
             </div>
@@ -430,36 +406,38 @@
 
 <script>
 (function () {
+    // Abriu na página de hoje com jogos futuros acima: rola até o dia de hoje
+    var hoje = document.getElementById('hoje');
+    if (hoje) hoje.scrollIntoView({ block: 'start' });
+
     var selComp = document.getElementById('competicaoId');
     var selTime = document.getElementById('teamId');
+    var selMando = document.getElementById('location');
     var selectedTeamId = '@(Context.Request.Query["teamId"])';
 
+    // Mando só faz sentido com um time escolhido
+    function atualizarMando() { selMando.disabled = !selTime.value; }
+    selTime.addEventListener('change', atualizarMando);
+
     function carregarTimes(compId) {
-        if (!compId) {
-            selTime.disabled = false;
-            return;
-        }
+        if (!compId) return;
         fetch('/Jogos/TimesPorCompeticao?competicaoId=' + compId)
-            .then(function(r) { return r.json(); })
-            .then(function(times) {
+            .then(function (r) { return r.json(); })
+            .then(function (times) {
                 var anterior = selTime.value;
-                selTime.innerHTML = '<option value="">Todos os times</option>';
-                times.forEach(function(t) {
+                selTime.innerHTML = '<option value="">Todos</option>';
+                times.forEach(function (t) {
                     var opt = document.createElement('option');
                     opt.value = t.id;
                     opt.textContent = t.nome;
                     if (String(t.id) === String(anterior) || String(t.id) === selectedTeamId) opt.selected = true;
                     selTime.appendChild(opt);
                 });
+                atualizarMando();
             });
     }
 
-    selComp.addEventListener('change', function() {
-        carregarTimes(this.value);
-    });
-
-    if (selComp.value) {
-        carregarTimes(selComp.value);
-    }
+    selComp.addEventListener('change', function () { carregarTimes(this.value); });
+    if (selComp.value) carregarTimes(selComp.value);
 })();
 </script>

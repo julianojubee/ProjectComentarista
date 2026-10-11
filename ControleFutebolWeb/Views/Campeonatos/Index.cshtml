@@ -1,70 +1,262 @@
-@model List<(ControleFutebolWeb.Models.Campeonatos.Campeonato Campeonato, ControleFutebolWeb.Helpers.Campeonatos.SituacaoCampeonato Situacao)>
+@model List<ControleFutebolWeb.Services.CampeonatoListaItem>
 @using ControleFutebolWeb.Models.Campeonatos
+@using ControleFutebolWeb.Services
 @{
     ViewData["Title"] = "Meus campeonatos";
 
     string Formato(string tipo) => tipo switch
     {
-        "GRUPOS" => "Grupos + mata-mata",
-        "MATA_MATA" => "Mata-mata",
-        _ => "Pontos corridos"
+        "GRUPOS" => "grupos e mata-mata",
+        "MATA_MATA" => "mata-mata",
+        _ => "pontos corridos"
     };
     string Modalidade(ModalidadeCampeonato m) => m switch
     {
-        ModalidadeCampeonato.VideoGame => "🎮 Videogame",
-        ModalidadeCampeonato.Amador => "⚽ Amador",
-        _ => "🏆 Outro"
+        ModalidadeCampeonato.VideoGame => "Videogame",
+        ModalidadeCampeonato.Amador => "Amador",
+        _ => "Outro"
     };
+
+    var andamento = Model.Where(i => i.Campeonato.Status == StatusCampeonato.EmAndamento).ToList();
+    var montando = Model.Where(i => i.Campeonato.Status == StatusCampeonato.Rascunho).ToList();
+    var encerrados = Model.Where(i => i.Campeonato.Status == StatusCampeonato.Encerrado).ToList();
+
+    // "2 em andamento, 1 montando e 3 encerrados"
+    var partesResumo = new List<string>();
+    if (andamento.Any()) partesResumo.Add($"{andamento.Count} em andamento");
+    if (montando.Any()) partesResumo.Add($"{montando.Count} montando");
+    if (encerrados.Any()) partesResumo.Add($"{encerrados.Count} {(encerrados.Count == 1 ? "encerrado" : "encerrados")}");
+    var resumoTopo = partesResumo.Count switch
+    {
+        0 => "",
+        1 => partesResumo[0],
+        _ => string.Join(", ", partesResumo.Take(partesResumo.Count - 1)) + " e " + partesResumo[^1]
+    };
+    var ptBR = new System.Globalization.CultureInfo("pt-BR");
 }
 @await Html.PartialAsync("_Head")
 
-<div class="cp">
-    <div class="cp-hero">
-        <div class="cp-hero-escudo">🏆</div>
+<style>
+    .cpl :is(a, button, summary):focus-visible { outline: 2px solid #d4a520; outline-offset: 2px; }
+
+    /* Cabeçalho compacto (só nesta tela; o .cp-hero das outras telas continua) */
+    .cpl-cab {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap;
+        padding: 18px 22px; margin-bottom: 20px; border-radius: 14px;
+        background: linear-gradient(135deg, #0a1628 0%, #0f2040 55%, #0a1628 100%);
+        border-left: 4px solid #d4a520;
+    }
+    .cpl-cab h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 2.2rem; font-weight: 800; color: #f2f5fa; margin: 0; line-height: 1; }
+    .cpl-cab p { margin: 6px 0 0; font-size: .92rem; color: rgba(255,255,255,.72); }
+    .cpl-cab-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+    .cpl .cpl-btn {
+        display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; white-space: nowrap;
+        border: 1px solid rgba(255,255,255,.25); color: #e8edf5; font-size: .86rem; font-weight: 600;
+    }
+    .cpl .cpl-btn:hover { border-color: #d4a520; color: #f3d27a; }
+    .cpl .cpl-btn.ouro { background: #d4a520; border-color: #d4a520; color: #141414; font-weight: 700; }
+    .cpl .cpl-btn.ouro:hover { background: #e2b532; color: #141414; }
+
+    /* Estado vazio: os passos são uma sequência de verdade */
+    .cpl-vazio { background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; padding: 28px; }
+    .cpl-vazio h2 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--text-strong); margin: 0 0 4px; }
+    .cpl-vazio > p { color: var(--text-muted); margin: 0 0 20px; max-width: 62ch; }
+    .cpl-passos { list-style: none; margin: 0 0 24px; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; counter-reset: passo; }
+    .cpl-passos li { counter-increment: passo; background: var(--p-0); border: 1px solid var(--line-soft); border-radius: 10px; padding: 14px; }
+    .cpl-passos li::before {
+        content: counter(passo); display: inline-flex; align-items: center; justify-content: center;
+        width: 26px; height: 26px; border-radius: 50%; margin-bottom: 8px;
+        font-family: 'Barlow Condensed', Arial, sans-serif; font-weight: 800; color: #141414; background: #d4a520;
+    }
+    .cpl-passos strong { display: block; color: var(--text-strong); font-size: .95rem; }
+    .cpl-passos span { display: block; color: var(--text-dim); font-size: .84rem; margin-top: 2px; }
+    .cpl-vazio-acoes { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .cpl .cpl-vazio-acoes .cp-btn.ouro { font-size: .9rem; padding: .6rem 1.1rem; }
+    .cpl .cpl-link { color: var(--text-muted); font-size: .88rem; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+    .cpl .cpl-link:hover { color: var(--gold-ink); }
+
+    /* Seções e cards */
+    .cpl-secao { margin-bottom: 28px; }
+    .cpl-secao > h2 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.35rem; font-weight: 700; color: var(--text-strong); margin: 0 0 12px; display: flex; align-items: baseline; gap: 8px; }
+    .cpl-secao > h2 small { font-family: 'Barlow', Arial, sans-serif; font-size: .82rem; font-weight: 500; color: var(--text-dim); }
+    .cpl-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
+
+    .cpl .cpl-card {
+        display: flex; flex-direction: column; gap: 12px; background: var(--p-1); border: 1px solid var(--line);
+        border-radius: 12px; padding: 16px; color: var(--text);
+    }
+    .cpl .cpl-card:hover { border-color: #d4a520; }
+    .cpl-card-topo { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .cpl-logo .cp-escudo, .cpl-logo .cp-escudo-vazio { width: 44px; height: 44px; font-size: .9rem; }
+    .cpl-card-info { min-width: 0; flex: 1; }
+    .cpl-card-nome { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.3rem; font-weight: 800; color: var(--text-strong); line-height: 1.1; overflow-wrap: anywhere; }
+    .cpl .cpl-card:hover .cpl-card-nome { color: var(--gold-ink); }
+    .cpl-card-sub { font-size: .82rem; color: var(--text-dim); margin-top: 2px; }
+    .cpl-publico { flex-shrink: 0; color: var(--text-dim); align-self: flex-start; }
+
+    .cpl-progresso { display: flex; flex-direction: column; gap: 6px; }
+    .cpl-progresso-linha { display: flex; justify-content: space-between; gap: 8px; font-size: .84rem; color: var(--text-muted); }
+    .cpl-progresso-linha strong { color: var(--text-strong); }
+    .cpl-barra { height: 6px; border-radius: 999px; background: var(--p-3); overflow: hidden; }
+    .cpl-barra > span { display: block; height: 100%; background: #d4a520; border-radius: inherit; }
+
+    .cpl-destaque { display: flex; align-items: center; gap: 8px; font-size: .88rem; color: var(--text-muted); border-top: 1px solid var(--line-soft); padding-top: 10px; }
+    .cpl-destaque strong { color: var(--text-strong); font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cpl-passo { font-size: .88rem; color: var(--text); border-top: 1px solid var(--line-soft); padding-top: 10px; }
+    .cpl-passo::before { content: "Próximo passo: "; color: var(--text-dim); }
+
+    /* Encerrados: mais discretos, com o campeão em dourado */
+    .cpl .cpl-card.encerrado { background: transparent; }
+    .cpl-campeao { display: flex; align-items: center; gap: 8px; font-size: .88rem; color: var(--text-muted); border-top: 1px solid var(--line-soft); padding-top: 10px; }
+    .cpl-campeao strong { color: var(--gold-ink); font-weight: 800; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cpl-campeao .cp-escudo, .cpl-campeao .cp-escudo-vazio, .cpl-destaque .cp-escudo, .cpl-destaque .cp-escudo-vazio { width: 22px; height: 22px; font-size: .58rem; }
+    .cpl-data { margin-left: auto; color: var(--text-dim); font-size: .8rem; white-space: nowrap; }
+
+    @@media (max-width: 640px) {
+        .cpl-cab { padding: 16px; }
+        .cpl-cab h1 { font-size: 1.9rem; }
+        .cpl-vazio { padding: 20px 16px; }
+        .cpl-grade { grid-template-columns: 1fr; }
+    }
+</style>
+
+@{
+    async Task Card(CampeonatoListaItem item)
+    {
+        var c = item.Campeonato;
+        var r = item.Resumo;
+        var sub = Modalidade(c.Modalidade)
+                  + (string.IsNullOrWhiteSpace(c.Plataforma) ? "" : $", {c.Plataforma}")
+                  + $", {Formato(c.Tipo)}";
+        var campeao = item.Situacao.CampeaoParticipanteId is int cid ? c.Participantes.FirstOrDefault(p => p.Id == cid) : null;
+        var encerrado = c.Status == StatusCampeonato.Encerrado;
+        string? EscudoDe(CampeonatoParticipante p) => p.EscudoUrlSnapshot ?? p.TimeProprio?.EscudoUrl ?? p.Time?.EscudoUrl;
+        string? CorDe(CampeonatoParticipante p) => p.TimeProprio?.CorPrincipal ?? p.Time?.CorPrincipal;
+
+        <a class="cpl-card @(encerrado ? "encerrado" : "")" asp-action="Detalhes" asp-route-id="@c.Id">
+            <div class="cpl-card-topo">
+                <span class="cpl-logo">@await Html.PartialAsync("_Escudo", (c.LogoUrl, c.Nome, (string?)null))</span>
+                <div class="cpl-card-info">
+                    <div class="cpl-card-nome">@c.Nome</div>
+                    <div class="cpl-card-sub">@sub</div>
+                </div>
+                @if (c.TokenPublico != null)
+                {
+                    <span class="cpl-publico" title="Tem link público ativo">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+                        <span class="visually-hidden">Link público ativo</span>
+                    </span>
+                }
+            </div>
+
+            @if (c.Status == StatusCampeonato.Rascunho)
+            {
+                <div class="cpl-passo">@r.ProximoPasso</div>
+            }
+            else if (!encerrado)
+            {
+                var pct = r.PartidasTotal == 0 ? 0 : (int)Math.Round(100.0 * r.PartidasJogadas / r.PartidasTotal);
+                <div class="cpl-progresso">
+                    <div class="cpl-progresso-linha">
+                        <span><strong>@r.PartidasJogadas</strong> de @r.PartidasTotal partidas</span>
+                        @if (r.Etapa != null)
+                        {
+                            <span>@r.Etapa</span>
+                        }
+                    </div>
+                    <div class="cpl-barra" role="progressbar" aria-valuenow="@pct" aria-valuemin="0" aria-valuemax="100"
+                         aria-label="Partidas jogadas"><span style="width:@pct%"></span></div>
+                </div>
+                @if (r.Lider != null)
+                {
+                    <div class="cpl-destaque">
+                        <span>Líder</span>
+                        @await Html.PartialAsync("_Escudo", (EscudoDe(r.Lider), r.Lider.NomeExibicao, CorDe(r.Lider)))
+                        <strong>@r.Lider.NomeExibicao</strong>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="cpl-campeao">
+                    @if (campeao != null)
+                    {
+                        <span>Campeão</span>
+                        @await Html.PartialAsync("_Escudo", (EscudoDe(campeao), campeao.NomeExibicao, CorDe(campeao)))
+                        <strong>@campeao.NomeExibicao</strong>
+                    }
+                    else
+                    {
+                        <span>Encerrado</span>
+                    }
+                    @if (c.EncerradoEm is DateTime fim)
+                    {
+                        <span class="cpl-data">@fim.ToLocalTime().ToString("d 'de' MMM 'de' yyyy", ptBR)</span>
+                    }
+                </div>
+            }
+        </a>
+    }
+
+    async Task Secao(string titulo, List<CampeonatoListaItem> itens)
+    {
+        if (!itens.Any()) return;
+        <section class="cpl-secao">
+            <h2>@titulo <small>@itens.Count</small></h2>
+            <div class="cpl-grade">
+                @foreach (var i in itens) { await Card(i); }
+            </div>
+        </section>
+    }
+}
+
+<div class="cp cpl">
+    <div class="cpl-cab theme-dark-zone">
         <div>
-            <div class="cp-kicker">Campeonatos próprios</div>
-            <h1 class="cp-titulo">Meus campeonatos</h1>
-            <p class="cp-sub">Campeonato de videogame entre amigos, liga amadora, pelada da firma.</p>
+            <h1>Meus campeonatos</h1>
+            @if (resumoTopo != "")
+            {
+                <p>@resumoTopo</p>
+            }
+            else
+            {
+                <p>Campeonatos de videogame, ligas amadoras e peladas, com tabela, chaveamento e artilharia.</p>
+            }
         </div>
-        <div class="cp-hero-acoes">
-            <a class="cp-btn" asp-controller="TimesProprios" asp-action="Index">🛡️ Meus times</a>
-            <a class="cp-btn" asp-controller="JogadoresProprios" asp-action="Index">👤 Meus jogadores</a>
-            <a class="cp-btn ouro" asp-action="Criar">+ Novo campeonato</a>
+        <div class="cpl-cab-acoes">
+            <a class="cpl-btn" asp-controller="TimesProprios" asp-action="Index">Meus times</a>
+            <a class="cpl-btn" asp-controller="JogadoresProprios" asp-action="Index">Meus jogadores</a>
+            @if (Model.Any())
+            {
+                <a class="cpl-btn ouro" asp-action="Criar">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                    Novo campeonato
+                </a>
+            }
         </div>
     </div>
 
     @if (!Model.Any())
     {
-        <div class="cp-secao cp-vazio">
-            <span class="icone">🎮</span>
-            Você ainda não criou nenhum campeonato.<br />
-            <a class="cp-btn ouro" style="margin-top:12px;" asp-action="Criar">Criar o primeiro</a>
+        <div class="cpl-vazio">
+            <h2>Como funciona</h2>
+            <p>Monte um campeonato com seus amigos ou com o seu time amador. A tabela, o chaveamento e a artilharia se atualizam a cada placar.</p>
+            <ol class="cpl-passos">
+                <li><strong>Crie o campeonato</strong><span>Escolha o nome e o formato: pontos corridos, mata-mata ou grupos.</span></li>
+                <li><strong>Adicione os participantes</strong><span>Pelo nome, com um dos seus times ou com um time real.</span></li>
+                <li><strong>Gere as partidas</strong><span>A tabela de jogos sai pronta, rodada a rodada.</span></li>
+                <li><strong>Lance os placares</strong><span>Com gols e cartões, se quiser. Dá para compartilhar um link público.</span></li>
+            </ol>
+            <div class="cpl-vazio-acoes">
+                <a class="cp-btn ouro" asp-action="Criar">Criar campeonato</a>
+                <a class="cpl-link" asp-controller="TimesProprios" asp-action="Index">Cadastrar meus times antes</a>
+            </div>
         </div>
     }
     else
     {
-        <div class="cp-grade">
-            @foreach (var (c, situacao) in Model)
-            {
-                var campeao = situacao.CampeaoParticipanteId is int cid ? c.Participantes.FirstOrDefault(p => p.Id == cid) : null;
-                <a class="cp-card" asp-action="Detalhes" asp-route-id="@c.Id">
-                    <div class="cp-card-topo">
-                        <div class="cp-card-nome">@c.Nome</div>
-                        <span class="cp-selo @(c.Status switch { StatusCampeonato.EmAndamento => "andamento", StatusCampeonato.Rascunho => "rascunho", _ => "" })" style="margin-left:auto;">
-                            @(c.Status switch { StatusCampeonato.EmAndamento => "Em andamento", StatusCampeonato.Rascunho => "Montando", _ => "Encerrado" })
-                        </span>
-                    </div>
-                    <div class="cp-card-info">
-                        <span>@Modalidade(c.Modalidade)@(c.Plataforma != null ? $" · {c.Plataforma}" : "")</span>
-                        <span>@Formato(c.Tipo)</span>
-                        <span>@c.Participantes.Count participantes</span>
-                    </div>
-                    @if (c.Status == StatusCampeonato.Encerrado && campeao != null)
-                    {
-                        <div class="cp-card-info" style="color:var(--gold-ink);font-weight:700;">🏆 @campeao.NomeExibicao</div>
-                    }
-                </a>
-            }
-        </div>
+        await Secao("Em andamento", andamento);
+        await Secao("Montando", montando);
+        await Secao("Encerrados", encerrados);
     }
 </div>

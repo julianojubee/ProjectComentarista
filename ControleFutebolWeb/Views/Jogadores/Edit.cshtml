@@ -1,97 +1,64 @@
-﻿@model ControleFutebolWeb.Models.Jogador
-
+@model ControleFutebolWeb.Models.Jogador
+@using ControleFutebolWeb.Helpers
 @{
+    ViewData["Title"] = $"Editar {Model.Nome}";
     // Preserva os filtros da listagem de origem ao salvar/voltar.
     var returnUrl = ViewData["ReturnUrl"] as string;
+    var voltar = string.IsNullOrEmpty(returnUrl) ? Url.Action("Estatisticas", new { id = Model.Id }) : returnUrl;
 }
 
-<h2>Editar Jogador</h2>
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/form-card.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/select-buscavel.css" asp-append-version="true" />
 
-<form asp-action="Edit" method="post">
-    @Html.AntiForgeryToken()
-    <input type="hidden" asp-for="Id" />
-    <input type="hidden" name="returnUrl" value="@returnUrl" />
+<div class="af">
+    <div class="af-card">
+        <a href="@Url.Action("Estatisticas", new { id = Model.Id })" class="af-voltar">@Model.Nome</a>
+        <h1 class="af-title">Editar jogador</h1>
 
-    <div class="form-group">
-        <label asp-for="Nome" class="control-label"></label>
-        <input asp-for="Nome" class="form-control" />
-        <span asp-validation-for="Nome" class="text-danger"></span>
+        <form asp-action="Edit" method="post">
+            <div asp-validation-summary="ModelOnly" class="af-alerta"></div>
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" name="returnUrl" value="@returnUrl" />
+
+            <partial name="_CamposJogador" model="Model" />
+
+            <div class="af-linha">
+                <div class="af-field">
+                    <label class="af-label" for="Altura">Altura em cm <small>(opcional)</small></label>
+                    <input asp-for="Altura" class="af-input" type="number" min="0" max="250" />
+                    <span asp-validation-for="Altura" class="af-validation"></span>
+                </div>
+                <div class="af-field">
+                    <label class="af-label" for="Peso">Peso em kg <small>(opcional)</small></label>
+                    <input asp-for="Peso" class="af-input" type="number" min="0" max="200" />
+                    <span asp-validation-for="Peso" class="af-validation"></span>
+                </div>
+            </div>
+
+            <div class="af-field">
+                <label class="af-label" for="Observacoes">Observações <small>(opcional)</small></label>
+                <textarea asp-for="Observacoes" class="af-textarea" style="min-height:110px" placeholder="Gols na carreira, chegada ao clube"></textarea>
+                <div class="af-hint">Para registros com data e categoria, use as anotações do jogador.</div>
+            </div>
+
+            <div class="af-field">
+                <label class="af-label" for="fotoUrl">Endereço da foto <small>(opcional)</small></label>
+                <input asp-for="FotoUrl" id="fotoUrl" class="af-input" placeholder="https://.../foto.png" />
+                <div class="af-hint">Cole o link de uma imagem quando a importação não trouxer a foto.</div>
+                <img id="fotoPreview" class="af-preview"
+                     src="@Url.FotoSrc(Model.FotoUrl)" alt="Prévia da foto"
+                     style="@(string.IsNullOrWhiteSpace(Model.FotoUrl) ? "display:none;" : "")" />
+            </div>
+
+            <div class="af-actions">
+                <button type="submit" class="af-save">Salvar alterações</button>
+                <a href="@voltar" class="af-cancel">Cancelar</a>
+                <a asp-action="Delete" asp-route-id="@Model.Id" asp-route-returnUrl="@returnUrl" class="af-perigo-link">Excluir jogador</a>
+            </div>
+        </form>
     </div>
-
-    <div class="form-group">
-        <label asp-for="Posicao" class="control-label"></label>
-        <select asp-for="Posicao" class="form-control" asp-items="ViewBag.Posicoes"></select>
-        <span asp-validation-for="Posicao" class="text-danger"></span>
-    </div>
-
-
-    <!-- Idade apenas exibida -->
-    <div class="form-group">
-        <label class="control-label">Idade</label>
-        <input class="form-control" value="@Model.Idade" readonly />
-    </div>
-
-    <!-- Dropdown de Nacionalidade -->
-    <div class="form-group">
-        <label asp-for="NacionalidadeId" class="control-label">Nacionalidade</label>
-        <select asp-for="NacionalidadeId" class="form-control" asp-items="ViewBag.NacionalidadeId"></select>
-        <span asp-validation-for="NacionalidadeId" class="text-danger"></span>
-    </div>
-
-    <div class="form-group">
-        <label asp-for="TimeId" class="control-label">Time</label>
-        <select asp-for="TimeId" class="form-control" asp-items="ViewBag.TimeId"></select>
-        <span asp-validation-for="TimeId" class="text-danger"></span>
-    </div>
-
-    <!-- DataNascimento formatado -->
-    <div class="form-group">
-        <label asp-for="DataNascimento" class="control-label">Data de Nascimento</label>
-        <input asp-for="DataNascimento" class="form-control" type="date"
-               value="@(Model.DataNascimento?.ToString("yyyy-MM-dd") ?? "")" />
-
-        <span asp-validation-for="DataNascimento" class="text-danger"></span>
-    </div>
-
-    <div class="form-group">
-        <label asp-for="Altura" class="control-label">Altura (cm)</label>
-        <input asp-for="Altura" class="form-control" type="number" min="0" />
-        <span asp-validation-for="Altura" class="text-danger"></span>
-    </div>
-
-    <div class="form-group">
-        <label asp-for="Peso" class="control-label">Peso (kg)</label>
-        <input asp-for="Peso" class="form-control" type="number" min="0" />
-        <span asp-validation-for="Peso" class="text-danger"></span>
-    </div>
-
-    <div class="form-group">
-        <label asp-for="Observacoes" class="control-label">Observações</label>
-        <textarea asp-for="Observacoes" class="form-control" rows="4" placeholder="Anotações sobre o jogador (ex: gols na carreira, chegada ao clube...)"></textarea>
-    </div>
-
-    <div class="form-group">
-        <label class="control-label">Foto (URL)</label>
-        <input asp-for="FotoUrl" id="fotoUrl" class="form-control"
-               placeholder="https://.../foto.png" />
-        <small class="text-muted">
-            Cole a URL da foto do jogador — útil quando a API não tem informações dele.
-        </small>
-        <div class="mt-2">
-            <img id="fotoPreview"
-                 src="@Model.FotoUrl"
-                 alt="Pré-visualização da foto"
-                 style="max-height:120px; border-radius:8px; border:1px solid #e5e7eb; @(string.IsNullOrWhiteSpace(Model.FotoUrl) ? "display:none;" : "")" />
-        </div>
-    </div>
-
-    <div class="form-group mt-2">
-        <input type="submit" value="Salvar" class="btn btn-primary" />
-        <a href="@(string.IsNullOrEmpty(returnUrl) ? Url.Action("Index") : returnUrl)" class="btn btn-secondary">Voltar</a>
-    </div>
-</form>
-
-<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+</div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

@@ -6,7 +6,11 @@
     const string chaveamento = "~/Views/Creators/_Chaveamento.cshtml";
 }
 
-@if (Model.Fases.Any())
+@if (Model.Fases.Any() && Model.Fases.All(f => !f.Classificacao.Any() && !f.Grupos.Any() && !f.FasesMataMata.Any()))
+{
+    <div class="cp-vazio">A tabela aparece quando as partidas forem geradas.</div>
+}
+else if (Model.Fases.Any())
 {
     foreach (var fase in Model.Fases)
     {

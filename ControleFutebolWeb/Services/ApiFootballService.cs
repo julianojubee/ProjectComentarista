@@ -19,7 +19,11 @@ namespace ControleFutebolWeb.Services
         private readonly HttpClient _http;
         private readonly ILogger<ApiFootballService> _logger;
         private readonly IMemoryCache _cache;
-        private readonly JsonSerializerOptions _json = new() { PropertyNameCaseInsensitive = true };
+        private readonly JsonSerializerOptions _json = new()
+        {
+            PropertyNameCaseInsensitive = true,
+            Converters = { new AfHtmlDecodeStringConverter() },
+        };
 
         // Legado — entradas extras não cobertas pelo CountryHelper centralizado.
         // Ao adicionar novos países, edite Helpers/CountryHelper.cs em vez daqui.
@@ -173,8 +177,11 @@ namespace ControleFutebolWeb.Services
             SincronizarCompeticaoAsync(
                 FutebolContext context,
                 Competicao competicao,
-                CancellationToken ct = default)
+                CancellationToken ct = default,
+                int? somenteTimeIdApi = null)
         {
+            // somenteTimeIdApi: traz só os jogos de um time naquela liga/temporada
+            // (ex.: os amistosos do Brasil, sem carregar todos os amistosos do ano).
             int jogosProcessados = 0, timesCreados = 0, erros = 0;
             var avisos = new List<string>();
 
@@ -200,7 +207,7 @@ namespace ControleFutebolWeb.Services
             _logger.LogInformation("[ApiFoot] Sincronizando {Nome} — league={L} season={S}",
                 competicao.Nome, leagueId, season);
 
-            var fixtures = await BuscarFixturesAsync(leagueId, season, ct);
+            var fixtures = await BuscarFixturesAsync(leagueId, season, ct, somenteTimeIdApi);
             _logger.LogInformation("[ApiFoot] {N} fixtures encontrados.", fixtures.Count);
 
             Log(context, cicloId, "Ciclo", "Fixtures",
@@ -1307,10 +1314,22 @@ namespace ControleFutebolWeb.Services
             return resp?.Response ?? new();
         }
 
+        // Calendário de um time na temporada, em todas as competições
+        // (/fixtures?team=X&season=Y). Para seleções a temporada é o ano civil.
+        public async Task<List<AfFixture>> BuscarFixturesDoTimeAsync(
+            int teamIdApi, int season, CancellationToken ct = default)
+        {
+            var url = $"fixtures?team={teamIdApi}&season={season}";
+            var json = await GetStringCachedAsync(url, TimeSpan.FromMinutes(10), ct);
+            var resp = JsonSerializer.Deserialize<ApiFootballResponse<AfFixture>>(json, _json);
+            return resp?.Response ?? new();
+        }
+
         private async Task<List<AfFixture>> BuscarFixturesAsync(
-            int leagueId, int season, CancellationToken ct)
+            int leagueId, int season, CancellationToken ct, int? teamIdApi = null)
         {
             var url = $"fixtures?league={leagueId}&season={season}";
+            if (teamIdApi > 0) url += $"&team={teamIdApi}";
             var json = await _http.GetStringAsync(url, ct);
             var resp = JsonSerializer.Deserialize<ApiFootballResponse<AfFixture>>(json, _json);
             return resp?.Response ?? new();
@@ -1409,14 +1428,21 @@ namespace ControleFutebolWeb.Services
             // sozinho; o casamento por confronto só vale dentro da MESMA temporada — sem
             // isso, trocar o link da competição de 2025 para 2026 fazia o mesmo confronto
             // na mesma rodada casar com o jogo do ano anterior e reescrevê-lo como 2026.
+            // E o confronto só casa com jogo que ainda não tem fixture da api-football:
+            // um jogo com outro apifoot:ID já é outra partida. Amistosos vêm todos com
+            // round "Friendly International" (Rodada 0), então Austrália x Brasil de 25/09
+            // e de 29/09/2026 caíam no mesmo registro e o segundo nunca era criado.
             var existente = await context.Jogos
-                .FirstOrDefaultAsync(j =>
+                .Where(j =>
                     j.CompeticaoId == competicao.Id &&
                     (j.LinkDetalhes == fixtureIdStr ||
                         (j.Temporada == season &&
                          j.TimeCasaId == timeCasa.Id &&
                          j.TimeVisitanteId == timeVis.Id &&
-                         j.Rodada == rodada)), ct);
+                         j.Rodada == rodada &&
+                         (j.LinkDetalhes == null || !j.LinkDetalhes.StartsWith("apifoot:")))))
+                .OrderByDescending(j => j.LinkDetalhes == fixtureIdStr)
+                .FirstOrDefaultAsync(ct);
 
             if (existente != null)
             {
@@ -1730,6 +1756,10 @@ namespace ControleFutebolWeb.Services
                     }
                 }
             }
+
+            // Desde set/2026 a api-football manda colors: null; sem isso o jogo ficava
+            // com o vermelho/azul padrão. Cai para o último uniforme conhecido do time.
+            await CoresUniformeHelper.PreencherFaltantesAsync(context, jogo, ct);
 
             // Lineups
             foreach (var lineup in fx.Lineups)

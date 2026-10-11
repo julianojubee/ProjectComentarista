@@ -1,61 +1,79 @@
-﻿@using ControleFutebolWeb.Helpers
+@using ControleFutebolWeb.Helpers
 @model ControleFutebolWeb.Models.Jogador
+@{
+    ViewData["Title"] = $"Cadastro de {Model.Nome}";
+    var ptBR = new System.Globalization.CultureInfo("pt-BR");
 
-<h2>Detalhes do Jogador</h2>
-
-<dl class="row">
-    <dt class="col-sm-2">Nome</dt>
-    <dd class="col-sm-10">@Model.Nome</dd>
-
-    <dt class="col-sm-2">Posição</dt>
-    <dd class="col-sm-10">@PosicaoJogadorHelper.Sigla(Model.Posicao)</dd>
-
-    <dt class="col-sm-2">Data de Nascimento</dt>
-    <dd class="col-sm-10">@(Model.DataNascimento?.ToString("dd/MM/yyyy") ?? "—")</dd>
-
-    <dt class="col-sm-2">Idade</dt>
-    <dd class="col-sm-10">@Model.Idade</dd>
-
-    <dt class="col-sm-2">Número da Camisa</dt>
-    <dd class="col-sm-10">@Model.NumeroCamisa</dd>
-
-    <dt class="col-sm-2">Nacionalidade</dt>
-    <dd class="col-sm-10">@Model.Nacionalidade?.Nome</dd>
-
-    <dt class="col-sm-2">Time</dt>
-    <dd class="col-sm-10">
-        @if (Model.Time != null)
-        {
-            <a asp-controller="Times" asp-action="Details" asp-route-id="@Model.TimeId">@Model.Time.Nome</a>
-        }
-    </dd>
-
-    <dt class="col-sm-2">Altura</dt>
-    <dd class="col-sm-10">@(Model.Altura.HasValue ? $"{Model.Altura} cm" : "—")</dd>
-
-    <dt class="col-sm-2">Peso</dt>
-    <dd class="col-sm-10">@(Model.Peso.HasValue ? $"{Model.Peso} kg" : "—")</dd>
-</dl>
-
-@if (TempData["Sucesso"] != null)
-{
-    <div class="alert alert-success">@TempData["Sucesso"]</div>
-}
-@if (TempData["Erro"] != null)
-{
-    <div class="alert alert-danger">@TempData["Erro"]</div>
-}
-
-<div>
-    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">Editar</a> |
-    <a asp-action="Index" class="btn btn-secondary">Voltar</a>
-    @if (Model.IdApi > 0)
+    // Linha da ficha: valor ausente aparece como "não informado", em cinza
+    void Linha(string rotulo, string? valor)
     {
-        <form asp-action="BuscarAlturaPeso" asp-route-id="@Model.Id" method="post" style="display:inline;">
-            @Html.AntiForgeryToken()
-            <button type="submit" class="btn btn-info" title="Buscar altura e peso na API">
-                📏 Buscar Altura/Peso
-            </button>
-        </form>
+        <dt>@rotulo</dt>
+        if (string.IsNullOrWhiteSpace(valor))
+        {
+            <dd class="vazio">não informado</dd>
+        }
+        else
+        {
+            <dd>@valor</dd>
+        }
     }
+}
+
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/form-card.css" asp-append-version="true" />
+
+<div class="af">
+    <div class="af-card">
+        <a href="@Url.Action("Estatisticas", new { id = Model.Id })" class="af-voltar">Estatísticas de @Model.Nome</a>
+        <h1 class="af-title">Cadastro</h1>
+
+        @if (TempData["Sucesso"] != null) { <div class="af-ok" role="status">@TempData["Sucesso"]</div> }
+        @if (TempData["Erro"] != null) { <div class="af-alerta" role="alert">@TempData["Erro"]</div> }
+
+        <div class="af-resumo">
+            <img src="@(Url.FotoSrc(Model.FotoUrl) ?? Url.Content("~/images/placeholder-treinador.png"))" alt="" />
+            <div>
+                <div class="af-resumo-nome">@Model.Nome</div>
+                <div class="af-resumo-meta">
+                    @string.Join(", ", new[]
+                    {
+                        PosicaoJogadorHelper.Sigla(Model.Posicao),
+                        Model.NumeroCamisa.HasValue ? $"camisa {Model.NumeroCamisa}" : null
+                    }.Where(x => !string.IsNullOrWhiteSpace(x)))
+                </div>
+            </div>
+        </div>
+
+        <dl class="af-dados">
+            <dt>Time</dt>
+            @if (Model.Time != null)
+            {
+                <dd><a asp-controller="Times" asp-action="Details" asp-route-id="@Model.TimeId">@Model.Time.Nome</a></dd>
+            }
+            else
+            {
+                <dd class="vazio">não informado</dd>
+            }
+            @{
+                Linha("Posição", Model.Posicao);
+                Linha("Nacionalidade", Model.Nacionalidade?.Nome);
+                Linha("Nascimento", Model.DataNascimento.HasValue
+                    ? $"{Model.DataNascimento.Value.ToString("d 'de' MMMM 'de' yyyy", ptBR)} ({Model.Idade} anos)" : null);
+                Linha("Altura", Model.Altura.HasValue ? $"{Model.Altura} cm" : null);
+                Linha("Peso", Model.Peso.HasValue ? $"{Model.Peso} kg" : null);
+                Linha("Observações", Model.Observacoes);
+            }
+        </dl>
+
+        <div class="af-actions">
+            <a asp-action="Edit" asp-route-id="@Model.Id" class="af-save" style="text-decoration:none">Editar cadastro</a>
+            @if (Model.IdApi > 0)
+            {
+                <form asp-action="BuscarAlturaPeso" asp-route-id="@Model.Id" method="post" style="margin:0">
+                    <button type="submit" class="af-ghost" title="Busca altura e peso no perfil importado">Buscar altura e peso</button>
+                </form>
+            }
+            <a asp-controller="AnotacoesJogador" asp-action="Index" asp-route-jogadorId="@Model.Id" class="af-cancel">Anotações</a>
+        </div>
+    </div>
 </div>

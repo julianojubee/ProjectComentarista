@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Filters;
 using ControleFutebolWeb.Helpers;
@@ -113,10 +113,11 @@ namespace ControleFutebolWeb.Controllers
 
             object? Map(MatchUpTimeViewModel? t) => t == null ? null : new
             {
+                id = t.Time.Id,
                 nome = t.Time.Nome,
                 escudo = ImagemUrl(t.Time.EscudoUrl),
                 adversario = t.JogoOrigemEhCasa ? t.JogoOrigem?.TimeVisitante?.Nome : t.JogoOrigem?.TimeCasa?.Nome,
-                data = t.JogoOrigem?.Data?.ToString("dd/MM/yyyy"),
+                data = t.JogoOrigem?.Data == null ? null : DateHelper.FormatarData(t.JogoOrigem.Data, "dd/MM/yyyy"),
                 escalacao = t.Escalacao.Select(e => new
                 {
                     id = e.Jogador.Id,
@@ -201,6 +202,41 @@ namespace ControleFutebolWeb.Controllers
                 });
 
             return Json(achados);
+        }
+
+        // GET /creators/escalacao/ficha-jogador?id=123&time=45 — ficha e números do ℹ
+        // para o jogador trazido pela busca, que não veio no pacote do Match Up.
+        // Mesmo escopo dos outros do time onde ele entra: o jogo de origem (última
+        // escalação compartilhada) desse time. Time sem escalação → pacote vazio.
+        [HttpGet("escalacao/ficha-jogador")]
+        public async Task<IActionResult> EscalacaoFichaJogador(int id, int time)
+        {
+            if (id <= 0 || time <= 0) return BadRequest();
+
+            var jogoId = await _context.Escalacoes.AsNoTracking()
+                .Where(e => e.Titular && e.JogadorId != null && e.UsuarioId == null
+                         && ((e.IsTimeCasa && e.Jogo.TimeCasaId == time)
+                          || (!e.IsTimeCasa && e.Jogo.TimeVisitanteId == time)))
+                .Select(e => e.Jogo)
+                // Mesmo critério do MatchUpHelper: data mais recente; sem data, maior Id
+                .OrderByDescending(j => j.Data.HasValue)
+                .ThenByDescending(j => j.Data)
+                .ThenByDescending(j => j.Id)
+                .Select(j => (int?)j.Id)
+                .FirstOrDefaultAsync();
+
+            if (jogoId == null) return Json(new TooltipJogadorPacote());
+
+            var jogo = await _context.Jogos.AsNoTracking()
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .FirstAsync(j => j.Id == jogoId);
+
+            var pacote = await _tooltip.MontarPacoteAsync(
+                new[] { id }, jogo, usuarioId: string.Empty, imagemUrl: ImagemUrl,
+                incluirObservacoes: false);
+
+            return Json(pacote);
         }
 
         // "estevao" → "[eéêèë]st[eéêèë]v[aáâãàä][oóôõòö]". Só letras, dígitos e

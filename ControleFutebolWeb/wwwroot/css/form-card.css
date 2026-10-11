@@ -14,10 +14,14 @@
 }
 
 .af-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; padding: 1.8rem 2rem; max-width: 720px; margin: 0 auto; }
-.af-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--text-strong); margin-bottom: 1.5rem; }
+.af :is(a, button, input, select, textarea):focus-visible { outline: 2px solid #d4a520; outline-offset: 2px; }
+.af .af-voltar { display: inline-block; font-size: .86rem; font-weight: 600; color: var(--text-muted); text-decoration: none; margin-bottom: .6rem; }
+.af .af-voltar:hover { color: var(--gold-ink); }
+.af-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.8rem; font-weight: 800; color: var(--text-strong); margin: 0 0 1.5rem; line-height: 1.1; }
 .af-sub { font-size: .82rem; color: var(--text-dim); margin: -1rem 0 1.5rem; line-height: 1.6; }
 .af-field { margin-bottom: 1.25rem; }
-.af-label { font-size: .68rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: .1em; display: block; margin-bottom: .5rem; }
+.af-label { font-size: .86rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: .45rem; }
+.af-label small { font-weight: 400; color: var(--text-dim); }
 
 .af-input, .af-textarea, .af-select {
     width: 100%; background: var(--p-0); border: 1px solid var(--line-strong);
@@ -31,21 +35,21 @@
 
 .af-actions { display: flex; gap: .75rem; margin-top: 1.5rem; flex-wrap: wrap; }
 
-.af-save { background: #d4a520; color: #141414; border: none; border-radius: 8px; padding: .65rem 1.5rem; font-size: .85rem; font-weight: 800; cursor: pointer; letter-spacing: .03em; }
-.af-save:hover { background: #c49918; }
+.af-save { background: #d4a520; color: #141414; border: none; border-radius: 8px; padding: .65rem 1.5rem; font-size: .9rem; font-weight: 700; cursor: pointer; font-family: inherit; }
+.af-save:hover { background: #e2b532; }
 
-.af-danger { background: var(--bad); color: #fff; border: none; border-radius: 8px; padding: .65rem 1.5rem; font-size: .85rem; font-weight: 800; cursor: pointer; letter-spacing: .03em; }
+.af-danger { background: var(--bad); color: #fff; border: none; border-radius: 8px; padding: .65rem 1.5rem; font-size: .9rem; font-weight: 700; cursor: pointer; font-family: inherit; }
 .af-danger:hover { filter: brightness(.92); }
 
 .af-cancel {
-    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); color: var(--text-muted);
-    border-radius: 8px; padding: .65rem 1.2rem; font-size: .85rem; font-weight: 700;
+    background: transparent; border: 1px solid var(--line-strong); color: var(--text-muted);
+    border-radius: 8px; padding: .65rem 1.2rem; font-size: .9rem; font-weight: 600;
     cursor: pointer; text-decoration: none; display: inline-flex; align-items: center;
 }
 
 .af-cancel:hover { border-color: #d4a520; color: var(--gold-ink); }
 
-.af-hint { font-size: .68rem; color: var(--text-dimmer); margin-top: .4rem; }
+.af-hint { font-size: .8rem; color: var(--text-dim); margin-top: .4rem; }
 
 /* Caixa de alerta dentro do card (confirmação de exclusão) */
 .af-alerta {
@@ -59,9 +63,31 @@
 .af-resumo { display: flex; align-items: center; gap: 14px; background: var(--p-0); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 1.5rem; }
 .af-resumo img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 1px solid var(--line-strong); background: var(--p-1); flex-shrink: 0; }
 .af-resumo-nome { font-size: 1rem; font-weight: 700; color: var(--text-strong); }
-.af-resumo-meta { font-size: .75rem; color: var(--text-dim); margin-top: 2px; }
+.af-resumo-meta { font-size: .84rem; color: var(--text-dim); margin-top: 2px; }
+@media (max-width: 640px) { .af { padding: 1rem; } .af-card { padding: 1.3rem 1.1rem; } }
 
 /* Pré-visualização de imagem (campo Foto) */
 .af-preview { margin-top: .7rem; max-height: 120px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--p-0); }
 
 .af-validation { color: var(--bad); font-size: .75rem; }
+
+/* Dois campos lado a lado (viram um embaixo do outro no celular) */
+.af-linha { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+.af-linha .af-curto { max-width: 140px; }
+.af-linha:has(.af-curto) { grid-template-columns: 1fr auto; }
+@media (max-width: 560px) { .af-linha, .af-linha:has(.af-curto) { grid-template-columns: 1fr; } .af-linha .af-curto { max-width: none; } }
+
+/* Ficha de cadastro (somente leitura) */
+.af-dados { display: grid; grid-template-columns: 170px 1fr; gap: 0; margin: 0 0 1.5rem; }
+.af-dados dt, .af-dados dd { padding: .6rem 0; border-bottom: 1px solid var(--line-soft); margin: 0; font-size: .92rem; }
+.af-dados dt { color: var(--text-dim); font-weight: 500; }
+.af-dados dd { color: var(--text-strong); font-weight: 600; }
+.af-dados dd.vazio { color: var(--text-dimmer); font-weight: 400; }
+.af .af-dados a { color: inherit; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.af .af-dados a:hover { color: var(--gold-ink); text-decoration-color: currentColor; }
+@media (max-width: 560px) { .af-dados { grid-template-columns: 1fr; } .af-dados dt { border-bottom: none; padding-bottom: 0; font-size: .82rem; } }
+.af-ok { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); color: var(--ok); border-radius: 10px; padding: .8rem 1rem; margin-bottom: 1.2rem; font-size: .88rem; }
+.af-ghost { background: transparent; border: 1px solid var(--line-strong); color: var(--text-muted); border-radius: 8px; padding: .65rem 1.2rem; font-size: .9rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+.af-ghost:hover { border-color: #d4a520; color: var(--gold-ink); }
+.af .af-perigo-link { margin-left: auto; align-self: center; font-size: .86rem; font-weight: 600; color: var(--bad); text-decoration: none; }
+.af .af-perigo-link:hover { text-decoration: underline; }

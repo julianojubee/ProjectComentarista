@@ -75,17 +75,6 @@ namespace ControleFutebolWeb.Controllers
                 .Select(t => t.CompeticaoId)
                 .ToListAsync();
 
-            // Últimos 6 jogos finalizados (com placar)
-            var jogosRecentes = await _context.Jogos
-                .AsNoTracking()
-                .Include(j => j.TimeCasa)
-                .Include(j => j.TimeVisitante)
-                .Include(j => j.Competicao)
-                .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue)
-                .OrderByDescending(j => j.Data)
-                .Take(6)
-                .ToListAsync();
-
             // Classificação: só as competições marcadas como "Home" na tela de competições
             // e, dentro de cada uma, só a temporada mais recente — senão o Brasileirão 2025
             // somaria pontos na mesma linha do 2026.
@@ -159,8 +148,70 @@ namespace ControleFutebolWeb.Controllers
             for (int i = 0; i < classificacao.Count; i++)
                 classificacao[i].Posicao = i + 1;
 
+            // ── O dia: jogos de hoje e o que falta analisar ─────────────────────
+            // Mesmo recorte de Jogos/Hoje: o dia é o do Brasil, os jogos estão em UTC.
+            var fusoBrasil = TimeZoneInfo.FindSystemTimeZoneById("America/Sao_Paulo");
+            var agoraBrasil = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, fusoBrasil);
+            var hoje = agoraBrasil.Date;
+            DateTime ParaUtc(DateTime diaBrasil) =>
+                TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(diaBrasil, DateTimeKind.Unspecified), fusoBrasil);
+            var inicioOntemUtc = ParaUtc(hoje.AddDays(-1));
+            var inicioHojeUtc = ParaUtc(hoje);
+            var fimHojeUtc = ParaUtc(hoje.AddDays(1));
+
+            var jogosHoje = await _context.Jogos
+                .AsNoTracking()
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .Include(j => j.Competicao)
+                .Where(j => j.Data >= inicioHojeUtc && j.Data < fimHojeUtc)
+                .OrderBy(j => j.Data)
+                .ToListAsync();
+
+            var analisadosIds = uid != null
+                ? await _context.JogosAnalisadosUsuario
+                    .Where(j => j.UsuarioId == uid && j.Analisado)
+                    .Select(j => j.JogoId)
+                    .ToHashSetAsync()
+                : new HashSet<int>();
+
+            // Encerrados de ontem e de hoje que o usuário ainda não marcou como
+            // analisados — o trabalho que a home empurra para a frente.
+            var pendentesQuery = _context.Jogos
+                .AsNoTracking()
+                .Where(j => j.Data >= inicioOntemUtc && j.Data < fimHojeUtc
+                         && j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue
+                         && !_context.JogosAnalisadosUsuario.Any(a => a.JogoId == j.Id && a.UsuarioId == uid && a.Analisado));
+            var totalPendentes = await pendentesQuery.CountAsync();
+            var pendentes = await pendentesQuery
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .Include(j => j.Competicao)
+                .OrderByDescending(j => j.Data)
+                .Take(8)
+                .ToListAsync();
+
+            // Últimos 6 jogos encerrados, sem os que já estão em "Falta analisar" logo
+            // acima — senão a home mostraria as mesmas partidas duas vezes.
+            var idsPendentes = pendentes.Select(j => j.Id).ToList();
+            var jogosRecentes = await _context.Jogos
+                .AsNoTracking()
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .Include(j => j.Competicao)
+                .Where(j => j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue && !idsPendentes.Contains(j.Id))
+                .OrderByDescending(j => j.Data)
+                .Take(6)
+                .ToListAsync();
+
             var vm = new HomeViewModel
             {
+                Hoje = hoje,
+                AgoraBrasil = agoraBrasil,
+                JogosHoje = jogosHoje,
+                PendentesAnalise = pendentes,
+                TotalPendentesAnalise = totalPendentes,
+                JogosAnalisadosIds = analisadosIds,
                 JogosRecentes = jogosRecentes,
                 Classificacao = classificacao,
                 TotalTimes = await _context.Times.CountAsync(),

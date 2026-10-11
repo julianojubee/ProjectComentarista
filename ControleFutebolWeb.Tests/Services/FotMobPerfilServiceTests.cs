@@ -100,6 +100,54 @@ namespace ControleFutebolWeb.Tests.Services
             Assert.Equal("7", nova.Valor);
         }
 
+        // Goleiro: o localizedTitleId dessas métricas não está no de-para por id, e a
+        // tela mostrava "Saves", "GOALKEEPING"... O título em inglês é a reserva.
+        private const string DesempenhoGoleiro = """
+        {
+          "statsSection": {
+            "items": [
+              {
+                "localizedTitleId": "goalkeeping",
+                "items": [
+                  { "title": "Saves", "localizedTitleId": "saves_xyz", "statValue": "16", "per90": 3.2, "percentileRank": 57 },
+                  { "title": "Goals conceded", "localizedTitleId": "goals_conceded_xyz", "statValue": "11", "per90": 2.2, "percentileRank": 4 }
+                ]
+              },
+              {
+                "localizedTitleId": "discipline",
+                "items": [
+                  { "title": "Red cards", "localizedTitleId": "red_cards", "statValue": "0", "percentileRank": 0 },
+                  { "title": "Penalty goals", "localizedTitleId": "penalty_goals_xyz", "statValue": "2", "percentileRank": 80 }
+                ]
+              }
+            ]
+          }
+        }
+        """;
+
+        [Fact]
+        public void Desempenho_Goleiro_TraduzPeloTituloQuandoOIdNaoEConhecido()
+        {
+            var grupos = FotMobPerfilService.LerDesempenho(Json(DesempenhoGoleiro)).ToList();
+
+            Assert.Equal("Goleiro", grupos[0].Nome);
+            Assert.Equal(new[] { "Defesas", "Gols sofridos" }, grupos[0].Metricas.Select(m => m.Nome));
+            Assert.Contains(grupos[1].Metricas, m => m.Nome == "Gols de pênalti");
+        }
+
+        // Onde menos é melhor a tela avisa o leitor e trata o empate no zero.
+        [Fact]
+        public void Desempenho_MarcaMetricasEmQueMenosEMelhor()
+        {
+            var metricas = FotMobPerfilService.LerDesempenho(Json(DesempenhoGoleiro))
+                .SelectMany(g => g.Metricas).ToDictionary(m => m.Nome);
+
+            Assert.True(metricas["Gols sofridos"].MenosEhMelhor);
+            Assert.True(metricas["Cartões vermelhos"].MenosEhMelhor);
+            Assert.False(metricas["Defesas"].MenosEhMelhor);
+            Assert.False(metricas["Gols de pênalti"].MenosEhMelhor);
+        }
+
         [Fact]
         public void Desempenho_PayloadSemStatsSection_NaoEstoura()
         {
@@ -338,6 +386,31 @@ namespace ControleFutebolWeb.Tests.Services
 
             Assert.Null(jogo.Data);
             Assert.Equal("Espanyol", jogo.Adversario);
+        }
+
+        // O placar chega como mandante x visitante; a tela mostra V/E/D e o placar do
+        // ponto de vista do time do jogador, que pode ser o visitante.
+        [Theory]
+        [InlineData(true, 2, 4, 2, 4, "D")]
+        [InlineData(false, 2, 4, 4, 2, "V")]
+        [InlineData(false, 1, 1, 1, 1, "E")]
+        public void Jogos_PlacarDoPontoDeVistaDoJogador(
+            bool casa, int golsCasa, int golsFora, int esperadoTime, int esperadoAdv, string resultado)
+        {
+            var raiz = Json($$"""
+            {
+              "recentMatches": [
+                { "isHomeTeam": {{casa.ToString().ToLowerInvariant()}}, "homeScore": {{golsCasa}}, "awayScore": {{golsFora}},
+                  "opponentTeamName": "Brazil" }
+              ]
+            }
+            """);
+
+            var jogo = Assert.Single(FotMobPerfilService.LerJogos(raiz));
+
+            Assert.Equal(esperadoTime, jogo.GolsTime);
+            Assert.Equal(esperadoAdv, jogo.GolsAdversario);
+            Assert.Equal(resultado, jogo.Resultado);
         }
     }
 }

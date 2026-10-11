@@ -14,21 +14,14 @@
 <link rel="stylesheet" href="~/css/campeonatos.css" asp-append-version="true" />
 
 <div class="cp" style="padding:16px;">
-    <div class="cp-hero">
-        <div class="cp-hero-escudo">🏆</div>
-        <div>
-            <div class="cp-kicker">@(c.Plataforma ?? "Campeonato")</div>
-            <h1 class="cp-titulo">@c.Nome</h1>
-            <p class="cp-sub">@c.Participantes.Count participantes</p>
-        </div>
-    </div>
+    @await Html.PartialAsync("~/Views/Campeonatos/_Cabecalho.cshtml", Model)
 
     @await Html.PartialAsync("~/Views/Campeonatos/_Campeao.cshtml", Model)
 
-    <nav class="cp-abas">
-        <a class="@Aba("tabela")" href="/c/@token">Tabela</a>
-        <a class="@Aba("partidas")" href="/c/@token?aba=partidas">Partidas</a>
-        <a class="@Aba("artilharia")" href="/c/@token?aba=artilharia">Artilharia</a>
+    <nav class="cp-abas" aria-label="Seções do campeonato">
+        <a class="@Aba("tabela")" aria-current="@(Model.Aba == "tabela" ? "page" : null)" href="/c/@token">Tabela</a>
+        <a class="@Aba("partidas")" aria-current="@(Model.Aba == "partidas" ? "page" : null)" href="/c/@token?aba=partidas">Partidas<span class="conta">@c.Partidas.Count</span></a>
+        <a class="@Aba("artilharia")" aria-current="@(Model.Aba == "artilharia" ? "page" : null)" href="/c/@token?aba=artilharia">Artilharia</a>
     </nav>
 
     @switch (Model.Aba)

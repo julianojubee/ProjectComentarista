@@ -1,6 +1,6 @@
 @model ControleFutebolWeb.Models.Treinador
 @using ControleFutebolWeb.Helpers
-@{ ViewData["Title"] = $"Editar — {Model.Nome}"; }
+@{ ViewData["Title"] = $"Editar {Model.Nome}"; }
 
 <link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/form-card.css" asp-append-version="true" />
@@ -8,24 +8,8 @@
 
 <div class="af">
     <div class="af-card">
-        <div class="af-title">✏️ Editar Treinador</div>
-
-        <div class="af-resumo">
-            <img src="@(Url.FotoSrc(Model.FotoUrl) ?? Url.Content("~/images/placeholder-treinador.png"))" alt="@Model.Nome" />
-            <div>
-                <div class="af-resumo-nome">@Model.Nome</div>
-                <div class="af-resumo-meta">
-                    @if (Model.Time != null)
-                    {
-                        <text>@Model.Time.Nome</text>
-                    }
-                    @if (Model.Idade > 0)
-                    {
-                        <text> · @Model.Idade anos</text>
-                    }
-                </div>
-            </div>
-        </div>
+        <a asp-action="Details" asp-route-id="@Model.Id" class="af-voltar">@Model.Nome</a>
+        <h1 class="af-title">Editar treinador</h1>
 
         <div asp-validation-summary="All" class="af-validation" style="margin-bottom:1rem;"></div>
 
@@ -34,34 +18,34 @@
             <input type="hidden" asp-for="Id" />
 
             <div class="af-field">
-                <label class="af-label">Nome *</label>
-                <input asp-for="Nome" class="af-input" autofocus />
+                <label class="af-label" for="Nome">Nome</label>
+                <input asp-for="Nome" class="af-input" required autofocus />
                 <span asp-validation-for="Nome" class="af-validation"></span>
             </div>
 
             <div class="af-field">
-                <label class="af-label">Nacionalidade</label>
+                <label class="af-label" for="NacionalidadeId">Nacionalidade</label>
                 @Html.DropDownList("NacionalidadeId", (SelectList)ViewBag.Nacionalidades, "Selecione",
-                    new { @class = "af-select", data_buscavel = "Buscar nacionalidade…" })
+                    new { @class = "af-select", data_buscavel = "Buscar nacionalidade" })
             </div>
 
             <div class="af-field">
-                <label class="af-label">Data de Nascimento</label>
+                <label class="af-label" for="DataNascimento">Data de nascimento</label>
                 <input asp-for="DataNascimento" type="date" class="af-input" />
             </div>
 
             <div class="af-field">
-                <label class="af-label">Time Atual *</label>
+                <label class="af-label" for="TimeId">Time atual</label>
                 @Html.DropDownList("TimeId", (SelectList)ViewBag.Times, "Selecione",
-                    new { @class = "af-select", data_buscavel = "Buscar time…" })
+                    new { @class = "af-select", data_buscavel = "Buscar time" })
                 <span asp-validation-for="TimeId" class="af-validation"></span>
             </div>
 
             <div class="af-field">
-                <label class="af-label">Foto (URL)</label>
+                <label class="af-label" for="fotoUrl">Endereço da foto <small>(opcional)</small></label>
                 <input asp-for="FotoUrl" id="fotoUrl" class="af-input" placeholder="https://.../foto.png" />
                 <div class="af-hint">
-                    Cole a URL da foto do treinador — útil quando a API não tem informações dele.
+                    Cole o link de uma imagem quando a api-football não tiver a foto do treinador.
                 </div>
                 <img id="fotoPreview" class="af-preview"
                      src="@Url.FotoSrc(Model.FotoUrl)"
@@ -70,7 +54,7 @@
             </div>
 
             <div class="af-actions">
-                <button type="submit" class="af-save">💾 Salvar Alterações</button>
+                <button type="submit" class="af-save">Salvar alterações</button>
                 <a asp-action="Details" asp-route-id="@Model.Id" class="af-cancel">Cancelar</a>
             </div>
         </form>

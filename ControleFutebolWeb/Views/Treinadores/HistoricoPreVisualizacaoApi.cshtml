@@ -1,7 +1,8 @@
 @model ControleFutebolWeb.Models.ViewModels.TreinadorHistoricoApiViewModel
 @using ControleFutebolWeb.Models.ViewModels
 @{
-    ViewData["Title"] = $"Histórico (API) — {Model.Treinador.Nome}";
+    ViewData["Title"] = $"Importar histórico de {Model.Treinador.Nome}";
+    string Qtd(int n, string um, string varios) => n == 1 ? $"1 {um}" : $"{n} {varios}";
     var novas = Model.Itens.Count(i => i.StatusPrevisto == "nova");
     var jaSalvas = Model.Itens.Count(i => i.StatusPrevisto == "ja-salva");
     var ignoradas = Model.Itens.Count(i => i.StatusPrevisto == "ignorada");
@@ -14,12 +15,8 @@
     var hero = new TreinadorHeroViewModel
     {
         Treinador = Model.Treinador,
-        Kicker = "Importar Histórico",
-        MetaExtra = "Fonte: api-football",
-        Acoes = new List<TreinadorHeroAcao>
-        {
-            new() { Texto = "Voltar ao treinador", Icone = "voltar", Url = Url.Action("Details", new { id = Model.Treinador.Id })! }
-        }
+        Kicker = "Importar histórico",
+        MetaExtra = "dados da api-football"
     };
 }
 
@@ -38,9 +35,9 @@
             @if (Model.RegistroCompletoEncontrado)
             {
                 <div class="th-alerta th-alerta-ok">
-                    ✅ Registro completo do técnico localizado — a API tinha um cadastro parcial
-                    vinculado ao time atual, sem idade/nacionalidade confirmadas. O histórico abaixo
-                    já une as passagens dos dois registros.
+                    Registro completo do técnico localizado. A API tinha um cadastro parcial ligado ao
+                    time atual, sem idade e nacionalidade confirmadas, e a lista abaixo já une as
+                    passagens dos dois registros.
                 </div>
             }
 
@@ -49,9 +46,9 @@
                 <!-- Homônimos na API (ex.: os dois "Luís Castro" portugueses): em vez de importar
                      só a passagem do time atual, o usuário escolhe de quem é a carreira. -->
                 <div class="th-alerta th-alerta-aviso">
-                    ⚠️ A API tem <b>@Model.Candidatos.Count técnicos</b> com o nome de @Model.Treinador.Nome.
-                    Escolha abaixo qual é o certo — o histórico dele será importado e o cadastro
-                    (idade, nacionalidade e foto) atualizado. O time atual
+                    A API tem <b>@Model.Candidatos.Count técnicos</b> com o nome de @Model.Treinador.Nome.
+                    Escolha o certo: o histórico dele será importado e o cadastro (idade, nacionalidade
+                    e foto) atualizado. O time atual
                     @if (Model.Treinador.Time != null)
                     {
                         <text>(<b>@Model.Treinador.Time.Nome</b>)</text>
@@ -60,7 +57,7 @@
                 </div>
 
                 <div class="th-sec-title">
-                    <span class="lbl">Qual desses é o @Model.Treinador.Nome?</span>
+                    <h2>Qual deles é o @Model.Treinador.Nome?</h2>
                     <div class="line"></div>
                 </div>
 
@@ -68,7 +65,7 @@
                 {
                     <div class="th-candidato">
                         <img src="@(!string.IsNullOrWhiteSpace(c.FotoUrl) ? Url.Action("Imagem", "MediaProxy", new { url = c.FotoUrl }) : Url.Content("~/images/placeholder-treinador.png"))"
-                             alt="@c.Nome" />
+                             alt="" loading="lazy" />
 
                         <div class="th-candidato-info">
                             <div class="th-candidato-nome">
@@ -81,38 +78,37 @@
                             <div class="th-candidato-meta">
                                 @if (!string.IsNullOrWhiteSpace(c.Nacionalidade))
                                 {
-                                    <text>🌍 @c.Nacionalidade · </text>
+                                    <span>@c.Nacionalidade</span>
                                 }
                                 @if (!string.IsNullOrWhiteSpace(c.TimeAtual))
                                 {
-                                    <text>🏟️ hoje no @c.TimeAtual · </text>
+                                    <span>hoje em @c.TimeAtual</span>
                                 }
-                                @c.TotalPassagens passagem(ns)
+                                <span>@Qtd(c.TotalPassagens, "passagem", "passagens")</span>
                                 @if (!string.IsNullOrWhiteSpace(c.PeriodoCarreira))
                                 {
-                                    <text> · @c.PeriodoCarreira</text>
+                                    <span>de @c.PeriodoCarreira.Replace(" – ", " a ")</span>
                                 }
                             </div>
                             @if (c.ClubesResumo.Any())
                             {
                                 <div class="th-candidato-clubes">
-                                    @string.Join(" · ", c.ClubesResumo)@(c.TotalPassagens > c.ClubesResumo.Count ? " …" : "")
+                                    @string.Join(", ", c.ClubesResumo)@(c.TotalPassagens > c.ClubesResumo.Count ? " e outros" : "")
                                 </div>
                             }
                         </div>
 
                         <a asp-action="PreVisualizarHistoricoApi" asp-route-id="@Model.Treinador.Id"
-                           asp-route-coachApiId="@c.Id" class="th-btn-escolher">É este →</a>
+                           asp-route-coachApiId="@c.Id" class="th-btn-escolher">Escolher este</a>
                     </div>
                 }
             }
             else if (Model.Ambiguo)
             {
                 <div class="th-alerta th-alerta-aviso">
-                    ⚠️ A API tem mais de um técnico com nome parecido ao de @Model.Treinador.Nome —
-                    só foi encontrado um cadastro parcial (sem idade/nacionalidade confirmadas) e não
-                    foi possível confirmar qual é o registro completo. O histórico abaixo pode estar
-                    incompleto (só a passagem atual).
+                    A API tem mais de um técnico com nome parecido com @Model.Treinador.Nome e só achou
+                    um cadastro parcial, sem idade e nacionalidade confirmadas. Não deu para confirmar o
+                    registro completo, então a lista abaixo pode ter só a passagem atual.
                 </div>
             }
 
@@ -122,10 +118,10 @@
                      serão gravados e permite trocar sem sair da tela. -->
                 <div class="th-alerta th-alerta-ok" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                     <div style="flex:1; min-width:220px;">
-                        ✅ Usando o registro de <b>@(Model.Escolhido.NomeCompleto ?? Model.Escolhido.Nome)</b>@if (Model.Escolhido.Idade.HasValue)
+                        Usando o registro de <b>@(Model.Escolhido.NomeCompleto ?? Model.Escolhido.Nome)</b>@if (Model.Escolhido.Idade.HasValue)
                         {<text>, @Model.Escolhido.Idade anos</text>}@if (!string.IsNullOrWhiteSpace(Model.Escolhido.Nacionalidade))
                         {<text>, @Model.Escolhido.Nacionalidade</text>}.
-                        Ao salvar, esses dados vão para o cadastro — o time atual
+                        Ao salvar, esses dados vão para o cadastro e o time atual
                         @if (Model.Treinador.Time != null)
                         {
                             <text>(<b>@Model.Treinador.Time.Nome</b>)</text>
@@ -133,8 +129,8 @@
                         é mantido.
                     </div>
                     <a asp-action="PreVisualizarHistoricoApi" asp-route-id="@Model.Treinador.Id"
-                       asp-route-escolher="true" style="font-size:.78rem; font-weight:700; white-space:nowrap;">
-                        trocar de técnico →
+                       asp-route-escolher="true" class="th-trocar">
+                        Trocar de técnico
                     </a>
                 </div>
             }
@@ -144,11 +140,11 @@
             @if (!escolhaPendente)
             {
                 <div class="th-sec-title">
-                    <span class="lbl">Histórico de Trabalhos (api-football)</span>
+                    <h2>Passagens na api-football</h2>
                     <div class="line"></div>
                     @if (Model.Itens.Any())
                     {
-                        <span class="badge">@Model.Itens.Count passagem(ns)</span>
+                        <span class="badge">@Qtd(Model.Itens.Count, "passagem", "passagens")</span>
                     }
                 </div>
 
@@ -164,21 +160,21 @@
                             <div class="th-linha-info">
                                 <div class="th-linha-nome">@(item.TimeLocalNome ?? item.NomeTime)</div>
                                 <div class="th-linha-data">
-                                    @item.DtInicio?.ToString("dd/MM/yyyy")
-                                    até @(item.DtFim?.ToString("dd/MM/yyyy") ?? "Atual")
+                                    @(item.DtInicio?.ToString("dd/MM/yyyy") ?? "início desconhecido")
+                                    a @(item.DtFim?.ToString("dd/MM/yyyy") ?? "hoje")
                                 </div>
                             </div>
                             @if (item.ClubeNaoCadastrado)
                             {
-                                <span class="th-tag th-tag-aviso">clube não cadastrado</span>
+                                <span class="th-tag th-tag-aviso">Clube não cadastrado</span>
                             }
                             else if (item.JaSalva)
                             {
-                                <span class="th-tag th-tag-info">já salvo</span>
+                                <span class="th-tag th-tag-info">Já salva</span>
                             }
                             else
                             {
-                                <span class="th-tag th-tag-ok">novo</span>
+                                <span class="th-tag th-tag-ok">Nova</span>
                             }
                         </div>
                     }
@@ -192,21 +188,22 @@
             {
                 <div class="an-form-card">
                     <div class="an-form-head">
-                        <div class="an-form-dot"></div>
-                        <span>Salvar Histórico</span>
+                        <h2>Salvar histórico</h2>
                     </div>
                     <div class="an-form-body">
                         <!-- Prevê exatamente o resultado do clique em "Salvar Histórico" — mesma regra de
                              dedupe usada em SalvarHistoricoApi — pra fechar o ciclo preview → salvar sem
                              surpresa nenhuma. -->
                         <div class="th-previsao">
-                            <b>@novas</b> passagem(ns) nova(s) será(ão) salva(s)@if (jaSalvas > 0)
-                            {<text>, <b>@jaSalvas</b> já estava(m) salva(s)</text>}@if (ignoradas > 0)
-                            {<text>, <b>@ignoradas</b> será(ão) ignorada(s)</text>}
-                            de <b>@Model.Itens.Count</b> encontrada(s) na API.
+                            Das <b>@Model.Itens.Count</b> passagens da API:
+                            <ul style="margin:.4rem 0 0;padding-left:1.1rem">
+                                <li><b>@novas</b> @(novas == 1 ? "será salva" : "serão salvas")</li>
+                                @if (jaSalvas > 0) { <li><b>@jaSalvas</b> @(jaSalvas == 1 ? "já estava salva" : "já estavam salvas")</li> }
+                                @if (ignoradas > 0) { <li><b>@ignoradas</b> @(ignoradas == 1 ? "será ignorada" : "serão ignoradas")</li> }
+                            </ul>
                             @if (naoCadastrados > 0)
                             {
-                                <text> @naoCadastrados delas têm o clube fora do sistema — marque a opção abaixo pra cadastrá-los também.</text>
+                                <p style="margin:.6rem 0 0">@(naoCadastrados == 1 ? "1 delas tem o clube" : $"{naoCadastrados} delas têm o clube") fora do sistema. Marque a opção abaixo para cadastrar.</p>
                             }
                         </div>
 
@@ -225,8 +222,8 @@
                                 <label class="th-check">
                                     <input type="checkbox" name="criarClubes" value="true" />
                                     <span>
-                                        Criar automaticamente @naoCadastrados clube(s) não cadastrado(s)
-                                        (cadastro genérico — só nome e escudo — dá pra completar depois em “Times”)
+                                        Cadastrar @(naoCadastrados == 1 ? "o clube que falta" : $"os {naoCadastrados} clubes que faltam")
+                                        só com nome e escudo, para completar depois em Times
                                     </span>
                                 </label>
                             }

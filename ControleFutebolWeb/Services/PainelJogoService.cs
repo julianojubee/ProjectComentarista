@@ -1,4 +1,4 @@
-﻿using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using Microsoft.EntityFrameworkCore;
@@ -32,8 +32,12 @@ namespace ControleFutebolWeb.Services
         /// Resumo pós-jogo: placar, notas dos jogadores, escalação inicial em
         /// campo, observações e estatísticas. Devolve null quando o jogo não
         /// existe (o controller traduz para 404).
+        ///
+        /// <paramref name="registrarCuriosidades"/>: grava as curiosidades do jogo
+        /// como anotação no perfil dos jogadores/clubes do usuário. Só a tela logada
+        /// liga — a página pública é de quem assiste, não do dono da análise.
         /// </summary>
-        public async Task<object?> PosJogoAsync(int jogoId, string? usuarioId, Func<string, string?> imagemUrl)
+        public async Task<object?> PosJogoAsync(int jogoId, string? usuarioId, Func<string, string?> imagemUrl, bool registrarCuriosidades = false)
         {
             var id = jogoId;
 
@@ -300,9 +304,12 @@ namespace ControleFutebolWeb.Services
                 .Where(e => e.JogoId == id)
                 .ToListAsync();
 
+            // GroupBy, não ToDictionary direto: escalação importada pode trazer o mesmo
+            // jogador duas vezes (ex.: jogo 15936) e a chave repetida derrubava o pós-jogo.
             var isCasaPorJogador = escInicial
                 .Where(e => e.JogadorId.HasValue)
-                .ToDictionary(e => e.JogadorId!.Value, e => e.IsTimeCasa);
+                .GroupBy(e => e.JogadorId!.Value)
+                .ToDictionary(g => g.Key, g => g.First().IsTimeCasa);
             bool EhCasaJogador(Jogador j) =>
                 isCasaPorJogador.TryGetValue(j.Id, out var isCasa) ? isCasa : (j.TimeId == jogo.TimeCasaId || j.SelecaoId == jogo.TimeCasaId);
 
@@ -344,6 +351,9 @@ namespace ControleFutebolWeb.Services
                 .Where(x => x.casa != null || x.vis != null)
                 .ToList();
 
+            var curiosidades = await CuriosidadesAsync(jogo, estatisticasJogadores, EhCasaJogador, imagemUrl,
+                registrarCuriosidades ? usuarioId : null);
+
             // ── Resumo textual automático ──────────────────────────────────────
             var totalGols = await _context.Gols.CountAsync(g => g.JogoId == id && !g.Contra);
             var cartoesAmarelos = await _context.Cartoes.CountAsync(c => c.JogoId == id && c.Tipo == "Amarelo");
@@ -362,8 +372,8 @@ namespace ControleFutebolWeb.Services
             if (totalGols > 0 || cartoesAmarelos > 0 || cartoesVermelhos > 0)
             {
                 var partes = new List<string> { $"{totalGols} gol{(totalGols != 1 ? "s" : "")}" };
-                if (cartoesAmarelos > 0) partes.Add($"{cartoesAmarelos} cartão(ões) amarelo(s)");
-                if (cartoesVermelhos > 0) partes.Add($"{cartoesVermelhos} cartão(ões) vermelho(s)");
+                if (cartoesAmarelos > 0) partes.Add(cartoesAmarelos == 1 ? "1 cartão amarelo" : $"{cartoesAmarelos} cartões amarelos");
+                if (cartoesVermelhos > 0) partes.Add(cartoesVermelhos == 1 ? "1 cartão vermelho" : $"{cartoesVermelhos} cartões vermelhos");
                 resumo.Add(string.Join(", ", partes) + " na partida.");
             }
 
@@ -375,7 +385,7 @@ namespace ControleFutebolWeb.Services
                 penaltisVisitante = jogo.PenaltisVisitante,
                 competicao = jogo.Competicao?.Nome,
                 rodada = jogo.Rodada > 0 ? jogo.Rodada : (int?)null,
-                data = DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy · HH:mm"),
+                data = jogo.Data.HasValue ? DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy 'às' HH:mm") : null,
                 casa = new { nome = jogo.TimeCasa?.Nome, escudo = string.IsNullOrEmpty(jogo.TimeCasa?.EscudoUrl) ? null : imagemUrl(jogo.TimeCasa.EscudoUrl) },
                 visitante = new { nome = jogo.TimeVisitante?.Nome, escudo = string.IsNullOrEmpty(jogo.TimeVisitante?.EscudoUrl) ? null : imagemUrl(jogo.TimeVisitante.EscudoUrl) },
                 mediaCasa,
@@ -387,8 +397,238 @@ namespace ControleFutebolWeb.Services
                 campo,
                 observacoes,
                 estatisticas,
-                estatisticasJogador
+                estatisticasJogador,
+                curiosidades
             };
+        }
+
+        /// <summary>
+        /// Aba "Curiosidades" do pós-jogo: gera as curiosidades, grava para o
+        /// usuário quando pedido e devolve no formato do JS.
+        /// </summary>
+        private async Task<List<object>> CuriosidadesAsync(Jogo jogo, List<EstatisticaJogador> estatisticasJogo,
+            Func<Jogador, bool> ehCasaJogador, Func<string, string?> imagemUrl, string? usuarioRegistrar)
+        {
+            var (lista, jogadores) = await GerarCuriosidadesAsync(jogo, estatisticasJogo, j => ehCasaJogador(j));
+
+            if (usuarioRegistrar != null)
+                await RegistrarCuriosidadesAsync(jogo, lista, new[] { usuarioRegistrar });
+
+            return lista.Select(c =>
+            {
+                Jogador? j = c.JogadorId.HasValue && jogadores.TryGetValue(c.JogadorId.Value, out var x) ? x : null;
+                return (object)new
+                {
+                    tipo = c.Tipo,
+                    titulo = c.Titulo,
+                    texto = c.Texto,
+                    lado = c.Casa == null ? null : c.Casa.Value ? "casa" : "vis",
+                    jogadorNome = j?.Nome,
+                    foto = string.IsNullOrEmpty(j?.FotoUrl) ? null : imagemUrl(j.FotoUrl)
+                };
+            }).ToList();
+        }
+
+        /// <summary>
+        /// Caminho do serviço de fundo (GerarCuriosidadesService): gera as
+        /// curiosidades de um jogo encerrado e grava para todos os usuários.
+        /// Sem usuário não há escalação salva para saber o lado de cada jogador —
+        /// e não faz falta: curiosidade de jogador vai para o perfil dele, e a de
+        /// time já sabe o clube pelo placar.
+        /// </summary>
+        /// <returns>Anotações criadas e se alguma gravação esbarrou em outra ao mesmo
+        /// tempo (o usuário abrindo o pós-jogo) — nesse caso vale tentar de novo.</returns>
+        public async Task<(int Criadas, bool Conflito)> ProcessarCuriosidadesAsync(int jogoId, IReadOnlyCollection<string> usuarios)
+        {
+            var jogo = await _context.Jogos
+                .AsNoTracking()
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .Include(j => j.Competicao)
+                .FirstOrDefaultAsync(j => j.Id == jogoId);
+            if (jogo == null) return (0, false);
+
+            var estatisticasJogo = await _context.EstatisticasJogador
+                .AsNoTracking()
+                .Where(e => e.JogoId == jogoId)
+                .ToListAsync();
+
+            var (lista, _) = await GerarCuriosidadesAsync(jogo, estatisticasJogo, _ => null);
+            return await RegistrarCuriosidadesAsync(jogo, lista, usuarios);
+        }
+
+        /// <summary>
+        /// Carrega o que a partida precisa ser comparada (o campeonato e a temporada
+        /// antes dela) e deixa as regras com CuriosidadesJogoHelper.
+        /// </summary>
+        private async Task<(List<CuriosidadesJogoHelper.Curiosidade> Lista, Dictionary<int, Jogador> Jogadores)> GerarCuriosidadesAsync(
+            Jogo jogo, List<EstatisticaJogador> estatisticasJogo, Func<Jogador, bool?> ladoJogador)
+        {
+            var id = jogo.Id;
+
+            // Mesmo corte do pré-jogo: só o que aconteceu antes desta partida.
+            var jogosCampeonato = await _context.Jogos
+                .AsNoTracking()
+                .Where(j => j.CompeticaoId == jogo.CompeticaoId && j.Temporada == jogo.Temporada
+                         && (j.Id == id || (j.PlacarCasa != null && j.PlacarVisitante != null
+                                            && (jogo.Data == null || j.Data < jogo.Data))))
+                .Select(j => new CuriosidadesJogoHelper.JogoResumo(j.Id, j.Data, j.TimeCasaId, j.TimeVisitanteId, j.PlacarCasa, j.PlacarVisitante))
+                .ToListAsync();
+            var idsAnteriores = jogosCampeonato.Where(j => j.Id != id).Select(j => j.Id).ToList();
+
+            var historicoCampeonato = await _context.EstatisticasJogador
+                .AsNoTracking()
+                .Where(e => idsAnteriores.Contains(e.JogoId))
+                .ToListAsync();
+
+            var jogadoresIds = estatisticasJogo.Select(e => e.JogadorId).Distinct().ToList();
+            var historicoTemporada = await _context.EstatisticasJogador
+                .AsNoTracking()
+                .Where(e => jogadoresIds.Contains(e.JogadorId)
+                         && e.JogoId != id
+                         && e.Jogo.Temporada == jogo.Temporada
+                         && (jogo.Data == null || e.Jogo.Data < jogo.Data))
+                .ToListAsync();
+
+            var golsCampeonato = await _context.Gols
+                .AsNoTracking()
+                .Where(g => !g.Contra && (g.JogoId == id || idsAnteriores.Contains(g.JogoId)))
+                .Select(g => new CuriosidadesJogoHelper.GolCampeonato(g.JogoId, g.JogadorId, g.Minuto))
+                .ToListAsync();
+
+            // Nome e foto: quem fez gol pode não ter linha de estatística no jogo.
+            var idsComNome = jogadoresIds.Concat(golsCampeonato.Where(g => g.JogoId == id).Select(g => g.JogadorId)).Distinct().ToList();
+            var jogadores = await _context.Jogadores
+                .AsNoTracking()
+                .Where(j => idsComNome.Contains(j.Id))
+                .ToDictionaryAsync(j => j.Id);
+
+            var lista = CuriosidadesJogoHelper.Gerar(new CuriosidadesJogoHelper.Entrada
+            {
+                JogoId = id,
+                TimeCasaId = jogo.TimeCasaId,
+                TimeVisitanteId = jogo.TimeVisitanteId,
+                NomeCasa = jogo.TimeCasa?.Nome ?? "",
+                NomeVisitante = jogo.TimeVisitante?.Nome ?? "",
+                EstatisticasJogo = estatisticasJogo,
+                HistoricoCampeonato = historicoCampeonato,
+                HistoricoTemporada = historicoTemporada,
+                JogosCampeonato = jogosCampeonato,
+                GolsCampeonato = golsCampeonato,
+                NomeJogador = jid => jogadores.TryGetValue(jid, out var j) ? j.Nome : "",
+                LadoJogador = jid => jogadores.TryGetValue(jid, out var j) ? ladoJogador(j) : null,
+            });
+
+            return (lista, jogadores);
+        }
+
+        /// <summary>
+        /// Jogo encerrado o bastante para gravar curiosidade: no meio da partida
+        /// "chegou a 4 vitórias seguidas" ou "maior goleada" ainda podem deixar de ser
+        /// verdade. Jogo cadastrado à mão nem sempre ganha Status, então placar + 3h
+        /// depois do início também vale.
+        /// </summary>
+        public static bool EncerradoParaCuriosidades(Jogo jogo) =>
+            jogo.Status == "Finalizado"
+            || (jogo.PlacarCasa != null && jogo.PlacarVisitante != null
+                && jogo.Data.HasValue && jogo.Data.Value < DateTime.UtcNow.AddHours(-3));
+
+        /// <summary>
+        /// Grava cada curiosidade nova como anotação de categoria "Curiosidade",
+        /// para cada usuário: a de jogador em /AnotacoesJogador, a de time em
+        /// /AnotacoesTime. Cada chave entra uma vez por jogo por usuário
+        /// (CuriosidadeRegistrada) — se o usuário excluir a anotação, ela não volta.
+        /// </summary>
+        private async Task<(int Criadas, bool Conflito)> RegistrarCuriosidadesAsync(Jogo jogo,
+            List<CuriosidadesJogoHelper.Curiosidade> lista, IReadOnlyCollection<string> usuarios)
+        {
+            var comChave = lista.Where(c => !string.IsNullOrEmpty(c.Chave)).ToList();
+            if (!EncerradoParaCuriosidades(jogo) || comChave.Count == 0 || usuarios.Count == 0) return (0, false);
+
+            var jaRegistradas = (await _context.CuriosidadesRegistradas
+                    .Where(c => c.JogoId == jogo.Id)
+                    .Select(c => new { c.UsuarioId, c.Chave })
+                    .ToListAsync())
+                .GroupBy(c => c.UsuarioId)
+                .ToDictionary(g => g.Key, g => g.Select(c => c.Chave).ToHashSet());
+
+            // Referência da partida no fim do texto: na tela de anotações a
+            // curiosidade aparece solta, longe do jogo.
+            var partes = new List<string>
+            {
+                $"{jogo.TimeCasa?.Nome} {jogo.PlacarCasa} x {jogo.PlacarVisitante} {jogo.TimeVisitante?.Nome}"
+            };
+            var competicao = string.Join(" ", new[] { jogo.Competicao?.Nome, jogo.Temporada > 0 ? jogo.Temporada.ToString() : null }.Where(x => !string.IsNullOrEmpty(x)));
+            if (competicao.Length > 0) partes.Add(competicao);
+            if (jogo.Rodada > 0) partes.Add($"rodada {jogo.Rodada}");
+            if (jogo.Data.HasValue) partes.Add(DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy"));
+            var referencia = $" ({string.Join(", ", partes)})";
+
+            int criadas = 0;
+            bool conflito = false;
+
+            // Um SaveChanges por usuário: se a gravação de um esbarrar em outra (ele
+            // abriu o pós-jogo no mesmo instante), só o lote dele se perde.
+            foreach (var usuarioId in usuarios)
+            {
+                var minhas = jaRegistradas.GetValueOrDefault(usuarioId);
+                var novas = comChave.Where(c => minhas == null || !minhas.Contains(c.Chave)).ToList();
+                if (novas.Count == 0) continue;
+
+                int criadasUsuario = 0;
+                foreach (var c in novas)
+                {
+                    var conteudo = c.Texto + referencia;
+                    if (c.JogadorId is int jogadorId)
+                    {
+                        _context.AnotacoesJogador.Add(new AnotacaoJogador
+                        {
+                            JogadorId = jogadorId,
+                            Titulo = c.Titulo,
+                            Conteudo = conteudo,
+                            Categoria = "Curiosidade",
+                            UsuarioId = usuarioId
+                        });
+                        criadasUsuario++;
+                    }
+                    else
+                    {
+                        var times = new List<int>();
+                        if (c.Casa == true || c.Casa == null || c.AmbosTimes) times.Add(jogo.TimeCasaId);
+                        if (c.Casa == false || c.Casa == null || c.AmbosTimes) times.Add(jogo.TimeVisitanteId);
+                        foreach (var timeId in times)
+                        {
+                            _context.AnotacoesTime.Add(new AnotacaoTime
+                            {
+                                TimeId = timeId,
+                                Titulo = c.Titulo,
+                                Conteudo = conteudo,
+                                Categoria = "Curiosidade",
+                                UsuarioId = usuarioId
+                            });
+                            criadasUsuario++;
+                        }
+                    }
+
+                    _context.CuriosidadesRegistradas.Add(new CuriosidadeRegistrada { JogoId = jogo.Id, UsuarioId = usuarioId, Chave = c.Chave });
+                }
+
+                try
+                {
+                    await _context.SaveChangesAsync();
+                    criadas += criadasUsuario;
+                }
+                catch (DbUpdateException)
+                {
+                    // O índice único barrou: outra gravação registrou essas chaves
+                    // primeiro (o serviço e o pós-jogo ao mesmo tempo). Descarta o
+                    // lote deste usuário e segue.
+                    _context.ChangeTracker.Clear();
+                    conflito = true;
+                }
+            }
+
+            return (criadas, conflito);
         }
 
         /// <summary>
@@ -400,6 +640,7 @@ namespace ControleFutebolWeb.Services
             var jogo = await _context.Jogos
                 .Include(j => j.TimeCasa)
                 .Include(j => j.TimeVisitante)
+                .Include(j => j.Competicao)
                 .FirstOrDefaultAsync(j => j.Id == jogoId);
 
             if (jogo == null) return null;
@@ -407,25 +648,34 @@ namespace ControleFutebolWeb.Services
             var casa = await MontarResumoPreJogoAsync(jogo, jogo.TimeCasaId, jogo.TimeCasa, imagemUrl);
             var visitante = await MontarResumoPreJogoAsync(jogo, jogo.TimeVisitanteId, jogo.TimeVisitante, imagemUrl);
 
-            return new { casa, visitante };
+            return new { casa, visitante, competicao = jogo.Competicao?.Nome, temporada = jogo.Temporada > 0 ? jogo.Temporada : (int?)null };
         }
 
         // Resumo de um time para o painel Pré-jogo, restrito à mesma competição/temporada do jogo.
         private async Task<object> MontarResumoPreJogoAsync(Jogo jogo, int timeId, Time? time, Func<string, string?> imagemUrl)
         {
-            // Jogos finalizados do time na mesma competição/temporada (mais recentes primeiro)
+            // Jogos finalizados do time na mesma competição/temporada ANTES desta partida
+            // (mais recentes primeiro). Sem o corte por data, o pré-jogo de uma rodada
+            // antiga contava os jogos que vieram depois dela.
             var jogosTime = await _context.Jogos
                 .Where(j => j.CompeticaoId == jogo.CompeticaoId
                          && j.Temporada == jogo.Temporada
                          && j.Id != jogo.Id
                          && (j.TimeCasaId == timeId || j.TimeVisitanteId == timeId)
-                         && j.PlacarCasa != null && j.PlacarVisitante != null)
+                         && j.PlacarCasa != null && j.PlacarVisitante != null
+                         && (jogo.Data == null || j.Data < jogo.Data))
                 .OrderByDescending(j => j.Data)
-                .Select(j => new { j.TimeCasaId, j.PlacarCasa, j.PlacarVisitante })
+                .Select(j => new
+                {
+                    j.TimeCasaId, j.PlacarCasa, j.PlacarVisitante, j.Data,
+                    Casa = j.TimeCasa!.Nome, Visitante = j.TimeVisitante!.Nome
+                })
                 .ToListAsync();
 
             int v = 0, e = 0, d = 0, golsPro = 0, golsContra = 0;
             var form = new List<string>();
+            // Legenda de cada quadradinho da forma: "2 x 1 contra Santos, em casa, 12/08"
+            var formJogos = new List<string>();
             foreach (var j in jogosTime)
             {
                 bool ehCasa = j.TimeCasaId == timeId;
@@ -436,8 +686,17 @@ namespace ControleFutebolWeb.Services
 
                 string r = golsTime > golsOpp ? "V" : golsTime == golsOpp ? "E" : "D";
                 if (r == "V") v++; else if (r == "E") e++; else d++;
-                if (form.Count < 5) form.Add(r);
+                if (form.Count < 5)
+                {
+                    form.Add(r);
+                    var quando = j.Data.HasValue ? DateHelper.FormatarData(j.Data, "dd/MM") : null;
+                    formJogos.Add($"{golsTime} x {golsOpp} contra {(ehCasa ? j.Visitante : j.Casa)}, {(ehCasa ? "em casa" : "fora")}"
+                        + (string.IsNullOrEmpty(quando) ? "" : $", {quando}"));
+                }
             }
+            // Mais antigo à esquerda, mais recente à direita, como no pós-jogo
+            var formaExibida = form.AsEnumerable().Reverse().ToList();
+            formJogos.Reverse();
             int total = v + e + d;
             int aproveitamento = total > 0 ? (int)Math.Round((v * 3 + e) * 100.0 / (total * 3)) : 0;
 
@@ -448,6 +707,8 @@ namespace ControleFutebolWeb.Services
             var jogosDoTime = await _context.Jogos
                 .Where(j => j.CompeticaoId == jogo.CompeticaoId
                          && j.Temporada == jogo.Temporada
+                         && j.Id != jogo.Id
+                         && (jogo.Data == null || j.Data < jogo.Data)
                          && (j.TimeCasaId == timeId || j.TimeVisitanteId == timeId))
                 .Select(j => new { j.Id, j.TimeCasaId, j.TimeVisitanteId })
                 .ToListAsync();
@@ -520,17 +781,14 @@ namespace ControleFutebolWeb.Services
                     }))
                 .ToList();
 
-            // Observações automáticas a partir dos números
+            // Observações automáticas a partir dos números. V/E/D e aproveitamento já
+            // aparecem nos quadros do topo, então aqui só o que eles não contam.
             var observacoes = new List<string>();
-            if (total == 0)
+            if (total > 0)
             {
-                observacoes.Add("Sem jogos finalizados nesta competição/temporada.");
-            }
-            else
-            {
-                observacoes.Add($"{v}V · {e}E · {d}D em {total} jogo(s) — {aproveitamento}% de aproveitamento.");
                 int saldo = golsPro - golsContra;
-                observacoes.Add($"Gols: {golsPro} marcados, {golsContra} sofridos (saldo {(saldo >= 0 ? "+" : "")}{saldo}).");
+                observacoes.Add($"{golsPro} {(golsPro == 1 ? "gol marcado" : "gols marcados")} e {golsContra} {(golsContra == 1 ? "sofrido" : "sofridos")}, saldo de {(saldo > 0 ? "+" : "")}{saldo}.");
+                observacoes.Add($"Média de {(golsPro / (double)total).ToString("0.0", new System.Globalization.CultureInfo("pt-BR"))} gols marcados e {(golsContra / (double)total).ToString("0.0", new System.Globalization.CultureInfo("pt-BR"))} sofridos por jogo.");
 
                 // Sequência atual (a partir do jogo mais recente)
                 if (form.Count > 0)
@@ -541,14 +799,8 @@ namespace ControleFutebolWeb.Services
                     if (seq > 1)
                     {
                         string plural = atual == "V" ? "vitórias" : atual == "E" ? "empates" : "derrotas";
-                        observacoes.Add($"Sequência de {seq} {plural}.");
+                        observacoes.Add($"Vem de {seq} {plural} {(atual == "E" ? "seguidos" : "seguidas")}.");
                     }
-                }
-
-                if (destaques.Count > 0 && destaques[0].gols > 0)
-                {
-                    var art = destaques[0];
-                    observacoes.Add($"Destaque: {art.nome} ({art.gols} gol{(art.gols > 1 ? "s" : "")}).");
                 }
             }
 
@@ -563,7 +815,8 @@ namespace ControleFutebolWeb.Services
                 golsPro,
                 golsContra,
                 aproveitamento,
-                form,
+                form = formaExibida,
+                formJogos,
                 destaques,
                 observacoes
             };

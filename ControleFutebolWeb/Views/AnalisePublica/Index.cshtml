@@ -1,4 +1,4 @@
-﻿@model ControleFutebolWeb.Models.ViewModels.AnalisePublicaViewModel
+@model ControleFutebolWeb.Models.ViewModels.AnalisePublicaViewModel
 @{
     Layout = "_LayoutAnalisePublica";
     ViewData["TitleOverride"] = $"Análise de Craque - {Model.Confronto}";
@@ -43,14 +43,19 @@
      Único modal da página pública: resumo dos dois times a partir do banco
      local. O match-up (interativo) e o H2H (consome a API externa paga) ficam
      de fora de propósito. -->
-<div id="modal-prejogo-publico" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:10000; align-items:center; justify-content:center;">
-    <div style="background:#0f1b2d; border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:1.4rem; width:780px; max-width:96vw; max-height:90vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,.5);">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem;">
-            <h5 style="margin:0; color:#f2f5fa; font-size:15px; font-weight:700">🔍 Pré-jogo</h5>
-            <button onclick="fecharPreJogoPublico()" style="background:none;border:none;color:rgba(255,255,255,.65);font-size:22px;cursor:pointer;line-height:1">&times;</button>
+<div id="modal-prejogo-publico" class="pj-modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="pj-titulo-publico">
+    <div class="pj-box pj-box-curto">
+        <div class="pj-topo">
+            <div class="pj-topo-txt">
+                <h2 id="pj-titulo-publico" class="pj-titulo">Pré-jogo</h2>
+                <div class="pj-sub">Como os dois times chegam a esta partida</div>
+            </div>
+            <div class="pj-topo-acoes">
+                <button type="button" class="pj-fechar" onclick="fecharPreJogoPublico()" aria-label="Fechar o pré-jogo" title="Fechar">&times;</button>
+            </div>
         </div>
-        <div id="prejogo-publico-corpo">
-            <div style="text-align:center; color:rgba(255,255,255,.6); padding:2rem 0">Carregando...</div>
+        <div class="pj-corpo" id="prejogo-publico-corpo">
+            <div class="pj-carregando">Carregando...</div>
         </div>
     </div>
 </div>

@@ -43,6 +43,7 @@ namespace ControleFutebolWeb.Data
         public DbSet<ObservacaoJogoUsuario> ObservacoesJogoUsuario { get; set; }
         public DbSet<ObservacaoJogoTag> ObservacoesJogoTag { get; set; }
         public DbSet<ObservacaoJogoTagMencao> ObservacoesJogoTagMencoes { get; set; }
+        public DbSet<CuriosidadeRegistrada> CuriosidadesRegistradas { get; set; }
         public DbSet<CompeticaoTopTierUsuario> CompeticoesTopTierUsuario { get; set; }
         public DbSet<CompeticaoHomeUsuario> CompeticoesHomeUsuario { get; set; }
         public DbSet<CompeticaoHeroUsuario> CompeticoesHeroUsuario { get; set; }
@@ -405,6 +406,17 @@ namespace ControleFutebolWeb.Data
                 entity.HasOne(f => f.Competicao).WithMany(c => c.Fases)
                     .HasForeignKey(f => f.CompeticaoId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Curiosidades do pós-jogo já gravadas como anotação — uma por chave por
+            // jogo por usuário (ver CuriosidadeRegistrada).
+            modelBuilder.Entity<CuriosidadeRegistrada>(entity =>
+            {
+                entity.HasIndex(c => new { c.UsuarioId, c.JogoId, c.Chave }).IsUnique();
+                entity.HasOne(c => c.Jogo).WithMany()
+                    .HasForeignKey(c => c.JogoId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(c => c.Usuario).WithMany()
+                    .HasForeignKey(c => c.UsuarioId).OnDelete(DeleteBehavior.Cascade);
             });
 
             // Palpites do simulador — um por jogo por usuário (salvar de novo sobrescreve).

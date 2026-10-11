@@ -76,8 +76,9 @@
             <label class="cp-check"><input type="checkbox" asp-for="MataMataIdaEVolta" /> Mata-mata com ida e volta</label>
         </div>
 
-        <div id="opcao-terceiro" class="cp-form-linha" style="margin-top:14px;">
+        <div id="opcao-terceiro" class="cp-form-linha" style="margin-top:14px; gap:18px;">
             <label class="cp-check"><input type="checkbox" asp-for="DisputaTerceiro" /> Disputa de 3º lugar <span class="cp-dica" style="margin:0">(entre os perdedores das semifinais)</span></label>
+            <label class="cp-check" id="opcao-final-unica"><input type="checkbox" asp-for="FinalJogoUnico" /> Final em jogo único</label>
         </div>
 
         <div style="display:flex; gap:10px; margin-top:22px;">
@@ -93,14 +94,20 @@
         (function () {
             var bloco = document.getElementById('opcoes-grupos');
             var terceiro = document.getElementById('opcao-terceiro');
+            var finalUnica = document.getElementById('opcao-final-unica');
             var dica = document.getElementById('dica-ida');
             function atualizar() {
                 var formato = (document.querySelector('input[name="Formato"]:checked') || {}).value;
                 bloco.style.display = formato === 'GRUPOS' ? '' : 'none';
                 terceiro.style.display = formato === 'PONTOS_CORRIDOS' ? 'none' : '';
+                // Final única só existe quando o mata-mata é de ida e volta.
+                var mataMataComVolta = formato === 'GRUPOS'
+                    ? document.getElementById('MataMataIdaEVolta').checked
+                    : document.getElementById('IdaEVolta').checked;
+                finalUnica.style.display = mataMataComVolta ? '' : 'none';
                 dica.textContent = formato === 'GRUPOS' ? '(na fase de grupos)' : '';
             }
-            document.querySelectorAll('input[name="Formato"]').forEach(function (r) { r.addEventListener('change', atualizar); });
+            document.querySelectorAll('input[name="Formato"], #IdaEVolta, #MataMataIdaEVolta').forEach(function (r) { r.addEventListener('change', atualizar); });
             atualizar();
         })();
     </script>

@@ -1,4 +1,4 @@
-﻿using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
@@ -92,8 +92,9 @@ namespace ControleFutebolWeb.Controllers
                 .ThenBy(t => t.FairPlay)
                 .ToList();
 
-            for (int i = 0; i < terceiros.Count; i++)
-                terceiros[i].Posicao = i + 1;
+            // A posição no ranking dos terceiros é o índice na lista. Gravar em
+            // terceiros[i].Posicao alterava o mesmo objeto da tabela do grupo, e o 3º
+            // colocado aparecia lá como "10º".
 
             var proximosJogos = jogos
                 .Where(j => !j.PlacarCasa.HasValue || !j.PlacarVisitante.HasValue)
@@ -156,7 +157,8 @@ namespace ControleFutebolWeb.Controllers
                 _context, todosJogosRealizadosEstat.Select(j => j.Id),
                 golsEstat.Select(g => g.JogadorId).Concat(cartoesEstat.Select(c => c.JogadorId))).ToList();
 
-            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(todosJogosRealizadosEstat, golsEstat, cartoesEstat, escalacoesEstat);
+            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(todosJogosRealizadosEstat, golsEstat, cartoesEstat, escalacoesEstat,
+                DesarmesPorTimeHelper.Carregar(_context, todosJogosRealizadosEstat));
 
             PreencherAbaSelecao(vm, competicao.Id, temporadaSel, selFormacaoId, selId, nova);
 

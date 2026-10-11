@@ -127,8 +127,9 @@ namespace ControleFutebolWeb.Controllers
 
             foreach (var t in treinadores)
             {
-                var desde = inicioPorTreinador.TryGetValue(t.Id, out var dtHistorico) ? dtHistorico : t.DtInc;
-                var stat = new TreinadorCardStats { Desde = desde };
+                var doHistorico = inicioPorTreinador.TryGetValue(t.Id, out var dtHistorico);
+                var desde = doHistorico ? dtHistorico : t.DtInc;
+                var stat = new TreinadorCardStats { Desde = desde, DesdeDoHistorico = doHistorico };
 
                 foreach (var jogo in jogosTimes)
                 {
@@ -161,6 +162,10 @@ namespace ControleFutebolWeb.Controllers
                 .FirstOrDefaultAsync(t => t.Id == id);
 
             if (treinador == null) return NotFound();
+
+            // Campanha no clube atual (mesma conta do card da listagem)
+            ViewBag.Campanha = (await CalcularStatsCardAsync(new List<Treinador> { treinador }))
+                .GetValueOrDefault(treinador.Id);
 
             // Prévia das anotações do usuário sobre esse treinador — a lista completa
             // e o formulário ficam em /AnotacoesTreinador.
@@ -271,6 +276,7 @@ namespace ControleFutebolWeb.Controllers
         {
             var treinador = await _context.Treinadores
                 .Include(t => t.Time)
+                .Include(t => t.Nacionalidade)
                 .FirstOrDefaultAsync(t => t.Id == id);
 
             if (treinador == null) return NotFound();
@@ -295,10 +301,11 @@ namespace ControleFutebolWeb.Controllers
 
         // Reconstrói a URL do Index preservando os filtros multi-seleção e a página atual
         private IActionResult RedirectIndexComFiltros(
-            List<int>? competicaoIds, List<int>? timeIds, List<string>? nacionalidades, int page)
+            string? nome, List<int>? competicaoIds, List<int>? timeIds, List<string>? nacionalidades, int page)
         {
             var qs = new System.Text.StringBuilder();
             qs.Append("?page=").Append(page < 1 ? 1 : page);
+            if (!string.IsNullOrWhiteSpace(nome)) qs.Append("&nome=").Append(Uri.EscapeDataString(nome));
             foreach (var cid in competicaoIds ?? new()) qs.Append("&competicaoIds=").Append(cid);
             foreach (var tid in timeIds ?? new()) qs.Append("&timeIds=").Append(tid);
             foreach (var n in nacionalidades ?? new()) qs.Append("&nacionalidades=").Append(Uri.EscapeDataString(n));
@@ -307,7 +314,7 @@ namespace ControleFutebolWeb.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> BuscarFoto(int id,
+        public async Task<IActionResult> BuscarFoto(int id, string? nome,
             List<int>? competicaoIds, List<int>? timeIds, List<string>? nacionalidades, int page = 1,
             bool voltarParaDetalhes = false)
         {
@@ -315,7 +322,7 @@ namespace ControleFutebolWeb.Controllers
             // tela de detalhes (volta pra própria tela de detalhes).
             IActionResult Voltar() => voltarParaDetalhes
                 ? RedirectToAction(nameof(Details), new { id })
-                : RedirectIndexComFiltros(competicaoIds, timeIds, nacionalidades, page);
+                : RedirectIndexComFiltros(nome, competicaoIds, timeIds, nacionalidades, page);
 
             var treinador = await _context.Treinadores
                 .Include(t => t.Time)
@@ -340,7 +347,7 @@ namespace ControleFutebolWeb.Controllers
 
                 if (melhor == null)
                 {
-                    TempData["Erro"] = $"❌ Nenhum treinador encontrado na API para '{termoBusca}'.";
+                    TempData["Erro"] = $"Nenhum treinador encontrado na api-football para \"{termoBusca}\".";
                     return Voltar();
                 }
 
@@ -357,25 +364,25 @@ namespace ControleFutebolWeb.Controllers
                         ? string.Join(", ", alteracoes.Take(alteracoes.Count - 1)) + " e " + alteracoes.Last()
                         : alteracoes.First();
                     var complemento = resolveuStub
-                        ? " — registro completo do técnico localizado (a API tinha um cadastro parcial vinculado ao time novo)"
+                        ? ". O registro completo do técnico foi localizado (a API tinha um cadastro parcial ligado ao time novo)"
                         : "";
-                    TempData["Sucesso"] = $"{treinador.Nome}: atualizado → {lista}{complemento}.";
+                    TempData["Sucesso"] = $"{treinador.Nome} atualizado: {lista}{complemento}.";
                 }
                 else
                 {
-                    TempData["Info"] = $"{treinador.Nome}: informações já estavam atualizadas.";
+                    TempData["Info"] = $"Os dados de {treinador.Nome} já estavam atualizados.";
                 }
 
                 if (ambiguo)
                 {
-                    var aviso = $"⚠️ A API tem mais de um técnico com nome parecido a '{treinador.Nome}' — " +
-                        "abra \"Importar Histórico (API)\" para escolher qual é o certo.";
+                    var aviso = $"A api-football tem mais de um técnico com nome parecido com {treinador.Nome}. " +
+                        "Abra \"Importar histórico\" para escolher o certo.";
                     TempData["Info"] = TempData["Info"] != null ? $"{TempData["Info"]} {aviso}" : aviso;
                 }
             }
             catch (Exception ex)
             {
-                TempData["Erro"] = $"❌ Erro ao buscar dados: {ex.Message}";
+                TempData["Erro"] = $"Não foi possível atualizar pela API: {ex.Message}";
             }
 
             return Voltar();
@@ -488,7 +495,9 @@ namespace ControleFutebolWeb.Controllers
             _context.TreinadoresHistorico.RemoveRange(existentes);
             await _context.SaveChangesAsync();
 
-            TempData["Sucesso"] = $"🗑️ Histórico limpo — {existentes.Count} passagem(ns) removida(s).";
+            TempData["Sucesso"] = existentes.Count == 1
+                ? "Histórico limpo: 1 passagem removida."
+                : $"Histórico limpo: {existentes.Count} passagens removidas.";
             return RedirectToAction(nameof(Details), new { id });
         }
 
@@ -518,7 +527,7 @@ namespace ControleFutebolWeb.Controllers
 
             if (melhor == null)
             {
-                TempData["Erro"] = $"Nenhum treinador encontrado na API para '{treinador.Nome}'.";
+                TempData["Erro"] = $"Nenhum treinador encontrado na api-football para \"{treinador.Nome}\".";
                 return RedirectToAction(nameof(Details), new { id });
             }
 
@@ -539,7 +548,7 @@ namespace ControleFutebolWeb.Controllers
 
             if (!carreira.Any())
             {
-                TempData["Erro"] = $"Nenhum histórico de carreira encontrado na API para '{treinador.Nome}'.";
+                TempData["Erro"] = $"A api-football não tem histórico de carreira para \"{treinador.Nome}\".";
                 return RedirectToAction(nameof(Details), new { id });
             }
 
@@ -769,9 +778,10 @@ namespace ControleFutebolWeb.Controllers
 
             await _context.SaveChangesAsync();
 
-            TempData["Sucesso"] = $"✅ Histórico da API salvo! {salvos} passagem(ns) nova(s) salva(s)" +
-                (clubesCriados > 0 ? $", {clubesCriados} clube(s) criado(s)" : "") +
-                (ignorados > 0 ? $", {ignorados} ignorada(s)." : ".") +
+            string Qtd(int n, string um, string varios) => n == 1 ? $"1 {um}" : $"{n} {varios}";
+            TempData["Sucesso"] = $"Histórico salvo: {Qtd(salvos, "passagem nova", "passagens novas")}" +
+                (clubesCriados > 0 ? $", {Qtd(clubesCriados, "clube criado", "clubes criados")}" : "") +
+                (ignorados > 0 ? $", {Qtd(ignorados, "ignorada", "ignoradas")}." : ".") +
                 (alteracoes.Any() ? $" Cadastro atualizado: {string.Join(", ", alteracoes)}." : "");
             TempData["HistoricoDetalhes"] = string.Join("~~", detalhes);
 

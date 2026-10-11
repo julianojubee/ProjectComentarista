@@ -4,6 +4,8 @@ namespace ControleFutebolWeb.Services
 
     public class InfoServico
     {
+        // Chave passada a Registrar — é o que os botões Parar/Reiniciar enviam.
+        public string Chave { get; set; } = "";
         public string Nome { get; set; } = "";
         public string Descricao { get; set; } = "";
         public EstadoServico Estado { get; set; } = EstadoServico.Parado;
@@ -27,7 +29,7 @@ namespace ControleFutebolWeb.Services
             lock (_lock)
             {
                 if (!_servicos.ContainsKey(chave))
-                    _servicos[chave] = new InfoServico { Nome = nome, Descricao = descricao };
+                    _servicos[chave] = new InfoServico { Chave = chave, Nome = nome, Descricao = descricao };
             }
         }
 

@@ -72,9 +72,11 @@ namespace ControleFutebolWeb.Controllers
             "GRUPOS" => new[]
             {
                 new CampeonatoFase { Nome = "Fase de grupos", Tipo = "GRUPOS", Ordem = 1, IdaEVolta = input.IdaEVolta, Classificados = input.ClassificadosPorGrupo },
-                new CampeonatoFase { Nome = "Mata-mata", Tipo = "MATA_MATA", Ordem = 2, IdaEVolta = input.MataMataIdaEVolta, DisputaTerceiro = input.DisputaTerceiro }
+                new CampeonatoFase { Nome = "Mata-mata", Tipo = "MATA_MATA", Ordem = 2, IdaEVolta = input.MataMataIdaEVolta, DisputaTerceiro = input.DisputaTerceiro,
+                    FinalJogoUnico = input.MataMataIdaEVolta && input.FinalJogoUnico }
             },
-            "MATA_MATA" => new[] { new CampeonatoFase { Nome = "Mata-mata", Tipo = "MATA_MATA", Ordem = 1, IdaEVolta = input.IdaEVolta, DisputaTerceiro = input.DisputaTerceiro } },
+            "MATA_MATA" => new[] { new CampeonatoFase { Nome = "Mata-mata", Tipo = "MATA_MATA", Ordem = 1, IdaEVolta = input.IdaEVolta, DisputaTerceiro = input.DisputaTerceiro,
+                FinalJogoUnico = input.IdaEVolta && input.FinalJogoUnico } },
             _ => new[] { new CampeonatoFase { Nome = "Pontos corridos", Tipo = "PONTOS_CORRIDOS", Ordem = 1, IdaEVolta = input.IdaEVolta } }
         };
 
@@ -87,7 +89,10 @@ namespace ControleFutebolWeb.Controllers
             var vm = new CampeonatoDetalhesViewModel
             {
                 Campeonato = campeonato,
-                Aba = aba is "partidas" or "participantes" or "artilharia" ? aba : "tabela",
+                // Sem aba na URL: quem ainda está montando cai em Participantes (a tabela
+                // estaria vazia); com partidas geradas, na Tabela.
+                Aba = aba is "partidas" or "participantes" or "artilharia" or "tabela" ? aba
+                    : campeonato.Partidas.Any() ? "tabela" : "participantes",
                 Painel = CampeonatoPainelAdapter.MontarPainel(campeonato),
                 Participantes = campeonato.Participantes.ToDictionary(p => p.Id),
                 Artilharia = EstatisticasCampeonatoHelper.PorAtleta(campeonato.Partidas.SelectMany(p => p.Eventos)),
@@ -203,6 +208,8 @@ namespace ControleFutebolWeb.Controllers
             await _servico.AtualizarAposResultadoAsync(id, Uid);
 
             if (voltarPara == "sumula") return RedirectToAction(nameof(Sumula), new { id, partidaId });
+            // Lançado nos "Próximos jogos" ao lado da tabela: volta para a tabela atualizada
+            if (voltarPara == "tabela") return RedirectToAction(nameof(Detalhes), new { id, aba = "tabela" });
             return Redirect(Url.Action(nameof(Detalhes), new { id, aba = "partidas" }) + $"#partida-{partidaId}");
         }
 

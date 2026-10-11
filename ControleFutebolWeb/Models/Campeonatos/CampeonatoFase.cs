@@ -23,5 +23,8 @@ namespace ControleFutebolWeb.Models.Campeonatos
 
         // Só no mata-mata: jogo entre os perdedores das semifinais.
         public bool DisputaTerceiro { get; set; }
+
+        // Só no mata-mata de ida e volta: a final (e o 3º lugar) em partida única.
+        public bool FinalJogoUnico { get; set; }
     }
 }

@@ -3,7 +3,7 @@
 @{
     var time = (ControleFutebolWeb.Models.Time)ViewBag.Time;
     var q    = (string?)ViewBag.Q;
-    ViewData["Title"] = $"Anotações — {time.Nome}";
+    ViewData["Title"] = $"Anotações sobre {time.Nome}";
 
     var obsJogos = ViewBag.ObservacoesJogos as List<ControleFutebolWeb.Models.ViewModels.ObservacaoJogoTimeViewModel>
         ?? new List<ControleFutebolWeb.Models.ViewModels.ObservacaoJogoTimeViewModel>();
@@ -73,216 +73,56 @@
 }
 
 <link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/anotacoes.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/mencao-jogador.css" asp-append-version="true" />
 
 <style>
-    .an * { box-sizing: border-box; }
-
-    .an {
-        margin: 0 -12px;
-        background: var(--p-0);
-        color: var(--text);
-        font-family: 'Barlow', Arial, sans-serif;
-        border-radius: 14px;
-        overflow: hidden;
-    }
-
-    .an a { text-decoration: none; color: inherit; }
-    .an h1 { font-family: 'Barlow Condensed', Arial, sans-serif; }
-
-    /* ── Hero ────────────────────────────────────── */
-    .an-hero {
-        position: relative;
-        overflow: hidden;
-        background: linear-gradient(135deg, #0a0f1a 0%, #111827 55%, #0a0f1a 100%);
-        padding: 2rem 2.5rem 1.7rem;
-    }
-    .an-hero-pattern { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.05; pointer-events: none; }
-    .an-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #d4a520; }
-
-    .an-hero-row { position: relative; z-index: 1; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
-
+    /* O resto (hero, busca, cards, formulário) vem de css/anotacoes.css, o mesmo das
+       anotações de treinador e de competição. Aqui só o que é do time. */
     .an-badge {
-        width: 60px; height: 60px; border-radius: 50%;
-        background: rgba(255,255,255,0.07); border: 2px solid rgba(255,255,255,0.12);
+        width: 62px; height: 62px; border-radius: 50%;
+        background: rgba(255,255,255,.08); border: 2px solid rgba(255,255,255,.14);
         display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;
     }
-    .an-badge img { width: 82%; height: 82%; object-fit: contain; }
-    .an-badge span { font-size: 1.1rem; font-weight: 700; color: var(--text-muted); }
+    .an-badge img { width: 78%; height: 78%; object-fit: contain; }
+    .an-badge span { font-size: 1.05rem; font-weight: 700; color: rgba(255,255,255,.7); }
 
-    .an-hero-info { flex: 1; min-width: 180px; }
-    .an-hero-kicker { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
-    .an-hero-kicker-line { height: 2px; width: 20px; background: #d4a520; }
-    .an-hero-kicker span { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.24em; color: var(--gold-ink); text-transform: uppercase; }
-    .an-hero-info h1 { font-size: 2.1rem; font-weight: 800; color: var(--text-strong); margin: 0 0 4px; line-height: 1; }
-    .an-hero-info p { font-size: 0.8rem; color: var(--text-dim); margin: 0; }
-
-    .an-hero-actions { display: flex; gap: 10px; flex-shrink: 0; flex-wrap: wrap; }
-    .an-btn {
-        display: flex; align-items: center; gap: 7px; padding: 9px 16px;
-        background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-        border-radius: 8px; color: #c9c5bb; font-size: 0.8rem; font-weight: 700; white-space: nowrap;
+    /* Observações escritas na análise dos jogos */
+    .an-obs { margin-top: 32px; }
+    .an-obs > summary {
+        list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: 10px;
+        padding-bottom: 12px; margin-bottom: 16px; border-bottom: 1px solid var(--line);
     }
-    .an-btn:hover { border-color: #d4a520; color: var(--gold-ink); }
-    .an-btn.gold { background: #d4a520; color: #141414; border: none; }
-    .an-btn.gold:hover { background: #c49918; color: #141414; }
-
-    /* ── Grid principal ──────────────────────────── */
-    .an-grid { padding: 26px 2.5rem 3rem; display: grid; grid-template-columns: 1fr 336px; gap: 26px; align-items: start; }
-    @@media (max-width: 1000px) { .an-grid { grid-template-columns: 1fr; } }
-
-    .an-alert-ok {
-        background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); color: var(--ok);
-        border-radius: 10px; padding: 10px 14px; margin-bottom: 1rem; font-size: 0.85rem;
-    }
-
-    /* ── Busca + filtros ─────────────────────────── */
-    .an-search-box {
-        display: flex; align-items: center; background: var(--p-1); border: 1px solid var(--line);
-        border-radius: 10px; overflow: hidden; margin-bottom: 14px;
-    }
-    .an-search-box:focus-within { border-color: #d4a520; }
-    .an-search-box .icon { padding: 0 14px; color: #555; display: flex; align-items: center; flex-shrink: 0; }
-    .an-search-box input {
-        flex: 1; padding: 11px 4px; background: transparent; border: none;
-        color: var(--text-strong); font-size: 0.87rem; outline: none; font-family: inherit;
-    }
-    .an-search-box .cnt { padding: 0 16px; font-size: 0.72rem; color: var(--text-dimmer); font-weight: 600; flex-shrink: 0; border-left: 1px solid var(--line); white-space: nowrap; }
-    .an-search-box button.buscar { padding: 0 18px; background: #d4a520; color: #141414; font-weight: 700; font-size: 0.8rem; border: none; cursor: pointer; flex-shrink: 0; }
-    .an-search-box button.buscar:hover { background: #c49918; }
-    .an-search-box a.limpar { padding: 0 14px; color: var(--text-dim); font-size: 1.1rem; flex-shrink: 0; }
-    .an-search-box a.limpar:hover { color: var(--gold-ink); }
-
-    .an-shortcut { font-size: 0.7rem; color: var(--text-dimmer); margin-bottom: 16px; display: flex; align-items: center; gap: 4px; }
-    .an-shortcut kbd { background: var(--p-3); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; font-size: 0.62rem; color: var(--text-muted); }
-
-    .an-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
-    .an-chip {
-        display: flex; align-items: center; gap: 5px; padding: 5px 14px; border-radius: 999px;
-        font-size: 0.75rem; font-weight: 700; border: 1px solid var(--line-strong); background: transparent; color: var(--text-dim);
-    }
-    .an-chip:hover { border-color: var(--line-strong); color: var(--text); }
-    .an-chip.ativo { border-color: #d4a520; background: #d4a520; color: #141414; }
-    .an-chip span.cnt { font-size: 0.68rem; opacity: 0.75; }
-
-    /* ── Card de anotação ────────────────────────── */
-    .an-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
-    .an-card:hover { border-color: var(--line); }
-    .an-card-inner { display: flex; gap: 0; align-items: stretch; }
-    .an-bar { width: 4px; flex-shrink: 0; align-self: stretch; }
-    .an-card-body { flex: 1; padding: 16px 18px; min-width: 0; }
-
-    .an-card-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
-    .an-card-title { flex: 1; font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.1rem; font-weight: 700; color: var(--text-strong); line-height: 1.25; }
-    .an-card-cat {
-        display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 999px;
-        font-size: 0.62rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; flex-shrink: 0; white-space: nowrap;
-    }
-
-    .an-card-content { font-size: 0.85rem; color: var(--text-muted); line-height: 1.65; margin: 0 0 14px; white-space: pre-wrap; word-break: break-word; }
-
-    .an-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line-soft); flex-wrap: wrap; }
-    .an-card-date { font-size: 0.68rem; color: var(--text-dimmer); display: flex; align-items: center; gap: 5px; }
-    .an-card-actions { display: flex; gap: 6px; flex-shrink: 0; }
-    .an-card-actions a, .an-card-actions button {
-        font-size: 0.68rem; padding: 3px 10px; border-radius: 6px; border: 1px solid var(--line);
-        background: var(--p-3); color: var(--text-muted); cursor: pointer; font-weight: 600;
-    }
-    .an-card-actions a:hover { background: var(--p-4); color: var(--text-strong); }
-    .an-card-actions .del { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.2); color: var(--bad); }
-    .an-card-actions .del:hover { background: rgba(239,68,68,0.16); }
-
-    .an-highlight { background: #d4a52055; border-radius: 3px; padding: 0 2px; color: #fff; }
-
-    .an-empty { text-align: center; color: var(--text-dim); padding: 3rem 1rem; font-size: 0.9rem; background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; }
-
-    /* ── Observações dos jogos ───────────────────── */
-    .an-obs-toggle {
-        display: flex; align-items: center; gap: 10px; width: 100%; background: transparent; border: none;
-        cursor: pointer; padding: 0 0 16px; border-bottom: 1px solid var(--line); margin: 32px 0 20px; color: inherit;
-    }
-    .an-obs-toggle span.lbl {
-        font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 0.7rem; font-weight: 700;
-        letter-spacing: 0.18em; color: var(--text-dim); text-transform: uppercase;
-    }
-    .an-obs-toggle .line { flex: 1; height: 1px; background: transparent; }
-    .an-obs-toggle .badge { font-size: 0.68rem; padding: 2px 10px; background: var(--p-2); border: 1px solid var(--line-strong); border-radius: 999px; color: var(--text-dim); font-weight: 600; }
+    .an-obs > summary::-webkit-details-marker { display: none; }
+    .an-obs > summary h2 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.3rem; font-weight: 700; color: var(--text-strong); margin: 0; }
+    .an-obs > summary span { font-size: .84rem; color: var(--text-dim); }
+    .an-obs > summary::after { content: ""; margin-left: auto; align-self: center; width: 8px; height: 8px; border-right: 2px solid var(--text-dim); border-bottom: 2px solid var(--text-dim); transform: rotate(45deg); }
+    .an-obs[open] > summary::after { transform: rotate(-135deg); }
 
     .an-game-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 12px; }
-    .an-game-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
-    .an-game-teams { display: flex; align-items: center; gap: 7px; flex: 1; flex-wrap: wrap; }
+    .an-game-head { display: flex; align-items: center; gap: 8px 12px; margin-bottom: 12px; flex-wrap: wrap; }
+    .an-game-teams { display: flex; align-items: center; gap: 7px; flex: 1; flex-wrap: wrap; min-width: 0; }
     .an-game-teams img { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
-    .an-game-teams span.time { font-size: 0.84rem; font-weight: 500; color: var(--text-muted); white-space: nowrap; }
+    .an-game-teams span.time { font-size: .88rem; font-weight: 500; color: var(--text-muted); }
     .an-game-teams span.time.atual { font-weight: 700; color: var(--text-strong); }
-    .an-game-score { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.1rem; font-weight: 800; color: var(--text-strong); background: var(--p-0); padding: 1px 8px; border-radius: 5px; flex-shrink: 0; }
-    .an-game-meta { display: flex; gap: 8px; flex-shrink: 0; }
-    .an-game-meta span.comp { font-size: 0.65rem; font-weight: 700; color: var(--gold-ink); text-transform: uppercase; letter-spacing: 0.08em; }
-    .an-game-meta span.data { font-size: 0.65rem; color: var(--text-dimmer); }
+    .an-game-score { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.1rem; font-weight: 800; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+    .an-game-pen { font-size: .78rem; color: var(--text-dim); }
+    .an-game-meta { font-size: .8rem; color: var(--text-dim); }
 
-    .an-game-obs-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
-    .an-game-obs-item { display: flex; gap: 10px; align-items: flex-start; }
-    .an-game-obs-dot { width: 5px; height: 5px; border-radius: 50%; background: #d4a520; margin-top: 7px; flex-shrink: 0; }
-    .an-game-obs-text { font-size: 0.84rem; color: var(--text-muted); line-height: 1.6; }
+    .an-game-obs-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0 0 0 1.1rem; }
+    .an-game-obs-list li { font-size: .9rem; color: var(--text-muted); line-height: 1.6; }
+    .an-game-obs-list li::marker { color: #d4a520; }
 
     .an-game-footer { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line-soft); display: flex; justify-content: flex-end; }
-    .an-analisar-link { font-size: 0.68rem; color: var(--text-dim); font-weight: 600; display: flex; align-items: center; gap: 3px; }
-    .an-analisar-link:hover { color: var(--gold-ink); }
+    .an .an-analisar-link { font-size: .84rem; color: var(--text-muted); font-weight: 600; }
+    .an .an-analisar-link:hover { color: var(--gold-ink); }
 
-    /* ── Sidebar: nova anotação ──────────────────── */
-    .an-sidebar { position: sticky; top: 78px; }
-
-    .an-form-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
-    .an-form-head {
-        padding: 14px 18px; background: var(--p-0); border-bottom: 1px solid var(--line);
-        display: flex; align-items: center; gap: 8px;
-    }
-    .an-form-dot { width: 8px; height: 8px; border-radius: 50%; background: #d4a520; flex-shrink: 0; }
-    .an-form-head span {
-        font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 0.88rem; font-weight: 700;
-        color: var(--text-strong); letter-spacing: 0.05em; text-transform: uppercase;
-    }
-    .an-form-body { padding: 18px; }
-    .an-field { margin-bottom: 14px; }
-    .an-field label {
-        display: block; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em;
-        color: var(--text-dim); text-transform: uppercase; margin-bottom: 6px;
-    }
-    .an-field input, .an-field select, .an-field textarea {
-        width: 100%; padding: 9px 11px; background: var(--p-0); border: 1px solid var(--line-strong);
-        border-radius: 8px; color: var(--text-strong); font-size: 0.85rem; outline: none; font-family: inherit;
-    }
-    .an-field input:focus, .an-field select:focus, .an-field textarea:focus { border-color: #d4a520; }
-    .an-field textarea { resize: vertical; min-height: 120px; line-height: 1.6; }
-    .an-field select { appearance: none; cursor: pointer; }
-
-    .an-form-save {
-        width: 100%; padding: 11px; background: #d4a520; color: #141414; font-size: 0.85rem;
-        font-weight: 800; border: none; border-radius: 8px; cursor: pointer; letter-spacing: 0.04em;
-    }
-    .an-form-save:hover { background: #c49918; }
-
-    .an-mencao-hint { font-size: 0.68rem; color: var(--text-dimmer); margin-top: 6px; line-height: 1.5; }
-    .an-mencao-hint kbd { background: var(--p-3); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; color: var(--gold-ink); font-weight: 700; }
-
-    /* ── Resumo ──────────────────────────────────── */
-    .an-resumo { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-top: 16px; }
-    .an-resumo-title { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.14em; color: var(--text-dimmer); text-transform: uppercase; margin-bottom: 14px; }
-    .an-resumo-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
-    .an-resumo-row:last-child { border-bottom: none; }
-    .an-resumo-label { display: flex; align-items: center; gap: 8px; }
-    .an-resumo-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .an-resumo-label span { font-size: 0.8rem; color: var(--text-muted); }
-    .an-resumo-count { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.2rem; font-weight: 700; color: var(--text-strong); }
-
-    @@media (max-width: 640px) {
-        .an-hero, .an-grid { padding-left: 1.2rem; padding-right: 1.2rem; }
-        .an-hero-info h1 { font-size: 1.7rem; }
-    }
+    .an-mencao-hint { font-size: .78rem; color: var(--text-dim); margin-top: 6px; line-height: 1.5; }
+    .an-mencao-hint kbd { background: var(--p-3); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; color: var(--text-strong); font-weight: 700; }
 </style>
 
 <div class="an">
 
-    <!-- Hero -->
     <div class="an-hero theme-dark-zone">
         <img class="an-hero-pattern" src="~/Images/banner/escudos-pattern.svg" alt="" />
         <div class="an-hero-stripe"></div>
@@ -290,7 +130,7 @@
             <div class="an-badge">
                 @if (!string.IsNullOrEmpty(time.EscudoUrl))
                 {
-                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = time.EscudoUrl })" alt="@time.Nome" />
+                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = time.EscudoUrl })" alt="" />
                 }
                 else
                 {
@@ -298,20 +138,17 @@
                 }
             </div>
             <div class="an-hero-info">
-                <div class="an-hero-kicker">
-                    <div class="an-hero-kicker-line"></div>
+                <nav class="an-hero-kicker" aria-label="Trilha">
+                    <a asp-controller="Times" asp-action="Index">Times</a>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
                     <span>Anotações</span>
-                </div>
-                <h1>@time.Nome</h1>
-                <p>Sondagens, informações, curiosidades e observações sobre o clube</p>
+                </nav>
+                <h1><a asp-controller="Times" asp-action="Details" asp-route-id="@time.Id" class="an-hero-nome">@time.Nome</a></h1>
+                <p>Sondagens, informações, curiosidades e demissões, junto com as observações das análises de jogo</p>
             </div>
             <div class="an-hero-actions">
-                <a asp-controller="Times" asp-action="Details" asp-route-id="@time.Id" class="an-btn">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6" /></svg>
-                    Voltar ao time
-                </a>
-                <a href="#form-nova-anotacao" class="an-btn gold">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                <a href="#nova-titulo" class="an-btn">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
                     Nova anotação
                 </a>
             </div>
@@ -320,7 +157,7 @@
 
     @if (TempData["Sucesso"] != null)
     {
-        <div class="an-alert-ok m-3">@TempData["Sucesso"]</div>
+        <div class="an-alert-ok" role="status" style="margin:18px 2.5rem 0">@TempData["Sucesso"]</div>
     }
 
     <div class="an-grid">
@@ -332,15 +169,15 @@
                 <span class="icon">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
                 </span>
-                <input id="inp-search" type="text" name="q" value="@q" placeholder="Pesquisar anotações… (título, conteúdo)" autocomplete="off" />
+                <input id="inp-search" type="search" name="q" value="@q" placeholder="Buscar no título ou no texto" autocomplete="off" aria-label="Buscar anotações" />
                 @if (!string.IsNullOrWhiteSpace(q))
                 {
-                    <a href="@Url.Action("Index", new { timeId = time.Id })" class="limpar">×</a>
+                    <a href="@Url.Action("Index", new { timeId = time.Id })" class="limpar" aria-label="Limpar busca">×</a>
                 }
-                <span class="cnt">@Model.Count resultado(s)</span>
+                <span class="cnt">@(Model.Count == 1 ? "1 resultado" : $"{Model.Count} resultados")</span>
                 <button type="submit" class="buscar">Buscar</button>
             </form>
-            <div class="an-shortcut"><kbd>Ctrl</kbd>+<kbd>F</kbd> foca na busca</div>
+            <div class="an-shortcut"><kbd>Ctrl</kbd>+<kbd>F</kbd> leva para a busca</div>
 
             <!-- Chips de categoria (reaproveita a busca por texto, que já casa com a categoria) -->
             <div class="an-chips">
@@ -365,7 +202,7 @@
                     else
                     {
                         <div>Nenhuma anotação cadastrada ainda.</div>
-                        <div style="margin-top:.5rem;font-size:0.8rem;">Use o formulário ao lado para criar a primeira.</div>
+                        <div style="margin-top:.5rem;font-size:.86rem;">Escreva a primeira no formulário ao lado.</div>
                     }
                 </div>
             }
@@ -393,14 +230,14 @@
                                         @DateHelper.FormatarData(a.DtInc, "dd/MM/yyyy HH:mm")
                                         @if (a.DtAlt.HasValue)
                                         {
-                                            <span style="margin-left:6px;color:#334155;">· editado @DateHelper.FormatarData(a.DtAlt, "dd/MM/yyyy HH:mm")</span>
+                                            <span>, editada em @DateHelper.FormatarData(a.DtAlt, "dd/MM/yyyy HH:mm")</span>
                                         }
                                     </span>
                                     <div class="an-card-actions">
-                                        <a asp-action="Editar" asp-route-id="@a.Id">✏️ Editar</a>
+                                        <a asp-action="Editar" asp-route-id="@a.Id">Editar</a>
                                         <form asp-action="Excluir" asp-route-id="@a.Id" method="post" style="display:inline;" onsubmit="return confirm('Excluir esta anotação?')">
                                             @Html.AntiForgeryToken()
-                                            <button type="submit" class="del">🗑️ Excluir</button>
+                                            <button type="submit" class="del">Excluir</button>
                                         </form>
                                     </div>
                                 </div>
@@ -412,14 +249,11 @@
 
             @if (obsJogos.Any())
             {
-                <button type="button" class="an-obs-toggle" onclick="var b=document.getElementById('obs-body'); var v=document.getElementById('obs-chevron'); var open = b.style.display !== 'none'; b.style.display = open ? 'none' : 'block'; v.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';">
-                    <span class="lbl">Observações dos Jogos</span>
-                    <div class="line"></div>
-                    <span class="badge">@obsJogos.Count jogo(s)</span>
-                    <svg id="obs-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2.5" style="transition: transform .15s;"><polyline points="9 18 15 12 9 6" /></svg>
-                </button>
-
-                <div id="obs-body">
+                <details class="an-obs" open>
+                    <summary>
+                        <h2>Observações das análises</h2>
+                        <span>@(obsJogos.Count == 1 ? "1 jogo" : $"{obsJogos.Count} jogos")</span>
+                    </summary>
                     @foreach (var oj in obsJogos)
                     {
                         var j = oj.Jogo;
@@ -428,49 +262,36 @@
                                 <div class="an-game-teams">
                                     @if (!string.IsNullOrEmpty(j.TimeCasa?.EscudoUrl))
                                     {
-                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.TimeCasa.EscudoUrl })" alt="@j.TimeCasa.Nome" />
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.TimeCasa.EscudoUrl })" alt="" loading="lazy" />
                                     }
                                     <span class="time @(oj.TimeEhCasa ? "atual" : "")">@j.TimeCasa?.Nome</span>
-                                    <span class="an-game-score">@(j.PlacarCasa?.ToString() ?? "–") &ndash; @(j.PlacarVisitante?.ToString() ?? "–")</span>
+                                    <span class="an-game-score">@(j.PlacarCasa?.ToString() ?? "-") x @(j.PlacarVisitante?.ToString() ?? "-")</span>
                                     <span class="time @(!oj.TimeEhCasa ? "atual" : "")">@j.TimeVisitante?.Nome</span>
                                     @if (!string.IsNullOrEmpty(j.TimeVisitante?.EscudoUrl))
                                     {
-                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.TimeVisitante.EscudoUrl })" alt="@j.TimeVisitante.Nome" />
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.TimeVisitante.EscudoUrl })" alt="" loading="lazy" />
                                     }
                                     @if (j.PenaltisCasa.HasValue && j.PenaltisVisitante.HasValue)
                                     {
-                                        <span style="font-size:0.65rem;color:var(--text-dim)">(@j.PenaltisCasa-@j.PenaltisVisitante pên.)</span>
+                                        <span class="an-game-pen">(@j.PenaltisCasa x @j.PenaltisVisitante nos pênaltis)</span>
                                     }
                                 </div>
                                 <div class="an-game-meta">
-                                    @if (j.Competicao != null)
-                                    {
-                                        <span class="comp">@j.Competicao.Nome</span>
-                                    }
-                                    @if (j.Data.HasValue)
-                                    {
-                                        <span class="data">@DateHelper.FormatarData(j.Data, "dd/MM/yyyy")</span>
-                                    }
+                                    @string.Join(", ", new[] { j.Competicao?.Nome, j.Data.HasValue ? DateHelper.FormatarData(j.Data, "dd/MM/yyyy") : null }.Where(x => !string.IsNullOrEmpty(x)))
                                 </div>
                             </div>
                             <ul class="an-game-obs-list">
                                 @foreach (var linha in oj.Observacoes)
                                 {
-                                    <li class="an-game-obs-item">
-                                        <div class="an-game-obs-dot"></div>
-                                        <span class="an-game-obs-text">@Html.Raw(Formatar(linha))</span>
-                                    </li>
+                                    <li>@Html.Raw(Formatar(linha))</li>
                                 }
                             </ul>
                             <div class="an-game-footer">
-                                <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@j.Id" class="an-analisar-link">
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-                                    Ver análise do jogo
-                                </a>
+                                <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@j.Id" class="an-analisar-link">Ver análise do jogo</a>
                             </div>
                         </div>
                     }
-                </div>
+                </details>
             }
         </div>
 
@@ -478,22 +299,21 @@
         <div class="an-sidebar">
             <div class="an-form-card" id="form-nova-anotacao">
                 <div class="an-form-head">
-                    <div class="an-form-dot"></div>
-                    <span>Nova Anotação</span>
+                    <h2>Nova anotação</h2>
                 </div>
                 <form asp-action="Nova" asp-controller="AnotacoesTime" method="post" class="an-form-body">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="TimeId" value="@time.Id" />
 
                     <div class="an-field">
-                        <label>Título</label>
-                        <input type="text" id="nova-titulo" name="Titulo" placeholder="Ex: Interesse em atacante..." autocomplete="off" required />
+                        <label for="nova-titulo">Título</label>
+                        <input type="text" id="nova-titulo" name="Titulo" placeholder="Interesse em atacante" autocomplete="off" required />
                     </div>
 
                     <div class="an-field">
-                        <label>Categoria</label>
-                        <select name="Categoria">
-                            <option value="">— Sem categoria —</option>
+                        <label for="nova-categoria">Categoria</label>
+                        <select id="nova-categoria" name="Categoria">
+                            <option value="">Sem categoria</option>
                             @foreach (var cat in categorias)
                             {
                                 <option value="@cat">@cat</option>
@@ -502,17 +322,17 @@
                     </div>
 
                     <div class="an-field">
-                        <label>Conteúdo</label>
-                        <textarea id="nova-conteudo" name="Conteudo" placeholder="Escreva a anotação... use @@ para mencionar um jogador" required></textarea>
-                        <div class="an-mencao-hint">Digite <kbd>@@</kbd> para mencionar um jogador do elenco — a anotação aparece no perfil dele.</div>
+                        <label for="nova-conteudo">Conteúdo</label>
+                        <textarea id="nova-conteudo" name="Conteudo" placeholder="Escreva a anotação" required></textarea>
+                        <div class="an-mencao-hint">Digite <kbd>@@</kbd> para mencionar um jogador do elenco. A anotação também aparece no perfil dele.</div>
                     </div>
 
-                    <button type="submit" class="an-form-save">Salvar Anotação</button>
+                    <button type="submit" class="an-form-save">Salvar anotação</button>
                 </form>
             </div>
 
             <div class="an-resumo">
-                <div class="an-resumo-title">Resumo</div>
+                <h2 class="an-resumo-title">Por categoria</h2>
                 @foreach (var cat in categorias)
                 {
                     var cor = CorCategoria(cat);

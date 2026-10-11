@@ -49,6 +49,25 @@ namespace ControleFutebolWeb.Models
         // Pontos é sempre o 1º critério e não entra na lista. Nulo = ordem padrão
         // (ver Helpers.CriteriosDesempateHelper.Padrao).
         public string? CriteriosDesempate { get; set; }
+
+        // ── Zonas da tabela (cores e legenda da classificação) ─────────────
+        // Cada liga tem as suas: a Bundesliga rebaixa 2 e manda 1 ao playoff, o
+        // Brasileirão tem 6 vagas na Libertadores. Nulo/0 = zona não existe; sem
+        // nenhuma configurada a tabela destaca só o líder, em vez de inventar faixas.
+
+        /// <summary>Primeiras posições que vão para a principal vaga (ex.: 4 → "Champions League").</summary>
+        public int? ZonaTopoVagas { get; set; }
+        public string? ZonaTopoRotulo { get; set; }
+
+        /// <summary>Faixa logo abaixo da principal (ex.: 2 → "Europa League" / "Sul-Americana").</summary>
+        public int? ZonaTopo2Vagas { get; set; }
+        public string? ZonaTopo2Rotulo { get; set; }
+
+        /// <summary>Posições que disputam playoff de rebaixamento, logo acima da zona de queda.</summary>
+        public int? ZonaPlayoffVagas { get; set; }
+
+        /// <summary>Últimas posições, rebaixadas direto.</summary>
+        public int? ZonaRebaixamentoVagas { get; set; }
     }
 
 }

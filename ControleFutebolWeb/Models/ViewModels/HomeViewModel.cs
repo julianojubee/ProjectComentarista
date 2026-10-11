@@ -4,6 +4,19 @@ namespace ControleFutebolWeb.Models.ViewModels
 {
     public class HomeViewModel
     {
+        // O dia no fuso do Brasil (data e instante), para o topo e o status ao vivo.
+        public DateTime Hoje { get; set; }
+        public DateTime AgoraBrasil { get; set; }
+
+        public List<Jogo> JogosHoje { get; set; } = new();
+
+        // Encerrados de ontem e hoje ainda não marcados como analisados pelo usuário
+        // (no máximo 8) e o total, que pode passar disso.
+        public List<Jogo> PendentesAnalise { get; set; } = new();
+        public int TotalPendentesAnalise { get; set; }
+
+        public HashSet<int> JogosAnalisadosIds { get; set; } = new();
+
         public List<Jogo> JogosRecentes { get; set; } = new();
         public List<ClassificacaoResumo> Classificacao { get; set; } = new();
         public int TotalTimes { get; set; }

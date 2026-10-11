@@ -1,37 +1,27 @@
 @model ControleFutebolWeb.Models.Treinador
 @using ControleFutebolWeb.Helpers
-@{ ViewData["Title"] = $"Excluir — {Model.Nome}"; }
+@{ ViewData["Title"] = $"Excluir {Model.Nome}"; }
 
 <link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/form-card.css" asp-append-version="true" />
 
 <div class="af">
     <div class="af-card">
-        <div class="af-title">🗑️ Excluir Treinador</div>
+        <a asp-action="Details" asp-route-id="@Model.Id" class="af-voltar">@Model.Nome</a>
+        <h1 class="af-title">Excluir treinador</h1>
 
         <div class="af-alerta">
-            Tem certeza que deseja excluir <strong>@Model.Nome</strong>?
-            O histórico de passagens e as anotações desse treinador são apagados junto.
+            O histórico de passagens e as anotações de <strong>@Model.Nome</strong> serão apagados junto.
             Essa ação não pode ser desfeita.
         </div>
 
         <div class="af-resumo">
-            <img src="@(Url.FotoSrc(Model.FotoUrl) ?? Url.Content("~/images/placeholder-treinador.png"))" alt="@Model.Nome" />
+            <img src="@(Url.FotoSrc(Model.FotoUrl) ?? Url.Content("~/images/placeholder-treinador.png"))" alt="" />
             <div>
                 <div class="af-resumo-nome">@Model.Nome</div>
                 <div class="af-resumo-meta">
-                    @if (Model.Time != null)
-                    {
-                        <text>@Model.Time.Nome</text>
-                    }
-                    @if (Model.Nacionalidade != null)
-                    {
-                        <text> · @Model.Nacionalidade.Nome</text>
-                    }
-                    @if (Model.Idade > 0)
-                    {
-                        <text> · @Model.Idade anos</text>
-                    }
+                    @string.Join(", ", new[] { Model.Time?.Nome, Model.Nacionalidade?.Nome, Model.Idade > 0 ? $"{Model.Idade} anos" : null }
+                        .Where(x => !string.IsNullOrEmpty(x)))
                 </div>
             </div>
         </div>
@@ -40,7 +30,7 @@
             @Html.AntiForgeryToken()
             <input type="hidden" asp-for="Id" />
             <div class="af-actions">
-                <button type="submit" class="af-danger">Excluir definitivamente</button>
+                <button type="submit" class="af-danger">Excluir treinador</button>
                 <a asp-action="Details" asp-route-id="@Model.Id" class="af-cancel">Cancelar</a>
             </div>
         </form>

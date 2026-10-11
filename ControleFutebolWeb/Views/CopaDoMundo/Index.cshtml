@@ -1,4 +1,4 @@
-﻿@using ControleFutebolWeb.Models
+@using ControleFutebolWeb.Models
 @using ControleFutebolWeb.Helpers
 @model ControleFutebolWeb.Models.ViewModels.CopaDoMundoIndexViewModel
 @using ControleFutebolWeb.Models.ViewModels
@@ -59,10 +59,9 @@
         display: inline-block;
         background: rgba(250, 204, 21, 0.15);
         color: var(--warn);
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 700;
         letter-spacing: 1px;
-        text-transform: uppercase;
         padding: 4px 12px;
         border-radius: 999px;
         border: 1px solid rgba(250, 204, 21, 0.3);
@@ -119,15 +118,15 @@
     }
 
     .lib-grupo-card {
-        background: #fff;
-        border: 0.5px solid #e5e7eb;
+        background: var(--surface);
+        border: 0.5px solid var(--border);
         border-radius: 12px;
         overflow: hidden;
     }
 
     .lib-grupo-header {
-        background: linear-gradient(90deg, var(--purple-surface), var(--purple-surface));
-        color: #fff;
+        background: var(--purple-surface);
+        color: var(--text-strong);
         padding: 8px 14px;
         font-size: 13px;
         font-weight: 700;
@@ -150,16 +149,15 @@
     }
 
         .lib-table thead tr {
-            background: #f9fafb;
-            border-bottom: 1px solid #e5e7eb;
+            background: var(--surface-2);
+            border-bottom: 1px solid var(--border);
         }
 
         .lib-table th {
             padding: 6px 8px;
             color: var(--text-dim);
             font-weight: 600;
-            text-transform: uppercase;
-            font-size: 10px;
+            font-size: 11px;
             letter-spacing: 0.5px;
             text-align: center;
         }
@@ -172,10 +170,10 @@
 
         .lib-table td {
             padding: 7px 8px;
-            border-bottom: 0.5px solid #f3f4f6;
+            border-bottom: 0.5px solid var(--line-soft);
             text-align: center;
             vertical-align: middle;
-            color: #111827;
+            color: var(--text);
         }
 
         .lib-table tbody tr:last-child td {
@@ -183,7 +181,7 @@
         }
 
         .lib-table tbody tr:hover {
-            background: #fafbff;
+            background: var(--p-2);
         }
 
     .lib-pos {
@@ -193,7 +191,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 700;
         color: #fff;
     }
@@ -207,7 +205,7 @@
     }
     /* repescagem */
     .lib-pos-4, .lib-pos-default {
-        background: #d1d5db;
+        background: var(--line-strong);
         color: var(--text-dim);
     }
 
@@ -223,7 +221,7 @@
             height: 20px;
             object-fit: contain;
             border-radius: 50%;
-            border: 0.5px solid #e5e7eb;
+            border: 0.5px solid var(--border);
             background: #f9f9f9;
             flex-shrink: 0;
         }
@@ -231,7 +229,7 @@
         .lib-team-cell span {
             font-size: 12px;
             font-weight: 500;
-            color: #111827;
+            color: var(--text);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -271,7 +269,7 @@
     .lib-sidebar-title {
         font-size: 13px;
         font-weight: 700;
-        color: #111827;
+        color: var(--text);
         margin-bottom: 10px;
         display: flex;
         align-items: center;
@@ -279,8 +277,8 @@
     }
 
     .lib-rodada-badge {
-        background: linear-gradient(90deg, var(--purple-surface), var(--purple-surface));
-        color: #fff;
+        background: var(--purple-surface);
+        color: var(--text-strong);
         font-size: 11px;
         font-weight: 700;
         padding: 3px 10px;
@@ -288,8 +286,8 @@
     }
 
     .lib-jogo-card {
-        background: #fff;
-        border: 0.5px solid #e5e7eb;
+        background: var(--surface);
+        border: 0.5px solid var(--border);
         border-radius: 10px;
         margin-bottom: 10px;
         overflow: hidden;
@@ -303,7 +301,7 @@
     .lib-jogo-header {
         background: linear-gradient(90deg, var(--purple-surface), var(--purple-surface));
         color: var(--warn);
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 600;
         padding: 5px 10px;
         display: flex;
@@ -336,14 +334,14 @@
             height: 32px;
             object-fit: contain;
             border-radius: 50%;
-            border: 0.5px solid #e5e7eb;
+            border: 0.5px solid var(--border);
             background: #f9f9f9;
         }
 
         .lib-jogo-team span {
             font-size: 11px;
             font-weight: 500;
-            color: #374151;
+            color: var(--text-2);
             text-align: center;
             white-space: nowrap;
             overflow: hidden;
@@ -372,8 +370,8 @@
     }
 
     .lib-badge-agendado {
-        font-size: 10px;
-        background: #f3f4f6;
+        font-size: 11px;
+        background: var(--surface-3);
         color: var(--text-dim);
         padding: 2px 8px;
         border-radius: 6px;
@@ -386,13 +384,13 @@
         align-items: center;
         margin-top: 8px;
         padding-top: 6px;
-        border-top: 0.5px solid #f3f4f6;
-        font-size: 10px;
+        border-top: 0.5px solid var(--line-soft);
+        font-size: 11px;
         color: var(--text-muted);
     }
 
     .lib-analisar-btn {
-        font-size: 10px;
+        font-size: 11px;
         padding: 3px 10px;
         border-radius: 6px;
         border: 1px solid #7c3aed;
@@ -412,7 +410,7 @@
     .lib-grupo-tag {
         background: rgba(255,255,255,0.15);
         color: var(--warn);
-        font-size: 9px;
+        font-size: 11px;
         padding: 1px 6px;
         border-radius: 999px;
         font-weight: 600;
@@ -427,8 +425,8 @@
         padding: 3rem 1rem;
         color: var(--text-muted);
         font-size: 13px;
-        background: #fff;
-        border: 0.5px solid #e5e7eb;
+        background: var(--surface);
+        border: 0.5px solid var(--border);
         border-radius: 12px;
     }
 
@@ -464,7 +462,7 @@
 <!-- ── Banner ── -->
 <div class="lib-hero theme-dark-zone">
     <div class="lib-hero-content">
-        <span class="lib-badge">Competição Internacional</span>
+        <span class="lib-badge">Competição internacional</span>
         <div class="lib-title-wrap mascotes-inline">
             <img src="~/images/mascote.png" alt="Mascotes da Copa do Mundo" class="lib-mascotes-inline" />
         </div>
@@ -565,7 +563,7 @@
                 <span class="bkt-date">@(c.Data.HasValue ? ControleFutebolWeb.Helpers.DateHelper.FormatarData(c.Data, "dd/MM HH:mm") : "—")</span>
                 @if (c.JogoId.HasValue)
                 {
-                    <a href="@Url.Action("Analisar", "Jogos", new { id = c.JogoId })" class="bkt-analisar">Analisar →</a>
+                    <a href="@Url.Action("Analisar", "Jogos", new { id = c.JogoId })" class="bkt-analisar">Analisar</a>
                 }
             </div>
         </div>
@@ -575,7 +573,6 @@
 @if (!temGrupos && !temChave)
 {
     <div class="lib-empty">
-        <div style="font-size:2rem;margin-bottom:8px;">🏆</div>
         Nenhum jogo com grupo definido encontrado para a Copa do Mundo.<br>
         <small>Importe os jogos com o campo <strong>Grupo</strong> preenchido para ver a classificação.</small>
     </div>
@@ -589,19 +586,19 @@ else
             margin-bottom: 10px;
         }
         .cdm-bracket-head h3 {
-            font-size: 1.05rem; font-weight: 700; color: #111827; margin: 0;
+            font-size: 1.05rem; font-weight: 700; color: var(--text); margin: 0;
         }
         .cdm-bracket-head small { color: var(--text-dim); font-size: 11px; }
 
         /* Abas roláveis (1/16, 1/8, Quartas, ...) */
         .cdm-tabs {
             display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px;
-            border-bottom: 1px solid #e5e7eb; margin-bottom: 14px;
+            border-bottom: 1px solid var(--border); margin-bottom: 14px;
             scrollbar-width: thin;
         }
         .cdm-tab {
             flex: 0 0 auto;
-            background: #fff; border: 1px solid #e5e7eb; border-radius: 999px;
+            background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
             padding: 7px 16px; font-size: 12px; font-weight: 600; color: var(--text-dim);
             cursor: pointer; white-space: nowrap; transition: all .15s;
         }
@@ -623,32 +620,32 @@ else
         }
 
         .cdm-match {
-            background: #fff; border: 0.5px solid #e5e7eb; border-radius: 12px;
+            background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px;
             overflow: hidden;
         }
         .cdm-match.done { border-color: #bbf7d0; }
         .cdm-match-head {
             background: linear-gradient(90deg, #006400, #228B22);
-            color: var(--warn); font-size: 10px; font-weight: 600;
+            color: var(--warn); font-size: 11px; font-weight: 600;
             padding: 5px 12px; display: flex; justify-content: space-between; align-items: center;
         }
         .cdm-row {
             display: flex; align-items: center; gap: 9px;
-            padding: 9px 12px; border-bottom: 0.5px solid #f3f4f6;
+            padding: 9px 12px; border-bottom: 0.5px solid var(--line-soft);
         }
         .cdm-row:last-of-type { border-bottom: none; }
         .cdm-row img {
             width: 24px; height: 24px; object-fit: contain;
-            border-radius: 50%; border: 0.5px solid #e5e7eb; background: #f9f9f9;
+            border-radius: 50%; border: 0.5px solid var(--border); background: #f9f9f9;
             flex-shrink: 0;
         }
         .cdm-flag-ph {
             width: 24px; height: 24px; border-radius: 50%;
-            background: repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 4px,#e5e7eb 4px,#e5e7eb 8px);
+            background: repeating-linear-gradient(45deg,var(--surface-3),var(--line-soft) 4px,var(--border) 4px,var(--border) 8px);
             flex-shrink: 0;
         }
         .cdm-name {
-            flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: #111827;
+            flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--text);
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         .cdm-name.placeholder { font-weight: 500; font-style: italic; color: var(--text-muted); }
@@ -656,19 +653,19 @@ else
         .cdm-row.winner .cdm-name { color: #15803d; }
         .cdm-row.winner { background: rgba(34,139,34,.05); }
         .cdm-score {
-            font-size: 14px; font-weight: 700; color: #111827;
+            font-size: 14px; font-weight: 700; color: var(--text);
             min-width: 20px; text-align: center; flex-shrink: 0;
         }
         .cdm-prov-tag {
-            font-size: 9px; color: #b45309; background: #fef3c7;
+            font-size: 11px; color: #b45309; background: #fef3c7;
             border-radius: 4px; padding: 1px 5px; font-weight: 600; flex-shrink: 0;
         }
         .cdm-match-foot {
             display: flex; justify-content: flex-end; padding: 6px 12px;
-            border-top: 0.5px solid #f3f4f6;
+            border-top: 0.5px solid var(--line-soft);
         }
         .cdm-analisar {
-            font-size: 10px; padding: 3px 10px; border-radius: 6px;
+            font-size: 11px; padding: 3px 10px; border-radius: 6px;
             border: 1px solid #15803d; color: #15803d; background: transparent;
             text-decoration: none; font-weight: 600; transition: background .15s,color .15s;
         }
@@ -680,7 +677,7 @@ else
             margin-bottom: 14px;
         }
         .bkt-leg-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; vertical-align: middle; }
-        .bkt-leg-box { width: 11px; height: 11px; border-radius: 3px; display: inline-block; margin-right: 5px; vertical-align: middle; border: 1px solid #e5e7eb; background: #fff; }
+        .bkt-leg-box { width: 11px; height: 11px; border-radius: 3px; display: inline-block; margin-right: 5px; vertical-align: middle; border: 1px solid var(--border); background: var(--surface); }
         .bkt-leg-box.prov { border-style: dashed; border-color: #f59e0b; }
 
         .bkt-scroll { overflow-x: auto; padding-bottom: 12px; }
@@ -694,8 +691,7 @@ else
         .bkt-side { display: flex; gap: var(--bkt-gap); align-items: stretch; }
         .bkt-colwrap { width: var(--bkt-w); display: flex; flex-direction: column; }
         .bkt-col-label {
-            text-align: center; font-size: 11px; font-weight: 800; letter-spacing: 1px;
-            text-transform: uppercase; color: var(--text-muted); padding-bottom: 10px;
+            text-align: center; font-size: 11px; font-weight: 800; letter-spacing: 1px; color: var(--text-muted); padding-bottom: 10px;
         }
         .bkt-col { flex: 1; display: flex; flex-direction: column; }
         /* min-height precisa conter o card inteiro (cabeçalho + 2 times + rodapé
@@ -705,35 +701,35 @@ else
 
         /* Card de confronto */
         .bkt-match {
-            width: 100%; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+            width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
             overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.04); position: relative; z-index: 1;
         }
         .bkt-match.done { border-color: #bbf7d0; }
         .bkt-match-no {
             display: flex; justify-content: space-between; align-items: center;
             background: linear-gradient(90deg,#006400,#228B22); color: var(--warn);
-            font-size: 9px; font-weight: 700; padding: 3px 8px; letter-spacing: .3px;
+            font-size: 11px; font-weight: 700; padding: 3px 8px; letter-spacing: .3px;
         }
         .bkt-team {
             display: flex; align-items: center; gap: 6px; padding: 6px 8px;
-            border-bottom: 1px solid #f3f4f6;
+            border-bottom: 1px solid var(--line-soft);
         }
         .bkt-team:last-of-type { border-bottom: none; }
-        .bkt-team img { width: 20px; height: 20px; object-fit: contain; border-radius: 50%; border: .5px solid #e5e7eb; background: #f9f9f9; flex-shrink: 0; }
-        .bkt-flag-ph { width: 20px; height: 20px; border-radius: 50%; background: repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 4px,#e5e7eb 4px,#e5e7eb 8px); flex-shrink: 0; }
-        .bkt-tname { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .bkt-team img { width: 20px; height: 20px; object-fit: contain; border-radius: 50%; border: .5px solid var(--border); background: #f9f9f9; flex-shrink: 0; }
+        .bkt-flag-ph { width: 20px; height: 20px; border-radius: 50%; background: repeating-linear-gradient(45deg,var(--surface-3),var(--line-soft) 4px,var(--border) 4px,var(--border) 8px); flex-shrink: 0; }
+        .bkt-tname { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .bkt-tname.placeholder { font-weight: 500; font-style: italic; color: var(--text-muted); }
         .bkt-tname.prov { color: var(--text-dim); }
         .bkt-team.win .bkt-tname { color: #15803d; }
         .bkt-team.win { background: rgba(34,139,34,.06); }
-        .bkt-score { font-size: 13px; font-weight: 800; color: #111827; min-width: 18px; text-align: center; flex-shrink: 0; }
+        .bkt-score { font-size: 13px; font-weight: 800; color: var(--text); min-width: 18px; text-align: center; flex-shrink: 0; }
         .bkt-foot {
             display: flex; justify-content: space-between; align-items: center; gap: 6px;
-            padding: 4px 8px; border-top: 1px solid #f3f4f6; background: #fafafa;
+            padding: 4px 8px; border-top: 1px solid var(--line-soft); background: #fafafa;
         }
-        .bkt-date { font-size: 9px; color: var(--text-muted); }
+        .bkt-date { font-size: 11px; color: var(--text-muted); }
         .bkt-analisar {
-            font-size: 9px; padding: 2px 8px; border-radius: 5px; border: 1px solid #15803d;
+            font-size: 11px; padding: 2px 8px; border-radius: 5px; border: 1px solid #15803d;
             color: #15803d; background: transparent; text-decoration: none; font-weight: 700;
             transition: background .15s,color .15s; white-space: nowrap;
         }
@@ -776,10 +772,10 @@ else
         .bkt-center .bkt-col-label { color: #b45309; }
         .bkt-final-wrap { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; }
         .bkt-center .bkt-cell { flex: 0 0 auto; min-height: 0; width: 100%; }
-        .bkt-trophy { font-size: 30px; line-height: 1; filter: drop-shadow(0 2px 6px rgba(0,0,0,.2)); }
+        
         .bkt-final-cell .bkt-match { border-color: #fbbf24; box-shadow: 0 2px 10px rgba(251,191,36,.25); }
         .bkt-final-cell .bkt-match-no { background: linear-gradient(90deg,#b45309,#f59e0b); color: #fff; }
-        .bkt-bronze-label { font-size: 10px; font-weight: 700; color: #b45309; text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; }
+        .bkt-bronze-label { font-size: 12px; font-weight: 700; color: var(--warn); margin-top: 4px; }
         .bkt-bronze-cell .bkt-match-no { background: linear-gradient(90deg,#92400e,#d97706); }
 
         @@media (max-width: 700px) {
@@ -788,9 +784,9 @@ else
 
         /* ── Aba Seleção (campinho + escolha por posição) ───────────── */
         .sel-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
-        .sel-bar label { font-size:13px; font-weight:600; color:#374151; }
-        .sel-bar select { padding:7px 10px; border-radius:8px; border:1px solid #d1d5db; font-size:13px; }
-        .sel-nome { padding:7px 10px; border-radius:8px; border:1px solid #d1d5db; font-size:13px; min-width:150px; }
+        .sel-bar label { font-size:13px; font-weight:600; color: var(--text-2); }
+        .sel-bar select { padding:7px 10px; border-radius:8px; border:1px solid var(--line-strong); font-size:13px; }
+        .sel-nome { padding:7px 10px; border-radius:8px; border:1px solid var(--line-strong); font-size:13px; min-width:150px; }
         .sel-save { padding:8px 16px; border:none; border-radius:8px; background:#16a34a; color:#fff; font-weight:600; font-size:13px; cursor:pointer; }
         .sel-save:hover { background:#15803d; }
         .sel-del { padding:8px 12px; border:1px solid #fecaca; border-radius:8px; background:#fef2f2; color:#b91c1c; font-weight:600; font-size:13px; cursor:pointer; }
@@ -799,7 +795,7 @@ else
         [data-theme="dark"] .sel-del { background:#3a1a1a; border-color:#7f1d1d; color:var(--bad); }
         .sel-msg { background:#dcfce7; color:#15803d; padding:8px 12px; border-radius:8px; margin-bottom:12px; font-size:13px; }
         .sel-empty { padding:2rem; text-align:center; color:var(--text-muted); font-size:14px; }
-        .sel-titulo { text-align:center; font-weight:800; font-size:1.15rem; color:#111827; margin:4px 0 12px; font-family:'Barlow Condensed', sans-serif; letter-spacing:.5px; text-transform:uppercase; }
+        .sel-titulo { text-align:center; font-weight:800; font-size:1.15rem; color: var(--text); margin:4px 0 12px; font-family:'Barlow Condensed', sans-serif; }
         [data-theme="dark"] .sel-titulo { color:var(--text); }
 
         .sel-pitch {
@@ -830,20 +826,20 @@ else
 
         .sel-picker-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; z-index:1000; align-items:center; justify-content:center; padding:12px; }
         .sel-picker-overlay.open { display:flex; }
-        .sel-picker-box { background:#fff; border-radius:12px; width:min(420px,94vw); max-height:80vh; display:flex; flex-direction:column; overflow:hidden; }
+        .sel-picker-box { background: var(--surface); border-radius:12px; width:min(420px,94vw); max-height:80vh; display:flex; flex-direction:column; overflow:hidden; }
         .sel-picker-head { display:flex; gap:8px; padding:12px; border-bottom:1px solid #eee; }
-        .sel-picker-head input { flex:1; padding:8px 10px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; outline:none; }
-        .sel-picker-head select { padding:8px 8px; border:1px solid #d1d5db; border-radius:8px; font-size:13px; outline:none; background:#fff; }
+        .sel-picker-head input { flex:1; padding:8px 10px; border:1px solid var(--line-strong); border-radius:8px; font-size:14px; outline:none; }
+        .sel-picker-head select { padding:8px 8px; border:1px solid var(--line-strong); border-radius:8px; font-size:13px; outline:none; background: var(--surface); }
         [data-theme="dark"] .sel-picker-head select { background:var(--p-4); color:var(--text); border-color:var(--line-strong); }
-        .sel-picker-close { border:none; background:#f3f4f6; border-radius:8px; padding:0 12px; cursor:pointer; font-size:14px; }
+        .sel-picker-close { border:none; background:var(--surface-3); border-radius:8px; padding:0 12px; cursor:pointer; font-size:14px; }
         .sel-picker-list { overflow-y:auto; padding:6px; }
         .sel-pick-item { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; cursor:pointer; }
-        .sel-pick-item:hover { background:#f3f4f6; }
+        .sel-pick-item:hover { background:var(--surface-3); }
         .sel-pick-remove { color:#b91c1c; font-weight:600; font-size:13px; justify-content:center; }
-        .sel-pick-photo { width:34px; height:34px; border-radius:50%; background:#f3f4f6; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; }
+        .sel-pick-photo { width:34px; height:34px; border-radius:50%; background:var(--surface-3); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; }
         .sel-pick-photo img { width:100%; height:100%; object-fit:cover; }
         .sel-pick-info { display:flex; flex-direction:column; min-width:0; }
-        .sel-pick-nome { font-size:13px; font-weight:600; color:#111827; }
+        .sel-pick-nome { font-size:13px; font-weight:600; color: var(--text); }
         .sel-pick-meta { font-size:11px; color:var(--text-dim); }
 
         [data-theme="dark"] .sel-bar label { color:var(--text-2); }
@@ -859,21 +855,22 @@ else
 
     <div class="cdm-bracket">
         <div class="cdm-bracket-head">
-            <h3>🏆 Fase de Grupos &amp; Mata-Mata</h3>
+            <h3>Fase de grupos e mata-mata</h3>
             <small>Selecione uma aba para ver a classificação dos grupos ou o chaveamento do mata-mata.</small>
         </div>
 
         <div class="cdm-tabs" role="tablist">
             @if (temGrupos)
             {
-                <button type="button" class="cdm-tab active" data-cdm-tab="grupos">📊 Grupos</button>
+                <button type="button" class="cdm-tab active" data-cdm-tab="grupos">Grupos</button>
             }
             @if (temChave)
             {
-                <button type="button" class="cdm-tab @(!temGrupos ? "active" : "")" data-cdm-tab="chave">⚔️ Mata-Mata</button>
+                <button type="button" class="cdm-tab @(!temGrupos ? "active" : "")" data-cdm-tab="chave">Mata-mata</button>
             }
-            <button type="button" class="cdm-tab" data-cdm-tab="selecao">⭐ Seleção</button>
-            <button type="button" class="cdm-tab" data-cdm-tab="estatisticas">📈 Estatísticas</button>
+            <button type="button" class="cdm-tab" data-cdm-tab="selecao">Seleção</button>
+            <button type="button" class="cdm-tab" data-cdm-tab="estatisticas">Estatísticas</button>
+            <button type="button" class="cdm-tab" data-cdm-tab="estat-jogadores">Jogadores</button>
         </div>
 
         @if (temChave)
@@ -919,7 +916,6 @@ else
                         <div class="bkt-center">
                             <div class="bkt-col-label">Final</div>
                             <div class="bkt-final-wrap">
-                                <div class="bkt-trophy">🏆</div>
                                 <div class="bkt-cell bkt-final-cell">@renderMatch(confrontoPorNumero[104])</div>
                                 <div class="bkt-bronze-label">Disputa de 3º Lugar</div>
                                 <div class="bkt-cell bkt-bronze-cell">@renderMatch(confrontoPorNumero[103])</div>
@@ -967,9 +963,9 @@ else
         <div>
             <!-- Legenda -->
             <div class="lib-legenda">
-                <span><span class="lib-leg-dot" style="background:#7c3aed;"></span>Classificado (1º/2º lugar)</span>
-                <span><span class="lib-leg-dot" style="background:#f59e0b;"></span>Disputa vaga (3º lugar)</span>
-                <span><span class="lib-leg-dot" style="background:#d1d5db;"></span>Eliminado</span>
+                <span><span class="lib-leg-dot" style="background:#7c3aed;"></span>Classificado, 1º e 2º lugar</span>
+                <span><span class="lib-leg-dot" style="background:#f59e0b;"></span>Disputa vaga, 3º lugar</span>
+                <span><span class="lib-leg-dot" style="background:var(--line-strong);"></span>Eliminado</span>
             </div>
 
             <div class="lib-grupos">
@@ -977,8 +973,8 @@ else
                 {
                     <div class="lib-grupo-card">
                         <div class="lib-grupo-header">
-                            <img src="~/images/background/copadomundo.png" alt="CopaDoMundo" />
-                            Grupo @LetraGrupo(grupo.Nome)
+                            <img src="~/images/background/copadomundo.png" alt="" />
+                            @ControleFutebolWeb.Helpers.RodadaHelper.RotuloGrupo(grupo.Nome)
                         </div>
 
                         @if (!grupo.Times.Any())
@@ -1048,14 +1044,14 @@ else
                 <!-- Tabela de 3ºs colocados -->
                 <div style="margin-top:20px;">
                     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-                        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim)">🏅 Classificação dos 3ºs Colocados</div>
-                        <div style="flex:1;height:1px;background:#e5e7eb;"></div>
-                        <span style="font-size:10px;color:var(--text-dim);background:#f3f4f6;border:0.5px solid #e5e7eb;border-radius:20px;padding:2px 9px">Os 8 melhores avançam</span>
+                        <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.25rem;font-weight:700;color:var(--text-strong)">Melhores terceiros colocados</div>
+                        <div style="flex:1;height:1px;background:var(--border);"></div>
+                        <span style="font-size: 11px;color:var(--text-dim);background:var(--surface-3);border:0.5px solid var(--border);border-radius:20px;padding:2px 9px">Os 8 melhores avançam</span>
                     </div>
-                    <div style="background:#fff;border:0.5px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+                    <div style="background: var(--surface);border:0.5px solid var(--border);border-radius:12px;overflow:hidden;">
                         <div style="background:linear-gradient(90deg,#92400e,#d97706);color:#fff;padding:8px 14px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:8px;">
                             <img src="~/images/background/copadomundo.png" alt="Copa" style="width:16px;height:16px;object-fit:contain;" />
-                            Melhores Terceiros Colocados — Disputa de Vagas
+                            Disputa das 8 vagas entre os terceiros
                         </div>
                         <div style="overflow-x:auto;">
                         <table class="lib-table">
@@ -1076,19 +1072,21 @@ else
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach (var time in terceirosColocados)
+                                @for (int iTerc = 0; iTerc < terceirosColocados.Count; iTerc++)
                                 {
-                                    bool classificado = time.Posicao <= 8;
+                                    var time = terceirosColocados[iTerc];
+                                    var posTerc = iTerc + 1;
+                                    bool classificado = posTerc <= 8;
                                     string rowStyle = classificado ? "background:rgba(245,158,11,0.06);" : "";
                                     <tr style="@rowStyle">
                                         <td>
                                             @if (classificado)
                                             {
-                                                <span class="lib-pos lib-pos-3">@time.Posicao</span>
+                                                <span class="lib-pos lib-pos-3">@posTerc</span>
                                             }
                                             else
                                             {
-                                                <span class="lib-pos lib-pos-default">@time.Posicao</span>
+                                                <span class="lib-pos lib-pos-default">@posTerc</span>
                                             }
                                         </td>
                                         <td>
@@ -1100,7 +1098,7 @@ else
                                                 <a href="/Times/Details/@time.Time?.Id" style="color:inherit;text-decoration:none;font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px;">@time.Time?.Nome</a>
                                             </div>
                                         </td>
-                                        <td style="font-weight:700;color:#d97706;">@time.Grupo</td>
+                                        <td style="font-weight:700;color:var(--warn);">@LetraGrupo(time.Grupo)</td>
                                         <td>@time.Jogos</td>
                                         <td>@time.Vitorias</td>
                                         <td>@time.Empates</td>
@@ -1115,8 +1113,8 @@ else
                             </tbody>
                         </table>
                         </div>
-                        <div style="padding:8px 14px;font-size:10px;color:var(--text-muted);border-top:0.5px solid #f3f4f6">
-                            Critérios: Pontos → Saldo de Gols → Gols Pró → Fair Play (amarelo=1pt · vermelho direto=3pt · 2º amarelo+vermelho=4pt)
+                        <div style="padding:8px 14px;font-size: 11px;color:var(--text-muted);border-top:0.5px solid var(--line-soft)">
+                            Desempate: pontos, saldo de gols, gols pró e fair play (amarelo vale 1 ponto, vermelho direto 3, segundo amarelo com vermelho 4; menos é melhor).
                         </div>
                     </div>
                 </div>
@@ -1150,7 +1148,7 @@ else
                             <span>@ControleFutebolWeb.Helpers.DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy HH:mm")</span>
                             @if (!string.IsNullOrEmpty(jogo.Grupo))
                             {
-                                <span class="lib-grupo-tag">Grupo @LetraGrupo(jogo.Grupo)</span>
+                                <span class="lib-grupo-tag">@ControleFutebolWeb.Helpers.RodadaHelper.Rotulo(jogo.Grupo, jogo.Rodada)</span>
                             }
                         </div>
                         <div class="lib-jogo-body">
@@ -1160,7 +1158,7 @@ else
                                     {
                                         <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa.EscudoUrl })" alt="@jogo.TimeCasa.Nome" />
                                     }
-                                    <a href="/Times/Details/@jogo.TimeCasa?.Id" style="font-size:11px;font-weight:500;color:#374151;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;text-decoration:none;">@jogo.TimeCasa?.Nome</a>
+                                    <a href="/Times/Details/@jogo.TimeCasa?.Id" style="font-size:11px;font-weight:500;color: var(--text-2);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;text-decoration:none;">@jogo.TimeCasa?.Nome</a>
                                 </div>
 
                                 <div class="lib-vs">
@@ -1169,7 +1167,7 @@ else
                                         <span class="lib-score">@jogo.PlacarCasa x @jogo.PlacarVisitante</span>
                                         @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
                                         {
-                                            <span class="lib-pen">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</span>
+                                            <span class="lib-pen">(@jogo.PenaltisCasa x @jogo.PenaltisVisitante nos pênaltis)</span>
                                         }
                                     }
                                     else
@@ -1183,14 +1181,14 @@ else
                                     {
                                         <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante.EscudoUrl })" alt="@jogo.TimeVisitante.Nome" />
                                     }
-                                    <a href="/Times/Details/@jogo.TimeVisitante?.Id" style="font-size:11px;font-weight:500;color:#374151;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;text-decoration:none;">@jogo.TimeVisitante?.Nome</a>
+                                    <a href="/Times/Details/@jogo.TimeVisitante?.Id" style="font-size:11px;font-weight:500;color: var(--text-2);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;text-decoration:none;">@jogo.TimeVisitante?.Nome</a>
                                 </div>
                             </div>
 
                             <div class="lib-jogo-footer">
                                 @if (realizado)
                                 {
-                                    <span style="color:var(--ok-2);font-weight:600">✔ Realizado</span>
+                                    <span style="color:var(--ok-2);font-weight:600">Encerrado</span>
                                 }
                                 else
                                 {
@@ -1198,7 +1196,7 @@ else
                                 }
                                 <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id"
                                    class="lib-analisar-btn">
-                                    Analisar →
+                                    Analisar
                                 </a>
                             </div>
                         </div>
@@ -1229,7 +1227,7 @@ else
         <div class="cdm-panel" data-cdm-panel="selecao">
             @if (TempData["SelecaoSalva"] != null)
             {
-                <div class="sel-msg">✅ @TempData["SelecaoSalva"]</div>
+                <div class="sel-msg">@TempData["SelecaoSalva"]</div>
             }
             @if (!Model.Formacoes.Any())
             {
@@ -1244,7 +1242,7 @@ else
                         {
                             <option value="@sel.Id" selected="@(!Model.ModoNovaSelecao && sel.Id == Model.SelecaoAtualId)">@(string.IsNullOrWhiteSpace(sel.Nome) ? "Seleção" : sel.Nome)</option>
                         }
-                        <option value="nova" selected="@Model.ModoNovaSelecao">➕ Nova seleção</option>
+                        <option value="nova" selected="@Model.ModoNovaSelecao">Nova seleção</option>
                     </select>
                     @if (Model.SelecaoAtualId != null)
                     {
@@ -1253,7 +1251,7 @@ else
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="selId" value="@Model.SelecaoAtualId" />
                             <input type="hidden" name="temporada" value="@Model.Temporada" />
-                            <button type="submit" class="sel-del">🗑️ Excluir</button>
+                            <button type="submit" class="sel-del">Excluir</button>
                         </form>
                     }
                 </div>
@@ -1273,10 +1271,10 @@ else
                                 <option value="@f.Id" selected="@(f.Id == Model.SelecaoFormacaoId)">@f.Nome</option>
                             }
                         </select>
-                        <button type="submit" class="sel-save">💾 Salvar seleção</button>
+                        <button type="submit" class="sel-save">Salvar seleção</button>
                     </div>
 
-                    <div class="sel-titulo" id="sel-titulo">⭐ @(string.IsNullOrWhiteSpace(Model.SelecaoAtualNome) ? "Nova seleção" : Model.SelecaoAtualNome)</div>
+                    <div class="sel-titulo" id="sel-titulo">@(string.IsNullOrWhiteSpace(Model.SelecaoAtualNome) ? "Nova seleção" : Model.SelecaoAtualNome)</div>
 
                     <div class="sel-pitch theme-dark-zone">
                         @for (int i = 0; i < Model.SelecaoSlots.Count; i++)
@@ -1319,7 +1317,7 @@ else
                                     <option value="@c">@c</option>
                                 }
                             </select>
-                            <button type="button" class="sel-picker-close" onclick="selFecharPicker()">✕</button>
+                            <button type="button" class="sel-picker-close" onclick="selFecharPicker()" aria-label="Fechar">✕</button>
                         </div>
                         <div class="sel-picker-list" id="sel-picker-list">
                             <div class="sel-pick-item sel-pick-remove" data-id="" data-busca="">— Remover jogador —</div>
@@ -1343,7 +1341,7 @@ else
                                     </div>
                                     <div class="sel-pick-info">
                                         <span class="sel-pick-nome">@j.Nome</span>
-                                        <span class="sel-pick-meta">@PosicaoJogadorHelper.Sigla(j.Posicao)@(string.IsNullOrEmpty(timeNome) ? "" : " · " + timeNome)@(Model.NotaMediaPorJogador.TryGetValue(j.Id, out var notaMed) ? " · ⭐ " + notaMed.ToString("0.0", inv) : "")</span>
+                                        <span class="sel-pick-meta">@PosicaoJogadorHelper.Sigla(j.Posicao)@(string.IsNullOrEmpty(timeNome) ? "" : ", " + timeNome)@(Model.NotaMediaPorJogador.TryGetValue(j.Id, out var notaMed) ? ", nota " + notaMed.ToString("0.0", inv) : "")</span>
                                     </div>
                                 </div>
                             }
@@ -1356,6 +1354,10 @@ else
         <div class="cdm-panel" data-cdm-panel="estatisticas">
             @await Html.PartialAsync("_LinksEstatisticasCompeticao", (7, temporadaCopaSel))
             @await Html.PartialAsync("_PainelEstatisticas", ViewBag.EstatisticasTimes as List<ControleFutebolWeb.Models.ViewModels.EstatisticaTimeViewModel>)
+        </div>
+
+        <div class="cdm-panel" data-cdm-panel="estat-jogadores">
+            @await Html.PartialAsync("_AbaEstatisticasJogadores", (7, temporadaCopaSel))
         </div>
     </div>
 
@@ -1401,7 +1403,7 @@ else
             var t = document.getElementById('sel-titulo');
             if (!t) return;
             var v = inp ? inp.value.trim() : '';
-            t.textContent = '⭐ ' + (v || 'Nova seleção');
+            t.textContent = v || 'Nova seleção';
         }
 
         function selTrocarSelecao(v) {

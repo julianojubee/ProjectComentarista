@@ -1,11 +1,11 @@
-﻿@model List<ControleFutebolWeb.Models.Jogo>
+@model List<ControleFutebolWeb.Models.Jogo>
 @using ControleFutebolWeb.Helpers
 @{
-    // Cards dos jogos de um dia — hero com a data, filtros por competição/status,
+    // Cards dos jogos de um dia — cabeçalho com a data, filtros por situação/competição,
     // placar (inclusive o parcial do jogo em andamento), gols e transmissão.
     //
     // Compartilhada por /Jogos/Hoje (logada) e /creators/jogos-hoje (pública). O
-    // que muda entre as duas: a rota das setas de dia (ViewData["AcaoDia"] e
+    // que muda entre as duas: a rota da navegação de dia (ViewData["AcaoDia"] e
     // ViewData["ControllerDia"]) e o atalho para a análise, que só existe na
     // logada (ViewData["Publico"]).
     var publico = (bool)(ViewData["Publico"] ?? false);
@@ -30,6 +30,16 @@
 
     var fusoHorarioBrasil = TimeZoneInfo.FindSystemTimeZoneById("America/Sao_Paulo");
     var agoraBrasil = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, fusoHorarioBrasil);
+    var hojeBrasil = agoraBrasil.Date;
+
+    // "Hoje", "Ontem", "Amanhã" ou a data curta — rótulo das setas de dia
+    string Relativo(DateTime dia) =>
+        dia == hojeBrasil ? "Hoje"
+        : dia == hojeBrasil.AddDays(-1) ? "Ontem"
+        : dia == hojeBrasil.AddDays(1) ? "Amanhã"
+        : dia.ToString("d 'de' MMM", ptBR);
+    string Capitalizar(string s) => s.Length == 0 ? s : char.ToUpper(s[0]) + s[1..];
+    string Plural(int n, string um, string varios) => $"{n} {(n == 1 ? um : varios)}";
 
     // Estimativa do minuto ao vivo a partir do horário de início: não há sincronização
     // em tempo real com a API, então assume 1º tempo de 45min + 15min de intervalo.
@@ -85,15 +95,7 @@
         lido.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(lido, DateTimeKind.Utc) : lido
     ).ToUnixTimeSeconds();
 
-    Func<int?, (string bg, string border, string text)> corComp = (id) => id switch
-    {
-        1 => ("rgba(34,197,94,0.12)", "rgba(34,197,94,0.3)", "var(--ok)"),
-        2 => ("rgba(59,130,246,0.12)", "rgba(59,130,246,0.3)", "var(--info)"),
-        3 => ("rgba(212,165,32,0.12)", "rgba(212,165,32,0.3)", "var(--warn)"),
-        4 => ("rgba(249,115,22,0.12)", "rgba(249,115,22,0.3)", "#fb923c"),
-        5 => ("rgba(168,85,247,0.12)", "rgba(168,85,247,0.3)", "var(--purple)"),
-        _ => ("rgba(107,114,128,0.12)", "rgba(107,114,128,0.3)", "var(--text-muted)"),
-    };
+    string Escudo(string? url) => Url.Action("Imagem", "MediaProxy", new { url })!;
 
     var vivos = new List<ControleFutebolWeb.Models.Jogo>();
     var agendados = new List<ControleFutebolWeb.Models.Jogo>();
@@ -117,21 +119,28 @@
         }
     }
 
-    var grupos = new List<(string label, string icone, string cor, List<ControleFutebolWeb.Models.Jogo> jogos)>
+    // Chave (usada pelo filtro e pelos contadores), título e jogos de cada situação
+    var grupos = new List<(string chave, string titulo, List<ControleFutebolWeb.Models.Jogo> jogos)>
     {
-        ("Ao Vivo", "🔴", "var(--bad)", vivos),
-        ("Agendados", "⏳", "var(--info)", agendados),
-        ("Encerrados", "✓", "var(--ok)", encerrados),
+        ("vivo", "Ao vivo", vivos),
+        ("agendado", "Agendados", agendados),
+        ("encerrado", "Encerrados", encerrados),
     };
+    var gruposComJogos = grupos.Where(g => g.jogos.Any()).ToList();
 
     // Competições presentes no dia, para os chips de filtro. Id 0 agrupa os jogos sem
     // competição cadastrada — sem isso eles sumiriam da tela ao filtrar.
     var competicoesDoDia = Model
         .GroupBy(j => (id: j.Competicao?.Id ?? 0, nome: j.Competicao?.Nome ?? "Sem competição"))
-        .Select(g => (g.Key.id, g.Key.nome, total: g.Count()))
+        .Select(g => (g.Key.id, g.Key.nome, total: g.Count(),
+                      logo: g.Select(j => j.Competicao?.LogoUrl).FirstOrDefault(u => !string.IsNullOrEmpty(u))))
         .OrderByDescending(c => c.total).ThenBy(c => c.nome)
         .ToList();
+
+    var tituloDia = Capitalizar(diaAtual.ToString(diaAtual.Year == hojeBrasil.Year ? "dddd, d 'de' MMMM" : "dddd, d 'de' MMMM 'de' yyyy", ptBR));
 }
+
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
 
 <style>
     .hj-root, .hj-root *, .hj-root *::before, .hj-root *::after { box-sizing: border-box; }
@@ -145,248 +154,265 @@
         font-family: 'Barlow', Arial, sans-serif;
     }
     .hj-root a { text-decoration: none; color: inherit; }
+    .hj-root :is(a, button, input):focus-visible { outline: 2px solid #d4a520; outline-offset: 2px; }
 
-    @@keyframes hjPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    @@keyframes hjPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+    @@media (prefers-reduced-motion: reduce) { .hj-root .hj-ponto-vivo { animation: none !important; } }
+    .hj-ponto-vivo { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; animation: hjPulse 1.5s ease infinite; flex-shrink: 0; }
 
-    /* ── Hero ── */
-    .hj-hero {
-        position: relative; overflow: hidden;
-        background: linear-gradient(135deg, #060d1a 0%, #0d1e35 55%, #060d1a 100%);
-        padding: 40px 2.5rem 34px;
+    /* ── Cabeçalho (cores fixas: o fundo é escuro nos dois temas) ── */
+    .hj-cab {
+        display: flex; align-items: flex-end; justify-content: space-between; gap: 14px 24px; flex-wrap: wrap;
+        padding: 1.5rem 2.5rem;
+        background: linear-gradient(135deg, #0a1628 0%, #0f2040 55%, #0a1628 100%);
+        border-left: 4px solid #d4a520;
     }
-    .hj-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #d4a520; }
-    .hj-hero-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: linear-gradient(to top, var(--page-bg), transparent); pointer-events: none; }
-    .hj-hero-inner { position: relative; z-index: 1; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
-    .hj-hero-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-    .hj-hero-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; animation: hjPulse 1.5s ease infinite; }
-    .hj-hero-kicker span { font-size: .68rem; font-weight: 700; letter-spacing: .28em; color: var(--bad-2); text-transform: uppercase; }
-    .hj-hero h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3rem; font-weight: 800; color: var(--text-strong); margin: 0 0 6px; line-height: 1; }
-    .hj-hero p { font-size: .9rem; color: var(--text-dim); margin: 0; }
+    .hj-cab-rel { font-size: .9rem; font-weight: 700; color: #f3d27a; margin-bottom: 2px; }
+    .hj-cab h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 2.4rem; font-weight: 800; color: #f2f5fa; margin: 0; line-height: 1.05; }
+    .hj-cab p { margin: 6px 0 0; font-size: .92rem; color: rgba(255,255,255,.75); display: flex; align-items: center; gap: 8px; }
+    .hj-cab p strong { color: #f2f5fa; }
+    .hj-cab p .vivo { color: #fca5a5; font-weight: 700; }
 
-    .hj-nav { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
-    .hj-nav-btn {
-        display: inline-flex; align-items: center; gap: 4px;
-        background: rgba(255,255,255,0.06); color: var(--text);
-        border: 1px solid rgba(255,255,255,0.14);
-        border-radius: 8px; padding: 6px 13px;
-        font-size: .78rem; font-weight: 600;
-        transition: background .15s, border-color .15s;
+    .hj-nav { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .hj-root .hj-nav-btn {
+        display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border-radius: 8px;
+        border: 1px solid rgba(255,255,255,.25); background: transparent; color: #e8edf5;
+        font-family: inherit; font-size: .86rem; font-weight: 600; white-space: nowrap; cursor: pointer;
     }
-    .hj-nav-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(212,165,32,0.4); color: var(--text); }
-    .hj-nav-hoje { background: rgba(212,165,32,0.18); border-color: rgba(212,165,32,0.5); color: var(--gold-ink); }
+    .hj-root .hj-nav-btn:hover { border-color: #d4a520; color: #f3d27a; }
+    .hj-root .hj-nav-btn.hoje { background: #d4a520; border-color: #d4a520; color: #141414; }
+    .hj-nav form { margin: 0; }
+    .hj-data {
+        height: 36px; padding: 0 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.25);
+        background: rgba(255,255,255,.06); color: #e8edf5; font-family: inherit; font-size: .86rem; color-scheme: dark;
+    }
+    .hj-data:hover, .hj-data:focus { border-color: #d4a520; outline: none; }
 
-    .hj-stats { display: flex; gap: 20px; flex-shrink: 0; margin-left: auto; }
-    .hj-stat { text-align: center; }
-    .hj-stat-num { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 2rem; font-weight: 800; line-height: 1; display: flex; align-items: center; gap: 6px; justify-content: center; }
-    .hj-stat-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; animation: hjPulse 1.5s ease infinite; display: inline-block; }
-    .hj-stat-label { font-size: .62rem; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: .1em; margin-top: 3px; }
-    .hj-stat-sep { width: 1px; background: #1e2d45; align-self: stretch; }
+    /* ── Filtros: situação (abas) + competição (fileira) ── */
+    .hj-barra {
+        display: flex; flex-direction: column; gap: 10px;
+        padding: 14px 2.5rem; background: var(--p-1); border-bottom: 1px solid var(--line);
+    }
+    .hj-abas, .hj-comps { display: flex; gap: 6px; }
+
+    .hj-abas, .hj-comps { overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; }
+    .hj-chip {
+        display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+        padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line-strong); background: transparent;
+        color: var(--text-muted); font-family: inherit; font-size: .86rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+    }
+    .hj-chip:hover { color: var(--text-strong); border-color: #d4a520; }
+    .hj-chip[aria-pressed="true"] { background: var(--text-strong); border-color: var(--text-strong); color: var(--p-0); }
+    .hj-chip-count { font-weight: 500; opacity: .7; }
+    .hj-comp-logo { width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; }
 
     /* ── Conteúdo ── */
-    .hj-content { padding: 28px 2.5rem 64px; max-width: 1300px; margin: 0 auto; display: flex; flex-direction: column; gap: 32px; }
-
-    /* ── Filtro de competição ── */
-    .hj-filtro { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .hj-filtro-label { font-size: .62rem; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--text-dimmer); margin-right: 4px; }
-    .hj-chip {
-        display: inline-flex; align-items: center; gap: 6px;
-        background: var(--p-1); color: var(--text-muted);
-        border: 1px solid var(--line); border-radius: 999px;
-        padding: 5px 12px; font-size: .74rem; font-weight: 600;
-        font-family: inherit; cursor: pointer;
-        transition: background .15s, border-color .15s, color .15s;
+    .hj-content { padding: 24px 2.5rem 56px; max-width: 1300px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+    .hj-grupo > h2 {
+        font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.4rem; font-weight: 700; color: var(--text-strong);
+        margin: 0 0 12px; display: flex; align-items: center; gap: 8px;
     }
-    .hj-chip:hover { border-color: rgba(212,165,32,0.4); color: var(--text); }
-    .hj-chip.hj-chip-on { background: rgba(212,165,32,0.14); border-color: rgba(212,165,32,0.5); color: var(--gold-ink); }
-    .hj-chip-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-    .hj-chip-count { font-size: .66rem; color: var(--text-dimmer); font-weight: 700; }
-    .hj-chip.hj-chip-on .hj-chip-count { color: var(--gold-ink); }
-    .hj-filtros { display: flex; flex-direction: column; gap: 10px; }
+    .hj-grupo > h2 small { font-family: 'Barlow', Arial, sans-serif; font-size: .84rem; font-weight: 500; color: var(--text-dim); }
+    .hj-lista { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 
-    .hj-grupo-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-    .hj-grupo-label { font-size: .65rem; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; white-space: nowrap; }
-    .hj-grupo-divider { flex: 1; height: 1px; background: var(--p-3); }
-    .hj-grupo-count { font-size: .68rem; color: var(--text-dimmer); font-weight: 600; }
+    /* ── Card ── */
+    .hj-card {
+        display: flex; flex-direction: column; gap: 10px;
+        background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+    }
+    .hj-card.hj-live { border-color: rgba(239,68,68,.45); }
+    .hj-card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+    .hj-root .hj-comp {
+        display: inline-flex; align-items: center; gap: 6px; min-width: 0;
+        font-size: .82rem; font-weight: 600; color: var(--text-muted);
+    }
+    .hj-root .hj-comp span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hj-root a.hj-comp:hover { color: var(--gold-ink); text-decoration: underline; }
+    .hj-estado { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; font-size: .86rem; font-weight: 700; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+    .hj-estado.ag { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.15rem; color: var(--text-strong); }
+    .hj-estado.vivo { color: var(--bad); }
+    .hj-estado.enc { color: var(--text-dim); font-weight: 600; }
 
-    .hj-lista { display: flex; flex-direction: column; gap: 8px; }
-
-    .hj-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; transition: border-color .15s; }
-    .hj-card.hj-live { border-color: rgba(239,68,68,0.25); box-shadow: 0 0 20px rgba(239,68,68,0.08); }
-    .hj-card.hj-analisado { border-color: rgba(74,222,128,0.35); }
-
-    .hj-card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-    .hj-comp-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 5px; font-size: .65rem; font-weight: 700; letter-spacing: .04em; white-space: nowrap; }
-    .hj-comp-link { text-decoration: none; cursor: pointer; transition: filter .15s; }
-    .hj-comp-link:hover { filter: brightness(1.35); text-decoration: underline; }
-    .hj-status-badge { font-size: .65rem; font-weight: 700; padding: 2px 8px; border-radius: 5px; }
-    .hj-status-live { background: rgba(239,68,68,0.15); color: var(--bad); border: 1px solid rgba(239,68,68,0.3); }
-    .hj-status-enc { background: rgba(34,197,94,0.1); color: var(--ok); border: 1px solid rgba(34,197,94,0.25); }
-    .hj-status-ag { background: rgba(96,165,250,0.1); color: var(--info); border: 1px solid rgba(96,165,250,0.25); }
-    .hj-hora { font-size: .72rem; color: var(--text-dimmer); margin-left: auto; }
-
-    .hj-times { display: flex; align-items: center; gap: 16px; }
-    .hj-time-lado { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; }
-    .hj-time-lado.hj-casa { justify-content: flex-end; }
-    .hj-escudo { width: 36px; height: 36px; border-radius: 50%; background: var(--p-0); border: 1px solid var(--line-strong); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; font-size: .8rem; font-weight: 700; color: var(--text-dim); }
-    .hj-escudo img { width: 80%; height: 80%; object-fit: contain; }
-    .hj-time-nome { font-size: .95rem; font-weight: 500; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-    .hj-time-nome.hj-casa { text-align: right; }
-    .hj-time-nome.hj-vencedor { font-weight: 800; color: var(--text-strong); }
-    .hj-placar { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.8rem; font-weight: 900; color: var(--text-strong); flex-shrink: 0; letter-spacing: .06em; min-width: 80px; text-align: center; }
+    /* Os dois times em linhas: escudo, nome e gols — nada corta no celular */
+    .hj-times { display: flex; flex-direction: column; gap: 6px; }
+    .hj-linha { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .hj-escudo {
+        width: 28px; height: 28px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+        font-size: .75rem; font-weight: 700; color: var(--text-dim);
+    }
+    .hj-escudo img { width: 100%; height: 100%; object-fit: contain; }
+    .hj-nome { flex: 1; min-width: 0; font-size: 1rem; font-weight: 600; color: var(--text-strong); overflow-wrap: anywhere; }
+    .hj-n { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--text-strong); min-width: 24px; text-align: right; line-height: 1; font-variant-numeric: tabular-nums; }
+    .hj-linha.perde .hj-nome, .hj-linha.perde .hj-n { color: var(--text-dim); font-weight: 500; }
+    .hj-linha.vence .hj-nome { font-weight: 800; }
     /* Placar parcial do jogo em andamento (Jogo.PlacarParcialCasa, alimentado a cada
        15 min pelo AtualizarJogosAoVivoService): vermelho para não ser confundido com
        o resultado final, que é o único que conta como jogo realizado. */
-    .hj-placar-live { color: var(--bad); }
-    .hj-placar-live .hj-placar-parcial { display: block; font-family: inherit; font-size: .55rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .75; }
+    .hj-card.hj-live .hj-n { color: var(--bad); }
+    .hj-parcial { font-size: .76rem; font-weight: 600; color: var(--bad); align-self: flex-end; margin-top: -2px; }
 
-    /* Gols do jogo no card: casa alinhada à esquerda, visitante à direita, espelhando
-       a linha dos times logo acima. */
-    .hj-gols { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line-soft); }
-    .hj-gols-lado { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-    .hj-gols-vis { text-align: right; }
-    .hj-gol { font-size: .72rem; color: var(--text-dim); line-height: 1.25; }
-    .hj-gol-min { font-weight: 700; color: var(--text-dimmer); margin-right: 3px; }
+    /* Gols em ordem de minuto, com o escudo de quem marcou */
+    .hj-gols { list-style: none; margin: 0; padding: 8px 0 0; border-top: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 4px; }
+    .hj-gol { display: flex; align-items: baseline; gap: 6px; font-size: .84rem; color: var(--text-muted); }
+    .hj-gol-min { font-weight: 700; color: var(--text-dim); min-width: 30px; font-variant-numeric: tabular-nums; }
+    .hj-gol img { width: 14px; height: 14px; object-fit: contain; align-self: center; }
     .hj-gol-nome { color: var(--text-strong); font-weight: 600; }
-    .hj-gol-assist { display: block; font-size: .64rem; color: var(--text-dimmer); }
+    .hj-gol-extra { color: var(--text-dim); }
 
-    .hj-card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
-    .hj-estadio { font-size: .68rem; color: var(--text-dimmer); }
-    .hj-transmissao { font-size: .68rem; color: var(--gold-ink); margin-left: 10px; }
-    .hj-btn-analisar { font-size: .72rem; padding: 4px 12px; background: rgba(212,165,32,0.1); border: 1px solid rgba(212,165,32,0.28); border-radius: 6px; color: var(--gold-ink); font-weight: 700; }
-    .hj-btn-analisar:hover { background: rgba(212,165,32,0.2); color: var(--gold-ink); }
-    .hj-status-analisado { font-size: .72rem; font-weight: 700; color: var(--ok); display: flex; align-items: center; gap: 4px; text-decoration: none; }
-    .hj-status-analisado:hover { color: var(--ok-2); text-decoration: underline; }
+    .hj-card-footer {
+        display: flex; align-items: center; justify-content: space-between; gap: 10px;
+        margin-top: auto; padding-top: 10px; border-top: 1px solid var(--line-soft);
+    }
+    .hj-local { min-width: 0; display: flex; flex-direction: column; gap: 1px; font-size: .8rem; color: var(--text-dim); }
+    .hj-local span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hj-tv { color: var(--text-muted); }
+    .hj-root .hj-analisar {
+        flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 8px;
+        border: 1px solid rgba(212,165,32,.5); color: var(--gold-ink); font-size: .84rem; font-weight: 700;
+    }
+    .hj-root .hj-analisar:hover { background: rgba(212,165,32,.12); color: var(--gold-ink); }
+    .hj-root .hj-analisar.feito { border-color: transparent; color: var(--ok); font-weight: 600; }
+    .hj-root .hj-analisar.feito:hover { background: transparent; text-decoration: underline; }
 
-    .hj-sem-filtro { display: none; text-align: center; color: var(--text-dim); padding: 2.2rem 1rem; background: var(--p-1); border: 1px dashed var(--line); border-radius: 12px; }
-    .hj-empty { text-align: center; color: var(--text-dim); padding: 3rem 1rem; background: var(--p-1); border: 1px dashed var(--line); border-radius: 12px; }
+    .hj-sem-filtro, .hj-empty { text-align: center; color: var(--text-dim); padding: 2.5rem 1rem; background: var(--p-1); border: 1px dashed var(--line); border-radius: 12px; }
+    .hj-sem-filtro { display: none; }
 
     /* ── Responsivo ── */
-    @@media (max-width: 768px) {
-        .hj-hero { padding: 26px 1.1rem 22px; }
-        .hj-hero h1 { font-size: 2rem; }
-        .hj-content { padding: 20px 1.1rem 40px; }
-        .hj-stats { margin-left: 0; gap: 14px; }
-        .hj-placar { min-width: 56px; font-size: 1.4rem; }
-        .hj-times { gap: 8px; }
+    @@media (max-width: 900px) {
+        .hj-lista { grid-template-columns: 1fr; }
+    }
+    @@media (max-width: 640px) {
+        .hj-cab { padding: 1.1rem 1rem; }
+        .hj-cab h1 { font-size: 1.9rem; }
+        .hj-barra { padding: 12px 1rem; }
+        .hj-content { padding: 18px 1rem 40px; }
+        .hj-card { padding: 12px 14px; }
     }
 </style>
 
 <div class="hj-root">
-    <!-- ── Hero ── -->
-    <div class="hj-hero theme-dark-zone">
-        <div class="hj-hero-stripe"></div>
-        <div class="hj-hero-fade"></div>
-        <div class="hj-hero-inner">
-            <div>
-                <div class="hj-hero-kicker">
-                    <div class="hj-hero-dot"></div>
-                    <span>Jogos · @(ehHoje ? "Hoje" : diaAtual.ToString("dd/MM", ptBR))</span>
-                </div>
-                <h1>@diaAtual.ToString("dddd, dd 'de' MMMM 'de' yyyy", ptBR)</h1>
-                <p><span data-hj-total>@Model.Count</span> jogo(s) programado(s) · <span data-hj-contador="Ao Vivo">@vivos.Count</span> ao vivo</p>
-
-                <div class="hj-nav">
-                    <a class="hj-nav-btn" href="@UrlDia(diaAnterior)">← @diaAnterior.ToString("dd/MM", ptBR)</a>
-                    @if (!ehHoje)
-                    {
-                        <a class="hj-nav-btn hj-nav-hoje" href="@UrlDia(null)">Hoje</a>
-                    }
-                    <a class="hj-nav-btn" href="@UrlDia(diaSeguinte)">@diaSeguinte.ToString("dd/MM", ptBR) →</a>
-                </div>
-            </div>
-
-            <div class="hj-stats">
-                <div class="hj-stat">
-                    <div class="hj-stat-num" style="color:var(--bad-2)"><span class="hj-stat-dot"></span><span data-hj-contador="Ao Vivo">@vivos.Count</span></div>
-                    <div class="hj-stat-label">Ao vivo</div>
-                </div>
-                <div class="hj-stat-sep"></div>
-                <div class="hj-stat">
-                    <div class="hj-stat-num" style="color:var(--info)" data-hj-contador="Agendados">@agendados.Count</div>
-                    <div class="hj-stat-label">Agendados</div>
-                </div>
-                <div class="hj-stat-sep"></div>
-                <div class="hj-stat">
-                    <div class="hj-stat-num" style="color:var(--ok)" data-hj-contador="Encerrados">@encerrados.Count</div>
-                    <div class="hj-stat-label">Encerrados</div>
-                </div>
-            </div>
+    <!-- ── Cabeçalho ── -->
+    <div class="hj-cab theme-dark-zone">
+        <div>
+            @if (Relativo(diaAtual) is "Hoje" or "Ontem" or "Amanhã")
+            {
+                <div class="hj-cab-rel">@Relativo(diaAtual)</div>
+            }
+            <h1>@tituloDia</h1>
+            <p>
+                <span><strong data-hj-total>@Model.Count</strong> @(Model.Count == 1 ? "jogo" : "jogos")</span>
+                @if (vivos.Any())
+                {
+                    <span class="vivo"><span class="hj-ponto-vivo" aria-hidden="true"></span> <span data-hj-contador="vivo">@vivos.Count</span> ao vivo</span>
+                }
+            </p>
         </div>
+        <nav class="hj-nav" aria-label="Escolher o dia">
+            <a class="hj-nav-btn" href="@UrlDia(diaAnterior)" aria-label="Dia anterior: @diaAnterior.ToString("d 'de' MMMM", ptBR)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
+                @Relativo(diaAnterior)
+            </a>
+            @if (!ehHoje && diaAnterior != hojeBrasil && diaSeguinte != hojeBrasil)
+            {
+                <a class="hj-nav-btn hoje" href="@UrlDia(null)">Hoje</a>
+            }
+            <form method="get" action="@UrlDia(null)">
+                <label class="visually-hidden" for="hjData">Ir para a data</label>
+                <input type="date" id="hjData" name="data" class="hj-data" value="@diaAtual.ToString("yyyy-MM-dd")"
+                       onchange="if (this.value) this.form.submit();" />
+            </form>
+            <a class="hj-nav-btn" href="@UrlDia(diaSeguinte)" aria-label="Dia seguinte: @diaSeguinte.ToString("d 'de' MMMM", ptBR)">
+                @Relativo(diaSeguinte)
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>
+            </a>
+        </nav>
     </div>
+
+    @if (Model.Any() && (gruposComJogos.Count > 1 || competicoesDoDia.Count > 1))
+    {
+        <div class="hj-barra" id="hjFiltros">
+            @if (gruposComJogos.Count > 1)
+            {
+                <div class="hj-abas" role="group" aria-label="Situação">
+                    <button type="button" class="hj-chip" data-status-filtro="" aria-pressed="true">
+                        Todos <span class="hj-chip-count" data-hj-total>@Model.Count</span>
+                    </button>
+                    @foreach (var grupo in gruposComJogos)
+                    {
+                        <button type="button" class="hj-chip" data-status-filtro="@grupo.chave" aria-pressed="false">
+                            @if (grupo.chave == "vivo")
+                            {
+                                <span class="hj-ponto-vivo" aria-hidden="true"></span>
+                            }
+                            @grupo.titulo <span class="hj-chip-count" data-hj-contador="@grupo.chave">@grupo.jogos.Count</span>
+                        </button>
+                    }
+                </div>
+            }
+            @if (competicoesDoDia.Count > 1)
+            {
+                <div class="hj-comps" role="group" aria-label="Competição">
+                    <button type="button" class="hj-chip" data-comp-filtro="" aria-pressed="true">
+                        Todas as competições
+                    </button>
+                    @foreach (var comp in competicoesDoDia)
+                    {
+                        <button type="button" class="hj-chip" data-comp-filtro="@comp.id" aria-pressed="false">
+                            @if (!string.IsNullOrEmpty(comp.logo))
+                            {
+                                <img class="hj-comp-logo" src="@Escudo(comp.logo)" alt="" />
+                            }
+                            @comp.nome <span class="hj-chip-count">@comp.total</span>
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+    }
 
     <!-- ── Conteúdo ── -->
     <div class="hj-content">
         @if (!Model.Any())
         {
-            <div class="hj-empty">Nenhum jogo encontrado para @diaAtual.ToString("dd/MM/yyyy", ptBR).</div>
+            <div class="hj-empty">
+                Nenhum jogo cadastrado para @diaAtual.ToString(diaAtual.Year == hojeBrasil.Year ? "d 'de' MMMM" : "d 'de' MMMM 'de' yyyy", ptBR).
+                Use as setas ou escolha outra data acima.
+            </div>
         }
         else
         {
-            <div class="hj-filtros" id="hjFiltros">
-                @if (competicoesDoDia.Count > 1)
-                {
-                    <div class="hj-filtro">
-                        <span class="hj-filtro-label">Competição</span>
-                        <button type="button" class="hj-chip hj-chip-on" data-comp-filtro="">
-                            Todas <span class="hj-chip-count">@Model.Count</span>
-                        </button>
-                        @foreach (var comp in competicoesDoDia)
-                        {
-                            var cchip = corComp(comp.id == 0 ? (int?)null : comp.id);
-                            <button type="button" class="hj-chip" data-comp-filtro="@comp.id">
-                                <span class="hj-chip-dot" style="background:@cchip.text;"></span>
-                                @comp.nome <span class="hj-chip-count">@comp.total</span>
-                            </button>
-                        }
-                    </div>
-                }
-
-                @{ var gruposComJogos = grupos.Where(g => g.jogos.Any()).ToList(); }
-                @if (gruposComJogos.Count > 1)
-                {
-                    <div class="hj-filtro">
-                        <span class="hj-filtro-label">Situação</span>
-                        <button type="button" class="hj-chip hj-chip-on" data-status-filtro="">
-                            Todos <span class="hj-chip-count" data-hj-total>@Model.Count</span>
-                        </button>
-                        @foreach (var grupo in gruposComJogos)
-                        {
-                            <button type="button" class="hj-chip" data-status-filtro="@grupo.label">
-                                <span class="hj-chip-dot" style="background:@grupo.cor;"></span>
-                                @grupo.icone @grupo.label <span class="hj-chip-count" data-hj-contador="@grupo.label">@grupo.jogos.Count</span>
-                            </button>
-                        }
-                    </div>
-                }
-            </div>
-
-            foreach (var grupo in grupos)
+            foreach (var grupo in gruposComJogos)
             {
-                if (!grupo.jogos.Any()) { continue; }
-
-                <div class="hj-grupo" data-grupo="@grupo.label">
-                    <div class="hj-grupo-header">
-                        <span class="hj-grupo-label" style="color:@grupo.cor;">@grupo.icone @grupo.label</span>
-                        <div class="hj-grupo-divider"></div>
-                        <span class="hj-grupo-count">@grupo.jogos.Count jogo(s)</span>
-                    </div>
+                <section class="hj-grupo" data-grupo="@grupo.chave">
+                    <h2>
+                        @if (grupo.chave == "vivo")
+                        {
+                            <span class="hj-ponto-vivo" aria-hidden="true"></span>
+                        }
+                        @grupo.titulo <small class="hj-grupo-count">@Plural(grupo.jogos.Count, "jogo", "jogos")</small>
+                    </h2>
 
                     <div class="hj-lista">
                         @foreach (var jogo in grupo.jogos)
                         {
                             bool realizado = jogo.PlacarCasa.HasValue && jogo.PlacarVisitante.HasValue;
-                            bool live = grupo.label == "Ao Vivo";
+                            bool live = grupo.chave == "vivo";
                             bool analisado = jogosAnalisadosIds.Contains(jogo.Id);
                             // Placar parcial: o gol a gol que o serviço de jogos ao vivo grava
                             // enquanto a partida rola. Fica em campos próprios porque PlacarCasa
                             // preenchido é o que marca o jogo como realizado no sistema inteiro.
                             bool parcial = !realizado
                                 && jogo.PlacarParcialCasa.HasValue && jogo.PlacarParcialVisitante.HasValue;
-                            bool casaVenceu = realizado && jogo.PlacarCasa > jogo.PlacarVisitante;
-                            bool visVenceu = realizado && jogo.PlacarVisitante > jogo.PlacarCasa;
-                            var cc = corComp(jogo.Competicao?.Id);
+                            int? golsCasa = realizado ? jogo.PlacarCasa : parcial ? jogo.PlacarParcialCasa : null;
+                            int? golsVis = realizado ? jogo.PlacarVisitante : parcial ? jogo.PlacarParcialVisitante : null;
+                            string ResultadoLado(bool casa) =>
+                                !realizado || jogo.PlacarCasa == jogo.PlacarVisitante ? ""
+                                : (jogo.PlacarCasa > jogo.PlacarVisitante) == casa ? "vence" : "perde";
 
-                            <div class="hj-card @(live ? "hj-live" : "") @(analisado ? "hj-analisado" : "")" data-comp="@(jogo.Competicao?.Id ?? 0)">
+                            var golsDoJogo = golsPorJogo.TryGetValue(jogo.Id, out var gs) ? gs : new List<GolResumo>();
+                            var localJogo = EstadioJogoHelper.Local(jogo);
+
+                            <article class="hj-card @(live ? "hj-live" : "")" data-comp="@(jogo.Competicao?.Id ?? 0)">
                                 <div class="hj-card-top">
                                     @if (jogo.Competicao != null)
                                     {
@@ -395,18 +421,24 @@
                                         var urlTabela = publico
                                             ? Url.Action("Tabelas", "Creators", new { competicao = jogo.Competicao.Id, temporada = jogo.Temporada })
                                             : Url.Action("Detalhes", "Competicoes", new { id = jogo.Competicao.Id, temporada = jogo.Temporada });
-                                        <a class="hj-comp-badge hj-comp-link" href="@urlTabela" target="_blank" rel="noopener" title="Ver tabela do campeonato"
-                                           style="background:@cc.bg; border:1px solid @cc.border; color:@cc.text;">@jogo.Competicao.Nome</a>
+                                        <a class="hj-comp" href="@urlTabela" target="_blank" rel="noopener" title="Ver a tabela (abre em outra aba)">
+                                            @if (!string.IsNullOrEmpty(jogo.Competicao.LogoUrl))
+                                            {
+                                                <img class="hj-comp-logo" src="@Escudo(jogo.Competicao.LogoUrl)" alt="" />
+                                            }
+                                            <span>@jogo.Competicao.Nome</span>
+                                        </a>
                                     }
                                     else
                                     {
-                                        <span class="hj-comp-badge" style="background:@cc.bg; border:1px solid @cc.border; color:@cc.text;">Sem competição</span>
+                                        <span class="hj-comp"><span>Sem competição</span></span>
                                     }
-                                    <span class="hj-status-badge @(live ? "hj-status-live" : realizado ? "hj-status-enc" : "hj-status-ag")">
-                                        @if (live)
-                                        {
-                                            var relogio = RelogioDaApi(jogo);
-                                            <text>🔴 </text>
+
+                                    @if (live)
+                                    {
+                                        var relogio = RelogioDaApi(jogo);
+                                        <span class="hj-estado vivo">
+                                            <span class="hj-ponto-vivo" aria-hidden="true"></span>
                                             @if (relogio != null)
                                             {
                                                 <span data-hj-relogio
@@ -417,137 +449,117 @@
                                             }
                                             else
                                             {
-                                                @MinutoAoVivo(jogo.Data!.Value)
+                                                <span>@(MinutoAoVivo(jogo.Data!.Value) is var m && m != "" ? m : "Ao vivo")</span>
                                             }
-                                        }
-                                        else if (realizado)
-                                        {
-                                            <text>✓ Encerrado</text>
-                                        }
-                                        else
-                                        {
-                                            @($"⏳ {(jogo.Data.HasValue ? DateHelper.FormatarData(jogo.Data, "HH:mm") : "--:--")}")
-                                        }
-                                    </span>
-                                    <span class="hj-hora">@(jogo.Data.HasValue ? DateHelper.FormatarData(jogo.Data, "HH:mm") : "--:--")</span>
+                                        </span>
+                                    }
+                                    else if (realizado)
+                                    {
+                                        <span class="hj-estado enc">Encerrado</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="hj-estado ag">@(jogo.Data.HasValue ? DateHelper.FormatarData(jogo.Data, "HH:mm") : "A definir")</span>
+                                    }
                                 </div>
 
                                 <div class="hj-times">
-                                    <div class="hj-time-lado hj-casa">
-                                        <span class="hj-time-nome hj-casa @(casaVenceu ? "hj-vencedor" : "")">@(jogo.TimeCasa?.Nome ?? "?")</span>
-                                        <div class="hj-escudo">
-                                            @if (!string.IsNullOrEmpty(jogo.TimeCasa?.EscudoUrl))
+                                    @foreach (var casa in new[] { true, false })
+                                    {
+                                        var time = casa ? jogo.TimeCasa : jogo.TimeVisitante;
+                                        var gols = casa ? golsCasa : golsVis;
+                                        <div class="hj-linha @ResultadoLado(casa)">
+                                            <span class="hj-escudo">
+                                                @if (!string.IsNullOrEmpty(time?.EscudoUrl))
+                                                {
+                                                    <img src="@Escudo(time.EscudoUrl)" alt="" loading="lazy" />
+                                                }
+                                                else
+                                                {
+                                                    @(time?.Nome?.Substring(0, 1) ?? "?")
+                                                }
+                                            </span>
+                                            <span class="hj-nome">@(time?.Nome ?? "A definir")</span>
+                                            @if (gols != null)
                                             {
-                                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa.EscudoUrl })" alt="" />
-                                            }
-                                            else
-                                            {
-                                                @(jogo.TimeCasa?.Nome?.Substring(0, 1) ?? "?")
-                                            }
-                                        </div>
-                                    </div>
-
-                                    <div class="hj-placar @(parcial ? "hj-placar-live" : "")">
-                                        @if (realizado)
-                                        {
-                                            @($"{jogo.PlacarCasa} – {jogo.PlacarVisitante}")
-                                        }
-                                        else if (parcial)
-                                        {
-                                            @($"{jogo.PlacarParcialCasa} – {jogo.PlacarParcialVisitante}")
-                                            <span class="hj-placar-parcial">Parcial</span>
-                                        }
-                                        else
-                                        {
-                                            @("– × –")
-                                        }
-                                    </div>
-
-                                    <div class="hj-time-lado">
-                                        <div class="hj-escudo">
-                                            @if (!string.IsNullOrEmpty(jogo.TimeVisitante?.EscudoUrl))
-                                            {
-                                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante.EscudoUrl })" alt="" />
-                                            }
-                                            else
-                                            {
-                                                @(jogo.TimeVisitante?.Nome?.Substring(0, 1) ?? "?")
+                                                <span class="hj-n">@gols</span>
                                             }
                                         </div>
-                                        <span class="hj-time-nome @(visVenceu ? "hj-vencedor" : "")">@(jogo.TimeVisitante?.Nome ?? "?")</span>
-                                    </div>
+                                    }
+                                    @if (parcial)
+                                    {
+                                        <span class="hj-parcial">Placar parcial</span>
+                                    }
                                 </div>
 
-                                @{
-                                    var golsDoJogo = golsPorJogo.TryGetValue(jogo.Id, out var gs)
-                                        ? gs : new List<GolResumo>();
-                                }
                                 @if (golsDoJogo.Count > 0)
                                 {
-                                    <div class="hj-gols">
-                                        @foreach (var ehCasa in new[] { true, false })
+                                    <ul class="hj-gols" aria-label="Gols">
+                                        @foreach (var gol in golsDoJogo)
                                         {
-                                            <div class="hj-gols-lado @(ehCasa ? "" : "hj-gols-vis")">
-                                                @foreach (var gol in golsDoJogo.Where(g => g.EhCasa == ehCasa))
+                                            // Lado do gol (contra já vem no lado de quem se beneficiou)
+                                            var timeGol = gol.EhCasa ? jogo.TimeCasa : jogo.TimeVisitante;
+                                            <li class="hj-gol">
+                                                <span class="hj-gol-min">@(gol.Minuto)'</span>
+                                                @if (!string.IsNullOrEmpty(timeGol?.EscudoUrl))
                                                 {
-                                                    <span class="hj-gol">
-                                                        <span class="hj-gol-min">@(gol.Minuto)'</span>
-                                                        @(gol.Contra ? "🔴⚽" : "⚽")
-                                                        <span class="hj-gol-nome">@gol.NomeJogador</span>
-                                                        @if (gol.Contra)
-                                                        {
-                                                            @:(contra)
-                                                        }
-                                                        @if (!string.IsNullOrWhiteSpace(gol.NomeAssistencia))
-                                                        {
-                                                            <span class="hj-gol-assist">Assist.: @gol.NomeAssistencia</span>
-                                                        }
-                                                    </span>
+                                                    <img src="@Escudo(timeGol.EscudoUrl)" alt="@timeGol.Nome" title="@timeGol.Nome" loading="lazy" />
                                                 }
-                                            </div>
+                                                <span>
+                                                    <span class="hj-gol-nome">@gol.NomeJogador</span>
+                                                    @if (gol.Contra)
+                                                    {
+                                                        <span class="hj-gol-extra">(contra)</span>
+                                                    }
+                                                    else if (!string.IsNullOrWhiteSpace(gol.NomeAssistencia))
+                                                    {
+                                                        <span class="hj-gol-extra">(assist. @gol.NomeAssistencia)</span>
+                                                    }
+                                                </span>
+                                            </li>
                                         }
-                                    </div>
+                                    </ul>
                                 }
 
                                 <div class="hj-card-footer">
-                                    <span class="hj-estadio">
+                                    <div class="hj-local">
                                         @* Sem o local da fonte, cai no estádio do mandante (EstadioJogoHelper) *@
-                                        @{ var localJogo = EstadioJogoHelper.Local(jogo); }
-                                        <span title="@(EstadioJogoHelper.DoMandante(jogo) ? "Estádio do mandante — o local não veio da fonte" : null)">
-                                            🏟️ @(localJogo ?? "Local não informado")
-                                        </span>
+                                        <span title="@(EstadioJogoHelper.DoMandante(jogo) ? "Estádio do mandante: o local não veio da fonte" : localJogo)">@(localJogo ?? "Local não informado")</span>
                                         @if (!string.IsNullOrWhiteSpace(jogo.TransmissaoTv))
                                         {
-                                            <span class="hj-transmissao">📺 @jogo.TransmissaoTv</span>
+                                            <span class="hj-tv" title="Transmissão: @jogo.TransmissaoTv">@jogo.TransmissaoTv</span>
                                         }
-                                    </span>
+                                    </div>
                                     @* Atalho para a análise: só na tela logada — o visitante
                                        não tem para onde ir. *@
                                     @if (!publico)
                                     {
                                         if (analisado)
                                         {
-                                            <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id" class="hj-status-analisado">✓ Analisado</a>
+                                            <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id" class="hj-analisar feito">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
+                                                Analisado
+                                            </a>
                                         }
                                         else
                                         {
-                                            <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id" class="hj-btn-analisar">Analisar →</a>
+                                            <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id" class="hj-analisar">Analisar</a>
                                         }
                                     }
                                 </div>
-                            </div>
+                            </article>
                         }
                     </div>
-                </div>
+                </section>
             }
 
-            <div class="hj-sem-filtro" id="hjSemFiltro">Nenhum jogo para os filtros selecionados.</div>
+            <div class="hj-sem-filtro" id="hjSemFiltro">Nenhum jogo com esses filtros. Escolha "Todos" ou outra competição.</div>
         }
     </div>
 </div>
 
 <script>
-    // Filtros de competição e de situação (ao vivo / agendado / encerrado): puramente
+    // Filtros de situação (ao vivo / agendado / encerrado) e de competição: puramente
     // client-side (os jogos do dia já estão todos na página), então trocar de filtro não
     // recarrega nem perde a navegação de dia. Os dois filtros se combinam.
     (function () {
@@ -556,60 +568,46 @@
 
         var chipsComp = filtros.querySelectorAll('[data-comp-filtro]');
         var chipsStatus = filtros.querySelectorAll('[data-status-filtro]');
-        var cards = document.querySelectorAll('.hj-card[data-comp]');
         var grupos = document.querySelectorAll('.hj-grupo[data-grupo]');
         var semFiltro = document.getElementById('hjSemFiltro');
 
         var compAtual = '';
         var statusAtual = '';
 
-        function combinaComp(card) {
-            return !compAtual || card.dataset.comp === compAtual;
-        }
-
         function aplicar() {
-            // Os contadores (hero e chips de situação) seguem só o filtro de competição,
+            // Os contadores (cabeçalho e abas de situação) seguem só o filtro de competição,
             // pra continuarem servindo de menu mesmo com uma situação selecionada.
             var total = 0;
-            var visiveisNoTotal = 0;
+            var visiveis = 0;
 
             grupos.forEach(function (grupo) {
-                var doGrupo = grupo.querySelectorAll('.hj-card[data-comp]');
                 var noGrupo = 0;
-                var grupoNaSituacao = !statusAtual || grupo.dataset.grupo === statusAtual;
+                var naSituacao = !statusAtual || grupo.dataset.grupo === statusAtual;
 
-                doGrupo.forEach(function (card) {
-                    var okComp = combinaComp(card);
+                grupo.querySelectorAll('.hj-card[data-comp]').forEach(function (card) {
+                    var okComp = !compAtual || card.dataset.comp === compAtual;
                     if (okComp) { noGrupo++; }
-                    card.style.display = (okComp && grupoNaSituacao) ? '' : 'none';
+                    card.style.display = (okComp && naSituacao) ? '' : 'none';
                 });
 
                 total += noGrupo;
-                if (grupoNaSituacao) { visiveisNoTotal += noGrupo; }
-                grupo.style.display = (noGrupo && grupoNaSituacao) ? '' : 'none';
+                if (naSituacao) { visiveis += noGrupo; }
+                grupo.style.display = (noGrupo && naSituacao) ? '' : 'none';
 
                 var contador = grupo.querySelector('.hj-grupo-count');
-                if (contador) { contador.textContent = noGrupo + ' jogo(s)'; }
-
+                if (contador) { contador.textContent = noGrupo + (noGrupo === 1 ? ' jogo' : ' jogos'); }
                 document.querySelectorAll('[data-hj-contador="' + grupo.dataset.grupo + '"]')
                     .forEach(function (el) { el.textContent = noGrupo; });
             });
 
-            // Grupo inteiro ausente da página (ex.: nenhum jogo ao vivo) fica zerado no hero.
-            document.querySelectorAll('[data-hj-contador]').forEach(function (el) {
-                var label = el.dataset.hjContador;
-                if (!document.querySelector('.hj-grupo[data-grupo="' + label + '"]')) { el.textContent = '0'; }
-            });
-
             document.querySelectorAll('[data-hj-total]').forEach(function (el) { el.textContent = total; });
-            if (semFiltro) { semFiltro.style.display = visiveisNoTotal ? 'none' : 'block'; }
+            if (semFiltro) { semFiltro.style.display = visiveis ? 'none' : 'block'; }
         }
 
         function ligar(chips, aoEscolher) {
             chips.forEach(function (chip) {
                 chip.addEventListener('click', function () {
-                    chips.forEach(function (c) { c.classList.remove('hj-chip-on'); });
-                    chip.classList.add('hj-chip-on');
+                    chips.forEach(function (c) { c.setAttribute('aria-pressed', c === chip ? 'true' : 'false'); });
                     aoEscolher(chip);
                     aplicar();
                 });

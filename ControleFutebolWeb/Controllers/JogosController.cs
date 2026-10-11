@@ -1,4 +1,4 @@
-﻿using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
@@ -147,7 +147,7 @@ namespace ControleFutebolWeb.Controllers
             DateTime? endDate,
             int? competicaoId,
             string? status,
-            int page = 1)
+            int? page = null)
         {
             // A listagem só exibe data, competição, times e placar. Gols/Escalações/
             // Cartões não são usados aqui — incluí-los carregava milhares de linhas
@@ -216,16 +216,16 @@ namespace ControleFutebolWeb.Controllers
             var statusList = new SelectList(
                 new[] {
                     new { Value = "all", Text = "Todos" },
-                    new { Value = "played", Text = "Realizados" },
-                    new { Value = "scheduled", Text = "Não realizados" }
+                    new { Value = "played", Text = "Com placar" },
+                    new { Value = "scheduled", Text = "Sem placar" }
                 },
                 "Value", "Text", status ?? "all"
             );
             var locationList = new SelectList(
                 new[] {
-                    new { Value = "both", Text = "Casa ou Fora" },
-                    new { Value = "home", Text = "Apenas Time da Casa" },
-                    new { Value = "away", Text = "Apenas Time Visitante" }
+                    new { Value = "both", Text = "Casa ou fora" },
+                    new { Value = "home", Text = "Só em casa" },
+                    new { Value = "away", Text = "Só fora" }
                 },
                 "Value", "Text", location ?? "both"
             );
@@ -237,11 +237,30 @@ namespace ControleFutebolWeb.Controllers
             var totalFinalizados = await jogosQuery
                 .CountAsync(j => j.PlacarCasa >= 0 && j.PlacarVisitante >= 0);
             var totalPaginas = (int)Math.Ceiling(totalJogos / (double)pageSize);
-            if (page < 1) page = 1;
-            if (totalPaginas > 0 && page > totalPaginas) page = totalPaginas;
+
+            // Sem página escolhida, abre na página de hoje: a lista vai do mais novo para
+            // o mais antigo, e começar pelos amistosos marcados para daqui a meses não
+            // ajudava ninguém. Conta quantos jogos vêm depois do fim de hoje (Brasília)
+            // e pula direto para a página onde hoje começa.
+            bool abriuEmHoje = false;
+            int pagina;
+            if (page.HasValue)
+            {
+                pagina = page.Value;
+            }
+            else
+            {
+                var hojeBr = DateHelper.ParaBrasilia(DateTime.UtcNow)!.Value.Date;
+                var fimDeHojeUtc = DateHelper.DeBrasiliaParaUtc(hojeBr.AddDays(1))!.Value;
+                var depoisDeHoje = await jogosQuery.CountAsync(j => j.Data >= fimDeHojeUtc);
+                pagina = depoisDeHoje / pageSize + 1;
+                abriuEmHoje = depoisDeHoje > 0;
+            }
+            if (pagina < 1) pagina = 1;
+            if (totalPaginas > 0 && pagina > totalPaginas) pagina = totalPaginas;
 
             var jogosPagina = await jogosQuery
-                .Skip((page - 1) * pageSize)
+                .Skip((pagina - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
 
@@ -259,7 +278,8 @@ namespace ControleFutebolWeb.Controllers
                 StartDate = startDate?.ToString("yyyy-MM-dd"),
                 EndDate = endDate?.ToString("yyyy-MM-dd"),
                 CompeticoesMap = competicoesMap,
-                PaginaAtual = page,
+                PaginaAtual = pagina,
+                AbriuEmHoje = abriuEmHoje,
                 TotalPaginas = totalPaginas,
                 TotalJogos = totalJogos,
                 TotalFinalizados = totalFinalizados,
@@ -330,10 +350,10 @@ namespace ControleFutebolWeb.Controllers
         // GET: Jogos/Create
         public IActionResult Create()
         {
-            ViewBag.TimeCasaId = new SelectList(_context.Times, "Id", "Nome");
-            ViewBag.TimeVisitanteId = new SelectList(_context.Times, "Id", "Nome");
-            ViewBag.FormacaoCasaId = new SelectList(_context.Formacoes, "Id", "Nome");
-            ViewBag.FormacaoVisitanteId = new SelectList(_context.Formacoes, "Id", "Nome");
+            ViewBag.TimeCasaId = new SelectList(_context.Times.OrderBy(t => t.Nome), "Id", "Nome");
+            ViewBag.TimeVisitanteId = new SelectList(_context.Times.OrderBy(t => t.Nome), "Id", "Nome");
+            ViewBag.FormacaoCasaId = new SelectList(_context.Formacoes.OrderBy(f => f.Nome), "Id", "Nome");
+            ViewBag.FormacaoVisitanteId = new SelectList(_context.Formacoes.OrderBy(f => f.Nome), "Id", "Nome");
             ViewBag.CompeticaoId = new SelectList(_context.Competicoes.OrderBy(c => c.Nome), "Id", "Nome");
             return View();
         }
@@ -347,6 +367,20 @@ namespace ControleFutebolWeb.Controllers
             // precisa converter pra UTC antes de salvar, senão o jogo fica ~3h atrasado no banco.
             jogo.Data = DateHelper.DeBrasiliaParaUtc(jogo.Data);
 
+            if (jogo.TimeCasaId > 0 && jogo.TimeCasaId == jogo.TimeVisitanteId)
+                ModelState.AddModelError(nameof(Jogo.TimeVisitanteId), "Escolha times diferentes para mandante e visitante.");
+
+            // O formulário não pede temporada: sem ela o jogo ficava com 0 e sumia das
+            // telas da competição, que filtram por temporada. Usa a temporada mais recente
+            // da competição; competição sem jogos, o ano da partida.
+            if (jogo.Temporada == 0)
+            {
+                var ultima = await _context.Jogos
+                    .Where(j => j.CompeticaoId == jogo.CompeticaoId && j.Temporada > 0)
+                    .Select(j => (int?)j.Temporada)
+                    .MaxAsync();
+                jogo.Temporada = ultima ?? DateHelper.ParaBrasilia(jogo.Data)?.Year ?? DateTime.UtcNow.Year;
+            }
 
             if (ModelState.IsValid)
             {
@@ -404,13 +438,16 @@ namespace ControleFutebolWeb.Controllers
                     }
                 }
 
-                return RedirectToAction(nameof(Index));
+                TempData["Sucesso"] = $"Jogo cadastrado na temporada {jogo.Temporada}.";
+                return RedirectToAction(nameof(Index), new { competicaoId = jogo.CompeticaoId });
             }
 
-            ViewBag.TimeCasaId = new SelectList(_context.Times, "Id", "Nome", jogo.TimeCasaId);
-            ViewBag.TimeVisitanteId = new SelectList(_context.Times, "Id", "Nome", jogo.TimeVisitanteId);
-            ViewBag.FormacaoCasaId = new SelectList(_context.Formacoes, "Id", "Nome", jogo.FormacaoCasaId);
-            ViewBag.FormacaoVisitanteId = new SelectList(_context.Formacoes, "Id", "Nome", jogo.FormacaoVisitanteId);
+            // De volta ao formulário: a data volta para o horário de Brasília do campo
+            jogo.Data = DateHelper.ParaBrasilia(jogo.Data);
+            ViewBag.TimeCasaId = new SelectList(_context.Times.OrderBy(t => t.Nome), "Id", "Nome", jogo.TimeCasaId);
+            ViewBag.TimeVisitanteId = new SelectList(_context.Times.OrderBy(t => t.Nome), "Id", "Nome", jogo.TimeVisitanteId);
+            ViewBag.FormacaoCasaId = new SelectList(_context.Formacoes.OrderBy(f => f.Nome), "Id", "Nome", jogo.FormacaoCasaId);
+            ViewBag.FormacaoVisitanteId = new SelectList(_context.Formacoes.OrderBy(f => f.Nome), "Id", "Nome", jogo.FormacaoVisitanteId);
             ViewBag.CompeticaoId = new SelectList(_context.Competicoes.OrderBy(c => c.Nome), "Id", "Nome", jogo.CompeticaoId);
 
             return View(jogo);
@@ -429,11 +466,26 @@ namespace ControleFutebolWeb.Controllers
 
             jogo.Data = DateHelper.ParaBrasilia(jogo.Data);
 
-            ViewBag.TimeCasaId = new SelectList(_context.Times, "Id", "Nome", jogo.TimeCasaId);
-            ViewBag.TimeVisitanteId = new SelectList(_context.Times, "Id", "Nome", jogo.TimeVisitanteId);
-            ViewBag.FormacaoCasaId = new SelectList(_context.Formacoes, "Id", "Nome", jogo.FormacaoCasaId);
-            ViewBag.FormacaoVisitanteId = new SelectList(_context.Formacoes, "Id", "Nome", jogo.FormacaoVisitanteId);
+            ViewBag.Resumo = await ResumoJogoAsync(jogo);
+            ViewBag.TimeCasaId = new SelectList(_context.Times.OrderBy(t => t.Nome), "Id", "Nome", jogo.TimeCasaId);
+            ViewBag.TimeVisitanteId = new SelectList(_context.Times.OrderBy(t => t.Nome), "Id", "Nome", jogo.TimeVisitanteId);
+            ViewBag.FormacaoCasaId = new SelectList(_context.Formacoes.OrderBy(f => f.Nome), "Id", "Nome", jogo.FormacaoCasaId);
+            ViewBag.FormacaoVisitanteId = new SelectList(_context.Formacoes.OrderBy(f => f.Nome), "Id", "Nome", jogo.FormacaoVisitanteId);
             return View(jogo);
+        }
+
+        // "Palmeiras 2 x 1 Santos, Campeonato Brasileiro, rodada 30" para o topo do Edit
+        private async Task<string> ResumoJogoAsync(Jogo jogo)
+        {
+            var nomes = await _context.Times
+                .Where(t => t.Id == jogo.TimeCasaId || t.Id == jogo.TimeVisitanteId)
+                .ToDictionaryAsync(t => t.Id, t => t.Nome);
+            var comp = await _context.Competicoes.Where(c => c.Id == jogo.CompeticaoId).Select(c => c.Nome).FirstOrDefaultAsync();
+            var placar = jogo.PlacarCasa.HasValue && jogo.PlacarVisitante.HasValue ? $"{jogo.PlacarCasa} x {jogo.PlacarVisitante}" : "x";
+            var partes = new List<string> { $"{nomes.GetValueOrDefault(jogo.TimeCasaId)} {placar} {nomes.GetValueOrDefault(jogo.TimeVisitanteId)}" };
+            if (!string.IsNullOrEmpty(comp)) partes.Add(comp);
+            if (jogo.Rodada > 0) partes.Add($"rodada {jogo.Rodada}");
+            return string.Join(", ", partes);
         }
 
         // POST: Jogos/Edit/5
@@ -467,6 +519,7 @@ namespace ControleFutebolWeb.Controllers
                     existente.FormacaoVisitanteId = jogo.FormacaoVisitanteId;
 
                     await _context.SaveChangesAsync();
+                    TempData["Sucesso"] = "Jogo atualizado.";
                     return RedirectToAction(nameof(Index));
                 }
                 catch (DbUpdateConcurrencyException)
@@ -476,10 +529,12 @@ namespace ControleFutebolWeb.Controllers
                 }
             }
 
-            ViewBag.TimeCasaId = new SelectList(_context.Times, "Id", "Nome", jogo.TimeCasaId);
-            ViewBag.TimeVisitanteId = new SelectList(_context.Times, "Id", "Nome", jogo.TimeVisitanteId);
-            ViewBag.FormacaoCasaId = new SelectList(_context.Formacoes, "Id", "Nome", jogo.FormacaoCasaId);
-            ViewBag.FormacaoVisitanteId = new SelectList(_context.Formacoes, "Id", "Nome", jogo.FormacaoVisitanteId);
+            jogo.Data = DateHelper.ParaBrasilia(jogo.Data);
+            ViewBag.Resumo = await ResumoJogoAsync(jogo);
+            ViewBag.TimeCasaId = new SelectList(_context.Times.OrderBy(t => t.Nome), "Id", "Nome", jogo.TimeCasaId);
+            ViewBag.TimeVisitanteId = new SelectList(_context.Times.OrderBy(t => t.Nome), "Id", "Nome", jogo.TimeVisitanteId);
+            ViewBag.FormacaoCasaId = new SelectList(_context.Formacoes.OrderBy(f => f.Nome), "Id", "Nome", jogo.FormacaoCasaId);
+            ViewBag.FormacaoVisitanteId = new SelectList(_context.Formacoes.OrderBy(f => f.Nome), "Id", "Nome", jogo.FormacaoVisitanteId);
 
             return View(jogo);
         }
@@ -492,6 +547,7 @@ namespace ControleFutebolWeb.Controllers
             var jogo = await _context.Jogos
                 .Include(j => j.TimeCasa)
                 .Include(j => j.TimeVisitante)
+                .Include(j => j.Competicao)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
             if (jogo == null) return NotFound();
@@ -508,7 +564,17 @@ namespace ControleFutebolWeb.Controllers
             if (jogo != null)
             {
                 _context.Jogos.Remove(jogo);
-                await _context.SaveChangesAsync();
+                try
+                {
+                    await _context.SaveChangesAsync();
+                    TempData["Sucesso"] = "Jogo excluído.";
+                }
+                catch (DbUpdateException ex)
+                {
+                    _logger.LogWarning(ex, "[Jogos/Delete] Não foi possível excluir o jogo {Id}.", id);
+                    TempData["Erro"] = "Este jogo ainda é usado em outros cadastros e não pôde ser excluído.";
+                    return RedirectToAction(nameof(Delete), new { id });
+                }
             }
             return RedirectToAction(nameof(Index));
         }
@@ -520,12 +586,19 @@ namespace ControleFutebolWeb.Controllers
             var faseAtual = string.Equals(faseEscalacao, "FINAL", StringComparison.OrdinalIgnoreCase) ? "FINAL" : "INICIAL";
             var usuarioId = _userManager.GetUserId(User)!;
 
+            // Competição: nome e logo na abertura 3D do modo transmissão.
             var jogo = await _context.Jogos
                 .Include(j => j.TimeCasa)
                 .Include(j => j.TimeVisitante)
+                .Include(j => j.Competicao)
                 .FirstOrDefaultAsync(j => j.Id == id);
 
             if (jogo == null) return NotFound();
+
+            // Jogo importado sem cor de uniforme (a api-football parou de mandar):
+            // completa pelo histórico do time e grava, como o craque da partida abaixo.
+            if (await CoresUniformeHelper.PreencherFaltantesAsync(_context, jogo))
+                await _context.SaveChangesAsync();
 
             // Fases táticas (timeline de escalações intermediárias) para montar as abas.
             var fasesTaticas = await _context.FasesTaticas
@@ -562,6 +635,8 @@ namespace ControleFutebolWeb.Controllers
             var craque = await _craques.ObterDoJogoAsync(id, usuarioId);
             vm.CraqueJogadorId = craque?.JogadorId;
             vm.CraqueNota = craque?.Nota ?? 0;
+
+            PreencherDesarmesPorTime(vm, jogo);
 
             // ── Fase intermediária: renderização própria (somente visual/tática) ──
             if (!string.IsNullOrWhiteSpace(faseEscalacao) &&
@@ -949,6 +1024,16 @@ namespace ControleFutebolWeb.Controllers
             await PreencherOrigemEscalacaoAsync(vm, id, faseAtual, escalacoes);
 
             return View(vm);
+        }
+
+        // Desarmes de cada time, somados das estatísticas por jogador (ver
+        // DesarmesPorTimeHelper). Lado sem dado fica null, para a tela não mostrar
+        // como zero um número que a fonte nunca informou.
+        private void PreencherDesarmesPorTime(AnalisarViewModel vm, Jogo jogo)
+        {
+            var desarmes = DesarmesPorTimeHelper.Carregar(_context, new[] { jogo });
+            vm.DesarmesCasa = desarmes.TryGetValue((jogo.Id, jogo.TimeCasaId), out var c) ? c : null;
+            vm.DesarmesVisitante = desarmes.TryGetValue((jogo.Id, jogo.TimeVisitanteId), out var v) ? v : null;
         }
 
         // Origem da escalação que está na tela, para o selo da barra de status.

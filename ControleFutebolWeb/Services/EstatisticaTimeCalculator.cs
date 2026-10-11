@@ -14,14 +14,22 @@ namespace ControleFutebolWeb.Services
     // tela que já tenha a lista de jogos realizados da competição/temporada.
     public static class EstatisticaTimeCalculator
     {
+        // Chave interna dos desarmes nas somas — não existe em Jogo.EstatisticasJson.
+        private const string ChaveDesarmes = "desarmes";
+
         /// <param name="escalacoes">
         /// Escalações dos jogos, quando disponíveis: é delas que sai o time pelo qual o
         /// autor do gol/cartão entrou em campo. Sem elas o dono do evento volta a sair do
         /// clube atual do cadastro, que muda quando o jogador é transferido.
         /// </param>
+        /// <param name="desarmes">
+        /// Desarmes por (jogo, time), de <see cref="DesarmesPorTimeHelper.Carregar"/>.
+        /// Jogo sem entrada para o time não entra na média dele.
+        /// </param>
         public static List<EstatisticaTimeViewModel> Calcular(
             List<Jogo> jogos, List<Gol> gols, List<Cartao> cartoes,
-            IEnumerable<Escalacao>? escalacoes = null)
+            IEnumerable<Escalacao>? escalacoes = null,
+            IReadOnlyDictionary<(int JogoId, int TimeId), int>? desarmes = null)
         {
             int IndiceBucket(int minuto) => minuto switch
             {
@@ -140,6 +148,14 @@ namespace ControleFutebolWeb.Services
                     }
                     catch { /* ignora JSON malformado */ }
                 }
+
+                // Desarmes não estão no JSON da partida: vêm somados das estatísticas
+                // por jogador e entram nas mesmas somas, sob uma chave própria.
+                if (desarmes != null)
+                {
+                    if (desarmes.TryGetValue((jogo.Id, jogo.TimeCasaId), out var dc)) Acumular(ChaveDesarmes, jogo.TimeCasaId, dc, pc);
+                    if (desarmes.TryGetValue((jogo.Id, jogo.TimeVisitanteId), out var dv)) Acumular(ChaveDesarmes, jogo.TimeVisitanteId, dv, pv);
+                }
             }
 
             var jogoPorId = jogos.ToDictionary(j => j.Id);
@@ -185,7 +201,8 @@ namespace ControleFutebolWeb.Services
                 ("Corner Kicks", "esc"),         ("Total passes", "passes"),
                 ("Passes accurate", "passesCertos"), ("Fouls", "faltas"),
                 ("Offsides", "impedimentos"),    ("Goalkeeper Saves", "defesasGoleiro"),
-                ("expected_goals", "xg"),        ("goals_prevented", "golsEvitados")
+                ("expected_goals", "xg"),        ("goals_prevented", "golsEvitados"),
+                (ChaveDesarmes, "desarmes")
             };
 
             foreach (var vm in mapa.Values)
@@ -207,6 +224,7 @@ namespace ControleFutebolWeb.Services
                 vm.Impedimentos = Media("Offsides", vm.TimeId);
                 vm.DefesasGoleiro = Media("Goalkeeper Saves", vm.TimeId);
                 vm.GolsEvitados = Media("goals_prevented", vm.TimeId);
+                vm.Desarmes = Media(ChaveDesarmes, vm.TimeId);
 
                 vm.FinTotal = Total("Total Shots", vm.TimeId);
                 vm.GolsComFin = GolsCom("Total Shots", vm.TimeId);

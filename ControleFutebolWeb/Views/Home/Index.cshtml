@@ -1,4 +1,4 @@
-@model ControleFutebolWeb.Models.ViewModels.HomeViewModel
+﻿@model ControleFutebolWeb.Models.ViewModels.HomeViewModel
 @using ControleFutebolWeb.Helpers
 
 @{
@@ -29,7 +29,7 @@
     .cf-hero {
         position: relative;
         overflow: hidden;
-        min-height: 380px;
+        min-height: 300px;
         background: #0a0a0a;
         display: flex;
         align-items: center;
@@ -65,7 +65,7 @@
         right: 3rem;
         top: 50%;
         transform: translateY(-50%) rotate(3deg);
-        width: 272px;
+        width: 210px;
         z-index: 1;
     }
 
@@ -150,23 +150,6 @@
         max-width: 620px;
     }
 
-    .cf-hero-kicker {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 16px;
-    }
-
-    .cf-hero-kicker-line { height: 2px; width: 28px; background: #d4a520; }
-
-    .cf-hero-kicker span {
-        font-size: 0.68rem;
-        font-weight: 700;
-        letter-spacing: 0.24em;
-        color: var(--gold-ink);
-        text-transform: uppercase;
-    }
-
     .cf-hero h1 {
         font-size: 2.8rem;
         font-weight: 800;
@@ -176,13 +159,11 @@
         letter-spacing: -0.01em;
     }
 
-    .cf-hero h1 .gold { color: var(--gold-ink); }
-
     .cf-hero p {
         color: var(--text-muted);
         font-size: 0.95rem;
         margin: 0 0 26px;
-        max-width: 420px;
+        max-width: 520px;
         line-height: 1.6;
     }
 
@@ -308,137 +289,207 @@
     .cf-search-extra { font-size: 11px; color: var(--text-dim); }
     .cf-search-empty { padding: 14px; text-align: center; color: var(--text-dim); font-size: 13px; }
 
-    /* ── Stats bar ───────────────────────────────── */
-    .cf-stats {
+    /* ── Títulos de seção: texto comum em Condensed, sem caixa alta ─────── */
+    .cf-sec-cab {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+
+    .cf-home .cf-sec-titulo {
+        margin: 0;
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: var(--text-strong);
+    }
+
+    .cf-sec-conta {
+        font-family: 'Barlow Condensed', Arial, sans-serif;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--gold-ink);
+    }
+
+    .cf-home .cf-sec-link {
+        margin-left: auto;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--gold-ink);
+        white-space: nowrap;
+    }
+
+    .cf-home .cf-sec-link:hover { text-decoration: underline; }
+
+    /* ── Atalhos: uma ação (novo jogo) e os destinos como links simples ─── */
+    .cf-atalhos {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 4px;
+        padding: 12px 2.5rem;
         background: var(--p-1);
         border-top: 1px solid var(--line);
         border-bottom: 1px solid var(--line);
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
     }
 
-    .cf-stat-card {
-        padding: 20px 28px;
-        display: flex;
+    .cf-home .cf-atalho-novo {
+        display: inline-flex;
         align-items: center;
-        gap: 14px;
-        border-right: 1px solid var(--line);
-        transition: background 0.15s;
+        gap: 6px;
+        margin-right: 10px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        background: #d4a520;
+        color: #141414;
+        font-weight: 700;
+        font-size: 0.85rem;
     }
 
-    .cf-stat-card:last-child { border-right: none; }
-    .cf-stat-card:hover { background: var(--p-2); }
+    .cf-home .cf-atalho-novo:hover { background: #e2b42c; }
 
-    .cf-stat-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        background: rgba(212,165,32,0.12);
-        border: 1px solid rgba(212,165,32,0.25);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-
-    .cf-stat-num {
-        font-size: 1.9rem;
-        font-weight: 800;
-        color: var(--gold-ink);
-        line-height: 1;
-    }
-
-    .cf-stat-label {
-        font-size: 0.68rem;
+    .cf-home .cf-atalho {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 6px;
+        padding: 7px 10px;
+        border-radius: 8px;
+        font-size: 0.85rem;
         font-weight: 600;
-        letter-spacing: 0.1em;
-        color: var(--text-dim);
-        text-transform: uppercase;
-        margin-top: 3px;
+        color: var(--text-2);
     }
 
-    /* ── Section label ───────────────────────────── */
-    .cf-section-label {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        margin-bottom: 18px;
-    }
+    .cf-home .cf-atalho:hover { background: var(--p-3); color: var(--text-strong); }
+    .cf-atalho-num { font-size: 0.78rem; font-weight: 500; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 
-    .cf-section-label span {
-        font-size: 0.7rem;
-        font-weight: 700;
-        letter-spacing: 0.16em;
-        color: var(--text-dim);
-        text-transform: uppercase;
-        white-space: nowrap;
-    }
+    .cf-home .cf-atalho:focus-visible,
+    .cf-home .cf-atalho-novo:focus-visible,
+    .cf-home .cf-linha-jogo:focus-visible,
+    .cf-home .cf-game-card:focus-visible,
+    .cf-home .cf-sec-link:focus-visible,
+    .cf-search-btn:focus-visible { outline: 2px solid #d4a520; outline-offset: 2px; }
 
-    .cf-section-label .line { flex: 1; height: 1px; background: var(--p-3); }
-
-    .cf-section-link {
-        font-size: 0.72rem;
-        color: var(--gold-ink);
-        font-weight: 700;
-        letter-spacing: 0.04em;
-        white-space: nowrap;
-        flex-shrink: 0;
-    }
-
-    .cf-section-link:hover { color: var(--gold-ink); }
-
-    /* ── Acesso rápido ───────────────────────────── */
-    .cf-quick-grid {
+    /* ── O dia: jogos de hoje + falta analisar ───────────────────────────── */
+    .cf-dia {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-        gap: 12px;
-        padding: 0 2.5rem;
-        margin-bottom: 2rem;
-    }
-
-    .cf-quick-card {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 9px;
-        padding: 18px 10px 16px;
-        background: var(--p-1);
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        transition: all 0.18s;
-    }
-
-    .cf-quick-card:hover {
-        background: var(--p-3);
-        border-color: #d4a520;
-        transform: translateY(-2px);
-    }
-
-    .cf-quick-card .icon { font-size: 1.6rem; line-height: 1; }
-    .cf-quick-card .label { font-size: 0.82rem; font-weight: 700; color: var(--text-strong); text-align: center; }
-    .cf-quick-card .desc  { font-size: 0.68rem; color: var(--text-dim); font-weight: 500; text-align: center; }
-
-    /* ── Main grid ───────────────────────────────── */
-    .cf-main-grid {
-        padding: 0 2.5rem 2.5rem;
-        display: grid;
-        grid-template-columns: 1fr 360px;
-        gap: 26px;
+        grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+        gap: 28px;
+        padding: 2rem 2.5rem 0;
         align-items: start;
     }
 
-    /* ── Jogos recentes ──────────────────────────── */
+    .cf-lista {
+        background: var(--p-1);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    /* Linha de jogo: status | competição | mandante | placar | visitante */
+    .cf-home .cf-linha-jogo {
+        display: grid;
+        grid-template-columns: 62px 18px minmax(0, 1fr) auto minmax(0, 1fr);
+        align-items: center;
+        gap: 10px;
+        padding: 9px 14px;
+        border-bottom: 1px solid var(--line-soft);
+        color: var(--text);
+    }
+
+    .cf-home .cf-linha-jogo:last-child { border-bottom: none; }
+    .cf-home .cf-linha-jogo:hover { background: var(--p-3); }
+
+    .cf-linha-status {
+        font-family: 'Barlow Condensed', Arial, sans-serif;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--text-muted);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    .cf-linha-status.vivo { color: var(--bad-2); }
+    .cf-linha-status.vivo::before {
+        content: "";
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        margin-right: 5px;
+        border-radius: 50%;
+        background: var(--bad-2);
+        vertical-align: 1px;
+    }
+
+    .cf-linha-status.fim { color: var(--text-dimmer); font-weight: 600; font-size: 0.85rem; }
+
+    .cf-comp-logo { width: 18px; height: 18px; object-fit: contain; display: block; }
+    .cf-comp-logo-vazio { width: 18px; height: 18px; border-radius: 50%; background: var(--p-4); }
+
+    .cf-linha-time {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 0;
+        font-size: 0.88rem;
+        font-weight: 600;
+    }
+
+    .cf-linha-time.casa { justify-content: flex-end; text-align: right; }
+    .cf-linha-time span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cf-linha-time img { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
+
+    .cf-linha-placar {
+        min-width: 52px;
+        text-align: center;
+        font-family: 'Barlow Condensed', Arial, sans-serif;
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: var(--text-strong);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    .cf-linha-placar.agendado { font-weight: 600; color: var(--text-dimmer); }
+
+    /* Falta analisar: sem coluna de status (todos encerrados); a data vai à direita */
+    .cf-home .cf-pendente {
+        grid-template-columns: 18px minmax(0, 1fr) auto minmax(0, 1fr) 44px;
+    }
+
+    .cf-pendente-dia { font-size: 0.75rem; color: var(--text-dim); text-align: right; }
+
+    .cf-lista-vazia {
+        padding: 1.4rem 1rem;
+        text-align: center;
+        font-size: 0.88rem;
+        color: var(--text-muted);
+    }
+
+    .cf-lista-vazia a { color: var(--gold-ink) !important; font-weight: 600; }
+
+    /* ── Resultados + classificação ──────────────────────────────────────── */
+    .cf-main-grid {
+        padding: 2rem 2.5rem 2.5rem;
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        gap: 28px;
+        align-items: start;
+    }
+
+    .cf-main-grid.sem-classif { grid-template-columns: 1fr; }
+
     .cf-games-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
         gap: 12px;
     }
 
     .cf-game-card {
+        display: block;
         background: var(--p-1);
         border: 1px solid var(--line);
         border-radius: 12px;
-        padding: 14px 16px;
+        padding: 12px 14px;
         transition: border-color 0.18s;
     }
 
@@ -446,23 +497,25 @@
 
     .cf-game-top {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        margin-bottom: 12px;
+        gap: 6px;
+        margin-bottom: 10px;
     }
 
+    .cf-game-top .cf-comp-logo { width: 16px; height: 16px; }
+
     .cf-game-comp {
-        font-size: 0.65rem;
-        font-weight: 700;
-        color: var(--gold-ink);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
+        flex: 1;
+        min-width: 0;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-muted);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
 
-    .cf-game-date { font-size: 0.65rem; color: var(--text-dimmer); font-weight: 600; flex-shrink: 0; }
+    .cf-game-date { font-size: 0.75rem; color: var(--text-dimmer); font-weight: 600; flex-shrink: 0; }
 
     .cf-game-teams { display: flex; align-items: center; gap: 7px; }
 
@@ -481,12 +534,17 @@
 
     .cf-team-name {
         flex: 1;
-        font-size: 0.82rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--text-muted);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
         min-width: 0;
     }
+
+    .cf-team-name.venceu { font-weight: 700; color: var(--text-strong); }
+    .cf-team-name.vis { text-align: right; }
 
     .cf-score {
         font-family: 'Barlow Condensed', Arial, sans-serif;
@@ -497,37 +555,36 @@
         padding: 2px 11px;
         border-radius: 7px;
         flex-shrink: 0;
-        letter-spacing: 0.04em;
         white-space: nowrap;
+        font-variant-numeric: tabular-nums;
     }
+
+    .cf-game-pen { text-align: center; font-size: 0.7rem; color: var(--text-dim); margin-top: 4px; }
 
     .cf-game-footer {
-        margin-top: 12px;
-        padding-top: 10px;
+        margin-top: 10px;
+        padding-top: 8px;
         border-top: 1px solid var(--line);
-    }
-
-    .cf-analisar-link {
-        font-size: 0.7rem;
-        color: var(--text-dim);
+        font-size: 0.78rem;
         font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 4px;
+        color: var(--text-dim);
     }
 
-    .cf-analisar-link:hover { color: var(--gold-ink); }
+    .cf-game-card:hover .cf-game-footer { color: var(--gold-ink); }
+    .cf-game-footer.feito { color: var(--ok); }
 
     .cf-empty {
         grid-column: 1 / -1;
-        font-size: 12px;
+        font-size: 0.85rem;
         color: var(--text-dim);
         text-align: center;
-        padding: 1.5rem 0;
+        padding: 1.5rem 1rem;
         background: var(--p-1);
         border: 1px solid var(--line);
         border-radius: 12px;
     }
+
+    .cf-empty a { color: var(--gold-ink) !important; font-weight: 600; }
 
     /* ── Classificação ───────────────────────────── */
     .cf-classif-panel {
@@ -546,10 +603,9 @@
     }
 
     .cf-classif-head span {
-        font-size: 0.6rem;
+        font-size: 0.72rem;
         color: var(--text-dimmer);
         font-weight: 700;
-        text-transform: uppercase;
     }
 
     .cf-classif-row {
@@ -557,7 +613,6 @@
         align-items: center;
         padding: 9px 16px;
         border-bottom: 1px solid var(--line-soft);
-        transition: background 0.15s;
     }
 
     .cf-classif-row:last-child { border-bottom: none; }
@@ -596,17 +651,18 @@
     }
 
     @@media (max-width: 900px) {
-        .cf-main-grid { grid-template-columns: 1fr; }
-        .cf-games-grid { grid-template-columns: 1fr; }
-        .cf-stats { grid-template-columns: repeat(2, 1fr); }
-        .cf-stat-card:nth-child(2) { border-right: none; }
+        .cf-dia, .cf-main-grid { grid-template-columns: 1fr; }
     }
 
     @@media (max-width: 640px) {
-        .cf-hero-content { padding: 2rem 1.4rem; max-width: 100%; }
+        .cf-hero { min-height: 0; }
+        .cf-hero-content { padding: 1.8rem 1.2rem; max-width: 100%; }
         .cf-hero h1 { font-size: 2rem; }
-        .cf-quick-grid, .cf-main-grid { padding-left: 1.2rem; padding-right: 1.2rem; }
-        .cf-stats { grid-template-columns: repeat(2, 1fr); }
+        .cf-atalhos, .cf-dia, .cf-main-grid { padding-left: 1rem; padding-right: 1rem; }
+        .cf-home .cf-linha-jogo { grid-template-columns: 52px 16px minmax(0, 1fr) auto minmax(0, 1fr); gap: 6px; padding: 9px 10px; }
+        .cf-home .cf-pendente { grid-template-columns: 16px minmax(0, 1fr) auto minmax(0, 1fr) 36px; }
+        .cf-linha-time img { display: none; }
+        .cf-linha-time { font-size: 0.82rem; }
     }
 </style>
 
@@ -688,275 +744,296 @@
             </svg>
         </div>
 
+        @{
+            var ptBR = new System.Globalization.CultureInfo("pt-BR");
+            var dataTitulo = Model.Hoje.ToString("dddd, d 'de' MMMM", ptBR);
+            dataTitulo = char.ToUpper(dataTitulo[0]) + dataTitulo[1..];
+
+            // Mesma regra de Jogos/Hoje: sem placar final e dentro de 2h30 do início.
+            bool AoVivo(ControleFutebolWeb.Models.Jogo j)
+            {
+                if (j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue) return false;
+                if (DateHelper.ParaBrasilia(j.Data) is not DateTime inicio) return false;
+                return inicio <= Model.AgoraBrasil && Model.AgoraBrasil <= inicio.AddHours(2.5);
+            }
+
+            var jogosHoje = Model.JogosHoje;
+            var qtdAoVivo = jogosHoje.Count(AoVivo);
+            // Ao vivo primeiro; o resto na ordem do horário.
+            var jogosHojeLista = jogosHoje.OrderBy(j => AoVivo(j) ? 0 : 1).ThenBy(j => j.Data).Take(8).ToList();
+
+            string? Img(string? url) => string.IsNullOrEmpty(url) ? null : Url.Action("Imagem", "MediaProxy", new { url });
+            string Milhar(int n) => n.ToString("N0", ptBR);
+
+            string resumoDia = jogosHoje.Count switch
+            {
+                0 => "Nenhum jogo hoje.",
+                1 => "1 jogo hoje",
+                _ => $"{jogosHoje.Count} jogos hoje",
+            };
+            if (jogosHoje.Count > 0)
+                resumoDia += qtdAoVivo switch { 0 => ".", 1 => ", 1 ao vivo agora.", _ => $", {qtdAoVivo} ao vivo agora." };
+            string resumoPendentes = Model.TotalPendentesAnalise switch
+            {
+                0 => "Nada de ontem ou de hoje esperando análise.",
+                1 => "1 partida de ontem ou de hoje espera sua análise.",
+                _ => $"{Model.TotalPendentesAnalise} partidas de ontem e de hoje esperam sua análise.",
+            };
+
+            var ontemParam = Model.Hoje.AddDays(-1).ToString("yyyy-MM-dd");
+            bool mostrarClassif = Model.Classificacao.Any() || Model.CompeticoesHomeSelecionadas > 0;
+        }
+
         <div class="cf-hero-content">
-            <div class="cf-hero-kicker">
-                <div class="cf-hero-kicker-line"></div>
-                <span>Dashboard principal</span>
-            </div>
-
-            <h1>Análise de futebol,<br /><span class="gold">sem planilha.</span></h1>
-            <p>Gerencie times, jogadores e competições. Avalie partidas com critérios configuráveis. Tudo em um lugar.</p>
-
+            <h1>@dataTitulo</h1>
+            <p>@resumoDia @resumoPendentes</p>
             <div class="cf-search-wrap">
                 <div class="cf-search-box">
                     <span class="cf-search-icon">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
                     </span>
                     <input id="cfSearchInput" type="text" class="cf-search-input"
+                           aria-label="Buscar time, jogador ou competição"
                            placeholder="Buscar time, jogador ou competição..." autocomplete="off" />
-                    <button type="button" class="cf-search-btn">Buscar</button>
+                    <button type="button" id="cfSearchBtn" class="cf-search-btn">Buscar</button>
                 </div>
                 <div id="cfSearchDropdown" class="cf-search-dropdown"></div>
             </div>
         </div>
     </div>
 
-    <!-- Stats bar -->
-    <div class="cf-stats">
-        <div class="cf-stat-card">
-            <div class="cf-stat-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d4a520" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" /></svg>
+    <!-- Atalhos: a única ação do grupo (novo jogo) e os destinos com seus totais -->
+    <nav class="cf-atalhos" aria-label="Atalhos">
+        <a href="@Url.Action("Create", "Jogos")" class="cf-atalho-novo">+ Novo jogo</a>
+        <a href="@Url.Action("Hoje", "Jogos")" class="cf-atalho">Jogos de hoje</a>
+        <a href="@Url.Action("Index", "Jogos")" class="cf-atalho">Jogos <span class="cf-atalho-num">@Milhar(Model.TotalJogos)</span></a>
+        <a href="@Url.Action("Index", "Competicoes")" class="cf-atalho">Competições <span class="cf-atalho-num">@Milhar(Model.TotalCompeticoes)</span></a>
+        <a href="@Url.Action("Index", "Times")" class="cf-atalho">Times <span class="cf-atalho-num">@Milhar(Model.TotalTimes)</span></a>
+        <a href="@Url.Action("Index", "Jogadores")" class="cf-atalho">Jogadores <span class="cf-atalho-num">@Milhar(Model.TotalJogadores)</span></a>
+        <a href="@Url.Action("Scout", "Relatorios")" class="cf-atalho">Scout</a>
+        <a href="@Url.Action("Index", "Relatorios")" class="cf-atalho">Relatórios</a>
+    </nav>
+
+    <!-- O dia: jogos de hoje e o que falta analisar -->
+    <div class="cf-dia">
+        <section>
+            <div class="cf-sec-cab">
+                <h2 class="cf-sec-titulo">Hoje</h2>
+                @if (jogosHoje.Count > 0)
+                {
+                    <span class="cf-sec-conta">@jogosHoje.Count</span>
+                }
+                <a href="@Url.Action("Hoje", "Jogos")" class="cf-sec-link">Ver todos os jogos de hoje</a>
             </div>
-            <div>
-                <div class="cf-stat-num" data-count="@Model.TotalTimes">0</div>
-                <div class="cf-stat-label">Times</div>
+            <div class="cf-lista">
+                @if (jogosHoje.Count == 0)
+                {
+                    <div class="cf-lista-vazia">
+                        Nenhum jogo cadastrado para hoje.
+                        <a href="@Url.Action("Hoje", "Jogos", new { data = Model.Hoje.AddDays(1).ToString("yyyy-MM-dd") })">Ver os jogos de amanhã</a>
+                    </div>
+                }
+                @foreach (var jogo in jogosHojeLista)
+                {
+                    var vivo = AoVivo(jogo);
+                    var encerrado = jogo.PlacarCasa.HasValue && jogo.PlacarVisitante.HasValue;
+                    var placar = encerrado ? $"{jogo.PlacarCasa} – {jogo.PlacarVisitante}"
+                               : vivo && jogo.PlacarParcialCasa.HasValue ? $"{jogo.PlacarParcialCasa} – {jogo.PlacarParcialVisitante}"
+                               : "×";
+                    var logoComp = Img(jogo.Competicao?.LogoUrl);
+                    <a class="cf-linha-jogo" href="@Url.Action("Analisar", "Jogos", new { id = jogo.Id })"
+                       title="@(jogo.Competicao?.Nome ?? "Sem competição") — analisar partida">
+                        @if (vivo)
+                        {
+                            <span class="cf-linha-status vivo">Ao vivo</span>
+                        }
+                        else if (encerrado)
+                        {
+                            <span class="cf-linha-status fim">Encerrado</span>
+                        }
+                        else
+                        {
+                            <span class="cf-linha-status">@DateHelper.FormatarData(jogo.Data, "HH:mm")</span>
+                        }
+                        @if (logoComp != null)
+                        {
+                            <img class="cf-comp-logo" src="@logoComp" alt="@jogo.Competicao?.Nome" />
+                        }
+                        else
+                        {
+                            <span class="cf-comp-logo-vazio" aria-hidden="true"></span>
+                        }
+                        <span class="cf-linha-time casa">
+                            <span>@jogo.TimeCasa?.Nome</span>
+                            @if (Img(jogo.TimeCasa?.EscudoUrl) is string escCasa) { <img src="@escCasa" alt="" /> }
+                        </span>
+                        <span class="cf-linha-placar @(encerrado || vivo ? "" : "agendado")">@placar</span>
+                        <span class="cf-linha-time">
+                            @if (Img(jogo.TimeVisitante?.EscudoUrl) is string escVis) { <img src="@escVis" alt="" /> }
+                            <span>@jogo.TimeVisitante?.Nome</span>
+                        </span>
+                    </a>
+                }
             </div>
-        </div>
-        <div class="cf-stat-card">
-            <div class="cf-stat-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d4a520" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+        </section>
+
+        <section>
+            <div class="cf-sec-cab">
+                <h2 class="cf-sec-titulo">Falta analisar</h2>
+                @if (Model.TotalPendentesAnalise > 0)
+                {
+                    <span class="cf-sec-conta">@Model.TotalPendentesAnalise</span>
+                }
+                <a href="@Url.Action("Hoje", "Jogos", new { data = ontemParam })" class="cf-sec-link">Jogos de ontem</a>
             </div>
-            <div>
-                <div class="cf-stat-num" data-count="@Model.TotalJogadores">0</div>
-                <div class="cf-stat-label">Jogadores</div>
+            <div class="cf-lista">
+                @if (!Model.PendentesAnalise.Any())
+                {
+                    <div class="cf-lista-vazia">Nenhuma partida encerrada ontem ou hoje esperando análise.</div>
+                }
+                @foreach (var jogo in Model.PendentesAnalise)
+                {
+                    var logoComp = Img(jogo.Competicao?.LogoUrl);
+                    var ehHoje = DateHelper.ParaBrasilia(jogo.Data)?.Date == Model.Hoje;
+                    <a class="cf-linha-jogo cf-pendente" href="@Url.Action("Analisar", "Jogos", new { id = jogo.Id })"
+                       title="@(jogo.Competicao?.Nome ?? "Sem competição") — analisar partida">
+                        @if (logoComp != null)
+                        {
+                            <img class="cf-comp-logo" src="@logoComp" alt="@jogo.Competicao?.Nome" />
+                        }
+                        else
+                        {
+                            <span class="cf-comp-logo-vazio" aria-hidden="true"></span>
+                        }
+                        <span class="cf-linha-time casa"><span>@jogo.TimeCasa?.Nome</span></span>
+                        <span class="cf-linha-placar">@jogo.PlacarCasa – @jogo.PlacarVisitante</span>
+                        <span class="cf-linha-time"><span>@jogo.TimeVisitante?.Nome</span></span>
+                        <span class="cf-pendente-dia">@(ehHoje ? "hoje" : "ontem")</span>
+                    </a>
+                }
             </div>
-        </div>
-        <div class="cf-stat-card">
-            <div class="cf-stat-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d4a520" stroke-width="2"><circle cx="12" cy="12" r="10" /><path d="M12 8v4l3 3" /></svg>
-            </div>
-            <div>
-                <div class="cf-stat-num" data-count="@Model.TotalJogos">0</div>
-                <div class="cf-stat-label">Jogos</div>
-            </div>
-        </div>
-        <div class="cf-stat-card">
-            <div class="cf-stat-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d4a520" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" /></svg>
-            </div>
-            <div>
-                <div class="cf-stat-num" data-count="@Model.TotalCompeticoes">0</div>
-                <div class="cf-stat-label">Competições</div>
-            </div>
-        </div>
+        </section>
     </div>
 
-    <!-- Acesso rápido -->
-    <div style="padding: 2.2rem 2.5rem 0;">
-        <div class="cf-section-label">
-            <span>Acesso rápido</span>
-            <div class="line"></div>
-        </div>
-    </div>
-    <div class="cf-quick-grid">
-        <a href="@Url.Action("Index", "Jogadores")" class="cf-quick-card">
-            <span class="icon">⚽</span>
-            <div class="label">Jogadores</div>
-            <div class="desc">@Model.TotalJogadores cadastrados</div>
-        </a>
-        <a href="@Url.Action("Index", "Times")" class="cf-quick-card">
-            <span class="icon">🏟</span>
-            <div class="label">Times</div>
-            <div class="desc">@Model.TotalTimes clubes</div>
-        </a>
-        <a href="@Url.Action("Index", "Competicoes")" class="cf-quick-card">
-            <span class="icon">🏆</span>
-            <div class="label">Competições</div>
-            <div class="desc">@Model.TotalCompeticoes competições</div>
-        </a>
-        <a href="@Url.Action("Index", "Jogos")" class="cf-quick-card">
-            <span class="icon">📋</span>
-            <div class="label">Jogos</div>
-            <div class="desc">@Model.TotalJogos partidas</div>
-        </a>
-        <a href="@Url.Action("Create", "Jogos")" class="cf-quick-card">
-            <span class="icon">➕</span>
-            <div class="label">Novo jogo</div>
-            <div class="desc">Cadastrar partida</div>
-        </a>
-        <a href="@Url.Action("Scout", "Relatorios")" class="cf-quick-card">
-            <span class="icon">🔍</span>
-            <div class="label">Scout</div>
-            <div class="desc">Busca avançada</div>
-        </a>
-        <a href="@Url.Action("Index", "Relatorios")" class="cf-quick-card">
-            <span class="icon">📊</span>
-            <div class="label">Relatórios</div>
-            <div class="desc">Estatísticas gerais</div>
-        </a>
-    </div>
-
-    <!-- Jogos recentes + Classificação -->
-    <div class="cf-main-grid">
-
-        <!-- Jogos recentes -->
-        <div>
-            <div class="cf-section-label">
-                <span>Últimos resultados</span>
-                <div class="line"></div>
-                <a href="@Url.Action("Index", "Jogos")" class="cf-section-link">ver todos &rarr;</a>
+    <!-- Últimos resultados + classificação (esta só quando há competição marcada) -->
+    <div class="cf-main-grid @(mostrarClassif ? "" : "sem-classif")">
+        <section>
+            <div class="cf-sec-cab">
+                <h2 class="cf-sec-titulo">Últimos resultados</h2>
+                <a href="@Url.Action("Index", "Jogos")" class="cf-sec-link">Ver todos os jogos</a>
             </div>
-
             <div class="cf-games-grid">
                 @if (!Model.JogosRecentes.Any())
                 {
-                    <div class="cf-empty">Nenhum jogo finalizado ainda.</div>
+                    <div class="cf-empty">Nenhum jogo encerrado ainda.</div>
                 }
-                else
+                @foreach (var jogo in Model.JogosRecentes)
                 {
-                    @foreach (var jogo in Model.JogosRecentes)
-                    {
-                        bool casaVenceu = (jogo.PlacarCasa ?? 0) > (jogo.PlacarVisitante ?? 0);
-                        bool visVenceu = (jogo.PlacarVisitante ?? 0) > (jogo.PlacarCasa ?? 0);
-
-                        <a href="@Url.Action("Analisar", "Jogos", new { id = jogo.Id })" class="cf-game-card" style="display:block;">
-                            <div class="cf-game-top">
-                                <span class="cf-game-comp">@(jogo.Competicao?.Nome ?? "—")</span>
-                                <span class="cf-game-date">@DateHelper.FormatarData(jogo.Data, "dd/MM")</span>
-                            </div>
-                            <div class="cf-game-teams">
-                                <div class="cf-team-badge">
-                                    @if (!string.IsNullOrEmpty(jogo.TimeCasa?.EscudoUrl))
-                                    {
-                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa.EscudoUrl })" alt="@jogo.TimeCasa.Nome" />
-                                    }
-                                    else
-                                    {
-                                        <span class="cf-team-badge-abbr">
-                                            @(jogo.TimeCasa?.Nome?.Length >= 3 ? jogo.TimeCasa.Nome.Substring(0, 3).ToUpper() : jogo.TimeCasa?.Nome)
-                                        </span>
-                                    }
-                                </div>
-                                <span class="cf-team-name" style="font-weight:@(casaVenceu ? "700" : "500"); color:@(casaVenceu ? "var(--text-strong)" : "var(--text-muted)");">@jogo.TimeCasa?.Nome</span>
-                                <span class="cf-score">
-                                    @jogo.PlacarCasa &ndash; @jogo.PlacarVisitante
-                                </span>
-                                <span class="cf-team-name" style="text-align:right; font-weight:@(visVenceu ? "700" : "500"); color:@(visVenceu ? "var(--text-strong)" : "var(--text-muted)");">@jogo.TimeVisitante?.Nome</span>
-                                <div class="cf-team-badge">
-                                    @if (!string.IsNullOrEmpty(jogo.TimeVisitante?.EscudoUrl))
-                                    {
-                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante.EscudoUrl })" alt="@jogo.TimeVisitante.Nome" />
-                                    }
-                                    else
-                                    {
-                                        <span class="cf-team-badge-abbr">
-                                            @(jogo.TimeVisitante?.Nome?.Length >= 3 ? jogo.TimeVisitante.Nome.Substring(0, 3).ToUpper() : jogo.TimeVisitante?.Nome)
-                                        </span>
-                                    }
-                                </div>
-                            </div>
-                            @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
+                    bool casaVenceu = (jogo.PlacarCasa ?? 0) > (jogo.PlacarVisitante ?? 0);
+                    bool visVenceu = (jogo.PlacarVisitante ?? 0) > (jogo.PlacarCasa ?? 0);
+                    bool analisado = Model.JogosAnalisadosIds.Contains(jogo.Id);
+                    var logoComp = Img(jogo.Competicao?.LogoUrl);
+                    <a href="@Url.Action("Analisar", "Jogos", new { id = jogo.Id })" class="cf-game-card">
+                        <div class="cf-game-top">
+                            @if (logoComp != null)
                             {
-                                <div style="text-align:center; font-size:0.65rem; color:var(--text-dim); margin-top:4px">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</div>
+                                <img class="cf-comp-logo" src="@logoComp" alt="" />
                             }
-                            <div class="cf-game-footer">
-                                <span class="cf-analisar-link">
-                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M2 12h20M16 6l6 6-6 6" /></svg>
-                                    Analisar partida
-                                </span>
-                            </div>
-                        </a>
-                    }
-                }
-            </div>
-        </div>
-
-        <!-- Classificação -->
-        <div>
-            <div class="cf-section-label">
-                <span>Classificação</span>
-                <div class="line"></div>
-                <a href="@Url.Action("Index", "Competicoes")" class="cf-section-link">ver completa &rarr;</a>
-            </div>
-
-            @if (!Model.Classificacao.Any())
-            {
-                @if (Model.CompeticoesHomeSelecionadas == 0)
-                {
-                    <div class="cf-empty">
-                        Nenhuma competição marcada para a home.
-                        <a href="@Url.Action("Index", "Competicoes")">Marque com 🏠 Home</a> as competições que devem somar aqui.
-                    </div>
-                }
-                else
-                {
-                    <div class="cf-empty">Nenhum dado disponível ainda.</div>
-                }
-            }
-            else
-            {
-                <div class="cf-classif-panel">
-                    <div class="cf-classif-head">
-                        <div style="width:3px; margin-right:10px; flex-shrink:0;"></div>
-                        <span style="width:20px; flex-shrink:0;">#</span>
-                        <div style="width:22px; flex-shrink:0;"></div>
-                        <span style="flex:1;">Time</span>
-                        <div class="cf-classif-cols">
-                            <span>J</span><span>V</span><span>E</span><span>D</span><span class="pts">Pts</span>
+                            <span class="cf-game-comp">@(jogo.Competicao?.Nome ?? "Sem competição")</span>
+                            <span class="cf-game-date">@DateHelper.FormatarData(jogo.Data, "dd/MM")</span>
                         </div>
-                    </div>
-
-                    @foreach (var c in Model.Classificacao)
-                    {
-                        string faixa = c.Posicao <= 4 ? "top" : (c.Posicao >= Model.Classificacao.Count - 2 ? "drop" : "mid");
-                        string corBarra = faixa == "top" ? "#d4a520" : (faixa == "drop" ? "#ef4444" : "#374151");
-
-                        <div class="cf-classif-row">
-                            <div class="cf-classif-bar" style="background:@corBarra;"></div>
-                            <span class="cf-classif-pos @faixa">@c.Posicao</span>
-                            <div class="cf-team-badge" style="margin-right:6px;">
-                                @if (!string.IsNullOrEmpty(c.Time?.EscudoUrl))
+                        <div class="cf-game-teams">
+                            <div class="cf-team-badge">
+                                @if (Img(jogo.TimeCasa?.EscudoUrl) is string escCasa)
                                 {
-                                    <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.Time.EscudoUrl })" alt="@c.Time.Nome" />
+                                    <img src="@escCasa" alt="" />
                                 }
                                 else
                                 {
-                                    <span class="cf-team-badge-abbr">
-                                        @(c.Time?.Nome?.Length >= 3 ? c.Time.Nome.Substring(0, 3).ToUpper() : c.Time?.Nome)
-                                    </span>
+                                    <span class="cf-team-badge-abbr">@(jogo.TimeCasa?.Nome?.Length >= 3 ? jogo.TimeCasa.Nome.Substring(0, 3).ToUpper() : jogo.TimeCasa?.Nome)</span>
                                 }
                             </div>
-                            <span class="cf-classif-time">@c.Time?.Nome</span>
-                            <div class="cf-classif-cols">
-                                <span>@c.Jogos</span><span>@c.Vitorias</span><span>@c.Empates</span><span>@c.Derrotas</span>
-                                <span class="pts">@c.Pontos</span>
+                            <span class="cf-team-name @(casaVenceu ? "venceu" : "")">@jogo.TimeCasa?.Nome</span>
+                            <span class="cf-score">@jogo.PlacarCasa – @jogo.PlacarVisitante</span>
+                            <span class="cf-team-name vis @(visVenceu ? "venceu" : "")">@jogo.TimeVisitante?.Nome</span>
+                            <div class="cf-team-badge">
+                                @if (Img(jogo.TimeVisitante?.EscudoUrl) is string escVis)
+                                {
+                                    <img src="@escVis" alt="" />
+                                }
+                                else
+                                {
+                                    <span class="cf-team-badge-abbr">@(jogo.TimeVisitante?.Nome?.Length >= 3 ? jogo.TimeVisitante.Nome.Substring(0, 3).ToUpper() : jogo.TimeVisitante?.Nome)</span>
+                                }
                             </div>
                         </div>
-                    }
-                </div>
-            }
-        </div>
+                        @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
+                        {
+                            <div class="cf-game-pen">@jogo.PenaltisCasa – @jogo.PenaltisVisitante nos pênaltis</div>
+                        }
+                        <div class="cf-game-footer @(analisado ? "feito" : "")">@(analisado ? "✓ Analisado" : "Analisar partida")</div>
+                    </a>
+                }
+            </div>
+        </section>
 
+        @if (mostrarClassif)
+        {
+            <section>
+                <div class="cf-sec-cab">
+                    <h2 class="cf-sec-titulo">Classificação</h2>
+                    <a href="@Url.Action("Index", "Competicoes")" class="cf-sec-link">Competições</a>
+                </div>
+                @if (!Model.Classificacao.Any())
+                {
+                    <div class="cf-empty">As competições marcadas para a home ainda não têm jogos encerrados.</div>
+                }
+                else
+                {
+                    <div class="cf-classif-panel">
+                        <div class="cf-classif-head">
+                            <div style="width:3px; margin-right:10px; flex-shrink:0;"></div>
+                            <span style="width:20px; flex-shrink:0;">#</span>
+                            <div style="width:22px; flex-shrink:0;"></div>
+                            <span style="flex:1;">Time</span>
+                            <div class="cf-classif-cols">
+                                <span title="Jogos">J</span><span title="Vitórias">V</span><span title="Empates">E</span><span title="Derrotas">D</span><span class="pts">Pts</span>
+                            </div>
+                        </div>
+                        @foreach (var c in Model.Classificacao)
+                        {
+                            string faixa = c.Posicao <= 4 ? "top" : (c.Posicao >= Model.Classificacao.Count - 2 ? "drop" : "mid");
+                            string corBarra = faixa == "top" ? "#d4a520" : (faixa == "drop" ? "#ef4444" : "#374151");
+                            <div class="cf-classif-row">
+                                <div class="cf-classif-bar" style="background:@corBarra;"></div>
+                                <span class="cf-classif-pos @faixa">@c.Posicao</span>
+                                <div class="cf-team-badge" style="margin-right:6px;">
+                                    @if (Img(c.Time?.EscudoUrl) is string escTime)
+                                    {
+                                        <img src="@escTime" alt="" />
+                                    }
+                                    else
+                                    {
+                                        <span class="cf-team-badge-abbr">@(c.Time?.Nome?.Length >= 3 ? c.Time.Nome.Substring(0, 3).ToUpper() : c.Time?.Nome)</span>
+                                    }
+                                </div>
+                                <span class="cf-classif-time">@c.Time?.Nome</span>
+                                <div class="cf-classif-cols">
+                                    <span>@c.Jogos</span><span>@c.Vitorias</span><span>@c.Empates</span><span>@c.Derrotas</span>
+                                    <span class="pts">@c.Pontos</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </section>
+        }
     </div>
 </div>
 
 @section Scripts {
 <script>
 (function () {
-    // ── Contadores animados da barra de estatísticas ──────────────────
-    document.querySelectorAll('.cf-stat-num[data-count]').forEach(function (el) {
-        var target = parseInt(el.getAttribute('data-count'), 10) || 0;
-        var duration = 1200;
-        var start = performance.now();
-        function animate(now) {
-            var p = Math.min((now - start) / duration, 1);
-            var ease = 1 - Math.pow(1 - p, 3);
-            el.textContent = Math.round(target * ease).toLocaleString('pt-BR');
-            if (p < 1) requestAnimationFrame(animate);
-        }
-        requestAnimationFrame(animate);
-    });
-
     // ── Busca global (time / jogador / competição) ────────────────────
     const input = document.getElementById('cfSearchInput');
     const dropdown = document.getElementById('cfSearchDropdown');
@@ -1001,9 +1078,25 @@
         if (!input.contains(e.target) && !dropdown.contains(e.target)) close();
     });
 
+    // Enter e o botão "Buscar" abrem o primeiro resultado. Se a lista ainda
+    // não chegou (digitou e apertou na hora), busca agora e abre o primeiro.
+    async function irParaPrimeiro() {
+        const q = input.value.trim();
+        if (q.length < 2) { input.focus(); return; }
+        clearTimeout(timer);
+        let primeiro = dropdown.querySelector('.cf-search-item');
+        if (!primeiro || ultimaBusca !== q) {
+            await fetchResults(q);
+            primeiro = dropdown.querySelector('.cf-search-item');
+        }
+        if (primeiro) window.location.href = primeiro.href;
+    }
+
     input.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') close();
+        if (e.key === 'Enter') { e.preventDefault(); irParaPrimeiro(); }
     });
+    document.getElementById('cfSearchBtn')?.addEventListener('click', irParaPrimeiro);
 
     function close() {
         dropdown.classList.remove('open');
@@ -1023,7 +1116,9 @@
     window.addEventListener('resize', () => { if (dropdown.classList.contains('open')) posicionarDropdown(); });
     window.addEventListener('scroll', () => { if (dropdown.classList.contains('open')) posicionarDropdown(); }, true);
 
+    let ultimaBusca = '';
     async function fetchResults(q) {
+        ultimaBusca = q;
         try {
             const res = await fetch('/Home/Buscar?q=' + encodeURIComponent(q));
             const data = await res.json();

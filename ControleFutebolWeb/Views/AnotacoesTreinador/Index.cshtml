@@ -3,7 +3,7 @@
 @{
     var treinador = (ControleFutebolWeb.Models.Treinador)ViewBag.Treinador;
     var q = (string?)ViewBag.Q;
-    ViewData["Title"] = $"Anotações — {treinador.Nome}";
+    ViewData["Title"] = $"Anotações sobre {treinador.Nome}";
 
     var contagemCategorias = ViewBag.ContagemCategorias as Dictionary<string, int> ?? new Dictionary<string, int>();
 
@@ -46,8 +46,7 @@
         Kicker = "Anotações",
         Acoes = new List<ControleFutebolWeb.Models.ViewModels.TreinadorHeroAcao>
         {
-            new() { Texto = "Voltar ao treinador", Icone = "voltar", Url = Url.Action("Details", "Treinadores", new { id = treinador.Id })! },
-            new() { Texto = "Nova anotação", Icone = "mais", Destaque = true, Url = "#form-nova-anotacao" }
+            new() { Texto = "Nova anotação", Icone = "mais", Url = "#nova-titulo" }
         }
     };
 }
@@ -61,7 +60,7 @@
 
     @if (TempData["Sucesso"] != null)
     {
-        <div class="an-alert-ok m-3">@TempData["Sucesso"]</div>
+        <div class="an-alert-ok" role="status" style="margin:18px 2.5rem 0">@TempData["Sucesso"]</div>
     }
 
     <div class="an-grid">
@@ -73,15 +72,15 @@
                 <span class="icon">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
                 </span>
-                <input id="inp-search" type="text" name="q" value="@q" placeholder="Pesquisar anotações… (título, conteúdo)" autocomplete="off" />
+                <input id="inp-search" type="search" name="q" value="@q" placeholder="Buscar no título ou no texto" autocomplete="off" aria-label="Buscar anotações" />
                 @if (!string.IsNullOrWhiteSpace(q))
                 {
-                    <a href="@Url.Action("Index", new { treinadorId = treinador.Id })" class="limpar">×</a>
+                    <a href="@Url.Action("Index", new { treinadorId = treinador.Id })" class="limpar" aria-label="Limpar busca">×</a>
                 }
-                <span class="cnt">@Model.Count resultado(s)</span>
+                <span class="cnt">@(Model.Count == 1 ? "1 resultado" : $"{Model.Count} resultados")</span>
                 <button type="submit" class="buscar">Buscar</button>
             </form>
-            <div class="an-shortcut"><kbd>Ctrl</kbd>+<kbd>F</kbd> foca na busca</div>
+            <div class="an-shortcut"><kbd>Ctrl</kbd>+<kbd>F</kbd> leva para a busca</div>
 
             <!-- Chips de categoria (reaproveitam a busca por texto, que já casa com a categoria) -->
             <div class="an-chips">
@@ -106,7 +105,7 @@
                     else
                     {
                         <div>Nenhuma anotação cadastrada ainda.</div>
-                        <div style="margin-top:.5rem;font-size:0.8rem;">Use o formulário ao lado para criar a primeira.</div>
+                        <div style="margin-top:.5rem;font-size:.86rem;">Escreva a primeira no formulário ao lado.</div>
                     }
                 </div>
             }
@@ -134,14 +133,14 @@
                                         @DateHelper.FormatarData(a.DtInc, "dd/MM/yyyy HH:mm")
                                         @if (a.DtAlt.HasValue)
                                         {
-                                            <span style="margin-left:6px;color:#334155;">· editado @DateHelper.FormatarData(a.DtAlt, "dd/MM/yyyy HH:mm")</span>
+                                            <span>, editada em @DateHelper.FormatarData(a.DtAlt, "dd/MM/yyyy HH:mm")</span>
                                         }
                                     </span>
                                     <div class="an-card-actions">
-                                        <a asp-action="Editar" asp-route-id="@a.Id">✏️ Editar</a>
+                                        <a asp-action="Editar" asp-route-id="@a.Id">Editar</a>
                                         <form asp-action="Excluir" asp-route-id="@a.Id" method="post" style="display:inline;" onsubmit="return confirm('Excluir esta anotação?')">
                                             @Html.AntiForgeryToken()
-                                            <button type="submit" class="del">🗑️ Excluir</button>
+                                            <button type="submit" class="del">Excluir</button>
                                         </form>
                                     </div>
                                 </div>
@@ -156,22 +155,21 @@
         <div class="an-sidebar">
             <div class="an-form-card" id="form-nova-anotacao">
                 <div class="an-form-head">
-                    <div class="an-form-dot"></div>
-                    <span>Nova Anotação</span>
+                    <h2>Nova anotação</h2>
                 </div>
                 <form asp-action="Nova" asp-controller="AnotacoesTreinador" method="post" class="an-form-body">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="TreinadorId" value="@treinador.Id" />
 
                     <div class="an-field">
-                        <label>Título</label>
-                        <input type="text" id="nova-titulo" name="Titulo" placeholder="Ex: Prefere 4-3-3, contrato até 2027…" autocomplete="off" required />
+                        <label for="nova-titulo">Título</label>
+                        <input type="text" id="nova-titulo" name="Titulo" placeholder="Prefere 4-3-3, contrato até 2027" autocomplete="off" required />
                     </div>
 
                     <div class="an-field">
-                        <label>Categoria</label>
-                        <select name="Categoria">
-                            <option value="">— Sem categoria —</option>
+                        <label for="nova-categoria">Categoria</label>
+                        <select id="nova-categoria" name="Categoria">
+                            <option value="">Sem categoria</option>
                             @foreach (var cat in categorias)
                             {
                                 <option value="@cat">@cat</option>
@@ -180,16 +178,16 @@
                     </div>
 
                     <div class="an-field">
-                        <label>Conteúdo</label>
-                        <textarea id="nova-conteudo" name="Conteudo" placeholder="Escreva a anotação sobre o treinador…" required></textarea>
+                        <label for="nova-conteudo">Conteúdo</label>
+                        <textarea id="nova-conteudo" name="Conteudo" placeholder="Escreva a anotação sobre o treinador" required></textarea>
                     </div>
 
-                    <button type="submit" class="an-form-save">Salvar Anotação</button>
+                    <button type="submit" class="an-form-save">Salvar anotação</button>
                 </form>
             </div>
 
             <div class="an-resumo">
-                <div class="an-resumo-title">Resumo</div>
+                <h2 class="an-resumo-title">Por categoria</h2>
                 @foreach (var cat in categorias)
                 {
                     var cor = CorCategoria(cat);

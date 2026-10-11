@@ -8,46 +8,19 @@
     var semGrupoDefinido = c.Participantes.Any(p => string.IsNullOrWhiteSpace(p.Grupo));
 
     string Aba(string nome) => Model.Aba == nome ? "cp-aba ativa" : "cp-aba";
-    string TipoFase(string tipo) => tipo switch { "GRUPOS" => "Grupos", "MATA_MATA" => "Mata-mata", _ => "Pontos corridos" };
+    string? Atual(string nome) => Model.Aba == nome ? "page" : null;
+
+    // Pendentes com os dois lados definidos: são as que dá para lançar agora
+    var pendentes = c.Partidas
+        .Where(p => !(p.PlacarCasa.HasValue && p.PlacarVisitante.HasValue)
+                    && p.ParticipanteCasaId != null && p.ParticipanteVisitanteId != null)
+        .OrderBy(p => p.Rodada).ThenBy(p => p.Grupo).ThenBy(p => p.ChaveOrdem).ThenBy(p => p.Id)
+        .ToList();
 }
 @await Html.PartialAsync("_Head")
 
 <div class="cp">
-    <div class="cp-hero">
-        <div class="cp-hero-escudo">@(c.Modalidade == ModalidadeCampeonato.VideoGame ? "🎮" : c.Modalidade == ModalidadeCampeonato.Amador ? "⚽" : "🏆")</div>
-        <div>
-            <div class="cp-kicker">
-                <a asp-action="Index" style="color:inherit">Meus campeonatos</a>
-                @if (c.Plataforma != null) { <span> · @c.Plataforma</span> }
-            </div>
-            <h1 class="cp-titulo">@c.Nome</h1>
-            <p class="cp-sub">
-                @string.Join(" → ", c.Fases.OrderBy(f => f.Ordem).Select(f => TipoFase(f.Tipo) + (f.IdaEVolta ? " (ida e volta)" : "") + (f.DisputaTerceiro ? " com 3º lugar" : "")))
-                · @c.Participantes.Count participantes
-            </p>
-        </div>
-        <div class="cp-hero-acoes">
-            @if (Model.LinkPublico != null)
-            {
-                <button type="button" class="cp-btn" data-copiar="@Model.LinkPublico" title="@Model.LinkPublico">🔗 Copiar link público</button>
-                <form asp-action="Compartilhar" asp-route-id="@c.Id" method="post">
-                    <input type="hidden" name="revogar" value="true" />
-                    <button type="submit" class="cp-btn mini" title="Quem tem o link perde o acesso">Desativar link</button>
-                </form>
-            }
-            else
-            {
-                <form asp-action="Compartilhar" asp-route-id="@c.Id" method="post">
-                    <button type="submit" class="cp-btn" title="Página só de leitura para os amigos acompanharem">🔗 Criar link público</button>
-                </form>
-            }
-            <form asp-action="Excluir" asp-route-id="@c.Id" method="post"
-                  data-confirmar="Excluir o campeonato “@c.Nome” com todas as partidas e súmulas? Não dá para desfazer."
-                  onsubmit="return confirm(this.dataset.confirmar);">
-                <button type="submit" class="cp-btn perigo">Excluir</button>
-            </form>
-        </div>
-    </div>
+    @await Html.PartialAsync("_Cabecalho", Model, new ViewDataDictionary(ViewData) { ["Dono"] = true })
 
     @await Html.PartialAsync("_Campeao", Model)
 
@@ -55,10 +28,10 @@
     @if (proxima != null && c.Participantes.Count >= 2)
     {
         var ehPrimeira = proxima.Id == primeiraFase?.Id;
-        <form asp-action="GerarFase" asp-route-id="@c.Id" method="post" class="cp-secao" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <form asp-action="GerarFase" asp-route-id="@c.Id" method="post" class="cp-secao cp-proximo">
             <input type="hidden" name="faseId" value="@proxima.Id" />
-            <div style="flex:1 1 280px;">
-                <strong style="color:var(--text-strong)">Próximo passo: gerar as partidas de “@proxima.Nome”</strong>
+            <div>
+                <strong>Próximo passo: gerar as partidas de “@proxima.Nome”</strong>
                 <div class="cp-dica">
                     @if (ehPrimeira)
                     {
@@ -66,7 +39,7 @@
                     }
                     else
                     {
-                        <text>Usa os classificados da fase anterior — todas as partidas dela precisam ter placar.</text>
+                        <text>Usa os classificados da fase anterior: todas as partidas dela precisam ter placar.</text>
                     }
                 </div>
             </div>
@@ -83,16 +56,19 @@
     }
     else if (!Model.PrimeiraFaseGerada)
     {
-        <div class="cp-alerta ok" style="background:none;border-color:var(--line);color:var(--text-dim);">
-            Adicione pelo menos dois participantes para gerar as partidas.
+        <div class="cp-secao cp-proximo">
+            <div>
+                <strong>Próximo passo: adicionar os participantes</strong>
+                <div class="cp-dica">Com pelo menos dois, dá para gerar as partidas. @(c.Participantes.Count == 1 ? "Falta mais um." : "")</div>
+            </div>
         </div>
     }
 
-    <nav class="cp-abas">
-        <a class="@Aba("tabela")" asp-action="Detalhes" asp-route-id="@c.Id" asp-route-aba="tabela">Tabela</a>
-        <a class="@Aba("partidas")" asp-action="Detalhes" asp-route-id="@c.Id" asp-route-aba="partidas">Partidas<span class="conta">@c.Partidas.Count</span></a>
-        <a class="@Aba("participantes")" asp-action="Detalhes" asp-route-id="@c.Id" asp-route-aba="participantes">Participantes<span class="conta">@c.Participantes.Count</span></a>
-        <a class="@Aba("artilharia")" asp-action="Detalhes" asp-route-id="@c.Id" asp-route-aba="artilharia">Artilharia</a>
+    <nav class="cp-abas" id="cpAbas" aria-label="Seções do campeonato">
+        <a class="@Aba("tabela")" aria-current="@Atual("tabela")" asp-action="Detalhes" asp-route-id="@c.Id" asp-route-aba="tabela">Tabela</a>
+        <a class="@Aba("partidas")" aria-current="@Atual("partidas")" asp-action="Detalhes" asp-route-id="@c.Id" asp-route-aba="partidas">Partidas<span class="conta">@c.Partidas.Count</span></a>
+        <a class="@Aba("participantes")" aria-current="@Atual("participantes")" asp-action="Detalhes" asp-route-id="@c.Id" asp-route-aba="participantes">Participantes<span class="conta">@c.Participantes.Count</span></a>
+        <a class="@Aba("artilharia")" aria-current="@Atual("artilharia")" asp-action="Detalhes" asp-route-id="@c.Id" asp-route-aba="artilharia">Artilharia</a>
     </nav>
 
     @switch (Model.Aba)
@@ -107,22 +83,81 @@
             @await Html.PartialAsync("_Participantes", Model)
             break;
         default:
-            @await Html.PartialAsync("_Painel", Model.Painel)
+            @if (pendentes.Any())
+            {
+                <div class="cp-tabela-grade">
+                    <div>@await Html.PartialAsync("_Painel", Model.Painel)</div>
+                    <aside class="cp-secao cp-proximos" aria-label="Próximos jogos">
+                        <h2>
+                            Próximos jogos
+                            <a asp-action="Detalhes" asp-route-id="@c.Id" asp-route-aba="partidas">Ver todas (@pendentes.Count)</a>
+                        </h2>
+                        @foreach (var p in pendentes.Take(4))
+                        {
+                            @await Html.PartialAsync("_Partida", (Model, p, false, true, (string?)"tabela"))
+                        }
+                    </aside>
+                </div>
+            }
+            else
+            {
+                @await Html.PartialAsync("_Painel", Model.Painel)
+            }
             break;
     }
 </div>
 
 @section Scripts {
     <script>
-        document.querySelectorAll('[data-copiar]').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                var texto = btn.getAttribute('data-copiar');
-                navigator.clipboard.writeText(texto).then(function () {
-                    var antes = btn.textContent;
-                    btn.textContent = '✔ Link copiado';
-                    setTimeout(function () { btn.textContent = antes; }, 1800);
-                }, function () { window.prompt('Copie o link:', texto); });
+        (function () {
+            document.querySelectorAll('[data-copiar]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var texto = btn.getAttribute('data-copiar');
+                    navigator.clipboard.writeText(texto).then(function () {
+                        var antes = btn.textContent;
+                        btn.textContent = 'Copiado';
+                        setTimeout(function () { btn.textContent = antes; }, 1800);
+                    }, function () { window.prompt('Copie o link:', texto); });
+                });
             });
-        });
+
+            // Menus: fecham ao clicar fora ou com Esc
+            document.addEventListener('click', function (e) {
+                document.querySelectorAll('.cp-menu[open]').forEach(function (m) { if (!m.contains(e.target)) m.open = false; });
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') document.querySelectorAll('.cp-menu[open]').forEach(function (m) { m.open = false; });
+            });
+
+            // Partidas: Editar/Cancelar na jogada; Salvar ganha destaque quando o placar muda
+            document.querySelectorAll('.cp-partida.editavel').forEach(function (form) {
+                var inputs = form.querySelectorAll('input[type=number]');
+                var originais = Array.prototype.map.call(inputs, function (i) { return i.value; });
+                function marcar() {
+                    var mudou = Array.prototype.some.call(inputs, function (i, k) { return i.value !== originais[k]; });
+                    form.classList.toggle('alterada', mudou);
+                }
+                inputs.forEach(function (i) { i.addEventListener('input', marcar); });
+                var editar = form.querySelector('[data-editar]');
+                if (editar) editar.addEventListener('click', function () {
+                    form.classList.add('editando');
+                    if (inputs[0]) inputs[0].focus();
+                });
+                var cancelar = form.querySelector('[data-cancelar]');
+                if (cancelar) cancelar.addEventListener('click', function () {
+                    inputs.forEach(function (i, k) { i.value = originais[k]; });
+                    form.classList.remove('editando', 'alterada');
+                });
+            });
+
+            // Abas: fade à direita quando há mais abas escondidas (celular)
+            var abas = document.getElementById('cpAbas');
+            function fade() { abas.classList.toggle('tem-mais', abas.scrollWidth - abas.clientWidth - abas.scrollLeft > 4); }
+            abas.addEventListener('scroll', fade);
+            window.addEventListener('resize', fade);
+            fade();
+            var ativa = abas.querySelector('.ativa');
+            if (ativa && abas.scrollWidth > abas.clientWidth) ativa.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+        })();
     </script>
 }

@@ -9,8 +9,7 @@ namespace ControleFutebolWeb.Models.ViewModels
     {
         public List<Jogador> Itens { get; set; } = new();
 
-        // Cabeçalhos de ordenação (não usados pela view atual, mantidos para
-        // preservar comportamento exato do estado anterior baseado em ViewBag).
+        // Ordenação: valor do próximo clique em cada cabeçalho de coluna da lista
         public string? NomeSortParam { get; set; }
         public string? PosicaoSortParam { get; set; }
         public string? IdadeSortParam { get; set; }

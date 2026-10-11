@@ -1,0 +1,248 @@
+@* Conteúdo da aba "Estatísticas Jogadores": melhores jogadores, recordes em um
+   jogo e rankings de estatística individual. Usado por /Relatorios (aba própria)
+   e pela aba das telas de competição (_AbaEstatisticasJogadores, carregada sob
+   demanda por Competicoes/EstatisticasJogadores). O CSS está em
+   css/estatisticas-jogadores.css e a paginação dos cards com seletor em
+   js/estatisticas-jogadores.js. *@
+@model ControleFutebolWeb.Models.ViewModels.RelatoriosViewModel
+@using ControleFutebolWeb.Helpers
+@using ControleFutebolWeb.Models.ViewModels
+
+@functions {
+    // Nome e escudo do time a exibir: seleção quando a competição filtrada é de
+    // seleções ou quando o filtro é a própria seleção do jogador; senão o clube.
+    (string Nome, string? Escudo) TimeExibicao(ControleFutebolWeb.Models.Jogador? j)
+    {
+        if (j == null) return ("", null);
+        bool usarSelecao = j.Selecao != null
+            && (Model.ExibirSelecao || (j.SelecaoId.HasValue && Model.TimeIdsFiltro.Contains(j.SelecaoId.Value)));
+        if (usarSelecao)
+            return (j.Selecao!.Nome, j.Selecao.EscudoUrl);
+        return (j.Time?.Nome ?? "", j.Time?.EscudoUrl);
+    }
+
+    static readonly System.Globalization.CultureInfo PtBR = new("pt-BR");
+    string Img(string? url) => Url.Action("Imagem", "MediaProxy", new { url })!;
+    string Coord(double v) => v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+    string Jogos(int n) => n == 1 ? "1 jogo" : $"{n} jogos";
+}
+
+@{
+    // Linha comum aos três tipos de card. "sub" é a linha pequena sob o nome;
+    // "rodape" a linha pequena sob o valor.
+    void Linha(int pos, ControleFutebolWeb.Models.Jogador j, string href, string valor, string? rodape, double? pct, ControleFutebolWeb.Models.Jogo? jogo = null)
+    {
+        var te = TimeExibicao(j);
+        var sigla = PosicaoJogadorHelper.Sigla(j.Posicao);
+        <li class="rpt-row @(pos == 1 ? "lider" : "")">
+            <span class="rpt-rank">@pos</span>
+            <span class="rpt-avatar">
+                @if (!string.IsNullOrEmpty(j.FotoUrl))
+                {
+                    <img src="@Img(j.FotoUrl)" alt="" loading="lazy" />
+                }
+                else
+                {
+                    <text>@(j.Nome.Length >= 2 ? j.Nome.Substring(0, 2).ToUpper() : "?")</text>
+                }
+            </span>
+            <span class="rpt-name">
+                <a href="@href">@j.Nome</a>
+                <small>
+                    @if (jogo != null)
+                    {
+                        <span class="rpt-rec-jogo" title="@($"{jogo.TimeCasa?.Nome} {jogo.PlacarCasa} x {jogo.PlacarVisitante} {jogo.TimeVisitante?.Nome}, {DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy")}")" style="display:inline-flex;align-items:center;gap:5px">
+                            @if (!string.IsNullOrEmpty(jogo.TimeCasa?.EscudoUrl)) { <img src="@Img(jogo.TimeCasa.EscudoUrl)" alt="" loading="lazy" /> }
+                            <span>@jogo.PlacarCasa x @jogo.PlacarVisitante</span>
+                            @if (!string.IsNullOrEmpty(jogo.TimeVisitante?.EscudoUrl)) { <img src="@Img(jogo.TimeVisitante.EscudoUrl)" alt="" loading="lazy" /> }
+                            <span>@DateHelper.FormatarData(jogo.Data, "dd/MM/yy")</span>
+                        </span>
+                    }
+                    else
+                    {
+                        if (!string.IsNullOrEmpty(sigla)) { <span class="rpt-sigla">@sigla</span> }
+                        if (!string.IsNullOrEmpty(te.Escudo)) { <img src="@Img(te.Escudo)" alt="" loading="lazy" /> }
+                        <text>@te.Nome</text>
+                    }
+                </small>
+            </span>
+            @if (pct.HasValue)
+            {
+                <span class="rpt-bar" aria-hidden="true"><i style="width:@Coord(pct.Value)%"></i></span>
+            }
+            <span class="rpt-val">@(valor)@if (!string.IsNullOrEmpty(rodape)) {<small>@rodape</small>}</span>
+        </li>
+    }
+
+    void Paginacao()
+    {
+        <div class="rpt-picker-footer">
+            <button type="button" data-nav="prev" aria-label="Página anterior">‹</button>
+            <span class="rpt-pg-label"></span>
+            <button type="button" data-nav="next" aria-label="Próxima página">›</button>
+        </div>
+    }
+}
+
+<!-- ── Melhores jogadores / Recordes em um jogo (métrica selecionável) ── -->
+@if (Model.MelhoresJogadores.Any() || Model.RecordesEmUmJogo.Any())
+{
+    <div class="rpt-grid" style="margin-bottom:14px">
+
+        @if (Model.MelhoresJogadores.Any())
+        {
+            <section class="rpt-card rpt-picker">
+                <header class="rpt-card-header">
+                    <div>
+                        <h3 class="rpt-card-title">Melhores jogadores</h3>
+                        <p class="rpt-card-sub">Total acumulado nos jogos do recorte</p>
+                    </div>
+                </header>
+                <div class="rpt-picker-bar">
+                    <select class="rpt-metric-select" aria-label="Número dos melhores jogadores">
+                        @foreach (var m in Model.MelhoresJogadores)
+                        {
+                            <option value="@m.Chave">@m.Nome</option>
+                        }
+                    </select>
+                </div>
+                @foreach (var m in Model.MelhoresJogadores)
+                {
+                    <ol class="rpt-lista rpt-metric-list" data-chave="@m.Chave" style="display:none">
+                        @{ var pos = 0; }
+                        @foreach (var item in m.Itens)
+                        {
+                            pos++;
+                            Linha(pos, item.Jogador, Url.Action("Estatisticas", "Jogadores", new { id = item.Jogador.Id })!, item.Valor.ToString(), null, null);
+                        }
+                    </ol>
+                }
+                @{ Paginacao(); }
+            </section>
+        }
+
+        @if (Model.RecordesEmUmJogo.Any())
+        {
+            <section class="rpt-card rpt-picker">
+                <header class="rpt-card-header">
+                    <div>
+                        <h3 class="rpt-card-title">Recordes em um jogo</h3>
+                        <p class="rpt-card-sub">Maiores marcas numa única partida</p>
+                    </div>
+                </header>
+                <div class="rpt-picker-bar">
+                    <select class="rpt-metric-select" aria-label="Número dos recordes">
+                        @foreach (var m in Model.RecordesEmUmJogo)
+                        {
+                            <option value="@m.Chave">@m.Nome</option>
+                        }
+                    </select>
+                </div>
+                @foreach (var m in Model.RecordesEmUmJogo)
+                {
+                    <ol class="rpt-lista rpt-metric-list" data-chave="@m.Chave" style="display:none">
+                        @{ var pos = 0; }
+                        @foreach (var item in m.Itens)
+                        {
+                            pos++;
+                            var jg = item.Jogo;
+                            Linha(pos, item.Jogador, Url.Action("EstatisticasJogo", "Jogadores", new { id = item.Jogador.Id, jogoId = jg.Id })!,
+                                item.Valor.ToString(), null, null, jg);
+                        }
+                    </ol>
+                }
+                @{ Paginacao(); }
+            </section>
+        }
+
+    </div>
+}
+
+@{
+    var baseVm = Model.BaseFiltro;
+    // O rótulo dos cards acompanha a base escolhida: "Desarmes por jogo"
+    // continuaria mentindo se a lista passasse a mostrar totais ou por 90.
+    var sufixoBase = baseVm switch
+    {
+        BaseEstatistica.Total => "no total",
+        BaseEstatistica.Por90 => "por 90 min",
+        _ => "por jogo"
+    };
+    var sufixoMando = Model.MandoFiltro switch
+    {
+        MandoJogador.Casa => ", jogando em casa",
+        MandoJogador.Fora => ", jogando fora",
+        _ => ""
+    };
+    string T(string nome) => $"{nome} {sufixoBase}";
+    string S(string texto) => texto + sufixoMando;
+
+    var rankingsEstat = new (string Titulo, string Sub, string Unidade, IEnumerable<RankingEstatJogador> Lista)[]
+    {
+        (T("Finalizações no alvo"), S("Chutes que exigiram o goleiro"),            "base",  Model.RankFinalizacoesNoGol),
+        (T("Passes-chave"),         S("Passes que geraram chance de gol"),             "base",  Model.RankPassesChave),
+        (T("Passes certos"),        S("Passes concluídos"),                        "base",  Model.RankPassesCertos),
+        ("Precisão de passe",       S("Passes concluídos sobre os tentados, mínimo de 50 tentados"), "%", Model.RankPrecisaoPasses),
+        (T("Desarmes"),             S("Disputas defensivas vencidas"),             "base",  Model.RankDesarmes),
+        (T("Bloqueios"),            S("Chutes e passes bloqueados"),               "base",  Model.RankBloqueios),
+        (T("Interceptações"),       S("Bolas interceptadas"),                      "base",  Model.RankInterceptacoes),
+        (T("Dribles certos"),       S("Dribles bem-sucedidos"),                    "base",  Model.RankDrilesCertos),
+        (T("Impedimentos"),         S("Vezes pego em impedimento"),                "base",  Model.RankImpedimentos),
+        ("Pênaltis defendidos",     "Total no recorte",                            "total", Model.RankPenaltisDefendidos),
+        ("Vezes capitão",           "Jogos com a braçadeira",                      "total", Model.RankVezesCapitao),
+    };
+}
+
+@if (!rankingsEstat.Any(r => r.Lista.Any()))
+{
+    <section class="rpt-card">
+        <p class="rpt-vazio">
+            Nenhuma estatística individual no recorte. Os números chegam com a importação
+            das estatísticas de cada jogo.
+        </p>
+    </section>
+}
+else
+{
+    <div class="rpt-grid">
+        @foreach (var (titulo, sub, unidade, lista) in rankingsEstat)
+        {
+            if (!lista.Any()) { continue; }
+
+            // "base" acompanha o seletor de números individuais; "total" e "%"
+            // são fixos porque não têm leitura por jogo nem por 90 que faça sentido.
+            Func<RankingEstatJogador, double> ler = unidade switch
+            {
+                "total" => r => r.Total,
+                "%"     => r => r.Media,
+                _       => r => r.Valor(baseVm)
+            };
+            var inteiro = unidade == "total" || (unidade == "base" && baseVm == BaseEstatistica.Total);
+            var maxVal = lista.Max(ler);
+            var pos = 0;
+            <section class="rpt-card">
+                <header class="rpt-card-header">
+                    <div>
+                        <h3 class="rpt-card-title">@titulo</h3>
+                        <p class="rpt-card-sub">@sub</p>
+                    </div>
+                </header>
+                <ol class="rpt-lista">
+                    @foreach (var item in lista)
+                    {
+                        pos++;
+                        var val = ler(item);
+                        var texto = inteiro ? val.ToString("F0", PtBR) : unidade == "%" ? val.ToString("0.0", PtBR) + "%" : val.ToString("0.00", PtBR);
+                        // Por 90 min mostra os minutos: é o denominador da conta, e sem ele
+                        // não dá pra julgar se o número veio de amostra grande ou pequena.
+                        var rodape = unidade == "base" && baseVm == BaseEstatistica.Por90
+                            ? $"{item.Minutos} min"
+                            : Jogos(item.Partidas);
+                        Linha(pos, item.Jogador, Url.Action("Estatisticas", "Jogadores", new { id = item.Jogador.Id })!,
+                            texto, rodape, maxVal > 0 ? val / maxVal * 100 : 0);
+                    }
+                </ol>
+            </section>
+        }
+    </div>
+}

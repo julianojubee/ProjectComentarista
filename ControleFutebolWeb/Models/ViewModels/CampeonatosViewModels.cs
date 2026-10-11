@@ -29,6 +29,9 @@ namespace ControleFutebolWeb.Models.ViewModels
         // Formatos com mata-mata: jogo entre os perdedores das semifinais.
         public bool DisputaTerceiro { get; set; }
 
+        // Mata-mata de ida e volta: a final (e o 3º lugar) em partida única.
+        public bool FinalJogoUnico { get; set; }
+
         [Range(1, 8, ErrorMessage = "Entre 1 e 8 por grupo.")]
         public int ClassificadosPorGrupo { get; set; } = 2;
     }

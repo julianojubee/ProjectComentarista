@@ -94,6 +94,28 @@
         public bool TemDesempenho => Grupos.Count > 0;
 
         /// <summary>
+        /// Goleiro pelo nosso cadastro (ou pela posição principal da fonte, na falta
+        /// dele). Muda o que o totalizador destaca: gols e assistências de um goleiro
+        /// são dois zeros, e o número que diz algo é o de jogos.
+        /// </summary>
+        public bool EhGoleiro =>
+            (Cadastro?.Posicao is { } p && ControleFutebolWeb.Helpers.PosicaoJogadorHelper.Sigla(p) == "GOL")
+            || (PosicaoPrincipal?.Contains("Goleiro", StringComparison.OrdinalIgnoreCase) ?? false);
+
+        /// <summary>
+        /// O seletor único de temporada da tela: as do totalizador (carreira) somadas às
+        /// do desempenho (as que têm competição com estatística), sem repetir, da mais
+        /// recente para a mais antiga. Antes eram dois seletores que não conversavam.
+        /// </summary>
+        public List<string> TemporadasSeletor =>
+            TemporadasCarreira.Select(t => t.Nome)
+                .Concat(Temporadas.Select(t => t.Nome))
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct()
+                .OrderByDescending(n => n, StringComparer.Ordinal)
+                .ToList();
+
+        /// <summary>
         /// Gols e assistências somados da carreira inteira, para o topo da tela.
         ///
         /// Sai de <see cref="Carreira"/>, que já está nesta mesma página: a tela mostrava
@@ -132,9 +154,9 @@
                         Assistencias = carreira.AssistenciasGeral,
                         Detalhe = "todas as passagens da carreira",
                         DetalheGols = carreira.TemSelecao
-                            ? $"{carreira.Gols} por clubes · {carreira.GolsSelecao} pela seleção" : "",
+                            ? $"{carreira.Gols} por clubes, {carreira.GolsSelecao} pela seleção" : "",
                         DetalheAssistencias = carreira.TemSelecao
-                            ? $"{carreira.Assistencias} por clubes · {carreira.AssistenciasSelecao} pela seleção" : "",
+                            ? $"{carreira.Assistencias} por clubes, {carreira.AssistenciasSelecao} pela seleção" : "",
                     });
                 }
 
@@ -356,6 +378,12 @@
         /// ter a liga inteira. Cálculo do FotMob, e a tela diz isso.
         /// </summary>
         public double? Percentil { get; set; }
+
+        /// <summary>
+        /// Número menor é o bom (gols sofridos, cartões, erros). O percentil já vem
+        /// orientado; a marca é para a tela avisar o leitor e tratar o empate no zero.
+        /// </summary>
+        public bool MenosEhMelhor { get; set; }
     }
 
     /// <summary>
@@ -376,6 +404,16 @@
         public long? AdversarioId { get; set; }
         public bool Mandante { get; set; }
         public string? Placar { get; set; }
+
+        /// <summary>Gols do time do jogador e do adversário (null sem placar).</summary>
+        public int? GolsTime { get; set; }
+        public int? GolsAdversario { get; set; }
+
+        /// <summary>"V", "E" ou "D" do ponto de vista do jogador; null sem placar.</summary>
+        public string? Resultado => GolsTime is int t && GolsAdversario is int a
+            ? (t > a ? "V" : t < a ? "D" : "E")
+            : null;
+
         public int? Minutos { get; set; }
         public int Gols { get; set; }
         public int Assistencias { get; set; }

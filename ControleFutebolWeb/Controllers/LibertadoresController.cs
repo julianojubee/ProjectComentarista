@@ -133,7 +133,8 @@ namespace ControleFutebolWeb.Controllers
                 _context, todosJogosRealizados.Select(j => j.Id),
                 golsEstat.Select(g => g.JogadorId).Concat(cartoesEstat.Select(c => c.JogadorId))).ToList();
 
-            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(todosJogosRealizados, golsEstat, cartoesEstat, escalacoesEstat);
+            ViewBag.EstatisticasTimes = EstatisticaTimeCalculator.Calcular(todosJogosRealizados, golsEstat, cartoesEstat, escalacoesEstat,
+                DesarmesPorTimeHelper.Carregar(_context, todosJogosRealizados));
 
             return View(vm);
         }

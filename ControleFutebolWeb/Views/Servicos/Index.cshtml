@@ -238,7 +238,7 @@
                     Atividade: <span class="stat-atividade">@(string.IsNullOrEmpty(s.UltimaAtividade) ? "—" : s.UltimaAtividade)</span>
                 </div>
 
-                @{ var chave = ControleFutebolWeb.Services.AtualizarJogadoresSemDataService.Chave; }
+                @{ var chave = s.Chave; }
                 <div style="display:flex; gap:8px; margin-top:1rem;">
                     <form method="post" asp-action="Parar">
                         @Html.AntiForgeryToken()

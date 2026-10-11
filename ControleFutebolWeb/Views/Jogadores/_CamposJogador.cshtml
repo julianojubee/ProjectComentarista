@@ -1,0 +1,57 @@
+@* Campos comuns de Create e Edit do jogador. A posição é texto livre com
+   sugestões (datalist) das posições já cadastradas: "Ala Direito/Ala Esquerdo"
+   e afins não cabem numa lista fechada. *@
+@model ControleFutebolWeb.Models.Jogador
+@{
+    var posicoes = (ViewBag.Posicoes as IEnumerable<SelectListItem>)?.Select(i => i.Text)
+        .Where(p => !string.IsNullOrWhiteSpace(p)).ToList() ?? new List<string>();
+}
+
+<div class="af-field">
+    <label class="af-label" for="Nome">Nome</label>
+    <input asp-for="Nome" class="af-input" required autofocus />
+    <span asp-validation-for="Nome" class="af-validation"></span>
+</div>
+
+<div class="af-linha">
+    <div class="af-field">
+        <label class="af-label" for="Posicao">Posição</label>
+        <input asp-for="Posicao" class="af-input" list="jfPosicoes" autocomplete="off" required />
+        <datalist id="jfPosicoes">
+            @foreach (var p in posicoes)
+            {
+                <option value="@p"></option>
+            }
+        </datalist>
+        <span asp-validation-for="Posicao" class="af-validation"></span>
+    </div>
+    <div class="af-field af-curto">
+        <label class="af-label" for="NumeroCamisa">Camisa <small>(opcional)</small></label>
+        <input asp-for="NumeroCamisa" class="af-input" type="number" min="0" max="99" />
+    </div>
+</div>
+
+<div class="af-field">
+    <label class="af-label" for="TimeId">Time</label>
+    @Html.DropDownList("TimeId", (IEnumerable<SelectListItem>)ViewBag.TimeId, "Selecione",
+        new { @class = "af-select", data_buscavel = "Buscar time" })
+    <span asp-validation-for="TimeId" class="af-validation"></span>
+</div>
+
+<div class="af-linha">
+    <div class="af-field">
+        <label class="af-label" for="NacionalidadeId">Nacionalidade <small>(opcional)</small></label>
+        @Html.DropDownList("NacionalidadeId", (IEnumerable<SelectListItem>)ViewBag.NacionalidadeId, "Selecione",
+            new { @class = "af-select", data_buscavel = "Buscar nacionalidade" })
+    </div>
+    <div class="af-field">
+        <label class="af-label" for="DataNascimento">Data de nascimento <small>(opcional)</small></label>
+        <input asp-for="DataNascimento" class="af-input" type="date"
+               value="@(Model?.DataNascimento?.ToString("yyyy-MM-dd") ?? "")" />
+        @if (Model?.Idade > 0)
+        {
+            <div class="af-hint">@Model.Idade anos</div>
+        }
+        <span asp-validation-for="DataNascimento" class="af-validation"></span>
+    </div>
+</div>

@@ -1,4 +1,4 @@
-﻿@using ControleFutebolWeb.Models
+@using ControleFutebolWeb.Models
 @model ControleFutebolWeb.Models.ViewModels.SulAmericanaIndexViewModel
 @using ControleFutebolWeb.Models.ViewModels
 @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
@@ -47,10 +47,9 @@
         display: inline-block;
         background: rgba(251,146,60,0.15);
         color: var(--warn);
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 700;
         letter-spacing: 1px;
-        text-transform: uppercase;
         padding: 4px 12px;
         border-radius: 999px;
         border: 1px solid rgba(251,146,60,0.3);
@@ -75,7 +74,7 @@
         gap: 14px;
     }
 
-    .sul-grupo-card { background: #fff; border: 0.5px solid #e5e7eb; border-radius: 12px; overflow: hidden; }
+    .sul-grupo-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; overflow: hidden; }
 
     .sul-grupo-header {
         background: linear-gradient(90deg, var(--bad-surface), #c2410c);
@@ -91,23 +90,22 @@
     .sul-grupo-header img { width: 18px; height: 18px; object-fit: contain; }
 
     .sul-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .sul-table thead tr { background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
+    .sul-table thead tr { background: var(--surface-2); border-bottom: 1px solid var(--border); }
     .sul-table th {
         padding: 6px 8px;
         color: var(--text-dim);
         font-weight: 600;
-        text-transform: uppercase;
-        font-size: 10px;
+        font-size: 11px;
         letter-spacing: 0.5px;
         text-align: center;
     }
     .sul-table th:first-child, .sul-table td:first-child { text-align: left; padding-left: 10px; }
     .sul-table td {
         padding: 7px 8px;
-        border-bottom: 0.5px solid #f3f4f6;
+        border-bottom: 0.5px solid var(--line-soft);
         text-align: center;
         vertical-align: middle;
-        color: #111827;
+        color: var(--text);
     }
     .sul-table tbody tr:last-child td { border-bottom: none; }
     .sul-table tbody tr:hover { background: #fff7f0; }
@@ -115,20 +113,20 @@
     .sul-pos {
         width: 18px; height: 18px; border-radius: 4px;
         display: inline-flex; align-items: center; justify-content: center;
-        font-size: 10px; font-weight: 700; color: #fff;
+        font-size: 11px; font-weight: 700; color: #fff;
     }
     .sul-pos-1, .sul-pos-2 { background: #c2410c; }
     .sul-pos-3 { background: #f59e0b; }
-    .sul-pos-default { background: #d1d5db; color: var(--text-dim); }
+    .sul-pos-default { background: var(--line-strong); color: var(--text-dim); }
 
     .sul-team-cell { display: flex; align-items: center; gap: 7px; min-width: 120px; }
     .sul-team-cell img {
         width: 20px; height: 20px; object-fit: contain;
-        border-radius: 50%; border: 0.5px solid #e5e7eb;
+        border-radius: 50%; border: 0.5px solid var(--border);
         background: #f9f9f9; flex-shrink: 0;
     }
     .sul-team-cell span {
-        font-size: 12px; font-weight: 500; color: #111827;
+        font-size: 12px; font-weight: 500; color: var(--text);
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px;
     }
 
@@ -143,7 +141,7 @@
 
     .sul-sidebar { position: sticky; top: 16px; }
     .sul-sidebar-title {
-        font-size: 13px; font-weight: 700; color: #111827;
+        font-size: 13px; font-weight: 700; color: var(--text);
         margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
     }
     .sul-rodada-badge {
@@ -153,7 +151,7 @@
     }
 
     .sul-jogo-card {
-        background: #fff; border: 0.5px solid #e5e7eb;
+        background: var(--surface); border: 0.5px solid var(--border);
         border-radius: 10px; margin-bottom: 10px; overflow: hidden;
         transition: box-shadow 0.15s;
     }
@@ -161,41 +159,41 @@
 
     .sul-jogo-header {
         background: linear-gradient(90deg, var(--bad-surface), #c2410c);
-        color: var(--warn); font-size: 10px; font-weight: 600;
+        color: var(--warn); font-size: 11px; font-weight: 600;
         padding: 5px 10px; display: flex; justify-content: space-between; align-items: center;
     }
     .sul-jogo-body { padding: 10px 12px; }
     .sul-jogo-teams { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
     .sul-jogo-team { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 0; }
-    .sul-jogo-team img { width: 32px; height: 32px; object-fit: contain; border-radius: 50%; border: 0.5px solid #e5e7eb; background: #f9f9f9; }
-    .sul-jogo-team span { font-size: 11px; font-weight: 500; color: #374151; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px; }
+    .sul-jogo-team img { width: 32px; height: 32px; object-fit: contain; border-radius: 50%; border: 0.5px solid var(--border); background: #f9f9f9; }
+    .sul-jogo-team span { font-size: 11px; font-weight: 500; color: var(--text-2); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px; }
     .sul-vs { font-size: 11px; font-weight: 700; color: var(--text-muted); flex-shrink: 0; }
     .sul-score {
         display: inline-flex; align-items: center; justify-content: center;
         background: #c2410c; color: #fff; font-weight: 700; font-size: 13px;
         padding: 2px 10px; border-radius: 6px; min-width: 52px;
     }
-    .sul-badge-agendado { font-size: 10px; background: #f3f4f6; color: var(--text-dim); padding: 2px 8px; border-radius: 6px; font-weight: 500; }
+    .sul-badge-agendado { font-size: 11px; background: var(--surface-3); color: var(--text-dim); padding: 2px 8px; border-radius: 6px; font-weight: 500; }
     .sul-jogo-footer {
         display: flex; justify-content: space-between; align-items: center;
-        margin-top: 8px; padding-top: 6px; border-top: 0.5px solid #f3f4f6;
-        font-size: 10px; color: var(--text-muted);
+        margin-top: 8px; padding-top: 6px; border-top: 0.5px solid var(--line-soft);
+        font-size: 11px; color: var(--text-muted);
     }
     .sul-analisar-btn {
-        font-size: 10px; padding: 3px 10px; border-radius: 6px;
+        font-size: 11px; padding: 3px 10px; border-radius: 6px;
         border: 1px solid #c2410c; color: #c2410c; background: transparent;
         text-decoration: none; font-weight: 600; transition: background 0.15s, color 0.15s;
     }
     .sul-analisar-btn:hover { background: #c2410c; color: #fff; text-decoration: none; }
-    .sul-grupo-tag { background: rgba(255,255,255,0.15); color: var(--warn); font-size: 9px; padding: 1px 6px; border-radius: 999px; font-weight: 600; }
+    .sul-grupo-tag { background: rgba(255,255,255,0.15); color: var(--warn); font-size: 11px; padding: 1px 6px; border-radius: 999px; font-weight: 600; }
 
-    .sul-empty { text-align: center; padding: 3rem 1rem; color: var(--text-muted); font-size: 13px; background: #fff; border: 0.5px solid #e5e7eb; border-radius: 12px; }
+    .sul-empty { text-align: center; padding: 3rem 1rem; color: var(--text-muted); font-size: 13px; background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; }
 </style>
 
 <!-- Banner -->
 <div class="sul-hero theme-dark-zone">
     <div class="sul-hero-content">
-        <span class="sul-badge">Competição Continental</span>
+        <span class="sul-badge">Competição continental</span>
         <div class="sul-title-wrap">
             <img src="~/images/background/sudamericana.png" alt="Sul-Americana" class="sul-logo" />
             <h2 class="sul-title">CONMEBOL Sul-Americana</h2>
@@ -232,7 +230,6 @@
 @if (!grupos.Any())
 {
     <div class="sul-empty">
-        <div style="font-size:2rem;margin-bottom:8px;">🏆</div>
         Nenhum jogo com grupo definido encontrado para a Sul-Americana.<br>
         <small>Importe os jogos com o campo <strong>Grupo</strong> preenchido para ver a classificação.</small>
     </div>
@@ -244,9 +241,9 @@ else
         <!-- Coluna esquerda: grupos -->
         <div>
             <div class="sul-legenda">
-                <span><span class="sul-leg-dot" style="background:#c2410c;"></span>Classificado para Oitavas</span>
+                <span><span class="sul-leg-dot" style="background:#c2410c;"></span>Classificado para as oitavas</span>
                 <span><span class="sul-leg-dot" style="background:#f59e0b;"></span>Repescagem</span>
-                <span><span class="sul-leg-dot" style="background:#d1d5db;"></span>Eliminado</span>
+                <span><span class="sul-leg-dot" style="background:var(--line-strong);"></span>Eliminado</span>
             </div>
 
             <div class="sul-grupos">
@@ -255,7 +252,7 @@ else
                     <div class="sul-grupo-card">
                         <div class="sul-grupo-header">
                             <img src="~/images/background/sudamericana.png" alt="Sul-Americana" />
-                            Grupo @LetraGrupo(grupo.Nome)
+                            @ControleFutebolWeb.Helpers.RodadaHelper.RotuloGrupo(grupo.Nome)
                         </div>
 
                         @if (!grupo.Times.Any())
@@ -342,7 +339,7 @@ else
                             <span>@ControleFutebolWeb.Helpers.DateHelper.FormatarData(jogo.Data, "dd/MM/yyyy HH:mm")</span>
                             @if (!string.IsNullOrEmpty(jogo.Grupo))
                             {
-                                <span class="sul-grupo-tag">Grupo @LetraGrupo(jogo.Grupo)</span>
+                                <span class="sul-grupo-tag">@ControleFutebolWeb.Helpers.RodadaHelper.Rotulo(jogo.Grupo, jogo.Rodada)</span>
                             }
                         </div>
                         <div class="sul-jogo-body">
@@ -360,7 +357,7 @@ else
                                         <span class="sul-score">@jogo.PlacarCasa x @jogo.PlacarVisitante</span>
                                         @if (jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue)
                                         {
-                                            <span class="sul-pen">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante pên.)</span>
+                                            <span class="sul-pen">(@jogo.PenaltisCasa x @jogo.PenaltisVisitante nos pênaltis)</span>
                                         }
                                     }
                                     else
@@ -379,7 +376,7 @@ else
                             <div class="sul-jogo-footer">
                                 @if (realizado)
                                 {
-                                    <span style="color:var(--ok-2);font-weight:600">✔ Realizado</span>
+                                    <span style="color:var(--ok-2);font-weight:600">Encerrado</span>
                                 }
                                 else
                                 {
@@ -387,7 +384,7 @@ else
                                 }
                                 <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id"
                                    class="sul-analisar-btn">
-                                    Analisar →
+                                    Analisar
                                 </a>
                             </div>
                         </div>

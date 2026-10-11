@@ -12,6 +12,9 @@ namespace ControleFutebolWeb.Services
         public static ResultadoCampeonato Falha(string erro) => new(false, erro);
     }
 
+    /// <summary>Um campeonato na lista de "Meus campeonatos".</summary>
+    public sealed record CampeonatoListaItem(Campeonato Campeonato, SituacaoCampeonato Situacao, ResumoCampeonato Resumo);
+
     /// <summary>
     /// Acesso ao banco do módulo de campeonatos próprios: carrega o campeonato do
     /// dono, monta o painel (via CampeonatoPainelAdapter) e grava as partidas que o
@@ -105,7 +108,8 @@ namespace ControleFutebolWeb.Services
                     break;
 
                 case "MATA_MATA":
-                    partidas = GeradorPartidasCampeonato.MataMata(entrantes, fase.IdaEVolta, rodadaInicial, fase.DisputaTerceiro);
+                    partidas = GeradorPartidasCampeonato.MataMata(entrantes, fase.IdaEVolta, rodadaInicial,
+                        fase.DisputaTerceiro, fase.FinalJogoUnico);
                     break;
 
                 default:
@@ -147,18 +151,27 @@ namespace ControleFutebolWeb.Services
             return new ResultadoCampeonato(true, Partidas: alteradas);
         }
 
-        /// <summary>Campeonatos do usuário com a situação (encerrado? campeão?) de cada um.</summary>
-        public async Task<List<(Campeonato Campeonato, SituacaoCampeonato Situacao)>> ListarAsync(string usuarioId)
+        /// <summary>
+        /// Campeonatos do usuário com a situação (encerrado? campeão?) e o resumo do
+        /// andamento de cada um. Sem os eventos das partidas: progresso, líder e
+        /// campeão saem dos placares — só o desempate por cartões deixa de contar.
+        /// </summary>
+        public async Task<List<CampeonatoListaItem>> ListarAsync(string usuarioId)
         {
-            var campeonatos = await ComTudo()
+            var campeonatos = await _context.Campeonatos
+                .Include(c => c.Fases)
+                .Include(c => c.Participantes).ThenInclude(p => p.TimeProprio)
+                .Include(c => c.Participantes).ThenInclude(p => p.Time)
+                .Include(c => c.Partidas)
+                .AsSplitQuery()
                 .AsNoTracking()
                 .Where(c => c.UsuarioId == usuarioId)
                 .ToListAsync();
 
             return campeonatos
                 .OrderBy(c => c.Status == StatusCampeonato.Encerrado)
-                .ThenByDescending(c => c.CriadoEm)
-                .Select(c => (c, SituacaoCampeonatoHelper.Avaliar(c)))
+                .ThenByDescending(c => c.Status == StatusCampeonato.Encerrado ? c.EncerradoEm ?? c.CriadoEm : c.CriadoEm)
+                .Select(c => new CampeonatoListaItem(c, SituacaoCampeonatoHelper.Avaliar(c), ResumoCampeonatoHelper.Montar(c)))
                 .ToList();
         }
 
