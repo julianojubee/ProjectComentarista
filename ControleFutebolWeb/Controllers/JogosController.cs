@@ -2161,10 +2161,39 @@ namespace ControleFutebolWeb.Controllers
                 UsuarioId = usuarioId
             }).ToList();
 
+            await AplicarSubstituicoesAsync(ctx, jogoId, clones);
+            return clones;
+        }
+
+        // Aplica as substituições importadas sobre a escalação FINAL (em memória):
+        // quem entrou assume a posição em campo de quem saiu e quem saiu vai para o
+        // banco (se houver slot de reserva).
+        //
+        // Exceção do goleiro: se quem entra é goleiro e quem sai é jogador de linha,
+        // o goleiro titular foi expulso (ou se machucou depois das trocas) e o técnico
+        // sacrificou alguém de linha. O reserva vai para o slot do GOL — não para o do
+        // jogador de linha —, o goleiro que estava lá deixa o campo e o slot de quem
+        // saiu vira banco: o time termina com 10, como em campo.
+        private static async Task AplicarSubstituicoesAsync(FutebolContext ctx, int jogoId, List<Escalacao> finais)
+        {
             var substituicoes = await ctx.Substituicoes
                 .Where(s => s.JogoId == jogoId)
                 .OrderBy(s => s.Minuto)
                 .ToListAsync();
+            if (substituicoes.Count == 0) return;
+
+            var idsEntraram = substituicoes
+                .Where(s => s.JogadorEntrouId != null)
+                .Select(s => s.JogadorEntrouId!.Value)
+                .Distinct()
+                .ToList();
+            var goleirosQueEntraram = (await ctx.Jogadores
+                    .Where(j => idsEntraram.Contains(j.Id))
+                    .Select(j => new { j.Id, j.Posicao })
+                    .ToListAsync())
+                .Where(j => (j.Posicao ?? "").StartsWith("Goleiro", StringComparison.OrdinalIgnoreCase))
+                .Select(j => j.Id)
+                .ToHashSet();
 
             foreach (var sub in substituicoes)
             {
@@ -2173,19 +2202,37 @@ namespace ControleFutebolWeb.Controllers
                     continue;
 
                 // Slot em campo de quem saiu (titular). Sem ele, não há o que substituir.
-                var slotSaiu = clones.FirstOrDefault(c =>
+                var slotSaiu = finais.FirstOrDefault(c =>
                     c.JogadorId == sub.JogadorSaiuId && c.IsTimeCasa == sub.IsTimeCasa && c.Titular);
                 if (slotSaiu == null) continue;
 
                 // Se quem entrou já está em campo, nada a fazer (evita reprocessar).
-                bool jaEmCampo = clones.Any(c =>
+                bool jaEmCampo = finais.Any(c =>
                     c.JogadorId == sub.JogadorEntrouId && c.IsTimeCasa == sub.IsTimeCasa && c.Titular);
                 if (jaEmCampo) continue;
 
                 // Slot de quem entrou (no banco). Pode não existir se a importação trouxe
                 // o banco incompleto ou o jogador não estava entre os reservas.
-                var slotEntrou = clones.FirstOrDefault(c =>
+                var slotEntrou = finais.FirstOrDefault(c =>
                     c.JogadorId == sub.JogadorEntrouId && c.IsTimeCasa == sub.IsTimeCasa && !c.Titular);
+
+                var slotGol = goleirosQueEntraram.Contains(sub.JogadorEntrouId.Value)
+                    ? SlotDoGol(finais, sub.IsTimeCasa)
+                    : null;
+
+                if (slotGol != null && slotGol != slotSaiu)
+                {
+                    // Goleiro que estava no gol vai para o banco no lugar do reserva.
+                    if (slotEntrou != null)
+                        slotEntrou.JogadorId = slotGol.JogadorId;
+                    slotGol.JogadorId = sub.JogadorEntrouId;
+
+                    // Jogador de linha sacrificado: o slot dele sai do campo.
+                    slotSaiu.Titular = false;
+                    slotSaiu.PosicaoX = 0;
+                    slotSaiu.PosicaoY = 0;
+                    continue;
+                }
 
                 // Quem saiu vai para o banco (se houver slot de reserva); senão, apenas deixa o campo.
                 if (slotEntrou != null)
@@ -2195,8 +2242,15 @@ namespace ControleFutebolWeb.Controllers
                 // estivesse no banco importado (garante a seta verde no jogador certo).
                 slotSaiu.JogadorId = sub.JogadorEntrouId;
             }
+        }
 
-            return clones;
+        // Slot titular do gol: o marcado como Goleiro/GL; sem marcação, o mais recuado
+        // do campo (o GL das formações fica em Y ~92).
+        private static Escalacao? SlotDoGol(List<Escalacao> escalacoes, bool isTimeCasa)
+        {
+            var titulares = escalacoes.Where(e => e.IsTimeCasa == isTimeCasa && e.Titular).ToList();
+            return titulares.FirstOrDefault(e => e.Posicao == "Goleiro" || e.Posicao == "GL")
+                ?? titulares.Where(e => e.PosicaoY >= 85).OrderByDescending(e => e.PosicaoY).FirstOrDefault();
         }
 
         // Recria as cópias pessoais INICIAL e FINAL a partir da importação fresca:
@@ -2226,34 +2280,7 @@ namespace ControleFutebolWeb.Controllers
             var iniciais = compartilhadas.Select(e => Clonar(e, "INICIAL")).ToList();
             var finais   = compartilhadas.Select(e => Clonar(e, "FINAL")).ToList();
 
-            // Aplica as substituições na FINAL: quem entrou assume a posição em
-            // campo de quem saiu; quem saiu vai para o banco (se houver slot).
-            var substituicoes = await ctx.Substituicoes
-                .Where(s => s.JogoId == jogoId)
-                .OrderBy(s => s.Minuto)
-                .ToListAsync();
-
-            foreach (var sub in substituicoes)
-            {
-                if (sub.JogadorSaiuId == null || sub.JogadorEntrouId == null
-                    || sub.JogadorEntrouId == sub.JogadorSaiuId)
-                    continue;
-
-                var slotSaiu = finais.FirstOrDefault(c =>
-                    c.JogadorId == sub.JogadorSaiuId && c.IsTimeCasa == sub.IsTimeCasa && c.Titular);
-                if (slotSaiu == null) continue;
-
-                bool jaEmCampo = finais.Any(c =>
-                    c.JogadorId == sub.JogadorEntrouId && c.IsTimeCasa == sub.IsTimeCasa && c.Titular);
-                if (jaEmCampo) continue;
-
-                var slotEntrou = finais.FirstOrDefault(c =>
-                    c.JogadorId == sub.JogadorEntrouId && c.IsTimeCasa == sub.IsTimeCasa && !c.Titular);
-
-                if (slotEntrou != null)
-                    slotEntrou.JogadorId = slotSaiu.JogadorId;
-                slotSaiu.JogadorId = sub.JogadorEntrouId;
-            }
+            await AplicarSubstituicoesAsync(ctx, jogoId, finais);
 
             ctx.Escalacoes.AddRange(iniciais);
             ctx.Escalacoes.AddRange(finais);
