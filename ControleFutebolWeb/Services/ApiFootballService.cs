@@ -127,6 +127,14 @@ namespace ControleFutebolWeb.Services
         private static readonly HashSet<string> StatusFinalizados =
             new(StringComparer.OrdinalIgnoreCase) { "FT", "AET", "PEN" };
 
+        // Até quantos dias depois do jogo a sincronização confere se a api-football
+        // corrigiu gols e assistências (ver ReimportarGolsSeCorrigidosAsync).
+        private static readonly TimeSpan JanelaConferenciaGols = TimeSpan.FromDays(3);
+
+        // Linha do log de sincronização que registra uma correção de gols.
+        private const string TipoLogEventos = "Eventos";
+        private const string AcaoLogGolsCorrigidos = "Corrigidos";
+
         // Status de bola rolando (ou partida já iniciada e parada no meio): é a janela em
         // que o placar parcial e o relógio do card fazem sentido. Fora daqui — "NS" de
         // jogo que ainda vai começar, "PST"/"CANC" de adiado — não há parcial nenhum para
@@ -191,9 +199,11 @@ namespace ControleFutebolWeb.Services
                 return (0, 0, 0, avisos);
             }
 
-            // Limpa logs anteriores desta competição e inicia novo ciclo
+            // Limpa logs anteriores desta competição e inicia novo ciclo. As correções de
+            // gols ficam: são o histórico do que a api-football mudou depois do jogo.
             var logsAntigos = await context.TransfermarktSincronizacaoLogs
-                .Where(l => l.CompeticaoNome == competicao.Nome)
+                .Where(l => l.CompeticaoNome == competicao.Nome &&
+                            !(l.Tipo == TipoLogEventos && l.Acao == AcaoLogGolsCorrigidos))
                 .ToListAsync(ct);
             context.TransfermarktSincronizacaoLogs.RemoveRange(logsAntigos);
             await context.SaveChangesAsync(ct);
@@ -1520,11 +1530,20 @@ namespace ControleFutebolWeb.Services
                         await ImportarLineupEEventos(context, existente,
                             fx, timeCasa, timeVis, cicloId, ct);
                     }
-                    else if (fx.Players.Any())
+                    else
                     {
+                        // A api-football revisa autor de gol, gol contra e assistência até
+                        // um ou dois dias depois do jogo, e a importação acima só roda uma
+                        // vez. Jogo recente é conferido de novo a cada sincronização.
+                        if (temEscalacao && fx.Events.Any() &&
+                            existente.Data >= DateTime.UtcNow - JanelaConferenciaGols)
+                            await ReimportarGolsSeCorrigidosAsync(context, competicao, existente,
+                                fx, timeCasa, timeVis, cicloId, ct);
+
                         // Jogo já escalado/analisado: atualiza só as estatísticas reais dos
                         // jogadores, preservando as posições em campo e as observações.
-                        await SalvarEstatisticasJogadoresAsync(context, existente, fx, ct);
+                        if (fx.Players.Any())
+                            await SalvarEstatisticasJogadoresAsync(context, existente, fx, ct);
                     }
                 }
 
@@ -1866,10 +1885,70 @@ namespace ControleFutebolWeb.Services
             await context.SaveChangesAsync(ct);
 
             // Eventos
+            var penaltisDisputaNovos = await ImportarEventosAsync(context, jogo, fx, timeCasa, timeVis,
+                jogadorMap, jogadorSemIdMap, permitirTrocaClube, somenteGols: false, ct);
+
+            // Placar da disputa de pênaltis = cobranças convertidas por lado. Sem isso,
+            // Jogo.PenaltisCasa/PenaltisVisitante ficavam sempre null (nada os
+            // preenchia), quebrando quem depende deles pra saber quem avançou/venceu
+            // nos pênaltis (lista de Jogos, chaveamento da Copa, resumo do placar em
+            // Analisar) — mesmo com as cobranças already certinhas em PenaltisDisputa.
+            if (penaltisDisputaNovos.Count > 0)
+            {
+                jogo.PenaltisCasa = penaltisDisputaNovos.Count(p => p.IsTimeCasa && p.Convertido);
+                jogo.PenaltisVisitante = penaltisDisputaNovos.Count(p => !p.IsTimeCasa && p.Convertido);
+            }
+            else
+            {
+                jogo.PenaltisCasa = null;
+                jogo.PenaltisVisitante = null;
+            }
+
+            await context.SaveChangesAsync(ct);
+
+            int gols = fx.Events.Count(e => e.Type.Equals("Goal", StringComparison.OrdinalIgnoreCase)
+                && e.Detail?.Contains("Missed", StringComparison.OrdinalIgnoreCase) != true
+                && e.Comments?.Contains("Shootout", StringComparison.OrdinalIgnoreCase) != true);
+            int cartoes = fx.Events.Count(e => e.Type.Equals("Card", StringComparison.OrdinalIgnoreCase));
+            int subs = fx.Events.Count(e => e.Type.Equals("subst", StringComparison.OrdinalIgnoreCase));
+            int titulares = fx.Lineups.Sum(l => l.StartXI.Count);
+
+            Log(context, cicloId, "Escalação", "Importada",
+                jogoDescricao: $"{fx.Teams.Home.Name} × {fx.Teams.Away.Name}",
+                detalhes: $"{titulares} titulares | {gols} gols | {cartoes} cartões | {subs} substituições");
+
+            // Estatísticas individuais (para pré-preencher a nota manual)
+            await SalvarEstatisticasJogadoresAsync(context, jogo, fx, ct);
+        }
+
+        /// <summary>
+        /// Grava os lances de <paramref name="fx"/> no jogo. Quem chama já apagou os
+        /// registros antigos. <paramref name="somenteGols"/> restringe aos lances do
+        /// tipo "Goal" — é o que a conferência de eventos corrigidos reimporta, sem
+        /// tocar em cartões e substituições. Devolve as cobranças da disputa de pênaltis
+        /// para quem chama decidir o placar dela.
+        /// </summary>
+        private async Task<List<PenaltiDisputa>> ImportarEventosAsync(
+            FutebolContext context,
+            Jogo jogo,
+            AfFixture fx,
+            Time timeCasa,
+            Time timeVis,
+            Dictionary<int, Jogador> jogadorMap,
+            Dictionary<string, Jogador> jogadorSemIdMap,
+            bool permitirTrocaClube,
+            bool somenteGols,
+            CancellationToken ct)
+        {
             var ordemPenaltiDisputa = 0;
             var penaltisDisputaNovos = new List<PenaltiDisputa>();
             foreach (var ev in fx.Events)
             {
+                // Só os lances do tipo "Goal": gols, gols contra, assistências e pênaltis
+                // (perdidos e da disputa). Cartões e substituições ficam como estão.
+                if (somenteGols && !ev.Type.Equals("Goal", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
                 var isTimeCasa = ev.Team.Id == fx.Teams.Home.Id;
                 var minuto = ev.Time.Elapsed;
 
@@ -2010,37 +2089,177 @@ namespace ControleFutebolWeb.Services
                 }
             }
 
-            // Placar da disputa de pênaltis = cobranças convertidas por lado. Sem isso,
-            // Jogo.PenaltisCasa/PenaltisVisitante ficavam sempre null (nada os
-            // preenchia), quebrando quem depende deles pra saber quem avançou/venceu
-            // nos pênaltis (lista de Jogos, chaveamento da Copa, resumo do placar em
-            // Analisar) — mesmo com as cobranças already certinhas em PenaltisDisputa.
-            if (penaltisDisputaNovos.Count > 0)
+            return penaltisDisputaNovos;
+        }
+
+        // ── Conferência de gols corrigidos ────────────────────────────────────
+
+        /// <summary>Um gol ou assistência reduzido ao que a correção muda: quem foi.</summary>
+        internal record LanceGol(long? IdApi, string Nome, bool Contra);
+
+        internal record ConferenciaGols(bool Divergente, string Descricao);
+
+        /// <summary>
+        /// Compara os gols (autor + gol contra) e as assistências da api-football com os
+        /// gravados no jogo. O minuto fica de fora: FotMob e api-football costumam
+        /// divergir em um minuto no mesmo gol, e mudança só de minuto não interessa.
+        ///
+        /// O jogador casa pelo id da API OU pelo nome: no futebol feminino a api-football
+        /// usa nos eventos um id diferente do da escalação para a mesma jogadora (Vic
+        /// Albuquerque: 77324 no gol, 591488 na lineup), e casar só por id acusaria
+        /// correção em toda sincronização.
+        ///
+        /// Quando o gravado tem MAIS gols que a API não há divergência: veio do FotMob
+        /// ou foi lançado à mão enquanto a api-football estava atrasada, e reimportar
+        /// apagaria isso. Pelo mesmo motivo, assistências a mais no gravado não contam.
+        /// </summary>
+        internal static ConferenciaGols CompararGolsEAssistencias(
+            IEnumerable<AfEvent> eventos,
+            IReadOnlyList<LanceGol> golsGravados,
+            IReadOnlyList<LanceGol> assistenciasGravadas)
+        {
+            var golsApi = new List<LanceGol>();
+            var assistApi = new List<LanceGol>();
+
+            foreach (var ev in eventos)
             {
-                jogo.PenaltisCasa = penaltisDisputaNovos.Count(p => p.IsTimeCasa && p.Convertido);
-                jogo.PenaltisVisitante = penaltisDisputaNovos.Count(p => !p.IsTimeCasa && p.Convertido);
+                if (!ev.Type.Equals("Goal", StringComparison.OrdinalIgnoreCase)) continue;
+                if (ev.Detail?.Contains("Missed", StringComparison.OrdinalIgnoreCase) == true) continue;
+                if (ev.Comments?.Contains("Shootout", StringComparison.OrdinalIgnoreCase) == true) continue;
+
+                var contra = ev.Detail?.Contains("Own", StringComparison.OrdinalIgnoreCase) == true;
+                golsApi.Add(new LanceGol(ev.Player.Id, ev.Player.Name ?? "", contra));
+
+                if (!contra && ev.Assist != null &&
+                    (ev.Assist.Id > 0 || !string.IsNullOrWhiteSpace(ev.Assist.Name)))
+                    assistApi.Add(new LanceGol(ev.Assist.Id, ev.Assist.Name ?? "", false));
             }
-            else
+
+            var semNada = new ConferenciaGols(false, "");
+
+            if (golsApi.Count < golsGravados.Count) return semNada;
+
+            var partes = new List<string>();
+
+            var (golsSairam, golsEntraram) = Diferenca(golsGravados, golsApi);
+            if (golsSairam.Count + golsEntraram.Count > 0)
+                partes.Add("Gols: " + Descrever(golsSairam, golsEntraram));
+
+            if (assistApi.Count >= assistenciasGravadas.Count)
             {
-                jogo.PenaltisCasa = null;
-                jogo.PenaltisVisitante = null;
+                var (assistSairam, assistEntraram) = Diferenca(assistenciasGravadas, assistApi);
+                if (assistSairam.Count + assistEntraram.Count > 0)
+                    partes.Add("Assistências: " + Descrever(assistSairam, assistEntraram));
+            }
+
+            return partes.Count == 0 ? semNada : new ConferenciaGols(true, string.Join(" | ", partes));
+
+            // Diferença de multiconjunto: o que só existe de um lado. Casa pelo id da
+            // API e, se não, pelo nome (ver o resumo acima).
+            static (List<LanceGol> sairam, List<LanceGol> entraram) Diferenca(
+                IReadOnlyList<LanceGol> gravados, IReadOnlyList<LanceGol> api)
+            {
+                var restantes = api.ToList();
+                var sairam = new List<LanceGol>();
+                foreach (var g in gravados)
+                {
+                    var i = restantes.FindIndex(a => a.Contra == g.Contra && a.IdApi > 0 && a.IdApi == g.IdApi);
+                    if (i < 0)
+                        i = restantes.FindIndex(a => a.Contra == g.Contra &&
+                            !string.IsNullOrWhiteSpace(a.Nome) && !string.IsNullOrWhiteSpace(g.Nome) &&
+                            NomesCorrespondem(a.Nome, g.Nome));
+                    if (i >= 0) restantes.RemoveAt(i);
+                    else sairam.Add(g);
+                }
+                return (sairam, restantes);
+            }
+
+            static string Descrever(List<LanceGol> sairam, List<LanceGol> entraram) =>
+                string.Join("; ", sairam.Select(l => "−" + Rotulo(l))
+                    .Concat(entraram.Select(l => "+" + Rotulo(l))));
+
+            static string Rotulo(LanceGol l) => l.Contra ? $"{l.Nome} (contra)" : l.Nome;
+        }
+
+        /// <summary>
+        /// Reimporta só os lances de gol (gols, gols contra, assistências, pênaltis
+        /// perdidos e da disputa) de um jogo já importado quando a api-football os
+        /// corrigiu depois. Escalação, cartões, substituições e o que é de cada analista
+        /// ficam como estão. O que mudou vai para o log da sincronização.
+        /// </summary>
+        private async Task ReimportarGolsSeCorrigidosAsync(
+            FutebolContext context,
+            Competicao competicao,
+            Jogo jogo,
+            AfFixture fx,
+            Time timeCasa,
+            Time timeVis,
+            Guid cicloId,
+            CancellationToken ct)
+        {
+            var golsGravados = await context.Gols
+                .Where(g => g.JogoId == jogo.Id)
+                .Select(g => new LanceGol(g.Jogador.IdApi, g.Jogador.Nome, g.Contra))
+                .ToListAsync(ct);
+            var assistGravadas = await context.Assistencias
+                .Where(a => a.JogoId == jogo.Id)
+                .Select(a => new LanceGol(a.Jogador.IdApi, a.Jogador.Nome, false))
+                .ToListAsync(ct);
+
+            var conferencia = CompararGolsEAssistencias(fx.Events, golsGravados, assistGravadas);
+            if (!conferencia.Divergente) return;
+
+            // Trava contra repetição: se a reimportação anterior gravou a mesma diferença,
+            // é a comparação que não consegue casar algum jogador (id e nome distintos
+            // entre evento e cadastro), não a API corrigindo de novo. Reimportar a cada
+            // sincronização só encheria o log.
+            var ultimaCorrecao = await context.TransfermarktSincronizacaoLogs
+                .Where(l => l.Tipo == TipoLogEventos && l.Acao == AcaoLogGolsCorrigidos &&
+                            l.CompeticaoNome == competicao.Nome &&
+                            l.JogoDescricao != null && l.JogoDescricao.StartsWith(jogo.Id + ":"))
+                .OrderByDescending(l => l.Data)
+                .Select(l => l.Detalhes)
+                .FirstOrDefaultAsync(ct);
+            if (ultimaCorrecao == conferencia.Descricao)
+            {
+                _logger.LogDebug("[ApiFoot] Jogo {Id}: mesma diferença de gols da última correção — não reimporta de novo. {Desc}",
+                    jogo.Id, conferencia.Descricao);
+                return;
+            }
+
+            context.Gols.RemoveRange(
+                await context.Gols.Where(g => g.JogoId == jogo.Id).ToListAsync(ct));
+            context.Assistencias.RemoveRange(
+                await context.Assistencias.Where(a => a.JogoId == jogo.Id).ToListAsync(ct));
+            context.PenaltisPerdidos.RemoveRange(
+                await context.PenaltisPerdidos.Where(p => p.JogoId == jogo.Id).ToListAsync(ct));
+            context.PenaltisDisputa.RemoveRange(
+                await context.PenaltisDisputa.Where(p => p.JogoId == jogo.Id).ToListAsync(ct));
+
+            // Correção de lance não é fonte de transferência: não move ninguém de clube.
+            var penaltisDisputa = await ImportarEventosAsync(context, jogo, fx, timeCasa, timeVis,
+                new Dictionary<int, Jogador>(), new Dictionary<string, Jogador>(),
+                permitirTrocaClube: false, somenteGols: true, ct);
+
+            // Sem cobranças nos eventos fica o placar da disputa que veio de fx.Score.
+            if (penaltisDisputa.Count > 0)
+            {
+                jogo.PenaltisCasa = penaltisDisputa.Count(p => p.IsTimeCasa && p.Convertido);
+                jogo.PenaltisVisitante = penaltisDisputa.Count(p => !p.IsTimeCasa && p.Convertido);
             }
 
             await context.SaveChangesAsync(ct);
 
-            int gols = fx.Events.Count(e => e.Type.Equals("Goal", StringComparison.OrdinalIgnoreCase)
-                && e.Detail?.Contains("Missed", StringComparison.OrdinalIgnoreCase) != true
-                && e.Comments?.Contains("Shootout", StringComparison.OrdinalIgnoreCase) != true);
-            int cartoes = fx.Events.Count(e => e.Type.Equals("Card", StringComparison.OrdinalIgnoreCase));
-            int subs = fx.Events.Count(e => e.Type.Equals("subst", StringComparison.OrdinalIgnoreCase));
-            int titulares = fx.Lineups.Sum(l => l.StartXI.Count);
+            _logger.LogInformation("[ApiFoot] Gols corrigidos pela API em {Casa} × {Vis} (jogo {Id}): {Desc}",
+                fx.Teams.Home.Name, fx.Teams.Away.Name, jogo.Id, conferencia.Descricao);
 
-            Log(context, cicloId, "Escalação", "Importada",
-                jogoDescricao: $"{fx.Teams.Home.Name} × {fx.Teams.Away.Name}",
-                detalhes: $"{titulares} titulares | {gols} gols | {cartoes} cartões | {subs} substituições");
-
-            // Estatísticas individuais (para pré-preencher a nota manual)
-            await SalvarEstatisticasJogadoresAsync(context, jogo, fx, ct);
+            // Com o id do jogo e a data: esta linha não é apagada nas sincronizações
+            // seguintes, então precisa se explicar sozinha depois.
+            Log(context, cicloId, TipoLogEventos, AcaoLogGolsCorrigidos,
+                competicaoNome: competicao.Nome,
+                jogoDescricao: $"{jogo.Id}: {fx.Teams.Home.Name} × {fx.Teams.Away.Name}" +
+                               (jogo.Data is DateTime d ? $" ({d.ToLocalTime():dd/MM/yyyy})" : ""),
+                detalhes: conferencia.Descricao);
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
