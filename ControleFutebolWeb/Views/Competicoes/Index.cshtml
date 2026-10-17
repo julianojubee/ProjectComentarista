@@ -4,28 +4,8 @@
 @{
     ViewData["Title"] = "Competições";
 
-    // Mesma lógica de roteamento usada no menu do layout — mantém consistência
-    // entre o menu superior e os cards desta tela (inclui o fix da rota da Champions,
-    // que antes caía de volta em Competicoes/Index).
-    Func<Competicao, string> rotaCompeticao = (comp) =>
-    {
-        var nome = comp.Nome?.ToLowerInvariant() ?? "";
-        // Só o Brasileirão masculino (CompeticaoId == 1, mesma convenção do resto do
-        // sistema) usa a tabela dedicada; Feminino/U20 etc. caem na tela genérica.
-        if (comp.Id == 1)
-            return Url.Action("Brasileirao", "Tabela")!;
-        if (nome.Contains("copa do brasil"))
-            return Url.Action("Index", "CopaBrasil")!;
-        if (nome.Contains("copa do mundo"))
-            return Url.Action("Index", "CopaDoMundo")!;
-        if (nome.Contains("libertadores"))
-            return Url.Action("Index", "Libertadores")!;
-        if (nome.Contains("sul-americana") || nome.Contains("sudamericana") || nome.Contains("sul americana"))
-            return Url.Action("Index", "SulAmericana")!;
-        if (nome.Contains("champions"))
-            return Url.Action("Index", "ChampionsLeague")!;
-        return Url.Action("Detalhes", "Competicoes", new { id = comp.Id })!;
-    };
+    // Mesma regra de roteamento do menu do layout (CompeticaoRotaHelper).
+    Func<Competicao, string> rotaCompeticao = comp => CompeticaoRotaHelper.Url(Url, comp.Id);
 
     // Competicao.Tipo é o FORMATO da competição (ver Create/Edit: PONTOS_CORRIDOS,
     // GRUPOS, MATA_MATA, JOGO_UNICO) — não uma classificação geográfica.

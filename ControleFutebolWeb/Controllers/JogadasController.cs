@@ -3,6 +3,7 @@ using System.Text.Json;
 using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
+using ControleFutebolWeb.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -403,6 +404,163 @@ namespace ControleFutebolWeb.Controllers
             }
         }
 
+        // ── Vídeo → jogada (rascunho gerado por IA) ──────────────────────────
+        //
+        // O usuário sobe o clipe do lance (o vídeo da transmissão) e recebe de volta
+        // um storyboard pronto para o editor: AnaliseVideoJogadaService tira os frames
+        // e o Claude reconhece jogadores, bola e momentos-chave. Nada é gravado aqui —
+        // o rascunho abre no editor como jogada nova e só vira Jogada no Salvar, depois
+        // que o usuário revisou.
+
+        public class AnalisarVideoRequest
+        {
+            public IFormFile? Arquivo { get; set; }
+            public int JogoId { get; set; }
+            public int TimeId { get; set; }
+            public double? Inicio { get; set; }
+            public double? Fim { get; set; }
+            public string? Contexto { get; set; }
+        }
+
+        [HttpPost]
+        [RequestSizeLimit(MaxVideoBytes + 1024 * 1024)]
+        public async Task<IActionResult> AnalisarVideo([FromForm] AnalisarVideoRequest req,
+            [FromServices] AnaliseVideoJogadaService analise)
+        {
+            if (req.Arquivo == null || req.Arquivo.Length == 0) return BadRequest("Nenhum vídeo enviado.");
+            if (req.Arquivo.Length > MaxVideoBytes) return BadRequest("Vídeo grande demais (máx. 80 MB).");
+
+            var uid = _userManager.GetUserId(User)!;
+            var jogo = await _context.Jogos.AsNoTracking()
+                .Include(j => j.TimeCasa).Include(j => j.TimeVisitante)
+                .FirstOrDefaultAsync(j => j.Id == req.JogoId);
+            if (jogo == null) return NotFound();
+            if (req.TimeId != jogo.TimeCasaId && req.TimeId != jogo.TimeVisitanteId)
+                return BadRequest("O time não participa deste jogo.");
+
+            var ffmpeg = CaminhoFfmpeg();
+            if (ffmpeg == null) return StatusCode(503, "O servidor não tem ffmpeg instalado para ler o vídeo.");
+            if (analise.ChaveApi() == null)
+                return StatusCode(503, "A análise por IA não está configurada: defina Anthropic:ApiKey nos user-secrets.");
+
+            bool nosCasa = req.TimeId == jogo.TimeCasaId;
+            var nos = await TitularesAsync(jogo, nosCasa, uid);
+            var adv = await TitularesAsync(jogo, !nosCasa, uid);
+            if (nos.Count == 0)
+                return BadRequest("Este jogo ainda não tem a escalação do time: a IA precisa dos titulares para reconhecer os jogadores.");
+
+            var jogadores = nos.Select(e => new JogadorDoLance(e.Id, e.Num, e.Nome, e.Sigla, false))
+                .Concat(adv.Select(e => new JogadorDoLance(e.Id, e.Num, e.Nome, e.Sigla, true)))
+                .GroupBy(j => j.Id).Select(g => g.First())   // jogador nos dois lados = dado sujo
+                .ToList();
+
+            var ext = Path.GetExtension(req.Arquivo.FileName);
+            if (string.IsNullOrEmpty(ext) || ext.Length > 6) ext = ".mp4";
+            var temp = Path.Combine(Path.GetTempPath(), "jgdv-" + Guid.NewGuid().ToString("N") + ext);
+
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(HttpContext.RequestAborted);
+            cts.CancelAfter(TimeSpan.FromMinutes(8));
+            try
+            {
+                await using (var fs = System.IO.File.Create(temp))
+                    await req.Arquivo.CopyToAsync(fs, cts.Token);
+
+                var frames = await analise.ExtrairFramesAsync(ffmpeg, temp, req.Inicio, req.Fim, cts.Token);
+                var nomeNos = (nosCasa ? jogo.TimeCasa : jogo.TimeVisitante)?.Nome ?? "";
+                var nomeAdv = (nosCasa ? jogo.TimeVisitante : jogo.TimeCasa)?.Nome ?? "";
+                var lance = await analise.AnalisarAsync(frames, nomeNos, nomeAdv, jogadores, req.Contexto, cts.Token);
+
+                if (lance.Passos.Count == 0)
+                    return UnprocessableEntity("A IA não encontrou um lance com a bola rolando neste trecho do vídeo.");
+
+                var storyboard = Normalizar(MontarStoryboardDoLance(lance, nos.Concat(adv).ToList(), adv.Select(a => a.Id).ToHashSet()));
+                return Ok(new
+                {
+                    nome = Cortar(lance.Nome, 80) ?? "Jogada do vídeo",
+                    descricao = Cortar(lance.Descricao, 400),
+                    frames = frames.Count,
+                    storyboard
+                });
+            }
+            catch (OperationCanceledException) when (!HttpContext.RequestAborted.IsCancellationRequested)
+            {
+                return StatusCode(504, "A análise do vídeo demorou demais e foi cancelada.");
+            }
+            catch (InvalidOperationException e)
+            {
+                return StatusCode(502, e.Message);
+            }
+            catch (Anthropic.Exceptions.AnthropicApiException e)
+            {
+                _log.LogWarning(e, "Falha na API Anthropic ao analisar vídeo do jogo {Jogo}", req.JogoId);
+                return StatusCode(502, "A API de IA recusou o pedido: " + e.Message);
+            }
+            finally
+            {
+                try { if (System.IO.File.Exists(temp)) System.IO.File.Delete(temp); } catch { }
+            }
+        }
+
+        // Coordenadas da IA (campo inteiro, 0–100) → prancheta, comprimidas nas mesmas
+        // faixas da escalação (ParaCampoHorizontal) para nome e sigla não serem cortados.
+        private static double CampoX(double x) => 5 + Math.Clamp(x, 0, 100) * 0.90;
+        private static double CampoY(double y) => 8 + Math.Clamp(y, 0, 100) * 0.84;
+
+        // A IA só informa quem viu em cada momento; o storyboard exige todas as peças
+        // em todos os passos (é o que deixa a interpolação do player trivial). Quem
+        // sumiu do quadro fica onde foi visto pela última vez; antes da primeira
+        // aparição, já espera na primeira posição conhecida. Quem nunca apareceu não
+        // entra na jogada.
+        private static StoryboardDto MontarStoryboardDoLance(LanceAnalisado lance, List<TitularDto> titulares, HashSet<int> adversarios)
+        {
+            var porId = titulares.GroupBy(t => t.Id).ToDictionary(g => g.Key, g => g.First());
+            var ordem = lance.Passos.SelectMany(p => p.Pecas).Select(c => c.Id)
+                .Where(porId.ContainsKey).Distinct().ToList();
+
+            var ultima = new Dictionary<int, PecaAnalisada>();
+            foreach (var p in lance.Passos)
+                foreach (var c in p.Pecas)
+                    ultima.TryAdd(c.Id, c);   // semente = primeira aparição
+
+            var passos = new List<PassoDto>();
+            foreach (var p in lance.Passos)
+            {
+                var vistos = p.Pecas.ToDictionary(c => c.Id);
+                var pecas = new List<PecaDto>();
+                foreach (var id in ordem)
+                {
+                    var visto = vistos.TryGetValue(id, out var c);
+                    if (visto) ultima[id] = c!;
+                    var u = ultima[id];
+                    pecas.Add(new PecaDto { Id = id, X = CampoX(u.X), Y = CampoY(u.Y), Modo = visto ? u.Modo : "trote" });
+                }
+                passos.Add(new PassoDto
+                {
+                    Legenda = p.Legenda,
+                    Passe = p.Passe,
+                    Bola = new PontoDto { X = CampoX(p.BolaX), Y = CampoY(p.BolaY) },
+                    Pecas = pecas
+                });
+            }
+
+            // Duração de cada transição = intervalo real mediano entre os momentos do
+            // vídeo: a animação fica no ritmo do lance de verdade.
+            var gaps = lance.Passos.Zip(lance.Passos.Skip(1), (a, b) => b.Segundo - a.Segundo)
+                .Where(g => g > 0).OrderBy(g => g).ToList();
+            int ms = gaps.Count == 0 ? 900 : (int)Math.Clamp(gaps[gaps.Count / 2] * 1000, 600, 2500);
+
+            return new StoryboardDto
+            {
+                Ms = ms,
+                Elenco = ordem.Select(id =>
+                {
+                    var t = porId[id];
+                    return new ElencoDto { Id = id, Num = t.Num, Nome = t.Nome, Sigla = t.Sigla, Foto = t.Foto, Adv = adversarios.Contains(id) };
+                }).ToList(),
+                Passos = passos
+            };
+        }
+
         // Caminho do ffmpeg: o do appsettings ("Ffmpeg:Caminho") vence, senão o do
         // PATH. Devolve null quando não há nenhum — é o que faz a rota responder
         // "este servidor não converte" em vez de estourar.
@@ -456,37 +614,7 @@ namespace ControleFutebolWeb.Controllers
                 })
                 .ToListAsync();
 
-            // Escalação titular deste jogo (a do usuário vence a importada da API),
-            // convertida para o campo horizontal: é a semente do primeiro passo, para
-            // a jogada já começar com o time posicionado.
-            var escalacoes = await _context.Escalacoes
-                .AsNoTracking()
-                .Include(e => e.Jogador)
-                .Where(e => e.JogoId == jogo.Id && e.Titular && e.IsTimeCasa == ehCasa
-                         && e.JogadorId != null
-                         && (e.UsuarioId == uid || e.UsuarioId == null)
-                         && (e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null))
-                .ToListAsync();
-
-            var escalacao = escalacoes
-                .GroupBy(e => e.JogadorId)
-                .Select(g => g.OrderBy(e => e.UsuarioId == null ? 1 : 0).First())
-                .Select(e =>
-                {
-                    var (x, y) = ParaCampoHorizontal(e.PosicaoX, e.PosicaoY);
-                    return new
-                    {
-                        id = e.Jogador!.Id,
-                        num = e.Jogador.NumeroCamisa?.ToString() ?? "",
-                        nome = e.Jogador.Nome,
-                        sigla = PosicaoJogadorHelper.Sigla(e.Posicao),
-                        foto = ImagemUrl(e.Jogador.FotoUrl),
-                        x,
-                        y
-                    };
-                })
-                .OrderBy(e => e.x)
-                .ToList();
+            var escalacao = await TitularesAsync(jogo, ehCasa, uid);
 
             return new
             {
@@ -512,6 +640,36 @@ namespace ControleFutebolWeb.Controllers
                     storyboard = LerStoryboard(j.PassosJson)
                 })
             };
+        }
+
+        public record TitularDto(int Id, string Num, string Nome, string Sigla, string? Foto, double X, double Y);
+
+        // Escalação titular deste jogo (a do usuário vence a importada da API),
+        // convertida para o campo horizontal: é a semente do primeiro passo, para
+        // a jogada já começar com o time posicionado — e a lista de quem a IA pode
+        // reconhecer no vídeo do lance.
+        private async Task<List<TitularDto>> TitularesAsync(Jogo jogo, bool ehCasa, string uid)
+        {
+            var escalacoes = await _context.Escalacoes
+                .AsNoTracking()
+                .Include(e => e.Jogador)
+                .Where(e => e.JogoId == jogo.Id && e.Titular && e.IsTimeCasa == ehCasa
+                         && e.JogadorId != null
+                         && (e.UsuarioId == uid || e.UsuarioId == null)
+                         && (e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null))
+                .ToListAsync();
+
+            return escalacoes
+                .GroupBy(e => e.JogadorId)
+                .Select(g => g.OrderBy(e => e.UsuarioId == null ? 1 : 0).First())
+                .Select(e =>
+                {
+                    var (x, y) = ParaCampoHorizontal(e.PosicaoX, e.PosicaoY);
+                    return new TitularDto(e.Jogador!.Id, e.Jogador.NumeroCamisa?.ToString() ?? "",
+                        e.Jogador.Nome, PosicaoJogadorHelper.Sigla(e.Posicao), ImagemUrl(e.Jogador.FotoUrl), x, y);
+                })
+                .OrderBy(e => e.X)
+                .ToList();
         }
 
         // Campo da tela Analisar (vertical: X é a lateral, Y vai de 0 no ataque a 100

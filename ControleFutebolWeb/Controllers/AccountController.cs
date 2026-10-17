@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace ControleFutebolWeb.Controllers
@@ -21,6 +22,7 @@ namespace ControleFutebolWeb.Controllers
         private readonly ILogger<AccountController> _logger;
         private readonly PixOptions _pixOptions;
         private readonly IMemoryCache _cache;
+        private readonly ControleFutebolWeb.Data.FutebolContext _context;
 
         public AccountController(
             UserManager<ApplicationUser> userManager,
@@ -28,8 +30,10 @@ namespace ControleFutebolWeb.Controllers
             IEmailSender emailSender,
             ILogger<AccountController> logger,
             Microsoft.Extensions.Options.IOptions<PixOptions> pixOptions,
-            IMemoryCache cache)
+            IMemoryCache cache,
+            ControleFutebolWeb.Data.FutebolContext context)
         {
+            _context = context;
             _userManager = userManager;
             _signInManager = signInManager;
             _emailSender = emailSender;
@@ -39,21 +43,46 @@ namespace ControleFutebolWeb.Controllers
         }
 
         [AllowAnonymous]
-        public IActionResult Login(string? returnUrl = null)
+        public async Task<IActionResult> Login(string? returnUrl = null)
         {
             if (User.Identity?.IsAuthenticated == true)
                 return RedirectToAction("Index", "Home");
 
             ViewBag.ReturnUrl = returnUrl;
+            ViewBag.Numeros = await NumerosDoAcervoAsync();
             return View();
+        }
+
+        // Números do painel esquerdo do login. Eram fixos no HTML ("+2.000",
+        // "+84"...) e envelheciam; agora são as contagens reais, guardadas por
+        // uma hora para a tela de login não bater no banco a cada visita.
+        private async Task<(int Jogadores, int Competicoes, int Times, int Jogos)> NumerosDoAcervoAsync()
+        {
+            return await _cache.GetOrCreateAsync("login:numeros", async e =>
+            {
+                e.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1);
+                e.Size = 1; // o cache do app tem SizeLimit: toda entrada declara o tamanho
+                return (await _context.Jogadores.CountAsync(),
+                        await _context.Competicoes.CountAsync(),
+                        await _context.Times.CountAsync(),
+                        await _context.Jogos.CountAsync());
+            });
         }
 
         [HttpPost, AllowAnonymous, ValidateAntiForgeryToken]
         public async Task<IActionResult> Login(LoginViewModel model, string? returnUrl = null)
         {
+            ViewBag.ReturnUrl = returnUrl;
+            ViewBag.Numeros = await NumerosDoAcervoAsync();
             if (!ModelState.IsValid) return View(model);
 
-            var usuario = await _userManager.FindByNameAsync(model.UserName);
+            // O campo aceita usuário ou e-mail (é o que o placeholder promete);
+            // antes só o nome de usuário era procurado e quem digitava o e-mail
+            // levava "senha inválida" sempre.
+            var digitado = model.UserName.Trim();
+            var usuario = await _userManager.FindByNameAsync(digitado);
+            if (usuario == null && digitado.Contains('@'))
+                usuario = await _userManager.FindByEmailAsync(digitado);
             if (usuario == null)
             {
                 ModelState.AddModelError("", "Usuário ou senha inválidos.");
@@ -61,6 +90,16 @@ namespace ControleFutebolWeb.Controllers
             }
 
             var checagem = await _signInManager.CheckPasswordSignInAsync(usuario, model.Password, lockoutOnFailure: true);
+            if (checagem.IsLockedOut)
+            {
+                // Depois de 5 erros a conta trava por 10 minutos (Program.cs). A
+                // mensagem genérica fazia a pessoa achar que errava a senha e
+                // continuar tentando.
+                var fim = usuario.LockoutEnd?.UtcDateTime ?? DateTime.UtcNow;
+                var minutos = Math.Max(1, (int)Math.Ceiling((fim - DateTime.UtcNow).TotalMinutes));
+                ModelState.AddModelError("", $"Muitas tentativas com a senha errada. Por segurança, esta conta fica bloqueada por {(minutos == 1 ? "1 minuto" : $"{minutos} minutos")}. Se esqueceu a senha, use o link abaixo para criar outra.");
+                return View(model);
+            }
             if (!checagem.Succeeded)
             {
                 ModelState.AddModelError("", "Usuário ou senha inválidos.");

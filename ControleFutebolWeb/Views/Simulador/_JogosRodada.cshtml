@@ -17,7 +17,8 @@
             {
                 <strong>Sem rodada definida</strong>
             }
-            <span>@Model.Jogos.Count(j => !j.Realizado) jogo(s) a simular</span>
+            @{ var faltam = Model.Jogos.Count(j => !j.Realizado); }
+            <span>@(faltam == 0 ? "Nenhum jogo a simular" : faltam == 1 ? "1 jogo a simular" : $"{faltam} jogos a simular")</span>
         </div>
         <button type="button" class="sim-seta" data-ir="@Model.RodadaProxima"
                 title="Próxima rodada" @(Model.RodadaProxima == null ? "disabled" : "")>›</button>
@@ -33,7 +34,8 @@
                  data-jogo="@j.Id"
                  data-ultimo="@(item.Simulado ? $"{item.PlacarCasa}x{item.PlacarVisitante}" : "vazio")">
                 <div class="sim-jogo-data">
-                    @(j.Data.HasValue ? j.Data.Value.ToLocalTime().ToString("dd/MM HH:mm", ptBr) : "a definir")
+                    @* ToLocalTime usava o fuso do servidor: num servidor em UTC, tudo 3h adiantado *@
+                    @(j.Data.HasValue ? ControleFutebolWeb.Helpers.DateHelper.FormatarData(j.Data, "dd/MM HH:mm") : "data a definir")
                     @if (item.Realizado)
                     {
                         <span class="sim-tag oficial">oficial</span>

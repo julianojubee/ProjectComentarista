@@ -1,4 +1,4 @@
-﻿// ControleFutebolWeb/Controllers/SulAmericanaController.cs
+// ControleFutebolWeb/Controllers/SulAmericanaController.cs
 using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
@@ -20,29 +20,23 @@ namespace ControleFutebolWeb.Controllers
             _context = context;
         }
         // GET: /SulAmericana
+        // Mesma tela da Libertadores (grupos, mata-mata e estatísticas), com nome,
+        // logo, cores e regras de classificação da Sul-Americana. A tela antiga
+        // tratava toda fase como grupo: oitavas, quartas e 16-avos viravam tabelas.
         public IActionResult Index(int? temporada = null)
         {
-            var (temporadasDisponiveis, temporadaSel) =
-                TemporadaHelper.Resolver(_context, COMPETICAO_ID, temporada);
-            var vm = new SulAmericanaIndexViewModel
-            {
-                Temporada = temporadaSel,
-                TemporadasDisponiveis = temporadasDisponiveis
-            };
-
-            var grupos = MontarGrupos(temporadaSel);
-            var proximosJogos = BuscarProximosJogos(temporadaSel);
-            var rodadaAtual = proximosJogos.Any()
-                ? proximosJogos.Min(j => j.Rodada)
-                : (_context.Jogos.Any(j => j.CompeticaoId == COMPETICAO_ID)
-                    ? _context.Jogos.Where(j => j.CompeticaoId == COMPETICAO_ID).Max(j => j.Rodada)
-                    : 0);
-
-            vm.Grupos = grupos;
-            vm.ProximosJogos = proximosJogos;
-            vm.RodadaAtual = rodadaAtual;
-
-            return View(vm);
+            var (vm, estatisticas) = CopaContinentalPainelBuilder.Montar(_context, COMPETICAO_ID, temporada);
+            ViewBag.EstatisticasTimes = estatisticas;
+            ViewData["CopaId"] = COMPETICAO_ID;
+            ViewData["CopaNome"] = "Sul-Americana";
+            ViewData["CopaTema"] = "sul";
+            ViewData["CopaLogo"] = "~/images/background/sudamericana.png";
+            ViewData["CopaTagline"] = "A Grande Conquista";
+            // Fase de grupos: 1º vai direto às oitavas, 2º joga os playoffs
+            // (16-avos) contra um 3º colocado da Libertadores
+            ViewData["CopaVagasOitavas"] = 1;
+            ViewData["CopaLegendaRepescagem"] = "Vai para os playoffs (16-avos)";
+            return View("~/Views/Libertadores/Index.cshtml", vm);
         }
 
         // ── GET: retorna o status de um jogo específico (AJAX) ───────────────
@@ -96,64 +90,5 @@ namespace ControleFutebolWeb.Controllers
                 $"Jogo {id} resetado. Será reprocessado na próxima sincronização.";
             return RedirectToAction(nameof(Index));
         }
-
-        // ─────────────────────────────────────────────────────────────────────
-        // HELPERS PRIVADOS
-        // ─────────────────────────────────────────────────────────────────────
-
-        private List<GrupoViewModel> MontarGrupos(int? temporada = null)
-        {
-            var jogosRealizados = _context.Jogos
-                .Include(j => j.TimeCasa)
-                .Include(j => j.TimeVisitante)
-                .Where(j => j.CompeticaoId == COMPETICAO_ID &&
-                            j.PlacarCasa.HasValue && j.PlacarVisitante.HasValue &&
-                            !string.IsNullOrEmpty(j.Grupo) &&
-                            (temporada == null || j.Temporada == temporada))
-                .OrderBy(j => j.Data)
-                .ToList();
-
-            return jogosRealizados
-                .Select(j => j.Grupo!)
-                .Distinct()
-                .OrderBy(g => g)
-                .Select(nomeGrupo =>
-                {
-                    var jogosGrupo = jogosRealizados
-                        .Where(j => j.Grupo == nomeGrupo).ToList();
-                    return new GrupoViewModel
-                    {
-                        Nome = nomeGrupo,
-                        Times = ClassificacaoCalculator.Calcular(jogosGrupo)
-                    };
-                })
-                .ToList();
-        }
-
-        private List<Jogo> BuscarProximosJogos(int? temporada = null)
-        {
-            // Jogos sem placar (agendados) ou com placar mas recentes
-            var sem = _context.Jogos
-                .Include(j => j.TimeCasa)
-                .Include(j => j.TimeVisitante)
-                .Where(j => j.CompeticaoId == COMPETICAO_ID &&
-                            (!j.PlacarCasa.HasValue || !j.PlacarVisitante.HasValue) &&
-                            (temporada == null || j.Temporada == temporada))
-                .OrderBy(j => j.Data)
-                .Take(20)
-                .ToList();
-
-            if (sem.Any()) return sem;
-
-            return _context.Jogos
-                .Include(j => j.TimeCasa)
-                .Include(j => j.TimeVisitante)
-                .Where(j => j.CompeticaoId == COMPETICAO_ID &&
-                            (temporada == null || j.Temporada == temporada))
-                .OrderByDescending(j => j.Data)
-                .Take(10)
-                .ToList();
-        }
-
     }
 }

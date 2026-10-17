@@ -1,4 +1,4 @@
-﻿@model ControleFutebolWeb.Models.TimeDetalhesViewModel
+@model ControleFutebolWeb.Models.TimeDetalhesViewModel
 @using ControleFutebolWeb.Helpers
 @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
 
@@ -833,7 +833,7 @@
                     <summary class="ctd-action-btn" title="Buscar e atualizar dados nas fontes externas">Dados ▾</summary>
                     <div class="ctd-menu-lista">
                         <form method="post" asp-action="ImportarElenco" asp-controller="Times" asp-route-id="@Model.Time.Id"
-                              onsubmit="return confirm('Buscar o elenco deste time na fonte da competição (api-football ou FIFA) e cadastrar quem ainda não existe?')">
+                              onsubmit="return confirm('Buscar o elenco deste time na fonte da competição (api-football ou FIFA; se a api-football não tiver, o FotMob) e cadastrar quem ainda não existe?')">
                             @Html.AntiForgeryToken()
                             <button type="submit" class="ctd-action-btn">Buscar elenco</button>
                         </form>
@@ -903,10 +903,12 @@
                         const d = await r.json();
                         if (!r.ok) { out.innerHTML = `<div class="text-danger">${esc(d.erro || 'Erro na busca.')}</div>`; return; }
                         if (!d.ligas.length) { out.innerHTML = '<div class="text-muted">Nenhum jogo encontrado nessa temporada.</div>'; return; }
+                        // Competições com tela própria abrem a delas (CompeticaoRotaHelper)
+                        const TELAS_COMPETICAO = @Html.Raw(ControleFutebolWeb.Helpers.CompeticaoRotaHelper.MapaTelasPropriasJson(Url));
                         out.innerHTML = d.ligas.map(l => {
                             const faltam = l.jogos.filter(j => !j.importado).length;
                             const destino = l.competicaoId
-                                ? `em <a href="/Competicoes/Detalhes/${l.competicaoId}">${esc(l.competicaoNome)}</a>`
+                                ? `em <a href="${TELAS_COMPETICAO[l.competicaoId] || '/Competicoes/Detalhes/' + l.competicaoId}">${esc(l.competicaoNome)}</a>`
                                 : '<span class="text-warning">competição não cadastrada — será criada</span>';
                             const linhas = l.jogos.map(j => `
                                 <tr>

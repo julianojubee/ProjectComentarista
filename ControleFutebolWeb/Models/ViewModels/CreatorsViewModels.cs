@@ -16,6 +16,15 @@ namespace ControleFutebolWeb.Models.ViewModels
         public List<Time> Times { get; set; } = new();
     }
 
+    // Hub /creators: resumo dos jogos de hoje para a faixa do topo
+    public class CreatorsHubViewModel
+    {
+        public int JogosHoje { get; set; }
+        public int AoVivo { get; set; }
+        // "15:45", horário de Brasília do próximo jogo de hoje a começar; null se não há
+        public string? ProximoJogo { get; set; }
+    }
+
     public class CreatorsSelecaoViewModel
     {
         public List<Competicao> Competicoes { get; set; } = new();

@@ -14,11 +14,15 @@
 }
 
 <div class="cr-wrap cr-wrap-campo">
-    <h1 class="cr-titulo">Escalações</h1>
-    <p class="cr-sub">
-        Escolha dois times e o campo aparece com a última escalação titular de cada um.
-        Daí é seu: arraste, troque pelo elenco, desenhe movimentações. Nada é salvo.
-    </p>
+    @* Título e seletores numa linha só: o campo é o conteúdo e precisa caber
+       inteiro na janela de quem vai capturar a tela para a live. *@
+    <div class="cr-esc-topo">
+    <div>
+        <h1 class="cr-titulo">Escalações</h1>
+        <p class="cr-sub">
+            O campo vem com a última escalação titular de cada time. Arraste, troque pelo elenco e desenhe as jogadas.
+        </p>
+    </div>
 
     @if (Model.Times.Count == 0)
     {
@@ -63,7 +67,11 @@
                 </select>
             </div>
         </div>
+    }
+    </div>
 
+    @if (Model.Times.Count > 0)
+    {
         <div id="crMatchUp" aria-live="polite">
             <div class="cr-vazio">
                 <b>Escolha os dois times</b>

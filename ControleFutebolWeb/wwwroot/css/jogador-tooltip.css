@@ -60,7 +60,10 @@
         font-size: 12px;
         color: var(--text-strong);
         min-width: 170px;
-        max-width: 250px;
+        max-width: min(250px, calc(100vw - 16px));
+        /* Card mais alto que a tela (celular deitado): não passa da altura visível */
+        max-height: calc(100vh - 16px);
+        overflow: hidden;
         pointer-events: none;
         box-shadow: 0 4px 16px rgba(0,0,0,0.5);
         line-height: 1.6;

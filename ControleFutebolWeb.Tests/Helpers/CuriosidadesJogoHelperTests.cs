@@ -137,5 +137,111 @@ namespace ControleFutebolWeb.Tests.Helpers
             Assert.All(r, c => Assert.False(string.IsNullOrEmpty(c.Chave)));
             Assert.Equal(r.Count, r.Select(c => c.Chave).Distinct().Count());
         }
+
+        // ── Jejuns em todas as competições ──────────────────────────────────────
+
+        private static readonly DateTime DataAtual = new(2026, 10, 17, 12, 0, 0, DateTimeKind.Utc);
+
+        // Jogo do visitante (Id 2) contra um terceiro, n semanas antes da partida atual.
+        private static JogoTime JogoVisitante(int id, int semanasAntes, int golsPro, int golsContra, bool emCasa = true, string competicao = "Premier League") =>
+            emCasa
+                ? new JogoTime(id, DataAtual.AddDays(-7 * semanasAntes), Visitante, 50 + id, golsPro, golsContra, "Visitante FC", "Rival " + id, competicao)
+                : new JogoTime(id, DataAtual.AddDays(-7 * semanasAntes), 50 + id, Visitante, golsContra, golsPro, "Rival " + id, "Visitante FC", competicao);
+
+        private static Entrada ComHistoricoTimes(int placarCasa, int placarVisitante, IReadOnlyList<JogoTime> historico)
+        {
+            var e = Base(Array.Empty<EstatisticaJogador>(), Array.Empty<EstatisticaJogador>(),
+                new[] { new JogoResumo(JogoAtual, DataAtual, Casa, Visitante, placarCasa, placarVisitante) });
+            return new Entrada
+            {
+                JogoId = e.JogoId, TimeCasaId = e.TimeCasaId, TimeVisitanteId = e.TimeVisitanteId,
+                NomeCasa = e.NomeCasa, NomeVisitante = e.NomeVisitante, JogosCampeonato = e.JogosCampeonato,
+                NomeJogador = e.NomeJogador, LadoJogador = e.LadoJogador,
+                HistoricoTimes = historico, DataJogo = DataAtual,
+            };
+        }
+
+        // O caso do Chelsea: 0 x 2 fora, primeiro jogo sem sofrer gol desde um 1 x 0
+        // na Champions, 9 meses antes, com a temporada virando no meio.
+        [Fact]
+        public void SemSofrerGol_DepoisDeMeses_EmOutraCompeticao()
+        {
+            var historico = Enumerable.Range(1, 24).Select(i => JogoVisitante(i, i, 2, 1, emCasa: i % 2 == 0)).ToList();
+            historico.Add(new JogoTime(99, new DateTime(2026, 1, 17, 12, 0, 0, DateTimeKind.Utc), Visitante, 77, 1, 0,
+                "Visitante FC", "Pafos", "Champions League"));
+
+            var r = Gerar(ComHistoricoTimes(0, 2, historico));
+
+            var c = Assert.Single(r, x => x.Chave == $"sem_sofrer:{Visitante}");
+            Assert.Equal("Visitante FC terminou um jogo sem sofrer gol pela primeira vez em 9 meses (24 jogos seguidos sofrendo gol). " +
+                         "A última vez tinha sido em 17/01/2026, Visitante FC 1 x 0 Pafos (Champions League).", c.Texto);
+            Assert.False(c.Casa);
+        }
+
+        // Sem o jogo que encerra o jejum no histórico, a sequência pode ser só o
+        // começo dos dados: não dá pra dizer "primeira vez em".
+        [Fact]
+        public void SemSofrerGol_SemUltimaOcorrenciaNoHistorico_NaoInventa()
+        {
+            var historico = Enumerable.Range(1, 24).Select(i => JogoVisitante(i, i, 2, 1)).ToList();
+
+            var r = Gerar(ComHistoricoTimes(0, 2, historico));
+
+            Assert.DoesNotContain(r, x => x.Chave == $"sem_sofrer:{Visitante}");
+        }
+
+        [Fact]
+        public void SemSofrerGol_JejumCurto_NaoEntra()
+        {
+            var historico = Enumerable.Range(1, 3).Select(i => JogoVisitante(i, i, 2, 1))
+                .Append(JogoVisitante(4, 4, 1, 0)).ToList();
+
+            var r = Gerar(ComHistoricoTimes(0, 2, historico));
+
+            Assert.DoesNotContain(r, x => x.Titulo == "Sem sofrer gol");
+        }
+
+        [Fact]
+        public void FimDoJejumDeGols_E_VitoriaForaDeCasa()
+        {
+            // 5 jogos sem marcar (todos fora), antes disso uma vitória fora.
+            var historico = Enumerable.Range(1, 5).Select(i => JogoVisitante(i, i, 0, 1, emCasa: false))
+                .Append(JogoVisitante(6, 6, 2, 0, emCasa: false))
+                .ToList();
+
+            var r = Gerar(ComHistoricoTimes(0, 1, historico));
+
+            var gols = Assert.Single(r, x => x.Chave == $"gol_time:{Visitante}");
+            Assert.StartsWith("Visitante FC voltou a marcar depois de 5 jogos sem fazer gol.", gols.Texto);
+            // 5 jogos fora sem vencer: abaixo do mínimo de 6.
+            Assert.DoesNotContain(r, x => x.Chave == $"vitoria_fora:{Visitante}");
+        }
+
+        [Fact]
+        public void ConfrontoDireto_PrimeiraVitoriaNosConfrontosRegistrados()
+        {
+            var historico = Enumerable.Range(1, 4)
+                .Select(i => new JogoTime(i, DataAtual.AddDays(-100 * i), Casa, Visitante, 0, 2, "Casa FC", "Visitante FC", "Premier League"))
+                .ToList();
+
+            var r = Gerar(ComHistoricoTimes(1, 0, historico));
+
+            var c = Assert.Single(r, x => x.Chave == $"confronto:{Casa}");
+            Assert.Equal("Primeira vitória de Casa FC sobre Visitante FC nos 5 confrontos registrados.", c.Texto);
+            Assert.True(c.AmbosTimes);
+        }
+
+        [Fact]
+        public void Periodo_EmMesesEAnos()
+        {
+            var d = new DateTime(2026, 10, 17);
+            Assert.Null(Periodo(new DateTime(2026, 9, 1), d));
+            Assert.Equal("9 meses", Periodo(new DateTime(2026, 1, 17), d));
+            Assert.Equal("8 meses", Periodo(new DateTime(2026, 2, 10), d));
+            Assert.Equal("quase 9 meses", Periodo(new DateTime(2026, 1, 21), d));
+            Assert.Equal("quase 1 ano", Periodo(new DateTime(2025, 10, 25), d));
+            Assert.Equal("1 ano", Periodo(new DateTime(2025, 10, 1), d));
+            Assert.Equal("mais de 2 anos", Periodo(new DateTime(2024, 1, 1), d));
+        }
     }
 }

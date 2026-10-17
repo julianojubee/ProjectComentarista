@@ -260,33 +260,63 @@ namespace ControleFutebolWeb.Helpers
             return grupos;
         }
 
+        private static readonly System.Text.RegularExpressions.Regex _avos =
+            new(@"^(\d+)-?avos", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        private static readonly System.Text.RegularExpressions.Regex _numeroFase =
+            new(@"^(\d+)ª fase( preliminar| eliminatória)?$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        private static readonly System.Text.RegularExpressions.Regex _rodadaN =
+            new(@"^Rodada (\d+)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// Posição de uma fase de mata-mata no chaveamento, a partir do nome (cru da
+        /// api-football ou já em português). Menor = mais cedo. Nulo = desconhecida.
+        /// A lista fixa de antes não tinha "1/128-finals", "Round of 64" nem
+        /// "Quarter-finals": essas fases iam para o fim, fora de ordem.
+        /// </summary>
+        public static double? OrdemFase(string? nomeFase)
+        {
+            var r = RodadaHelper.Rotulo(nomeFase, 0).Trim();
+            if (r.Equals("Fase preliminar", StringComparison.OrdinalIgnoreCase)) return -3000;
+            var nf = _numeroFase.Match(r);
+            if (nf.Success)
+            {
+                var n = int.Parse(nf.Groups[1].Value);
+                return nf.Groups[2].Value.Trim().ToLowerInvariant() switch
+                {
+                    "preliminar" => -3000 + n,
+                    "eliminatória" => -2000 + n,
+                    _ => -1000 + n,
+                };
+            }
+            // "32-avos", "16avos": quanto mais jogos, mais cedo
+            var av = _avos.Match(r);
+            if (av.Success) return -int.Parse(av.Groups[1].Value);
+            var rod = _rodadaN.Match(r);
+            if (rod.Success) return -500 + int.Parse(rod.Groups[1].Value);
+            if (r.StartsWith("Playoff", StringComparison.OrdinalIgnoreCase)) return -600;
+            if (r.StartsWith("Oitavas", StringComparison.OrdinalIgnoreCase)) return -8;
+            if (r.StartsWith("Quartas", StringComparison.OrdinalIgnoreCase)) return -4;
+            if (r.StartsWith("Semi", StringComparison.OrdinalIgnoreCase)) return -2;
+            if (r.Equals("Final", StringComparison.OrdinalIgnoreCase)) return -1;
+            // Disputa de 3º lugar: coluna própria depois da final (como nos campeonatos próprios)
+            if (r.StartsWith("Disputa de 3", StringComparison.OrdinalIgnoreCase)) return -0.5;
+            return null;
+        }
+
         // decideTitulo = a fase decide o título (competição/fase de JOGO_UNICO):
         // o vencedor é anunciado como campeão em vez de "classificado".
         public static List<FaseMataMataViewModel> MontarMataMata(List<Jogo> jogos, bool decideTitulo = false)
         {
-            // Ordena fases conhecidas; fases desconhecidas vão para o final
-            var ordemFases = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["Qualification Round 1"] = -3, ["Preliminary Round"] = -3,
-                ["Qualification Round 2"] = -2,
-                ["Qualification Round 3"] = -1,
-                ["32avos"]      = 1, ["Rodada 1"]    = 1, ["Round of 32"] = 1,
-                ["16avos"]      = 2, ["Rodada 2"]    = 2, ["Round of 16"] = 2,
-                ["Oitavas"]     = 3, ["Rodada 3"]    = 3,
-                ["Quartas"]     = 4, ["Rodada 4"]    = 4, ["Quarterfinals"] = 4,
-                ["Semifinal"]   = 5, ["Semi"]        = 5, ["Semifinals"]    = 5,
-                ["Final"]       = 6,
-                ["3rd Place Final"] = 7,
-            };
-
             // Jogo sem round vindo da API: numa competição de jogo único a partida É a final.
             var nomePadrao = decideTitulo ? "Final" : "Fase Única";
             string NomeFaseDe(Jogo j) => string.IsNullOrWhiteSpace(j.Grupo) ? nomePadrao : j.Grupo;
 
+            // Fase sem posição conhecida vai para o fim, na ordem em que foi jogada
             var faseNomes = jogos
-                .Select(NomeFaseDe)
-                .Distinct()
-                .OrderBy(n => ordemFases.TryGetValue(n, out var o) ? o : 99)
+                .GroupBy(NomeFaseDe)
+                .OrderBy(g => OrdemFase(g.Key) ?? double.MaxValue)
+                .ThenBy(g => g.Min(j => j.Data) ?? DateTime.MaxValue)
+                .Select(g => g.Key)
                 .ToList();
 
             var resultado = new List<FaseMataMataViewModel>();
@@ -317,12 +347,15 @@ namespace ControleFutebolWeb.Helpers
                     });
                 }
 
+                // Nome em português ("Round of 16" → "Oitavas de final"); a final de
+                // qualquer competição também decide o título, não só a de jogo único.
+                var nome = RodadaHelper.RotuloGrupo(fase);
                 resultado.Add(new FaseMataMataViewModel
                 {
-                    Nome      = fase,
-                    Ordem     = ordemFases.TryGetValue(fase, out var ord) ? ord : 99,
+                    Nome      = nome,
+                    Ordem     = resultado.Count + 1,
                     Confrontos = confrontos,
-                    DecideTitulo = decideTitulo,
+                    DecideTitulo = decideTitulo || nome == "Final",
                 });
             }
 

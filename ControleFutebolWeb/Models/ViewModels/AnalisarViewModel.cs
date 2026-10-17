@@ -69,6 +69,9 @@ namespace ControleFutebolWeb.Models.ViewModels
         // seletor "ℹ Tooltip" da barra do campo (Jogos/TooltipTemporada).
         public int TemporadaTooltip { get; set; }
 
+        // Ver TooltipJogadorDados.CalendarioEuropeu.
+        public bool CalendarioEuropeuTooltip { get; set; }
+
         // Opções do seletor: temporadas com estatística dos jogadores desta tela.
         public List<int> TemporadasTooltip { get; set; } = new();
 
@@ -148,6 +151,12 @@ namespace ControleFutebolWeb.Models.ViewModels
         // Rótulo da temporada aplicada (0 = todas).
         public int Temporada { get; set; }
 
+        // Competição do jogo no calendário europeu (rótulo = ano de início). Vai
+        // para a busca da temporada no FotMob, que nomeia as temporadas pelo
+        // calendário: sem isso a "2026" da Premier League casava com a "2026" da
+        // seleção (Copa) em vez da "2026/2027" do clube.
+        public bool CalendarioEuropeu { get; set; }
+
         public Dictionary<int, int> Gols { get; set; } = new();
         public Dictionary<int, int> Assists { get; set; } = new();
         public Dictionary<int, int> TitularCompeticao { get; set; } = new();
@@ -188,6 +197,7 @@ namespace ControleFutebolWeb.Models.ViewModels
     public class TooltipJogadorPacote
     {
         public int Temporada { get; set; }
+        public bool CalendarioEuropeu { get; set; }
         public Dictionary<int, TooltipJogadorInfo> Dados { get; set; } = new();
         public Dictionary<int, MediasPorJogo> Medias { get; set; } = new();
         public Dictionary<int, int> TitularCompeticao { get; set; } = new();

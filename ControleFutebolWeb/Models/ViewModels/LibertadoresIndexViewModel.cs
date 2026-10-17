@@ -9,5 +9,13 @@ namespace ControleFutebolWeb.Models.ViewModels
         public List<Jogo> ProximosJogos { get; set; } = new();
         public int RodadaAtual { get; set; }
         public ChaveamentoArvoreViewModel? Chaveamento { get; set; }
+        // Fases eliminatórias antes das oitavas (preliminares, 16-avos), na ordem do torneio
+        public List<FaseConfrontosViewModel> FasesAnteriores { get; set; } = new();
+    }
+
+    public class FaseConfrontosViewModel
+    {
+        public string Nome { get; set; } = "";
+        public List<ConfrontoArvore> Confrontos { get; set; } = new();
     }
 }

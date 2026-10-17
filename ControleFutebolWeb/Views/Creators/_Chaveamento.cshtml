@@ -1,4 +1,5 @@
 @model List<ControleFutebolWeb.Models.ViewModels.FaseMataMataViewModel>
+@using ControleFutebolWeb.Helpers
 @*
     Fases eliminatórias: uma coluna por fase (oitavas, quartas…), cada confronto
     com os dois times, o agregado e, quando houve, os pênaltis. Quem passou fica
@@ -22,7 +23,7 @@
                         <div class="cr-confronto-lado @(venceu ? "venceu" : "")">
                             @if (!string.IsNullOrWhiteSpace(time?.EscudoUrl))
                             {
-                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = time!.EscudoUrl })" alt="" loading="lazy" />
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = time!.EscudoUrl })" alt="" loading="lazy" onerror="this.remove()" />
                             }
                             <span class="cr-confronto-nome">@(time?.Nome ?? "A definir")</span>
                             @if (c.Completo)
@@ -38,11 +39,12 @@
                     <div class="cr-confronto-rodape">
                         @if (!c.Completo)
                         {
-                            <span>@(c.JogoIda?.Data?.ToString("dd/MM/yyyy") ?? "a definir")</span>
+                            @* Data fica em UTC no banco: jogo das 21h saía com o dia seguinte *@
+                            <span>@(c.JogoIda?.Data != null ? DateHelper.FormatarData(c.JogoIda.Data, "dd/MM/yyyy") : "data a definir")</span>
                         }
                         else if (fase.DecideTitulo && (c.VenceA || c.VenceB))
                         {
-                            <span class="cr-campeao">🏆 @((c.VenceA ? c.TimeA : c.TimeB)?.Nome) campeão</span>
+                            <span class="cr-campeao">@((c.VenceA ? c.TimeA : c.TimeB)?.Nome) campeão</span>
                         }
                         else
                         {

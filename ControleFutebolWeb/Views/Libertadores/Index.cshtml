@@ -4,7 +4,19 @@
 @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
 
 @{
-    ViewData["Title"] = "Libertadores";
+    // Tela compartilhada pelas copas da CONMEBOL: a Sul-Americana usa esta mesma
+    // view (SulAmericanaController) e troca nome, logo, cores e a regra de
+    // classificação dos grupos pelo ViewData. Sem nada, é a Libertadores.
+    var copaId = ViewData["CopaId"] as int? ?? 2;
+    var copaNome = ViewData["CopaNome"] as string ?? "Libertadores";
+    var copaTema = ViewData["CopaTema"] as string ?? "lib";
+    var copaLogo = Url.Content(ViewData["CopaLogo"] as string ?? "~/images/background/libertadores.png");
+    var copaTagline = ViewData["CopaTagline"] as string ?? "A Glória Eterna";
+    // Quantos por grupo vão direto às oitavas; o seguinte vai para a repescagem
+    var vagasOitavas = ViewData["CopaVagasOitavas"] as int? ?? 2;
+    var legendaRepescagem = ViewData["CopaLegendaRepescagem"] as string ?? "Vai para a Sul-Americana";
+    var fasesAnteriores = Model.FasesAnteriores ?? new List<FaseConfrontosViewModel>();
+    ViewData["Title"] = copaNome;
     var grupos = Model.Grupos as List<GrupoViewModel> ?? new List<GrupoViewModel>();
     var proximosJogos = Model.ProximosJogos as List<Jogo> ?? new List<Jogo>();
     var rodadaAtual = Model.RodadaAtual;
@@ -22,16 +34,19 @@
     :root {
         --lib-gold: #d4a520;
         --lib-gold-ink: #8a6a0a; /* dourado como texto/borda no claro */
-        --lib-gold-soft: rgba(212,165,32,0.12);
+        --lib-gold-soft: rgba(var(--lib-rgb),0.12);
         --lib-gold-line: #e7d6a3;
         --lib-bronze: #a16207; /* repescagem */
         --lib-strip: linear-gradient(90deg, #0d0b06 0%, #241c08 55%, #0d0b06 100%);
         --lib-strip-ink: #f0d693;
+        --lib-rgb: 212,165,32;
+        --lib-classif-grad: linear-gradient(135deg, #f0cf78, #b8860b);
+        --lib-final-grad: linear-gradient(90deg, #8a6a0a, #f0cf78 50%, #8a6a0a);
     }
 
     [data-theme="dark"] {
         --lib-gold-ink: #e8c766;
-        --lib-gold-soft: rgba(212,165,32,0.14);
+        --lib-gold-soft: rgba(var(--lib-rgb),0.14);
         --lib-gold-line: #4a3c14;
     }
 
@@ -53,7 +68,7 @@
             inset: -30% -10%;
             z-index: 0;
             pointer-events: none;
-            background: radial-gradient(ellipse 38% 62% at 4% 34%, rgba(212,160,42,0.55) 0%, rgba(160,110,20,0.22) 38%, transparent 70%), radial-gradient(ellipse 38% 62% at 96% 34%, rgba(212,160,42,0.55) 0%, rgba(160,110,20,0.22) 38%, transparent 70%), radial-gradient(ellipse 55% 45% at 50% 118%, rgba(190,140,35,0.35) 0%, transparent 68%);
+            background: radial-gradient(ellipse 38% 62% at 4% 34%, rgba(var(--lib-rgb),0.55) 0%, rgba(160,110,20,0.22) 38%, transparent 70%), radial-gradient(ellipse 38% 62% at 96% 34%, rgba(var(--lib-rgb),0.55) 0%, rgba(160,110,20,0.22) 38%, transparent 70%), radial-gradient(ellipse 55% 45% at 50% 118%, rgba(190,140,35,0.35) 0%, transparent 68%);
             filter: blur(2px);
         }
 
@@ -86,7 +101,7 @@
         -webkit-mask-composite: xor;
         mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
         mask-composite: exclude;
-        box-shadow: 0 0 26px rgba(212,160,42,0.45);
+        box-shadow: 0 0 26px rgba(var(--lib-rgb),0.45);
     }
 
         .lib-hero-arc.left {
@@ -120,13 +135,13 @@
 
     .lib-badge {
         display: inline-block;
-        background: rgba(212, 160, 42, 0.12);
+        background: rgba(var(--lib-rgb), 0.12);
         color: #f3d38a;
         font-size: 11px;
         font-weight: 700;
         padding: 4px 12px;
         border-radius: 999px;
-        border: 1px solid rgba(212, 160, 42, 0.38);
+        border: 1px solid rgba(var(--lib-rgb), 0.38);
         margin-bottom: 1.1rem;
     }
 
@@ -142,7 +157,7 @@
         width: 88px;
         height: 88px;
         object-fit: contain;
-        filter: drop-shadow(0 0 18px rgba(212,160,42,0.55)) drop-shadow(0 2px 8px rgba(0,0,0,0.6));
+        filter: drop-shadow(0 0 18px rgba(var(--lib-rgb),0.55)) drop-shadow(0 2px 8px rgba(0,0,0,0.6));
     }
 
     .lib-title {
@@ -295,7 +310,7 @@
     }
 
     .lib-pos-1, .lib-pos-2 {
-        background: linear-gradient(135deg, #f0cf78, #b8860b);
+        background: var(--lib-classif-grad);
         color: #2a1e00;
     }
     /* classificados oitavas */
@@ -395,7 +410,7 @@
     }
 
         .lib-jogo-card:hover {
-            box-shadow: 0 2px 10px rgba(212,165,32,0.22);
+            box-shadow: 0 2px 10px rgba(var(--lib-rgb),0.22);
         }
 
     .lib-jogo-header {
@@ -509,7 +524,7 @@
         }
 
     .lib-grupo-tag {
-        background: rgba(212,165,32,0.18);
+        background: rgba(var(--lib-rgb),0.18);
         color: var(--lib-strip-ink);
         font-size: 11px;
         padding: 1px 6px;
@@ -550,7 +565,7 @@
     .cdm-tab.active {
         background: var(--lib-strip);
         color: var(--lib-strip-ink); border-color: var(--lib-gold-line);
-        box-shadow: 0 2px 8px rgba(212,165,32,.28);
+        box-shadow: 0 2px 8px rgba(var(--lib-rgb),.28);
     }
     .cdm-panel { display: none; }
     .cdm-panel.active { display: block; animation: cdmfade .2s ease; }
@@ -643,15 +658,53 @@
     .bkt-final-wrap { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; }
     .bkt-center .bkt-cell { flex: 0 0 auto; min-height: 0; width: 100%; }
     
-    .bkt-final-cell .bkt-match { border-color: var(--lib-gold); box-shadow: 0 2px 14px rgba(212,165,32,.35); }
-    .bkt-final-cell .bkt-match-no { background: linear-gradient(90deg,#8a6a0a,#f0cf78 50%,#8a6a0a); color: #2a1e00; }
+    /* Fases antes das oitavas: grade de confrontos, a árvore vem embaixo */
+    .bkt-fase-solta { margin-bottom: 22px; }
+    .bkt-fase-solta .bkt-col-label { text-align: left; margin-bottom: 8px; }
+    .bkt-fase-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+    .bkt-fase-grade .bkt-cell { position: static; min-height: 0; }
+    .bkt-fase-grade .bkt-match { width: 100%; }
+    .bkt-fase-grade .bkt-cell::before, .bkt-fase-grade .bkt-cell::after { display: none; }
+    .bkt-final-cell .bkt-match { border-color: var(--lib-gold); box-shadow: 0 2px 14px rgba(var(--lib-rgb),.35); }
+    .bkt-final-cell .bkt-match-no { background: var(--lib-final-grad); color: #2a1e00; }
     .bkt-final-cell .bkt-team.win .bkt-tname { color: var(--lib-gold-ink); }
-    .bkt-final-cell .bkt-team.win { background: rgba(212,165,32,.16); }
+    .bkt-final-cell .bkt-team.win { background: rgba(var(--lib-rgb),.16); }
 
     @@media (max-width: 700px) {
         .bkt-tree { --bkt-w: 172px; --bkt-gap: 26px; }
     }
 </style>
+
+@if (copaTema == "sul")
+{
+    @* Sul-Americana: o mesmo desenho, em laranja. Tokens da tela trocados; as
+       camadas decorativas do banner (brilho, poeira e arcos, desenhados em
+       dourado) giram de matiz para o laranja. *@
+    <style>
+        :root {
+            --lib-gold: #f97316;
+            --lib-gold-ink: #c2410c;
+            --lib-gold-soft: rgba(249,115,22,0.12);
+            --lib-gold-line: #fed7aa;
+            --lib-bronze: #b45309;
+            --lib-strip: linear-gradient(90deg, #0f0602 0%, #3a1505 55%, #0f0602 100%);
+            --lib-strip-ink: #fdba74;
+            --lib-rgb: 249,115,22;
+            --lib-classif-grad: linear-gradient(135deg, #fdba74, #ea580c);
+            --lib-final-grad: linear-gradient(90deg, #c2410c, #fdba74 50%, #c2410c);
+        }
+        [data-theme="dark"] {
+            --lib-gold-ink: #fdba74;
+            --lib-gold-soft: rgba(249,115,22,0.14);
+            --lib-gold-line: #5a2a0c;
+        }
+        .lib-hero { background: radial-gradient(ellipse 70% 90% at 50% 42%, #160802 0%, #070302 55%, #000 100%); }
+        .lib-hero::before, .lib-hero::after, .lib-hero-arc { filter: hue-rotate(-22deg) saturate(1.5); }
+        .lib-badge { color: #fdba74; }
+        .lib-tagline { background-image: linear-gradient(180deg, #fed7aa 0%, #f97316 55%, #9a3412 100%); }
+        .lib-pos-1 { color: #2a1000; }
+    </style>
+}
 
 <!-- ── Banner ── -->
 <div class="lib-hero theme-dark-zone">
@@ -662,9 +715,9 @@
     <div class="lib-hero-content">
         <span class="lib-badge">Competição continental</span>
         <div class="lib-title-wrap">
-            <img src="~/images/background/libertadores.png" alt="" class="lib-logo" />
-            <h2 class="lib-title">Libertadores</h2>
-            <p class="lib-tagline">A Glória Eterna</p>
+            <img src="@copaLogo" alt="" class="lib-logo" />
+            <h2 class="lib-title">@copaNome</h2>
+            <p class="lib-tagline">@copaTagline</p>
         </div>
         <p class="lib-sub">Classificação por grupos e calendário de jogos</p>
         @{
@@ -685,14 +738,15 @@
             </form>
         }
         <div style="margin-top:10px;">
-            @await Html.PartialAsync("_BotaoSincronizarJogos", 2)
+            @await Html.PartialAsync("_BotaoSincronizarJogos", copaId)
         </div>
     </div>
 </div>
 
 @{
     bool temGrupos = grupos.Any();
-    bool temChave = chaveamento.TemDados;
+    bool temArvore = chaveamento.TemDados;
+    bool temChave = temArvore || fasesAnteriores.Any(f => f.Confrontos.Any());
 
     // Renderiza um card de confronto do mata-mata (placar agregado + botão Analisar das pernas).
     Func<ConfrontoArvore, Microsoft.AspNetCore.Html.IHtmlContent> renderMatch = @<text>
@@ -761,7 +815,7 @@
 @if (!temGrupos && !temChave && !temEstatisticas)
 {
     <div class="lib-empty">
-        Nenhum jogo da Libertadores nesta temporada.<br>
+        Nenhum jogo da @copaNome nesta temporada.<br>
         <small>Use "Sincronizar jogos" acima para importar a fase de grupos.</small>
     </div>
 }
@@ -795,8 +849,8 @@ else
         <div>
             <!-- Legenda -->
             <div class="lib-legenda">
-                <span><span class="lib-leg-dot" style="background:linear-gradient(135deg,#f0cf78,#b8860b);"></span>Classificado para as oitavas</span>
-                <span><span class="lib-leg-dot" style="background:var(--lib-bronze);"></span>Vai para a Sul-Americana</span>
+                <span><span class="lib-leg-dot" style="background:var(--lib-classif-grad);"></span>Classificado para as oitavas</span>
+                <span><span class="lib-leg-dot" style="background:var(--lib-bronze);"></span>@legendaRepescagem</span>
                 <span><span class="lib-leg-dot" style="background:var(--surface-3);border:1px solid var(--border);"></span>Eliminado</span>
             </div>
 
@@ -805,7 +859,7 @@ else
                 {
                     <div class="lib-grupo-card">
                         <div class="lib-grupo-header">
-                            <img src="~/images/background/libertadores.png" alt="" />
+                            <img src="@copaLogo" alt="" />
                             @ControleFutebolWeb.Helpers.RodadaHelper.RotuloGrupo(grupo.Nome)
                         </div>
 
@@ -833,13 +887,9 @@ else
                                 <tbody>
                                     @foreach (var time in grupo.Times)
                                     {
-                                        string posClass = time.Posicao switch
-                                        {
-                                            1 => "lib-pos-1",
-                                            2 => "lib-pos-2",
-                                            3 => "lib-pos-3",
-                                            _ => "lib-pos-default"
-                                        };
+                                        string posClass = time.Posicao <= vagasOitavas ? "lib-pos-1"
+                                            : time.Posicao == vagasOitavas + 1 ? "lib-pos-3"
+                                            : "lib-pos-default";
 
                                         <tr>
                                             <td>
@@ -962,10 +1012,24 @@ else
         {
             <div class="cdm-panel @(!temGrupos ? "active" : "")" data-cdm-panel="chave">
                 <div class="bkt-legend">
-                    <span><span class="bkt-leg-dot" style="background:linear-gradient(135deg,#f0cf78,#b8860b);"></span>Classificado para a próxima fase</span>
+                    <span><span class="bkt-leg-dot" style="background:var(--lib-classif-grad);"></span>Classificado para a próxima fase</span>
                     <span><span class="bkt-leg-box"></span>A definir</span>
                 </div>
 
+                @* Fases eliminatórias antes das oitavas (preliminares, 16-avos): não
+                   cabem na árvore, então vêm como listas de confrontos, na ordem do torneio *@
+                @foreach (var fase in fasesAnteriores.Where(f => f.Confrontos.Any()))
+                {
+                    <div class="bkt-fase-solta">
+                        <div class="bkt-col-label">@fase.Nome</div>
+                        <div class="bkt-fase-grade">
+                            @foreach (var c in fase.Confrontos) { <div class="bkt-cell">@renderMatch(c)</div> }
+                        </div>
+                    </div>
+                }
+
+                @if (temArvore)
+                {
                 <div class="bkt-scroll">
                     <div class="bkt-tree">
                         <!-- ── Lado esquerdo ── -->
@@ -1021,20 +1085,21 @@ else
                         </div>
                     </div>
                 </div>
+                }
             </div>
         }
 
         <div class="cdm-panel @(!temGrupos && !temChave ? "active" : "")" data-cdm-panel="estatisticas">
-            @await Html.PartialAsync("_LinksEstatisticasCompeticao", (2, Model.Temporada))
+            @await Html.PartialAsync("_LinksEstatisticasCompeticao", (copaId, Model.Temporada))
             @await Html.PartialAsync("_PainelEstatisticas", estatisticasTimes)
         </div>
 
         <div class="cdm-panel" data-cdm-panel="estat-jogadores">
-            @await Html.PartialAsync("_AbaEstatisticasJogadores", (2, Model.Temporada))
+            @await Html.PartialAsync("_AbaEstatisticasJogadores", (copaId, Model.Temporada))
         </div>
     </div>
 
-    @await Html.PartialAsync("_ArtilheirosAssistencias", (2, Model.Temporada))
+    @await Html.PartialAsync("_ArtilheirosAssistencias", (copaId, Model.Temporada))
 
     <script>
         (function () {

@@ -21,6 +21,7 @@ namespace ControleFutebolWeb.Controllers
         private readonly IWebHostEnvironment _env;
         private readonly ControleFutebolWeb.Services.ApiFootballService _apiFootballService;
         private readonly ControleFutebolWeb.Services.FifaService _fifaService;
+        private readonly ControleFutebolWeb.Services.FotMobService _fotMobService;
         private readonly UserManager<ApplicationUser> _userManager;
 
         public TimesController(
@@ -29,6 +30,7 @@ namespace ControleFutebolWeb.Controllers
             IWebHostEnvironment env,
             ControleFutebolWeb.Services.ApiFootballService apiFootballService,
             ControleFutebolWeb.Services.FifaService fifaService,
+            ControleFutebolWeb.Services.FotMobService fotMobService,
             UserManager<ApplicationUser> userManager)
         {
             _context = context;
@@ -36,6 +38,7 @@ namespace ControleFutebolWeb.Controllers
             _env = env;
             _apiFootballService = apiFootballService;
             _fifaService = fifaService;
+            _fotMobService = fotMobService;
             _userManager = userManager;
         }
 
@@ -982,6 +985,19 @@ namespace ControleFutebolWeb.Controllers
 
                     var criados = await _apiFootballService.ImportarElencoAsync(_context, time, ct);
 
+                    // A api-football não tem elenco de alguns times (ex.: clubes femininos
+                    // da Libertadores). Time ainda sem ninguém: tenta o FotMob.
+                    if (criados == 0 &&
+                        !await _context.Jogadores.AnyAsync(j => j.TimeId == time.Id || j.SelecaoId == time.Id, ct))
+                    {
+                        var r = await _fotMobService.ImportarElencoAsync(_context, time, competicao.IdApi, ct);
+                        TempData["Mensagem"] = r.Ok
+                            ? r.Mensagem
+                            : $"A api-football não tem o elenco de {time.Nome}, e o FotMob também não: {r.Mensagem}";
+                        if (!r.Ok) TempData["MensagemTipo"] = "erro";
+                        return RedirectToAction(nameof(Details), new { id });
+                    }
+
                     TempData["Mensagem"] = criados > 0
                         ? $"Elenco de {time.Nome} pela api-football: {criados} jogador(es) cadastrado(s)."
                         : $"O elenco de {time.Nome} já estava completo — nada a cadastrar.";
@@ -1227,6 +1243,7 @@ namespace ControleFutebolWeb.Controllers
                 {
                     "Friendlies" => "Amistosos Internacionais",
                     "Friendlies Clubs" => "Amistosos de Clubes",
+                    "Friendlies Women" => "Amistosos Internacionais Femininos",
                     _ => liga.Name
                 };
                 if (await _context.Competicoes.AnyAsync(c => c.Nome == nome, ct))
@@ -1267,6 +1284,124 @@ namespace ControleFutebolWeb.Controllers
                 _logger.LogWarning(ex, "[ImportarJogosTemporada] Falha time {Id} league={L} season={S}", time.Id, leagueId, season);
                 return StatusCode(502, new { erro = "Falha ao importar os jogos da api-football." });
             }
+        }
+
+        // Pré-visualização do "Adicionar time pela API" (/Times): busca a ficha em
+        // /teams?id=X e diz se o time já está cadastrado, antes de criar qualquer coisa.
+        [HttpGet]
+        public async Task<IActionResult> BuscarTimeApi(int idApi, CancellationToken ct)
+        {
+            if (idApi <= 0)
+                return BadRequest(new { erro = "Informe um id válido da api-football." });
+
+            Services.AfTeamsEntry? entrada;
+            try
+            {
+                entrada = await _apiFootballService.BuscarTimeApiAsync(idApi, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[BuscarTimeApi] Falha ao consultar IdApi={IdApi}", idApi);
+                return StatusCode(502, new { erro = "Não foi possível consultar a api-football." });
+            }
+
+            if (entrada == null || entrada.Team.Id <= 0)
+                return NotFound(new { erro = $"Nenhum time com id {idApi} na api-football." });
+
+            var existente = await _context.Times.AsNoTracking()
+                .Where(t => t.IdApi == idApi)
+                .Select(t => new { t.Id, t.Nome })
+                .FirstOrDefaultAsync(ct);
+
+            return Json(new
+            {
+                idApi = entrada.Team.Id,
+                nomeApi = entrada.Team.Name,
+                nomeSugerido = NomeSugeridoTimeApi(entrada.Team.Name),
+                pais = entrada.Team.Country,
+                logo = entrada.Team.Logo,
+                selecao = entrada.Team.National,
+                estadio = entrada.Venue?.Name,
+                existenteId = existente?.Id,
+                existenteNome = existente?.Nome
+            });
+        }
+
+        // Cria um time avulso a partir do id da api-football, sem importar competição
+        // nenhuma. Depois os jogos vêm pelo "Jogos da temporada" em /Times/Details.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AdicionarPelaApi(int idApi, string? nome, bool ehSelecao, CancellationToken ct)
+        {
+            if (idApi <= 0)
+            {
+                TempData["MensagemErro"] = "Informe um id válido da api-football.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var existente = await _context.Times.FirstOrDefaultAsync(t => t.IdApi == idApi, ct);
+            if (existente != null)
+            {
+                TempData["Mensagem"] = $"{existente.Nome} já estava cadastrado.";
+                return RedirectToAction(nameof(Details), new { id = existente.Id });
+            }
+
+            Services.AfTeamsEntry? entrada;
+            try
+            {
+                entrada = await _apiFootballService.BuscarTimeApiAsync(idApi, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[AdicionarPelaApi] Falha ao consultar IdApi={IdApi}", idApi);
+                TempData["MensagemErro"] = "Não foi possível consultar a api-football.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (entrada == null || entrada.Team.Id <= 0)
+            {
+                TempData["MensagemErro"] = $"Nenhum time com id {idApi} na api-football.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var formacaoPadrao = await _context.Formacoes.OrderBy(f => f.Id).FirstOrDefaultAsync(ct);
+            if (formacaoPadrao == null)
+            {
+                TempData["MensagemErro"] = "Cadastre ao menos uma formação antes de criar times.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var time = new Time
+            {
+                Nome = string.IsNullOrWhiteSpace(nome) ? NomeSugeridoTimeApi(entrada.Team.Name) : nome.Trim(),
+                IdApi = idApi,
+                EscudoUrl = entrada.Team.Logo ?? "",
+                Cidade = string.IsNullOrWhiteSpace(entrada.Team.Country) ? "Importado" : entrada.Team.Country!,
+                CorPrincipal = "#000000",
+                CorSecundaria = "#FFFFFF",
+                FormacaoPadraoId = formacaoPadrao.Id,
+                EhSelecao = ehSelecao,
+                PaisApi = entrada.Team.Country
+            };
+            // Seleção não tem estádio próprio: o venue que a API manda é só o mais usado.
+            if (!ehSelecao)
+                Services.ApiFootballService.AplicarEstadio(time, entrada.Venue);
+
+            _context.Times.Add(time);
+            await _context.SaveChangesAsync(ct);
+
+            TempData["Mensagem"] = $"{time.Nome} adicionado. Use \"Jogos da temporada\" para importar as partidas.";
+            return RedirectToAction(nameof(Details), new { id = time.Id });
+        }
+
+        // Nome da API no padrão do banco. Times femininos vêm como "Brazil W":
+        // traduz a base e troca o sufixo por "Feminino" ("Brasil Feminino").
+        private static string NomeSugeridoTimeApi(string nomeApi)
+        {
+            var nome = (nomeApi ?? "").Trim();
+            if (nome.EndsWith(" W", StringComparison.Ordinal))
+                return Services.ApiFootballService.TraduzirNomeClube(nome[..^2]) + " Feminino";
+            return Services.ApiFootballService.TraduzirNomeClube(nome);
         }
 
         [HttpPost]

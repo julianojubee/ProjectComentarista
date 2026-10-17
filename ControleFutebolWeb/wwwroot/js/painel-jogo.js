@@ -79,12 +79,20 @@
         return (r * 299 + g * 587 + b * 114) / 1000 > 128;
     }
 
-    // Nome do jogador: link para a ficha dele na tela logada, texto puro no modo
-    // público (o visitante não pode sair da página compartilhada).
+    // Nome do jogador: link para o perfil dele na tela logada, texto puro no modo
+    // público (o visitante não pode sair da página compartilhada) ou quando o
+    // nome não está ligado a um jogador cadastrado (ex.: desfalque sem vínculo).
+    // Abre em outra aba: o Pré e o Pós-jogo são modais, e sair da página
+    // perderia a análise aberta.
+    function linkJogador(id, nome, classe, op) {
+        var texto = escHtml(nome);
+        if ((op && op.somenteLeitura) || !id) return '<span class="' + classe + '">' + texto + '</span>';
+        return '<a class="' + classe + ' pj-link-jogador" href="/Jogadores/Estatisticas/' + id + '" target="_blank" rel="noopener"' +
+            ' title="Ver o perfil de ' + texto + '" onclick="event.stopPropagation()">' + texto + '</a>';
+    }
+
     function nomeJogadorHtml(j, classe, op) {
-        var texto = escHtml(j.nome);
-        if (op.somenteLeitura) return '<span class="' + classe + '">' + texto + '</span>';
-        return '<a class="' + classe + '" href="/Jogadores/Estatisticas/' + j.jogadorId + '" title="Ver estatísticas de ' + texto + '">' + texto + '</a>';
+        return linkJogador(j.jogadorId, j.nome, classe, op);
     }
 
     function linhaJogador(j, lado, reserva, op) {
@@ -206,7 +214,7 @@
 
         var rows = (d.observacoes && d.observacoes.length)
             ? d.observacoes.map(function (o) {
-                var jogadorHtml = (o.tipo === 'JOGADOR' && o.jogadorNome) ? '<span class="pgj-obs-jogador">' + escHtml(o.jogadorNome) + '</span>' : '';
+                var jogadorHtml = (o.tipo === 'JOGADOR' && o.jogadorNome) ? linkJogador(o.jogadorId, o.jogadorNome, 'pgj-obs-jogador', op) : '';
                 var acoes = op.somenteLeitura ? '' :
                     '<button type="button" class="pgj-obs-editar" onclick="editarObsPosJogo(' + o.id + ')" title="Editar observação" aria-label="Editar observação">Editar</button>' +
                     '<button type="button" class="pgj-obs-remover" onclick="removerObsPosJogo(' + o.id + ')" title="Remover observação" aria-label="Remover observação">Remover</button>';
@@ -242,12 +250,22 @@
             : rows + form;
     }
 
+    // O texto da curiosidade cita o jogador pelo nome: a primeira menção vira o link
+    function textoCuriosidade(c, op) {
+        var texto = escHtml(c.texto);
+        if (!c.jogadorId || !c.jogadorNome) return texto;
+        var nome = escHtml(c.jogadorNome);
+        var i = texto.indexOf(nome);
+        if (i < 0) return texto;
+        return texto.slice(0, i) + linkJogador(c.jogadorId, c.jogadorNome, 'pgj-curio-nome', op) + texto.slice(i + nome.length);
+    }
+
     // Ícone de cada tipo de curiosidade (CuriosidadesJogoHelper.Curiosidade.Tipo)
     var ICONES_CURIO = { recorde: '🏆', pessoal: '⭐', media: '📈', gol: '⚽', time: '📊' };
 
     // Aba Curiosidades: o que esta partida teve de fora do comum, comparado com o
     // campeonato e a temporada antes dela. Já vem ordenado por relevância.
-    function montarCuriosidades(d) {
+    function montarCuriosidades(d, op) {
         var lista = d.curiosidades || [];
         if (!lista.length)
             return '<div class="pgj-vazio">Nenhuma curiosidade encontrada para esta partida — nada fora do comum em relação ao campeonato e à temporada, ou faltam estatísticas importadas.</div>';
@@ -265,7 +283,7 @@
                 visual +
                 '<div class="pgj-curio-corpo">' +
                     '<div class="pgj-curio-titulo">' + (c.foto ? (ICONES_CURIO[c.tipo] || '') + ' ' : '') + escHtml(c.titulo) + escudo + '</div>' +
-                    '<div class="pgj-curio-texto">' + escHtml(c.texto) + '</div>' +
+                    '<div class="pgj-curio-texto">' + textoCuriosidade(c, op) + '</div>' +
                 '</div>' +
             '</div>';
         }).join('');
@@ -357,7 +375,7 @@
             var vv = m.vis ? parseFloat(m.vis.valor) || 0 : -1;
             var linha = function (x, esc, menor) {
                 return x
-                    ? '<div class="pgj-destaque-row' + (menor ? ' menor' : '') + '">' + esc + '<span class="pgj-destaque-nome">' + escHtml(x.nome) + '</span><span class="pgj-destaque-val">' + escHtml(x.valor) + '</span></div>'
+                    ? '<div class="pgj-destaque-row' + (menor ? ' menor' : '') + '">' + esc + linkJogador(x.jogadorId, x.nome, 'pgj-destaque-nome', op) + '<span class="pgj-destaque-val">' + escHtml(x.valor) + '</span></div>'
                     : '<div class="pgj-destaque-row menor"><span class="pgj-destaque-nome">Sem registro</span></div>';
             };
             return '<div class="pgj-destaque-card"><div class="pgj-destaque-label">' + escHtml(m.label) + '</div>' +
@@ -379,7 +397,7 @@
             (!statsRows && !destaquesCards ? '<div class="pgj-vazio">Estatísticas ainda não disponíveis para esta partida.</div>' : '') +
         '</div>';
 
-        var painelCurio = '<div class="pgj-panel" id="pgj-panel-curio">' + montarCuriosidades(d) + '</div>';
+        var painelCurio = '<div class="pgj-panel" id="pgj-panel-curio">' + montarCuriosidades(d, op) + '</div>';
 
         var painelObs = '<div class="pgj-panel" id="pgj-panel-obs">' + montarObservacoes(d, op) + '</div>';
 
@@ -397,7 +415,7 @@
 
     // ── Pré-jogo: uma coluna por time (V/E/D, forma, destaques, observações) ──
     // Tudo conta só os jogos da mesma competição e temporada ANTES desta partida.
-    function colunaPreJogo(t, lado) {
+    function colunaPreJogo(t, lado, op) {
         if (!t) return '';
         var escudo = t.escudo ? '<img src="' + t.escudo + '" alt="">' : '';
 
@@ -424,7 +442,7 @@
                         ? '<img src="' + escHtml(p.foto) + '" alt="" loading="lazy" onerror="this.onerror=null;this.src=\'/images/placeholder-jogador.png\'">'
                         : '<div class="pj-noimg"></div>';
                     return '<div class="pj-player">' + foto +
-                        '<span class="pj-player-nome">' + escHtml(p.nome) + '</span>' +
+                        linkJogador(p.jogadorId, p.nome, 'pj-player-nome', op) +
                         '<span class="pj-num' + (p.gols ? '' : ' zero') + '">' + p.gols + '</span>' +
                         '<span class="pj-num' + (p.assists ? '' : ' zero') + '">' + p.assists + '</span></div>';
                 }).join('');
@@ -443,9 +461,10 @@
     }
 
     // Grade completa do resumo (as duas colunas + a origem dos números)
-    function resumoPreJogo(dados) {
+    function resumoPreJogo(dados, op) {
+        op = op || { somenteLeitura: true };
         var origem = [dados.competicao, dados.temporada].filter(Boolean).join(' ');
-        return '<div class="pj-grid">' + colunaPreJogo(dados.casa, 'casa') + colunaPreJogo(dados.visitante, 'vis') + '</div>' +
+        return '<div class="pj-grid">' + colunaPreJogo(dados.casa, 'casa', op) + colunaPreJogo(dados.visitante, 'vis', op) + '</div>' +
             '<div class="pj-ind-rodape">' + (origem ? escHtml(origem) + ', s' : 'S') + 'ó os jogos antes desta partida.</div>';
     }
 
@@ -455,6 +474,7 @@
         colunaPreJogo: colunaPreJogo,
         resumoPreJogo: resumoPreJogo,
         abrevPosicao: abrevPosicao,
+        linkJogador: linkJogador,
         escHtml: escHtml
     };
 })();

@@ -35,5 +35,8 @@
   "307": 536,
   "475": 10244,
   "667": 489,
-  "848": 10216
+  "848": 10216,
+
+  "_comentario_libertadores_feminina": "A api-football nao tem o elenco dos clubes femininos (players/squads vazio); o FotMob tem. Usado pelo Buscar elenco em /Times/Details.",
+  "949": 11021
 }

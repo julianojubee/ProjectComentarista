@@ -360,7 +360,7 @@
                         <button type="button" class="hj-chip" data-comp-filtro="@comp.id" aria-pressed="false">
                             @if (!string.IsNullOrEmpty(comp.logo))
                             {
-                                <img class="hj-comp-logo" src="@Escudo(comp.logo)" alt="" />
+                                <img class="hj-comp-logo" src="@Escudo(comp.logo)" alt="" onerror="this.remove()" />
                             }
                             @comp.nome <span class="hj-chip-count">@comp.total</span>
                         </button>
@@ -420,11 +420,13 @@
                                            A pública não enxerga Competicoes/Detalhes (exige login). *@
                                         var urlTabela = publico
                                             ? Url.Action("Tabelas", "Creators", new { competicao = jogo.Competicao.Id, temporada = jogo.Temporada })
-                                            : Url.Action("Detalhes", "Competicoes", new { id = jogo.Competicao.Id, temporada = jogo.Temporada });
+                                            // Competição com tela própria (Brasileirão, Libertadores, Champions...)
+                                            // abre a dela; as demais, a genérica (Competicoes/Detalhes)
+                                            : ControleFutebolWeb.Helpers.CompeticaoRotaHelper.Url(Url, jogo.Competicao.Id, temporada: jogo.Temporada);
                                         <a class="hj-comp" href="@urlTabela" target="_blank" rel="noopener" title="Ver a tabela (abre em outra aba)">
                                             @if (!string.IsNullOrEmpty(jogo.Competicao.LogoUrl))
                                             {
-                                                <img class="hj-comp-logo" src="@Escudo(jogo.Competicao.LogoUrl)" alt="" />
+                                                <img class="hj-comp-logo" src="@Escudo(jogo.Competicao.LogoUrl)" alt="" onerror="this.remove()" />
                                             }
                                             <span>@jogo.Competicao.Nome</span>
                                         </a>
@@ -472,7 +474,9 @@
                                             <span class="hj-escudo">
                                                 @if (!string.IsNullOrEmpty(time?.EscudoUrl))
                                                 {
-                                                    <img src="@Escudo(time.EscudoUrl)" alt="" loading="lazy" />
+                                                    <img src="@Escudo(time.EscudoUrl)" alt="" loading="lazy"
+                                                         data-inicial="@(time.Nome?.Substring(0, 1) ?? "?")"
+                                                         onerror="this.parentNode.textContent = this.dataset.inicial" />
                                                 }
                                                 else
                                                 {
@@ -503,7 +507,7 @@
                                                 <span class="hj-gol-min">@(gol.Minuto)'</span>
                                                 @if (!string.IsNullOrEmpty(timeGol?.EscudoUrl))
                                                 {
-                                                    <img src="@Escudo(timeGol.EscudoUrl)" alt="@timeGol.Nome" title="@timeGol.Nome" loading="lazy" />
+                                                    <img src="@Escudo(timeGol.EscudoUrl)" alt="@timeGol.Nome" title="@timeGol.Nome" loading="lazy" onerror="this.remove()" />
                                                 }
                                                 <span>
                                                     <span class="hj-gol-nome">@gol.NomeJogador</span>
@@ -614,8 +618,46 @@
             });
         }
 
-        ligar(chipsComp, function (chip) { compAtual = chip.dataset.compFiltro; });
-        ligar(chipsStatus, function (chip) { statusAtual = chip.dataset.statusFiltro; });
+        // O filtro fica guardado nesta aba (por dia), para voltar igual depois da
+        // atualização automática dos placares ao vivo.
+        var chaveFiltro = 'hjFiltro:' + location.pathname + location.search;
+        function guardar() {
+            try { sessionStorage.setItem(chaveFiltro, JSON.stringify({ comp: compAtual, status: statusAtual })); } catch (e) { }
+        }
+
+        ligar(chipsComp, function (chip) { compAtual = chip.dataset.compFiltro; guardar(); });
+        ligar(chipsStatus, function (chip) { statusAtual = chip.dataset.statusFiltro; guardar(); });
+
+        try {
+            var salvo = JSON.parse(sessionStorage.getItem(chaveFiltro) || 'null');
+            if (salvo) {
+                var chipC = filtros.querySelector('[data-comp-filtro="' + (salvo.comp || '') + '"]');
+                var chipS = filtros.querySelector('[data-status-filtro="' + (salvo.status || '') + '"]');
+                if (chipC) { chipC.click(); }
+                if (chipS) { chipS.click(); }
+            }
+        } catch (e) { }
+    })();
+
+    // Placar ao vivo: o servidor atualiza os jogos em andamento de tempos em tempos,
+    // mas a página só mostrava o placar novo se alguém recarregasse à mão. Com jogo
+    // ao vivo na tela, recarrega sozinha a cada 2 minutos, só com a aba visível (aba
+    // escondida recarrega quando volta a aparecer). Filtro e rolagem são mantidos.
+    (function () {
+        if (!document.querySelector('[data-hj-relogio]')) { return; }
+        var INTERVALO = 2 * 60 * 1000;
+        var carregadaEm = Date.now();
+
+        function talvezRecarregar() {
+            if (document.visibilityState !== 'visible') { return; }
+            // Não interrompe quem está digitando a data
+            var ativo = document.activeElement;
+            if (ativo && ativo.tagName === 'INPUT') { return; }
+            if (Date.now() - carregadaEm >= INTERVALO) { location.reload(); }
+        }
+
+        setInterval(talvezRecarregar, 15000);
+        document.addEventListener('visibilitychange', talvezRecarregar);
     })();
 
     // Relógio dos cards ao vivo. O servidor manda o minuto que a api-football informou na

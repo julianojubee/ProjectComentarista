@@ -1,4 +1,4 @@
-﻿@model ControleFutebolWeb.Models.ViewModels.HomeViewModel
+@model ControleFutebolWeb.Models.ViewModels.HomeViewModel
 @using ControleFutebolWeb.Helpers
 
 @{
@@ -1042,7 +1042,9 @@
     const urls = {
         Time:       id => '/Times/Details/' + id,
         Jogador:    id => '/Jogadores/Estatisticas/' + id,
-        Competição: id => '/Competicoes/Detalhes/' + id,
+        // Competição com tela própria (Brasileirão, Libertadores, Champions...) vai
+        // para ela, como no menu; as demais, para a genérica
+        Competição: id => (@Html.Raw(ControleFutebolWeb.Helpers.CompeticaoRotaHelper.MapaTelasPropriasJson(Url)))[id] || '/Competicoes/Detalhes/' + id,
     };
 
     const badgeClass = {

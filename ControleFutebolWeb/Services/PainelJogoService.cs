@@ -247,7 +247,7 @@ namespace ControleFutebolWeb.Services
                 .Include(o => o.Jogador)
                 .Where(o => o.JogoId == id && o.UsuarioId == usuarioId)
                 .OrderBy(o => o.Ordem)
-                .Select(o => new { id = o.Id, tipo = o.Tipo, jogadorNome = o.Jogador != null ? o.Jogador.Nome : null, texto = o.Texto })
+                .Select(o => new { id = o.Id, tipo = o.Tipo, jogadorId = o.JogadorId, jogadorNome = o.Jogador != null ? o.Jogador.Nome : null, texto = o.Texto })
                 .ToListAsync();
 
             // ── Estatísticas da partida (mesma fonte usada no painel de Estatísticas) ──
@@ -332,6 +332,7 @@ namespace ControleFutebolWeb.Services
                 if (melhor == null || valor(melhor) <= 0) return null;
                 return new
                 {
+                    jogadorId = melhor.JogadorId,
                     nome = melhor.Jogador.Nome,
                     foto = string.IsNullOrEmpty(melhor.Jogador.FotoUrl) ? null : imagemUrl(melhor.Jogador.FotoUrl),
                     valor = valor(melhor)
@@ -423,6 +424,7 @@ namespace ControleFutebolWeb.Services
                     titulo = c.Titulo,
                     texto = c.Texto,
                     lado = c.Casa == null ? null : c.Casa.Value ? "casa" : "vis",
+                    jogadorId = j?.Id,
                     jogadorNome = j?.Nome,
                     foto = string.IsNullOrEmpty(j?.FotoUrl) ? null : imagemUrl(j.FotoUrl)
                 };
@@ -496,6 +498,23 @@ namespace ControleFutebolWeb.Services
                 .Select(g => new CuriosidadesJogoHelper.GolCampeonato(g.JogoId, g.JogadorId, g.Minuto))
                 .ToListAsync();
 
+            // Jejuns dos dois times em qualquer competição (últimos 4 anos basta).
+            var historicoTimes = new List<CuriosidadesJogoHelper.JogoTime>();
+            if (jogo.Data is DateTime dataJogo)
+            {
+                var desde = dataJogo.AddYears(-4);
+                var times = new[] { jogo.TimeCasaId, jogo.TimeVisitanteId };
+                historicoTimes = await _context.Jogos
+                    .AsNoTracking()
+                    .Where(j => j.Id != id && (times.Contains(j.TimeCasaId) || times.Contains(j.TimeVisitanteId))
+                             && j.PlacarCasa != null && j.PlacarVisitante != null
+                             && j.Data < dataJogo && j.Data >= desde)
+                    .Select(j => new CuriosidadesJogoHelper.JogoTime(j.Id, j.Data, j.TimeCasaId, j.TimeVisitanteId,
+                        j.PlacarCasa!.Value, j.PlacarVisitante!.Value,
+                        j.TimeCasa!.Nome, j.TimeVisitante!.Nome, j.Competicao!.Nome))
+                    .ToListAsync();
+            }
+
             // Nome e foto: quem fez gol pode não ter linha de estatística no jogo.
             var idsComNome = jogadoresIds.Concat(golsCampeonato.Where(g => g.JogoId == id).Select(g => g.JogadorId)).Distinct().ToList();
             var jogadores = await _context.Jogadores
@@ -515,6 +534,8 @@ namespace ControleFutebolWeb.Services
                 HistoricoTemporada = historicoTemporada,
                 JogosCampeonato = jogosCampeonato,
                 GolsCampeonato = golsCampeonato,
+                HistoricoTimes = historicoTimes,
+                DataJogo = jogo.Data,
                 NomeJogador = jid => jogadores.TryGetValue(jid, out var j) ? j.Nome : "",
                 LadoJogador = jid => jogadores.TryGetValue(jid, out var j) ? ladoJogador(j) : null,
             });
@@ -764,6 +785,7 @@ namespace ControleFutebolWeb.Services
             var destaques = artilheiros
                 .Select(a => new
                 {
+                    jogadorId = a.JogadorId,
                     nome = a.Nome,
                     foto = string.IsNullOrEmpty(a.FotoUrl) ? null : imagemUrl(a.FotoUrl),
                     gols = a.Gols,
@@ -774,6 +796,7 @@ namespace ControleFutebolWeb.Services
                     .Take(2)
                     .Select(a => new
                     {
+                        jogadorId = a.JogadorId,
                         nome = a.Nome,
                         foto = string.IsNullOrEmpty(a.FotoUrl) ? null : imagemUrl(a.FotoUrl),
                         gols = 0,

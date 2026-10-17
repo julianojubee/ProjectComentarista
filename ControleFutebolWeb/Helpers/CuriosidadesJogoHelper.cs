@@ -31,6 +31,11 @@ namespace ControleFutebolWeb.Helpers
 
         public sealed record GolCampeonato(int JogoId, int JogadorId, int Minuto);
 
+        /// <summary>Jogo de um dos times em qualquer competição/temporada — base dos jejuns
+        /// que atravessam campeonatos ("primeiro jogo sem sofrer gol em 9 meses").</summary>
+        public sealed record JogoTime(int Id, DateTime? Data, int TimeCasaId, int TimeVisitanteId, int PlacarCasa, int PlacarVisitante,
+            string NomeCasa, string NomeVisitante, string Competicao);
+
         public sealed class Entrada
         {
             public int JogoId { get; init; }
@@ -53,6 +58,11 @@ namespace ControleFutebolWeb.Helpers
 
             /// <summary>Gols (sem gol contra) da competição/temporada antes desta partida, mais os dela.</summary>
             public IReadOnlyList<GolCampeonato> GolsCampeonato { get; init; } = Array.Empty<GolCampeonato>();
+
+            /// <summary>Jogos com placar dos dois times em qualquer competição e temporada, antes desta partida.</summary>
+            public IReadOnlyList<JogoTime> HistoricoTimes { get; init; } = Array.Empty<JogoTime>();
+
+            public DateTime? DataJogo { get; init; }
 
             public Func<int, string> NomeJogador { get; init; } = id => "";
 
@@ -102,10 +112,14 @@ namespace ControleFutebolWeb.Helpers
             lista.AddRange(CuriosidadesTimes(d));
 
             // Até MaxPorJogador por jogador, para a aba não virar o jogo de um só.
+            // Mesma chave duas vezes (fim de jejum no campeonato e em todas as
+            // competições) fica só a mais relevante.
             var porJogador = new Dictionary<int, int>();
+            var chaves = new HashSet<string>();
             var resultado = new List<Curiosidade>();
             foreach (var c in lista.OrderByDescending(c => c.Relevancia))
             {
+                if (c.Chave.Length > 0 && !chaves.Add(c.Chave)) continue;
                 if (c.JogadorId is int jid)
                 {
                     if (porJogador.GetValueOrDefault(jid) >= MaxPorJogador) continue;
@@ -346,6 +360,163 @@ namespace ControleFutebolWeb.Helpers
                 yield return c;
             foreach (var c in Sequencias(d, anteriores, d.TimeVisitanteId, d.NomeVisitante, d.NomeCasa, pv, pc, false))
                 yield return c;
+
+            foreach (var c in Jejuns(d, d.TimeCasaId, d.TimeVisitanteId, d.NomeCasa, d.NomeVisitante, pc, pv, true))
+                yield return c;
+            foreach (var c in Jejuns(d, d.TimeVisitanteId, d.TimeCasaId, d.NomeVisitante, d.NomeCasa, pv, pc, false))
+                yield return c;
+        }
+
+        // ── Jejuns em todas as competições ──────────────────────────────────────
+        // Diferente das sequências (só o campeonato), olham o histórico inteiro do
+        // time: o jejum que vira notícia costuma atravessar temporada e competição.
+        private const int MinJogosJejumSemSofrer = 8;
+        private const int MinJogosJejumGols = 4;
+        private const int MinJogosJejumVitoria = 6;
+        private const int MinJogosJejumVitoriaFora = 6;
+        private const int MinConfrontosJejum = 4;
+        private const int MinJogosSequenciaSemSofrer = 4;
+
+        private sealed record JogoDoTime(JogoTime Jogo, int GolsPro, int GolsContra, bool EmCasa, int AdversarioId);
+
+        private static IEnumerable<Curiosidade> Jejuns(Entrada d, int timeId, int adversarioId, string nome, string adversario,
+            int golsPro, int golsContra, bool casa)
+        {
+            // Do mais recente para o mais antigo; um jogo por Id (o confronto entre
+            // os dois vem no histórico de ambos).
+            var jogos = d.HistoricoTimes
+                .Where(j => j.Id != d.JogoId && j.Data != null && (d.DataJogo == null || j.Data < d.DataJogo)
+                         && (j.TimeCasaId == timeId || j.TimeVisitanteId == timeId))
+                .GroupBy(j => j.Id).Select(g => g.First())
+                .OrderByDescending(j => j.Data)
+                .Select(j =>
+                {
+                    bool emCasa = j.TimeCasaId == timeId;
+                    return new JogoDoTime(j, emCasa ? j.PlacarCasa : j.PlacarVisitante, emCasa ? j.PlacarVisitante : j.PlacarCasa,
+                        emCasa, emCasa ? j.TimeVisitanteId : j.TimeCasaId);
+                })
+                .ToList();
+            if (jogos.Count == 0) yield break;
+
+            // Jogos seguidos, do mais recente para trás, até o primeiro em que
+            // "ocorreu" — e esse jogo, quando está no histórico. Sem ele o jejum pode
+            // ser só o começo dos dados, então as frases de "fim de jejum" não saem.
+            static (int N, JogoDoTime? Ultimo) Jejum(IEnumerable<JogoDoTime> l, Func<JogoDoTime, bool> ocorreu)
+            {
+                int n = 0;
+                foreach (var j in l)
+                {
+                    if (ocorreu(j)) return (n, j);
+                    n++;
+                }
+                return (n, null);
+            }
+
+            string Duracao(int n, JogoDoTime ultimo)
+            {
+                var periodo = Periodo(ultimo.Jogo.Data, d.DataJogo);
+                return periodo != null ? $"{n} jogos e {periodo}" : $"{n} jogos";
+            }
+
+            // Sem sofrer gol depois de muito tempo
+            if (golsContra == 0)
+            {
+                var (n, ultimo) = Jejum(jogos, j => j.GolsContra == 0);
+                if (n >= MinJogosJejumSemSofrer && ultimo != null)
+                {
+                    var periodo = Periodo(ultimo.Jogo.Data, d.DataJogo);
+                    var quando = periodo != null ? $"pela primeira vez em {periodo} ({n} jogos seguidos sofrendo gol)" : $"depois de {n} jogos seguidos sofrendo gol";
+                    yield return new Curiosidade("time", "Sem sofrer gol",
+                        $"{nome} terminou um jogo sem sofrer gol {quando}. A última vez tinha sido em {Referencia(ultimo.Jogo)}.",
+                        60 + Math.Min(n, 30), null, casa, Chave: $"sem_sofrer:{timeId}");
+                }
+            }
+
+            // Voltou a marcar
+            if (golsPro > 0)
+            {
+                var (n, ultimo) = Jejum(jogos, j => j.GolsPro > 0);
+                if (n >= MinJogosJejumGols && ultimo != null)
+                    yield return new Curiosidade("time", "Fim do jejum de gols",
+                        $"{nome} voltou a marcar depois de {Duracao(n, ultimo)} sem fazer gol. O último tinha sido em {Referencia(ultimo.Jogo)}.",
+                        60 + Math.Min(n * 2, 30), null, casa, Chave: $"gol_time:{timeId}");
+            }
+
+            if (golsPro > golsContra)
+            {
+                // Voltou a vencer, contando todas as competições — a versão do
+                // campeonato usa a mesma chave e fica a mais relevante.
+                var (n, ultimo) = Jejum(jogos, j => j.GolsPro > j.GolsContra);
+                if (n >= MinJogosJejumVitoria && ultimo != null)
+                    yield return new Curiosidade("time", "Fim do jejum",
+                        $"{nome} voltou a vencer depois de {Duracao(n, ultimo)}, contando todas as competições. A última vitória tinha sido em {Referencia(ultimo.Jogo)}.",
+                        58 + Math.Min(n, 30), null, casa, Chave: $"vitoria:{timeId}");
+
+                if (!casa)
+                {
+                    var (nf, ultimaFora) = Jejum(jogos.Where(j => !j.EmCasa), j => j.GolsPro > j.GolsContra);
+                    if (nf >= MinJogosJejumVitoriaFora && ultimaFora != null)
+                        yield return new Curiosidade("time", "Vitória fora de casa",
+                            $"{nome} venceu fora de casa depois de {Duracao(nf, ultimaFora)} sem conseguir. A última tinha sido em {Referencia(ultimaFora.Jogo)}.",
+                            55 + Math.Min(nf, 30), null, casa, Chave: $"vitoria_fora:{timeId}");
+                }
+
+                // Confronto direto: aqui "nunca venceu" vale, dito como "nos confrontos registrados".
+                var (nc, ultimaSobre) = Jejum(jogos.Where(j => j.AdversarioId == adversarioId), j => j.GolsPro > j.GolsContra);
+                if (nc >= MinConfrontosJejum)
+                {
+                    var texto = ultimaSobre != null
+                        ? $"Primeira vitória de {nome} sobre {adversario} desde {DateHelper.FormatarData(ultimaSobre.Jogo.Data)}, depois de {nc} confrontos sem vencer."
+                        : $"Primeira vitória de {nome} sobre {adversario} nos {nc + 1} confrontos registrados.";
+                    yield return new Curiosidade("time", "Confronto direto", texto, 55 + Math.Min(nc * 2, 30), null, casa,
+                        Chave: $"confronto:{timeId}", AmbosTimes: true);
+                }
+            }
+
+            // Sequências em andamento, contando esta partida
+            if (golsContra == 0)
+            {
+                int n = Jejum(jogos, j => j.GolsContra > 0).N + 1;
+                if (n >= MinJogosSequenciaSemSofrer)
+                    yield return new Curiosidade("time", "Sem sofrer gol",
+                        $"{nome} chegou a {n} jogos seguidos sem sofrer gol, contando todas as competições.", 45 + Math.Min(n * 2, 30), null, casa,
+                        Chave: $"seq_sem_sofrer:{timeId}");
+            }
+            if (golsPro == 0)
+            {
+                var (n0, ultimo) = Jejum(jogos, j => j.GolsPro > 0);
+                int n = n0 + 1;
+                if (n >= MinJogosJejumGols)
+                    yield return new Curiosidade("time", "Jejum de gols",
+                        $"{nome} chegou a {n} jogos seguidos sem marcar{(ultimo != null ? $"; o último gol foi em {Referencia(ultimo.Jogo)}" : "")}.",
+                        45 + Math.Min(n * 2, 30), null, casa, Chave: $"seq_sem_marcar:{timeId}");
+            }
+        }
+
+        // "21/01/2026, Chelsea 1 x 0 Pafos (Champions League)" — competição entre
+        // parênteses porque o artigo muda ("pela Premier", "pelo Brasileirão").
+        private static string Referencia(JogoTime j)
+        {
+            var r = $"{DateHelper.FormatarData(j.Data)}, {j.NomeCasa} {j.PlacarCasa} x {j.PlacarVisitante} {j.NomeVisitante}";
+            return string.IsNullOrEmpty(j.Competicao) ? r : $"{r} ({j.Competicao})";
+        }
+
+        /// <summary>"9 meses", "quase 9 meses", "1 ano", "mais de 2 anos" — null abaixo
+        /// de 2 meses, quando a contagem de jogos já diz tudo.</summary>
+        internal static string? Periodo(DateTime? de, DateTime? ate)
+        {
+            if (de == null || ate == null) return null;
+            DateTime a = de.Value, b = ate.Value;
+            int meses = (b.Year - a.Year) * 12 + b.Month - a.Month;
+            if (b.Day < a.Day) meses--;
+            // 8 meses e 26 dias se diz "quase 9 meses".
+            bool quase = meses >= 1 && meses < 12 && (b - a.AddMonths(meses)).TotalDays >= 20;
+            if (quase) return meses + 1 == 12 ? "quase 1 ano" : $"quase {meses + 1} meses";
+            if (meses < 2) return null;
+            if (meses < 12) return $"{meses} meses";
+            int anos = meses / 12;
+            var t = anos == 1 ? "1 ano" : $"{anos} anos";
+            return meses % 12 == 0 ? t : $"mais de {t}";
         }
 
         private static IEnumerable<Curiosidade> Sequencias(Entrada d, List<JogoResumo> anteriores, int timeId,

@@ -96,6 +96,7 @@ internal class Program
         builder.Services.AddScoped<PainelJogoService>();
         builder.Services.AddScoped<CraqueDaPartidaService>();
         builder.Services.AddScoped<MarcacaoVideoService>();
+        builder.Services.AddScoped<AnaliseVideoJogadaService>();
         // Números do tooltip ℹ do jogador — tela de análise e campo do Match Up.
         builder.Services.AddScoped<TooltipJogadorService>();
         // Simulador de tabela — tela logada (/Simulador) e pública (/creators/simulador).

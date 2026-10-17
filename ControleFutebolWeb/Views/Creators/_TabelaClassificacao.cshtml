@@ -9,17 +9,17 @@
     <table class="cr-tabela">
         <thead>
             <tr>
-                <th>#</th>
+                <th title="Posição">#</th>
                 <th class="esq">Clube</th>
-                <th>P</th>
-                <th>J</th>
-                <th>V</th>
-                <th>E</th>
-                <th>D</th>
-                <th>GP</th>
-                <th>GC</th>
-                <th>SG</th>
-                <th>%</th>
+                <th title="Pontos">P</th>
+                <th title="Jogos">J</th>
+                <th title="Vitórias">V</th>
+                <th title="Empates">E</th>
+                <th title="Derrotas">D</th>
+                <th title="Gols pró">GP</th>
+                <th title="Gols contra">GC</th>
+                <th title="Saldo de gols">SG</th>
+                <th title="Aproveitamento">%</th>
             </tr>
         </thead>
         <tbody>
@@ -32,7 +32,7 @@
                         <span class="cr-tab-time">
                             @if (!string.IsNullOrWhiteSpace(c.Time?.EscudoUrl))
                             {
-                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.Time!.EscudoUrl })" alt="" loading="lazy" />
+                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = c.Time!.EscudoUrl })" alt="" loading="lazy" onerror="this.remove()" />
                             }
                             @c.Time?.Nome
                         </span>
@@ -44,7 +44,7 @@
                     <td>@c.Derrotas</td>
                     <td>@c.GolsPro</td>
                     <td>@c.GolsContra</td>
-                    <td>@c.SaldoGols</td>
+                    <td>@(c.SaldoGols > 0 ? "+" + c.SaldoGols : c.SaldoGols.ToString())</td>
                     <td>@aprov%</td>
                 </tr>
             }

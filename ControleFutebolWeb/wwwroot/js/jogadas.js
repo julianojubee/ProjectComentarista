@@ -2037,19 +2037,48 @@
         try { return localStorage.getItem(CHAVE_FOTOS) !== '0'; } catch (e) { return true; }
     }
 
+    // Tela cheia = modal maximizado + Fullscreen API do navegador (some a barra
+    // de endereço e a de abas, que no notebook comem quase 100px de gramado).
+    // Sem a API (iframe, Safari antigo) fica só o maximizado, que já ocupa a
+    // janela inteira. Na tela cheia a lista de jogadas salvas se recolhe: é a
+    // largura dela que vira campo, e o botão "Jogadas salvas" a traz de volta.
     function aplicarMaximizado(v) {
         var box = document.querySelector('#modal-jogadas .jgd-box');
         var btn = el('jgd-maximizar');
         if (!box) return;
         box.classList.toggle('jgd-maximizado', v);
+        box.classList.toggle('jgd-sem-lista', v);
         if (btn) {
-            btn.innerHTML = v ? '&#10529;' : '&#9974;';
-            btn.title = v ? 'Restaurar o tamanho normal' : 'Maximizar (ocupa a tela inteira)';
+            btn.textContent = v ? 'Sair da tela cheia' : 'Tela cheia';
+            btn.title = v ? 'Volta ao tamanho normal (Esc também sai da tela cheia do navegador)'
+                          : 'Ocupa a tela inteira, com o campo maior';
         }
+        atualizarBotaoLista();
+    }
+
+    function atualizarBotaoLista() {
+        var box = document.querySelector('#modal-jogadas .jgd-box');
+        var b = el('jgd-lista-btn');
+        if (!box || !b) return;
+        b.hidden = !box.classList.contains('jgd-maximizado');
+        var oculta = box.classList.contains('jgd-sem-lista');
+        b.textContent = oculta ? 'Jogadas salvas' : 'Ocultar lista';
+        b.classList.toggle('ativo', !oculta);
+    }
+
+    function alternarLista() {
+        var box = document.querySelector('#modal-jogadas .jgd-box');
+        if (!box) return;
+        box.classList.toggle('jgd-sem-lista');
+        atualizarBotaoLista();
     }
 
     function maximizadoSalvo() {
         try { return localStorage.getItem(CHAVE_MAX) === '1'; } catch (e) { return false; }
+    }
+
+    function emTelaCheiaDoNavegador() {
+        return document.fullscreenElement === el('modal-jogadas');
     }
 
     function alternarMaximizar() {
@@ -2058,13 +2087,31 @@
         var v = !box.classList.contains('jgd-maximizado');
         aplicarMaximizado(v);
         try { localStorage.setItem(CHAVE_MAX, v ? '1' : '0'); } catch (e) { /* modo privado */ }
+        var modal = el('modal-jogadas');
+        if (v && modal.requestFullscreen && !document.fullscreenElement) {
+            modal.requestFullscreen().catch(function () { /* sem permissão: fica o maximizado */ });
+        } else if (!v && emTelaCheiaDoNavegador()) {
+            document.exitFullscreen().catch(function () { });
+        }
         // O campo mudou de tamanho: setas, rastros e caminhos são desenhados em
         // pixels e precisam ser refeitos. O ResizeObserver do palco já cuida disso.
     }
 
+    // Esc do navegador sai da tela cheia sem passar pelo botão: volta ao modal
+    // normal junto, senão ficaria um "maximizado" com a barra do navegador.
+    var estavaEmTelaCheia = false;
+    document.addEventListener('fullscreenchange', function () {
+        if (emTelaCheiaDoNavegador()) { estavaEmTelaCheia = true; return; }
+        if (!estavaEmTelaCheia) return;
+        estavaEmTelaCheia = false;
+        aplicarMaximizado(false);
+        try { localStorage.setItem(CHAVE_MAX, '0'); } catch (e) { }
+    });
+
     function fecharModal() {
         if (M.sujo && !confirm('A jogada tem alterações não salvas. Fechar mesmo assim?')) return;
         if (M.palco) M.palco.parar();
+        if (emTelaCheiaDoNavegador()) { estavaEmTelaCheia = false; document.exitFullscreen().catch(function () { }); }
         var modal = el('modal-jogadas');
         if (modal) modal.style.display = 'none';
     }
@@ -2083,6 +2130,16 @@
         abas.querySelectorAll('.jgd-aba').forEach(function (b) {
             b.addEventListener('click', function () { trocarLado(b.dataset.lado); });
         });
+
+        if (!el('jgd-lista-btn')) {
+            var bl = document.createElement('button');
+            bl.type = 'button';
+            bl.id = 'jgd-lista-btn';
+            bl.className = 'jgd-max-btn jgd-lista-btn';
+            bl.addEventListener('click', alternarLista);
+            el('jgd-maximizar').before(bl);
+        }
+        atualizarBotaoLista();
 
         el('jgd-corpo').innerHTML =
             '<div class="jgd-lista" id="jgd-lista"></div>' +
@@ -2125,10 +2182,13 @@
         }).join('');
 
         lista.innerHTML =
-            '<button type="button" class="jgd-btn-nova" id="jgd-btn-nova">＋ Nova jogada</button>' +
+            '<button type="button" class="jgd-btn-nova" id="jgd-btn-nova">+ Nova jogada</button>' +
+            '<button type="button" class="jgd-btn-nova jgd-btn-video-ia" id="jgd-btn-video-ia"' +
+                ' title="Sobe o vídeo do lance e a IA monta os passos da jogada">Importar de vídeo</button>' +
             (itens || '<div class="jgd-lista-vazia">Nenhuma jogada desenhada para ' + esc(t.nome) + ' ainda.</div>');
 
         el('jgd-btn-nova').addEventListener('click', novaJogada);
+        el('jgd-btn-video-ia').addEventListener('click', mostrarImportarVideo);
         lista.querySelectorAll('.jgd-item').forEach(function (item) {
             item.addEventListener('click', function () { abrirJogada(parseInt(item.dataset.id, 10)); });
         });
@@ -2138,10 +2198,13 @@
         if (M.palco) { M.palco.destruir(); M.palco = null; }
         el('jgd-editor').innerHTML =
             '<div class="jgd-vazio">' +
-            '<div class="jgd-vazio-icone">🎬</div>' +
-            '<div>Escolha uma jogada na lista ou crie uma nova.<br>' +
-            'Você monta o lance em passos: posiciona o time e a bola, clica em <b>＋ Passo</b>, ' +
-            'move quem se deslocou e a bola, e repete.<br>No fim, <b>▶ Reproduzir</b> anima a jogada inteira.</div>' +
+            '<div class="jgd-vazio-tit">Desenhe uma jogada deste jogo</div>' +
+            '<ol class="jgd-vazio-passos">' +
+                '<li>Monte o começo do lance: o time já entra com a escalação do jogo.</li>' +
+                '<li>Clique em <b>Novo passo</b> e mova quem se deslocou e a bola. Repita até o fim.</li>' +
+                '<li>Clique em <b>Reproduzir</b> para ver a jogada animada.</li>' +
+            '</ol>' +
+            '<button type="button" class="jgd-btn jgd-btn-salvar" onclick="Jogadas.novaJogada()">Criar jogada</button>' +
             '</div>';
     }
 
@@ -2163,6 +2226,77 @@
         abrirEditor({ id: null, nome: '', descricao: '', storyboard: sb });
     }
 
+    // ── Vídeo → jogada (IA) ──────────────────────────────────────────────
+    // O servidor tira frames do clipe e o Claude devolve o storyboard do lance
+    // (/Jogadas/AnalisarVideo). O resultado abre como jogada NOVA e não salva:
+    // é um rascunho para o usuário revisar posições e legendas antes do Salvar.
+    function mostrarImportarVideo() {
+        if (M.sujo && !confirm('A jogada aberta tem alterações não salvas. Importar outra mesmo assim?')) return;
+        if (M.palco) { M.palco.destruir(); M.palco = null; }
+        M.jogadaId = null;
+        renderizarLista();
+
+        var t = ladoAtual();
+        el('jgd-editor').innerHTML =
+            '<form class="jgd-vazio jgd-importar" id="jgd-importar">' +
+            '<div class="jgd-vazio-tit">Importar jogada de vídeo</div>' +
+            '<ol class="jgd-vazio-passos">' +
+                '<li>Escolha o clipe do lance (MP4, até 80 MB). O lance é do <b>' + esc(t.nome) + '</b> — troque de time na aba acima se for do outro.</li>' +
+                '<li>Se o vídeo tem replay ou comemoração, diga o trecho em segundos onde a bola está rolando.</li>' +
+                '<li>A IA monta os passos com os titulares do jogo; revise e clique em <b>Salvar</b>.</li>' +
+            '</ol>' +
+            '<input type="file" id="jgd-imp-arquivo" accept="video/*" required>' +
+            '<div class="jgd-imp-trecho">' +
+                '<label>Início (s) <input type="number" id="jgd-imp-inicio" min="0" step="0.5" placeholder="0"></label>' +
+                '<label>Fim (s) <input type="number" id="jgd-imp-fim" min="0" step="0.5" placeholder="até o fim"></label>' +
+            '</div>' +
+            '<input type="text" id="jgd-imp-contexto" maxlength="300" class="jgd-imp-contexto"' +
+                ' placeholder="Contexto opcional, ex.: gol do Dembélé, troca de passes pela direita">' +
+            '<button type="submit" class="jgd-btn jgd-btn-salvar" id="jgd-imp-enviar">Analisar vídeo</button>' +
+            '<div class="jgd-imp-status" id="jgd-imp-status"></div>' +
+            '</form>';
+
+        el('jgd-importar').addEventListener('submit', function (ev) {
+            ev.preventDefault();
+            importarVideo();
+        });
+    }
+
+    async function importarVideo() {
+        var arq = el('jgd-imp-arquivo').files[0];
+        if (!arq) return;
+        var t = ladoAtual();
+        var fd = new FormData();
+        fd.append('arquivo', arq);
+        fd.append('jogoId', M.jogoId);
+        fd.append('timeId', t.timeId);
+        if (el('jgd-imp-inicio').value) fd.append('inicio', el('jgd-imp-inicio').value);
+        if (el('jgd-imp-fim').value) fd.append('fim', el('jgd-imp-fim').value);
+        if (el('jgd-imp-contexto').value.trim()) fd.append('contexto', el('jgd-imp-contexto').value.trim());
+
+        var btn = el('jgd-imp-enviar'), status = el('jgd-imp-status');
+        btn.disabled = true;
+        btn.textContent = 'Analisando…';
+        status.className = 'jgd-imp-status';
+        status.textContent = 'Lendo os frames e reconhecendo os jogadores. Isso leva de 1 a 3 minutos.';
+
+        try {
+            var resp = await fetch('/Jogadas/AnalisarVideo', { method: 'POST', body: fd });
+            if (!resp.ok) throw new Error(await resp.text() || ('Erro ' + resp.status));
+            var r = await resp.json();
+            M.jogadaId = null;
+            abrirEditor({ id: null, nome: r.nome, descricao: r.descricao, storyboard: r.storyboard });
+            marcarSujo(true);
+        } catch (e) {
+            // O formulário pode ter sido trocado enquanto a análise rodava.
+            if (!el('jgd-imp-status')) return;
+            status.className = 'jgd-imp-status jgd-imp-erro';
+            status.textContent = e.message || 'Erro de conexão ao analisar o vídeo.';
+            btn.disabled = false;
+            btn.textContent = 'Analisar vídeo';
+        }
+    }
+
     function abrirJogada(id) {
         if (M.sujo && !confirm('A jogada aberta tem alterações não salvas. Abrir outra mesmo assim?')) return;
         var j = ladoAtual().jogadas.find(function (x) { return x.id === id; });
@@ -2180,25 +2314,88 @@
         // storyboard que ninguém mais vê.
         if (M.palco) { M.palco.destruir(); M.palco = null; }
 
+        // Organização da tela, de cima para baixo, na ordem em que se trabalha:
+        //   1. a jogada (nome, salvar, vídeo, excluir)
+        //   2. ferramentas de edição e o que exibir no campo
+        //   3. elenco + campo
+        //   4. reprodução (play, velocidade, loop, linha do tempo)
+        //   5. passos (chips + "Novo passo") e os ajustes do passo e da peça
+        // O guia de uso fica recolhido em "Como usar"; na tela só vai a dica do
+        // próximo passo (atualizarDicaFluxo), que é o que o usuário precisa saber.
         el('jgd-editor').innerHTML =
             '<div class="jgd-barra">' +
                 '<input type="text" class="jgd-nome-input" id="jgd-nome" maxlength="80"' +
-                    ' placeholder="Nome da jogada (ex: saída de bola pela direita)" value="' + esc(jogada.nome || '') + '">' +
-                '<div class="jgd-sep"></div>' +
-                '<button type="button" class="jgd-btn" id="jgd-add-passo" title="Cria um passo copiando as posições atuais">＋ Passo</button>' +
-                '<div class="jgd-passo-nav">' +
-                    '<button type="button" id="jgd-ant" title="Passo anterior">‹</button>' +
-                    '<span id="jgd-contador">1/1</span>' +
-                    '<button type="button" id="jgd-prox" title="Próximo passo">›</button>' +
+                    ' placeholder="Nome da jogada, ex.: saída de bola pela direita" value="' + esc(jogada.nome || '') + '">' +
+                (jogada.id ? '<button type="button" class="jgd-btn jgd-btn-perigo" id="jgd-excluir" title="Excluir esta jogada">Excluir</button>' : '') +
+                '<button type="button" class="jgd-btn" id="jgd-video"' +
+                    ' title="Grava a jogada animada num arquivo MP4 para postar ou mostrar na reunião">Gerar vídeo</button>' +
+                '<button type="button" class="jgd-btn jgd-btn-salvar" id="jgd-salvar">Salvar</button>' +
+            '</div>' +
+            '<div class="jgd-ferramentas">' +
+                '<div class="jgd-grupo">' +
+                    '<button type="button" class="jgd-btn jgd-btn-icone" id="jgd-desfazer" title="Desfazer (Ctrl+Z)">↶</button>' +
+                    '<button type="button" class="jgd-btn jgd-btn-icone" id="jgd-refazer" title="Refazer (Ctrl+Shift+Z)">↷</button>' +
                 '</div>' +
-                '<button type="button" class="jgd-btn jgd-btn-perigo" id="jgd-del-passo" title="Excluir o passo atual">🗑</button>' +
-                '<div class="jgd-sep"></div>' +
-                '<button type="button" class="jgd-btn" id="jgd-desfazer" title="Desfazer (Ctrl+Z)">↶</button>' +
-                '<button type="button" class="jgd-btn" id="jgd-refazer" title="Refazer (Ctrl+Shift+Z)">↷</button>' +
-                '<div class="jgd-sep"></div>' +
-                '<button type="button" class="jgd-btn" id="jgd-seta" title="Ligue e clique em dois pontos do campo para traçar uma seta. Duplo clique numa seta remove.">➹ Setas</button>' +
-                '<button type="button" class="jgd-btn jgd-btn-bloco" id="jgd-bloco">⛓ Bloco</button>' +
-                '<div class="jgd-sep"></div>' +
+                '<div class="jgd-grupo">' +
+                    '<button type="button" class="jgd-btn" id="jgd-seta" title="Clique em dois pontos do campo para traçar uma seta. Duplo clique numa seta remove.">Desenhar seta</button>' +
+                    '<button type="button" class="jgd-btn jgd-btn-bloco" id="jgd-bloco">Agrupar</button>' +
+                '</div>' +
+                '<div class="jgd-grupo">' +
+                    '<span class="jgd-grupo-rot">Exibir</span>' +
+                    '<button type="button" class="jgd-btn jgd-btn-alt" id="jgd-caminhos"' +
+                        ' title="Desenha o trajeto que cada jogador e a bola vão percorrer">Trajetos</button>' +
+                    '<button type="button" class="jgd-btn jgd-btn-alt" id="jgd-snap"' +
+                        ' title="Encaixa o arrasto numa grade de 2,5%, para alinhar linhas">Grade</button>' +
+                    '<button type="button" class="jgd-btn jgd-btn-alt" id="jgd-fotos"' +
+                        ' title="Mostra a foto do jogador no lugar do número">Fotos</button>' +
+                '</div>' +
+                '<div class="jgd-grupo">' +
+                    // Cor da camisa de cada lado: a prancheta lê como a escalação
+                    // do match-up, onde a cor do time identifica mais rápido.
+                    '<span class="jgd-grupo-rot">Cores</span>' +
+                    '<input type="color" class="jgd-cor-time" id="jgd-cor-nos"' +
+                        ' title="Cor da camisa do ' + esc(t.nome) + '">' +
+                    '<input type="color" class="jgd-cor-time" id="jgd-cor-adv"' +
+                        ' title="Cor da camisa do ' + esc(adversario().nome) + ' (marcação)">' +
+                '</div>' +
+                '<button type="button" class="jgd-btn jgd-btn-ajuda" id="jgd-ajuda-btn" aria-expanded="false">Como usar</button>' +
+            '</div>' +
+            '<div class="jgd-dica-modo" id="jgd-dica-seta" style="display:none;">' +
+                'Clique no ponto de origem e depois no destino. Duplo clique numa seta remove. Esc sai do modo seta.' +
+            '</div>' +
+            '<div class="jgd-ajuda" id="jgd-ajuda" hidden>' +
+                '<ol class="jgd-ajuda-passos">' +
+                    '<li><b>Monte o começo do lance.</b> O time entra com a escalação do jogo. ' +
+                        'Arraste jogadores e a bola; do elenco ao lado, arraste ou clique para incluir alguém. ' +
+                        'Passe o mouse num jogador e clique no × para tirá-lo.</li>' +
+                    '<li><b>Clique em Novo passo</b> e mova só quem se deslocou e a bola. ' +
+                        'Repita até o fim da jogada.</li>' +
+                    '<li><b>Reproduza</b> para ver a animação. Na linha do tempo dá para ir quadro a quadro.</li>' +
+                '</ol>' +
+                '<ul class="jgd-ajuda-extras">' +
+                    '<li><b>Tipo de bola</b> (toque, passe, cruzamento...) e <b>legenda</b> valem do passo atual para o próximo.</li>' +
+                    '<li>Clique num jogador para escolher o <b>ritmo</b> (andar, trote, sprint) e o <b>atraso na saída</b>. ' +
+                        'As setas do teclado empurram o selecionado (Shift empurra mais).</li>' +
+                    '<li><b>Agrupar:</b> selecione vários com Ctrl+clique ou cercando com o mouse no gramado, e clique em Agrupar (Ctrl+G). ' +
+                        'Eles passam a andar juntos, mantendo a forma. Ctrl+Shift+G desfaz.</li>' +
+                    '<li>A aba <b>' + esc(adversario().nome) + '</b> do elenco traz a marcação: ' +
+                        '"+ escalação" põe os 11 de uma vez, na formação do jogo.</li>' +
+                    '<li><b>Gerar vídeo</b> grava em tempo real, no ritmo da jogada: deixe a janela na frente até terminar.</li>' +
+                '</ul>' +
+            '</div>' +
+            '<div class="jgd-palco">' +
+                '<div class="jgd-elenco">' +
+                    '<div class="jgd-elenco-abas">' +
+                        '<button type="button" class="jgd-elenco-aba ativa" data-alvo="nos" title="' + esc(t.nome) + '">' + esc(t.nome) + '</button>' +
+                        '<button type="button" class="jgd-elenco-aba jgd-aba-adv" data-alvo="adv" title="' + esc(adversario().nome) + ' (marcação)">' + esc(adversario().nome) + '</button>' +
+                    '</div>' +
+                    '<input type="text" class="jgd-elenco-busca" id="jgd-busca" placeholder="Buscar jogador">' +
+                    '<div class="jgd-elenco-lista" id="jgd-elenco-lista"></div>' +
+                    '<button type="button" class="jgd-elenco-todos" id="jgd-add-escalacao"></button>' +
+                '</div>' +
+                '<div class="jgd-campo-wrap" id="jgd-campo-host"></div>' +
+            '</div>' +
+            '<div class="jgd-scrub-linha">' +
                 '<button type="button" class="jgd-btn jgd-btn-play" id="jgd-play">▶ Reproduzir</button>' +
                 '<select class="jgd-vel" id="jgd-vel" title="Velocidade da animação">' +
                     '<option value="0.5">0,5×</option>' +
@@ -2206,101 +2403,57 @@
                     '<option value="1.5">1,5×</option>' +
                     '<option value="2">2×</option>' +
                 '</select>' +
-                '<button type="button" class="jgd-btn ativo" id="jgd-loop" title="Repetir em loop">🔁</button>' +
-                '<div class="jgd-espaco"></div>' +
-                '<button type="button" class="jgd-btn jgd-btn-video" id="jgd-video"' +
-                    ' title="Grava a jogada animada num arquivo de vídeo para postar ou mostrar na reunião">🎥 Vídeo</button>' +
-                '<button type="button" class="jgd-btn jgd-btn-salvar" id="jgd-salvar">💾 Salvar</button>' +
-                (jogada.id ? '<button type="button" class="jgd-btn jgd-btn-perigo" id="jgd-excluir">🗑 Excluir</button>' : '') +
-            '</div>' +
-            '<div class="jgd-dica-modo" id="jgd-dica-seta" style="display:none;">' +
-                'clique no ponto de origem e depois no destino · duplo clique na seta remove · Esc sai' +
-            '</div>' +
-            '<div class="jgd-motor">' +
-                '<span class="jgd-motor-rotulo">Motor de movimento</span>' +
-                '<div class="jgd-seg" id="jgd-seg-motor">' +
-                    '<button type="button" data-motor="v1">atual</button>' +
-                    '<button type="button" data-motor="v2" class="ativo">novo</button>' +
+                '<button type="button" class="jgd-btn jgd-btn-alt ativo" id="jgd-loop" title="Repetir a jogada sem parar">Repetir</button>' +
+                '<div class="jgd-scrub-trilho">' +
+                    '<span class="jgd-scrub-tempo" id="jgd-relogio">0,0s</span>' +
+                    '<input type="range" class="jgd-scrub" id="jgd-scrub" min="0" max="1000" step="1" value="0"' +
+                        ' title="Arraste para percorrer a jogada quadro a quadro" aria-label="Linha do tempo da jogada">' +
+                    '<span class="jgd-scrub-tempo jgd-scrub-total" id="jgd-total">0,0s</span>' +
                 '</div>' +
-                '<span class="jgd-motor-desc" id="jgd-motor-desc"></span>' +
-                '<button type="button" class="jgd-btn jgd-btn-ciano" id="jgd-caminhos"' +
-                    ' title="Desenha o trajeto que cada peça e a bola vão percorrer">⤳ Caminhos</button>' +
-                '<button type="button" class="jgd-btn jgd-btn-ciano" id="jgd-snap"' +
-                    ' title="Arredonda o arrasto para uma grade de 2,5%">⌗ Snap</button>' +
-                '<div class="jgd-sep"></div>' +
-                // Cor da camisa de cada lado e fotos dos jogadores: a prancheta
-                // passa a ler como a escalação do match-up, onde o rosto e a cor
-                // do time identificam mais rápido que o número sozinho.
-                '<span class="jgd-motor-rotulo">Cores</span>' +
-                '<input type="color" class="jgd-cor-time" id="jgd-cor-nos"' +
-                    ' title="Cor da camisa do ' + esc(t.nome) + '">' +
-                '<input type="color" class="jgd-cor-time" id="jgd-cor-adv"' +
-                    ' title="Cor da camisa do ' + esc(adversario().nome) + ' (marcação)">' +
-                '<button type="button" class="jgd-btn jgd-btn-ciano" id="jgd-fotos"' +
-                    ' title="Mostra a foto do jogador no lugar do número">🖼 Fotos</button>' +
             '</div>' +
-            '<div class="jgd-palco">' +
-                '<div class="jgd-elenco">' +
-                    '<div class="jgd-elenco-abas">' +
-                        '<button type="button" class="jgd-elenco-aba ativa" data-alvo="nos" title="' + esc(t.nome) + '">' + esc(t.nome) + '</button>' +
-                        '<button type="button" class="jgd-elenco-aba jgd-aba-adv" data-alvo="adv" title="' + esc(adversario().nome) + ' (adversário)">' + esc(adversario().nome) + '</button>' +
-                    '</div>' +
-                    '<input type="text" class="jgd-elenco-busca" id="jgd-busca" placeholder="🔍 Buscar jogador...">' +
-                    '<div class="jgd-elenco-lista" id="jgd-elenco-lista"></div>' +
-                    '<button type="button" class="jgd-elenco-todos" id="jgd-add-escalacao"></button>' +
-                '</div>' +
-                '<div class="jgd-campo-wrap" id="jgd-campo-host"></div>' +
+            '<div class="jgd-passos-linha">' +
+                '<div class="jgd-timeline" id="jgd-timeline"></div>' +
+                '<button type="button" class="jgd-chip jgd-chip-novo" id="jgd-add-passo"' +
+                    ' title="Cria o próximo passo a partir das posições atuais">+ Novo passo</button>' +
             '</div>' +
-            '<div class="jgd-scrub-linha">' +
-                '<span class="jgd-scrub-tempo" id="jgd-relogio">0,0s</span>' +
-                '<input type="range" class="jgd-scrub" id="jgd-scrub" min="0" max="1000" step="1" value="0"' +
-                    ' title="Arraste para percorrer a jogada quadro a quadro">' +
-                '<span class="jgd-scrub-tempo jgd-scrub-total" id="jgd-total">0,0s</span>' +
-            '</div>' +
-            '<div class="jgd-timeline" id="jgd-timeline"></div>' +
+            '<div class="jgd-dica-fluxo" id="jgd-dica-fluxo"></div>' +
             '<div class="jgd-paineis">' +
                 '<div class="jgd-painel">' +
-                    '<div class="jgd-painel-tit" id="jgd-painel-passo">Passo 1</div>' +
+                    '<div class="jgd-painel-cab">' +
+                        '<div class="jgd-painel-tit" id="jgd-painel-passo">Passo 1</div>' +
+                        '<button type="button" class="jgd-link-perigo" id="jgd-del-passo" title="Exclui o passo selecionado">Excluir passo</button>' +
+                    '</div>' +
                     '<div class="jgd-painel-linha">' +
-                        '<span class="jgd-painel-rot">Tipo de bola</span>' +
+                        '<span class="jgd-painel-rot">Bola até o próximo passo</span>' +
                         '<select class="jgd-vel" id="jgd-passe" title="Como a bola vai deste passo para o próximo">' +
                             '<option value="toque">toque rasteiro</option>' +
                             '<option value="passe">passe</option>' +
-                            '<option value="conducao">condução / drible</option>' +
+                            '<option value="conducao">condução ou drible</option>' +
                             '<option value="cruzamento">cruzamento</option>' +
                             '<option value="lancamento">lançamento</option>' +
                             '<option value="chute">chute</option>' +
                         '</select>' +
-                        '<span class="jgd-painel-dur" id="jgd-dur">—</span>' +
+                        '<span class="jgd-painel-dur" id="jgd-dur"></span>' +
                     '</div>' +
                     '<input type="text" class="jgd-legenda-input" id="jgd-legenda" maxlength="120"' +
-                        ' placeholder="Legenda deste passo (ex: goleiro toca no lateral) — aparece na reprodução">' +
+                        ' placeholder="Legenda do passo, ex.: goleiro toca no lateral">' +
                 '</div>' +
                 '<div class="jgd-painel">' +
-                    '<div class="jgd-painel-tit jgd-tit-ciano">Peça selecionada</div>' +
-                    '<div class="jgd-painel-nome" id="jgd-sel-nome">nenhuma — clique numa peça no campo</div>' +
+                    '<div class="jgd-painel-cab"><div class="jgd-painel-tit">Jogador selecionado</div></div>' +
+                    '<div class="jgd-painel-nome" id="jgd-sel-nome"></div>' +
                     '<div class="jgd-painel-linha" id="jgd-sel-controles">' +
-                        '<button type="button" class="jgd-btn jgd-btn-ciano" data-modo="andar">andar</button>' +
-                        '<button type="button" class="jgd-btn jgd-btn-ciano" data-modo="trote">trote</button>' +
-                        '<button type="button" class="jgd-btn jgd-btn-ciano" data-modo="sprint">sprint</button>' +
-                        '<span class="jgd-painel-rot" title="Fração do passo que a peça espera antes de sair">sai em</span>' +
-                        '<input type="range" class="jgd-atraso" id="jgd-atraso" min="0" max="60" step="5" value="0">' +
+                        '<div class="jgd-seg">' +
+                            '<button type="button" data-modo="andar">andar</button>' +
+                            '<button type="button" data-modo="trote">trote</button>' +
+                            '<button type="button" data-modo="sprint">sprint</button>' +
+                        '</div>' +
+                        '<span class="jgd-painel-rot" title="Quanto do passo o jogador espera antes de sair">Atraso na saída</span>' +
+                        '<input type="range" class="jgd-atraso" id="jgd-atraso" min="0" max="60" step="5" value="0" aria-label="Atraso na saída">' +
                         '<span class="jgd-painel-val" id="jgd-atraso-val">—</span>' +
                     '</div>' +
                 '</div>' +
-            '</div>' +
-            '<div class="jgd-rodape-dica">' +
-                'Arraste os jogadores do elenco para o campo (ou clique neles) · arraste as peças e a bola para montar cada passo · ' +
-                'clique numa peça para selecioná-la e ajustar ritmo e atraso · as setas do teclado empurram a peça selecionada ' +
-                '(0,5% — 2% com Shift) · <b>Ctrl+Z</b> desfaz · passe o mouse numa peça e clique no × para tirá-la da jogada.<br>' +
-                '<b>🎥 Vídeo</b> grava a jogada animada num arquivo (MP4, com as fotos e as cores da prancheta) ' +
-                'para postar ou levar para a reunião — a gravação corre no tempo da jogada, então deixe a janela na frente.<br>' +
-                '<b>Blocos:</b> cerque um setor com o mouse no gramado (ou Ctrl+clique nas peças) e use <b>⛓ Bloco</b> ' +
-                '(<b>Ctrl+G</b>) — a linha de quatro, o triângulo do meio ou o que você marcar passa a andar junto, ' +
-                'mantendo a forma, no arrasto e nas setas do teclado. <b>Ctrl+Shift+G</b> desfaz.<br>' +
-                'A aba <b>' + esc(adversario().nome) + '</b> traz a marcação (peças azuis): o botão <b>＋ escalação do ' +
-                esc(adversario().nome) + '</b> põe os 11 de uma vez, na formação deste jogo e virados contra.' +
             '</div>';
+
 
         M.elencoAlvo = 'nos';
 
@@ -2327,7 +2480,9 @@
     function marcarSujo(v) {
         M.sujo = v;
         var b = el('jgd-salvar');
-        if (b) b.textContent = v ? '💾 Salvar *' : '💾 Salvar';
+        if (!b) return;
+        b.textContent = v ? 'Salvar alterações' : 'Salvar';
+        b.classList.toggle('jgd-pendente', v);
     }
 
     function ligarEventosEditor(jogada) {
@@ -2336,24 +2491,15 @@
             if (M.palco.passos().length <= 1) { alert('A jogada precisa de pelo menos um passo.'); return; }
             if (confirm('Excluir o passo ' + (M.palco.passoAtual() + 1) + '?')) M.palco.removerPasso();
         });
-        el('jgd-ant').addEventListener('click', function () { M.palco.irParaPasso(M.palco.passoAtual() - 1); });
-        el('jgd-prox').addEventListener('click', function () { M.palco.irParaPasso(M.palco.passoAtual() + 1); });
+        el('jgd-ajuda-btn').addEventListener('click', function () {
+            var aj = el('jgd-ajuda');
+            aj.hidden = !aj.hidden;
+            this.classList.toggle('ativo', !aj.hidden);
+            this.setAttribute('aria-expanded', String(!aj.hidden));
+        });
 
         el('jgd-desfazer').addEventListener('click', function () { M.palco.desfazer(); });
         el('jgd-refazer').addEventListener('click', function () { M.palco.refazer(); });
-
-        // Segmento atual/novo: existe para comparar o mesmo lance nos dois motores
-        // antes de aposentar o antigo de vez.
-        el('jgd-seg-motor').querySelectorAll('button').forEach(function (b) {
-            b.addEventListener('click', function () {
-                M.palco.definirMotor(b.dataset.motor);
-                el('jgd-seg-motor').querySelectorAll('button').forEach(function (o) {
-                    o.classList.toggle('ativo', o === b);
-                });
-                el('jgd-play').textContent = '▶ Reproduzir';
-                atualizarBarra();
-            });
-        });
 
         el('jgd-caminhos').addEventListener('click', function () {
             this.classList.toggle('ativo', M.palco.alternarCaminhos());
@@ -2568,15 +2714,16 @@
     function segundos(ms) { return (ms / 1000).toFixed(1).replace('.', ',') + 's'; }
 
     function atualizarBarra() {
-        if (!M.palco || !el('jgd-contador')) return;
+        if (!M.palco || !el('jgd-painel-passo')) return;
         var i = M.palco.passoAtual(), n = M.palco.passos().length;
         var p = M.palco.passos()[i];
-        var v2 = M.palco.motor() === 'v2';
 
-        el('jgd-contador').textContent = (i + 1) + '/' + n;
-        el('jgd-ant').disabled = i === 0;
-        el('jgd-prox').disabled = i >= n - 1;
-        el('jgd-del-passo').disabled = n <= 1;
+        el('jgd-del-passo').hidden = n <= 1;
+        // Com um passo só não há movimento: reproduzir e gravar ficam travados
+        // (a dica do fluxo diz o que falta) em vez de abrir um alerta no clique.
+        el('jgd-play').disabled = n < 2 && !M.palco.tocando();
+        el('jgd-video').disabled = n < 2;
+        el('jgd-play').title = n < 2 ? 'Crie pelo menos dois passos para a jogada ter movimento' : '';
         el('jgd-desfazer').disabled = !M.palco.podeDesfazer();
         el('jgd-refazer').disabled = !M.palco.podeRefazer();
         atualizarBotaoBloco();
@@ -2586,21 +2733,34 @@
         var leg = el('jgd-legenda');
         if (leg.value !== (p.legenda || '')) leg.value = p.legenda || '';
 
-        el('jgd-motor-desc').textContent = v2
-            ? 'corrida contínua entre passos, caminho curvo, duração por distância, ritmo e atraso por peça, bola colada em quem conduz.'
-            : 'como era antes: todo passo dura o mesmo, easing em cada trecho (a peça para em todo keyframe) e trajetória reta.';
-
         // O trecho é do passo atual PARA o próximo: no último não há trecho.
         var ultimo = i >= n - 1;
-        el('jgd-painel-passo').textContent = ultimo ? 'Passo ' + n + ' (final)' : 'Passo ' + (i + 1) + ' → ' + (i + 2);
+        el('jgd-painel-passo').textContent = 'Passo ' + (i + 1) + ' de ' + n + (ultimo && n > 1 ? ', o último' : '');
         el('jgd-passe').value = p.passe || 'passe';
         el('jgd-passe').disabled = ultimo;
 
         var dur = M.palco.duracaoDoPasso(i);
-        el('jgd-dur').textContent = dur == null ? '—' : (v2 ? 'auto · ' : 'fixo · ') + Math.round(dur) + ' ms';
+        el('jgd-dur').textContent = dur == null
+            ? (n > 1 ? 'último passo, a bola para aqui' : 'crie o próximo passo para a bola andar')
+            : 'dura ' + segundos(dur);
+
+        atualizarDicaFluxo(n);
 
         atualizarPainelPeca(M.palco.selecionada());
         atualizarScrub(M.palco.tempo(), M.palco.duracaoTotal());
+    }
+
+    // Uma frase só, dizendo o que fazer agora. Some quando a jogada já tem
+    // movimento: daí em diante o usuário já entendeu o ciclo.
+    function atualizarDicaFluxo(n) {
+        var d = el('jgd-dica-fluxo');
+        if (!d) return;
+        d.textContent = n <= 1
+            ? 'Monte o começo do lance arrastando jogadores e a bola. Depois clique em + Novo passo.'
+            : n === 2
+                ? 'Neste passo, mova só quem se deslocou e a bola. Crie mais passos ou clique em Reproduzir.'
+                : '';
+        d.hidden = !d.textContent;
     }
 
     // Peças que os controles de ritmo e atraso atingem: a seleção inteira, para
@@ -2625,7 +2785,7 @@
 
         b.classList.toggle('ativo', temBloco);
         b.disabled = !temBloco && n < 2;
-        b.textContent = temBloco ? '⛓ Desagrupar' : (n >= 2 ? '⛓ Agrupar (' + n + ')' : '⛓ Bloco');
+        b.textContent = temBloco ? 'Desagrupar' : (n >= 2 ? 'Agrupar ' + n : 'Agrupar');
         b.title = temBloco
             ? 'Desfaz o bloco das peças selecionadas (Ctrl+Shift+G)'
             : 'Selecione duas ou mais peças (Ctrl+clique, ou cerque com o mouse no gramado) '
@@ -2641,9 +2801,9 @@
         atualizarBotaoBloco();
 
         el('jgd-sel-nome').textContent = n > 1
-            ? n + ' peças selecionadas' + (blocoNaSelecao() ? ' · bloco' : '') +
-              (j ? ' (' + j.nome + ' é a de referência)' : '')
-            : (j ? (j.num ? j.num + ' · ' : '') + j.nome : 'nenhuma — clique numa peça no campo');
+            ? n + ' jogadores selecionados' + (blocoNaSelecao() ? ', em bloco' : '')
+            : (j ? (j.num ? j.num + ' ' : '') + j.nome : 'Clique num jogador no campo para ajustar o ritmo e a saída dele.');
+        el('jgd-sel-nome').classList.toggle('jgd-painel-vazio', !j && n <= 1);
 
         var modo = c ? (c.modo || 'trote') : null;
         el('jgd-sel-controles').querySelectorAll('[data-modo]').forEach(function (b) {
@@ -2909,6 +3069,7 @@
         abrirModal: abrirModal,
         fecharModal: fecharModal,
         alternarMaximizar: alternarMaximizar,
+        novaJogada: function () { novaJogada(); },
         montarArsenal: montarArsenal
     };
 })();

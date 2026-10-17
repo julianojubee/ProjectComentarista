@@ -657,7 +657,7 @@ namespace ControleFutebolWeb.Controllers
         /// continua com a contagem local.
         /// </summary>
         [HttpGet]
-        public async Task<IActionResult> TemporadaFotMob(int id, int temporada, CancellationToken ct)
+        public async Task<IActionResult> TemporadaFotMob(int id, int temporada, CancellationToken ct, bool europeu = false)
         {
             if (temporada <= 0) return Json(new { ok = false });
 
@@ -669,7 +669,7 @@ namespace ControleFutebolWeb.Controllers
 
             if (idFotMob is not long externo) return Json(new { ok = false });
 
-            var t = await _fotmobPerfil.TemporadaAsync(externo, temporada, ct);
+            var t = await _fotmobPerfil.TemporadaAsync(externo, temporada, europeu, ct);
             if (t == null) return Json(new { ok = false });
 
             return Json(new
@@ -690,7 +690,7 @@ namespace ControleFutebolWeb.Controllers
         /// fila do FotMob. Sempre 200; ok=false mantém as médias locais.
         /// </summary>
         [HttpGet]
-        public async Task<IActionResult> MediasFotMob(int id, int temporada, CancellationToken ct)
+        public async Task<IActionResult> MediasFotMob(int id, int temporada, CancellationToken ct, bool europeu = false)
         {
             if (temporada <= 0) return Json(new { ok = false });
 
@@ -702,7 +702,7 @@ namespace ControleFutebolWeb.Controllers
 
             if (idFotMob is not long externo) return Json(new { ok = false });
 
-            var m = await _fotmobPerfil.MediasTemporadaAsync(externo, temporada, ct);
+            var m = await _fotmobPerfil.MediasTemporadaAsync(externo, temporada, europeu, ct);
             if (m == null) return Json(new { ok = false });
 
             return Json(new

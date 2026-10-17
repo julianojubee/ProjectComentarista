@@ -30,6 +30,9 @@ window.JogadorTooltip = (function () {
         titularTemporada: {},
         timeAnterior: {},        // id → { nome, escudo, temporada, jogos }
         temporada: 0,
+        // Competição de calendário europeu: o rótulo 2026 é a "2026/2027" do
+        // FotMob, e não a "2026" (que num jogador europeu é só a da seleção).
+        calendarioEuropeu: false,
     };
 
     // Temporada completa segundo o FotMob (todas as competições, inclusive as que
@@ -62,7 +65,10 @@ window.JogadorTooltip = (function () {
          'assistsTemporada', 'titularTemporada', 'timeAnterior'].forEach(function (k) {
             if (pacote[k]) Object.assign(ctx[k], pacote[k]);
         });
-        if (pacote.temporada) ctx.temporada = pacote.temporada;
+        if (pacote.temporada) {
+            ctx.temporada = pacote.temporada;
+            ctx.calendarioEuropeu = !!pacote.calendarioEuropeu;
+        }
     }
 
     function dadosDe(jogadorId) {
@@ -118,11 +124,17 @@ window.JogadorTooltip = (function () {
             `</div>`;
     }
 
-    async function buscarTemporadaFotMob(id, temporada) {
-        const chave = id + ':' + temporada;
+    // Chave dos caches do FotMob: a mesma temporada muda de recorte conforme o
+    // calendário da competição.
+    function chaveFotMob(id, temporada, europeu) {
+        return id + ':' + temporada + (europeu ? ':eu' : '');
+    }
+
+    async function buscarTemporadaFotMob(id, temporada, europeu) {
+        const chave = chaveFotMob(id, temporada, europeu);
         temporadaFotMob[chave] = null;
         try {
-            const resp = await fetch(`/Jogadores/TemporadaFotMob/${id}?temporada=${temporada}`,
+            const resp = await fetch(`/Jogadores/TemporadaFotMob/${id}?temporada=${temporada}&europeu=${!!europeu}`,
                 { headers: { 'Accept': 'application/json' } });
             // Página pública sem login recebe o redirect para o login (HTML):
             // vale como "sem dado".
@@ -136,14 +148,14 @@ window.JogadorTooltip = (function () {
             mostrar(aberto.btn, aberto.dados);
     }
 
-    async function buscarMediasFotMob(id, temporada) {
-        const chave = id + ':' + temporada;
+    async function buscarMediasFotMob(id, temporada, europeu) {
+        const chave = chaveFotMob(id, temporada, europeu);
         cancelarMedias();
         const ctrl = new AbortController();
         mediasPedido = { chave: chave, ctrl: ctrl };
         mediasFotMob[chave] = null;
         try {
-            const resp = await fetch(`/Jogadores/MediasFotMob/${id}?temporada=${temporada}`,
+            const resp = await fetch(`/Jogadores/MediasFotMob/${id}?temporada=${temporada}&europeu=${!!europeu}`,
                 { headers: { 'Accept': 'application/json' }, signal: ctrl.signal });
             const json = resp.ok && (resp.headers.get('content-type') || '').includes('json');
             mediasFotMob[chave] = json ? await resp.json() : { ok: false };
@@ -232,21 +244,21 @@ window.JogadorTooltip = (function () {
         // competições do mesmo ano). dados.gols/assists vêm da competição.
         html += ttLinhaStats('Competição', dados.gols, dados.assists, ctx.titularCompeticao[dados.id]);
         if (ctx.temporada > 0) {
-            const fm = dados.id != null ? temporadaFotMob[dados.id + ':' + ctx.temporada] : { ok: false };
+            const fm = dados.id != null ? temporadaFotMob[chaveFotMob(dados.id, ctx.temporada, ctx.calendarioEuropeu)] : { ok: false };
             if (fm && fm.ok) {
                 html += ttLinhaTemporadaFotMob(fm);
             } else {
                 html += ttLinhaStats(`Temporada ${ctx.temporada}`,
                     ctx.golsTemporada[dados.id] || 0, ctx.assistsTemporada[dados.id] || 0, ctx.titularTemporada[dados.id]);
-                if (fm === undefined) buscarTemporadaFotMob(dados.id, ctx.temporada);
+                if (fm === undefined) buscarTemporadaFotMob(dados.id, ctx.temporada, ctx.calendarioEuropeu);
                 if (!fm) html += `<div class="tt-buscando">⏳ buscando a temporada completa…</div>`;
             }
         }
         // Médias: as do FotMob (temporada inteira, todas as competições) quando
         // chegam; até lá, ou sem vínculo, as das estatísticas importadas.
-        const chaveFm = dados.id + ':' + ctx.temporada;
+        const chaveFm = chaveFotMob(dados.id, ctx.temporada, ctx.calendarioEuropeu);
         const mf = ctx.temporada > 0 && dados.id != null ? mediasFotMob[chaveFm] : { ok: false };
-        if (mf === undefined) buscarMediasFotMob(dados.id, ctx.temporada);
+        if (mf === undefined) buscarMediasFotMob(dados.id, ctx.temporada, ctx.calendarioEuropeu);
         const md = ctx.medias[dados.id];
         if (mf && mf.ok) {
             html += blocoMedias(
@@ -275,11 +287,29 @@ window.JogadorTooltip = (function () {
         const rect = btn.getBoundingClientRect();
         const tw = tt.offsetWidth;
         const th = tt.offsetHeight;
-        let left = rect.right + 8;
-        let top  = rect.top - th / 2;
-        if (left + tw > window.innerWidth - 8) left = rect.left - tw - 8;
-        if (top < 8) top = 8;
-        if (top + th > window.innerHeight - 8) top = window.innerHeight - th - 8;
+        // visualViewport: no iPhone o innerWidth não acompanha zoom nem barra do Safari
+        const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+        const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+        const M = 8;
+        let left, top;
+        if (rect.right + M + tw <= vw - M) {
+            // À direita do ℹ
+            left = rect.right + M;
+            top = rect.top - th / 2;
+        } else if (rect.left - M - tw >= M) {
+            // À esquerda
+            left = rect.left - tw - M;
+            top = rect.top - th / 2;
+        } else {
+            // Celular: não cabe de lado nenhum. Centraliza na largura e põe embaixo
+            // do jogador; se não couber embaixo, em cima. Antes o left ficava
+            // negativo e metade do card saía da tela.
+            left = (vw - tw) / 2;
+            top = rect.bottom + M + th <= vh - M ? rect.bottom + M : rect.top - th - M;
+        }
+        // Nunca para fora da tela, em nenhum dos quatro lados
+        left = Math.max(M, Math.min(left, vw - tw - M));
+        top = Math.max(M, Math.min(top, vh - th - M));
         tt.style.left = left + 'px';
         tt.style.top  = top + 'px';
     }

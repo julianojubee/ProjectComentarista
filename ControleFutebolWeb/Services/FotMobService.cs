@@ -930,6 +930,222 @@ namespace ControleFutebolWeb.Services
             }
         }
 
+        // ── Elenco do time ────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Fallback do "Buscar elenco" de /Times/Details para quando a api-football
+        /// devolve o elenco vazio — o caso que motivou: clubes femininos da Libertadores,
+        /// que lá só têm jogos. O time é localizado pelo nome dentro da liga do FotMob que
+        /// corresponde à competição (ligas-fotmob.json), e o elenco vem de teams?id=.
+        ///
+        /// Só CRIA quem não existe e vincula IdFotMob a quem já está no time sem ele;
+        /// não sobrescreve nada. As jogadoras nascem sem IdApi, e a importação de
+        /// escalação da api-football as reconhece depois pelo nome dentro do time
+        /// (ApiFootballService, mesmo critério de NomeJogadorHelper), sem duplicar.
+        ///
+        /// Foto não entra aqui: confirmar se o FotMob tem retrato custa uma chamada por
+        /// jogador. Ela é completada ao abrir as estatísticas avançadas (FotMobCadastroService).
+        /// </summary>
+        public async Task<ResultadoFotMob> ImportarElencoAsync(
+            FutebolContext context, Time time, int? idApiLiga, CancellationToken ct = default)
+        {
+            var ligas = LigasDaCompeticao(idApiLiga);
+            if (ligas.Count == 0)
+                return new ResultadoFotMob(false, "A competição não tem correspondente no FotMob (ver wwwroot/data/ligas-fotmob.json).");
+
+            // Times femininos vêm da api-football como "LDU Quito W"; no FotMob a liga
+            // inteira já é feminina e o nome não tem sufixo.
+            var nomeBusca = time.Nome.Trim();
+            if (nomeBusca.EndsWith(" W", StringComparison.Ordinal)) nomeBusca = nomeBusca[..^2];
+            else if (nomeBusca.EndsWith(" Feminino", StringComparison.OrdinalIgnoreCase)) nomeBusca = nomeBusca[..^9];
+
+            long? idTime = null;
+            foreach (var liga in ligas)
+            {
+                idTime = await ProcurarTimeNaLigaAsync(liga, nomeBusca, ct);
+                if (idTime != null) break;
+            }
+            if (idTime == null)
+                return new ResultadoFotMob(false, $"{time.Nome} não foi localizado na liga do FotMob.");
+
+            // TTL curto pelo mesmo motivo do players/squads da api-football: é ação
+            // explícita do usuário, o cache só deduplica cliques repetidos.
+            using var doc = await BuscarJsonAsync($"teams?id={idTime}", TimeSpan.FromMinutes(15), ct);
+            if (doc == null)
+                return new ResultadoFotMob(false, "O FotMob não respondeu o elenco do time.");
+
+            var membros = MembrosDoElenco(doc.RootElement).ToList();
+            if (membros.Count == 0)
+                return new ResultadoFotMob(false, $"O FotMob também não tem o elenco de {time.Nome}.");
+
+            var ids = membros.Select(m => m.Id).ToList();
+            var jaVinculados = (await context.Jogadores
+                    .Where(j => j.IdFotMob != null && ids.Contains(j.IdFotMob.Value))
+                    .Select(j => j.IdFotMob!.Value)
+                    .ToListAsync(ct))
+                .ToHashSet();
+
+            var pendentes = await context.Jogadores
+                .Where(j => j.IdFotMob == null && (j.TimeId == time.Id || j.SelecaoId == time.Id))
+                .ToListAsync(ct);
+
+            var criados = 0;
+            var vinculados = 0;
+            foreach (var m in membros)
+            {
+                if (jaVinculados.Contains(m.Id)) continue;
+
+                var pendente = pendentes.FirstOrDefault(j => NomeJogadorHelper.Corresponde(j.Nome, m.Nome));
+                if (pendente != null)
+                {
+                    pendente.IdFotMob = m.Id;
+                    pendente.NumeroCamisa ??= m.Camisa;
+                    pendente.Altura ??= m.Altura;
+                    pendente.DataNascimento ??= m.Nascimento;
+                    if (string.IsNullOrWhiteSpace(pendente.Posicao)) pendente.Posicao = m.Posicao;
+                    pendente.DtAlt = DateTime.UtcNow;
+                    pendentes.Remove(pendente);
+                    vinculados++;
+                    continue;
+                }
+
+                Nacionalidade? nac = null;
+                if (!string.IsNullOrWhiteSpace(m.Pais))
+                    nac = await ApiFootballService.ResolverOuCriarNacionalidadePublicAsync(context, m.Pais!, ct);
+
+                context.Jogadores.Add(new Jogador
+                {
+                    Nome = m.Nome,
+                    Posicao = m.Posicao,
+                    NumeroCamisa = m.Camisa,
+                    Altura = m.Altura,
+                    DataNascimento = m.Nascimento,
+                    NacionalidadeId = nac?.Id,
+                    TimeId = time.Id,
+                    SelecaoId = time.EhSelecao ? time.Id : null,
+                    IdFotMob = m.Id,
+                    Atualizado = true,
+                    DtInc = DateTime.UtcNow
+                });
+                criados++;
+            }
+
+            if (criados > 0 || vinculados > 0) await context.SaveChangesAsync(ct);
+
+            var msg = criados == 0 && vinculados == 0
+                ? $"O elenco de {time.Nome} já estava completo — nada a cadastrar."
+                : $"Elenco de {time.Nome} pelo FotMob: {criados} jogador(es) cadastrado(s)" +
+                  (vinculados > 0 ? $", {vinculados} vinculado(s) ao FotMob." : ".");
+
+            await LogFonteExterna.RegistrarAsync(
+                context, LogFonteExterna.TipoFotMob, $"Elenco de {time.Nome}", true, null, msg, ct);
+
+            return new ResultadoFotMob(true, msg, JogadoresGravados: criados + vinculados);
+        }
+
+        /// <summary>
+        /// Id do time no FotMob pelo nome, entre os times da liga: tabelas (inclusive as
+        /// de grupo, que vêm aninhadas quando a liga é "composite") e, para quem só
+        /// joga mata-mata, os mandantes/visitantes da lista de jogos.
+        /// </summary>
+        private async Task<long?> ProcurarTimeNaLigaAsync(int liga, string nome, CancellationToken ct)
+        {
+            using var doc = await BuscarJsonAsync($"leagues?id={liga}", TimeSpan.FromHours(6), ct);
+            if (doc == null) return null;
+
+            foreach (var (id, nomeFotMob) in TimesDaLiga(doc.RootElement))
+                if (TimeNomeMatcher.SaoMesmoTime(nome, nomeFotMob)) return id;
+
+            return null;
+        }
+
+        private static IEnumerable<(long Id, string? Nome)> TimesDaLiga(JsonElement raiz)
+        {
+            static IEnumerable<(long, string?)> DaTabela(JsonElement data)
+            {
+                if (data.TryGetProperty("table", out var t) && t.ValueKind == JsonValueKind.Object &&
+                    t.TryGetProperty("all", out var linhas) && linhas.ValueKind == JsonValueKind.Array)
+                    foreach (var l in linhas.EnumerateArray())
+                        if (l.TryGetProperty("id", out var id) && id.TryGetInt64(out var n))
+                            yield return (n, l.TryGetProperty("name", out var nm) ? nm.GetString() : null);
+
+                if (data.TryGetProperty("tables", out var tabelas) && tabelas.ValueKind == JsonValueKind.Array)
+                    foreach (var sub in tabelas.EnumerateArray())
+                        foreach (var x in DaTabela(sub)) yield return x;
+            }
+
+            if (raiz.TryGetProperty("table", out var tabela) && tabela.ValueKind == JsonValueKind.Array)
+                foreach (var bloco in tabela.EnumerateArray())
+                    if (bloco.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Object)
+                        foreach (var x in DaTabela(data)) yield return x;
+
+            if (raiz.TryGetProperty("fixtures", out var fx) &&
+                fx.TryGetProperty("allMatches", out var jogos) && jogos.ValueKind == JsonValueKind.Array)
+                foreach (var m in jogos.EnumerateArray())
+                    foreach (var lado in new[] { "home", "away" })
+                        if (m.TryGetProperty(lado, out var t) &&
+                            t.TryGetProperty("id", out var id) &&
+                            long.TryParse(id.ValueKind == JsonValueKind.String ? id.GetString() : id.GetRawText(), out var n))
+                            yield return (n, t.TryGetProperty("name", out var nm) ? nm.GetString() : null);
+        }
+
+        private record MembroElenco(long Id, string Nome, string Posicao, int? Camisa, int? Altura, DateTime? Nascimento, string? Pais);
+
+        private static IEnumerable<MembroElenco> MembrosDoElenco(JsonElement raiz)
+        {
+            if (!raiz.TryGetProperty("squad", out var squad) ||
+                !squad.TryGetProperty("squad", out var grupos) ||
+                grupos.ValueKind != JsonValueKind.Array) yield break;
+
+            foreach (var grupo in grupos.EnumerateArray())
+            {
+                // O grupo "coach" é a comissão técnica, não elenco.
+                var titulo = grupo.TryGetProperty("title", out var t) ? t.GetString() : null;
+                if (titulo == "coach" || !grupo.TryGetProperty("members", out var membros) ||
+                    membros.ValueKind != JsonValueKind.Array) continue;
+
+                foreach (var m in membros.EnumerateArray())
+                {
+                    if (!m.TryGetProperty("id", out var idEl) || !idEl.TryGetInt64(out var id) || id <= 0) continue;
+                    var nome = m.TryGetProperty("name", out var n) ? n.GetString()?.Trim() : null;
+                    if (string.IsNullOrWhiteSpace(nome)) continue;
+
+                    int? Inteiro(string campo) =>
+                        m.TryGetProperty(campo, out var v) && v.ValueKind == JsonValueKind.Number &&
+                        v.TryGetInt32(out var i) && i > 0 ? i : null;
+
+                    DateTime? nascimento = null;
+                    if (m.TryGetProperty("dateOfBirth", out var dn) && dn.ValueKind == JsonValueKind.String &&
+                        DateTime.TryParseExact(dn.GetString(), "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                            DateTimeStyles.None, out var d) && d.Year > 1900)
+                        nascimento = DateTime.SpecifyKind(d, DateTimeKind.Unspecified);
+
+                    var papel = m.TryGetProperty("role", out var r) && r.TryGetProperty("key", out var k)
+                        ? k.GetString() : null;
+                    var posicao = papel switch
+                    {
+                        "keeper_long" => "Goleiro",
+                        "defender_long" => "Defensor",
+                        "midfielder_long" => "Meia",
+                        "attacker_long" => "Atacante",
+                        _ => titulo switch
+                        {
+                            "keepers" => "Goleiro",
+                            "defenders" => "Defensor",
+                            "midfielders" => "Meia",
+                            "attackers" => "Atacante",
+                            _ => ""
+                        }
+                    };
+
+                    var pais = m.TryGetProperty("cname", out var c) && c.ValueKind == JsonValueKind.String
+                        ? c.GetString() : null;
+
+                    yield return new MembroElenco(id, nome!, posicao, Inteiro("shirtNumber"), Inteiro("height"), nascimento, pais);
+                }
+            }
+        }
+
         // ── Perfil do jogador ─────────────────────────────────────────────────
 
         /// <summary>

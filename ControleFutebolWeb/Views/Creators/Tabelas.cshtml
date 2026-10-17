@@ -18,16 +18,16 @@
         <form class="cr-barra" method="get" action="/creators/tabelas">
             <div class="cr-campo-form">
                 <label for="competicao">Competição</label>
-                <select id="competicao" name="competicao" onchange="this.form.submit()">
+                <select id="competicao" name="competicao" class="cr-select" data-buscavel="Digite a competição" onchange="this.form.submit()">
                     @foreach (var c in Model.Competicoes)
                     {
                         <option value="@c.Id" selected="@(c.Id == Model.CompeticaoId)">@c.Nome</option>
                     }
                 </select>
             </div>
-            <div class="cr-campo-form">
+            <div class="cr-campo-form cr-campo-curto">
                 <label for="temporada">Temporada</label>
-                <select id="temporada" name="temporada" onchange="this.form.submit()">
+                <select id="temporada" name="temporada" class="cr-select" onchange="this.form.submit()">
                     @foreach (var t in Model.Temporadas)
                     {
                         <option value="@t" selected="@(t == Model.Temporada)">@t</option>
@@ -38,11 +38,12 @@
 
         @if (!Model.TemAlgoParaMostrar)
         {
-            <p class="cr-aviso">Nenhum jogo registrado nessa temporada.</p>
+            <p class="cr-aviso">Nenhum jogo registrado nessa temporada. Escolha outra.</p>
         }
         else
         {
-            <p class="cr-sub">@Model.Competicao?.Nome — @Model.Temporada · @Model.TotalJogos jogos encerrados</p>
+            <h2 class="cr-tabela-titulo">@Model.Competicao?.Nome @Model.Temporada</h2>
+            <p class="cr-sub cr-tabela-sub">@(Model.TotalJogos == 0 ? "Nenhum jogo encerrado ainda" : Model.TotalJogos == 1 ? "1 jogo encerrado" : $"{Model.TotalJogos} jogos encerrados")</p>
 
             @* Cada bloco só aparece se a competição tiver aquele formato: uma de
                pontos corridos mostra a tabela, uma de grupos mostra um card por

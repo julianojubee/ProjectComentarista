@@ -59,9 +59,33 @@ namespace ControleFutebolWeb.Controllers
         private string? ImagemUrl(string? url) =>
             string.IsNullOrEmpty(url) ? null : Url.Action("Imagem", "MediaProxy", new { url });
 
-        // GET /creators
+        // GET /creators — o hub. A faixa do topo resume os jogos de hoje (quantos,
+        // quantos ao vivo, o próximo a começar) e leva para /creators/jogos-hoje.
         [HttpGet("")]
-        public IActionResult Index() => View();
+        public async Task<IActionResult> Index()
+        {
+            var agoraBrasil = DateHelper.ParaBrasilia(DateTime.UtcNow)!.Value;
+            var inicioUtc = DateHelper.DeBrasiliaParaUtc(agoraBrasil.Date)!.Value;
+            var fimUtc = inicioUtc.AddDays(1);
+
+            var jogos = await _context.Jogos.AsNoTracking()
+                .Where(j => j.Data >= inicioUtc && j.Data < fimUtc)
+                .Select(j => new { j.Data, Encerrado = j.PlacarCasa != null && j.PlacarVisitante != null })
+                .ToListAsync();
+
+            // Mesma regra dos cards de /creators/jogos-hoje (_JogosDoDia): sem placar
+            // e entre o início e 2h30 depois.
+            var agoraUtc = DateTime.UtcNow;
+            var aoVivo = jogos.Count(j => !j.Encerrado && j.Data <= agoraUtc && agoraUtc <= j.Data!.Value.AddHours(2.5));
+            var proximo = jogos.Where(j => !j.Encerrado && j.Data > agoraUtc).Select(j => j.Data).Min();
+
+            return View(new CreatorsHubViewModel
+            {
+                JogosHoje = jogos.Count,
+                AoVivo = aoVivo,
+                ProximoJogo = proximo == null ? null : DateHelper.FormatarData(proximo, "HH:mm"),
+            });
+        }
 
         // ── Match Up ──────────────────────────────────────────────────────────
 
@@ -306,22 +330,28 @@ namespace ControleFutebolWeb.Controllers
                     .ToListAsync(),
             };
 
-            vm.CompeticaoId = competicao ?? vm.Competicoes.FirstOrDefault()?.Id;
+            vm.CompeticaoId = await CompeticaoEscolhidaAsync(vm.Competicoes, competicao);
             if (vm.CompeticaoId == null) return View(vm);
 
-            vm.Temporadas = await _context.Jogos.AsNoTracking()
-                .Where(j => j.CompeticaoId == vm.CompeticaoId)
-                .Select(j => j.Temporada).Distinct()
-                .OrderByDescending(t => t).ToListAsync();
-            vm.Temporada = temporada ?? vm.Temporadas.FirstOrDefault();
+            (vm.Temporadas, vm.Temporada) = await TemporadasAsync(vm.CompeticaoId.Value, temporada);
 
             vm.Times = await TimesDaCompeticaoAsync(vm.CompeticaoId.Value, vm.Temporada);
 
-            // Formação escolhida, senão a primeira com 11 posições cadastradas —
-            // uma formação incompleta deixaria o campo com buracos sem explicação.
-            vm.FormacaoId = formacao ?? vm.Formacoes
-                .FirstOrDefault(f => f.Posicoes != null && f.Posicoes.Count == 11)?.Id
-                ?? vm.Formacoes.FirstOrDefault()?.Id;
+            // Formação escolhida, senão a mais usada nos jogos entre as que têm as 11
+            // posições cadastradas (uma incompleta deixaria buracos no campo). A
+            // primeira em ordem alfabética era um 3-1-4-2.
+            var completas = vm.Formacoes.Where(f => f.Posicoes != null && f.Posicoes.Count == 11).Select(f => f.Id).ToList();
+            if (formacao == null || !vm.Formacoes.Any(f => f.Id == formacao))
+            {
+                var usos = await _context.Jogos.AsNoTracking()
+                    .Where(j => j.FormacaoCasaId != null && completas.Contains(j.FormacaoCasaId.Value))
+                    .GroupBy(j => j.FormacaoCasaId)
+                    .OrderByDescending(g => g.Count())
+                    .Select(g => g.Key)
+                    .FirstOrDefaultAsync();
+                formacao = usos ?? completas.Cast<int?>().FirstOrDefault() ?? vm.Formacoes.FirstOrDefault()?.Id;
+            }
+            vm.FormacaoId = formacao;
 
             return View(vm);
         }
@@ -443,9 +473,11 @@ namespace ControleFutebolWeb.Controllers
                 CompeticoesDisponiveis = await _simulador.CompeticoesElegiveisAsync()
             };
 
-            var escolhida = competicao == null
-                ? null
-                : vm.CompeticoesDisponiveis.FirstOrDefault(c => c.Id == competicao);
+            // Sem competição (ou com uma que não é de pontos corridos), abre na de mais
+            // jogos entre as simuláveis, como as outras ferramentas — antes a tela
+            // abria vazia pedindo para escolher.
+            var idEscolhido = await CompeticaoEscolhidaAsync(vm.CompeticoesDisponiveis, competicao);
+            var escolhida = vm.CompeticoesDisponiveis.FirstOrDefault(c => c.Id == idEscolhido);
 
             if (escolhida == null) return View(vm);
 
@@ -515,17 +547,11 @@ namespace ControleFutebolWeb.Controllers
         {
             var vm = new CreatorsTabelaViewModel { Competicoes = await CompeticoesComJogosAsync() };
 
-            vm.CompeticaoId = competicao ?? vm.Competicoes.FirstOrDefault()?.Id;
+            vm.CompeticaoId = await CompeticaoEscolhidaAsync(vm.Competicoes, competicao);
             if (vm.CompeticaoId == null) return View(vm);
 
-            vm.Competicao = vm.Competicoes.FirstOrDefault(c => c.Id == vm.CompeticaoId);
-            if (vm.Competicao == null) return NotFound();
-
-            vm.Temporadas = await _context.Jogos.AsNoTracking()
-                .Where(j => j.CompeticaoId == vm.CompeticaoId)
-                .Select(j => j.Temporada).Distinct()
-                .OrderByDescending(t => t).ToListAsync();
-            vm.Temporada = temporada ?? vm.Temporadas.FirstOrDefault();
+            vm.Competicao = vm.Competicoes.First(c => c.Id == vm.CompeticaoId);
+            (vm.Temporadas, vm.Temporada) = await TemporadasAsync(vm.CompeticaoId.Value, temporada);
 
             // Todos os jogos da temporada, terminados ou não: o builder precisa dos
             // que ainda não rolaram para saber quem está em cada grupo/chave.
@@ -605,6 +631,35 @@ namespace ControleFutebolWeb.Controllers
         private IQueryable<Escalacao> EscalacoesCompartilhadas() =>
             _context.Escalacoes.AsNoTracking()
                 .Where(e => e.Titular && e.JogadorId != null && e.UsuarioId == null);
+
+        // Competição pedida na URL, se existir na lista; senão a que tem mais jogos
+        // registrados. A primeira em ordem alfabética era "Amistosos Internacionais",
+        // a menos útil para tabela ou seleção de campeonato. Id inválido na URL cai
+        // aqui também, no lugar de um 404.
+        private async Task<int?> CompeticaoEscolhidaAsync(List<Competicao> competicoes, int? pedida)
+        {
+            if (pedida != null && competicoes.Any(c => c.Id == pedida)) return pedida;
+
+            var maisJogos = await _context.Jogos.AsNoTracking()
+                .GroupBy(j => j.CompeticaoId)
+                .OrderByDescending(g => g.Count())
+                .Select(g => (int?)g.Key)
+                .FirstOrDefaultAsync();
+            return competicoes.Any(c => c.Id == maisJogos) ? maisJogos : competicoes.FirstOrDefault()?.Id;
+        }
+
+        // Temporadas da competição (mais recente primeiro) e a escolhida. A temporada
+        // vem junto na URL quando o creator troca a competição: se a nova não tem
+        // aquela temporada, a tela ficava vazia. Aí vale a mais recente.
+        private async Task<(List<int> Temporadas, int Temporada)> TemporadasAsync(int competicaoId, int? pedida)
+        {
+            var temporadas = await _context.Jogos.AsNoTracking()
+                .Where(j => j.CompeticaoId == competicaoId)
+                .Select(j => j.Temporada).Distinct()
+                .OrderByDescending(t => t).ToListAsync();
+            var temporada = pedida.HasValue && temporadas.Contains(pedida.Value) ? pedida.Value : temporadas.FirstOrDefault();
+            return (temporadas, temporada);
+        }
 
         private async Task<List<Competicao>> CompeticoesComJogosAsync()
         {

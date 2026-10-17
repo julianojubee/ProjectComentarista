@@ -457,15 +457,22 @@
         const { jogadorId, jogadorNome, jogadorNumero, camisaUrl, time } = dragData;
         if (!jogadorId) return;
 
-        if (usados[time].has(jogadorId)) {
-            alert("Esse jogador já está em campo ou no banco!");
-            return;
-        }
-
         const isCasa  = index.startsWith("casa_");
         // Jogador do elenco de um time não entra no lugar do adversário — no
         // "Mesmo campo" os dois times dividem o gramado e isso fica fácil de errar.
         if ((time === 'casa') !== isCasa) return;
+
+        // Reserva arrastado para o campo = substituição: ele sai do banco e quem
+        // estava na posição vai para o banco (dá para desfazer arrastando de volta).
+        // É o caminho da lista lateral da transmissão, que só mostra o banco.
+        let idxBanco = null;
+        if (usados[time].has(jogadorId)) {
+            idxBanco = indiceNoBanco(time, jogadorId);
+            if (idxBanco === null) {
+                alert("Esse jogador já está em campo!");
+                return;
+            }
+        }
         const prefix  = isCasa ? "escalacaoCasa" : "escalacaoVisitante";
         const numIdx  = index.split("_")[1];
 
@@ -474,9 +481,17 @@
 
         const antigoId = hidden.value;
         if (antigoId) desmarcarUsado(time, antigoId);
+        if (idxBanco !== null) removerReserva(time, idxBanco);
 
         hidden.value = jogadorId;
         marcarUsado(time, jogadorId);
+
+        if (idxBanco !== null && antigoId) {
+            const rowAntigo = document.getElementById(`jogador-${time}-${antigoId}`);
+            adicionarReserva(time, antigoId,
+                rowAntigo?.dataset.nome || '',
+                rowAntigo?.querySelector('.player-circle')?.textContent.trim() || '');
+        }
 
         const posEl = document.querySelector(`.posicao-drop[data-index='${index}']`);
         const nomePosicao = posEl.dataset.posicao;
@@ -501,7 +516,12 @@
             alert("Esse jogador já está em campo ou no banco!");
             return;
         }
+        adicionarReserva(time, jogadorId, jogadorNome, jogadorNumero);
+    }
 
+    // Põe o jogador no banco: card visual + hidden do form. Usado pelo drop no
+    // banco e pela substituição (quem sai do campo vai para o banco).
+    function adicionarReserva(time, jogadorId, jogadorNome, jogadorNumero) {
         const bancoId  = time === 'casa' ? 'bancoCasa'         : 'bancoVisitante';
         const totalKey = time === 'casa' ? 'totalReservasCasa' : 'totalReservasVis';
         const prefixH  = time === 'casa' ? 'reservaCasa'       : 'reservaVis';
@@ -541,6 +561,37 @@
         totalEl.value = idx + 1;
         marcarUsado(time, jogadorId);
     }
+
+    // Índice do jogador no banco do time (o N de reservaCasa_N__JogadorId), ou null
+    function indiceNoBanco(time, jogadorId) {
+        const prefixH = time === 'casa' ? 'reservaCasa' : 'reservaVis';
+        const inp = Array.from(document.querySelectorAll(`[id^="${prefixH}_"][id$="__JogadorId"]`))
+            .find(el => el.value === String(jogadorId));
+        return inp ? parseInt(inp.id.slice(prefixH.length + 1), 10) : null;
+    }
+
+    // Marca na lista lateral (elenco) quem está no banco: no modo transmissão,
+    // com os elencos abertos, a lista mostra só esses — o banco de baixo some
+    // para o campo não perder altura (ver .an-com-banco no analisar.css).
+    function sincronizarListaComBanco() {
+        ['casa', 'vis'].forEach(function (time) {
+            const prefixH = time === 'casa' ? 'reservaCasa' : 'reservaVis';
+            const noBanco = new Set(Array.from(document.querySelectorAll(`[id^="${prefixH}_"][id$="__JogadorId"]`))
+                .map(el => el.value).filter(Boolean));
+            const prefixo = `jogador-${time}-`;
+            document.querySelectorAll(`tr.jogador-row[id^="${prefixo}"]`).forEach(function (row) {
+                row.classList.toggle('no-banco', noBanco.has(row.id.slice(prefixo.length)));
+            });
+        });
+    }
+    (function observarBancos() {
+        const bancos = ['bancoCasa', 'bancoVisitante'].map(id => document.getElementById(id)).filter(Boolean);
+        if (!bancos.length) return;
+        document.getElementById('anUnico')?.classList.add('an-com-banco');
+        const obs = new MutationObserver(sincronizarListaComBanco);
+        bancos.forEach(b => obs.observe(b, { childList: true }));
+        sincronizarListaComBanco();
+    })();
 
     // ── Remover reserva ────────────────────────────────────────────────────
     function removerReserva(time, idx) {
@@ -812,6 +863,7 @@
         const ligar = !casca.classList.contains('an-transmissao');
         casca.classList.toggle('an-transmissao', ligar);
         casca.classList.remove('an-elencos-abertos', 'an-obs-aberta');
+        try { sessionStorage.removeItem('analisar.transmissao.elencos'); } catch (e) { /* anônima */ }
 
         // Observações do jogo: na transmissão o #obsBox mora embaixo do campo
         // (escondido até o 📝); saindo, volta ao lugar dele no form.
@@ -840,7 +892,10 @@
     window.toggleTransmissaoAnalise = toggleTransmissaoAnalise;
 
     function toggleElencosTransmissao() {
-        document.getElementById('anUnico')?.classList.toggle('an-elencos-abertos');
+        const abertos = document.getElementById('anUnico')?.classList.toggle('an-elencos-abertos');
+        // Lembrado na aba: Salvar e Reimportar recarregam a página e a
+        // transmissão volta com os elencos como estavam
+        try { sessionStorage.setItem('analisar.transmissao.elencos', abertos ? '1' : ''); } catch (e) { /* anônima */ }
         ajustarEscalaTransmissao();
         desenharTodasSetas();
     }
@@ -901,7 +956,13 @@
     (function restaurarTransmissao() {
         let ligada = '';
         try { ligada = sessionStorage.getItem('analisar.transmissao') || ''; } catch (e) { /* idem */ }
-        if (ligada && layoutUnicoAtivo()) toggleTransmissaoAnalise(true);
+        if (ligada && layoutUnicoAtivo()) {
+            // Lido antes de ligar: toggleTransmissaoAnalise zera a lembrança dos elencos
+            let elencos = '';
+            try { elencos = sessionStorage.getItem('analisar.transmissao.elencos') || ''; } catch (e) { /* idem */ }
+            toggleTransmissaoAnalise(true);
+            if (elencos) toggleElencosTransmissao();
+        }
     })();
 
     initUsados();
@@ -1056,7 +1117,7 @@
 
         if (estatisticasAtuais && (estatisticasAtuais.minutos || estatisticasAtuais.rating)) {
             const info = document.createElement('div');
-            info.style.cssText = 'font-size:12px;color:#6b7280;padding:4px 0 10px;';
+            info.style.cssText = 'font-size:12px;color:var(--text-muted);padding:4px 0 10px;';
             info.textContent = [
                 estatisticasAtuais.minutos != null ? `${estatisticasAtuais.minutos} min` : null,
                 estatisticasAtuais.rating != null ? `nota api: ${estatisticasAtuais.rating}` : null
@@ -1068,17 +1129,17 @@
             if (!avaliacoes[jogadorId][a.id]) avaliacoes[jogadorId][a.id] = 0;
 
             const row = document.createElement('div');
-            row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #262626;color:#e5e7eb;';
+            row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);color:var(--text-strong);';
             row.innerHTML = `
                 <div style="flex:1;font-size:13px;">
                     <div>${a.label}</div>
-                    <div style="font-size:11px;color:#6b7280;">${a.peso > 0 ? '+' + a.peso : a.peso} ponto(s)</div>
+                    <div style="font-size:11px;color:var(--text-muted);">${a.peso > 0 ? '+' + a.peso : a.peso} ponto(s)</div>
                 </div>
                 <button type="button" onclick="ajustarAcao(${jogadorId},'${a.id}',-1)"
-                    style="width:28px;height:28px;border-radius:50%;border:1px solid #2a2a2a;background:#1a1a1a;color:#e5e7eb;font-size:16px;cursor:pointer;">&#8722;</button>
-                <span id="av-cnt-${a.id}" style="min-width:28px;text-align:center;font-size:14px;font-weight:600;color:#f1f5f9;">${avaliacoes[jogadorId][a.id]}</span>
+                    style="width:28px;height:28px;border-radius:50%;border:1px solid var(--line-strong);background:var(--p-1);color:var(--text-strong);font-size:16px;cursor:pointer;">&#8722;</button>
+                <span id="av-cnt-${a.id}" style="min-width:28px;text-align:center;font-size:14px;font-weight:600;color:var(--text-strong);">${avaliacoes[jogadorId][a.id]}</span>
                 <button type="button" onclick="ajustarAcao(${jogadorId},'${a.id}',+1)"
-                    style="width:28px;height:28px;border-radius:50%;border:1px solid #2a2a2a;background:#1a1a1a;color:#e5e7eb;font-size:16px;cursor:pointer;">+</button>`;
+                    style="width:28px;height:28px;border-radius:50%;border:1px solid var(--line-strong);background:var(--p-1);color:var(--text-strong);font-size:16px;cursor:pointer;">+</button>`;
             container.appendChild(row);
         });
 
@@ -1417,6 +1478,123 @@
         }
     }
 
+    // ══ Placar da placa do campo único / transmissão ══════════════════════
+    // O placar oficial do jogo (PlacarCasa/PlacarVisitante) só é gravado no fim:
+    // com ele preenchido o sistema entende o jogo como encerrado. Durante a
+    // partida, então, a placa conta os gols já lançados na timeline (cada gol
+    // já vem com o lado em que conta, contra incluído). Nada disso é salvo: é
+    // só o que aparece na placa.
+    function atualizarPlacarUnico() {
+        const golsCasa = document.getElementById('anUnicoGolsCasa');
+        const golsVis = document.getElementById('anUnicoGolsVis');
+        if (!golsCasa || !golsVis) return;
+
+        const oficialCasa = parseInt(document.getElementById('placarCasaBox')?.textContent, 10);
+        const oficialVis = parseInt(document.getElementById('placarVisBox')?.textContent, 10);
+        let casa, vis;
+        if (!isNaN(oficialCasa) && !isNaN(oficialVis)) {
+            casa = oficialCasa; vis = oficialVis;
+        } else {
+            const tl = document.getElementById('mbTimelineGols');
+            casa = tl ? tl.querySelectorAll('.mb-event.casa').length : 0;
+            vis = tl ? tl.querySelectorAll('.mb-event.vis').length : 0;
+            // Placar parcial da última leitura da api-football (de 15 em 15 min):
+            // vale o que estiver mais adiantado, ele ou os gols já lançados aqui
+            const av = ANALISAR.aoVivo || {};
+            if (av.placarCasa != null) casa = Math.max(casa, av.placarCasa);
+            if (av.placarVis != null) vis = Math.max(vis, av.placarVis);
+            // Sem gol e antes do início: fica só o ×, sem um 0 × 0 de jogo que nem começou
+            const comecou = ANALISAR.inicioJogoMs != null && Date.now() >= ANALISAR.inicioJogoMs;
+            if (casa === 0 && vis === 0 && !comecou) { casa = ''; vis = ''; }
+        }
+        golsCasa.textContent = casa;
+        golsVis.textContent = vis;
+        atualizarAutoresUnico();
+        document.getElementById('anUnicoPlacar')?.classList.toggle('com-placar', casa !== '');
+    }
+
+    // Autores dos gols embaixo do nome de cada time: um por jogador, com os
+    // minutos juntos ("Raphael Veiga 12', 40'"), na ordem do primeiro gol. Gol
+    // contra fica no lado em que contou, marcado como contra. Só os gols
+    // lançados na timeline têm nome (o placar parcial da API vem sem autor).
+    function atualizarAutoresUnico() {
+        const tl = document.getElementById('mbTimelineGols');
+        [['casa', 'anUnicoAutoresCasa'], ['vis', 'anUnicoAutoresVis']].forEach(function ([lado, id]) {
+            const alvo = document.getElementById(id);
+            if (!alvo) return;
+            const porJogador = new Map();
+            (tl ? Array.from(tl.querySelectorAll('.mb-event.' + lado)) : []).forEach(function (ev) {
+                const chave = (ev.dataset.nome || '?') + (ev.dataset.contra ? '|contra' : '');
+                if (!porJogador.has(chave)) porJogador.set(chave, { nome: ev.dataset.nome || '?', contra: !!ev.dataset.contra, minutos: [] });
+                porJogador.get(chave).minutos.push(ev.dataset.minuto || '');
+            });
+            alvo.innerHTML = Array.from(porJogador.values()).map(function (a) {
+                return '<span>' + escHtml(a.nome) + ' ' + escHtml(a.minutos.filter(Boolean).join(', ')) +
+                    (a.contra ? ' <i>(contra)</i>' : '') + '</span>';
+            }).join('');
+        });
+    }
+
+    // ── Tempo de jogo na placa ──
+    // Mesma regra do card de Jogos de hoje (_JogosDoDia): com leitura da
+    // api-football, o minuto informado anda para a frente a partir da hora da
+    // leitura (só com a bola rolando, travando no fim de cada tempo); sem
+    // leitura, estimativa pelo horário de início (45 + 15 de intervalo + 45).
+    // Jogo ao vivo = sem placar oficial e até 2h30 depois do início.
+    const RELOGIO_LIMITE = { '1H': 45, '2H': 90, 'ET': 120, 'LIVE': 90 };
+    const RELOGIO_PARADO = { HT: 'Intervalo', BT: 'Intervalo da prorrogação', P: 'Pênaltis', SUSP: 'Suspenso', INT: 'Interrompido' };
+
+    function textoRelogioUnico() {
+        const temOficial = !isNaN(parseInt(document.getElementById('placarCasaBox')?.textContent, 10));
+        const inicio = ANALISAR.inicioJogoMs;
+        const agora = Date.now();
+        if (temOficial || inicio == null || agora < inicio || agora > inicio + 150 * 60000) return '';
+
+        const av = ANALISAR.aoVivo || {};
+        const status = (av.status || '').toUpperCase();
+        if (status && av.lidoEmMs != null) {
+            if (RELOGIO_PARADO[status]) return RELOGIO_PARADO[status];
+            if (av.minuto != null) {
+                const limite = RELOGIO_LIMITE[status];
+                let texto;
+                if (av.acrescimo > 0) texto = av.minuto + '+' + av.acrescimo + "'";
+                else if (limite === undefined) texto = av.minuto + "'";
+                else {
+                    const minuto = Math.max(av.minuto, av.minuto + Math.floor((agora - av.lidoEmMs) / 60000));
+                    texto = minuto >= limite ? limite + "+'" : minuto + "'";
+                }
+                return status === 'ET' ? 'Prorrogação ' + texto : texto;
+            }
+        }
+
+        // Estimativa (sem leitura da API): conta do zero em cada tempo, daí o 1T/2T
+        const decorridos = Math.floor((agora - inicio) / 60000);
+        if (decorridos <= 45) return '1T ' + decorridos + "'";
+        if (decorridos <= 60) return 'Intervalo';
+        if (decorridos <= 105) return '2T ' + (decorridos - 60) + "'";
+        return "2T 45+'";
+    }
+
+    function atualizarRelogioUnico() {
+        const el = document.getElementById('anUnicoRelogio');
+        if (!el) return;
+        const texto = textoRelogioUnico();
+        if (el.textContent !== texto) el.textContent = texto;
+        el.hidden = !texto;
+    }
+    atualizarRelogioUnico();
+    setInterval(atualizarRelogioUnico, 30000);
+
+    // Recalcula sozinho quando entra/sai gol da timeline ou o placar muda
+    (function observarPlacarUnico() {
+        const obs = new MutationObserver(function () { atualizarPlacarUnico(); atualizarRelogioUnico(); });
+        ['mbTimelineGols', 'placarCasaBox', 'placarVisBox'].forEach(function (id) {
+            const el = document.getElementById(id);
+            if (el) obs.observe(el, { childList: true, characterData: true, subtree: true });
+        });
+        atualizarPlacarUnico();
+    })();
+
     // ══ Timeline de eventos ═══════════════════════════════════════════════
     function adicionarEventoNaTimeline(ev) {
         const tl = ev.tipo === 'gol'
@@ -1443,6 +1621,10 @@
         div.className = `mb-event ${ev.time}${isSub ? ' mb-event-sub' : ''}`;
         div.dataset.eventoId   = ev.id   || '';
         div.dataset.eventoTipo = ev.tipo || '';
+        // Lidos pela placa do campo único (autores dos gols embaixo do nome)
+        div.dataset.nome   = ev.nomeJogador || '';
+        div.dataset.minuto = minStr;
+        div.dataset.contra = ev.isContra ? '1' : '';
         div.innerHTML = `
             <span class="mb-event-min">${minStr}</span>
             <span class="mb-event-icon">${icon}</span>
@@ -1641,7 +1823,7 @@
                 corpo.innerHTML = '<div style="color:#f87171;text-align:center;padding:1rem;">' + msg + '</div>';
                 return;
             }
-            corpo.innerHTML = PainelJogo.resumoPreJogo(await resp.json());
+            corpo.innerHTML = PainelJogo.resumoPreJogo(await resp.json(), { somenteLeitura: false });
         } catch (e) {
             corpo.innerHTML = '<div style="color:#f87171;text-align:center;padding:1rem;">Erro ao carregar dados do pré-jogo.</div>';
         }
@@ -1767,7 +1949,7 @@
                         foto +
                         '<span class="pj-ind-icone">' + icone + '</span>' +
                         '<div class="pj-ind-txt">' +
-                            '<div class="pj-ind-nome">' + escHtml(j.nome) + '</div>' +
+                            PainelJogo.linkJogador(j.jogadorId, j.nome, 'pj-ind-nome', { somenteLeitura: false }) +
                             '<div class="pj-ind-motivo">' + escHtml(j.motivo) + '</div>' +
                         '</div>' +
                         '<span class="pj-ind-tag ' + (j.duvida ? 'duvida' : 'fora') + '">' + escHtml(j.situacao) + '</span>' +
@@ -2145,7 +2327,8 @@
         try {
             var resp = await fetch('/Jogos/MatchUpPreJogo/' + ANALISAR.jogoId);
             if (!resp.ok) throw new Error();
-            muRender(await resp.json(), cont);
+            // Fotos/Números segue a mesma preferência do campo principal da análise
+            muRender(await resp.json(), cont, { chaveVisual: 'analisar.campoVisual' });
         } catch (e) {
             muPreJogoCarregado = false; // permite tentar de novo ao reabrir a aba
             cont.innerHTML = '<div style="color:#f87171;text-align:center;padding:1rem;">Erro ao carregar o match-up.</div>';
@@ -2291,14 +2474,14 @@
         var corpo = document.getElementById('compartilhar-corpo');
         modal.style.display = 'flex';
         modal.dataset.jogoId = jogoId;
-        corpo.innerHTML = '<div style="text-align:center; padding:1.5rem 0">Carregando...</div>';
+        corpo.innerHTML = '<div class="pj-carregando">Carregando...</div>';
 
         try {
             var resp = await fetch('/Jogos/LinkAnalise/' + jogoId);
             if (!resp.ok) throw new Error();
             renderCompartilhar(await resp.json());
         } catch (e) {
-            corpo.innerHTML = '<div style="color:#f87171; text-align:center; padding:1rem;">Erro ao consultar o link de compartilhamento.</div>';
+            corpo.innerHTML = '<div class="pj-estado" style="color:var(--bad);">Erro ao consultar o link de compartilhamento.</div>';
         }
     }
 
@@ -2308,22 +2491,22 @@
 
         if (!dados || !dados.existe) {
             corpo.innerHTML =
-                '<p style="margin:0 0 14px;">Gere um link público desta análise. Quem receber vê o placar, as notas, o campo, as estatísticas e as observações — <strong>sem poder alterar nada</strong> e sem acesso ao restante do sistema.</p>' +
-                '<button type="button" class="mb-btn" onclick="gerarLinkCompartilhado(' + jogoId + ')">🔗 Gerar link</button>';
+                '<p class="comp-texto">Quem receber o link vê o placar, as notas, o campo, as estatísticas e as observações, <strong>sem poder alterar nada</strong> e sem acesso ao restante do sistema.</p>' +
+                '<button type="button" class="comp-btn principal" onclick="gerarLinkCompartilhado(' + jogoId + ')">Gerar link</button>';
             return;
         }
 
         var visualizacoes = dados.visualizacoes || 0;
         corpo.innerHTML =
-            '<p style="margin:0 0 10px;">Link ativo — qualquer pessoa com ele vê esta análise em modo leitura.</p>' +
-            '<div style="display:flex; gap:8px; margin-bottom:10px;">' +
-                '<input id="compartilharUrl" type="text" readonly value="' + PainelJogo.escHtml(dados.url) + '"' +
-                    ' onclick="this.select()" style="flex:1; min-width:0; background:#0b1220; border:1px solid rgba(255,255,255,.15); border-radius:8px; color:var(--text-strong); padding:8px 10px; font-size:12px;">' +
-                '<button type="button" class="mb-btn" onclick="copiarLinkCompartilhado()">Copiar</button>' +
+            '<p class="comp-texto">Link ativo. Qualquer pessoa com ele vê esta análise em modo leitura.</p>' +
+            '<div class="comp-link">' +
+                '<input id="compartilharUrl" type="text" readonly aria-label="Link da análise" value="' + PainelJogo.escHtml(dados.url) + '"' +
+                    ' onclick="this.select()">' +
+                '<button type="button" class="comp-btn principal" onclick="copiarLinkCompartilhado()">Copiar</button>' +
             '</div>' +
-            '<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">' +
-                '<span style="font-size:12px;">👁 ' + visualizacoes + ' visualização' + (visualizacoes === 1 ? '' : 'es') + '</span>' +
-                '<button type="button" class="mb-btn" style="border-color:#ef4444; color:#ef4444;" onclick="revogarLinkCompartilhado(' + jogoId + ')">Revogar link</button>' +
+            '<div class="comp-rodape">' +
+                '<span>' + visualizacoes + ' visualiza' + (visualizacoes === 1 ? 'ção' : 'ções') + '</span>' +
+                '<button type="button" class="comp-btn perigo" onclick="revogarLinkCompartilhado(' + jogoId + ')">Revogar link</button>' +
             '</div>';
     }
 
@@ -2553,6 +2736,7 @@
     // linha "Temporada". TEMPORADA_TOOLTIP 0 = "Todas as temporadas" (oculta a linha).
     // Não são const porque o seletor "ℹ tooltip" troca a temporada em tempo de tela.
     let TEMPORADA_TOOLTIP = ANALISAR.temporadaTooltip;
+    let CALENDARIO_EUROPEU_TOOLTIP = !!ANALISAR.calendarioEuropeuTooltip;
     let GOLS_TEMPORADA = ANALISAR.golsTemporada;
     let ASSISTS_TEMPORADA = ANALISAR.assistsTemporada;
     let TITULAR_TEMPORADA = ANALISAR.titularTemporada;
@@ -2579,6 +2763,7 @@
             TITULAR_TEMPORADA = d.titularTemporada || {};
             TIME_ANTERIOR = d.timeAnterior || {};
             TEMPORADA_TOOLTIP = d.temporada;
+            CALENDARIO_EUROPEU_TOOLTIP = !!d.calendarioEuropeu;
 
             // Gols/assists da competição moram dentro de DADOS_JOGADORES (é de lá
             // que o tooltip lê a linha "Competição").
@@ -2614,6 +2799,7 @@
             titularTemporada: TITULAR_TEMPORADA,
             timeAnterior: TIME_ANTERIOR,
             temporada: TEMPORADA_TOOLTIP,
+            calendarioEuropeu: CALENDARIO_EUROPEU_TOOLTIP,
         });
     }
     sincronizarTooltip();

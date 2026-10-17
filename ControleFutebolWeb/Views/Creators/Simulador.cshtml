@@ -17,15 +17,14 @@
     <h1 class="cr-titulo">Simulador de tabela</h1>
     <p class="cr-sub">
         Preencha os placares dos jogos que faltam e veja a classificação mudar na hora.
-        Só competições de pontos corridos — em mata-mata o resultado de um jogo muda quem
-        joga o seguinte. Os placares ficam neste navegador; nada é enviado para uma conta.
+        Só competições de pontos corridos: no mata-mata, o resultado de um jogo muda quem
+        joga o seguinte. Os placares ficam neste navegador, nada é enviado para uma conta.
     </p>
 
     <form class="cr-barra" method="get" action="/creators/simulador" id="sim-filtros">
         <div class="cr-campo-form">
             <label for="sim-select-competicao">Competição</label>
-            <select name="competicao" id="sim-select-competicao" data-buscavel="Digite a competição…">
-                <option value="">Escolha uma competição…</option>
+            <select name="competicao" id="sim-select-competicao" class="cr-select" data-buscavel="Digite a competição">
                 @foreach (var c in Model.CompeticoesDisponiveis)
                 {
                     <option value="@c.Id" selected="@(c.Id == Model.Competicao?.Id)">@c.Nome</option>
@@ -34,9 +33,9 @@
         </div>
         @if (temCompeticao && Model.TemporadasDisponiveis.Count > 1)
         {
-            <div class="cr-campo-form">
+            <div class="cr-campo-form cr-campo-curto">
                 <label for="sim-select-temporada">Temporada</label>
-                <select name="temporada" id="sim-select-temporada">
+                <select name="temporada" id="sim-select-temporada" class="cr-select">
                     @foreach (var t in Model.TemporadasDisponiveis)
                     {
                         <option value="@t" selected="@(t == Model.Temporada)">@t</option>
@@ -68,7 +67,7 @@
                     </span>
                     <span class="sim-salvo" id="sim-salvo"></span>
                 </div>
-                <button type="button" class="sim-btn danger" id="sim-limpar">🗑 Limpar simulação</button>
+                <button type="button" class="sim-btn danger" id="sim-limpar">Limpar simulação</button>
             </div>
 
             <div class="sim-grid">
@@ -89,7 +88,6 @@
                     @if (Model.Rodada == null)
                     {
                         <div class="sim-vazio compacto">
-                            <div class="sim-vazio-ico">🏆</div>
                             <h2>Nada a simular</h2>
                             <p>Todos os jogos desta temporada já têm resultado oficial.</p>
                         </div>

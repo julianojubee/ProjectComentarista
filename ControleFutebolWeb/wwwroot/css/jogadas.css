@@ -17,7 +17,7 @@
 
 .jgd-box {
     background: var(--p-0);
-    border: 1px solid rgba(255,255,255,.12);
+    border: 1px solid var(--line);
     border-radius: 16px;
     width: 1180px;
     max-width: 97vw;
@@ -33,7 +33,7 @@
     align-items: center;
     gap: 12px;
     padding: .9rem 1.2rem;
-    border-bottom: 1px solid rgba(255,255,255,.08);
+    border-bottom: 1px solid var(--line);
 }
 
 .jgd-titulo {
@@ -56,8 +56,8 @@
 
 .jgd-max-btn {
     margin-left: auto;
-    background: rgba(255,255,255,.05);
-    border: 1px solid rgba(255,255,255,.14);
+    background: var(--p-1);
+    border: 1px solid var(--line);
     border-radius: 7px;
     color: var(--text-muted);
     font-size: 15px;
@@ -66,11 +66,33 @@
     cursor: pointer;
 }
 
-.jgd-max-btn:hover { background: rgba(255,255,255,.12); color: var(--text-strong); }
+.jgd-max-btn:hover { background: var(--p-4); color: var(--text-strong); }
 
 /* Quando o botão existe, é ELE que empurra o grupo para a direita — sem esta
    regra as duas margens automáticas dividiriam o espaço entre os dois. */
 .jgd-max-btn + .jgd-fechar { margin-left: 6px; }
+.jgd-max-btn { font-size: 12.5px; font-weight: 600; padding: 5px 11px; }
+.jgd-lista-btn:not([hidden]) + .jgd-max-btn { margin-left: 6px; }
+.jgd-max-btn.ativo { background: var(--p-4); color: var(--text-strong); }
+
+/* Tela cheia: a lista de jogadas salvas se recolhe e a largura dela vira campo */
+.jgd-box.jgd-maximizado.jgd-sem-lista .jgd-corpo { grid-template-columns: 1fr; }
+.jgd-box.jgd-maximizado.jgd-sem-lista .jgd-lista { display: none; }
+#modal-jogadas:fullscreen { background: var(--p-0); }
+
+/* Campo grande, peças proporcionais: com o tamanho do modal elas ficavam
+   miúdas no gramado da tela cheia (só a partir de 1200px, onde ele cresce) */
+@media (min-width: 1200px) {
+    .jgd-box.jgd-maximizado .jgd-peca { width: 92px; }
+    .jgd-box.jgd-maximizado .jgd-peca-disco,
+    .jgd-box.jgd-maximizado .jgd-fantasma { width: 38px; height: 38px; }
+    .jgd-box.jgd-maximizado .jgd-peca-circulo { font-size: 14px; }
+    .jgd-box.jgd-maximizado .jgd-peca-nome { font-size: 11px; max-width: 92px; }
+    .jgd-box.jgd-maximizado .jgd-peca-sigla { font-size: 10px; }
+    .jgd-box.jgd-maximizado .jgd-peca-remover { top: 4px; right: 12px; width: 17px; height: 17px; }
+    .jgd-box.jgd-maximizado .jgd-bola { width: 20px; height: 20px; }
+    .jgd-box.jgd-maximizado .jgd-bola-sombra { width: 17px; height: 6px; }
+}
 
 /* ── Maximizado ─────────────────────────────────────────────────────
    A prancheta deixa de ser um modal e vira tela de trabalho. O que ela faz com
@@ -98,7 +120,7 @@
    stretch e a largura vira fit-content — como o conteúdo do wrap é só
    posicionamento absoluto, ele colapsaria para ~30px. */
 .jgd-box.jgd-maximizado .jgd-editor > * {
-    max-width: max(760px, calc((100vh - 440px) * 1.62 + 214px));
+    max-width: max(760px, calc((100vh - 400px) * 1.62 + 214px));
     margin-left: auto;
     margin-right: auto;
 }
@@ -112,7 +134,7 @@
            proporção do gramado; sobrando espaço ele vai para os ajustes, e
            faltando a coluna encolhe até 420px. */
         grid-template-columns: minmax(420px, calc((100vh - 215px) * 1.62 + 196px)) 320px;
-        grid-template-rows: auto auto auto auto auto auto 1fr;
+        grid-template-rows: auto auto auto auto auto auto auto auto 1fr;
         align-content: start;
         column-gap: 14px;
         padding: .7rem .8rem .8rem;
@@ -123,14 +145,15 @@
     /* Cada pixel tirado das barras laterais vira gramado */
     .jgd-box.jgd-maximizado .jgd-corpo { grid-template-columns: 200px 1fr; }
 
-    /* Barra de ferramentas, dica de modo e motor atravessam as duas colunas */
+    /* Jogada, ferramentas, dica do modo seta e guia atravessam as duas colunas */
     .jgd-box.jgd-maximizado .jgd-barra,
+    .jgd-box.jgd-maximizado .jgd-ferramentas,
     .jgd-box.jgd-maximizado .jgd-dica-modo,
-    .jgd-box.jgd-maximizado .jgd-motor { grid-column: 1 / -1; }
+    .jgd-box.jgd-maximizado .jgd-ajuda { grid-column: 1 / -1; }
 
     .jgd-box.jgd-maximizado .jgd-palco {
         grid-column: 1;
-        grid-row: 4 / span 4;
+        grid-row: 5 / span 5;
         grid-template-columns: 160px 1fr;
         align-self: start;
         position: relative;
@@ -150,10 +173,10 @@
     /* O elenco saiu do fluxo: o campo precisa dizer que segue na 2ª coluna */
     .jgd-box.jgd-maximizado .jgd-campo-wrap { grid-column: 2; }
 
-    .jgd-box.jgd-maximizado .jgd-scrub-linha { grid-column: 2; grid-row: 4; margin-top: 0; }
-    .jgd-box.jgd-maximizado .jgd-timeline    { grid-column: 2; grid-row: 5; }
-    .jgd-box.jgd-maximizado .jgd-paineis     { grid-column: 2; grid-row: 6; grid-template-columns: 1fr; }
-    .jgd-box.jgd-maximizado .jgd-rodape-dica { grid-column: 2; grid-row: 7; }
+    .jgd-box.jgd-maximizado .jgd-scrub-linha  { grid-column: 2; grid-row: 5; margin-top: 0; }
+    .jgd-box.jgd-maximizado .jgd-passos-linha { grid-column: 2; grid-row: 6; }
+    .jgd-box.jgd-maximizado .jgd-dica-fluxo   { grid-column: 2; grid-row: 7; }
+    .jgd-box.jgd-maximizado .jgd-paineis      { grid-column: 2; grid-row: 8; grid-template-columns: 1fr; }
 
     /* A lista do elenco acompanha a altura do campo em vez de um teto fixo */
     .jgd-box.jgd-maximizado .jgd-elenco-lista { max-height: none; flex: 1 1 auto; }
@@ -166,8 +189,8 @@
     display: flex;
     align-items: center;
     gap: 7px;
-    background: rgba(255,255,255,.04);
-    border: 1px solid rgba(255,255,255,.1);
+    background: var(--p-1);
+    border: 1px solid var(--line);
     border-radius: 9px;
     padding: 5px 12px;
     color: var(--text-muted);
@@ -193,7 +216,8 @@
 
 /* ══ Sidebar: jogadas salvas do time ════════════════════════════════ */
 .jgd-lista {
-    border-right: 1px solid rgba(255,255,255,.08);
+    border-right: 1px solid var(--line);
+    background: var(--p-1);
     padding: .8rem;
     overflow-y: auto;
     display: flex;
@@ -216,8 +240,8 @@
 .jgd-btn-nova:hover { background: rgba(34,197,94,.2); }
 
 .jgd-item {
-    background: rgba(255,255,255,.03);
-    border: 1px solid rgba(255,255,255,.08);
+    background: var(--p-2);
+    border: 1px solid var(--line);
     border-left: 3px solid transparent;
     border-radius: 8px;
     padding: 7px 10px;
@@ -225,7 +249,7 @@
     color: var(--text-2);
 }
 
-.jgd-item:hover { background: rgba(255,255,255,.07); }
+.jgd-item:hover { background: var(--p-4); }
 .jgd-item.ativa { border-left-color: #facc15; background: rgba(250,204,21,.1); color: var(--warn); }
 .jgd-item-nome { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .jgd-item-meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
@@ -248,32 +272,59 @@
     padding: 2rem;
 }
 
-.jgd-vazio .jgd-vazio-icone { font-size: 40px; margin-bottom: .6rem; opacity: .5; }
+.jgd-vazio-tit { font-size: 16px; font-weight: 700; color: var(--text-strong); margin-bottom: .8rem; }
+.jgd-vazio-passos {
+    text-align: left; color: var(--text-2); font-size: 13.5px; line-height: 1.6;
+    max-width: 440px; margin: 0 0 1.1rem; padding-left: 1.3rem;
+}
+.jgd-vazio-passos li { margin-bottom: .35rem; padding-left: .2rem; }
+.jgd-vazio .jgd-btn { font-size: 13px; padding: 7px 16px; }
+
+/* Importar de vídeo (IA) */
+.jgd-btn-video-ia {
+    background: rgba(96,165,250,.12);
+    border-color: rgba(96,165,250,.4);
+    color: #93c5fd;
+    margin-top: 6px;
+}
+.jgd-btn-video-ia:hover { background: rgba(96,165,250,.2); }
+.jgd-importar { gap: .6rem; }
+.jgd-importar input[type=file] { color: var(--text-2); font-size: 13px; max-width: 440px; }
+.jgd-imp-trecho { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.jgd-imp-trecho label { display: flex; align-items: center; gap: 6px; color: var(--text-2); }
+.jgd-imp-trecho input, .jgd-imp-contexto {
+    background: var(--p-2); border: 1px solid var(--line); border-radius: 6px;
+    color: var(--text-strong); padding: 5px 8px; font-size: 13px;
+}
+.jgd-imp-trecho input { width: 90px; }
+.jgd-imp-contexto { width: 100%; max-width: 440px; }
+.jgd-imp-status { min-height: 1.2em; max-width: 440px; text-align: center; color: var(--text-dim); }
+.jgd-imp-erro { color: #f87171; }
 
 .jgd-barra {
     display: flex;
     align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
-    margin-bottom: .6rem;
+    gap: 8px;
+    margin-bottom: .55rem;
 }
 
 .jgd-nome-input {
-    background: #111827;
-    border: 1px solid rgba(255,255,255,.14);
-    border-radius: 7px;
+    background: var(--input-bg);
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
     color: var(--text-strong);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
-    padding: 5px 10px;
-    width: 230px;
+    padding: 6px 11px;
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
-.jgd-nome-input:focus { outline: none; border-color: #facc15; }
+.jgd-nome-input:focus { outline: none; border-color: #facc15; box-shadow: 0 0 0 3px rgba(250,204,21,.18); }
 
 .jgd-btn {
-    background: rgba(255,255,255,.05);
-    border: 1px solid rgba(255,255,255,.14);
+    background: var(--p-1);
+    border: 1px solid var(--line-strong);
     border-radius: 7px;
     color: var(--text-2);
     font-size: 12px;
@@ -283,45 +334,60 @@
     white-space: nowrap;
 }
 
-.jgd-btn:hover:not(:disabled) { background: rgba(255,255,255,.1); color: #fff; }
-.jgd-btn:disabled { opacity: .35; cursor: not-allowed; }
+.jgd-btn:hover:not(:disabled) { background: var(--p-4); color: var(--text-strong); }
+.jgd-btn:focus-visible, .jgd-chip:focus-visible, .jgd-seg button:focus-visible { outline: 2px solid #facc15; outline-offset: 1px; }
+.jgd-btn:disabled { opacity: .4; cursor: not-allowed; }
 .jgd-btn.ativo { background: #facc15; border-color: #facc15; color: #0b0f16; }
-.jgd-btn.jgd-btn-play { background: rgba(250,204,21,.14); border-color: rgba(250,204,21,.5); color: var(--warn); }
-.jgd-btn.jgd-btn-play:hover { background: rgba(250,204,21,.24); }
-.jgd-btn.jgd-btn-salvar { background: rgba(59,130,246,.15); border-color: rgba(59,130,246,.45); color: var(--info); }
-.jgd-btn.jgd-btn-salvar:hover:not(:disabled) { background: rgba(59,130,246,.28); }
-.jgd-btn.jgd-btn-perigo { border-color: rgba(239,68,68,.4); color: var(--bad); }
-.jgd-btn.jgd-btn-perigo:hover:not(:disabled) { background: rgba(239,68,68,.15); }
+.jgd-btn-icone { font-size: 15px; line-height: 1; padding: 4px 9px; }
+.jgd-btn.jgd-btn-play { background: #facc15; border-color: #facc15; color: #0b0f16; font-weight: 700; min-width: 112px; }
+.jgd-btn.jgd-btn-play:hover:not(:disabled) { background: #fde047; color: #0b0f16; }
+.jgd-btn.jgd-btn-salvar { background: var(--info); border-color: var(--info); color: #fff; font-weight: 700; padding: 6px 16px; }
+.jgd-btn.jgd-btn-salvar:hover:not(:disabled) { background: var(--info); color: #fff; filter: brightness(1.1); }
+.jgd-btn.jgd-btn-salvar.jgd-pendente { box-shadow: 0 0 0 3px rgba(59,130,246,.3); }
+.jgd-btn.jgd-btn-perigo { border-color: transparent; background: none; color: var(--bad); }
+.jgd-btn.jgd-btn-perigo:hover:not(:disabled) { background: var(--bad-surface); color: var(--bad); }
 
-.jgd-sep { width: 1px; align-self: stretch; background: rgba(255,255,255,.1); margin: 0 3px; }
-.jgd-espaco { margin-left: auto; }
-
-.jgd-passo-nav {
+/* Ferramentas de edição e exibição: grupos separados por espaço, sem divisórias */
+.jgd-ferramentas {
     display: flex;
     align-items: center;
-    gap: 4px;
-    background: rgba(255,255,255,.04);
-    border: 1px solid rgba(255,255,255,.1);
-    border-radius: 7px;
-    padding: 2px 4px;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    padding: 6px 8px;
+    background: var(--p-1);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    margin-bottom: .6rem;
 }
 
-.jgd-passo-nav button {
-    background: none;
-    border: none;
+.jgd-grupo { display: flex; align-items: center; gap: 5px; }
+.jgd-grupo-rot { font-size: 11.5px; color: var(--text-muted); margin-right: 2px; }
+.jgd-btn.jgd-btn-alt.ativo { background: var(--text-strong); border-color: var(--text-strong); color: var(--p-0); }
+.jgd-btn-ajuda { margin-left: auto; }
+
+/* Guia de uso, recolhido por padrão */
+.jgd-ajuda {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 28px;
+    background: var(--p-1);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: .7rem 1rem;
+    margin-bottom: .6rem;
+    font-size: 12.5px;
+    line-height: 1.55;
     color: var(--text-2);
-    font-size: 14px;
-    line-height: 1;
-    padding: 3px 6px;
-    cursor: pointer;
 }
 
-.jgd-passo-nav button:disabled { opacity: .3; cursor: not-allowed; }
-.jgd-passo-nav span { font-size: 12px; color: var(--warn); font-weight: 700; min-width: 46px; text-align: center; }
+.jgd-ajuda[hidden] { display: none; }
+.jgd-ajuda ol, .jgd-ajuda ul { margin: 0; padding-left: 1.15rem; }
+.jgd-ajuda li { margin-bottom: .3rem; }
+.jgd-ajuda b { color: var(--text-strong); }
 
 .jgd-vel {
-    background: #111827;
-    border: 1px solid rgba(255,255,255,.14);
+    background: var(--input-bg);
+    border: 1px solid var(--line-strong);
     border-radius: 7px;
     color: var(--text-2);
     font-size: 12px;
@@ -329,82 +395,63 @@
 }
 
 .jgd-dica-modo {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--warn);
-    width: 100%;
-    margin: -2px 0 4px;
+    background: var(--warn-surface);
+    border-radius: 8px;
+    padding: 5px 10px;
+    margin: -2px 0 .55rem;
 }
-
-/* ══ Barra do motor de movimento ════════════════════════════════════
-   Temporária: existe para comparar o motor antigo e o novo na mesma jogada
-   antes de aposentar o antigo. Ciano porque não disputa com o amarelo do time
-   nem com o azul da marcação. */
-.jgd-motor {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    background: rgba(34,211,238,.06);
-    border: 1px solid rgba(34,211,238,.28);
-    border-radius: 9px;
-    padding: 6px 9px;
-    margin-bottom: .6rem;
-}
-
-.jgd-motor-rotulo {
-    font-size: 10.5px; font-weight: 700; letter-spacing: .04em;
-    text-transform: uppercase; color: #67e8f9;
-}
-
-.jgd-motor-desc { font-size: 11px; color: var(--text-muted); flex: 1 1 240px; min-width: 0; line-height: 1.4; }
 
 .jgd-seg {
     display: flex;
-    background: rgba(0,0,0,.35);
-    border: 1px solid rgba(255,255,255,.12);
+    background: var(--p-2);
+    border: 1px solid var(--line-strong);
     border-radius: 7px;
     overflow: hidden;
 }
 
 .jgd-seg button {
     background: none; border: none;
-    color: var(--text-muted); font-size: 11.5px; font-weight: 700;
-    padding: 5px 12px; cursor: pointer;
+    color: var(--text-2); font-size: 12px; font-weight: 600;
+    padding: 4px 11px; cursor: pointer;
 }
 
-.jgd-seg button:hover { color: var(--text-strong); }
+.jgd-seg button + button { border-left: 1px solid var(--line); }
+.jgd-seg button:disabled { opacity: .4; cursor: not-allowed; }
+
+.jgd-seg button:hover:not(:disabled) { color: var(--text-strong); }
 .jgd-seg button.ativo { background: #22d3ee; color: #062a30; }
 
-.jgd-btn.jgd-btn-ciano.ativo { background: #67e8f9; border-color: #67e8f9; color: #062a30; }
-
 /* ══ Scrub: percorrer a jogada no tempo ═════════════════════════════ */
-.jgd-scrub-linha { display: flex; align-items: center; gap: 9px; margin-top: .6rem; }
+.jgd-scrub-linha { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: .6rem; }
+.jgd-scrub-trilho { display: flex; align-items: center; gap: 9px; flex: 1 1 220px; min-width: 0; }
 .jgd-scrub { flex: 1; height: 4px; accent-color: #facc15; cursor: pointer; }
 .jgd-scrub:disabled { opacity: .4; cursor: not-allowed; }
-.jgd-scrub-tempo { font-size: 10.5px; font-weight: 700; color: var(--text-dim); min-width: 44px; }
-.jgd-scrub-total { font-weight: 400; min-width: 52px; text-align: right; }
+.jgd-scrub-tempo { font-size: 11.5px; font-weight: 700; color: var(--text-2); min-width: 36px; font-variant-numeric: tabular-nums; }
+.jgd-scrub-total { font-weight: 400; color: var(--text-muted); text-align: right; }
 
 /* ══ Painéis do passo e da peça selecionada ═════════════════════════ */
 .jgd-paineis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: .6rem; }
 
 .jgd-painel {
-    background: rgba(255,255,255,.03);
-    border: 1px solid rgba(255,255,255,.09);
-    border-radius: 9px;
-    padding: 8px 10px;
+    background: var(--p-1);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 9px 11px;
 }
 
-.jgd-painel-tit {
-    font-size: 10px; font-weight: 700; letter-spacing: .05em;
-    text-transform: uppercase; color: var(--warn); margin-bottom: 6px;
-}
-
-.jgd-painel-tit.jgd-tit-ciano { color: #67e8f9; }
-.jgd-painel-nome { font-size: 12px; color: var(--text-strong); font-weight: 600; margin-bottom: 6px; }
+.jgd-painel-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
+.jgd-painel-tit { font-size: 13px; font-weight: 700; color: var(--text-strong); }
+.jgd-link-perigo { background: none; border: none; padding: 0; font-size: 12px; color: var(--bad); cursor: pointer; }
+.jgd-link-perigo:hover { text-decoration: underline; }
+.jgd-link-perigo[hidden] { display: none; }
+.jgd-painel-nome { font-size: 13px; color: var(--text-strong); font-weight: 600; margin-bottom: 7px; }
+.jgd-painel-nome.jgd-painel-vazio { font-weight: 400; color: var(--text-muted); font-size: 12.5px; }
 .jgd-painel-linha { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.jgd-painel-rot { font-size: 11px; color: var(--text-muted); }
-.jgd-painel-dur { font-size: 11px; color: var(--text-dim); }
-.jgd-painel-val { font-size: 11px; color: var(--warn); font-weight: 700; min-width: 30px; }
+.jgd-painel-rot { font-size: 12px; color: var(--text-muted); }
+.jgd-painel-dur { font-size: 12px; color: var(--text-muted); }
+.jgd-painel-val { font-size: 12px; color: var(--text-strong); font-weight: 700; min-width: 30px; }
 .jgd-atraso { width: 96px; height: 4px; accent-color: #22d3ee; cursor: pointer; }
 .jgd-atraso:disabled { opacity: .4; cursor: not-allowed; }
 
@@ -413,8 +460,8 @@
 .jgd-palco.jgd-sem-elenco { grid-template-columns: 1fr; }
 
 .jgd-elenco {
-    background: rgba(255,255,255,.03);
-    border: 1px solid rgba(255,255,255,.08);
+    background: var(--p-1);
+    border: 1px solid var(--line);
     border-radius: 10px;
     overflow: hidden;
     display: flex;
@@ -422,7 +469,7 @@
 }
 
 /* Duas listas: o time que executa a jogada e o adversário que a marca */
-.jgd-elenco-abas { display: flex; border-bottom: 1px solid rgba(255,255,255,.08); }
+.jgd-elenco-abas { display: flex; border-bottom: 1px solid var(--line); }
 
 .jgd-elenco-aba {
     flex: 1 1 0;
@@ -430,12 +477,10 @@
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
-    color: var(--text-dim);
-    font-size: 10.5px;
+    color: var(--text-muted);
+    font-size: 12px;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .02em;
-    padding: 6px 4px;
+    padding: 7px 4px;
     cursor: pointer;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -447,26 +492,26 @@
 .jgd-elenco-aba.jgd-aba-adv.ativa { color: var(--info); border-bottom-color: #60a5fa; }
 
 .jgd-elenco-todos {
-    background: rgba(255,255,255,.05);
+    background: var(--p-2);
     border: none;
-    border-top: 1px solid rgba(255,255,255,.08);
-    color: var(--text-muted);
-    font-size: 11px;
+    border-top: 1px solid var(--line);
+    color: var(--text-2);
+    font-size: 11.5px;
     font-weight: 700;
     line-height: 1.35;
     padding: 6px 8px;
     cursor: pointer;
 }
 
-.jgd-elenco-todos:hover:not(:disabled) { background: rgba(255,255,255,.1); color: var(--text-strong); }
+.jgd-elenco-todos:hover:not(:disabled) { background: var(--p-4); color: var(--text-strong); }
 .jgd-elenco-todos:disabled { opacity: .35; cursor: not-allowed; }
 
 .jgd-elenco-busca {
-    background: #111827;
+    background: var(--input-bg);
     border: none;
-    border-bottom: 1px solid rgba(255,255,255,.08);
+    border-bottom: 1px solid var(--line);
     color: var(--text-strong);
-    font-size: 12px;
+    font-size: 12.5px;
     padding: 6px 9px;
     width: 100%;
 }
@@ -480,16 +525,16 @@
     gap: 7px;
     padding: 5px 9px;
     cursor: grab;
-    border-bottom: 1px solid rgba(255,255,255,.04);
+    border-bottom: 1px solid var(--line-soft);
 }
 
 .jgd-elenco-item:hover { background: rgba(250,204,21,.1); }
 .jgd-lista-adv .jgd-elenco-item:hover { background: rgba(59,130,246,.14); }
 .jgd-lista-adv .jgd-elenco-num { color: var(--info); }
-.jgd-elenco-item.jgd-em-campo { opacity: .35; cursor: default; }
+.jgd-elenco-item.jgd-em-campo { opacity: .45; cursor: default; }
 .jgd-elenco-item.jgd-em-campo:hover { background: none; }
-.jgd-elenco-num { font-size: 11px; font-weight: 700; color: var(--warn); min-width: 18px; text-align: center; }
-.jgd-elenco-nome { font-size: 12px; color: var(--text-2); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jgd-elenco-num { font-size: 11.5px; font-weight: 700; color: var(--warn); min-width: 18px; text-align: center; }
+.jgd-elenco-nome { font-size: 12.5px; color: var(--text-2); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .jgd-elenco-sigla { font-size: 10px; color: var(--text-dim); font-weight: 700; }
 
 /* A margem lateral existe para as traves: elas ficam fora da linha de fundo,
@@ -509,6 +554,15 @@
     border: 2px solid rgba(255,255,255,.8);
     box-shadow: 0 1px 4px rgba(0,0,0,.4);
     pointer-events: none;
+}
+
+/* No tema claro a trave fica sobre o fundo branco do modal: em branco ela some */
+:root:not([data-theme="dark"]) .jgd-trave {
+    background:
+        repeating-linear-gradient(0deg, rgba(15,23,42,.22) 0 1px, transparent 1px 4px),
+        repeating-linear-gradient(90deg, rgba(15,23,42,.22) 0 1px, transparent 1px 4px);
+    border-color: #64748b;
+    box-shadow: none;
 }
 
 .jgd-trave-esq { left: 0; border-right: none; border-radius: 3px 0 0 3px; }
@@ -611,8 +665,6 @@
 
 .jgd-video-nota { color: var(--text-muted); font-size: 12px; line-height: 1.5; margin-bottom: .8rem; }
 
-.jgd-btn.jgd-btn-video { background: rgba(236,72,153,.14); border-color: rgba(236,72,153,.45); color: #f9a8d4; }
-.jgd-btn.jgd-btn-video:hover { background: rgba(236,72,153,.25); color: #fff; }
 
 /* ══ Blocos (setores que se movem juntos) ═══════════════════════════ */
 /* Contorno do casco convexo do grupo: com duas peças é uma linha, com três um
@@ -851,35 +903,38 @@
 .jgd-legenda-palco.jgd-visivel { display: block; }
 
 /* ══ Timeline de passos ═════════════════════════════════════════════ */
-.jgd-timeline {
-    display: flex; align-items: center; gap: 5px;
-    margin-top: .6rem; flex-wrap: wrap;
-}
+.jgd-passos-linha { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin-top: .55rem; }
+.jgd-timeline { display: contents; }
 
 .jgd-chip {
-    background: rgba(255,255,255,.05);
-    border: 1px solid rgba(255,255,255,.12);
+    background: var(--p-1);
+    border: 1px solid var(--line-strong);
     border-radius: 7px;
-    color: var(--text-muted);
-    font-size: 11px; font-weight: 700;
-    padding: 4px 9px; cursor: pointer;
+    color: var(--text-2);
+    font-size: 12px; font-weight: 600;
+    padding: 4px 10px; cursor: pointer;
     max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-.jgd-chip:hover { color: var(--text-strong); border-color: rgba(255,255,255,.25); }
+.jgd-chip:hover { color: var(--text-strong); background: var(--p-4); }
+.jgd-chip.jgd-chip-novo { border-style: dashed; color: var(--ok); background: none; font-weight: 700; }
+.jgd-chip.jgd-chip-novo:hover { background: var(--ok-surface); }
+
+/* O que fazer agora: só enquanto a jogada ainda não tem movimento */
+.jgd-dica-fluxo { font-size: 12.5px; color: var(--text-2); margin-top: .5rem; }
+.jgd-dica-fluxo[hidden] { display: none; }
 .jgd-chip.ativo { background: #facc15; border-color: #facc15; color: #0b0f16; }
 
 .jgd-legenda-input {
-    background: #111827;
-    border: 1px solid rgba(255,255,255,.14);
+    background: var(--input-bg);
+    border: 1px solid var(--line-strong);
     border-radius: 7px;
-    color: var(--text-strong); font-size: 12px;
+    color: var(--text-strong); font-size: 12.5px;
     padding: 6px 10px; width: 100%; margin-top: .55rem;
 }
 
 .jgd-legenda-input:focus { outline: none; border-color: #facc15; }
 
-.jgd-rodape-dica { font-size: 11px; color: var(--text-dim); margin-top: .5rem; line-height: 1.6; }
 
 /* ══ Arsenal em /Times/Details ══════════════════════════════════════ */
 .jgd-arsenal-grid {
@@ -916,7 +971,10 @@
 
 @media (max-width: 900px) {
     .jgd-corpo { grid-template-columns: 1fr; }
-    .jgd-lista { border-right: none; border-bottom: 1px solid rgba(255,255,255,.08); max-height: 150px; }
+    .jgd-lista { border-right: none; border-bottom: 1px solid var(--line); max-height: 150px; }
+    .jgd-ajuda { grid-template-columns: 1fr; }
+    .jgd-barra { flex-wrap: wrap; }
+    .jgd-nome-input { flex-basis: 100%; }
     .jgd-palco { grid-template-columns: 1fr; }
     .jgd-elenco-lista { max-height: 150px; }
     .jgd-paineis { grid-template-columns: 1fr; }

@@ -213,7 +213,11 @@
     .cf-times .cft-aba:hover { background: var(--p-3); }
     .cf-times .cft-aba[aria-current="page"] { background: #d4a520; color: #141414; }
     .cft-aba small { font-weight: 500; opacity: .8; margin-left: 3px; }
+    .cft-barra-dir { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
     .cft-resumo { font-size: .86rem; color: var(--text-muted); }
+    .cft-api-preview { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--p-1); margin-bottom: 12px; }
+    .cft-api-preview img { width: 48px; height: 48px; object-fit: contain; }
+    .cft-api-preview small { display: block; color: var(--text-muted); }
     .cft-resumo strong { color: var(--text-strong); }
 
     /* ── Grade de cards ── */
@@ -366,11 +370,14 @@
                 <a class="cft-aba" href="@Url_("clubes")" aria-current="@(tipo == "clubes" ? "page" : null)">Clubes<small>@Milhar(qtdClubes)</small></a>
                 <a class="cft-aba" href="@Url_("selecoes")" aria-current="@(tipo == "selecoes" ? "page" : null)">Seleções<small>@Milhar(qtdSelecoes)</small></a>
             </nav>
-            <span class="cft-resumo">
-                @if (totalFiltrado > 0)
-                {
-                    <text>Mostrando <strong>@primeiro–@ultimo</strong> de <strong>@Milhar(totalFiltrado)</strong></text>
-                }
+            <span class="cft-barra-dir">
+                <span class="cft-resumo">
+                    @if (totalFiltrado > 0)
+                    {
+                        <text>Mostrando <strong>@primeiro–@ultimo</strong> de <strong>@Milhar(totalFiltrado)</strong></text>
+                    }
+                </span>
+                <button type="button" class="cft-btn cft-btn-ghost" data-bs-toggle="modal" data-bs-target="#addApiModal">+ Adicionar pela API</button>
             </span>
         </div>
 
@@ -497,4 +504,95 @@
             }
         }
     </div>
+
+    <!-- Modal: cria um time avulso a partir do id da api-football (sem importar competição) -->
+    <div class="modal fade" id="addApiModal" tabindex="-1" aria-labelledby="addApiTitulo" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addApiTitulo">Adicionar time pela API</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex gap-2 align-items-end mb-3">
+                        <div class="flex-grow-1">
+                            <label for="addApiId" class="form-label mb-1">Id na api-football</label>
+                            <input id="addApiId" type="number" min="1" class="form-control" placeholder="ex.: 1726" />
+                        </div>
+                        <button type="button" id="addApiBuscar" class="btn btn-primary">Buscar</button>
+                    </div>
+                    <div id="addApiStatus" class="small"></div>
+
+                    <form id="addApiForm" asp-action="AdicionarPelaApi" method="post" hidden>
+                        <div class="cft-api-preview">
+                            <img id="addApiLogo" alt="" />
+                            <div>
+                                <strong id="addApiNomeApi"></strong>
+                                <small id="addApiInfo"></small>
+                            </div>
+                        </div>
+                        <input type="hidden" name="idApi" id="addApiIdHidden" />
+                        <div class="mb-2">
+                            <label for="addApiNome" class="form-label mb-1">Nome no sistema</label>
+                            <input id="addApiNome" name="nome" class="form-control" maxlength="120" required />
+                        </div>
+                        <div class="form-check mb-3">
+                            <input id="addApiSelecao" name="ehSelecao" type="checkbox" value="true" class="form-check-input" />
+                            <label for="addApiSelecao" class="form-check-label">É seleção nacional</label>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Adicionar</button>
+                        <span class="text-muted small ms-2">Depois, importe os jogos em "Jogos da temporada" no perfil do time.</span>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script>
+    (function () {
+        const inp = document.getElementById('addApiId');
+        const btn = document.getElementById('addApiBuscar');
+        const status = document.getElementById('addApiStatus');
+        const form = document.getElementById('addApiForm');
+        if (!inp) return;
+
+        async function buscar() {
+            const id = parseInt(inp.value, 10);
+            form.hidden = true;
+            if (!id || id <= 0) { status.className = 'small text-danger'; status.textContent = 'Informe um id válido.'; return; }
+            status.className = 'small text-muted';
+            status.textContent = 'Consultando a api-football...';
+            try {
+                const r = await fetch(`/Times/BuscarTimeApi?idApi=${id}`);
+                const d = await r.json();
+                if (!r.ok) { status.className = 'small text-danger'; status.textContent = d.erro || 'Erro na busca.'; return; }
+                if (d.existenteId) {
+                    status.className = 'small';
+                    status.innerHTML = '';
+                    status.append('Esse time já está cadastrado como ');
+                    const a = document.createElement('a');
+                    a.href = `/Times/Details/${d.existenteId}`;
+                    a.textContent = d.existenteNome;
+                    status.append(a, '.');
+                    return;
+                }
+                status.textContent = '';
+                document.getElementById('addApiLogo').src = d.logo || '';
+                document.getElementById('addApiNomeApi').textContent = d.nomeApi;
+                document.getElementById('addApiInfo').textContent =
+                    [d.pais, d.selecao ? 'seleção' : 'clube', d.estadio].filter(Boolean).join(' · ');
+                document.getElementById('addApiIdHidden').value = d.idApi;
+                document.getElementById('addApiNome').value = d.nomeSugerido;
+                document.getElementById('addApiSelecao').checked = !!d.selecao;
+                form.hidden = false;
+            } catch {
+                status.className = 'small text-danger';
+                status.textContent = 'Falha ao consultar.';
+            }
+        }
+
+        btn.addEventListener('click', buscar);
+        inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); buscar(); } });
+    })();
+</script>

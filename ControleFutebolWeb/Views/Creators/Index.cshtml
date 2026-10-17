@@ -1,54 +1,86 @@
+@model ControleFutebolWeb.Models.ViewModels.CreatorsHubViewModel
 @{
     Layout = "_LayoutCreators";
     ViewData["Title"] = "Creators";
 }
 
 <div class="cr-wrap">
-    <h1 class="cr-titulo">Ferramentas para creators</h1>
-    <p class="cr-sub">
-        Monte escalações, escolha a seleção da competição e consulte as tabelas para usar no seu conteúdo.
-        É tudo aberto, sem cadastro — e nada do que você montar sai da sua tela.
-    </p>
+    <div class="crh-topo">
+        <div>
+            <h1 class="cr-titulo">Ferramentas para creators</h1>
+            <p class="cr-sub">
+                Escalações, tabelas, jogos do dia e simulações prontos para virar conteúdo.
+                Tudo aberto, sem cadastro, e o que você monta fica só na sua tela.
+            </p>
+        </div>
 
-    <div class="cr-cards">
-        <a class="cr-card" href="/creators/escalacao">
-            <div class="cr-card-icone">⚔️</div>
-            <div class="cr-card-nome">Escalações (Match Up)</div>
-            <p class="cr-card-txt">
-                Escolha dois times: o campo já vem com a última escalação registrada de cada um.
-                Arraste os jogadores, troque quem quiser pelo elenco, desenhe setas e áreas.
-            </p>
+        @* Faixa de hoje: o atalho mais quente da área quando tem bola rolando *@
+        <a class="crh-hoje theme-dark-zone" href="/creators/jogos-hoje">
+            @if (Model.JogosHoje == 0)
+            {
+                <span class="crh-hoje-num">Nenhum jogo hoje</span>
+                <span class="crh-hoje-txt">Veja os jogos de outros dias</span>
+            }
+            else
+            {
+                <span class="crh-hoje-num">@Model.JogosHoje @(Model.JogosHoje == 1 ? "jogo hoje" : "jogos hoje")</span>
+                <span class="crh-hoje-txt">
+                    @if (Model.AoVivo > 0)
+                    {
+                        <span class="crh-vivo"><span class="crh-ponto" aria-hidden="true"></span>@Model.AoVivo ao vivo agora</span>
+                    }
+                    else if (Model.ProximoJogo != null)
+                    {
+                        <span>Próximo às @Model.ProximoJogo</span>
+                    }
+                    else
+                    {
+                        <span>Todos já encerrados</span>
+                    }
+                </span>
+            }
+            <span class="crh-hoje-link">Ver jogos do dia</span>
         </a>
-        <a class="cr-card" href="/creators/selecao">
-            <div class="cr-card-icone">⭐</div>
-            <div class="cr-card-nome">Seleção da competição</div>
-            <p class="cr-card-txt">
-                Os 11 escolhidos por você numa competição e temporada, na formação que preferir,
-                puxando jogadores de qualquer time que disputou.
-            </p>
+    </div>
+
+    <div class="crh-grade">
+        @* Ferramenta principal: o campo com os dois times, a que mais vira vídeo *@
+        <a class="crh-destaque" href="/creators/escalacao">
+            <div class="crh-campo theme-dark-zone" aria-hidden="true">
+                <span class="crh-meio"></span><span class="crh-circulo"></span>
+                @foreach (var (x, y) in new[] { (6, 50), (16, 20), (15, 40), (15, 60), (16, 80), (28, 30), (30, 50), (28, 70), (39, 20), (41, 50), (39, 80) })
+                {
+                    <span class="crh-j casa" style="left:@(x)%; top:@(y)%"></span>
+                    <span class="crh-j fora" style="left:@(100 - x)%; top:@(y)%"></span>
+                }
+            </div>
+            <div class="crh-destaque-txt">
+                <h2>Escalações</h2>
+                <p>
+                    Escolha dois times e o campo aparece com a última escalação de cada um.
+                    Arraste, troque pelo elenco, desenhe setas e áreas, e ponha em tela cheia para gravar.
+                </p>
+                <span class="crh-abrir">Montar um confronto</span>
+            </div>
         </a>
-        <a class="cr-card" href="/creators/tabelas">
-            <div class="cr-card-icone">📊</div>
-            <div class="cr-card-nome">Tabelas</div>
-            <p class="cr-card-txt">
-                Classificação de cada competição por temporada, com jogos, vitórias, saldo e aproveitamento.
-            </p>
-        </a>
-        <a class="cr-card" href="/creators/jogos-hoje">
-            <div class="cr-card-icone">📅</div>
-            <div class="cr-card-nome">Jogos do dia</div>
-            <p class="cr-card-txt">
-                Tudo que rola hoje (ou em qualquer outro dia), com placar ao vivo, gols,
-                estádio e transmissão — filtrando por competição.
-            </p>
-        </a>
-        <a class="cr-card" href="/creators/simulador">
-            <div class="cr-card-icone">🧮</div>
-            <div class="cr-card-nome">Simulador de tabela</div>
-            <p class="cr-card-txt">
-                Preencha os jogos que faltam de uma competição de pontos corridos e veja a
-                classificação mudar na hora, com os critérios de desempate certos.
-            </p>
-        </a>
+
+        <nav class="crh-lista" aria-label="Outras ferramentas">
+            <a class="crh-item" href="/creators/selecao">
+                <span class="crh-item-nome">Seleção da competição</span>
+                <span class="crh-item-txt">Os 11 que você escolher numa competição, na formação que quiser.</span>
+            </a>
+            <a class="crh-item" href="/creators/tabelas">
+                <span class="crh-item-nome">Tabelas</span>
+                <span class="crh-item-txt">Classificação, grupos e chaveamento de cada competição e temporada.</span>
+            </a>
+            <a class="crh-item" href="/creators/simulador">
+                <span class="crh-item-nome">Simulador de tabela</span>
+                <span class="crh-item-txt">Preencha os jogos que faltam e veja a classificação mudar na hora.</span>
+            </a>
+            <a class="crh-item" href="/creators/jogos-hoje">
+                <span class="crh-item-nome">Jogos do dia</span>
+                <span class="crh-item-txt">Placar ao vivo, gols, estádio e transmissão de qualquer dia.</span>
+            </a>
+        </nav>
     </div>
 </div>

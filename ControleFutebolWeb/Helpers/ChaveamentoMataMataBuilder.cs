@@ -79,6 +79,14 @@ namespace ControleFutebolWeb.Helpers
             return vm;
         }
 
+        // Confrontos de uma fase solta (fora da árvore, ex.: preliminares), com ida e
+        // volta agregadas, na ordem em que foram jogados.
+        public static List<ConfrontoArvore> Confrontos(List<Jogo> jogos, string rotulo) =>
+            AgruparTies(jogos, rotulo)
+                .OrderBy(t => t.Data ?? DateTime.MaxValue)
+                .ThenBy(t => t.JogoIds.Count > 0 ? t.JogoIds.Min() : int.MaxValue)
+                .ToList();
+
         // Retorna os dois duelos da fase anterior cujos vencedores são os lados de `tie`.
         private static (ConfrontoArvore?, ConfrontoArvore?) Feeders(ConfrontoArvore tie, List<ConfrontoArvore> pool)
         {

@@ -2,258 +2,287 @@
 @{
     Layout = null;
     ViewData["Title"] = "Login";
+    var ptBr = new System.Globalization.CultureInfo("pt-BR");
+    var numeros = ViewBag.Numeros is ValueTuple<int, int, int, int> n ? n : (0, 0, 0, 0);
+    string Numero(int v) => v.ToString("N0", ptBr);
 }
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Login — Análise de Craque</title>
+  <title>Entrar - Análise de Craque</title>
   <link rel="icon" type="image/svg+xml" href="~/favicon.svg">
   <link rel="alternate icon" href="~/favicon.ico">
   <link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0a; }
+    :root {
+      --ouro: #d4a520;
+      --ouro-claro: #e6b93a;
+      --fundo: #0a0a0a;
+      --painel: #121212;
+      --linha: rgba(255,255,255,.09);
+      --texto: #f4f4f5;
+      --texto-2: #b4b4bb;
+      --texto-3: #8b8b93;
+    }
+    html, body { height: 100%; background: var(--fundo); color: var(--texto); font-family: 'Barlow', Arial, sans-serif; }
+    a { color: inherit; }
+    :focus-visible { outline: 2px solid var(--ouro); outline-offset: 2px; }
 
-    @@keyframes fadeUp {
-      from { opacity: 0; transform: translateY(24px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    @@keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    @@keyframes pulse {
-      0%, 100% { opacity: 0.6; transform: scale(1); }
-      50% { opacity: 1; transform: scale(1.08); }
-    }
-    @@keyframes scanline {
-      0% { transform: translateY(-100%); }
-      100% { transform: translateY(100vh); }
-    }
+    @@keyframes surgir { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 
-    .login-input {
-      width: 100%;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 6px;
-      padding: 12px 14px;
-      color: #fff;
-      font-family: 'Barlow', sans-serif;
-      font-size: 15px;
-      outline: none;
-      transition: border-color 0.2s, background 0.2s;
-    }
-    .login-input:focus {
-      border-color: rgba(234,179,8,0.6);
-      background: rgba(255,255,255,0.07);
-    }
-    .login-input::placeholder { color: rgba(255,255,255,0.25); }
+    .login { min-height: 100vh; display: flex; }
 
-    .login-btn {
-      width: 100%;
-      background: #EAB308;
-      color: #0a0a0a;
-      border: none;
-      border-radius: 6px;
-      padding: 13px;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 16px;
-      font-weight: 800;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
+    /* ── Painel do campo (esquerda) ─────────────────────────────────────── */
+    .campo-painel {
+      flex: 1; min-width: 0; position: relative; overflow: hidden;
+      display: flex; flex-direction: column; justify-content: space-between;
+      padding: 40px 48px;
     }
-    .login-btn:hover { background: #FCD34D; }
-    .login-btn:active { transform: scale(0.98); }
+    .campo-painel field-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    /* Escurece a base do campo: o texto de baixo não briga com as linhas */
+    .campo-painel::after {
+      content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 46%; pointer-events: none;
+      background: linear-gradient(180deg, rgba(10,10,10,0) 0%, rgba(10,10,10,.82) 55%, rgba(10,10,10,.96) 100%);
+    }
+    .marca { position: relative; z-index: 2; display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    .marca img { width: 40px; height: 40px; border-radius: 9px; }
+    .marca-nome { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.45rem; font-weight: 800; color: var(--texto); line-height: 1; }
 
-    .tag-pill {
-      display: inline-block;
-      border: 1px solid rgba(234,179,8,0.4);
-      color: rgba(234,179,8,0.8);
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 2px;
-      padding: 4px 10px;
-      border-radius: 2px;
+    .campo-texto { position: relative; z-index: 2; max-width: 560px; animation: surgir .6s .1s ease both; }
+    .campo-titulo {
+      font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 2.6rem; font-weight: 800;
+      line-height: 1.02; color: var(--texto);
     }
+    .campo-sub { margin-top: 10px; font-size: 1rem; line-height: 1.5; color: var(--texto-2); max-width: 46ch; }
+    .numeros { display: flex; gap: 32px; margin-top: 26px; flex-wrap: wrap; }
+    .numero b {
+      display: block; font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.9rem; font-weight: 800;
+      color: var(--ouro); line-height: 1;
+    }
+    .numero span { display: block; margin-top: 4px; font-size: .82rem; color: var(--texto-3); }
 
-    .stat-item { text-align: center; }
-    .stat-num {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 28px;
-      font-weight: 900;
-      color: #EAB308;
-      line-height: 1;
+    /* ── Painel do formulário (direita) ─────────────────────────────────── */
+    .form-painel {
+      width: 440px; flex-shrink: 0; position: relative; z-index: 2;
+      display: flex; flex-direction: column;
+      background: var(--painel); border-left: 1px solid var(--linha);
+      padding: 48px 48px 28px;
+      animation: surgir .5s ease both;
     }
-    .stat-lbl {
-      font-family: 'Barlow', sans-serif;
-      font-size: 11px;
-      color: rgba(255,255,255,0.4);
-      letter-spacing: 0.5px;
-      margin-top: 3px;
+    .form-painel::before {
+      content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--ouro), transparent);
     }
+    /* O formulário fica no meio da altura; o rodapé, embaixo */
+    .form-miolo { margin: auto 0; width: 100%; }
 
-    .check-label {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-family: 'Barlow', sans-serif;
-      font-size: 13px;
-      color: rgba(255,255,255,0.45);
-      cursor: pointer;
-      user-select: none;
-    }
-    .check-label input[type=checkbox] { accent-color: #EAB308; width: 14px; height: 14px; }
+    .form-titulo { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 2.1rem; font-weight: 800; line-height: 1.05; }
+    .form-sub { margin-top: 6px; font-size: .95rem; color: var(--texto-3); }
 
-    .login-error {
-      background: rgba(239,68,68,0.1);
-      border: 1px solid rgba(239,68,68,0.35);
-      color: #fca5a5;
-      border-radius: 6px;
-      padding: 10px 12px;
-      margin-bottom: 18px;
-      font-family: 'Barlow', sans-serif;
-      font-size: 13px;
+    .erro {
+      margin-top: 24px; padding: 11px 13px; border-radius: 8px;
+      background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.38); color: #fca5a5;
+      font-size: .9rem; line-height: 1.45;
     }
-    .login-error div + div { margin-top: 4px; }
+    .erro div + div { margin-top: 4px; }
 
-    /* Responsivo: empilha em telas menores */
-    @@media (max-width: 860px) {
-      html, body { overflow: auto; height: auto; }
-      .login-wrap { flex-direction: column !important; height: auto !important; min-height: 100vh; }
-      .left-panel { min-height: 320px; padding: 28px 24px !important; }
-      .right-panel { width: 100% !important; padding: 40px 24px !important; }
-      .stats-bar { gap: 20px !important; flex-wrap: wrap; }
+    form { display: flex; flex-direction: column; gap: 18px; margin-top: 28px; }
+    .campo label, .campo-rotulo { display: block; margin-bottom: 7px; font-size: .88rem; font-weight: 600; color: var(--texto-2); }
+    .entrada {
+      width: 100%; height: 46px; padding: 0 14px; border-radius: 8px;
+      background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.14); color: var(--texto);
+      /* 16px: abaixo disso o iPhone dá zoom na página ao focar o campo */
+      font-family: inherit; font-size: 16px;
+      transition: border-color .15s, background .15s;
     }
+    .entrada::placeholder { color: #75757d; }
+    .entrada:hover { border-color: rgba(255,255,255,.24); }
+    .entrada:focus { outline: none; border-color: var(--ouro); background: rgba(255,255,255,.07); }
+    .entrada.invalida { border-color: rgba(239,68,68,.6); }
+
+    .senha-caixa { position: relative; }
+    .senha-caixa .entrada { padding-right: 84px; }
+    .ver-senha {
+      position: absolute; top: 6px; right: 6px; height: 34px; padding: 0 10px; border-radius: 6px;
+      background: none; border: none; color: var(--texto-2); font-family: inherit; font-size: .86rem; font-weight: 600; cursor: pointer;
+    }
+    .ver-senha:hover { color: var(--texto); background: rgba(255,255,255,.06); }
+    .aviso-caps { display: none; margin-top: 6px; font-size: .82rem; color: var(--ouro-claro); }
+    .aviso-caps.ativo { display: block; }
+
+    .linha-opcoes { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .manter { display: flex; align-items: center; gap: 8px; font-size: .9rem; color: var(--texto-2); cursor: pointer; user-select: none; }
+    .manter input { width: 16px; height: 16px; accent-color: var(--ouro); }
+    .link-ouro { font-size: .9rem; font-weight: 600; color: var(--ouro-claro); text-decoration: none; }
+    .link-ouro:hover { text-decoration: underline; }
+
+    .botao {
+      height: 48px; margin-top: 4px; border: none; border-radius: 8px; cursor: pointer;
+      background: var(--ouro); color: #111;
+      font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.2rem; font-weight: 800;
+      transition: background .15s, transform .08s;
+    }
+    .botao:hover { background: var(--ouro-claro); }
+    .botao:active { transform: scale(.985); }
+    .botao:disabled { opacity: .7; cursor: default; transform: none; }
+
+    /* Atalho para a área aberta: quem chega aqui atrás das ferramentas de
+       creators não precisa de conta */
+    .creators {
+      display: block; margin-top: 30px; padding: 14px 16px; border-radius: 10px; text-decoration: none;
+      border: 1px solid var(--linha); background: rgba(255,255,255,.025);
+      transition: border-color .15s;
+    }
+    .creators:hover { border-color: rgba(212,165,32,.5); }
+    .creators b { display: block; font-size: .95rem; color: var(--texto); }
+    .creators span { display: block; margin-top: 3px; font-size: .86rem; line-height: 1.45; color: var(--texto-3); }
+
+    .rodape { margin-top: 28px; text-align: center; font-size: .78rem; color: #6f6f77; }
+
+    @@media (max-width: 900px) {
+      .login { flex-direction: column; }
+      .campo-painel { min-height: 300px; flex: 0 0 auto; padding: 24px; }
+      .campo-titulo { font-size: 1.9rem; }
+      .campo-sub { display: none; }
+      .numeros { gap: 22px; margin-top: 16px; }
+      .numero b { font-size: 1.5rem; }
+      .form-painel { width: 100%; flex: 1 0 auto; border-left: none; border-top: 1px solid var(--linha); padding: 32px 24px 24px; }
+    }
+    /* Celular: a faixa do campo fica só como ilustração, com a marca; o texto
+       por cima dos jogadores virava ruído e empurrava o formulário para baixo */
     @@media (max-width: 520px) {
-      .stats-bar { display: none !important; }
+      .campo-painel { min-height: 190px; }
+      .campo-texto { display: none; }
+    }
+    @@media (prefers-reduced-motion: reduce) {
+      .campo-texto, .form-painel { animation: none; }
     }
   </style>
 </head>
 <body>
 
-<div class="login-wrap" style="width:100vw; height:100vh; display:flex; background:#0a0a0a; position:relative; overflow:hidden;">
+<div class="login">
 
-  <!-- Scanline overlay -->
-  <div style="position:absolute; inset:0; pointer-events:none; z-index:1; overflow:hidden;">
-    <div style="position:absolute; left:0; right:0; height:2px; background:linear-gradient(transparent,rgba(234,179,8,0.06),transparent); animation:scanline 8s linear infinite;"></div>
-  </div>
+  <section class="campo-painel" aria-label="Análise de Craque">
+    <field-canvas aria-hidden="true"></field-canvas>
 
-  <!-- LEFT PANEL: Field + Branding -->
-  <div class="left-panel" style="flex:1; position:relative; display:flex; flex-direction:column; justify-content:space-between; padding:40px 48px; overflow:hidden; animation:fadeIn 1s ease both;">
+    <a class="marca" href="/creators" aria-label="Análise de Craque">
+      <img src="~/favicon.svg" alt="">
+      <span class="marca-nome">Análise de Craque</span>
+    </a>
 
-    <!-- Logo -->
-    <div style="display:flex; align-items:center; gap:14px; z-index:2; animation:fadeUp 0.6s ease both;">
-      <div style="width:44px; height:44px; border:2px solid #EAB308; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;">
-        <div style="width:22px; height:2px; background:#EAB308;"></div>
-        <div style="width:22px; height:2px; background:#EAB308; opacity:0.5;"></div>
-        <div style="width:22px; height:2px; background:#EAB308;"></div>
-      </div>
-      <div>
-        <div style="font-family:'Barlow Condensed',sans-serif; font-size:22px; font-weight:900; color:#EAB308; letter-spacing:2px; line-height:1;">ANÁLISE</div>
-        <div style="font-family:'Barlow Condensed',sans-serif; font-size:11px; font-weight:400; color:rgba(255,255,255,0.5); letter-spacing:3px;">DE CRAQUE</div>
-      </div>
+    <div class="campo-texto">
+      <p class="campo-titulo">Avalie jogadores, monte escalações e acompanhe cada jogo.</p>
+      <p class="campo-sub">Notas por partida, scout, pré-jogo e pós-jogo das competições que você acompanha.</p>
+      @if (numeros.Item1 > 0)
+      {
+          <div class="numeros">
+            <div class="numero"><b>@Numero(numeros.Item1)</b><span>jogadores</span></div>
+            <div class="numero"><b>@Numero(numeros.Item4)</b><span>jogos</span></div>
+            <div class="numero"><b>@Numero(numeros.Item3)</b><span>times</span></div>
+            <div class="numero"><b>@Numero(numeros.Item2)</b><span>competições</span></div>
+          </div>
+      }
     </div>
+  </section>
 
-    <!-- Animated field canvas -->
-    <field-canvas style="position:absolute; inset:0; width:100%; height:100%; display:block;"></field-canvas>
+  <main class="form-painel">
+    <div class="form-miolo">
+      <h1 class="form-titulo">Bem-vindo de volta</h1>
+      <p class="form-sub">Entre na sua conta para continuar a análise.</p>
 
-    <!-- Tag pill -->
-    <div style="position:relative; z-index:2; max-width:520px;">
-      <div style="margin-bottom:16px; animation:fadeUp 0.7s 0.1s ease both; opacity:0; animation-fill-mode:forwards;">
-        <span class="tag-pill">SCOUT · ANÁLISE · TÁTICA</span>
-      </div>
-    </div>
+      @if (!ViewData.ModelState.IsValid)
+      {
+          <div class="erro" role="alert">
+              @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+              {
+                  <div>@error.ErrorMessage</div>
+              }
+          </div>
+      }
 
-    <!-- Stats bar -->
-    <div class="stats-bar" style="position:relative; z-index:2; display:flex; gap:40px; align-items:center; animation:fadeUp 0.7s 0.4s ease both; opacity:0; animation-fill-mode:forwards;">
-      <div class="stat-item"><div class="stat-num">+2.000</div><div class="stat-lbl">Jogadores avaliados</div></div>
-      <div style="width:1px; height:32px; background:rgba(255,255,255,0.1);"></div>
-      <div class="stat-item"><div class="stat-num">+84</div><div class="stat-lbl">Competições</div></div>
-      <div style="width:1px; height:32px; background:rgba(255,255,255,0.1);"></div>
-      <div class="stat-item"><div class="stat-num">+399</div><div class="stat-lbl">Times cadastrados</div></div>
-      <div style="width:1px; height:32px; background:rgba(255,255,255,0.1);"></div>
-      <div class="stat-item"><div class="stat-num">4-3-3</div><div class="stat-lbl">Formações táticas</div></div>
-    </div>
-  </div>
-
-  <!-- RIGHT PANEL: Login -->
-  <div class="right-panel" style="width:420px; flex-shrink:0; background:rgba(255,255,255,0.025); border-left:1px solid rgba(255,255,255,0.06); display:flex; flex-direction:column; justify-content:center; padding:56px 48px; position:relative; z-index:2; animation:fadeIn 0.8s 0.2s ease both; opacity:0; animation-fill-mode:forwards;">
-
-    <!-- Top accent line -->
-    <div style="position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg, transparent, #EAB308, transparent);"></div>
-
-    <!-- Header -->
-    <div style="margin-bottom:36px;">
-      <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-        <div style="width:8px; height:8px; background:#EAB308; border-radius:50%; animation:pulse 2s ease-in-out infinite;"></div>
-        <span style="font-family:'Barlow Condensed',sans-serif; font-size:11px; color:rgba(234,179,8,0.7); letter-spacing:2.5px; font-weight:600;">ACESSO AO SISTEMA</span>
-      </div>
-      <h2 style="font-family:'Barlow Condensed',sans-serif; font-size:32px; font-weight:800; color:#fff; letter-spacing:-0.3px; line-height:1;">Bem-vindo de volta</h2>
-      <p style="font-family:'Barlow',sans-serif; font-size:14px; color:rgba(255,255,255,0.35); margin-top:6px;">Entre na sua conta para continuar a análise.</p>
-    </div>
-
-    @if (!ViewData.ModelState.IsValid)
-    {
-        <div class="login-error">
-            @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
-            {
-                <div>@error.ErrorMessage</div>
-            }
+      <form method="post" asp-action="Login" asp-route-returnUrl="@ViewBag.ReturnUrl" id="formLogin" novalidate>
+        @Html.AntiForgeryToken()
+        <div class="campo">
+          <label asp-for="UserName">Usuário ou e-mail</label>
+          <input asp-for="UserName" class="entrada" type="text" autocomplete="username" autocapitalize="none" spellcheck="false"
+                 autofocus="@(string.IsNullOrEmpty(Model?.UserName))" required>
         </div>
-    }
+        <div class="campo">
+          <label asp-for="Password">Senha</label>
+          <div class="senha-caixa">
+            <input asp-for="Password" class="entrada" type="password" autocomplete="current-password"
+                   autofocus="@(!string.IsNullOrEmpty(Model?.UserName))" required aria-describedby="avisoCaps">
+            <button type="button" class="ver-senha" id="verSenha" aria-controls="Password" aria-pressed="false">Mostrar</button>
+          </div>
+          <p class="aviso-caps" id="avisoCaps" aria-live="polite">Caps Lock está ligado.</p>
+        </div>
 
-    <!-- Form -->
-    <form method="post" asp-action="Login" asp-route-returnUrl="@ViewBag.ReturnUrl" style="display:flex; flex-direction:column; gap:18px;">
-      @Html.AntiForgeryToken()
-      <div>
-        <label style="display:block; font-family:'Barlow',sans-serif; font-size:12px; font-weight:500; color:rgba(255,255,255,0.5); letter-spacing:0.8px; margin-bottom:7px;" asp-for="UserName">USUÁRIO</label>
-        <input asp-for="UserName" class="login-input" type="text" placeholder="Seu usuário ou e-mail" autocomplete="username" autofocus>
-      </div>
-      <div>
-        <label style="display:block; font-family:'Barlow',sans-serif; font-size:12px; font-weight:500; color:rgba(255,255,255,0.5); letter-spacing:0.8px; margin-bottom:7px;" asp-for="Password">SENHA</label>
-        <input asp-for="Password" class="login-input" type="password" placeholder="••••••••" autocomplete="current-password">
-      </div>
+        <div class="linha-opcoes">
+          <label class="manter">
+            <input asp-for="RememberMe" type="checkbox">
+            Manter conectado
+          </label>
+          <a asp-action="ForgotPassword" class="link-ouro">Esqueci minha senha</a>
+        </div>
 
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-top:-4px;">
-        <label class="check-label">
-          <input asp-for="RememberMe" type="checkbox">
-          Manter conectado
-        </label>
-        <a asp-action="ForgotPassword" style="font-family:'Barlow',sans-serif; font-size:13px; color:rgba(234,179,8,0.7); text-decoration:none;">Esqueci minha senha</a>
-      </div>
+        <button type="submit" class="botao" id="btnEntrar">Entrar</button>
+      </form>
 
-      <button type="submit" class="login-btn" style="margin-top:8px;">Entrar em campo ⟶</button>
-    </form>
-
-    <!-- Divider -->
-    <div style="display:flex; align-items:center; gap:12px; margin-top:32px;">
-      <div style="flex:1; height:1px; background:rgba(255,255,255,0.07);"></div>
-      <span style="font-family:'Barlow',sans-serif; font-size:11px; color:rgba(255,255,255,0.2);">MÓDULOS DO SISTEMA</span>
-      <div style="flex:1; height:1px; background:rgba(255,255,255,0.07);"></div>
+      <a class="creators" href="/creators">
+        <b>Ferramentas para creators</b>
+        <span>Escalações, tabelas e simulador para o seu conteúdo. Abertas, sem precisar de conta.</span>
+      </a>
     </div>
 
-    <!-- Feature pills -->
-    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:20px;">
-      <span style="font-family:'Barlow Condensed',sans-serif; font-size:12px; padding:5px 12px; border:1px solid rgba(255,255,255,0.08); border-radius:3px; color:rgba(255,255,255,0.35); letter-spacing:1px;">SCOUT</span>
-      <span style="font-family:'Barlow Condensed',sans-serif; font-size:12px; padding:5px 12px; border:1px solid rgba(255,255,255,0.08); border-radius:3px; color:rgba(255,255,255,0.35); letter-spacing:1px;">ESCALAÇÃO</span>
-      <span style="font-family:'Barlow Condensed',sans-serif; font-size:12px; padding:5px 12px; border:1px solid rgba(255,255,255,0.08); border-radius:3px; color:rgba(255,255,255,0.35); letter-spacing:1px;">ANÁLISE TÁTICA</span>
-      <span style="font-family:'Barlow Condensed',sans-serif; font-size:12px; padding:5px 12px; border:1px solid rgba(255,255,255,0.08); border-radius:3px; color:rgba(255,255,255,0.35); letter-spacing:1px;">COMPETIÇÕES</span>
-      <span style="font-family:'Barlow Condensed',sans-serif; font-size:12px; padding:5px 12px; border:1px solid rgba(255,255,255,0.08); border-radius:3px; color:rgba(255,255,255,0.35); letter-spacing:1px;">RELATÓRIOS</span>
-    </div>
-
-    <!-- Footer -->
-    <div style="margin-top:auto; padding-top:32px;">
-      <p style="font-family:'Barlow',sans-serif; font-size:11px; color:rgba(255,255,255,0.18); text-align:center;">© 2026 Análise de Craque · Todos os direitos reservados</p>
-    </div>
-
-  </div>
+    <p class="rodape">© @DateTime.Now.Year Análise de Craque</p>
+  </main>
 </div>
 
 <script src="~/js/field-canvas.js" asp-append-version="true"></script>
+<script>
+  (function () {
+    var form = document.getElementById('formLogin');
+    var usuario = document.getElementById('UserName');
+    var senha = document.getElementById('Password');
+    var ver = document.getElementById('verSenha');
+    var caps = document.getElementById('avisoCaps');
+    var btn = document.getElementById('btnEntrar');
+
+    ver.addEventListener('click', function () {
+      var mostrar = senha.type === 'password';
+      senha.type = mostrar ? 'text' : 'password';
+      ver.textContent = mostrar ? 'Ocultar' : 'Mostrar';
+      ver.setAttribute('aria-pressed', String(mostrar));
+      senha.focus();
+    });
+
+    function checarCaps(ev) {
+      if (ev.getModifierState) caps.classList.toggle('ativo', ev.getModifierState('CapsLock'));
+    }
+    senha.addEventListener('keydown', checarCaps);
+    senha.addEventListener('keyup', checarCaps);
+    senha.addEventListener('blur', function () { caps.classList.remove('ativo'); });
+
+    // Campo vazio: avisa no próprio campo em vez de mandar o formulário
+    // (novalidate tira o balão do navegador, que destoava da tela).
+    // Preenchido: trava o botão para o duplo clique não mandar duas vezes.
+    form.addEventListener('submit', function (ev) {
+      var vazio = [usuario, senha].filter(function (c) { return !c.value.trim(); });
+      [usuario, senha].forEach(function (c) { c.classList.toggle('invalida', vazio.indexOf(c) >= 0); });
+      if (vazio.length) { ev.preventDefault(); vazio[0].focus(); return; }
+      btn.disabled = true;
+      btn.textContent = 'Entrando...';
+    });
+    [usuario, senha].forEach(function (c) {
+      c.addEventListener('input', function () { c.classList.remove('invalida'); });
+    });
+    // Voltar pelo navegador restaura a página do cache com o botão travado
+    window.addEventListener('pageshow', function () { btn.disabled = false; btn.textContent = 'Entrar'; });
+  })();
+</script>
 </body>
 </html>

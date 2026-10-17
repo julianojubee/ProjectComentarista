@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -82,15 +82,17 @@ namespace ControleFutebolWeb.Services
             => writer.WriteStringValue(value);
     }
 
-    // A api-football devolve alguns textos com entidades HTML ("N. O&apos;Reilly").
-    // Decodifica na leitura para que o banco guarde o texto puro ("N. O'Reilly") —
-    // quem exibe é que escapa, conforme o contexto (Razor, JS, atributo).
+    // A api-football devolve alguns textos com entidades HTML ("N. O&apos;Reilly")
+    // e alguns nomes com o acento estragado ("JoÃ£o Pedro Chermont"). Corrige os
+    // dois na leitura para que o banco guarde o texto puro ("N. O'Reilly", "João")
+    // — quem exibe é que escapa, conforme o contexto (Razor, JS, atributo).
     public class AfHtmlDecodeStringConverter : JsonConverter<string>
     {
         public override string? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             var s = reader.TokenType == JsonTokenType.String ? reader.GetString() : null;
-            return s != null && s.Contains('&') ? System.Net.WebUtility.HtmlDecode(s) : s;
+            s = s != null && s.Contains('&') ? System.Net.WebUtility.HtmlDecode(s) : s;
+            return ControleFutebolWeb.Helpers.MojibakeHelper.Corrigir(s);
         }
 
         public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)

@@ -35,7 +35,9 @@ namespace ControleFutebolWeb.Helpers
             if (m.Contains("injur") || m.Contains("strain") || m.Contains("knock") ||
                 m.Contains("fracture") || m.Contains("surgery") || m.Contains("ill") ||
                 m.Contains("virus") || m.Contains("covid") || m.Contains("fitness") ||
-                m.Contains("groin") || m.Contains("hamstring") || m.Contains("achilles"))
+                m.Contains("groin") || m.Contains("hamstring") || m.Contains("achilles") ||
+                m.Contains("broken") || m.Contains("contusion") || m.Contains("hernia") ||
+                m.Contains("concussion") || m.Contains("health") || m.Contains("heart"))
                 return CategoriaLesao;
 
             return CategoriaOutro;
@@ -70,11 +72,33 @@ namespace ControleFutebolWeb.Helpers
                 "injury" => "Lesão",
                 "muscle injury" => "Lesão muscular",
                 "knock" => "Pancada",
+                "contusion" => "Contusão",
                 "illness" => "Doença",
+                "health problems" => "Problema de saúde",
+                "heart problems" => "Problema cardíaco",
                 "fitness" => "Condicionamento físico",
+                "lacking match fitness" => "Sem ritmo de jogo",
+                "surgery" => "Cirurgia",
+                "concussion" => "Concussão",
+                "hernia" => "Hérnia",
+                "abdominal strain" => "Estiramento abdominal",
 
                 // Lesão — por região
                 "knee injury" => "Lesão no joelho",
+                "leg injury" => "Lesão na perna",
+                "broken leg" => "Fratura na perna",
+                "broken calfbone" => "Fratura na fíbula",
+                "broken nose" => "Fratura no nariz",
+                "toe injury" => "Lesão no dedo do pé",
+                "heel injury" => "Lesão no calcanhar",
+                "wrist injury" => "Lesão no punho",
+                "hand injury" => "Lesão na mão",
+                "arm injury" => "Lesão no braço",
+                "jaw injury" => "Lesão na mandíbula",
+                "eye injury" => "Lesão no olho",
+                "ribs injury" => "Lesão nas costelas",
+                "collarbone injury" => "Lesão na clavícula",
+                "tendon injury" => "Lesão no tendão",
                 "ankle injury" => "Lesão no tornozelo",
                 "thigh injury" => "Lesão na coxa",
                 "hamstring injury" => "Lesão na posterior da coxa",
@@ -91,12 +115,15 @@ namespace ControleFutebolWeb.Helpers
                 "achilles tendon injury" => "Lesão no tendão de Aquiles",
 
                 // Outros
-                "inactive" => "Fora dos relacionados",
-                "coach decision" => "Decisão do treinador",
+                "inactive" or "off the roster" => "Fora dos relacionados",
+                "coach decision" or "coach's decision" => "Decisão do treinador",
                 "national team" or "international duty" => "Servindo a seleção",
                 "personal reasons" => "Motivos pessoais",
                 "rest" => "Poupado",
                 "transfer" => "Situação de mercado",
+                "transfer negotiations" => "Em negociação de transferência",
+                // Emprestado pelo adversário: o contrato o impede de jogar contra o dono do passe
+                "loan agreement" => "Cláusula de empréstimo",
 
                 _ => m,
             };

@@ -63,7 +63,7 @@
                 @c.Pontos
                 @if (item.PontosSimulados > 0)
                 {
-                    <i class="sim-ptssim" title="@item.PontosSimulados ponto(s) vindo(s) da simulação">+@item.PontosSimulados</i>
+                    <i class="sim-ptssim" title="@(item.PontosSimulados == 1 ? "1 ponto vindo" : $"{item.PontosSimulados} pontos vindos") da simulação">+@item.PontosSimulados</i>
                 }
             </span>
         </div>

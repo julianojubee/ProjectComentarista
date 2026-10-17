@@ -90,6 +90,7 @@ namespace ControleFutebolWeb.Services
             }
 
             pacote.Temporada = numeros.Temporada;
+            pacote.CalendarioEuropeu = numeros.CalendarioEuropeu;
             pacote.Medias = numeros.Medias;
             pacote.TitularCompeticao = numeros.TitularCompeticao;
             pacote.GolsTemporada = numeros.GolsTemporada;
@@ -142,6 +143,13 @@ namespace ControleFutebolWeb.Services
                     j.CompeticaoId == jogo.CompeticaoId && j.Temporada == temporada &&
                     j.Data != null && j.Data.Value.Year > j.Temporada);
                 anoTermino = temporada + (cruzaAno ? 1 : 0);
+
+                // Para o FotMob vale o calendário da competição inteira: a temporada
+                // em andamento ainda não tem jogo no ano seguinte e, sozinha, pareceria
+                // de ano civil (ver TemporadaHelper).
+                dados.CalendarioEuropeu = cruzaAno ||
+                    (await TemporadaHelper.CompeticoesDeCalendarioEuropeuAsync(_context, new[] { jogo.CompeticaoId }))
+                        .Contains(jogo.CompeticaoId);
 
                 // Competições cujo rótulo (anoTermino-1) cruza o ano → terminam em anoTermino (entram)
                 compsCruzadasAnterior = await _context.Jogos

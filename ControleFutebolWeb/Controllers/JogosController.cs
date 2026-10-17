@@ -1157,6 +1157,7 @@ namespace ControleFutebolWeb.Controllers
             vm.TitularTemporadaPorJogador = dados.TitularTemporada;
             vm.TimeAnteriorPorJogador = dados.TimeAnterior;
             vm.TemporadaTooltip = temporadaSel;
+            vm.CalendarioEuropeuTooltip = dados.CalendarioEuropeu;
             vm.TemporadasTooltip = await _tooltip.TemporadasDoTooltipAsync(idsTooltip, jogo.Temporada);
         }
 

@@ -162,14 +162,15 @@
 
     .mu-banco { width: 185px; }
     .mu-banco {
-        background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 10px;
+        background: var(--p-1); border: 1px solid var(--line); border-radius: 10px;
         overflow: hidden;
     }
+    /* Cabeçalho do elenco em tokens do tema: o preto translúcido de antes virava
+       uma faixa cinza apagada no modo claro */
     .mu-banco-header {
         display: flex; align-items: center; gap: 6px; padding: 8px 10px;
-        background: rgba(0,0,0,.3); border-bottom: 1px solid rgba(255,255,255,.06);
-        font-size: .68rem; font-weight: 700; color: var(--text-muted);
-        text-transform: uppercase; letter-spacing: .1em;
+        background: var(--p-3); border-bottom: 1px solid var(--line);
+        font-size: .8rem; font-weight: 700; color: var(--text-strong);
     }
     /* Recolhido: sobra a tira com a setinha para reabrir */
     .mu-banco-fechado { width: 34px; }
@@ -180,19 +181,20 @@
     .mu-banco-fechado .mu-form-ficticio,
     .mu-banco-fechado .mu-busca { display: none; }
     .mu-banco-fechado .mu-banco-header { padding: 8px 0; justify-content: center; }
+    .mu-banco-fechado .mu-banco-toggle { width: 24px; height: 24px; font-size: 15px; }
 
     .mu-banco-nome-time { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .mu-banco-toggle {
         flex: 0 0 auto; width: 18px; height: 18px; padding: 0; line-height: 1;
-        background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.18);
-        border-radius: 5px; color: var(--text-muted); font-size: 12px; cursor: pointer;
+        background: var(--p-1); border: 1px solid var(--line-strong);
+        border-radius: 5px; color: var(--text-2); font-size: 12px; cursor: pointer;
     }
-    .mu-banco-toggle:hover { background: rgba(255,255,255,.16); color: var(--text-strong); }
+    .mu-banco-toggle:hover { background: var(--p-4); color: var(--text-strong); }
     /* Seletor da cor do time (borda dos jogadores no campo) — só aparece nas
        telas que pedem opts.cores em muRender */
     .mu-banco-cor {
         flex: 0 0 auto; width: 20px; height: 18px; padding: 0; cursor: pointer;
-        background: transparent; border: 1px solid rgba(255,255,255,.18); border-radius: 5px;
+        background: transparent; border: 1px solid var(--line-strong); border-radius: 5px;
     }
     .mu-banco-cor::-webkit-color-swatch-wrapper { padding: 2px; }
     .mu-banco-cor::-webkit-color-swatch { border: none; border-radius: 3px; }
@@ -225,6 +227,20 @@
 
     /* ── Match-up: modo seta (mesmo visual das setas da análise) ── */
     .mu-toolbar { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+    /* Seletor Fotos/Números, igual ao "Jogadores" da barra da análise */
+    .mu-visual { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 12.5px; color: var(--text-muted); }
+    .mu-visual select { width: auto; padding-top: 3px; padding-bottom: 3px; font-size: 12.5px; }
+
+    /* Modo Números: sem foto, o círculo é a camisa (fundo e número nas cores do
+       time) e o número volta para o meio, em vez do badge do canto */
+    .mu-sem-fotos .mu-slot .mu-foto { display: none; }
+    .mu-sem-fotos .mu-slot .player-circle.mu-com-foto.player-circle-casa { background: var(--cor-camisa-casa, #dc2626); }
+    .mu-sem-fotos .mu-slot .player-circle.mu-com-foto.player-circle-vis { background: var(--cor-camisa-vis, #2563eb); }
+    .mu-sem-fotos .mu-slot .player-circle { border-color: rgba(255,255,255,.85); }
+    .mu-sem-fotos .mu-slot .mu-com-foto .mu-num {
+        position: static; min-width: 0; height: auto; padding: 0; border: none; border-radius: 0;
+        background: none; color: inherit; font-size: 12px; line-height: 1;
+    }
     #muBtnSeta.ativo { background: #facc15; border-color: #facc15; color: #111; font-weight: 700; }
     .mu-campo.mu-modo-seta { cursor: crosshair; }
     .mu-campo.mu-modo-seta .mu-slot { cursor: pointer; }
@@ -347,7 +363,17 @@
            por isso overflow tem de ser visible (overflow:hidden achata o 3D) e
            a borda vira box-shadow, que não entra no cálculo de layout. */
         transform-style: preserve-3d; overflow: visible;
-        border: none; box-shadow: 0 0 0 2px rgba(255,255,255,.14);
+        /* Linha lateral branca, o entorno de grama mais escura (onde as goleiras
+           ficam apoiadas: antes elas flutuavam sobre o fundo da página, e no
+           tema claro viravam blocos cinza no branco) e um fio para o entorno
+           não se dissolver no fundo. --mu-entorno vem de muAjustarGol3d. */
+        /* Cantos retos: o box-shadow herda o arredondamento e o aumenta junto
+           com o entorno, e o campo virava uma pílula */
+        border: none; border-radius: 0;
+        box-shadow:
+            0 0 0 2px rgba(255,255,255,.6),
+            0 0 0 var(--mu-entorno, 40px) #0f4224,
+            0 0 0 calc(var(--mu-entorno, 40px) + 1px) rgba(0,0,0,.35);
         background:
             /* fundo do campo mais escuro: distância */
             linear-gradient(180deg, rgba(0,0,0,.42) 0%, rgba(0,0,0,0) 42%),
@@ -368,8 +394,22 @@
         background: inherit; transform: translateZ(-3px);
     }
 
-    /* O retângulo do gol vira a trave de verdade */
+    /* Marcações 1px acima do gramado. No mesmo plano dele, o Chrome (que corta o
+       gramado em pedaços para ordenar contra os jogadores em pé) às vezes pinta
+       a grama por cima da linha: a linha do meio sumia num trecho perto do fundo. */
+    .mu-campo-3d .mu-linha-meio, .mu-campo-3d .mu-area-esq, .mu-campo-3d .mu-area-dir,
+    .mu-campo-3d .mu-gol-esq, .mu-campo-3d .mu-gol-dir, .mu-campo-3d .setas-svg { transform: translateZ(1px); }
+    .mu-campo-3d .mu-circulo { transform: translate(-50%, -50%) translateZ(1px); }
+
+    /* O retângulo do gol vira a trave de verdade, e no lugar dele entra a
+       pequena área, que faltava para o gol ter onde "pousar" no gramado */
     .mu-campo-3d .mu-gol-esq, .mu-campo-3d .mu-gol-dir { display: none; }
+    @media (min-width: 901px) {
+        .mu-campo-3d .mu-gol-esq, .mu-campo-3d .mu-gol-dir {
+            display: block; top: 30%; bottom: 30%; width: 5.2%; background: none;
+            border-color: rgba(255,255,255,.3);
+        }
+    }
 
     /* Jogador: desfaz a inclinação do gramado e a escala da perspectiva, para
        ficar de frente e do mesmo tamanho em qualquer ponto do campo.
@@ -387,12 +427,24 @@
     .mu-campo-3d .mu-slot {
         --mu-res: 3;
         zoom: var(--mu-res);
-        transform: translate(-50%, -50%) translateZ(calc(var(--mu-z, 30px) / var(--mu-res)))
+        /* A altura que o jogador sobe acompanha o tamanho dele (--mu-base): na
+           transmissão o slot dobra de tamanho e, com os 30px fixos, a metade de
+           baixo (o nome) dos jogadores do fundo afundava na grama. */
+        /* --mu-frente: o arrastado vem na direção da câmera (eixo do próprio
+           slot, já de frente), então cresce um pouco sem subir nem descer na tela */
+        transform: translate(-50%, -50%) translateZ(calc(var(--mu-z, 30px) * var(--mu-base, 1) / var(--mu-res)))
                    rotateX(calc(-1 * var(--mu-ang, 30deg)))
+                   translateZ(calc(var(--mu-frente, 0px) / var(--mu-res)))
                    scale(calc(var(--mu-k, 1) * var(--mu-base, 1) / var(--mu-res)));
     }
-    /* Em preserve-3d o z-index não ordena: quem está sendo arrastado sobe no eixo Z */
-    .mu-campo-3d .mu-slot.mu-arrastando { --mu-z: 70px; }
+    /* Em preserve-3d o z-index não ordena: quem está sendo arrastado vem para
+       a frente (em direção à câmera) para passar por cima dos outros. Antes ele
+       subia no eixo do gramado, e ao soltar descia de volta: parecia afundar no
+       campo. Para a frente ele só cresce um pouco, e ao soltar volta ao tamanho
+       no mesmo lugar. Só o transform anima; left/top seguem o cursor sem atraso. */
+    .mu-campo-3d .mu-slot { transition: transform .14s ease-out; }
+    .mu-campo-3d .mu-slot.mu-arrastando { --mu-frente: 60px; }
+    @media (prefers-reduced-motion: reduce) { .mu-campo-3d .mu-slot { transition: none; } }
     .mu-campo-3d .mu-forma-input {
         transform: translate(-50%, -50%) translateZ(50px)
                    rotateX(calc(-1 * var(--mu-ang, 30deg)));
@@ -423,20 +475,24 @@
 
     /* Malha: 5px e traço de 1px. Mais grosso que isso e a perspectiva
        transforma a rede num alambrado. */
+    /* Rede em losango, como a de estádio: a malha quadrada em perspectiva
+       virava listras grossas e escurecia o gol inteiro */
     .mu-gol-teto, .mu-gol-lado {
-        background-color: rgba(255,255,255,.03);
+        background-color: rgba(255,255,255,.06);
         background-image:
-            repeating-linear-gradient(0deg,  rgba(255,255,255,.26) 0 1px, transparent 1px 6px),
-            repeating-linear-gradient(90deg, rgba(255,255,255,.26) 0 1px, transparent 1px 6px);
-        border: 1px solid rgba(255,255,255,.4);
+            repeating-linear-gradient(45deg,  rgba(255,255,255,.3) 0 1px, transparent 1px 7px),
+            repeating-linear-gradient(-45deg, rgba(255,255,255,.3) 0 1px, transparent 1px 7px);
+        border: 1px solid rgba(255,255,255,.5);
     }
 
     /* Boca: os dois postes (top/bottom) e o travessão (a aresta que vai pro alto).
        A aresta que encosta no gramado não leva borda. */
+    /* Traves na grossura proporcional ao gol (12cm num gol de 2,44m, aqui
+       um pouco mais, para se ler de longe) */
     .mu-gol-frame {
         width: var(--mu-golh, 34px);
-        border: 3px solid rgba(255,255,255,.92);
-        box-shadow: 0 0 10px rgba(0,0,0,.5);
+        border: max(3px, calc(var(--mu-golh, 34px) * .09)) solid #fff;
+        box-shadow: 0 0 8px rgba(0,0,0,.45);
     }
     .mu-gol-frame-esq { left: 0;  transform-origin: left center;  transform: rotateY(-90deg); border-left: none; }
     .mu-gol-frame-dir { right: 0; transform-origin: right center; transform: rotateY(90deg);  border-right: none; }
@@ -458,7 +514,8 @@
     .mu-gol-lado-b { top: calc(var(--mu-boca-top) + var(--mu-boca-h)); }
 
     /* Sombra da goleira no gramado, atrás da linha de fundo */
-    .mu-gol-sombra { width: var(--mu-golh, 34px); background: rgba(0,0,0,.3); }
+    .mu-gol-sombra { width: var(--mu-golh, 34px); background: linear-gradient(90deg, rgba(0,0,0,.35), rgba(0,0,0,.12)); }
+    .mu-gol-sombra-dir { background: linear-gradient(-90deg, rgba(0,0,0,.35), rgba(0,0,0,.12)); }
     .mu-gol-sombra-esq { right: 100%; }
     .mu-gol-sombra-dir { left: 100%; }
 
@@ -472,50 +529,258 @@
         .mu-campo-3d .mu-slot { zoom: 1; transform: translate(-50%, -50%) scale(var(--mu-base, 1)); }
     }
 
+    /* Dicas e avisos da barra (cores por classe; o tema claro do modo TV
+       troca abaixo, o amarelo sobre branco não se lia) */
+    .mu-hint { font-size: 11px; }
+    .mu-hint-seta { color: #facc15; }
+    .mu-hint-forma { color: #f87171; }
+    .mu-hint-aviso { font-size: 12px; color: #fbbf24; }
+    .mu-tx-dica { display: none; }
+
+    /* ══ Visual de transmissão (.mu-tv) ══════════════════════════════════════
+       Ligado por muRender quando a tela oferece o modo transmissão (hoje só
+       /creators/escalacao). O modal Pré-jogo e /Relatorios não têm a classe e
+       ficam como sempre foram. A ideia é que a própria página já sirva de
+       imagem de live: placa dos times como as de TV, nomes em pílula com a cor
+       do time e elencos da mesma altura do campo. */
+
+    /* Placa dos times: escudo encostado no ×, faixa da cor de cada time
+       embaixo (acompanha o seletor de cor do elenco). Sempre escura. */
+    .mu-tv { --mu-faixa: 4px; }
+    .mu-tv .mu-header {
+        display: grid; grid-template-columns: 1fr auto 1fr; align-items: stretch; gap: 0;
+        max-width: 980px; margin: 0 auto 10px; flex-wrap: nowrap;
+        background: linear-gradient(180deg, #17233a 0%, #0e1727 100%);
+        border: 1px solid rgba(255,255,255,.08); border-radius: 12px; overflow: hidden;
+        box-shadow: 0 8px 24px rgba(2,6,23,.16);
+    }
+    .mu-tv .mu-time-info {
+        flex-direction: row-reverse; justify-content: flex-start; text-align: right;
+        gap: 12px; padding: 10px 18px 12px; min-width: 0;
+        box-shadow: inset 0 calc(-1 * var(--mu-faixa)) 0 var(--cor-camisa-casa, #dc2626);
+    }
+    .mu-tv .mu-time-info.mu-dir {
+        flex-direction: row; text-align: left;
+        box-shadow: inset 0 calc(-1 * var(--mu-faixa)) 0 var(--cor-camisa-vis, #2563eb);
+    }
+    .mu-tv .mu-time-info > div { min-width: 0; }
+    .mu-tv .mu-time-info img { width: 44px; height: 44px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.45)); }
+    .mu-tv .mu-time-nome {
+        font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.75rem; font-weight: 800;
+        line-height: 1.05; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .mu-tv .mu-time-jogo {
+        font-size: .74rem; color: #9fb0c7; margin-top: 3px;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .mu-tv .mu-vs {
+        display: flex; align-items: center; padding: 0 8px 4px;
+        font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.7rem; font-weight: 800; color: #d4a520;
+    }
+    /* Celular: placa mais baixa e sem a linha do último jogo, para o nome caber */
+    @media (max-width: 600px) {
+        .mu-tv .mu-time-info { gap: 8px; padding: 8px 10px 10px; }
+        .mu-tv .mu-time-info img { width: 28px; height: 28px; }
+        .mu-tv .mu-time-nome { font-size: 1.15rem; }
+        .mu-tv .mu-time-jogo { display: none; }
+        .mu-tv .mu-vs { font-size: 1.2rem; padding: 0 4px 3px; }
+    }
+
+    /* Barra: ferramentas à esquerda, o modo transmissão (a ação principal da
+       tela) em dourado na ponta direita */
+    .mu-tv .mu-toolbar { justify-content: flex-start; gap: 8px; max-width: 980px; margin: 0 auto 4px; }
+    .mu-tv .mu-toolbar .btn {
+        height: 34px; padding: 0 14px; border-radius: 8px;
+        font-family: inherit; font-size: .86rem; font-weight: 600;
+        background: var(--p-0); border: 1px solid var(--line-strong); color: var(--text-2);
+    }
+    .mu-tv .mu-toolbar .btn:hover { border-color: #d4a520; color: var(--text-strong); background: var(--p-0); }
+    .mu-tv .mu-toolbar .mu-btn-alternar.ativo {
+        background: rgba(212,165,32,.14); border-color: rgba(212,165,32,.6); color: var(--gold-ink);
+    }
+    .mu-tv .mu-toolbar .mu-btn-transmissao {
+        margin-left: auto; background: #d4a520; border-color: #d4a520; color: #111; font-weight: 700;
+    }
+    .mu-tv .mu-toolbar .mu-btn-transmissao:hover { background: #e2b53a; border-color: #e2b53a; color: #111; }
+    .mu-tv .mu-hint { font-size: .8rem; font-weight: 600; }
+    .mu-tv .mu-hint-seta { color: var(--gold-ink); }
+    .mu-tv .mu-hint-forma { color: var(--bad); }
+    .mu-tv .mu-hint-aviso { color: var(--warn, #b45309); }
+
+    /* Elenco no tema da página (antes era um cinza escuro fixo, que no tema
+       claro virava uma tarja), com a cor do time na lateral do cabeçalho */
+    .mu-tv .mu-banco { background: var(--p-0); border: 1px solid var(--line); border-radius: 12px; }
+    .mu-tv .mu-banco-header {
+        background: var(--p-1); border-bottom: 1px solid var(--line); padding: 8px 10px;
+        font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.05rem; font-weight: 700;
+        letter-spacing: 0; text-transform: none; color: var(--text-strong);
+        box-shadow: inset 4px 0 0 var(--cor-camisa-casa, #dc2626);
+    }
+    .mu-tv #muBancoBox2 .mu-banco-header { box-shadow: inset -4px 0 0 var(--cor-camisa-vis, #2563eb); }
+    .mu-tv .mu-banco-toggle { background: var(--p-0); border-color: var(--line-strong); color: var(--text-muted); }
+    .mu-tv .mu-banco-toggle:hover { background: var(--p-3); color: var(--text-strong); }
+    .mu-tv .mu-banco-cor { border-color: var(--line-strong); }
+    .mu-tv .mu-banco-item { font-size: 13px; padding: 6px 10px; color: var(--text-2); border-bottom-color: var(--line-soft); }
+    .mu-tv .mu-banco-item:hover { background: var(--p-1); }
+    .mu-tv .mu-banco-pos { color: var(--text-dim); }
+    .mu-tv .mu-banco-lista::-webkit-scrollbar-track { background: transparent; }
+    .mu-tv .mu-banco-lista::-webkit-scrollbar-thumb { background: var(--line-strong); }
+    .mu-tv .mu-busca, .mu-tv .mu-form-ficticio { background: transparent; border-bottom-color: var(--line-soft); }
+    .mu-tv .mu-busca-res { border-color: var(--line); background: var(--p-0); }
+    .mu-tv .mu-busca-item { border-bottom-color: var(--line-soft); }
+
+    /* Elenco da mesma altura do campo: contain:size tira a lista do cálculo da
+       linha do grid (quem manda é o campo) e ela rola por dentro. Antes os 30
+       nomes desciam bem abaixo do gramado. */
+    @media (min-width: 901px) {
+        .mu-tv .mu-layout { align-items: stretch; }
+        .mu-tv .mu-banco { contain: size; display: flex; flex-direction: column; }
+        .mu-tv .mu-banco-lista { flex: 1 1 0; min-height: 0; max-height: none; }
+    }
+
+    /* Campo na página: cabe na altura da janela junto com o topo, a placa e a
+       barra. O 1,68 é a proporção do gramado já inclinado (a margem negativa
+       que muEncostarCena aplica come a faixa vazia de cima) e o ÷1,2 deixa
+       espaço para a borda de baixo, que a perspectiva alarga. */
+    .mu-tv .mu-cena-3d { max-width: min(calc(100% / 1.36), max(560px, calc((100vh - 365px) * 1.6))); }
+    /* Celular/tablet em pé: uma coluna, campo primeiro e os elencos embaixo,
+       na largura toda (o width:auto da regra de 900px perdia para o 185px
+       declarado depois dela) e com a lista mais curta */
+    @media (max-width: 900px) {
+        .mu-tv .mu-cena-3d { max-width: 100%; }
+        .mu-tv #muCena { order: -1; }
+        .mu-tv .mu-banco, .mu-tv .mu-banco-fechado { width: auto; }
+        .mu-tv .mu-banco-lista { max-height: 280px; }
+    }
+
+    /* Jogador: nome numa pílula escura com a cor do time embaixo. Só com
+       text-shadow o nome se perdia na grama assim que o vídeo comprime. */
+    .mu-tv .mu-slot .player-name {
+        font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 12px; font-weight: 600;
+        line-height: 15px; color: #fff; text-shadow: none;
+        background: rgba(6,10,18,.8); border-radius: 4px; padding: 0 5px 2px;
+        width: fit-content; max-width: 96px; margin: 2px 0 0;
+        position: relative; left: 50%; transform: translateX(-50%);
+        box-shadow: inset 0 -2px 0 var(--cor-camisa-casa, #dc2626);
+    }
+    .mu-tv .mu-t2 .player-name { box-shadow: inset 0 -2px 0 var(--cor-camisa-vis, #2563eb); }
+    .mu-tv .mu-slot-sigla {
+        font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 10px; font-weight: 700; color: #f5c842;
+    }
+    /* Times no campo: os dois, só o da esquerda ou só o da direita
+       (muMostrarTime). Some o jogador, a metade da placa e o elenco do outro. */
+    .mu-times-campo { display: inline-flex; }
+    .mu-tv .mu-toolbar .mu-btn-time { border-radius: 0; margin-left: -1px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mu-tv .mu-toolbar .mu-btn-time:first-child { border-radius: 8px 0 0 8px; margin-left: 0; }
+    .mu-tv .mu-toolbar .mu-btn-time:last-child { border-radius: 0 8px 8px 0; }
+    .mu-tv .mu-toolbar .mu-btn-time.ativo {
+        position: relative; z-index: 1;
+        background: rgba(212,165,32,.14); border-color: rgba(212,165,32,.6); color: var(--gold-ink);
+    }
+    .mu-so-1 .mu-t2, .mu-so-2 .mu-t1,
+    .mu-so-1 #muBancoBox2, .mu-so-2 #muBancoBox1 { display: none !important; }
+    .mu-so-1 .mu-header .mu-dir, .mu-so-2 .mu-header .mu-time-info:not(.mu-dir),
+    .mu-so-1 .mu-header .mu-vs, .mu-so-2 .mu-header .mu-vs { display: none; }
+    /* Placa com um time só: encolhe em volta dele, centrada */
+    .mu-tv.mu-so-1 .mu-header, .mu-tv.mu-so-2 .mu-header { grid-template-columns: auto; justify-content: center; }
+    .mu-tv.mu-so-1 .mu-header .mu-time-info, .mu-tv.mu-so-2 .mu-header .mu-time-info { padding-left: 32px; padding-right: 32px; }
+    /* Sem o elenco do outro lado, o grid perde uma coluna: o campo fica
+       centrado ocupando o resto */
+    @media (min-width: 901px) {
+        .mu-so-1 .mu-layout { grid-template-columns: auto 1fr; }
+        .mu-so-2 .mu-layout { grid-template-columns: 1fr auto; }
+    }
+    .mu-transmissao.mu-so-1 .mu-layout, .mu-transmissao.mu-so-2 .mu-layout { display: block; }
+
+    /* Botão Posições: some a sigla sem mexer na altura do jogador (o slot é
+       centrado no ponto do campo; mudar a altura o deslocaria) */
+    .mu-tv.mu-sem-posicoes .mu-slot-sigla { visibility: hidden; }
+    /* ℹ em 22 jogadores polui a imagem: com mouse, só no jogador sob o cursor */
+    @media (hover: hover) {
+        .mu-tv .mu-slot .btn-info-jogador { opacity: 0; transition: opacity .12s; }
+        .mu-tv .mu-slot:hover .btn-info-jogador,
+        .mu-tv .mu-slot .btn-info-jogador:focus-visible { opacity: 1; }
+    }
+
     /* ══ Modo transmissão (OBS) ═══════════════════════════════════════════════
-       Ligado pelo botão 📺 (muToggleTransmissao). O container do match-up vira
-       uma camada fixa do tamanho da janela, por cima de todo o site, e o campo
-       cresce até a altura disponível. Os jogadores crescem junto via --mu-base.
-       Fora do modo, o botão ⛶ Tela cheia não aparece. */
+       Ligado pelo botão Modo transmissão (muToggleTransmissao). O container do
+       match-up vira uma camada fixa do tamanho da janela, por cima do site, e
+       sempre escura (theme-dark-zone). Na imagem fica só a placa e o campo: a
+       barra e as tiras dos elencos aparecem quando o mouse mexe e somem com o
+       cursor 2,5s depois (mu-ui-ativa, ver muMostrarControles). */
     .mu-so-transmissao { display: none; }
     .mu-transmissao .mu-so-transmissao { display: inline-block; }
 
     html.mu-transmissao-aberta, html.mu-transmissao-aberta body { overflow: hidden; }
     .mu-transmissao {
+        --mu-faixa: 6px;
         position: fixed; inset: 0; z-index: 3000;
         display: flex; flex-direction: column;
-        padding: 10px 16px 0; overflow: hidden;
-        background: radial-gradient(ellipse at 50% 30%, #13233d 0%, #070d18 75%);
+        padding: 14px 20px 0; overflow: hidden;
+        background: radial-gradient(ellipse 80% 65% at 50% 40%, #163052 0%, #0a1526 58%, #050a14 100%);
     }
-    .mu-transmissao .mu-header { margin-bottom: 4px; gap: 2.5rem; flex-wrap: nowrap; }
-    .mu-transmissao .mu-time-info img { width: 64px; height: 64px; }
-    .mu-transmissao .mu-time-nome { font-size: 30px; color: #fff; }
-    .mu-transmissao .mu-vs { font-size: 30px; }
+    .mu-transmissao:not(.mu-ui-ativa),
+    .mu-transmissao:not(.mu-ui-ativa) * { cursor: none !important; }
+
+    .mu-transmissao .mu-header {
+        flex: 0 0 auto; width: 100%; max-width: 1180px; margin: 0 auto 4px;
+        background: linear-gradient(180deg, rgba(23,35,58,.94) 0%, rgba(14,23,39,.94) 100%);
+        box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    .mu-transmissao .mu-time-info { padding: 12px 26px 16px; gap: 16px; }
+    .mu-transmissao .mu-time-info img { width: 60px; height: 60px; }
+    .mu-transmissao .mu-time-nome { font-size: 2.6rem; }
+    .mu-transmissao .mu-vs { font-size: 2.3rem; padding: 0 16px 6px; }
     .mu-transmissao .mu-time-jogo,
     .mu-transmissao .mu-dica { display: none; }
-    /* Barra discreta: está na imagem capturada, então só aparece de verdade no hover */
-    .mu-transmissao .mu-toolbar { margin-bottom: 0; opacity: .18; transition: opacity .15s; }
+
+    /* Barra flutuando no canto, fora do fluxo: não rouba altura do campo */
+    .mu-transmissao .mu-toolbar {
+        position: absolute; top: 12px; right: 16px; z-index: 40;
+        max-width: min(680px, calc(100vw - 32px)); margin: 0; padding: 8px;
+        justify-content: flex-end;
+        background: rgba(8,13,24,.92); border: 1px solid rgba(255,255,255,.12); border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0,0,0,.45);
+        opacity: 0; transition: opacity .2s;
+    }
+    .mu-transmissao.mu-ui-ativa .mu-toolbar,
     .mu-transmissao .mu-toolbar:hover,
     .mu-transmissao .mu-toolbar:focus-within { opacity: 1; }
+    .mu-transmissao .mu-toolbar .mu-btn-transmissao { margin-left: 0; }
 
-    .mu-transmissao .mu-layout { flex: 1 1 auto; min-height: 0; align-items: center; }
-    .mu-transmissao .mu-banco-lista { max-height: calc(100vh - 190px); }
-    /* Header (~80px) + barra (~35px) + respiro da borda de baixo, que a
-       perspectiva aproxima e alarga */
+    /* Elencos por cima do campo, nas laterais: fechados viram tiras que somem
+       com os controles; abertos ficam até o creator fechar */
+    .mu-transmissao .mu-layout { flex: 1 1 auto; min-height: 0; display: block; position: relative; }
+    .mu-transmissao .mu-banco {
+        position: absolute; top: 0; z-index: 30; max-height: calc(100% - 12px);
+        contain: none; display: flex; flex-direction: column;
+        box-shadow: 0 10px 30px rgba(0,0,0,.5);
+    }
+    .mu-transmissao #muBancoBox1 { left: 0; }
+    .mu-transmissao #muBancoBox2 { right: 0; }
+    .mu-transmissao .mu-banco-lista { flex: 1 1 auto; min-height: 0; max-height: none; }
+    .mu-transmissao .mu-banco-fechado { opacity: 0; transition: opacity .2s; }
+    .mu-transmissao.mu-ui-ativa .mu-banco-fechado,
+    .mu-transmissao .mu-banco-fechado:hover,
+    .mu-transmissao .mu-banco-fechado:focus-within { opacity: 1; }
+
+    /* O campo usa a altura que sobra abaixo da placa (~100px) */
     .mu-transmissao .mu-cena-3d {
-        max-width: min(100%, calc((100vh - 175px) * 1.5));
-        margin: 0 auto 40px;
+        max-width: min(calc(100% / 1.36), calc((100vh - 235px) * 1.6));
+        margin-left: auto; margin-right: auto;
     }
     .mu-transmissao .mu-campo:not(.mu-campo-3d) {
-        max-width: min(100%, calc((100vh - 150px) * 1.8)); margin: 0 auto;
+        max-width: min(100%, calc((100vh - 128px) * 1.8)); margin: 0 auto;
     }
-    /* Nomes com fundo: sobre o gramado ampliado o text-shadow sozinho some no vídeo */
-    .mu-transmissao .mu-slot .player-name {
-        background: rgba(0,0,0,.6); border-radius: 4px; padding: 0 4px;
-        /* Largura do texto (até 84px) centrada no slot de 62px, mesmo passando dele */
-        width: fit-content; max-width: 84px; margin: 2px 0 0;
-        position: relative; left: 50%; transform: translateX(-50%);
+    /* Linhas do campo um pouco mais fortes: o vídeo comprimido apaga o fino */
+    .mu-transmissao .mu-linha-meio { background: rgba(255,255,255,.34); }
+    .mu-transmissao .mu-circulo,
+    .mu-transmissao .mu-area-esq,
+    .mu-transmissao .mu-area-dir { border-color: rgba(255,255,255,.32); }
+
+    /* Aviso de entrada: como sair e como achar os controles. Some em 3,5s. */
+    .mu-transmissao.mu-tx-entrando .mu-tx-dica {
+        display: block; position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 40;
+        background: rgba(8,13,24,.92); color: #e2e8f0; border: 1px solid rgba(255,255,255,.14);
+        border-radius: 10px; padding: 10px 16px; font-size: .95rem; font-weight: 600; white-space: nowrap;
     }
-    /* ℹ azul em 22 jogadores polui o vídeo: no modo transmissão só no hover */
-    .mu-transmissao .mu-slot .btn-info-jogador { opacity: 0; transition: opacity .12s; }
-    .mu-transmissao .mu-slot:hover .btn-info-jogador { opacity: 1; }

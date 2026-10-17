@@ -13,7 +13,12 @@ class FieldCanvas extends HTMLElement {
     this._resize();
     this._initPlayers();
     this._animate();
-    this._ro = new ResizeObserver(() => this._resize());
+    // Redimensionar apaga o canvas: com a animação parada (menos movimento),
+    // o quadro é redesenhado na hora
+    this._ro = new ResizeObserver(() => {
+      this._resize();
+      if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) this._animate();
+    });
     this._ro.observe(this);
   }
 
@@ -279,6 +284,9 @@ class FieldCanvas extends HTMLElement {
 
     ctx.restore();
     this._t++;
+    // Quem pediu ao sistema menos movimento fica com o campo parado (um quadro
+    // desenhado basta); os outros seguem com a animação.
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     this._raf = requestAnimationFrame(() => this._animate());
   }
 }

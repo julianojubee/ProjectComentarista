@@ -113,54 +113,59 @@ namespace ControleFutebolWeb.Services
         /// seleção). É o mesmo recorte do totalizador da tela de estatísticas avançadas
         /// (ver OpcoesTotalizador): passagens com o mesmo nome de temporada somadas.
         ///
-        /// <paramref name="temporada"/> é o rótulo do sistema. Competição de ano civil
-        /// casa com "2026"; a europeia (rótulo = ano de início) com "2025/2026". Tenta
-        /// nessa ordem. Null quando o perfil não veio ou a temporada não existe nele.
+        /// <paramref name="temporada"/> é o rótulo do sistema e <paramref name="europeu"/>
+        /// diz o calendário da competição do jogo. Entram as passagens que TERMINAM no
+        /// mesmo ano, igual à linha "Temporada" da base local (TooltipJogadorService):
+        /// europeia 2026 = "2026/2027" + "2027"; ano civil 2026 = "2026" + "2025/2026".
+        ///
+        /// Antes tentava "2026" primeiro em qualquer caso, e num jogador de clube
+        /// europeu essa é só a temporada da SELEÇÃO (Copa + amistosos): o Morgan Rogers
+        /// aparecia com 0 gols na temporada e 4 na Premier League.
+        ///
+        /// Null quando o perfil não veio ou a temporada não existe nele.
         /// </summary>
         public async Task<TemporadaFotMobResumo?> TemporadaAsync(
-            long idFotMob, int temporada, CancellationToken ct = default)
+            long idFotMob, int temporada, bool europeu, CancellationToken ct = default)
         {
             using var perfil = await _fotmob.BuscarPerfilJogadorAsync(idFotMob, ct);
             if (perfil == null) return null;
 
-            var temporadas = LerTemporadasDaCarreira(perfil.RootElement).ToList();
+            var nomes = NomesDaTemporada(temporada, europeu);
+            var grupo = LerTemporadasDaCarreira(perfil.RootElement)
+                .Where(t => nomes.Contains(t.Nome))
+                .ToList();
+            if (grupo.Count == 0) return null;
 
-            foreach (var nome in NomesDaTemporada(temporada))
+            return new TemporadaFotMobResumo
             {
-                var grupo = temporadas.Where(t => t.Nome == nome).ToList();
-                if (grupo.Count == 0) continue;
-
-                return new TemporadaFotMobResumo
-                {
-                    Nome = nome,
-                    Jogos = grupo.Sum(t => t.Jogos),
-                    Gols = grupo.Sum(t => t.Gols),
-                    Assistencias = grupo.Sum(t => t.Assistencias),
-                    Times = grupo.Select(t => t.Time).Where(t => !string.IsNullOrWhiteSpace(t)).Distinct().ToList(),
-                    Competicoes = grupo.SelectMany(t => t.Competicoes)
-                        .GroupBy(c => c.Nome)
-                        .Select(g => new CompeticaoNaTemporada
-                        {
-                            Nome = g.Key,
-                            Jogos = g.Sum(c => c.Jogos),
-                            Gols = g.Sum(c => c.Gols),
-                            Assistencias = g.Sum(c => c.Assistencias),
-                        })
-                        .OrderByDescending(c => c.Jogos).ThenByDescending(c => c.Gols + c.Assistencias)
-                        .ToList(),
-                };
-            }
-
-            return null;
+                Nome = Helpers.TemporadaHelper.Rotulo(temporada, europeu),
+                Jogos = grupo.Sum(t => t.Jogos),
+                Gols = grupo.Sum(t => t.Gols),
+                Assistencias = grupo.Sum(t => t.Assistencias),
+                Times = grupo.Select(t => t.Time).Where(t => !string.IsNullOrWhiteSpace(t)).Distinct().ToList(),
+                Competicoes = grupo.SelectMany(t => t.Competicoes)
+                    .GroupBy(c => c.Nome)
+                    .Select(g => new CompeticaoNaTemporada
+                    {
+                        Nome = g.Key,
+                        Jogos = g.Sum(c => c.Jogos),
+                        Gols = g.Sum(c => c.Gols),
+                        Assistencias = g.Sum(c => c.Assistencias),
+                    })
+                    .OrderByDescending(c => c.Jogos).ThenByDescending(c => c.Gols + c.Assistencias)
+                    .ToList(),
+            };
         }
 
         /// <summary>
-        /// Nomes que a temporada <paramref name="temporada"/> do sistema pode ter no
-        /// FotMob, na ordem de preferência: ano civil ("2026"), europeia pelo ano de
-        /// início ("2026/2027") e, por último, a europeia que termina nesse ano.
+        /// Nomes de temporada do FotMob que terminam no mesmo ano que a temporada
+        /// <paramref name="temporada"/> do sistema, a principal primeiro: europeia
+        /// (rótulo = ano de início) "2026/2027" e o ano civil "2027"; de ano civil,
+        /// "2026" e a europeia "2025/2026".
         /// </summary>
-        private static string[] NomesDaTemporada(int temporada) =>
-            new[] { $"{temporada}", $"{temporada}/{temporada + 1}", $"{temporada - 1}/{temporada}" };
+        private static string[] NomesDaTemporada(int temporada, bool europeu) => europeu
+            ? new[] { $"{temporada}/{temporada + 1}", $"{temporada + 1}" }
+            : new[] { $"{temporada}", $"{temporada - 1}/{temporada}" };
 
         /// <summary>
         /// Médias por jogo da temporada inteira segundo o FotMob, para o tooltip ℹ —
@@ -175,18 +180,20 @@ namespace ControleFutebolWeb.Services
         /// as tentativas são reconstruídas (certos ÷ taxa) e a taxa é recalculada no fim.
         /// </summary>
         public async Task<MediasFotMob?> MediasTemporadaAsync(
-            long idFotMob, int temporada, CancellationToken ct = default)
+            long idFotMob, int temporada, bool europeu, CancellationToken ct = default)
         {
             List<string> ids;
             using (var perfil = await _fotmob.BuscarPerfilJogadorAsync(idFotMob, ct))
             {
                 if (perfil == null) return null;
-                var todas = LerTemporadas(perfil.RootElement).ToList();
-                var escolhida = NomesDaTemporada(temporada)
-                    .Select(n => todas.FirstOrDefault(t => t.Nome == n))
-                    .FirstOrDefault(t => t != null);
-                if (escolhida == null) return null;
-                ids = escolhida.Competicoes.Where(c => c.TemDadosDetalhados).Select(c => c.Id).ToList();
+                // Mesmo recorte da linha "Temporada" (ver TemporadaAsync).
+                var nomes = NomesDaTemporada(temporada, europeu);
+                ids = LerTemporadas(perfil.RootElement)
+                    .Where(t => nomes.Contains(t.Nome))
+                    .SelectMany(t => t.Competicoes)
+                    .Where(c => c.TemDadosDetalhados)
+                    .Select(c => c.Id).Distinct().ToList();
+                if (ids.Count == 0) return null;
             }
 
             var soma = new Dictionary<string, double>();

@@ -34,6 +34,11 @@
     // container do match-up para não vazar para o resto da página.
     const MU_COR_PADRAO = { 1: '#dc2626', 2: '#2563eb' };
     let muCores = false;  // seletor de cor ligado nesta renderização
+    // Fotos ou números nos jogadores do campo. opts.chaveVisual é a chave do
+    // localStorage onde a tela guarda a preferência: o Pré-jogo passa a mesma do
+    // campo principal da análise ('analisar.campoVisual', valores 'foto'/'numero'),
+    // então a escolha vale nos dois lugares. Sem chave, começa em fotos.
+    let muChaveVisual = null;
     let muRoot = null;    // container onde as variáveis de cor são escritas
 
     function muSetCorTime(time, cor) {
@@ -140,7 +145,11 @@
         if (!campo) return;
         // Altura = 1/3 da boca (--mu-boca-h no CSS, hoje 24% da altura do campo),
         // que é a proporção do gol real.
-        campo.style.setProperty('--mu-golh', (campo.clientHeight * 0.08).toFixed(1) + 'px');
+        const golh = campo.clientHeight * 0.08;
+        campo.style.setProperty('--mu-golh', golh.toFixed(1) + 'px');
+        // Entorno: a faixa de grama além das linhas, onde as goleiras ficam.
+        // Um pouco mais funda que a rede, para ela não sair do gramado.
+        campo.style.setProperty('--mu-entorno', Math.round(golh * 1.05 + 6) + 'px');
     }
 
 
@@ -207,7 +216,7 @@
     }
 
     function muSlotHtml(time, idx, e) {
-        return '<div id="mu-slot-' + time + '-' + idx + '" class="mu-slot"' +
+        return '<div id="mu-slot-' + time + '-' + idx + '" class="mu-slot mu-t' + time + '"' +
             ' data-jogadorid="' + e.id + '"' +
             ' data-numero="' + muEsc(e.numero) + '"' +
             ' data-nome="' + muEsc(e.nome) + '"' +
@@ -269,16 +278,30 @@
         muFormas = [];
         const c3d = !!(opts && opts.campo3d);
         muCores = !!(opts && opts.cores);
+        muChaveVisual = (opts && opts.chaveVisual) || null;
         muBuscaUrl = (opts && opts.buscaJogador) || null;
         muFichaUrl = (opts && opts.fichaJogador) || null;
         muTimeIds = { 1: d.casa && d.casa.id, 2: d.visitante && d.visitante.id };
         const comTransmissao = !!(opts && opts.transmissao);
-        if (muRoot && muRoot !== cont) muRoot.classList.remove('mu-transmissao');
-        cont.classList.remove('mu-transmissao');
+        if (muRoot && muRoot !== cont) muRoot.classList.remove('mu-transmissao', 'mu-ui-ativa');
+        cont.classList.remove('mu-transmissao', 'mu-ui-ativa', 'mu-sem-posicoes', 'mu-tx-entrando', 'mu-so-1', 'mu-so-2');
+        document.documentElement.classList.remove('mu-transmissao-aberta');
+        // mu-tv: visual de transmissão (placa dos times, nomes em pílula, barra
+        // compacta). Só a tela que oferece o modo transmissão (/creators/escalacao);
+        // o modal Pré-jogo e /Relatorios seguem com o visual de sempre.
+        cont.classList.toggle('mu-tv', comTransmissao);
         muRoot = cont;
-        // Recomeça nas cores padrão a cada montagem do campo
-        muSetCorTime(1, MU_COR_PADRAO[1]);
-        muSetCorTime(2, MU_COR_PADRAO[2]);
+        // Com o seletor de cor (creators), recomeça nas cores padrão a cada
+        // montagem. Sem ele, o match-up herda as cores da página: no Pré-jogo da
+        // análise são as camisas do jogo (ou as escolhidas no cabeçalho das
+        // escalações); antes o vermelho/azul padrão era escrito por cima delas.
+        if (muCores) {
+            muSetCorTime(1, MU_COR_PADRAO[1]);
+            muSetCorTime(2, MU_COR_PADRAO[2]);
+        } else {
+            muRoot.style.removeProperty('--cor-camisa-casa');
+            muRoot.style.removeProperty('--cor-camisa-vis');
+        }
         mu3d = c3d ? { angulo: MU3D_ANGULO, perspectiva: MU3D_PERSPECTIVA } : null;
 
         // Fichas e números do ℹ dos jogadores deste match-up (ver muInfoHtml).
@@ -300,23 +323,43 @@
             '</div>' +
             '<div class="mu-toolbar">' +
                 '<button type="button" id="muBtnSeta" class="btn btn-sm btn-outline-warning" onclick="muToggleModoSeta()"' +
-                    ' title="Ligue, clique num jogador e depois no ponto do campo para onde ele se movimenta. Clique duplo numa seta para removê-la.">➹ Setas</button>' +
-                '<span id="muSetaHint" style="font-size:11px; color:#facc15; display:none;">clique no jogador e depois no destino · duplo clique na seta remove · Esc sai</span>' +
+                    ' title="Ligue, clique num jogador e depois no ponto do campo para onde ele se movimenta. Clique duplo numa seta para removê-la.">Setas</button>' +
+                '<span id="muSetaHint" class="mu-hint mu-hint-seta" style="display:none;">Clique no jogador e depois no destino. Duplo clique na seta remove, Esc sai.</span>' +
                 '<button type="button" id="muBtnForma" class="btn btn-sm btn-outline-danger" onclick="muToggleModoForma()"' +
-                    ' title="Ligue e arraste no campo para desenhar uma área; ao soltar dá para digitar um texto. Clique duplo numa forma para removê-la.">▱ Formas</button>' +
+                    ' title="Ligue e arraste no campo para desenhar uma área; ao soltar dá para digitar um texto. Clique duplo numa forma para removê-la.">Formas</button>' +
                 '<span id="muFormaTipos" style="display:none; gap:4px;">' +
                     '<button type="button" class="mu-forma-tipo" data-tipo="rect" onclick="muSetFormaTipo(\'rect\')" title="Retângulo">▭</button>' +
                     '<button type="button" class="mu-forma-tipo" data-tipo="elipse" onclick="muSetFormaTipo(\'elipse\')" title="Elipse">◯</button>' +
                     '<button type="button" class="mu-forma-tipo" data-tipo="livre" onclick="muSetFormaTipo(\'livre\')" title="Traço livre">✎</button>' +
                 '</span>' +
-                '<span id="muFormaHint" style="font-size:11px; color:#f87171; display:none;">arraste no campo para desenhar · Enter confirma o texto · arraste o texto para reposicionar · duplo clique na forma remove · Esc sai</span>' +
+                '<span id="muFormaHint" class="mu-hint mu-hint-forma" style="display:none;">Arraste no campo para desenhar e Enter confirma o texto. Duplo clique na forma remove, Esc sai.</span>' +
+                // Quais times aparecem no campo: os dois, só o da esquerda ou só o
+                // da direita (para mostrar a escalação de um time sozinho)
                 (comTransmissao
-                    ? '<button type="button" id="muBtnTransmissao" class="btn btn-sm btn-outline-info" onclick="muToggleTransmissao()"' +
-                        ' title="Campo ocupando a janela inteira, sem o resto do site, com os jogadores maiores — para capturar no OBS. Esc sai.">📺 Transmissão</button>' +
-                      '<button type="button" id="muBtnTelaCheia" class="btn btn-sm btn-outline-secondary mu-so-transmissao" onclick="muToggleTelaCheia()"' +
-                        ' title="Tela cheia do navegador (some a barra de endereço e as abas)">⛶ Tela cheia</button>'
+                    ? '<span class="mu-times-campo" role="group" aria-label="Times no campo">' +
+                        '<button type="button" class="btn btn-sm mu-btn-time ativo" data-time="0" aria-pressed="true" onclick="muMostrarTime(0)">Os dois</button>' +
+                        '<button type="button" class="btn btn-sm mu-btn-time" data-time="1" aria-pressed="false" onclick="muMostrarTime(1)" title="Só ' + muEsc(t1.nome) + ' no campo">' + muEsc(t1.nome) + '</button>' +
+                        '<button type="button" class="btn btn-sm mu-btn-time" data-time="2" aria-pressed="false" onclick="muMostrarTime(2)" title="Só ' + muEsc(t2.nome) + ' no campo">' + muEsc(t2.nome) + '</button>' +
+                      '</span>'
                     : '') +
-                '<span id="muAviso" style="font-size:12px; color:#fbbf24; display:none;"></span>' +
+                (comTransmissao
+                    ? '<button type="button" id="muBtnPosicoes" class="btn btn-sm mu-btn-alternar ativo" aria-pressed="true" onclick="muTogglePosicoes()"' +
+                        ' title="Mostra ou esconde a sigla da posição acima de cada jogador">Posições</button>'
+                    : '') +
+                '<label class="mu-visual" title="Como mostrar os jogadores no campo: a foto (com o número em badge) ou o número da camisa">' +
+                    '<span>Jogadores</span>' +
+                    '<select id="muSelVisual" class="form-select form-select-sm" onchange="muTrocarVisual(this.value)">' +
+                        '<option value="foto">Fotos</option>' +
+                        '<option value="numero">Números</option>' +
+                    '</select>' +
+                '</label>' +
+                '<span id="muAviso" class="mu-hint mu-hint-aviso" style="display:none;"></span>' +
+                (comTransmissao
+                    ? '<button type="button" id="muBtnTelaCheia" class="btn btn-sm btn-outline-secondary mu-so-transmissao" onclick="muToggleTelaCheia()"' +
+                        ' title="Tela cheia do navegador: some a barra de endereço e as abas">Tela cheia</button>' +
+                      '<button type="button" id="muBtnTransmissao" class="btn btn-sm mu-btn-transmissao" onclick="muToggleTransmissao()"' +
+                        ' title="Campo ocupando a janela inteira, sem o resto do site e com os jogadores maiores, para capturar no OBS. Esc sai.">Modo transmissão</button>'
+                    : '') +
             '</div>' +
             '<div class="mu-layout">' +
                 muBancoHtml(1, t1.nome, t1.elenco) +
@@ -339,7 +382,14 @@
                 '</div>' +
                 muBancoHtml(2, t2.nome, t2.elenco) +
             '</div>' +
+            (comTransmissao ? '<div class="mu-tx-dica" role="status">Mexa o mouse para ver os controles. Esc sai do modo transmissão.</div>' : '') +
             '<p class="mu-dica">Arraste um jogador para qualquer ponto do campo, solte sobre um companheiro para trocar as posições, arraste alguém do elenco sobre um titular para substituí-lo ou sobre uma área vazia para incluí-lo no campo (até 11 por time). O × no jogador o devolve ao elenco. O botão + do elenco cria um jogador avulso (ex.: garoto da base ainda fora da API)' + (muBuscaUrl ? '; a busca abaixo dele traz qualquer jogador cadastrado, de qualquer time (ex.: um convocado que não jogou a última)' : '') + '. ' + muEsc((opts && opts.dica) || 'É só uma simulação de pré-jogo, nada é salvo.') + '</p>';
+
+        var visual = 'foto';
+        if (muChaveVisual) {
+            try { visual = localStorage.getItem(muChaveVisual) || 'foto'; } catch (e) { /* idem */ }
+        }
+        muTrocarVisual(visual === 'numero' ? 'numero' : 'foto', true);
 
         // Ângulo e perspectiva saem daqui para o CSS: assim o JS que projeta o
         // cursor e o CSS que inclina o gramado não têm como divergir.
@@ -386,12 +436,36 @@
             const cena = document.getElementById('muCena');
             if (cena) cena.style.perspective = mu3d.perspectiva + 'px';
         }
+        muEncostarCena();
+    }
+
+    // Com o gramado inclinado, o fundo do campo recua e sobra uma faixa vazia
+    // de ~13% da altura da cena acima dele, enquanto a borda de baixo, que
+    // aproxima, passa um pouco da cena. Mede o desenho real (o rect do campo é a
+    // caixa do trapézio projetado) e compensa nas margens da cena: o gramado
+    // sobe para perto da placa dos times e nada fica por baixo da borda.
+    function muEncostarCena() {
+        const cena = document.getElementById('muCena');
+        const campo = document.getElementById('muCampo');
+        if (!cena || !campo || !mu3d) return;
+        if (!muAtivo3d()) { cena.style.marginTop = ''; cena.style.marginBottom = ''; return; }
+        const rc = cena.getBoundingClientRect(), rg = campo.getBoundingClientRect();
+        if (!rc.height) return;
+        // O rect não conta o entorno (é box-shadow): ele entra à parte. No fundo
+        // a perspectiva o encurta, na frente o alarga.
+        const entorno = parseFloat(campo.style.getPropertyValue('--mu-entorno')) || 0;
+        const folgaTopo = 16 + entorno * 0.75; // + jogadores do fundo em pé acima da linha
+        cena.style.marginTop = Math.round(folgaTopo - (rg.top - rc.top)) + 'px';
+        cena.style.marginBottom = Math.round(Math.max(0, rg.bottom - rc.bottom) + entorno * 1.1 + 14) + 'px';
     }
 
     function muToggleTransmissao() {
         if (!muRoot) return;
         const ligar = !muRoot.classList.contains('mu-transmissao');
         muRoot.classList.toggle('mu-transmissao', ligar);
+        // A transmissão é sempre escura, mesmo com o site no tema claro: os
+        // tokens de tema (elenco, busca, barra) viram os do escuro só ali dentro.
+        muRoot.classList.toggle('theme-dark-zone', ligar);
         document.documentElement.classList.toggle('mu-transmissao-aberta', ligar);
         // Entrando, os elencos recolhem para o campo ganhar a largura toda
         // (continuam a um clique de distância, na tira lateral).
@@ -401,12 +475,67 @@
         });
         if (!ligar && document.fullscreenElement) document.exitFullscreen().catch(function () { });
         const btn = document.getElementById('muBtnTransmissao');
-        if (btn) btn.textContent = ligar ? '✕ Sair da transmissão' : '📺 Transmissão';
+        if (btn) btn.textContent = ligar ? 'Sair do modo transmissão' : 'Modo transmissão';
+        muRoot.classList.toggle('mu-tx-entrando', ligar);
+        clearTimeout(muTxDicaTimer);
+        if (ligar) muTxDicaTimer = setTimeout(function () { if (muRoot) muRoot.classList.remove('mu-tx-entrando'); }, 3500);
+        muMostrarControles();
         muAjustarTamanho();
         muAjustarGol3d();
         muAjustarSlots3d();
         muDesenharSetas();
         muDesenharFormas();
+    }
+
+    // Na transmissão a barra e as tiras dos elencos estão na imagem capturada:
+    // aparecem quando o mouse mexe e somem (junto com o cursor) depois de 2,5s
+    // parado. Com o mouse em cima da barra, ou foco nela, ficam.
+    let muUiTimer = null;
+    let muTxDicaTimer = null;
+    function muMostrarControles() {
+        if (!muRoot) return;
+        muRoot.classList.add('mu-ui-ativa');
+        clearTimeout(muUiTimer);
+        muUiTimer = setTimeout(function () { if (muRoot) muRoot.classList.remove('mu-ui-ativa'); }, 2500);
+    }
+    document.addEventListener('pointermove', function () { if (muEmTransmissao()) muMostrarControles(); }, { passive: true });
+
+    // Sigla da posição acima do jogador: liga e desliga (com nomes compridos
+    // e jogadores próximos, a sigla de um encosta no nome do outro)
+    // Números: a foto some e o círculo volta a ser a camisa com o número no
+    // meio, como no campo principal da análise no modo "Números".
+    function muTrocarVisual(modo, semGravar) {
+        if (!muRoot) return;
+        muRoot.classList.toggle('mu-sem-fotos', modo === 'numero');
+        const sel = document.getElementById('muSelVisual');
+        if (sel && sel.value !== modo) sel.value = modo;
+        if (!semGravar && muChaveVisual) {
+            try { localStorage.setItem(muChaveVisual, modo); } catch (e) { /* navegação anônima */ }
+        }
+    }
+
+    function muTogglePosicoes() {
+        if (!muRoot) return;
+        const sem = muRoot.classList.toggle('mu-sem-posicoes');
+        const btn = document.getElementById('muBtnPosicoes');
+        if (btn) { btn.classList.toggle('ativo', !sem); btn.setAttribute('aria-pressed', String(!sem)); }
+    }
+
+    // Só um time no campo: o outro some do gramado, da placa e do elenco (as
+    // setas dos jogadores dele também). Nada é perdido: voltar para "Os dois"
+    // traz tudo onde estava. 0 = os dois, 1 = esquerda, 2 = direita.
+    function muMostrarTime(time) {
+        if (!muRoot) return;
+        muRoot.classList.toggle('mu-so-1', time === 1);
+        muRoot.classList.toggle('mu-so-2', time === 2);
+        muRoot.querySelectorAll('.mu-btn-time').forEach(function (b) {
+            const ativo = b.dataset.time === String(time);
+            b.classList.toggle('ativo', ativo);
+            b.setAttribute('aria-pressed', String(ativo));
+        });
+        // Seta começando num jogador escondido ficaria no ar
+        if (muSetaOrigem && getComputedStyle(muSetaOrigem).display === 'none') muLimparOrigemSeta();
+        muDesenharSetas();
     }
 
     function muToggleTelaCheia() {
@@ -484,14 +613,23 @@
         // elemento); os listeners de move/up ficam no document, então falhar aqui
         // não quebra o arrasto com mouse.
         try { el.setPointerCapture(ev.pointerId); } catch { }
+        // Distância (em % do campo) entre onde o cursor pegou e o ponto do
+        // gramado onde o jogador está. Sem ela, o jogador saltava para pôr o pé
+        // embaixo do cursor — e no campo inclinado ele é desenhado em pé, acima
+        // desse ponto, então o salto era grande e para cima.
+        const p = muTelaParaCampo(ev.clientX, ev.clientY);
         muPtr = { el, time, pointerId: ev.pointerId, startX: ev.clientX, startY: ev.clientY,
-                  origLeft: el.style.left, origTop: el.style.top, moved: false };
+                  origLeft: el.style.left, origTop: el.style.top, moved: false,
+                  dx: parseFloat(el.style.left) - p.x, dy: parseFloat(el.style.top) - p.y,
+                  ultimo: null, quadro: 0 };
     }
 
     // Converte a posição do cursor para % do campo, preso apenas às bordas —
     // qualquer jogador pode ser movido por todo o campo, inclusive no lado adversário.
-    function muPosNoCampo(clientX, clientY) {
+    function muPosNoCampo(clientX, clientY, dx, dy) {
         const p = muTelaParaCampo(clientX, clientY);
+        p.x += dx || 0;
+        p.y += dy || 0;
         // Faixa vertical 10-90%: mesmo limite da renderização inicial, para o
         // círculo/nome do jogador não serem cortados pelo overflow do campo.
         return { x: Math.min(Math.max(p.x, 2), 98), y: Math.min(Math.max(p.y, 10), 90) };
@@ -503,16 +641,29 @@
         if (!muPtr.moved && Math.hypot(ev.clientX - muPtr.startX, ev.clientY - muPtr.startY) < 4) return;
         muPtr.moved = true;
         muPtr.el.classList.add('mu-arrastando');
-        const pos = muPosNoCampo(ev.clientX, ev.clientY);
-        muPtr.el.style.left = pos.x + '%';
-        muPtr.el.style.top = pos.y + '%';
-        muAjustarSlot3d(muPtr.el); // mudou de profundidade: reescala
-        muDesenharSetas(); // a origem das setas acompanha o jogador
+        // Um reposicionamento por quadro de tela: mouses de 500-1000Hz mandam
+        // vários pointermove por quadro, e cada um refazia o layout do campo 3D
+        // e as setas à toa. Fica o último; o quadro aplica.
+        muPtr.ultimo = { x: ev.clientX, y: ev.clientY };
+        if (!muPtr.quadro) muPtr.quadro = requestAnimationFrame(muAplicarArrasto);
     });
+
+    function muAplicarArrasto() {
+        const drag = muPtr;
+        if (!drag || !drag.ultimo) return;
+        drag.quadro = 0;
+        const pos = muPosNoCampo(drag.ultimo.x, drag.ultimo.y, drag.dx, drag.dy);
+        drag.el.style.left = pos.x + '%';
+        drag.el.style.top = pos.y + '%';
+        muAjustarSlot3d(drag.el); // mudou de profundidade: reescala
+        if (Object.keys(muSetas).length) muDesenharSetas(); // a origem das setas acompanha o jogador
+    }
 
     document.addEventListener('pointerup', ev => {
         if (!muPtr || ev.pointerId !== muPtr.pointerId) return;
         const drag = muPtr;
+        // O último movimento ainda na fila entra antes de decidir onde soltou
+        if (drag.quadro) { cancelAnimationFrame(drag.quadro); muAplicarArrasto(); }
         muPtr = null;
         drag.el.classList.remove('mu-arrastando');
         if (!drag.moved) return; // foi só um clique
@@ -538,6 +689,7 @@
     document.addEventListener('pointercancel', ev => {
         if (!muPtr || ev.pointerId !== muPtr.pointerId) return;
         // arrasto abortado (ex.: gesto do sistema): volta pra posição original
+        if (muPtr.quadro) cancelAnimationFrame(muPtr.quadro);
         muPtr.el.classList.remove('mu-arrastando');
         muPtr.el.style.left = muPtr.origLeft;
         muPtr.el.style.top = muPtr.origTop;
@@ -891,6 +1043,8 @@
             const slot = document.getElementById(slotId);
             const setas = muSetas[slotId];
             if (!slot || !setas.length) return;
+            // Time escondido (muMostrarTime): as setas dele somem junto
+            if (getComputedStyle(slot).display === 'none') return;
 
             const x1 = parseFloat(slot.style.left) / 100 * w;
             const y1 = parseFloat(slot.style.top)  / 100 * h;
@@ -1123,7 +1277,7 @@
         const b = muFormaBBox(f);
         const inp = document.createElement('input');
         inp.className = 'mu-forma-input';
-        inp.placeholder = 'Texto (opcional) — Enter';
+        inp.placeholder = 'Texto (opcional), Enter confirma';
         inp.style.left = Math.max(9, Math.min(91, b.cx)) + '%';
         inp.style.top = Math.max(6, Math.min(94, b.cy)) + '%';
 
