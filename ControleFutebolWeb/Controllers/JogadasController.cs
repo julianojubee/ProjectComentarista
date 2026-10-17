@@ -320,7 +320,7 @@ namespace ControleFutebolWeb.Controllers
 
         [HttpPost]
         [RequestSizeLimit(MaxVideoBytes + 1024 * 1024)]
-        public async Task<IActionResult> ConverterMp4(IFormFile? arquivo)
+        public async Task<IActionResult> ConverterMp4(IFormFile? arquivo, int? fps)
         {
             if (arquivo == null || arquivo.Length == 0) return BadRequest("Nenhum vídeo enviado.");
             if (arquivo.Length > MaxVideoBytes) return BadRequest("Vídeo grande demais para converter.");
@@ -349,7 +349,7 @@ namespace ControleFutebolWeb.Controllers
                 // o vídeo só começa a tocar depois de baixado inteiro, o que as
                 // redes sociais e o preview do WhatsApp odeiam.
                 // yuv420p é o pixel format que os players não-Chrome aceitam.
-                var args = new[]
+                var args = new List<string>
                 {
                     "-y", "-hide_banner", "-loglevel", "error",
                     "-i", entrada,
@@ -357,8 +357,20 @@ namespace ControleFutebolWeb.Controllers
                     "-pix_fmt", "yuv420p",
                     "-movflags", "+faststart",
                     "-an",
-                    saida
                 };
+                // Com fps (o vídeo da abertura no modo Transmissão, que vai para o
+                // X): taxa de quadros constante e um pouco mais de qualidade. O
+                // MediaRecorder carimba os quadros pelo relógio, então o arquivo
+                // dele tem taxa variável, e o upload do X recusa ou engasga com isso.
+                if (fps is >= 15 and <= 60)
+                {
+                    args[args.IndexOf("23")] = "20";
+                    // O canvas sai em faixa de cor cheia (yuvj420p); o X e os
+                    // players de celular esperam a faixa de TV.
+                    args.AddRange(new[] { "-vf", "scale=out_range=tv,format=yuv420p", "-color_range", "tv",
+                        "-fps_mode", "cfr", "-r", fps.Value.ToString() });
+                }
+                args.Add(saida);
 
                 var psi = new ProcessStartInfo(ffmpeg)
                 {

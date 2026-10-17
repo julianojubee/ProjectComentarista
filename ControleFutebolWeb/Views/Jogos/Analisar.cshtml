@@ -1006,6 +1006,8 @@
                         title="Campo ocupando a janela inteira, com os jogadores maiores — para apresentar ou capturar no OBS. Esc sai.">📺 Transmissão</button>
                 <button type="button" class="btn btn-sm btn-outline-light an-so-transmissao" onclick="AberturaJogo.tocar()"
                         title="Toca de novo a abertura 3D do jogo (entrada dos times e montagem das escalações)">🎬 Abertura</button>
+                <button type="button" id="anBtnGravarVideo" class="btn btn-sm btn-outline-danger an-so-transmissao" onclick="gravarVideoAbertura()"
+                        title="Grava a abertura (montagem das escalações) em vídeo MP4 1920×1080 para postar no X. O navegador pede para compartilhar esta aba; deixe-a na frente até o fim. Dica: ⛶ Tela cheia antes deixa o vídeo mais nítido. Esc cancela.">🎥 Gravar vídeo</button>
                 <button type="button" class="btn btn-sm btn-outline-light an-so-transmissao" onclick="toggleElencosTransmissao()"
                         title="Mostra/esconde os elencos e os bancos, para arrastar jogadores e fazer substituições">📋 Elencos</button>
                 <button type="button" class="btn btn-sm btn-outline-light an-so-transmissao" onclick="toggleObservacoesTransmissao()"
@@ -2026,6 +2028,7 @@
     @* abertura-jogo.js antes de analisar.js: o 📺 Transmissão chama
        window.AberturaJogo ao entrar no modo. *@
     <script src="~/js/abertura-jogo.js" asp-append-version="true"></script>
+    <script src="~/js/gravacao-abertura.js" asp-append-version="true"></script>
     <script src="~/js/analisar.js" asp-append-version="true"></script>
 }
 

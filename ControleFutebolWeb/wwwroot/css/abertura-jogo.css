@@ -16,7 +16,24 @@
     --ab-num-casa: #fff; --ab-num-vis: #fff;
     animation: ab-entra .5s ease-out;
     transition: opacity .6s ease;
+    /* As medidas relativas lá dentro são cqw/cqh (do .ab-root), e não vw/vh:
+       na tela normal dá no mesmo (o root é a janela), e na gravação o root
+       vira uma caixa 16:9 e tudo continua proporcional a ela. */
+    container-type: size;
 }
+/* Gravação de vídeo (js/gravacao-abertura.js): a abertura roda numa caixa
+   16:9 centrada na janela, que é o retângulo recortado da captura da aba. A
+   sombra gigante cobre o resto da página e some junto no fade final. */
+.ab-root.ab-gravando {
+    margin: auto;
+    width: min(100vw, calc(100vh * 16 / 9));
+    height: min(100vh, calc(100vw * 9 / 16));
+    box-shadow: 0 0 0 100vmax #000;
+}
+.ab-root.ab-gravando .ab-pular { display: none; }
+/* Depois do pouso o vídeo segue um pouco no campo da transmissão: sem a barra
+   de botões dela */
+html.an-gravando-video .an-unico-barra { visibility: hidden; }
 @keyframes ab-entra { from { opacity: 0; } to { opacity: 1; } }
 .ab-root.ab-saindo { opacity: 0; }
 .ab-root.ab-pulando { opacity: 0; transition-duration: .3s; }
@@ -42,7 +59,7 @@
 }
 
 .ab-refletor {
-    position: absolute; top: -12%; width: 34vw; height: 125vh;
+    position: absolute; top: -12%; width: 34cqw; height: 125cqh;
     background: linear-gradient(180deg, rgba(255, 252, 230, .26) 0%, rgba(255, 252, 230, .06) 45%, transparent 75%);
     clip-path: polygon(46% 0, 54% 0, 100% 100%, 0 100%);
     transform-origin: 50% 0; filter: blur(6px); mix-blend-mode: screen;
@@ -76,7 +93,7 @@
 .ab-campo {
     --ab-rx: 70deg; --ab-rz: 0deg; --ab-tz: 0px; --ab-tx: 0%; --ab-dur: 0ms;
     position: absolute; left: 50%; top: 58%;
-    width: min(84vw, 138vh); aspect-ratio: 1.8 / 1;
+    width: min(84cqw, 138cqh); aspect-ratio: 1.8 / 1;
     transform-style: preserve-3d;
     transform: translate(-50%, -50%) translateZ(var(--ab-tz)) rotateX(var(--ab-rx)) rotateZ(var(--ab-rz)) translateX(var(--ab-tx));
     transition: transform var(--ab-dur) cubic-bezier(.22, .7, .18, 1),
@@ -143,9 +160,9 @@
     100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 .ab-circ {
-    position: relative; width: clamp(34px, 3.3vw, 60px); aspect-ratio: 1; border-radius: 50%;
+    position: relative; width: clamp(34px, 3.3cqw, 60px); aspect-ratio: 1; border-radius: 50%;
     display: flex; align-items: center; justify-content: center; overflow: hidden;
-    font-weight: 900; font-size: clamp(13px, 1.25vw, 22px);
+    font-weight: 900; font-size: clamp(13px, 1.25cqw, 22px);
     border: 3px solid #fff; box-shadow: 0 4px 14px rgba(0,0,0,.6);
 }
 .ab-casa .ab-circ { background: var(--ab-cor-casa); color: var(--ab-num-casa); }
@@ -160,7 +177,7 @@
 .ab-vis  .ab-foto + .ab-num { background: var(--ab-cor-vis); }
 .ab-nome {
     margin-top: 4px; max-width: 110px; padding: 1px 6px; border-radius: 4px;
-    background: rgba(0,0,0,.65); font-size: clamp(10px, .8vw, 14px); font-weight: 700;
+    background: rgba(0,0,0,.65); font-size: clamp(10px, .8cqw, 14px); font-weight: 700;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
@@ -180,7 +197,7 @@
 
 /* ── Confronto ───────────────────────────────────────────────────────── */
 .ab-confronto {
-    position: absolute; left: 50%; top: 8%; width: min(1100px, 94vw);
+    position: absolute; left: 50%; top: 8%; width: min(1100px, 94cqw);
     transform: translateX(-50%); transform-origin: 50% 0;
     text-align: center; pointer-events: none;
     transition: transform 1s cubic-bezier(.22, .7, .18, 1), top 1s cubic-bezier(.22, .7, .18, 1), opacity .6s ease;
@@ -198,14 +215,14 @@
 .ab-comp-logo { height: 26px; width: auto; }
 .ab-confronto.on .ab-comp { opacity: 1; transform: none; }
 
-.ab-times { display: flex; align-items: center; justify-content: center; gap: clamp(20px, 5vw, 80px); margin-top: 22px; }
+.ab-times { display: flex; align-items: center; justify-content: center; gap: clamp(20px, 5cqw, 80px); margin-top: 22px; }
 .ab-time { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 12px; min-width: 0;
            transition: transform 1s cubic-bezier(.2, .9, .2, 1), opacity .8s ease; opacity: 0; }
-.ab-time-casa { transform: translateX(-70vw); transition-delay: .35s; }
-.ab-time-vis  { transform: translateX(70vw);  transition-delay: .65s; }
+.ab-time-casa { transform: translateX(-70cqw); transition-delay: .35s; }
+.ab-time-vis  { transform: translateX(70cqw);  transition-delay: .65s; }
 .ab-confronto.on .ab-time { opacity: 1; transform: none; }
 .ab-escudo {
-    width: clamp(90px, 11vw, 170px); aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+    width: clamp(90px, 11cqw, 170px); aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
     border-radius: 50%;
     background: radial-gradient(circle, rgba(255,255,255,.14), transparent 70%);
 }
@@ -213,14 +230,14 @@
 .ab-time-casa .ab-escudo { box-shadow: 0 0 60px 6px color-mix(in srgb, var(--ab-cor-casa) 55%, transparent); }
 .ab-time-vis  .ab-escudo { box-shadow: 0 0 60px 6px color-mix(in srgb, var(--ab-cor-vis) 55%, transparent); }
 .ab-time-nome {
-    max-width: 100%; font-size: clamp(24px, 3.2vw, 52px); font-weight: 900; text-transform: uppercase;
+    max-width: 100%; font-size: clamp(24px, 3.2cqw, 52px); font-weight: 900; text-transform: uppercase;
     letter-spacing: .04em; line-height: 1.05; text-shadow: 0 4px 20px rgba(0,0,0,.8);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .ab-time-casa .ab-time-nome { border-bottom: 5px solid var(--ab-cor-casa); padding-bottom: 4px; }
 .ab-time-vis  .ab-time-nome { border-bottom: 5px solid var(--ab-cor-vis);  padding-bottom: 4px; }
 .ab-x {
-    font-size: clamp(34px, 4vw, 64px); font-weight: 900; color: #facc15;
+    font-size: clamp(34px, 4cqw, 64px); font-weight: 900; color: #facc15;
     opacity: 0; transform: scale(3); transition: all .5s cubic-bezier(.3, 1.6, .5, 1) 1.1s;
     text-shadow: 0 0 30px rgba(250, 204, 21, .6);
 }
@@ -238,14 +255,14 @@
 
 /* ── Painéis das escalações ──────────────────────────────────────────── */
 .ab-painel {
-    position: absolute; top: 17%; width: clamp(230px, 20vw, 320px);
+    position: absolute; top: 17%; width: clamp(230px, 20cqw, 320px);
     padding: 14px 14px 10px; border-radius: 12px;
     background: linear-gradient(180deg, rgba(8, 14, 28, .94), rgba(8, 14, 28, .82));
     box-shadow: 0 20px 50px rgba(0,0,0,.55);
     transition: transform .8s cubic-bezier(.22, .7, .18, 1), opacity .6s ease; opacity: 0;
 }
-.ab-painel-casa { left: 2vw;  border-left: 5px solid var(--ab-cor-casa); transform: translateX(-130%); }
-.ab-painel-vis  { right: 2vw; border-right: 5px solid var(--ab-cor-vis); transform: translateX(130%); }
+.ab-painel-casa { left: 2cqw;  border-left: 5px solid var(--ab-cor-casa); transform: translateX(-130%); }
+.ab-painel-vis  { right: 2cqw; border-right: 5px solid var(--ab-cor-vis); transform: translateX(130%); }
 .ab-painel.on { transform: none; opacity: 1; }
 .ab-painel-cab { display: flex; align-items: center; gap: 10px; }
 .ab-painel-escudo { width: 44px; height: 44px; object-fit: contain; }
@@ -269,7 +286,7 @@
 /* ── Chamada (tarja de TV do jogador anunciado) ──────────────────────── */
 .ab-chamada {
     position: absolute; left: 50%; bottom: 5%; z-index: 4;
-    display: flex; align-items: stretch; min-width: min(520px, 80vw);
+    display: flex; align-items: stretch; min-width: min(520px, 80cqw);
     border-radius: 10px; overflow: hidden;
     background: linear-gradient(90deg, rgba(8, 14, 28, .96), rgba(8, 14, 28, .85));
     box-shadow: 0 16px 40px rgba(0,0,0,.6);

@@ -347,11 +347,14 @@
     // No pouso o gramado da abertura assume o retângulo exato do #campoUnico
     // (que já está na tela, por baixo): as posições são as mesmas, então a
     // troca de um para o outro não "pula".
+    // As coordenadas são relativas ao .ab-root: na gravação ele é uma caixa
+    // 16:9 no meio da janela, e não a janela inteira.
     function pousarNoCampoReal(campo) {
         const alvo = document.getElementById('campoUnico')?.getBoundingClientRect();
         if (!alvo || !alvo.width) return;
-        campo.style.left = (alvo.left + alvo.width / 2) + 'px';
-        campo.style.top = (alvo.top + alvo.height / 2) + 'px';
+        const base = campo.closest('.ab-root').getBoundingClientRect();
+        campo.style.left = (alvo.left - base.left + alvo.width / 2) + 'px';
+        campo.style.top = (alvo.top - base.top + alvo.height / 2) + 'px';
         campo.style.width = alvo.width + 'px';
     }
 
@@ -372,16 +375,24 @@
         exec.cancelada = true;
         exec.timers.forEach(clearTimeout);
         exec.root.classList.add(pulou ? 'ab-pulando' : 'ab-saindo');
-        setTimeout(() => exec.root.remove(), pulou ? 350 : 700);
+        setTimeout(() => {
+            exec.root.remove();
+            exec.fim({ pulou });
+        }, pulou ? 350 : 700);
         if (execucao === exec) execucao = null;
         window.removeEventListener('keydown', onTecla, true);
     }
 
-    function tocar() {
+    // Devolve uma Promise que resolve com { pulou } quando a abertura some da
+    // tela. { gravacao: true } roda na caixa 16:9 e sem o botão Pular (o
+    // gravador, js/gravacao-abertura.js, recorta essa caixa da captura da aba);
+    // aoIniciar(root) entrega o elemento antes do primeiro quadro.
+    function tocar(opcoes = {}) {
         if (execucao) encerrar(execucao, true);
 
         const d = dados();
         const root = h('div', 'ab-root');
+        if (opcoes.gravacao) root.classList.add('ab-gravando');
         root.setAttribute('role', 'dialog');
         root.setAttribute('aria-label', `Abertura: ${d.casa.nome} × ${d.vis.nome}`);
 
@@ -411,12 +422,16 @@
 
         document.body.appendChild(root);
 
-        const exec = { root, timers: [], cancelada: false, encerrada: false };
+        let fim;
+        const terminou = new Promise(res => { fim = res; });
+        const exec = { root, timers: [], cancelada: false, encerrada: false, fim };
         execucao = exec;
         pular.addEventListener('click', () => encerrar(exec, true));
         window.addEventListener('keydown', onTecla, true);
+        opcoes.aoIniciar?.(root);
 
         roteiro(root, { campo, confronto, painelCasa, painelVis, chamada }, d, exec);
+        return terminou;
     }
 
     window.AberturaJogo = { tocar, pular: () => execucao && encerrar(execucao, true) };
