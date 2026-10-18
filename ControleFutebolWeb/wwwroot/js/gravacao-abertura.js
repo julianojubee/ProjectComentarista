@@ -8,6 +8,8 @@
    uma vez se pode compartilhar esta aba), a abertura roda numa caixa 16:9 no
    meio da janela (.ab-gravando) e cada quadro da captura é recortado nessa
    caixa e desenhado num canvas de 1920×1080, que é o que o MediaRecorder grava.
+   No Firefox, que não captura aba, o usuário compartilha a janela ou a tela,
+   e a calibração (calibrar) acha a página dentro do quadro.
 
    O arquivo sai do MediaRecorder em MP4 (Chrome/Edge recentes) ou WebM e
    passa sempre pelo ffmpeg do servidor (/Jogadas/ConverterMp4 com fps): H.264
@@ -77,10 +79,71 @@
         ctx.restore();
     }
 
-    // Recorte da caixa da abertura dentro do quadro capturado. A captura da
-    // aba tem o tamanho da janela em pixels físicos; se o navegador
-    // reescalar ou puser tarja (proporção diferente), a conta acompanha.
-    function recorte(video, caixa) {
+    // Onde a página está dentro do quadro capturado. Capturando a aba (Chrome,
+    // Edge), o quadro é a página; capturando a janela ou a tela (o Firefox
+    // não captura aba), vêm junto a barra de endereço, as abas, a barra de
+    // tarefas… Então a página se pinta de magenta por um instante e o
+    // retângulo magenta achado no quadro vira a régua: origem e escala da
+    // página na captura, valendo para qualquer superfície.
+    const MAGENTA = (r, g, b) => r > 200 && g < 70 && b > 200;
+
+    function caixaMagenta(dados, w, h) {
+        let x0 = w, y0 = h, x1 = -1, y1 = -1;
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                const i = (y * w + x) * 4;
+                if (!MAGENTA(dados[i], dados[i + 1], dados[i + 2])) continue;
+                if (x < x0) x0 = x;
+                if (x > x1) x1 = x;
+                if (y < y0) y0 = y;
+                if (y > y1) y1 = y;
+            }
+        }
+        return x1 < 0 ? null : { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+    }
+
+    async function calibrar(video) {
+        const tinta = document.createElement('div');
+        tinta.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:#ff00ff;pointer-events:none';
+        document.body.appendChild(tinta);
+        try {
+            const c = document.createElement('canvas');
+            const cx = c.getContext('2d', { willReadFrequently: true });
+            const proporcao = window.innerWidth / window.innerHeight;
+            for (let tentativa = 0; tentativa < 40; tentativa++) {
+                await esperar(100);
+                const vw = video.videoWidth, vh = video.videoHeight;
+                if (!vw) continue;
+                // Primeiro numa miniatura (barato), até o magenta aparecer na captura
+                const ew = Math.min(1, 480 / vw);
+                c.width = Math.round(vw * ew); c.height = Math.round(vh * ew);
+                cx.drawImage(video, 0, 0, c.width, c.height);
+                const m = caixaMagenta(cx.getImageData(0, 0, c.width, c.height).data, c.width, c.height);
+                if (!m || m.w * m.h < c.width * c.height * 0.04) continue;
+                if (Math.abs(m.w / m.h / proporcao - 1) > 0.12) continue; // não é a página (outro magenta)
+                // Achou: mede de novo na resolução cheia para o recorte ficar no pixel
+                c.width = vw; c.height = vh;
+                cx.drawImage(video, 0, 0);
+                const f = caixaMagenta(cx.getImageData(0, 0, vw, vh).data, vw, vh);
+                if (!f) continue;
+                return { x: f.x, y: f.y, ex: f.w / window.innerWidth, ey: f.h / window.innerHeight };
+            }
+            return null;
+        } finally {
+            tinta.remove();
+        }
+    }
+
+    // Recorte da caixa da abertura dentro do quadro capturado. Sem régua
+    // (calibração falhou numa captura de aba), supõe o quadro = a página,
+    // reescalado e com tarja se a proporção não bater.
+    function recorte(video, caixa, regua) {
+        if (regua) {
+            return {
+                sx: regua.x + caixa.left * regua.ex, sy: regua.y + caixa.top * regua.ey,
+                sw: caixa.width * regua.ex, sh: caixa.height * regua.ey,
+            };
+        }
         const vw = video.videoWidth, vh = video.videoHeight;
         const jw = window.innerWidth, jh = window.innerHeight;
         const esc = Math.min(vw / jw, vh / jh);
@@ -131,7 +194,7 @@
         if (!window.AberturaJogo) return;
         const tipo = tipoDeVideo();
         if (!tipo || !navigator.mediaDevices?.getDisplayMedia) {
-            alert('Este navegador não grava a aba em vídeo. Use o Chrome ou o Edge.');
+            alert('Este navegador não grava a tela em vídeo. Use o Chrome, o Edge ou o Firefox.');
             return;
         }
         // O botão fica na barra da transmissão, mas a gravação também vale
@@ -161,11 +224,7 @@
         }
 
         const trilha = stream.getVideoTracks()[0];
-        if (trilha?.getSettings?.().displaySurface !== 'browser') {
-            stream.getTracks().forEach(t => t.stop());
-            alert('Para gravar, compartilhe esta aba (e não a tela ou uma janela).');
-            return;
-        }
+        const ehAba = trilha?.getSettings?.().displaySurface === 'browser';
 
         gravando = true;
         botao('⏺ Gravando…');
@@ -184,6 +243,17 @@
             // A faixa "compartilhando esta aba" do navegador encolhe a janela
             // logo depois do aceite: espera ela assentar antes de começar.
             await esperar(700);
+            // Janela ou tela: a régua é obrigatória (sem ela o vídeo sairia com
+            // a barra do navegador). Aba: se falhar, a conta do quadro inteiro vale.
+            botao('⏺ Preparando…');
+            const regua = await calibrar(video);
+            if (!regua && !ehAba) {
+                alert('Não achei esta página na captura. Compartilhe esta aba ou a janela do navegador '
+                    + '(visível, sem nada por cima) e tente de novo.');
+                return;
+            }
+            await esperar(150); // o magenta sai da captura antes do primeiro quadro
+            botao('⏺ Gravando…');
 
             const canvas = document.createElement('canvas');
             canvas.width = LARGURA;
@@ -191,14 +261,14 @@
             const ctx = canvas.getContext('2d');
             ctx.imageSmoothingQuality = 'high';
 
-            let root = null, caixa = null, parado = false;
+            let root = null, caixa = null, parado = false, pretoAte = 0;
             function quadro() {
                 if (parado) return;
                 if (root?.isConnected) caixa = root.getBoundingClientRect();
                 ctx.fillStyle = '#000';
                 ctx.fillRect(0, 0, LARGURA, ALTURA);
-                if (caixa && video.videoWidth) {
-                    const r = recorte(video, caixa);
+                if (caixa && video.videoWidth && performance.now() >= pretoAte) {
+                    const r = recorte(video, caixa, regua);
                     ctx.drawImage(video, r.sx, r.sy, r.sw, r.sh, 0, 0, LARGURA, ALTURA);
                 }
                 desenharMarca(ctx);
@@ -217,6 +287,10 @@
                 gravacao: true,
                 aoIniciar: el => { root = el; caixa = el.getBoundingClientRect(); },
             });
+            // A captura chega atrasada (bem mais na de janela que na de aba):
+            // os primeiros quadros ainda mostram a página sem a abertura por
+            // cima. O vídeo abre com um instante de preto no lugar deles.
+            pretoAte = performance.now() + 350;
             quadro();
             rec.start(1000);
 

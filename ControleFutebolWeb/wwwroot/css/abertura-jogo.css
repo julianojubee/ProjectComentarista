@@ -29,6 +29,8 @@
     width: min(100vw, calc(100vh * 16 / 9));
     height: min(100vh, calc(100vw * 9 / 16));
     box-shadow: 0 0 0 100vmax #000;
+    /* Sem o fade de entrada: o vídeo já abre no estádio, e não na página */
+    animation: none;
 }
 .ab-root.ab-gravando .ab-pular { display: none; }
 /* Depois do pouso o vídeo segue um pouco no campo da transmissão: sem a barra
