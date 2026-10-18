@@ -110,8 +110,10 @@
     function montarCampo(d) {
         const cena = h('div', 'ab-cena');
         const campo = h('div', 'ab-campo');
+        // Goleiras: rede no chão atrás da linha + trave de pé, que deita no pouso
         ['ab-linha-meio', 'ab-circulo', 'ab-area ab-area-esq', 'ab-area ab-area-dir',
-         'ab-pequena ab-pequena-esq', 'ab-pequena ab-pequena-dir', 'ab-brilho']
+         'ab-pequena ab-pequena-esq', 'ab-pequena ab-pequena-dir', 'ab-brilho',
+         'ab-rede ab-gol-esq', 'ab-rede ab-gol-dir', 'ab-trave ab-gol-esq', 'ab-trave ab-gol-dir']
             .forEach(c => campo.appendChild(h('div', c)));
 
         [d.casa, d.vis].forEach(time => {

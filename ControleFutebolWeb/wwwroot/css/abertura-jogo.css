@@ -118,6 +118,35 @@ html.an-gravando-video .an-unico-barra { visibility: hidden; }
 .ab-pequena { top: 36%; bottom: 36%; width: 5.2%; border: 2px solid rgba(255,255,255,.5); }
 .ab-area-esq, .ab-pequena-esq { left: -2px; border-left: none; }
 .ab-area-dir, .ab-pequena-dir { right: -2px; border-right: none; }
+/* Goleiras atrás das linhas de fundo, com as medidas das do campo da
+   transmissão (.cu-goleira em css/analisar.css): boca de 10,8% da altura e
+   2,083% da largura de fundo (margin/width em % são da largura do gramado).
+   A trave fica de pé girando na linha de fundo e deita no pouso, virando o
+   mesmo retângulo de borda branca da goleira 2D; a rede do chão some. */
+.ab-rede, .ab-trave { top: 44.6%; height: 10.8%; width: 2.083%; }
+.ab-gol-esq { right: 100%; }
+.ab-gol-dir { left: 100%; }
+.ab-rede {
+    background:
+        repeating-linear-gradient(0deg, rgba(255,255,255,.18) 0 1px, transparent 1px 5px),
+        repeating-linear-gradient(90deg, rgba(255,255,255,.18) 0 1px, transparent 1px 5px),
+        rgba(0, 0, 0, .25);
+    transition: opacity .8s ease;
+}
+.ab-root.ab-pouso .ab-rede { opacity: 0; }
+.ab-trave {
+    background:
+        repeating-linear-gradient(0deg, rgba(255,255,255,.22) 0 1px, transparent 1px 5px),
+        repeating-linear-gradient(90deg, rgba(255,255,255,.22) 0 1px, transparent 1px 5px),
+        rgba(0, 0, 0, .25);
+    border: 3px solid rgba(255,255,255,.92);
+    transition: transform var(--ab-dur) cubic-bezier(.22, .7, .18, 1);
+}
+/* Em pé: as bordas de cima/baixo são as traves e a de fora, o travessão */
+.ab-trave.ab-gol-esq { border-right: none; border-radius: 3px 0 0 3px; transform-origin: 100% 50%; transform: rotateY(90deg); }
+.ab-trave.ab-gol-dir { border-left: none; border-radius: 0 3px 3px 0; transform-origin: 0 50%; transform: rotateY(-90deg); }
+.ab-root.ab-pouso .ab-trave { transform: rotateY(0deg); }
+
 /* Brilho dos refletores varrendo o gramado */
 .ab-brilho {
     inset: 0;

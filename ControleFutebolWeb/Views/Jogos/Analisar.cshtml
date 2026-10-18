@@ -1055,14 +1055,20 @@
                     <span class="an-unico-nome"><span>@Model.Jogo.TimeVisitante?.Nome</span><span class="an-unico-autores" id="anUnicoAutoresVis"></span></span>
                 </div>
             </div>
-            <div id="campoUnico" class="campo-unico theme-dark-zone"
-                 ondrop="dropNoCampo(event, 'campoCasa')" ondragover="allowDrop(event)">
-                <div class="cu-linha-meio"></div>
-                <div class="cu-circulo"></div>
-                <div class="cu-area cu-area-esq"></div>
-                <div class="cu-area cu-area-dir"></div>
-                <div class="cu-gol cu-gol-esq"></div>
-                <div class="cu-gol cu-gol-dir"></div>
+            @* Goleiras atrás das linhas de fundo, FORA do gramado (o #campoUnico corta
+               o que passa da borda): o .an-gramado é a fila goleira · campo · goleira. *@
+            <div class="an-gramado">
+                <div class="cu-goleira cu-goleira-esq" aria-hidden="true"></div>
+                <div id="campoUnico" class="campo-unico theme-dark-zone"
+                     ondrop="dropNoCampo(event, 'campoCasa')" ondragover="allowDrop(event)">
+                    <div class="cu-linha-meio"></div>
+                    <div class="cu-circulo"></div>
+                    <div class="cu-area cu-area-esq"></div>
+                    <div class="cu-area cu-area-dir"></div>
+                    <div class="cu-gol cu-gol-esq"></div>
+                    <div class="cu-gol cu-gol-dir"></div>
+                </div>
+                <div class="cu-goleira cu-goleira-dir" aria-hidden="true"></div>
             </div>
             <div class="an-unico-bancos">
                 <div data-slot="bancoCasa"></div>

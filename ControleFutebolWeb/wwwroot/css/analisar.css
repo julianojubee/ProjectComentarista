@@ -2069,6 +2069,27 @@
 .campo-unico .cu-area-esq, .campo-unico .cu-gol-esq { left: -2px; border-left: none; }
 .campo-unico .cu-area-dir, .campo-unico .cu-gol-dir { right: -2px; border-right: none; }
 
+/* Goleiras: vistas de cima, atrás de cada linha de fundo. 7,32 m de boca em
+   68 m de largura = 10,8% da altura do campo; a profundidade é 2% da fila
+   (.an-gramado), as mesmas medidas das goleiras 3D da abertura
+   (css/abertura-jogo.css), onde o pouso encaixa. Rede em xadrez fino, traves
+   e travessão em branco; o lado colado no gramado fica aberto. */
+.an-gramado { display: flex; align-items: center; }
+.an-gramado > .campo-unico { flex: 1 1 auto; min-width: 0; }
+.cu-goleira {
+    /* largura 2% da fila; altura 10,8% do campo, que tem 96% da fila na
+       proporção 1.8:1 → 5,76% da fila */
+    flex: 0 0 2%; aspect-ratio: 2 / 5.76; pointer-events: none;
+    background:
+        repeating-linear-gradient(0deg, rgba(255,255,255,.22) 0 1px, transparent 1px 5px),
+        repeating-linear-gradient(90deg, rgba(255,255,255,.22) 0 1px, transparent 1px 5px),
+        rgba(0, 0, 0, .25);
+    border: 3px solid rgba(255,255,255,.92);
+    box-shadow: 0 0 8px rgba(0,0,0,.45);
+}
+.cu-goleira-esq { border-right: none; border-radius: 3px 0 0 3px; }
+.cu-goleira-dir { border-left: none; border-radius: 0 3px 3px 0; }
+
 /* Ids no seletor para vencer .an-root .campo (com !important) e a regra de
    tela estreita .an-root #painelEscalacao .campo (max-width 430px). */
 .an-root #painelEscalacao #campoUnico > .campo {
@@ -2147,8 +2168,9 @@ html.an-transmissao-aberta, html.an-transmissao-aberta body { overflow: hidden; 
 /* Placar e campo com a mesma largura: a do campo que cabe na altura da tela
    (barra ~35px + cabeçalho ~80px + respiro) na proporção 1.8:1 */
 #anUnico.an-transmissao .an-unico-cab,
-#anUnico.an-transmissao .campo-unico {
-    width: min(100%, calc((100vh - 160px - var(--an-obs-h, 0px)) * 1.8)); margin-left: auto; margin-right: auto;
+#anUnico.an-transmissao .an-gramado {
+    /* × 1.875 = 1.8 / 0.96: o campo é 96% da fila, as goleiras os outros 4% */
+    width: min(100%, calc((100vh - 160px - var(--an-obs-h, 0px)) * 1.875)); margin-left: auto; margin-right: auto;
 }
 
 /* Observações do jogo (📝): painel embaixo do campo, que encolhe a altura do
