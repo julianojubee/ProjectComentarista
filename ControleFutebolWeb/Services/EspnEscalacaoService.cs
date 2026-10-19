@@ -412,7 +412,16 @@ namespace ControleFutebolWeb.Services
 
                 // 3º nome ou camisa isolados, com desempate.
                 jogador = Casar(elenco, a.Nome, a.Numero)?.Jogador;
-                if (jogador != null) return jogador;
+                if (jogador != null)
+                {
+                    // Cadastro que nasceu sem camisa (gol ou lance lido de outra fonte
+                    // antes da escalação) ganha o número que a escalação publicou — só
+                    // quando ninguém do elenco já usa aquele número.
+                    if (jogador.NumeroCamisa == null && a.Numero != null &&
+                        !elenco.Any(j => j.NumeroCamisa == a.Numero))
+                        jogador.NumeroCamisa = a.Numero;
+                    return jogador;
+                }
 
                 jogador = new Jogador
                 {
