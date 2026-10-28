@@ -1399,6 +1399,180 @@ namespace ControleFutebolWeb.Controllers
             return View(vm);
         }
 
+        // GET: /Jogadores/SomaJogos/5?jogos=10&jogos=12&jogos=15
+        // Soma das estatísticas do jogador num conjunto de jogos escolhido pelo
+        // usuário (últimos N, contra um adversário, de uma competição...). A lista de
+        // escolha traz só os jogos em que ele entrou em campo.
+        [HttpGet]
+        public async Task<IActionResult> SomaJogos(int id, int[]? jogos)
+        {
+            var uid = _userManager.GetUserId(User);
+
+            var jogador = await _context.Jogadores
+                .AsNoTracking()
+                .Include(j => j.Time)
+                .FirstOrDefaultAsync(j => j.Id == id);
+            if (jogador == null) return NotFound();
+
+            // ── Jogos em que ele atuou ─────────────────────────────────────
+            // Estatística importada manda: com minutos > 0 jogou, com 0 ficou no banco
+            // (a api cria linha para o elenco relacionado inteiro). Sem estatística,
+            // vale a escalação titular, a entrada por substituição ou a nota do usuário.
+            var estatisticas = await _context.EstatisticasJogador
+                .AsNoTracking()
+                .Where(e => e.JogadorId == id)
+                .ToListAsync();
+            var estatisticaPorJogo = estatisticas
+                .GroupBy(e => e.JogoId)
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(e => e.Minutos ?? 0).First());
+
+            var escalacoes = await _context.Escalacoes
+                .AsNoTracking()
+                .Include(e => e.Setas)
+                .Where(e => e.JogadorId == id && (e.UsuarioId == uid || e.UsuarioId == null))
+                .ToListAsync();
+
+            var entrouIds = await _context.Substituicoes.AsNoTracking()
+                .Where(s => s.JogadorEntrouId == id)
+                .Select(s => s.JogoId)
+                .ToListAsync();
+
+            var notasUsuario = await _context.Notas
+                .AsNoTracking()
+                .Include(n => n.Detalhes)
+                .Where(n => n.JogadorId == id && n.UsuarioId == uid)
+                .ToListAsync();
+
+            var candidatos = estatisticaPorJogo.Keys
+                .Concat(escalacoes.Where(e => e.Titular).Select(e => e.JogoId))
+                .Concat(entrouIds)
+                .Concat(notasUsuario.Select(n => n.JogoId))
+                .Distinct()
+                .Where(jid => !estatisticaPorJogo.TryGetValue(jid, out var est) || est.Minutos is not int m || m > 0)
+                .ToList();
+
+            var jogosDb = await _context.Jogos
+                .AsNoTracking()
+                .Include(j => j.TimeCasa)
+                .Include(j => j.TimeVisitante)
+                .Include(j => j.Competicao)
+                .Where(j => candidatos.Contains(j.Id))
+                .ToListAsync();
+
+            var golsPorJogo = (await _context.Gols.AsNoTracking()
+                    .Where(g => g.JogadorId == id && !g.Contra)
+                    .Select(g => g.JogoId).ToListAsync())
+                .GroupBy(x => x).ToDictionary(g => g.Key, g => g.Count());
+            var assistsPorJogo = (await _context.Assistencias.AsNoTracking()
+                    .Where(a => a.JogadorId == id)
+                    .Select(a => a.JogoId).ToListAsync())
+                .GroupBy(x => x).ToDictionary(g => g.Key, g => g.Count());
+
+            // Lado da escalação da época (correto após transferência); sem escalação,
+            // o time atual do jogador.
+            var ladoPorJogo = escalacoes
+                .GroupBy(e => e.JogoId)
+                .ToDictionary(g => g.Key, g => g.OrderBy(e => e.UsuarioId == uid ? 0 : 1).First().IsTimeCasa);
+
+            var itens = jogosDb
+                .OrderByDescending(j => j.Data)
+                .Select(j =>
+                {
+                    estatisticaPorJogo.TryGetValue(j.Id, out var est);
+                    var titular = est != null && est.Minutos > 0
+                        ? !est.EntrouDoBanco
+                        : escalacoes.Any(e => e.JogoId == j.Id && e.Titular &&
+                                              (e.FaseEscalacao == "INICIAL" || e.FaseEscalacao == null));
+                    return new JogoSomaItem
+                    {
+                        Jogo = j,
+                        IsCasa = ladoPorJogo.TryGetValue(j.Id, out var casa)
+                            ? casa
+                            : (j.TimeCasaId == jogador.TimeId || j.TimeCasaId == jogador.SelecaoId),
+                        Minutos = est?.Minutos,
+                        Titular = titular,
+                        Gols = est?.Gols ?? golsPorJogo.GetValueOrDefault(j.Id),
+                        Assistencias = est?.Assistencias ?? assistsPorJogo.GetValueOrDefault(j.Id),
+                    };
+                })
+                .ToList();
+
+            var idsSelecionados = (jogos ?? Array.Empty<int>()).ToHashSet();
+            var selecionados = itens.Where(i => idsSelecionados.Contains(i.Jogo.Id)).ToList();
+            var jogoIdsSel = selecionados.Select(i => i.Jogo.Id).ToList();
+
+            var vm = new JogadorSomaJogosViewModel
+            {
+                Jogador = jogador,
+                Jogos = itens,
+                Selecionados = selecionados,
+                Estatisticas = jogoIdsSel
+                    .Where(estatisticaPorJogo.ContainsKey)
+                    .Select(jid => estatisticaPorJogo[jid])
+                    .ToList(),
+            };
+
+            if (selecionados.Count == 0) return View(vm);
+
+            // ── Mapa de calor do recorte ───────────────────────────────────
+            // Mesmo critério de /Jogadores/EstatisticasJogo, jogo a jogo: uma foto por
+            // fase, preferindo a cópia do usuário; (0,0) não é posição real.
+            var fotos = escalacoes
+                .Where(e => e.Titular && jogoIdsSel.Contains(e.JogoId))
+                .GroupBy(e => new { e.JogoId, Fase = e.FaseEscalacao ?? "INICIAL" })
+                .Select(g => g.OrderBy(e => e.UsuarioId == uid ? 0 : 1).First())
+                .ToList();
+            vm.PontosHeatmap = fotos
+                .Where(e => e.PosicaoX != 0 || e.PosicaoY != 0)
+                .Select(e => new PontoHeatmap { X = e.PosicaoX, Y = e.PosicaoY, Peso = 1.0 })
+                .Concat(fotos
+                    .SelectMany(e => e.Setas)
+                    .Select(s => new PontoHeatmap { X = s.X, Y = s.Y, Peso = 0.45 }))
+                .ToList();
+
+            // ── Nota de cada jogo selecionado (mesma régua da ficha) ───────
+            // Com análise do usuário: a manual ou a dos critérios. Sem análise: a
+            // automática sobre a estatística importada.
+            var criterios = CriteriosNotaHelper.MergeCriterios(
+                await _context.CriteriosNota.Where(c => c.UsuarioId == null).ToListAsync(),
+                await _context.CriteriosNota.Where(c => c.UsuarioId == uid).ToListAsync());
+            var contextos = await ContextoNotaHelper.CarregarAsync(_context, jogoIdsSel, uid);
+            var lados = await LadoJogadorHelper.CarregarAsync(_context, jogoIdsSel, uid, new[] { id });
+            var calculadora = await NotaAutomaticaHelper.CarregarAsync(
+                _context, jogoIdsSel, uid, criterios, lados, contextos);
+            var notaPorJogo = notasUsuario
+                .Where(n => jogoIdsSel.Contains(n.JogoId))
+                .GroupBy(n => n.JogoId)
+                .ToDictionary(g => g.Key, g => g.First());
+
+            foreach (var item in selecionados)
+            {
+                if (notaPorJogo.TryGetValue(item.Jogo.Id, out var nota))
+                {
+                    item.Nota = nota.NotaManual.HasValue
+                        ? Math.Round(Math.Max(0, Math.Min(10, nota.NotaManual.Value)), 2)
+                        : CriteriosNotaHelper.NotaFinal(nota.Valor, criterios,
+                            ContextoNotaHelper.De(contextos, id, item.Jogo.Id) with
+                            {
+                                Acoes = CriteriosNotaHelper.ContarAcoes(nota.Detalhes)
+                            });
+                }
+                else if (estatisticaPorJogo.TryGetValue(item.Jogo.Id, out var est) && est.Minutos > 0)
+                {
+                    // A calculadora lê o placar e a posição/time: liga as entidades já carregadas
+                    est.Jogo = item.Jogo;
+                    est.Jogador = jogador;
+                    item.Nota = calculadora.De(est).Nota;
+                }
+            }
+
+            var comNota = selecionados.Where(i => i.Nota.HasValue).ToList();
+            vm.JogosComNota = comNota.Count;
+            vm.MediaNota = comNota.Count > 0 ? Math.Round(comNota.Average(i => i.Nota!.Value), 2) : null;
+
+            return View(vm);
+        }
+
         // GET: /Jogadores/JogadoresSemelhantes?id=X
         // Retorna até 10 jogadores com perfil parecido ao jogador informado.
         // Critérios derivados do próprio jogador (posição, idade, jogos, gols, assistências);

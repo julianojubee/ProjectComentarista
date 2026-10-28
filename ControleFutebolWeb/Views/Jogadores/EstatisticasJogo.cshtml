@@ -310,6 +310,8 @@
             <div class="ej-acoes">
                 <a class="ej-btn ouro" asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id">Ver análise do jogo</a>
                 <a class="ej-btn" asp-controller="Jogadores" asp-action="Estatisticas" asp-route-id="@Model.Jogador.Id">Ficha do jogador</a>
+                <a class="ej-btn" asp-controller="Jogadores" asp-action="SomaJogos" asp-route-id="@Model.Jogador.Id" asp-route-jogos="@jogo.Id"
+                   title="Somar este jogo com outros (últimos N, contra o mesmo adversário...)">Somar com outros jogos</a>
             </div>
 
             <div class="ej-jogo">

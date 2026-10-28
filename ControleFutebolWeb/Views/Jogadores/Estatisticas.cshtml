@@ -1117,6 +1117,11 @@
             <div class="je-sec-cab">
                 <h2 class="je-section-titulo">Histórico por jogo</h2>
                 <span class="je-sec-nota">Clique numa linha para abrir a análise da partida.</span>
+                @if (jogosEmCampo > 0)
+                {
+                    <a class="je-ver-analise" href="@Url.Action("SomaJogos", "Jogadores", new { id = Model.Jogador.Id })"
+                       title="Escolher jogos (últimos N, contra um adversário...) e ver a soma das estatísticas">Somar jogos</a>
+                }
                 @if (soBanco > 0 && jogosEmCampo > 0)
                 {
                     <div class="je-hist-filtro" role="group" aria-label="Quais jogos mostrar">

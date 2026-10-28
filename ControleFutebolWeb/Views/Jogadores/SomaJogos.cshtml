@@ -1,0 +1,701 @@
+@model ControleFutebolWeb.Models.ViewModels.JogadorSomaJogosViewModel
+@using ControleFutebolWeb.Helpers
+@using ControleFutebolWeb.Models
+@{
+    ViewData["Title"] = $"{Model.Jogador.NomeExibicao}, soma de jogos";
+
+    var ptBR = new System.Globalization.CultureInfo("pt-BR");
+    var sel = Model.Selecionados;
+    var est = Model.Estatisticas;
+    var idsSel = sel.Select(s => s.Jogo.Id).ToHashSet();
+
+    string Escudo(string? url) => Url.Action("Imagem", "MediaProxy", new { url })!;
+    string Num(double v) => v.ToString(v % 1 == 0 ? "0" : "0.0", ptBR);
+    string NotaTxt(double v) => v.ToString("0.0", ptBR);
+
+    // Filtros da lista voltam como estavam depois de somar
+    var filtroComp = Context.Request.Query["competicao"].ToString();
+    var filtroAdv = Context.Request.Query["adversario"].ToString();
+
+    var competicoes = Model.Jogos
+        .Where(j => j.Jogo.Competicao != null)
+        .GroupBy(j => j.Jogo.Competicao!.Id)
+        .Select(g => (Id: g.Key, Nome: g.First().Jogo.Competicao!.Nome, Qtd: g.Count()))
+        .OrderBy(c => c.Nome)
+        .ToList();
+    var adversarios = Model.Jogos
+        .Where(j => j.Adversario != null)
+        .GroupBy(j => j.Adversario!.Id)
+        .Select(g => (Id: g.Key, Nome: g.First().Adversario!.Nome, Qtd: g.Count()))
+        .OrderBy(a => a.Nome)
+        .ToList();
+
+    // ── Resumo do recorte ──────────────────────────────────────────────
+    var minutos = sel.Sum(s => s.Minutos ?? 0);
+    var gols = sel.Sum(s => s.Gols);
+    var assists = sel.Sum(s => s.Assistencias);
+    var vit = sel.Count(s => s.Resultado == "V");
+    var emp = sel.Count(s => s.Resultado == "E");
+    var der = sel.Count(s => s.Resultado == "D");
+    var titulares = sel.Count(s => s.Titular);
+    var semEstatistica = sel.Count - est.Count;
+    var ratings = est.Where(e => e.Rating.HasValue).Select(e => e.Rating!.Value).ToList();
+
+    int? Pct(int certos, int total) => total > 0 ? (int)Math.Round(100.0 * certos / total) : null;
+
+    // Uma métrica somada só nos jogos cuja fonte publica aquele número; os demais
+    // entram no aviso "em X de Y jogos", e sem nenhum vira "—" (não é zero).
+    List<EstatisticaJogador> Cobertos(string id) => est.Where(e => FonteEstatistica.Cobre(e.Fonte, id)).ToList();
+
+    (string Rotulo, string Total, string? PorJogo, int? Pct, int Cobertos, bool Zero) L(
+        string rotulo, string id, Func<EstatisticaJogador, int> campo,
+        Func<EstatisticaJogador, int>? certos = null, string? idPct = null)
+    {
+        var cob = Cobertos(id);
+        if (cob.Count == 0) return (rotulo, "—", null, null, 0, false);
+        var total = cob.Sum(campo);
+        string texto = total.ToString();
+        int? pct = null;
+        // Em "X de Y" a média por jogo é dos certos, que é o que o rótulo diz
+        var porJogo = total;
+        if (certos != null)
+        {
+            var cobPct = idPct != null ? Cobertos(idPct) : cob;
+            var c = cobPct.Sum(certos);
+            porJogo = cob.Sum(certos);
+            texto = total > 0 ? $"{porJogo} de {total}" : "0";
+            if (cobPct.Count > 0) pct = Pct(c, cobPct.Sum(campo));
+        }
+        return (rotulo, texto, Num(Math.Round((double)porJogo / cob.Count, 1)), pct, cob.Count, total == 0);
+    }
+
+    var grupos = new List<(string Titulo, List<(string Rotulo, string Total, string? PorJogo, int? Pct, int Cobertos, bool Zero)> Linhas)>();
+    if (est.Any())
+    {
+        grupos.Add(("Ataque", new()
+        {
+            L("Finalizações", "finalizacoes", e => e.FinalizacoesTotal),
+            L("Finalizações no gol", "finalizacoes_alvo", e => e.FinalizacoesNoGol),
+            L("Impedimentos", "offsides", e => e.Offsides),
+        }));
+        grupos.Add(("Passes e criação", new()
+        {
+            L("Passes certos", "passes", e => e.PassesTotal, e => e.PassesCertos, "passes_precisao"),
+            L("Passes-chave", "passes_chave", e => e.PassesChave),
+            L("Dribles certos", "dribles", e => e.DriblesTentados, e => e.DriblesCertos, "dribles_precisao"),
+        }));
+        grupos.Add(("Defesa", new()
+        {
+            L("Duelos vencidos", "duelos", e => e.DuelosTotal, e => e.DuelosVencidos, "duelos_precisao"),
+            L("Desarmes", "desarmes", e => e.Desarmes),
+            L("Interceptações", "interceptacoes", e => e.Interceptacoes),
+            L("Bloqueios", "bloqueios", e => e.Bloqueios),
+            L("Dribles sofridos", "dribles_sofridos", e => e.DriblesSofridos),
+        }));
+        var ehGoleiro = PosicaoJogadorHelper.Setor(Model.Jogador.Posicao) == "GOL";
+        if (ehGoleiro || est.Any(e => e.Defesas > 0 || e.GolsSofridos > 0))
+            grupos.Add(("Goleiro", new()
+            {
+                L("Defesas", "defesas", e => e.Defesas),
+                L("Gols sofridos", "gols_sofridos", e => e.GolsSofridos),
+                L("Pênaltis defendidos", "penalti_defendido", e => e.PenaltiDefendido),
+            }));
+        grupos.Add(("Disciplina", new()
+        {
+            L("Faltas sofridas", "faltas_sofridas", e => e.FaltasSofridas),
+            L("Faltas cometidas", "faltas_cometidas", e => e.FaltasCometidas),
+            L("Cartões amarelos", "cartoes_amarelos", e => e.CartoesAmarelos),
+            L("Cartões vermelhos", "cartao_vermelho", e => e.CartoesVermelhos),
+        }));
+        grupos.Add(("Pênaltis", new()
+        {
+            L("Pênaltis sofridos", "penalti_sofrido", e => e.PenaltiSofrido),
+            L("Pênaltis cometidos", "penalti_cometido", e => e.PenaltiCometido),
+            L("Pênaltis perdidos", "penalti_perdido", e => e.PenaltiPerdido),
+        }));
+        // Grupo que nenhuma fonte do recorte publica some; pênaltis só com algo
+        grupos = grupos
+            .Where(g => g.Linhas.Any(l => l.Cobertos > 0))
+            .Where(g => g.Titulo != "Pênaltis" || g.Linhas.Any(l => l.Cobertos > 0 && !l.Zero))
+            .ToList();
+    }
+    var temCoberturaParcial = grupos.Any(g => g.Linhas.Any(l => l.Cobertos > 0 && l.Cobertos < est.Count));
+}
+
+<link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+<style>
+    .sj-page, .sj-page *, .sj-page *::before, .sj-page *::after { box-sizing: border-box; }
+    .sj-page {
+        background: var(--p-0); margin: 0 -12px; padding: 20px 16px 48px; color: var(--text);
+        font-family: 'Barlow', Arial, sans-serif; border-radius: 14px; overflow: hidden;
+    }
+    .sj-page a { text-decoration: none; }
+    .sj-page :is(a, button, input, select):focus-visible { outline: 2px solid #d4a520; outline-offset: 2px; }
+    .sj-wrap { max-width: 980px; margin: 0 auto; }
+
+    .sj-page .sj-voltar {
+        display: inline-flex; align-items: center; gap: 6px; margin-bottom: 14px; padding: 6px 2px;
+        font-size: .9rem; font-weight: 600; color: var(--text-muted); background: none; border: none; cursor: pointer; font-family: inherit;
+    }
+    .sj-page .sj-voltar:hover { color: var(--gold-ink); }
+
+    /* ── Cabeçalho (fundo escuro nos dois temas: cores fixas) ── */
+    .sj-cab {
+        background: linear-gradient(135deg, #0a1628 0%, #0f2040 55%, #0a1628 100%);
+        border-left: 4px solid #d4a520; border-radius: 14px; padding: 20px 22px; margin-bottom: 16px;
+        display: flex; align-items: center; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap;
+    }
+    .sj-cab-id { display: flex; align-items: center; gap: 14px; min-width: 0; }
+    .sj-foto { width: 64px; height: 64px; border-radius: 50%; overflow: hidden; flex-shrink: 0; background: #1e293b; border: 2px solid rgba(212,165,32,.5); }
+    .sj-foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .sj-cab h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 2rem; font-weight: 800; color: #f2f5fa; margin: 0; line-height: 1.05; }
+    .sj-cab-sub { font-size: .9rem; color: rgba(255,255,255,.72); margin-top: 4px; }
+    .sj-page .sj-btn {
+        display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; white-space: nowrap;
+        border: 1px solid rgba(255,255,255,.25); color: #e8edf5; font-size: .86rem; font-weight: 600;
+    }
+    .sj-page .sj-btn:hover { border-color: #d4a520; color: #f3d27a; }
+
+    .sj-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; }
+    .sj-card h2 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.3rem; font-weight: 700; color: var(--text-strong); margin: 0 0 10px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .sj-card h2 small { font-family: 'Barlow', Arial, sans-serif; font-size: .8rem; font-weight: 500; color: var(--text-dim); }
+    .sj-sem-dados { font-size: .9rem; color: var(--text-dim); margin: 0; }
+
+    /* ── Escolha dos jogos ── */
+    .sj-filtros { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; margin-bottom: 10px; }
+    .sj-filtros select {
+        min-width: 0; max-width: 100%; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line-strong);
+        background: var(--p-2); color: var(--text-strong); font-family: inherit; font-size: .88rem;
+    }
+    .sj-rapidos { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .sj-page .sj-chip {
+        padding: 5px 12px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--p-2);
+        color: var(--text-muted); font-family: inherit; font-size: .82rem; font-weight: 600; cursor: pointer;
+    }
+    .sj-page .sj-chip:hover { border-color: #d4a520; color: var(--gold-ink); }
+
+    .sj-lista { max-height: 380px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+    .sj-tab { width: 100%; border-collapse: collapse; font-size: .88rem; }
+    .sj-tab th {
+        position: sticky; top: 0; z-index: 1; background: var(--p-2); text-align: left; padding: 8px 10px;
+        font-size: .76rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: .03em; white-space: nowrap;
+    }
+    .sj-tab td { padding: 7px 10px; border-top: 1px solid var(--line-soft); color: var(--text-2); white-space: nowrap; vertical-align: middle; }
+    .sj-tab .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .sj-tab tbody tr { cursor: pointer; }
+    .sj-tab tbody tr:hover td { background: var(--p-3); }
+    .sj-tab tbody tr.marcado td { background: rgba(212,165,32,.10); }
+    .sj-tab input[type=checkbox] { width: 16px; height: 16px; accent-color: #d4a520; cursor: pointer; vertical-align: middle; }
+    .sj-adv { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text-strong); }
+    .sj-adv img { width: 18px; height: 18px; object-fit: contain; }
+    .sj-fora { font-size: .75rem; color: var(--text-dim); font-weight: 500; }
+    .sj-comp { color: var(--text-dim); max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+    .sj-res { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+    .sj-res-tag { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 5px; font-size: .72rem; font-weight: 800; background: var(--p-3); color: var(--text-muted); }
+    .sj-res-tag.V { background: rgba(34,197,94,.18); color: var(--ok); }
+    .sj-res-tag.E { background: rgba(234,179,8,.2); color: #b98a06; }
+    .sj-res-tag.D { background: rgba(239,68,68,.16); color: var(--bad); }
+
+    .sj-rodape { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+    .sj-contagem { font-size: .88rem; color: var(--text-muted); }
+    .sj-contagem strong { color: var(--text-strong); }
+    .sj-page .sj-somar {
+        padding: 9px 18px; border-radius: 8px; border: 1px solid #d4a520; background: #d4a520; color: #141414;
+        font-family: inherit; font-size: .92rem; font-weight: 700; cursor: pointer;
+    }
+    .sj-page .sj-somar:hover { background: #e2b532; }
+    .sj-page .sj-somar:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ── Destaques ── */
+    .sj-destaques { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 16px; }
+    .sj-dest { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+    .sj-dest-val { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.9rem; font-weight: 800; color: var(--text-strong); line-height: 1; font-variant-numeric: tabular-nums; }
+    .sj-dest-rot { font-size: .84rem; font-weight: 600; color: var(--text-muted); margin-top: 4px; }
+    .sj-dest-nota { font-size: .76rem; color: var(--text-dim); margin-top: 1px; }
+    .sj-dest.nota { border-color: rgba(212,165,32,.55); background: linear-gradient(180deg, rgba(212,165,32,.12), transparent 70%), var(--p-1); }
+    .sj-dest.nota .sj-dest-val { color: var(--gold-ink); }
+
+    /* ── Corpo ── */
+    .sj-corpo { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+    .sj-corpo .sj-card { margin-bottom: 0; }
+    .sj-coluna { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+    .sj-grupos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 24px; }
+    .sj-grupo h3 { font-size: .92rem; font-weight: 700; color: var(--gold-ink); margin: 8px 0 4px; display: flex; justify-content: space-between; gap: 8px; }
+    .sj-grupo h3 span { font-size: .72rem; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .03em; }
+    .sj-linhas { list-style: none; margin: 0; padding: 0; }
+    .sj-linha { display: grid; grid-template-columns: minmax(0, 1fr) auto 52px; gap: 2px 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--line-soft); font-size: .9rem; }
+    .sj-linha:last-child { border-bottom: none; }
+    .sj-linha-rot { color: var(--text-muted); }
+    .sj-linha-rot small { display: block; font-size: .74rem; color: var(--text-dim); }
+    .sj-linha-val { font-weight: 700; color: var(--text-strong); font-variant-numeric: tabular-nums; text-align: right; }
+    .sj-linha-val small { font-weight: 600; color: var(--text-dim); margin-left: 4px; }
+    .sj-linha-med { text-align: right; font-size: .84rem; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+    .sj-linha.sem .sj-linha-val { color: var(--text-dimmer); font-weight: 500; }
+    .sj-linha.zero .sj-linha-val { color: var(--text-dim); font-weight: 600; }
+    .sj-barra { grid-column: 1 / -1; height: 4px; border-radius: 999px; background: var(--p-3); overflow: hidden; }
+    .sj-barra > span { display: block; height: 100%; background: #d4a520; border-radius: inherit; }
+    .sj-aviso { font-size: .82rem; color: var(--text-dim); margin: 12px 0 0; }
+
+    .sj-page .sj-tab a.sj-ver { font-size: .78rem; font-weight: 600; color: var(--text-muted); padding: 4px 10px; border: 1px solid var(--line-strong); border-radius: 8px; }
+    .sj-page .sj-tab a.sj-ver:hover { border-color: #d4a520; color: var(--gold-ink); }
+    .sj-tab.resumo tbody tr { cursor: default; }
+
+    /* Mapa de calor */
+    .sj-heatmap-body { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .sj-sentido { display: flex; align-items: center; gap: 6px; font-size: .82rem; font-weight: 600; color: var(--text-muted); }
+    .sj-heatmap-pitch { position: relative; width: 100%; max-width: 260px; aspect-ratio: 68/105; border-radius: 6px; overflow: hidden; }
+    .sj-heatmap-legend { display: flex; align-items: center; gap: 8px; width: 100%; max-width: 260px; font-size: .78rem; color: var(--text-dim); }
+    .sj-heatmap-legend-bar { flex: 1; height: 5px; border-radius: 3px; background: linear-gradient(90deg, #4ade80, #facc15, #f97316, #ef4444); }
+
+    @@media (max-width: 820px) {
+        .sj-corpo { grid-template-columns: 1fr; }
+    }
+    @@media (max-width: 640px) {
+        .sj-page { padding: 14px 12px 40px; }
+        .sj-cab { padding: 16px; }
+        .sj-cab h1 { font-size: 1.6rem; }
+        .sj-card { padding: 14px; }
+        .sj-filtros select { flex: 1 1 100%; }
+        .sj-tab .sj-col-comp { display: none; }
+        .sj-destaques { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .sj-dest { padding: 10px; }
+        .sj-dest-val { font-size: 1.5rem; }
+        .sj-dest-rot { font-size: .78rem; }
+        .sj-grupos { grid-template-columns: 1fr; }
+        .sj-heatmap-pitch, .sj-heatmap-legend { max-width: 200px; }
+    }
+</style>
+
+<div class="sj-page">
+    <div class="sj-wrap">
+
+        <a class="sj-voltar" asp-action="Estatisticas" asp-route-id="@Model.Jogador.Id">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="15 18 9 12 15 6" /></svg>
+            Ficha do jogador
+        </a>
+
+        <header class="sj-cab theme-dark-zone">
+            <div class="sj-cab-id">
+                <div class="sj-foto">
+                    <img src="@(string.IsNullOrWhiteSpace(Model.Jogador.FotoUrl) ? "/images/placeholder-jogador.png" : Url.FotoSrc(Model.Jogador.FotoUrl))" alt=""
+                         onerror="this.onerror=null; this.src='/images/placeholder-jogador.png'" />
+                </div>
+                <div>
+                    <h1>@Model.Jogador.NomeExibicao</h1>
+                    <div class="sj-cab-sub">
+                        @if (sel.Any())
+                        {
+                            <text>Soma de @sel.Count @(sel.Count == 1 ? "jogo" : "jogos"): @vit V, @emp E, @der D</text>
+                        }
+                        else
+                        {
+                            <text>Escolha os jogos para somar as estatísticas dele</text>
+                        }
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Escolha dos jogos -->
+        <form class="sj-card" method="get" asp-action="SomaJogos" asp-route-id="@Model.Jogador.Id" id="sjForm">
+            <h2>Jogos <small>@Model.Jogos.Count em que ele entrou em campo</small></h2>
+
+            @if (!Model.Jogos.Any())
+            {
+                <p class="sj-sem-dados">Nenhum jogo com participação dele registrada ainda.</p>
+            }
+            else
+            {
+                <div class="sj-filtros">
+                    <select name="competicao" id="sjComp" aria-label="Filtrar por competição">
+                        <option value="">Todas as competições</option>
+                        @foreach (var c in competicoes)
+                        {
+                            <option value="@c.Id" selected="@(filtroComp == c.Id.ToString())">@c.Nome (@c.Qtd)</option>
+                        }
+                    </select>
+                    <select name="adversario" id="sjAdv" aria-label="Filtrar por adversário">
+                        <option value="">Todos os adversários</option>
+                        @foreach (var a in adversarios)
+                        {
+                            <option value="@a.Id" selected="@(filtroAdv == a.Id.ToString())">@a.Nome (@a.Qtd)</option>
+                        }
+                    </select>
+                </div>
+                <div class="sj-rapidos" role="group" aria-label="Seleção rápida">
+                    <button type="button" class="sj-chip" data-ultimos="3">Últimos 3</button>
+                    <button type="button" class="sj-chip" data-ultimos="5">Últimos 5</button>
+                    <button type="button" class="sj-chip" data-ultimos="10">Últimos 10</button>
+                    <button type="button" class="sj-chip" data-ultimos="0">Todos os filtrados</button>
+                    <button type="button" class="sj-chip" id="sjLimpar">Limpar</button>
+                </div>
+
+                <div class="sj-lista">
+                    <table class="sj-tab" id="sjTabela">
+                        <thead>
+                            <tr>
+                                <th scope="col"><span class="visually-hidden">Somar</span></th>
+                                <th scope="col">Data</th>
+                                <th scope="col">Adversário</th>
+                                <th scope="col" class="sj-col-comp">Competição</th>
+                                <th scope="col">Resultado</th>
+                                <th scope="col" class="num">Min.</th>
+                                <th scope="col" class="num">G</th>
+                                <th scope="col" class="num">A</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var j in Model.Jogos)
+                            {
+                                var marcado = idsSel.Contains(j.Jogo.Id);
+                                var temPlacar = j.GolsPro.HasValue && j.GolsContra.HasValue;
+                                <tr class="@(marcado ? "marcado" : "")" data-comp="@j.Jogo.CompeticaoId" data-adv="@j.Adversario?.Id">
+                                    <td>
+                                        <input type="checkbox" name="jogos" value="@j.Jogo.Id" checked="@marcado"
+                                               aria-label="Somar o jogo contra @(j.Adversario?.Nome ?? "?") em @DateHelper.FormatarData(j.Jogo.Data, "dd/MM/yyyy")" />
+                                    </td>
+                                    <td>@DateHelper.FormatarData(j.Jogo.Data, "dd/MM/yy")</td>
+                                    <td>
+                                        <span class="sj-adv">
+                                            @if (!string.IsNullOrEmpty(j.Adversario?.EscudoUrl))
+                                            {
+                                                <img src="@Escudo(j.Adversario.EscudoUrl)" alt="" loading="lazy" />
+                                            }
+                                            @(j.Adversario?.Nome ?? "?")
+                                            @if (!j.IsCasa) { <span class="sj-fora">fora</span> }
+                                        </span>
+                                    </td>
+                                    <td class="sj-comp sj-col-comp">@j.Jogo.Competicao?.Nome</td>
+                                    <td>
+                                        <span class="sj-res">
+                                            <span class="sj-res-tag @j.Resultado">@(j.Resultado == "?" ? "–" : j.Resultado)</span>
+                                            @(temPlacar ? $"{j.GolsPro} – {j.GolsContra}" : "–")
+                                        </span>
+                                    </td>
+                                    <td class="num">@(j.Minutos.HasValue ? $"{j.Minutos}'" : "—")</td>
+                                    <td class="num">@j.Gols</td>
+                                    <td class="num">@j.Assistencias</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="sj-rodape">
+                    <span class="sj-contagem" id="sjContagem" aria-live="polite"></span>
+                    <button type="submit" class="sj-somar" id="sjSomar">Somar jogos</button>
+                </div>
+            }
+        </form>
+
+        @if (sel.Any())
+        {
+            <!-- Destaques do recorte -->
+            <section class="sj-destaques" aria-label="Destaques">
+                @if (Model.MediaNota is double media)
+                {
+                    <div class="sj-dest nota">
+                        <div class="sj-dest-val">@NotaTxt(media)</div>
+                        <div class="sj-dest-rot">Nota média do site</div>
+                        @if (Model.JogosComNota < sel.Count)
+                        {
+                            <div class="sj-dest-nota">em @Model.JogosComNota de @sel.Count jogos</div>
+                        }
+                    </div>
+                }
+                @if (ratings.Any())
+                {
+                    <div class="sj-dest">
+                        <div class="sj-dest-val">@NotaTxt(ratings.Average())</div>
+                        <div class="sj-dest-rot">Nota média da api</div>
+                        @if (ratings.Count < sel.Count)
+                        {
+                            <div class="sj-dest-nota">em @ratings.Count de @sel.Count jogos</div>
+                        }
+                    </div>
+                }
+                <div class="sj-dest">
+                    <div class="sj-dest-val">@sel.Count</div>
+                    <div class="sj-dest-rot">@(sel.Count == 1 ? "Jogo" : "Jogos")</div>
+                    <div class="sj-dest-nota">@titulares como titular</div>
+                </div>
+                @if (minutos > 0)
+                {
+                    <div class="sj-dest">
+                        <div class="sj-dest-val">@(minutos)'</div>
+                        <div class="sj-dest-rot">Em campo</div>
+                        <div class="sj-dest-nota">@Num(Math.Round((double)minutos / sel.Count(s => s.Minutos.HasValue), 0))' por jogo</div>
+                    </div>
+                }
+                <div class="sj-dest">
+                    <div class="sj-dest-val">@gols</div>
+                    <div class="sj-dest-rot">Gols</div>
+                    @if (minutos >= 90 && gols > 0)
+                    {
+                        <div class="sj-dest-nota">um a cada @(minutos / gols)'</div>
+                    }
+                </div>
+                <div class="sj-dest">
+                    <div class="sj-dest-val">@assists</div>
+                    <div class="sj-dest-rot">Assistências</div>
+                </div>
+                <div class="sj-dest">
+                    <div class="sj-dest-val">@(gols + assists)</div>
+                    <div class="sj-dest-rot">Participações em gol</div>
+                    @if (minutos > 0)
+                    {
+                        <div class="sj-dest-nota">@Num(Math.Round((gols + assists) * 90.0 / minutos, 2)) por 90'</div>
+                    }
+                </div>
+            </section>
+
+            <div class="sj-corpo">
+                <div class="sj-coluna">
+                    <!-- Estatísticas somadas -->
+                    <section class="sj-card">
+                        <h2>Estatísticas somadas <small>total e média por jogo</small></h2>
+                        @if (!est.Any())
+                        {
+                            <p class="sj-sem-dados">Nenhum dos jogos selecionados tem estatística importada. Só gols e assistências entram na soma.</p>
+                        }
+                        else
+                        {
+                            <div class="sj-grupos">
+                                @foreach (var g in grupos)
+                                {
+                                    <div class="sj-grupo">
+                                        <h3>@g.Titulo <span>total · /jogo</span></h3>
+                                        <ul class="sj-linhas">
+                                            @foreach (var l in g.Linhas)
+                                            {
+                                                <li class="sj-linha @(l.Cobertos == 0 ? "sem" : l.Zero ? "zero" : "")">
+                                                    <span class="sj-linha-rot">
+                                                        @l.Rotulo
+                                                        @if (l.Cobertos > 0 && l.Cobertos < est.Count)
+                                                        {
+                                                            <small>em @l.Cobertos de @est.Count jogos</small>
+                                                        }
+                                                    </span>
+                                                    @if (l.Cobertos == 0)
+                                                    {
+                                                        <span class="sj-linha-val" title="Nenhuma fonte dos jogos selecionados informa este número">—</span>
+                                                        <span class="sj-linha-med"></span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="sj-linha-val">@l.Total @if (l.Pct is int p) { <small>@p%</small> }</span>
+                                                        <span class="sj-linha-med">@l.PorJogo</span>
+                                                        @if (l.Pct is int pb)
+                                                        {
+                                                            <span class="sj-barra" aria-hidden="true"><span style="width:@pb%"></span></span>
+                                                        }
+                                                    }
+                                                </li>
+                                            }
+                                        </ul>
+                                    </div>
+                                }
+                            </div>
+                            @if (semEstatistica > 0 || temCoberturaParcial)
+                            {
+                                <p class="sj-aviso">
+                                    @if (semEstatistica > 0)
+                                    {
+                                        <text>@semEstatistica dos @sel.Count jogos não @(semEstatistica == 1 ? "tem" : "têm") estatística importada; deles só contam gols e assistências.</text>
+                                    }
+                                    @if (temCoberturaParcial)
+                                    {
+                                        <text>Nem toda fonte publica todos os números: "em X de Y jogos" diz em quantos a soma e a média foram feitas.</text>
+                                    }
+                                    Onde aparece "—", o dado não veio da fonte, não é zero.
+                                </p>
+                            }
+                        }
+                    </section>
+
+                    <!-- Jogos somados -->
+                    <section class="sj-card">
+                        <h2>Jogos somados</h2>
+                        <div class="sj-lista" style="max-height:none;">
+                            <table class="sj-tab resumo">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Data</th>
+                                        <th scope="col">Adversário</th>
+                                        <th scope="col">Resultado</th>
+                                        <th scope="col" class="num">Min.</th>
+                                        <th scope="col" class="num">G</th>
+                                        <th scope="col" class="num">A</th>
+                                        <th scope="col" class="num">Nota</th>
+                                        <th scope="col"><span class="visually-hidden">Detalhe</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var j in sel)
+                                    {
+                                        var temPlacar = j.GolsPro.HasValue && j.GolsContra.HasValue;
+                                        <tr>
+                                            <td>@DateHelper.FormatarData(j.Jogo.Data, "dd/MM/yy")</td>
+                                            <td>
+                                                <span class="sj-adv">
+                                                    @if (!string.IsNullOrEmpty(j.Adversario?.EscudoUrl))
+                                                    {
+                                                        <img src="@Escudo(j.Adversario.EscudoUrl)" alt="" loading="lazy" />
+                                                    }
+                                                    @(j.Adversario?.Nome ?? "?")
+                                                    @if (!j.IsCasa) { <span class="sj-fora">fora</span> }
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="sj-res">
+                                                    <span class="sj-res-tag @j.Resultado">@(j.Resultado == "?" ? "–" : j.Resultado)</span>
+                                                    @(temPlacar ? $"{j.GolsPro} – {j.GolsContra}" : "–")
+                                                </span>
+                                            </td>
+                                            <td class="num">@(j.Minutos.HasValue ? $"{j.Minutos}'" : "—")</td>
+                                            <td class="num">@j.Gols</td>
+                                            <td class="num">@j.Assistencias</td>
+                                            <td class="num">@(j.Nota is double n ? NotaTxt(n) : "—")</td>
+                                            <td>
+                                                <a class="sj-ver" asp-action="EstatisticasJogo" asp-route-id="@Model.Jogador.Id" asp-route-jogoId="@j.Jogo.Id">Ver jogo</a>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Mapa de calor do recorte -->
+                <section class="sj-card">
+                    <h2>Mapa de calor</h2>
+                    @if (!Model.PontosHeatmap.Any())
+                    {
+                        <p class="sj-sem-dados">Sem posições salvas para ele nesses jogos. O mapa sai da escalação e das setas da análise de cada jogo.</p>
+                    }
+                    else
+                    {
+                        <div class="sj-heatmap-body">
+                            <div class="sj-sentido">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" /></svg>
+                                Ataca para cima
+                            </div>
+                            <div id="sjHeatmapCampo" class="sj-heatmap-pitch theme-dark-zone" role="img" aria-label="Mapa de calor das posições dele nos jogos somados">
+                                <svg viewBox="0 0 680 1050" xmlns="http://www.w3.org/2000/svg" style="position:absolute; inset:0; width:100%; height:100%;">
+                                    <rect width="680" height="1050" fill="#0d3d1f" />
+                                    <rect x="0" y="0" width="680" height="75" fill="#0e4221" opacity="0.5" />
+                                    <rect x="0" y="150" width="680" height="75" fill="#0e4221" opacity="0.5" />
+                                    <rect x="0" y="300" width="680" height="75" fill="#0e4221" opacity="0.5" />
+                                    <rect x="0" y="450" width="680" height="75" fill="#0e4221" opacity="0.5" />
+                                    <rect x="0" y="600" width="680" height="75" fill="#0e4221" opacity="0.5" />
+                                    <rect x="0" y="750" width="680" height="75" fill="#0e4221" opacity="0.5" />
+                                    <rect x="0" y="900" width="680" height="75" fill="#0e4221" opacity="0.5" />
+                                    <rect x="5" y="5" width="670" height="1040" rx="2" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="3" />
+                                    <line x1="5" y1="525" x2="675" y2="525" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                    <circle cx="340" cy="525" r="91.5" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                    <circle cx="340" cy="525" r="4" fill="rgba(255,255,255,0.5)" />
+                                    <rect x="129" y="5" width="422" height="132" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                    <rect x="229" y="5" width="222" height="55" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                    <circle cx="340" cy="116" r="4" fill="rgba(255,255,255,0.5)" />
+                                    <path d="M 251 137 A 91.5 91.5 0 0 0 429 137" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                    <rect x="273" y="0" width="134" height="18" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.35)" stroke-width="2" />
+                                    <rect x="129" y="913" width="422" height="132" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                    <rect x="229" y="990" width="222" height="55" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                    <circle cx="340" cy="934" r="4" fill="rgba(255,255,255,0.5)" />
+                                    <path d="M 251 913 A 91.5 91.5 0 0 1 429 913" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+                                    <rect x="273" y="1032" width="134" height="18" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.35)" stroke-width="2" />
+                                </svg>
+                            </div>
+                            <div class="sj-heatmap-legend">
+                                <span>Pouco tempo</span>
+                                <div class="sj-heatmap-legend-bar"></div>
+                                <span>Muito tempo</span>
+                            </div>
+                        </div>
+                    }
+                </section>
+            </div>
+        }
+
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (() => {
+            const tabela = document.getElementById('sjTabela');
+            if (!tabela) return;
+            const linhas = [...tabela.tBodies[0].rows];
+            const comp = document.getElementById('sjComp');
+            const adv = document.getElementById('sjAdv');
+            const contagem = document.getElementById('sjContagem');
+            const somar = document.getElementById('sjSomar');
+            const caixa = tr => tr.querySelector('input[type=checkbox]');
+            const visiveis = () => linhas.filter(tr => !tr.hidden);
+
+            function atualizar() {
+                linhas.forEach(tr => tr.classList.toggle('marcado', caixa(tr).checked));
+                const n = linhas.filter(tr => caixa(tr).checked).length;
+                const escondidos = linhas.filter(tr => tr.hidden && caixa(tr).checked).length;
+                contagem.innerHTML = n === 0
+                    ? 'Nenhum jogo selecionado'
+                    : `<strong>${n}</strong> ${n === 1 ? 'jogo selecionado' : 'jogos selecionados'}` +
+                      (escondidos ? `, ${escondidos} fora do filtro` : '');
+                somar.disabled = n === 0;
+                somar.textContent = n > 0 ? `Somar ${n} ${n === 1 ? 'jogo' : 'jogos'}` : 'Somar jogos';
+            }
+
+            function filtrar() {
+                linhas.forEach(tr => {
+                    tr.hidden = (comp.value && tr.dataset.comp !== comp.value) ||
+                                (adv.value && tr.dataset.adv !== adv.value);
+                });
+                atualizar();
+            }
+
+            // "Últimos N" e "Todos os filtrados" trocam a seleção inteira pelos
+            // jogos visíveis: filtrar um adversário e clicar aqui soma só os jogos
+            // contra ele. A lista já vem do mais recente para o mais antigo.
+            document.querySelectorAll('[data-ultimos]').forEach(b => b.addEventListener('click', () => {
+                const n = Number(b.dataset.ultimos);
+                linhas.forEach(tr => caixa(tr).checked = false);
+                (n > 0 ? visiveis().slice(0, n) : visiveis()).forEach(tr => caixa(tr).checked = true);
+                atualizar();
+            }));
+            document.getElementById('sjLimpar').addEventListener('click', () => {
+                linhas.forEach(tr => caixa(tr).checked = false);
+                atualizar();
+            });
+
+            // A linha inteira marca o jogo
+            linhas.forEach(tr => tr.addEventListener('click', ev => {
+                if (ev.target.closest('input, a')) return;
+                const c = caixa(tr);
+                c.checked = !c.checked;
+                atualizar();
+            }));
+            tabela.addEventListener('change', atualizar);
+            comp.addEventListener('change', filtrar);
+            adv.addEventListener('change', filtrar);
+            filtrar();
+        })();
+
+        @if (Model.PontosHeatmap.Any())
+        {
+            <text>
+        document.addEventListener('DOMContentLoaded', () => {
+            const pontos = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                Model.PontosHeatmap.Select(p => new { x = p.X, y = p.Y, peso = p.Peso })));
+            desenharMapaCalor('sjHeatmapCampo', pontos);
+            let t;
+            window.addEventListener('resize', () => {
+                clearTimeout(t);
+                t = setTimeout(() => desenharMapaCalor('sjHeatmapCampo', pontos), 150);
+            });
+        });
+            </text>
+        }
+    </script>
+}
