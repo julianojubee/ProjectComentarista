@@ -230,6 +230,22 @@ namespace ControleFutebolWeb.Services
             // de cada time desde o sorteio.
             var gruposPorTime = await BuscarGruposPorTimeAsync(leagueId, season, ct);
 
+            // Sem standings e sem fixture.league.group (Libertadores Feminina, Mundial
+            // Feminino Sub-17...), os grupos são deduzidos dos próprios confrontos.
+            var gruposInferidos = gruposPorTime.Count > 0
+                ? new Dictionary<long, GruposInferidosHelper.Inferencia>()
+                : GruposInferidosHelper.Inferir(fixtures
+                    .Where(f => string.IsNullOrWhiteSpace(f.League.Group) &&
+                                FaseJogoClassifier.Classificar(f.League.Round) != FaseCategoria.MataMata)
+                    .Select(f => new GruposInferidosHelper.Partida(
+                        f.Fixture.Id, f.Teams.Home.Id, f.Teams.Away.Id, f.Fixture.Date))
+                    .ToList());
+            if (gruposInferidos.Count > 0)
+                Log(context, cicloId, "Ciclo", "Grupos deduzidos",
+                    competicaoNome: competicao.Nome,
+                    detalhes: $"API sem grupos: {gruposInferidos.Values.Select(g => g.Grupo).Distinct().Count()} grupos " +
+                              "deduzidos dos confrontos (letras podem diferir do sorteio oficial)");
+
             foreach (var fx in fixtures)
             {
                 if (ct.IsCancellationRequested) break;
@@ -267,14 +283,17 @@ namespace ControleFutebolWeb.Services
                     // "Round of 16", "Quarter-finals"...) o próprio Round é o identificador —
                     // senão um time que jogou a fase de grupos carregaria seu grupo antigo
                     // (ex.: "Group E") para o mata-mata.
+                    gruposInferidos.TryGetValue(fx.Fixture.Id, out var inferido);
                     var grupo = grupoFixture
+                        ?? inferido?.Grupo
                         ?? (EhFaseDeGrupos(detalhado.League.Round)
                             ? ((gruposPorTime.TryGetValue(detalhado.Teams.Home.Id, out var gCasa) ? gCasa : null)
                                 ?? (gruposPorTime.TryGetValue(detalhado.Teams.Away.Id, out var gVis) ? gVis : null))
                             : detalhado.League.Round);
 
                     await IncluirOuAtualizarJogo(context, competicao,
-                        detalhado, timeCasa, timeVis, grupo, season, cicloId, ct);
+                        detalhado, timeCasa, timeVis, grupo, season, cicloId, ct,
+                        rodadaInferida: inferido?.Rodada ?? 0);
 
                     await context.SaveChangesAsync(ct);
                     jogosProcessados++;
@@ -1424,13 +1443,16 @@ namespace ControleFutebolWeb.Services
             string? grupo,
             int season,
             Guid cicloId,
-            CancellationToken ct)
+            CancellationToken ct,
+            int rodadaInferida = 0)
         {
             var data = fx.Fixture.Date.HasValue
                 ? fx.Fixture.Date.Value.UtcDateTime
                 : (DateTime?)null;
 
+            // Round sem número ("Group Stage") usa a rodada deduzida dos confrontos.
             var rodada = ParseRodada(fx.League.Round);
+            if (rodada == 0) rodada = rodadaInferida;
             var fixtureIdStr = $"apifoot:{fx.Fixture.Id}";
             var finalizado = StatusFinalizados.Contains(fx.Fixture.Status.Short);
 
@@ -1474,9 +1496,13 @@ namespace ControleFutebolWeb.Services
                 // então é substituído pelo round atual da API ("Regular Season - 15").
                 var grupoStaleDeLiga = !string.IsNullOrWhiteSpace(existente.Grupo) &&
                     FaseJogoClassifier.Classificar(existente.Grupo) == FaseCategoria.Indefinida;
+                // Jogo de grupo gravado com o round genérico ("World Cup Women U17 - 1") antes
+                // de o grupo ser conhecido — troca pela letra assim que ela aparece.
+                var grupoSemLetra = FaseJogoClassifier.Classificar(grupo) == FaseCategoria.Grupos &&
+                    FaseJogoClassifier.Classificar(existente.Grupo) != FaseCategoria.Grupos;
                 var grupoDesatualizado = string.IsNullOrWhiteSpace(existente.Grupo) ||
                     existente.Grupo.Equals("Group Stage", StringComparison.OrdinalIgnoreCase) ||
-                    grupoStaleDeGrupos || grupoStaleDeLiga;
+                    grupoStaleDeGrupos || grupoStaleDeLiga || grupoSemLetra;
                 if (grupoDesatualizado && !string.IsNullOrWhiteSpace(grupo))
                     existente.Grupo = grupo;
 
@@ -3013,9 +3039,14 @@ namespace ControleFutebolWeb.Services
 
         // ── Utilitários ───────────────────────────────────────────────────────
 
-        private static int ParseRodada(string round)
+        // A rodada é o número do fim do round ("Regular Season - 15"); só sem ele vale o
+        // primeiro número ("1/128-finals", "2nd Qualifying Round"). Pegar sempre o primeiro
+        // lia "World Cup Women U17 - 1" como rodada 17.
+        internal static int ParseRodada(string round)
         {
-            var m = Regex.Match(round, @"\d+");
+            var m = Regex.Match(round ?? "", @"-\s*(\d+)\s*$");
+            if (m.Success) return int.Parse(m.Groups[1].Value);
+            m = Regex.Match(round ?? "", @"\d+");
             return m.Success ? int.Parse(m.Value) : 0;
         }
 
