@@ -11,8 +11,8 @@ var AP_CFG = window.ANALISE_PUBLICA || {};
 var AP_TOKEN = AP_CFG.token || '';
 
 // Ordem das abas — a mesma dos botões montados em painel-jogo.js. Serve para o
-// atalho numérico (1-4) e para o vai-e-vem com as setas no modo apresentação.
-var AP_ABAS = ['notas', 'campo', 'stats', 'curio', 'obs'];
+// atalho numérico (1-6) e para o vai-e-vem com as setas no modo apresentação.
+var AP_ABAS = ['notas', 'campo', 'stats', 'momentum', 'curio', 'obs'];
 var AP_ABA_ATUAL = AP_ABAS.indexOf(AP_CFG.abaInicial) >= 0 ? AP_CFG.abaInicial : 'notas';
 
 // Nome global esperado pelos botões de aba montados em painel-jogo.js.
@@ -29,7 +29,10 @@ async function carregarAnalisePublica() {
             corpo.innerHTML = '<div class="pgj-vazio" style="padding:3rem 0;">Esta análise não está mais disponível.</div>';
             return;
         }
-        corpo.innerHTML = PainelJogo.montarPosJogo(await resp.json(), { somenteLeitura: true });
+        corpo.innerHTML = PainelJogo.montarPosJogo(await resp.json(), {
+            somenteLeitura: true,
+            momentumUrl: '/analise/' + encodeURIComponent(AP_TOKEN) + '/momentum'
+        });
         ativarTabPosJogo(AP_ABA_ATUAL);
     } catch (e) {
         corpo.innerHTML = '<div class="pgj-vazio" style="padding:3rem 0;">Erro ao carregar a análise.</div>';
@@ -66,7 +69,7 @@ document.addEventListener('keydown', function (e) {
 // ── Modo apresentação: troca de aba pelo teclado ────────────────────────────
 // O CSS esconde o cursor no palco justamente porque o mouse aparece na
 // gravação. Sem atalho, o modo ficaria sem como navegar.
-//   1-4     aba direta        setas ←/→   aba anterior/próxima
+//   1-6     aba direta        setas ←/→   aba anterior/próxima
 if (AP_CFG.tv) {
     document.addEventListener('keydown', function (e) {
         // Com o modal do pré-jogo aberto, o teclado é dele (Escape fecha).
@@ -75,7 +78,7 @@ if (AP_CFG.tv) {
 
         var idx = AP_ABAS.indexOf(AP_ABA_ATUAL);
 
-        if (e.key >= '1' && e.key <= '4') {
+        if (e.key >= '1' && e.key <= String(AP_ABAS.length)) {
             ativarTabPosJogo(AP_ABAS[Number(e.key) - 1]);
         } else if (e.key === 'ArrowRight') {
             ativarTabPosJogo(AP_ABAS[(idx + 1) % AP_ABAS.length]);

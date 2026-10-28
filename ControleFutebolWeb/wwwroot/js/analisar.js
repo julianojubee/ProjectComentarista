@@ -2371,7 +2371,8 @@
     // O HTML do pós-jogo é montado em painel-jogo.js, compartilhado com a página
     // pública /analise/{token}. Aqui é sempre o modo de edição.
     function montarPosJogo(d) {
-        return PainelJogo.montarPosJogo(d, { somenteLeitura: false });
+        var jogoId = document.getElementById('modal-posjogo').dataset.jogoId;
+        return PainelJogo.montarPosJogo(d, { somenteLeitura: false, momentumUrl: '/Jogos/Momentum/' + jogoId });
     }
 
     // (montarObservacoes/rotuloTipoObs vivem em painel-jogo.js)

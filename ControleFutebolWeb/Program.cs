@@ -94,6 +94,7 @@ internal class Program
         builder.Services.AddScoped<RatingAutomaticoService>();
         builder.Services.AddScoped<TransmissaoJogoService>();
         builder.Services.AddScoped<PainelJogoService>();
+        builder.Services.AddScoped<MomentumJogoService>();
         builder.Services.AddScoped<CraqueDaPartidaService>();
         builder.Services.AddScoped<MarcacaoVideoService>();
         builder.Services.AddScoped<AnaliseVideoJogadaService>();

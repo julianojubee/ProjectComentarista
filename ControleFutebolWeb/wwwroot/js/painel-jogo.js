@@ -292,10 +292,107 @@
             '<div class="pgj-curio-rodape">Comparado com os jogos ' + (d.competicao ? 'de ' + escHtml(d.competicao) + ' ' : 'do campeonato ') + 'antes desta partida; recordes pessoais também olham a temporada inteira.</div>';
     }
 
+    // ── Momentum: curva de pressão minuto a minuto ─────────────────────────
+    // Carregada só quando a aba é aberta (opcoes.momentumUrl): a busca no FotMob
+    // pode levar alguns segundos e o resto do pós-jogo não espera por ela.
+    // Cores fixas e não as da camisa, pelo mesmo motivo das barras de estatística:
+    // dois times de branco sumiriam no fundo.
+    var MOM_CASA = '#d4a520', MOM_VIS = '#38bdf8';
+    var momentumUrl = null;
+
+    function momentumSvg(d) {
+        var W = 760, H = 240, topo = 24, base = 36, meio = topo + (H - topo - base) / 2, alt = (H - topo - base) / 2;
+        var pts = d.pontos || [];
+        var fim = Math.max(90, pts.length ? pts[pts.length - 1].m : 90);
+        (d.eventos || []).forEach(function (e) { if (e.minuto > fim) fim = e.minuto; });
+        var x = function (m) { return Math.max(0, Math.min(W, m / fim * W)); };
+
+        var barras = pts.map(function (p, i) {
+            var prox = i + 1 < pts.length ? pts[i + 1].m : Math.min(fim, p.m + 1);
+            var largura = Math.max(1, x(prox) - x(p.m) - 0.6);
+            var h = Math.abs(p.v) / 100 * alt;
+            if (h < 0.5) return '';
+            var y = p.v > 0 ? meio - h : meio;
+            return '<rect x="' + x(p.m).toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + largura.toFixed(1) + '" height="' + h.toFixed(1) +
+                '" fill="' + (p.v > 0 ? MOM_CASA : MOM_VIS) + '" rx="1"><title>' + Math.floor(p.m) + "': " + Math.abs(p.v) + ' ' +
+                escHtml(p.v > 0 ? d.casa : d.visitante) + '</title></rect>';
+        }).join('');
+
+        var marcas = [0, 15, 30, 45, 60, 75, 90].concat(fim > 95 ? [105, 120] : []).filter(function (m) { return m <= fim; });
+        var eixo = marcas.map(function (m) {
+            return '<text x="' + x(m).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="' + (m === 0 ? 'start' : 'middle') + '" class="pgj-mom-tick">' + m + "'</text>";
+        }).join('');
+
+        var eventos = (d.eventos || []).map(function (e) {
+            var cx = x(e.minuto), cy = e.casa ? 11 : H - base + 9;
+            var icone = e.tipo === 'gol'
+                ? '<circle cx="' + cx.toFixed(1) + '" cy="' + (cy + 1) + '" r="6" class="pgj-mom-gol" stroke="' + (e.casa ? MOM_CASA : MOM_VIS) + '"/>'
+                : '<rect x="' + (cx - 3.5).toFixed(1) + '" y="' + (cy - 4) + '" width="7" height="10" rx="1" fill="#ef4444"/>';
+            return '<g><title>' + escHtml(e.texto) + '</title>' +
+                '<line x1="' + cx.toFixed(1) + '" x2="' + cx.toFixed(1) + '" y1="' + topo + '" y2="' + (H - base) + '" class="pgj-mom-evt-linha"/>' +
+                icone + '</g>';
+        }).join('');
+
+        return '<svg class="pgj-mom-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Momentum da partida minuto a minuto">' +
+            '<line x1="0" x2="' + W + '" y1="' + meio + '" y2="' + meio + '" class="pgj-mom-zero"/>' +
+            (fim >= 45 ? '<line x1="' + x(45) + '" x2="' + x(45) + '" y1="' + topo + '" y2="' + (H - base) + '" class="pgj-mom-intervalo"/>' : '') +
+            barras + eventos + eixo +
+        '</svg>';
+    }
+
+    function montarMomentum(d) {
+        if (d.vazio) return '<div class="pgj-vazio">' + escHtml(d.vazio) + '</div>';
+
+        var dominio = d.dominioCasa != null
+            ? '<div class="pgj-mom-dominio">' +
+                  '<span style="color:' + MOM_CASA + '">' + d.dominioCasa + '%</span>' +
+                  '<div class="pgj-mom-dominio-bar"><div style="width:' + d.dominioCasa + '%;background:' + MOM_CASA + '"></div><div style="width:' + d.dominioVisitante + '%;background:' + MOM_VIS + '"></div></div>' +
+                  '<span style="color:' + MOM_VIS + '">' + d.dominioVisitante + '%</span>' +
+              '</div>'
+            : '';
+
+        var periodos = (d.periodos || []).map(function (p) {
+            var cor = p.casa ? MOM_CASA : MOM_VIS;
+            return '<li><span class="pgj-mom-dot" style="background:' + cor + '"></span>' +
+                '<b>' + p.inicio + "'–" + p.fim + "'</b> pressão de " + escHtml(p.casa ? d.casa : d.visitante) + '</li>';
+        }).join('');
+
+        return '<div class="pgj-stats-card">' +
+            '<div class="pgj-stats-head">' +
+                '<div class="pgj-stats-head-team" style="--cor:' + MOM_CASA + '"><span>' + escHtml(d.casa) + '</span></div>' +
+                '<span class="pgj-stats-title">Domínio na partida</span>' +
+                '<div class="pgj-stats-head-team direita" style="--cor:' + MOM_VIS + '"><span>' + escHtml(d.visitante) + '</span></div>' +
+            '</div>' +
+            '<div class="pgj-mom-corpo">' + dominio + momentumSvg(d) +
+                '<div class="pgj-mom-legenda">Barra para cima: ' + escHtml(d.casa) + ' em cima. Para baixo: ' + escHtml(d.visitante) + '. ' +
+                    'Bola marca gol, cartão vermelho marca expulsão; passe o mouse para ver o lance. ' + escHtml(d.fonteTxt) + '.</div>' +
+            '</div>' +
+        '</div>' +
+        (periodos ? '<div class="pgj-stats-card"><div class="pgj-stats-head"><span class="pgj-stats-title">Momentos de maior pressão</span></div>' +
+            '<ul class="pgj-mom-periodos">' + periodos + '</ul></div>' : '');
+    }
+
+    function carregarMomentum() {
+        var alvo = document.getElementById('pgj-momentum');
+        if (!alvo || alvo.dataset.carregado || !momentumUrl) return;
+        alvo.dataset.carregado = '1';
+        fetch(momentumUrl).then(function (r) {
+            if (!r.ok) throw new Error(r.status);
+            return r.json();
+        }).then(function (d) {
+            alvo.innerHTML = montarMomentum(d);
+        }).catch(function () {
+            alvo.dataset.carregado = '';
+            alvo.innerHTML = '<div class="pgj-vazio">Não deu para carregar o momentum agora. Abra a aba de novo para tentar outra vez.</div>';
+        });
+    }
+
     // HTML completo do pós-jogo (hero + abas + painéis).
     // opcoes: { somenteLeitura: bool }
+    // opcoes.momentumUrl: endpoint da aba Momentum (sem ele a aba não aparece).
     function montarPosJogo(d, opcoes) {
         var op = opcoes || {};
+        momentumUrl = op.momentumUrl || null;
         var escCasa = d.casa && d.casa.escudo ? '<img src="' + d.casa.escudo + '" alt="">' : '';
         var escVis = d.visitante && d.visitante.escudo ? '<img src="' + d.visitante.escudo + '" alt="">' : '';
 
@@ -334,6 +431,7 @@
             '<button type="button" class="pgj-tab" role="tab" data-pgj-tab="notas" onclick="ativarTabPosJogo(\'notas\')">Notas</button>' +
             '<button type="button" class="pgj-tab" role="tab" data-pgj-tab="campo" onclick="ativarTabPosJogo(\'campo\')">Campo</button>' +
             '<button type="button" class="pgj-tab" role="tab" data-pgj-tab="stats" onclick="ativarTabPosJogo(\'stats\')">Estatísticas</button>' +
+            (momentumUrl ? '<button type="button" class="pgj-tab" role="tab" data-pgj-tab="momentum" onclick="ativarTabPosJogo(\'momentum\')">Momentum</button>' : '') +
             '<button type="button" class="pgj-tab" role="tab" data-pgj-tab="curio" onclick="ativarTabPosJogo(\'curio\')">Curiosidades' + (nCurio ? ' <span class="pgj-tab-n">' + nCurio + '</span>' : '') + '</button>' +
             '<button type="button" class="pgj-tab" role="tab" data-pgj-tab="obs" onclick="ativarTabPosJogo(\'obs\')">Observações' + (nObs ? ' <span class="pgj-tab-n">' + nObs + '</span>' : '') + '</button>' +
         '</div>';
@@ -397,11 +495,15 @@
             (!statsRows && !destaquesCards ? '<div class="pgj-vazio">Estatísticas ainda não disponíveis para esta partida.</div>' : '') +
         '</div>';
 
+        var painelMomentum = momentumUrl
+            ? '<div class="pgj-panel" id="pgj-panel-momentum"><div id="pgj-momentum"><div class="pgj-vazio">Carregando o momentum…</div></div></div>'
+            : '';
+
         var painelCurio = '<div class="pgj-panel" id="pgj-panel-curio">' + montarCuriosidades(d, op) + '</div>';
 
         var painelObs = '<div class="pgj-panel" id="pgj-panel-obs">' + montarObservacoes(d, op) + '</div>';
 
-        return hero + tabs + '<div class="pgj-content">' + painelNotas + painelCampo + painelStats + painelCurio + painelObs + '</div>';
+        return hero + tabs + '<div class="pgj-content">' + painelNotas + painelCampo + painelStats + painelMomentum + painelCurio + painelObs + '</div>';
     }
 
     function ativarTab(tab) {
@@ -411,6 +513,7 @@
             b.setAttribute('aria-selected', ativa ? 'true' : 'false');
         });
         document.querySelectorAll('.pgj-panel').forEach(function (p) { p.classList.toggle('active', p.id === 'pgj-panel-' + tab); });
+        if (tab === 'momentum') carregarMomentum();
     }
 
     // ── Pré-jogo: uma coluna por time (V/E/D, forma, destaques, observações) ──

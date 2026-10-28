@@ -27,11 +27,13 @@ namespace ControleFutebolWeb.Controllers
     {
         private readonly FutebolContext _context;
         private readonly PainelJogoService _paineis;
+        private readonly MomentumJogoService _momentum;
 
-        public AnalisePublicaController(FutebolContext context, PainelJogoService paineis)
+        public AnalisePublicaController(FutebolContext context, PainelJogoService paineis, MomentumJogoService momentum)
         {
             _context = context;
             _paineis = paineis;
+            _momentum = momentum;
         }
 
         private string? ImagemUrl(string url) => Url.Action("Imagem", "MediaProxy", new { url });
@@ -67,7 +69,7 @@ namespace ControleFutebolWeb.Controllers
         // ?tab=... só aceita as abas do painel — o valor entra no HTML e
         // vira chamada de JS, então nada de string arbitrária da URL.
         private static string NormalizarAba(string? tab) =>
-            tab is "notas" or "campo" or "stats" or "curio" or "obs" ? tab : "notas";
+            tab is "notas" or "campo" or "stats" or "momentum" or "curio" or "obs" ? tab : "notas";
 
         // GET /analise/{token} — a página em si (casca; o conteúdo vem por JSON).
         [HttpGet("{token}")]
@@ -120,6 +122,18 @@ namespace ControleFutebolWeb.Controllers
             if (link == null) return NotFound();
 
             var dados = await _paineis.PosJogoAsync(link.JogoId, link.UsuarioId, ImagemUrl);
+            return dados == null ? NotFound() : Json(dados);
+        }
+
+        // GET /analise/{token}/momentum — aba Momentum do pós-jogo. Pode consultar o
+        // FotMob (gratuito, com cache em memória por partida) e não grava nada.
+        [HttpGet("{token}/momentum")]
+        public async Task<IActionResult> Momentum(string token, CancellationToken ct)
+        {
+            var link = await BuscarLinkAsync(token);
+            if (link == null) return NotFound();
+
+            var dados = await _momentum.MontarAsync(link.JogoId, link.UsuarioId, ct);
             return dados == null ? NotFound() : Json(dados);
         }
 

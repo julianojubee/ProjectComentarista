@@ -31,12 +31,14 @@ namespace ControleFutebolWeb.Controllers
         private readonly TooltipJogadorService _tooltip;
         private readonly FotMobPerfilService _fotmobPerfil;
         private readonly FotMobService _fotmob;
+        private readonly MomentumJogoService _momentum;
 
         public JogosPreJogoController(FutebolContext context, ILogger<JogosPreJogoController> logger,
             ApiFootballService transfermarkt, UserManager<ApplicationUser> userManager,
             PainelJogoService paineis, TooltipJogadorService tooltip, FotMobPerfilService fotmobPerfil,
-            FotMobService fotmob)
+            FotMobService fotmob, MomentumJogoService momentum)
         {
+            _momentum = momentum;
             _fotmob = fotmob;
             _context = context;
             _logger = logger;
@@ -514,6 +516,15 @@ namespace ControleFutebolWeb.Controllers
         {
             var usuarioId = _userManager.GetUserId(User);
             var dados = await _paineis.PosJogoAsync(id, usuarioId, ImagemUrl, registrarCuriosidades: usuarioId != null);
+            return dados == null ? NotFound() : Json(dados);
+        }
+
+        // GET: Jogos/Momentum/5 — aba Momentum do pós-jogo, carregada só quando a aba
+        // é aberta (a busca no FotMob pode demorar; ver MomentumJogoService).
+        [HttpGet]
+        public async Task<IActionResult> Momentum(int id, CancellationToken ct)
+        {
+            var dados = await _momentum.MontarAsync(id, _userManager.GetUserId(User), ct);
             return dados == null ? NotFound() : Json(dados);
         }
     }
