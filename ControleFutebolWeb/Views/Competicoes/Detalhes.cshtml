@@ -1,4 +1,4 @@
-﻿@model ControleFutebolWeb.Models.ViewModels.CompeticaoDetalhesViewModel
+@model ControleFutebolWeb.Models.ViewModels.CompeticaoDetalhesViewModel
 @using ControleFutebolWeb.Helpers
 @using ControleFutebolWeb.Controllers
 @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.OptionTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
@@ -510,7 +510,7 @@
                         {
                             <div class="cd-layout">
                                 @if (temTabelaGeral) { @await Html.PartialAsync("_PainelClassificacao", f.Classificacao) } else { @await Html.PartialAsync("_PainelClassificacao", f.Classificacao, vdZonas) }
-                                @await Html.PartialAsync("_DetalhesSidebar", Model.ProximosJogos)
+                                @await Html.PartialAsync("_DetalhesSidebar", Model.ProximosJogos, new ViewDataDictionary(ViewData) { ["PainelJogos"] = Model.PainelJogos })
                             </div>
                         }
                     </div>
@@ -523,7 +523,7 @@
                 <div class="cd-panel" id="cd-panel-classif" style="@(tabInicial == "classif" ? "" : "display:none;")">
                     <div class="cd-layout">
                         @await Html.PartialAsync("_PainelClassificacao", Model.Classificacao, vdZonas)
-                        @await Html.PartialAsync("_DetalhesSidebar", Model.ProximosJogos)
+                        @await Html.PartialAsync("_DetalhesSidebar", Model.ProximosJogos, new ViewDataDictionary(ViewData) { ["PainelJogos"] = Model.PainelJogos })
                     </div>
                 </div>
             }

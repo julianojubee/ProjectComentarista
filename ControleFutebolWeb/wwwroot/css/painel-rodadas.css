@@ -1,0 +1,51 @@
+/* ── Painel "Jogos" por rodada (Views/Shared/_PainelJogosRodadas.cshtml) ──
+   Champions, Libertadores e Sul-Americana. Uma rodada por vez, linhas compactas
+   agrupadas por dia. Preso no topo ao rolar e com rolagem própria: antes as telas
+   listavam os jogos em cards grandes e a coluna ficava mais comprida que a tabela.
+   --pjr-acento: cor do rótulo da rodada, definida por quem usa o painel. */
+.pjr {
+    position: sticky; top: 16px; display: flex; flex-direction: column;
+    max-height: calc(100vh - 32px); background: var(--p-1); border: 1px solid var(--line);
+    border-radius: 14px; overflow: hidden; font-family: 'Barlow', Arial, sans-serif;
+}
+.pjr *, .pjr *::before, .pjr *::after { box-sizing: border-box; }
+.pjr-head { display: flex; align-items: center; gap: 6px; padding: 10px 10px 9px; border-bottom: 1px solid var(--line); background: var(--p-0); }
+.pjr-titulo { flex: 1; min-width: 0; text-align: center; line-height: 1.15; }
+.pjr-titulo span { display: block; font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.25rem; font-weight: 800; color: var(--text-strong); }
+.pjr-titulo strong { display: block; font-size: .8rem; font-weight: 600; color: var(--pjr-acento, var(--gold-ink)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pjr-nav {
+    width: 32px; height: 32px; flex-shrink: 0; border-radius: 8px; border: 1px solid var(--line-strong);
+    background: var(--p-1); color: var(--text-2); font-size: 1.1rem; line-height: 1; cursor: pointer;
+}
+.pjr-nav:hover:not(:disabled) { background: var(--p-4); color: var(--text-strong); }
+.pjr-nav:disabled { opacity: .35; cursor: default; }
+.pjr-nav:focus-visible, .pjr-jogo:focus-visible { outline: 2px solid #d4a520; outline-offset: -2px; }
+.pjr-corpo { overflow-y: auto; padding: 4px 0 8px; }
+.pjr-rodada[hidden] { display: none; }
+.pjr-dia { padding: 10px 14px 4px; font-size: .76rem; font-weight: 700; color: var(--text-muted); text-transform: capitalize; }
+.pjr-jogo {
+    display: grid; grid-template-columns: minmax(0, 1fr) 58px minmax(0, 1fr); align-items: center; gap: 6px;
+    padding: 7px 12px; color: var(--text); text-decoration: none; border-top: 1px solid var(--line-soft);
+}
+.pjr-dia + .pjr-jogo { border-top: none; }
+.pjr-jogo:hover { background: var(--p-3); color: var(--text-strong); }
+.pjr-time { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: .82rem; font-weight: 600; }
+.pjr-time.casa { justify-content: flex-end; text-align: right; }
+.pjr-time span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pjr-time img { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
+.pjr-time.perdeu { color: var(--text-muted); font-weight: 500; }
+.pjr-meio { text-align: center; font-family: 'Barlow Condensed', Arial, sans-serif; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.pjr-placar { font-size: 1.02rem; font-weight: 800; color: var(--text-strong); background: var(--p-4); border-radius: 6px; padding: 1px 6px; }
+.pjr-pen { display: block; font-size: .72rem; font-weight: 600; color: var(--text-muted); margin-top: 2px; }
+.pjr-hora { font-size: .86rem; font-weight: 700; color: var(--text-muted); }
+.pjr-vazio { padding: 1.5rem 1rem; text-align: center; color: var(--text-dim); font-size: .88rem; }
+
+/* Variante para colunas com outros blocos embaixo (artilheiros nas telas
+   genéricas de competição): preso no topo ele cobriria esses blocos ao rolar */
+.pjr.pjr-estatico { position: static; max-height: none; }
+.pjr.pjr-estatico .pjr-corpo { max-height: 440px; }
+
+@media (max-width: 992px) {
+    .pjr { position: static; max-height: none; }
+    .pjr-corpo { max-height: 520px; }
+}

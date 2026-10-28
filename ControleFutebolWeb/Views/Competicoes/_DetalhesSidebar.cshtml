@@ -1,4 +1,4 @@
-﻿@using ControleFutebolWeb.Controllers
+@using ControleFutebolWeb.Controllers
 @model List<ControleFutebolWeb.Models.Jogo>
 
 @{
@@ -8,33 +8,12 @@
 }
 
 <div class="cd-sidebar">
-    @* Só aparece com jogo agendado: vazio, repetia o "Nenhum jogo agendado" da aba
-       Próximos jogos e empurrava os artilheiros para baixo. *@
-    @if (Model.Any())
+    @* Jogos da temporada, uma rodada por vez (painel compartilhado com as telas
+       de Champions e Libertadores). Não prende no topo: os artilheiros vêm embaixo. *@
+    @if (ViewData["PainelJogos"] is ControleFutebolWeb.Models.ViewModels.PainelJogosRodadasViewModel painel && painel.Rodadas.Any())
     {
-    <div class="cd-side-card">
-        <div class="cd-side-header"><span class="cd-side-title">Próximos jogos</span></div>
-        @foreach (var j in Model.Take(4))
-            {
-                <div class="cd-mini-jogo">
-                    <a class="cd-mini-lado casa" asp-controller="Times" asp-action="Details" asp-route-id="@j.TimeCasaId" title="Ver @j.TimeCasa?.Nome">
-                        <span>@j.TimeCasa?.Nome</span>
-                        @if (!string.IsNullOrEmpty(j.TimeCasa?.EscudoUrl))
-                        {
-                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.TimeCasa.EscudoUrl })" alt="" />
-                        }
-                    </a>
-                    <span class="cd-mini-hora">@DateHelper.FormatarData(j.Data, "dd/MM")</span>
-                    <a class="cd-mini-lado" asp-controller="Times" asp-action="Details" asp-route-id="@j.TimeVisitanteId" title="Ver @j.TimeVisitante?.Nome">
-                        @if (!string.IsNullOrEmpty(j.TimeVisitante?.EscudoUrl))
-                        {
-                            <img src="@Url.Action("Imagem", "MediaProxy", new { url = j.TimeVisitante.EscudoUrl })" alt="" />
-                        }
-                        <span>@j.TimeVisitante?.Nome</span>
-                    </a>
-                </div>
-            }
-    </div>
+        ViewData["PainelEstatico"] = true;
+        @await Html.PartialAsync("_PainelJogosRodadas", painel)
     }
 
     <div class="cd-side-card">

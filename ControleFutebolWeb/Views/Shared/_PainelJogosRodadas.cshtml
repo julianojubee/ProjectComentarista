@@ -1,0 +1,102 @@
+@model ControleFutebolWeb.Models.ViewModels.PainelJogosRodadasViewModel
+@* Painel "Jogos" das telas de competição: uma rodada por vez (‹ › navegam), linhas
+   compactas agrupadas por dia, a linha inteira leva para Analisar. Fica preso no
+   topo ao rolar e rola por dentro. A cor de destaque vem de --pjr-acento, definida
+   pela tela (dourado na Champions e na Libertadores, laranja na Sul-Americana).
+   ViewData["PainelEstatico"] = true: não prende no topo (coluna com outros blocos
+   embaixo). Estilos em wwwroot/css/painel-rodadas.css. *@
+@{
+    var rodadas = Model?.Rodadas ?? new List<ControleFutebolWeb.Models.ViewModels.RodadaJogosViewModel>();
+    var atual = Math.Clamp(Model?.Atual ?? 0, 0, Math.Max(0, rodadas.Count - 1));
+    var culturaBr = new System.Globalization.CultureInfo("pt-BR");
+}
+<link rel="stylesheet" href="~/css/painel-rodadas.css" asp-append-version="true" />
+<aside class="pjr @(ViewData["PainelEstatico"] is true ? "pjr-estatico" : "")" aria-label="Jogos por rodada">
+    @if (!rodadas.Any())
+    {
+        <div class="pjr-vazio">Nenhum jogo encontrado.</div>
+    }
+    else
+    {
+        <div class="pjr-head">
+            <button type="button" class="pjr-nav" data-pjr-ant aria-label="Rodada anterior" title="Rodada anterior">&#8249;</button>
+            <div class="pjr-titulo" aria-live="polite">
+                <span>Jogos</span>
+                <strong data-pjr-rotulo>@rodadas[atual].Rotulo</strong>
+            </div>
+            <button type="button" class="pjr-nav" data-pjr-prox aria-label="Próxima rodada" title="Próxima rodada">&#8250;</button>
+        </div>
+        <div class="pjr-corpo">
+            @for (int r = 0; r < rodadas.Count; r++)
+            {
+                var rodada = rodadas[r];
+                <div class="pjr-rodada" data-rotulo="@rodada.Rotulo" hidden="@(r != atual)">
+                    @foreach (var dia in rodada.Jogos.GroupBy(j => ControleFutebolWeb.Helpers.DateHelper.ParaBrasilia(j.Data)?.Date))
+                    {
+                        <div class="pjr-dia">@(dia.Key?.ToString("ddd, dd/MM", culturaBr) ?? "Sem data")</div>
+                        @foreach (var jogo in dia)
+                        {
+                            bool realizado = jogo.PlacarCasa.HasValue && jogo.PlacarVisitante.HasValue;
+                            bool temPenaltis = realizado && jogo.PenaltisCasa.HasValue && jogo.PenaltisVisitante.HasValue;
+                            // Quem perdeu fica apagado; empate decidido nos pênaltis conta os pênaltis
+                            int saldo = !realizado ? 0
+                                : jogo.PlacarCasa!.Value != jogo.PlacarVisitante!.Value ? jogo.PlacarCasa.Value - jogo.PlacarVisitante.Value
+                                : temPenaltis ? jogo.PenaltisCasa!.Value - jogo.PenaltisVisitante!.Value : 0;
+                            <a class="pjr-jogo" asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id"
+                               title="Analisar @jogo.TimeCasa?.Nome x @jogo.TimeVisitante?.Nome">
+                                <span class="pjr-time casa @(saldo < 0 ? "perdeu" : "")">
+                                    <span>@jogo.TimeCasa?.Nome</span>
+                                    @if (!string.IsNullOrEmpty(jogo.TimeCasa?.EscudoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa.EscudoUrl })" alt="" loading="lazy" />
+                                    }
+                                </span>
+                                <span class="pjr-meio">
+                                    @if (realizado)
+                                    {
+                                        <span class="pjr-placar">@jogo.PlacarCasa-@jogo.PlacarVisitante</span>
+                                        @if (temPenaltis)
+                                        {
+                                            <span class="pjr-pen" title="Pênaltis">(@jogo.PenaltisCasa-@jogo.PenaltisVisitante)</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="pjr-hora">@ControleFutebolWeb.Helpers.DateHelper.FormatarData(jogo.Data, "HH:mm")</span>
+                                    }
+                                </span>
+                                <span class="pjr-time @(saldo > 0 ? "perdeu" : "")">
+                                    @if (!string.IsNullOrEmpty(jogo.TimeVisitante?.EscudoUrl))
+                                    {
+                                        <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante.EscudoUrl })" alt="" loading="lazy" />
+                                    }
+                                    <span>@jogo.TimeVisitante?.Nome</span>
+                                </span>
+                            </a>
+                        }
+                    }
+                </div>
+            }
+        </div>
+    }
+</aside>
+<script>
+    (function (painel) {
+        var rodadas = painel.querySelectorAll('.pjr-rodada');
+        if (!rodadas.length) return;
+        var atual = Array.prototype.findIndex.call(rodadas, function (r) { return !r.hidden; });
+        var ant = painel.querySelector('[data-pjr-ant]'), prox = painel.querySelector('[data-pjr-prox]');
+        var rotulo = painel.querySelector('[data-pjr-rotulo]'), corpo = painel.querySelector('.pjr-corpo');
+        function mostrar(i) {
+            atual = Math.max(0, Math.min(rodadas.length - 1, i));
+            rodadas.forEach(function (r, k) { r.hidden = k !== atual; });
+            rotulo.textContent = rodadas[atual].dataset.rotulo;
+            ant.disabled = atual === 0;
+            prox.disabled = atual === rodadas.length - 1;
+            corpo.scrollTop = 0;
+        }
+        ant.addEventListener('click', function () { mostrar(atual - 1); });
+        prox.addEventListener('click', function () { mostrar(atual + 1); });
+        mostrar(atual);
+    })(document.currentScript.previousElementSibling);
+</script>

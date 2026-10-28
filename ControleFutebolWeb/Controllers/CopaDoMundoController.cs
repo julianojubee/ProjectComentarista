@@ -131,6 +131,10 @@ namespace ControleFutebolWeb.Controllers
             vm.Grupos = grupos;
             vm.ProximosJogos = proximosJogos;
             vm.RodadaAtual = rodadaAtual;
+            // Painel de jogos: fase de grupos e mata-mata, uma rodada por vez (antes
+            // eram 20 jogos de grupo em cards, sem o mata-mata)
+            vm.PainelJogos = PainelJogosRodadasHelper.Montar(
+                jogos.Concat(jogosMataMata).GroupBy(j => j.Id).Select(g => g.First()));
             vm.TerceirosColocados = terceiros;
             vm.Chaveamento = chaveamento;
 

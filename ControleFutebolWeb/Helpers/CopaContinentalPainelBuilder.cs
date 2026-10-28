@@ -68,6 +68,16 @@ namespace ControleFutebolWeb.Helpers
                 ? proximos.Min(j => j.Rodada)
                 : (jogos.Any() ? jogos.Max(j => j.Rodada) : 0);
 
+            // ── Painel de jogos ────────────────────────────────────────────
+            // A temporada inteira, uma rodada por vez. Antes eram só os jogos da fase
+            // de grupos: com a competição no mata-mata, o painel mostrava um jogo
+            // atrasado de grupo (Libertadores) ou resultados antigos (Sul-Americana).
+            // Na fase de grupos a rodada junta os oito grupos ("Fase de grupos,
+            // rodada 4"); no mata-mata vale o nome da fase.
+            vm.PainelJogos = PainelJogosRodadasHelper.Montar(jogos, j =>
+                EhGrupo(j.Grupo) ? (j.Rodada > 0 ? $"Fase de grupos, rodada {j.Rodada}" : "Fase de grupos")
+                                 : RodadaHelper.Rotulo(j.Grupo, j.Rodada));
+
             // ── Chaveamento: oitavas → final ───────────────────────────────
             var jogosMataMata = jogos
                 .Where(j => ChaveamentoCopaBuilder.NormalizarFase(j.Grupo) != null)

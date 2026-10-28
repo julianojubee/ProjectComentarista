@@ -12,7 +12,8 @@ namespace ControleFutebolWeb.Models.ViewModels
         public string? LogoCompeticao { get; set; }
         public List<int> TemporadasDisponiveis { get; set; } = new();
         public List<Classificacao> Ranking { get; set; } = new();
-        public List<Jogo> ProximosJogos { get; set; } = new();
+        /// <summary>Painel Jogos: a temporada inteira, uma rodada por vez.</summary>
+        public PainelJogosRodadasViewModel PainelJogos { get; set; } = new();
         public List<FaseMataUclViewModel> FasesMataMata { get; set; } = new();
         public int TotalJogos { get; set; }
         public int JogosRealizados { get; set; }

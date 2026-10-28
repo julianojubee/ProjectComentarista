@@ -63,20 +63,9 @@ namespace ControleFutebolWeb.Controllers
 
             var ranking = ClassificacaoCalculator.Calcular(jogosLigaRealizados);
 
-            // Sidebar: próximos jogos sem placar; se nenhum, usa os mais recentes
-            var proximosJogos = todosJogos
-                .Where(j => !j.PlacarCasa.HasValue || !j.PlacarVisitante.HasValue)
-                .OrderBy(j => j.Data)
-                .Take(20)
-                .ToList();
-
-            if (!proximosJogos.Any())
-            {
-                proximosJogos = todosJogos
-                    .OrderByDescending(j => j.Data)
-                    .Take(10)
-                    .ToList();
-            }
+            // Painel de jogos: a temporada inteira, uma rodada por vez (antes eram os
+            // 20 próximos jogos em cards, uma coluna mais comprida que a tabela)
+            var painelJogos = PainelJogosRodadasHelper.Montar(todosJogos);
 
             // Fases eliminatórias com confrontos ida/volta (mesmo modelo da Copa do Brasil)
             var fasesMataMata = jogosMata
@@ -92,7 +81,7 @@ namespace ControleFutebolWeb.Controllers
                 .ToList();
 
             vm.Ranking = ranking;
-            vm.ProximosJogos = proximosJogos;
+            vm.PainelJogos = painelJogos;
             vm.FasesMataMata = fasesMataMata;
             vm.TotalJogos = todosJogos.Count;
             vm.JogosRealizados = todosJogos.Count(j => j.PlacarCasa.HasValue);

@@ -8,6 +8,8 @@ namespace ControleFutebolWeb.Models.ViewModels
         public List<GrupoViewModel> Grupos { get; set; } = new();
         public List<FaseMataMataViewModel> FasesMataMata { get; set; } = new();
         public List<Jogo> ProximosJogos { get; set; } = new();
+        /// <summary>Painel Jogos da coluna lateral: a temporada, uma rodada por vez.</summary>
+        public PainelJogosRodadasViewModel PainelJogos { get; set; } = new();
         public List<Jogo> JogosRealizados { get; set; } = new();
 
         // Preenchido quando a competição tem fases declaradas (CompeticaoFase);

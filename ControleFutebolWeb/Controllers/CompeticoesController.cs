@@ -1,4 +1,4 @@
-﻿using ControleFutebolWeb.Data;
+using ControleFutebolWeb.Data;
 using ControleFutebolWeb.Helpers;
 using ControleFutebolWeb.Models;
 using ControleFutebolWeb.Models.ViewModels;
@@ -837,6 +837,9 @@ namespace ControleFutebolWeb.Controllers
                 Tipo = competicao.Tipo,
                 ProximosJogos = proximosJogos,
                 JogosRealizados = jogosRealizados,
+                // Coluna lateral: rodada por rodada, com os resultados (antes, só os
+                // 4 próximos jogos)
+                PainelJogos = PainelJogosRodadasHelper.Montar(jogosDaTemporada),
             };
 
             // ── Critérios de desempate da competição (Competicoes/Edit) ───────

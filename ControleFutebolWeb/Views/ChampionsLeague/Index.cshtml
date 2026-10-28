@@ -7,7 +7,6 @@
 @{
     ViewData["Title"] = "Champions League";
     var ranking       = Model.Ranking ?? new List<Classificacao>();
-    var proximosJogos = Model.ProximosJogos ?? new List<Jogo>();
     var fasesMata     = Model.FasesMataMata ?? new List<FaseMataUclViewModel>();
     var temporadas    = Model.TemporadasDisponiveis ?? new List<int>();
     int totalJogos    = Model.TotalJogos;
@@ -27,7 +26,9 @@
     /* Mesmo padrão visual das demais telas de competição (Copa do Brasil,
        Competições): tema escuro, acento dourado, fontes Barlow. */
     .ucl-root, .ucl-root *, .ucl-root *::before, .ucl-root *::after { box-sizing: border-box; }
-    .ucl-root { margin: 0 -12px; background: var(--p-0); border-radius: 14px; overflow: hidden; color: var(--text); font-family: 'Barlow', Arial, sans-serif; }
+    /* overflow: clip (e não hidden) recorta os cantos sem virar contêiner de
+       rolagem: com hidden, o painel de jogos (position: sticky) não prendia no topo */
+    .ucl-root { margin: 0 -12px; background: var(--p-0); border-radius: 14px; overflow: clip; color: var(--text); font-family: 'Barlow', Arial, sans-serif; }
     .ucl-root a { text-decoration: none; color: inherit; }
 
     /* ── Hero (identidade visual UEFA Champions League) ──
@@ -63,7 +64,7 @@
 
     /* ── Conteúdo ── */
     .ucl-content { padding: 24px 2.5rem 64px; max-width: 1500px; margin: 0 auto; }
-    .ucl-layout { display: grid; grid-template-columns: 1fr 330px; gap: 18px; align-items: start; }
+    .ucl-layout { display: grid; grid-template-columns: 1fr 350px; gap: 18px; align-items: start; }
     /* min-width:0 no item do grid: sem isso a coluna cresce pra caber todas as
        abas (min-content de um flex com overflow:auto não colapsa) em vez de
        deixar a barra de abas rolar — mesmo problema já visto em .br-layout. */
@@ -159,32 +160,14 @@
     .ucl-jogo-vazio { justify-content: flex-start; color: var(--text-dim); }
     .ucl-jogo-vazio span.txt { font-size: .8rem; margin-left: 4px; }
 
-    /* ── Sidebar de jogos ── */
-    .ucl-sidebar { position: sticky; top: 16px; }
-    .ucl-sidebar-title { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.4rem; font-weight: 800; color: var(--text-strong); margin: 0 0 10px; }
-    .ucl-jogo-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; overflow: hidden; transition: border-color .15s; }
-    .ucl-jogo-card:hover { border-color: var(--line-strong); }
-    .ucl-jogo-card-header { background: var(--p-0); border-bottom: 1px solid var(--line-soft); color: var(--text-dim); font-size: .76rem; font-weight: 600; padding: 5px 10px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
-    .ucl-fase-tag { background: #d4a5201a; border: 1px solid #d4a52048; color: var(--gold-ink); font-size: .72rem; padding: 1px 7px; border-radius: 999px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
-    .ucl-jogo-body { padding: 10px 12px; }
-    .ucl-jogo-teams { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
-    .ucl-jogo-team { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 0; }
-    .ucl-jogo-team img { width: 30px; height: 30px; object-fit: contain; border-radius: 50%; border: 1px solid var(--line-strong); background: var(--p-0); }
-    .ucl-jogo-team span { font-size: .78rem; font-weight: 500; color: var(--text-muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 92px; }
-    .ucl-vs { font-size: .78rem; font-weight: 700; color: var(--text-dimmer); flex-shrink: 0; }
-    .ucl-score { display: inline-flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', Arial, sans-serif; background: var(--p-4); color: var(--text-strong); font-weight: 800; font-size: .85rem; padding: 2px 10px; border-radius: 6px; min-width: 48px; }
-    .ucl-badge-agendado { font-size: .74rem; background: var(--p-2); color: var(--text-dim); padding: 2px 8px; border-radius: 6px; font-weight: 500; }
-    .ucl-jogo-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line-soft); font-size: .74rem; color: var(--text-dim); }
-    .ucl-realizado { color: var(--ok-2); font-weight: 600; }
-
     /* ── Sem dados ── */
     .ucl-empty { text-align: center; padding: 3.5rem 1rem; color: var(--text-dim); font-size: .92rem; background: var(--p-1); border: 1px solid var(--line); border-radius: 14px; }
 
     /* ── Abas por fase (Liga / cada fase eliminatória / Estatísticas) ── */
-    .ucl-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; border-bottom: 1px solid var(--line); margin-bottom: 1.2rem; -webkit-overflow-scrolling: touch; }
+    .ucl-tabs { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 6px; border-bottom: 1px solid var(--line); margin-bottom: 1.2rem; -webkit-overflow-scrolling: touch; }
     .ucl-tab {
         flex: 0 0 auto; background: var(--p-1); border: 1px solid var(--line); border-radius: 999px;
-        padding: 7px 16px; font-size: .86rem; font-weight: 700; color: var(--text-muted); cursor: pointer; white-space: nowrap;
+        padding: 7px 13px; font-size: .86rem; font-weight: 700; color: var(--text-muted); cursor: pointer; white-space: nowrap;
         font-family: 'Barlow', Arial, sans-serif; transition: border-color .15s, color .15s;
     }
     .ucl-tab:hover { border-color: #d4a520; color: var(--gold-ink); }
@@ -553,71 +536,8 @@
                     </div>
                 </div>
 
-                <!-- ── Sidebar: jogos ── -->
-                <div class="ucl-sidebar">
-                    <div class="ucl-sidebar-title">Jogos</div>
-
-                    @if (!proximosJogos.Any())
-                    {
-                        <div class="ucl-empty" style="padding:1.5rem;">Nenhum jogo encontrado.</div>
-                    }
-                    else
-                    {
-                        @foreach (var jogo in proximosJogos)
-                        {
-                            bool realizado = jogo.PlacarCasa.HasValue && jogo.PlacarVisitante.HasValue;
-                            <div class="ucl-jogo-card">
-                                <div class="ucl-jogo-card-header">
-                                    <span>@DataJogo(jogo, "dd/MM/yyyy HH:mm")</span>
-                                    @if (!string.IsNullOrEmpty(jogo.Grupo))
-                                    {
-                                        <span class="ucl-fase-tag">@ControleFutebolWeb.Helpers.RodadaHelper.Rotulo(jogo.Grupo, jogo.Rodada)</span>
-                                    }
-                                </div>
-                                <div class="ucl-jogo-body">
-                                    <div class="ucl-jogo-teams">
-                                        <div class="ucl-jogo-team">
-                                            @if (!string.IsNullOrEmpty(jogo.TimeCasa?.EscudoUrl))
-                                            {
-                                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeCasa.EscudoUrl })" alt="" loading="lazy" />
-                                            }
-                                            <span>@jogo.TimeCasa?.Nome</span>
-                                        </div>
-                                        <div class="ucl-vs">
-                                            @if (realizado)
-                                            {
-                                                <span class="ucl-score">@jogo.PlacarCasa x @jogo.PlacarVisitante</span>
-                                            }
-                                            else
-                                            {
-                                                <span>vs</span>
-                                            }
-                                        </div>
-                                        <div class="ucl-jogo-team">
-                                            @if (!string.IsNullOrEmpty(jogo.TimeVisitante?.EscudoUrl))
-                                            {
-                                                <img src="@Url.Action("Imagem", "MediaProxy", new { url = jogo.TimeVisitante.EscudoUrl })" alt="" loading="lazy" />
-                                            }
-                                            <span>@jogo.TimeVisitante?.Nome</span>
-                                        </div>
-                                    </div>
-                                    <div class="ucl-jogo-footer">
-                                        @if (realizado)
-                                        {
-                                            <span class="ucl-realizado">Encerrado</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="ucl-badge-agendado">Agendado</span>
-                                        }
-                                        <a asp-controller="Jogos" asp-action="Analisar" asp-route-id="@jogo.Id"
-                                           class="ucl-jogo-analisar">Analisar</a>
-                                    </div>
-                                </div>
-                            </div>
-                        }
-                    }
-                </div>
+                <!-- ── Painel de jogos: uma rodada por vez ── -->
+                @await Html.PartialAsync("_PainelJogosRodadas", Model.PainelJogos)
 
             </div>
         }
