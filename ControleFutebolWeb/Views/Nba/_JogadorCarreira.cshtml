@@ -1,0 +1,69 @@
+@model ControleFutebolWeb.Models.ViewModels.NbaJogadorViewModel
+@{
+    var tabelas = Model.Carreira;
+    string? Atual(bool po) => po == Model.Playoffs ? "true" : null;
+}
+
+<div class="nba-filtro-lances" role="group" aria-label="Tipo de temporada">
+    <a class="nba-chip" aria-current="@Atual(false)" asp-action="Jogador" asp-route-id="@Model.Perfil.Id" asp-route-aba="carreira">Temporada regular</a>
+    <a class="nba-chip" aria-current="@Atual(true)" asp-action="Jogador" asp-route-id="@Model.Perfil.Id" asp-route-aba="carreira" asp-route-playoffs="true">Playoffs</a>
+</div>
+
+@if (tabelas == null)
+{
+    <div class="nba-aviso">Não foi possível carregar a carreira agora.</div>
+    return;
+}
+@if (!tabelas.Any())
+{
+    <div class="nba-aviso">@(Model.Playoffs ? "Nenhum jogo de playoffs na carreira." : "Sem estatísticas de carreira.")</div>
+    return;
+}
+
+@foreach (var t in tabelas)
+{
+    <section class="nba-secao">
+        <h2>@t.Titulo <small>@t.Linhas.Count @(t.Linhas.Count == 1 ? "temporada" : "temporadas")</small></h2>
+        <div class="nba-tabela-wrap">
+            <table class="nba-tabela">
+                <thead>
+                    <tr>
+                        <th class="e">Temporada</th>
+                        <th class="e">Time</th>
+                        @foreach (var c in t.Colunas) { <th>@c</th> }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var l in t.Linhas)
+                    {
+                        <tr>
+                            <td class="e"><b style="color:var(--text-strong)">@l.Temporada</b></td>
+                            <td class="e">
+                                @if (l.Time != null)
+                                {
+                                    <a class="nba-time-cel nba-time-link" asp-action="Time" asp-route-id="@l.Time.Id">
+                                        @if (l.Time.Logo != null) { <img class="nba-logo p" src="@l.Time.Logo" alt="" loading="lazy" /> }
+                                        @l.Time.Sigla
+                                    </a>
+                                }
+                            </td>
+                            @for (var i = 0; i < t.Colunas.Count; i++)
+                            {
+                                <td class="@(t.Colunas[i] == "PTS" ? "destaque" : "")">@(i < l.Valores.Count ? l.Valores[i] : "")</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+                @if (t.Totais.Any())
+                {
+                    <tfoot>
+                        <tr>
+                            <td class="e" colspan="2">Carreira</td>
+                            @for (var i = 0; i < t.Colunas.Count; i++) { <td>@(i < t.Totais.Count ? t.Totais[i] : "")</td> }
+                        </tr>
+                    </tfoot>
+                }
+            </table>
+        </div>
+    </section>
+}

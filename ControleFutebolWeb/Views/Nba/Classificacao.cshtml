@@ -1,0 +1,134 @@
+@model ControleFutebolWeb.Models.ViewModels.NbaClassificacaoViewModel
+@using ControleFutebolWeb.Models.Nba
+@{
+    ViewData["Title"] = "NBA — Classificação";
+    ViewData["NbaAba"] = "classificacao";
+    var c = Model.Classificacao;
+    // Corte de playoff/play-in só faz sentido na tabela por conferência.
+    var porConferencia = Model.Nivel == "conferencia";
+    string? Atual(string n) => n == Model.Nivel ? "true" : null;
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/nba.css" asp-append-version="true" />
+}
+
+<div class="nba-root">
+    <header class="nba-cab">
+        <div class="nba-cab-topo">
+            <div>
+                <div class="nba-cab-marca">🏀 NBA</div>
+                <h1>Classificação @EspnNbaRotulo(Model.Temporada)</h1>
+                <p class="nba-cab-sub">Temporada regular</p>
+            </div>
+            <div class="nba-nav">
+                <form method="get" asp-action="Classificacao">
+                    <input type="hidden" name="nivel" value="@Model.Nivel" />
+                    <select class="nba-campo" name="temporada" aria-label="Temporada" onchange="this.form.submit()">
+                        @foreach (var t in Model.Temporadas)
+                        {
+                            <option value="@t" selected="@(t == Model.Temporada)">@EspnNbaRotulo(t)</option>
+                        }
+                    </select>
+                </form>
+            </div>
+        </div>
+        <partial name="_NbaAbas" />
+    </header>
+
+    <div class="nba-barra">
+        <a class="nba-chip" aria-current="@Atual("conferencia")" asp-action="Classificacao" asp-route-nivel="conferencia" asp-route-temporada="@Model.Temporada">Conferência</a>
+        <a class="nba-chip" aria-current="@Atual("divisao")" asp-action="Classificacao" asp-route-nivel="divisao" asp-route-temporada="@Model.Temporada">Divisão</a>
+        <a class="nba-chip" aria-current="@Atual("liga")" asp-action="Classificacao" asp-route-nivel="liga" asp-route-temporada="@Model.Temporada">Liga</a>
+    </div>
+
+    <div class="nba-conteudo">
+        @if (c == null || c.Grupos.Count == 0)
+        {
+            <div class="nba-aviso">Não foi possível carregar a classificação agora.</div>
+        }
+        else
+        {
+            string? conferenciaAtual = null;
+            foreach (var g in c.Grupos)
+            {
+                if (g.Conferencia != null && g.Conferencia != conferenciaAtual)
+                {
+                    conferenciaAtual = g.Conferencia;
+                    <h2 class="nba-conf-titulo">@g.Conferencia</h2>
+                }
+                <section class="nba-secao">
+                    <h2>@g.Nome</h2>
+                    <div class="nba-tabela-wrap">
+                        <table class="nba-tabela">
+                            <thead>
+                                <tr>
+                                    <th class="e pos" title="Posição">#</th>
+                                    <th class="e">Time</th>
+                                    <th title="Vitórias">V</th>
+                                    <th title="Derrotas">D</th>
+                                    <th title="Aproveitamento">%</th>
+                                    <th title="Jogos atrás do líder">JA</th>
+                                    <th title="Campanha em casa">Casa</th>
+                                    <th title="Campanha fora">Fora</th>
+                                    <th title="Contra a divisão">Div</th>
+                                    <th title="Contra a conferência">Conf</th>
+                                    <th title="Pontos feitos por jogo">PPJ</th>
+                                    <th title="Pontos sofridos por jogo">PSJ</th>
+                                    <th title="Saldo médio">Saldo</th>
+                                    <th title="Sequência">Seq</th>
+                                    <th title="Últimos 10 jogos">Últ. 10</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{ var pos = 0; }
+                                @foreach (var l in g.Linhas)
+                                {
+                                    pos++;
+                                    var corte = porConferencia && pos == 6 ? "corte-playoff" : porConferencia && pos == 10 ? "corte-playin" : "";
+                                    <tr class="@corte">
+                                        <td class="e pos">@(porConferencia && l.Seed > 0 ? l.Seed : pos)</td>
+                                        <td class="e">
+                                            <a class="nba-time-cel nba-time-link" asp-action="Time" asp-route-id="@l.Time.Id">
+                                                @if (l.Time.Logo != null) { <img class="nba-logo p" src="@l.Time.Logo" alt="" loading="lazy" /> }
+                                                <span>@l.Time.Nome</span>
+                                                @if (l.Clincher != null) { <span class="nba-clincher" title="Situação garantida">@l.Clincher</span> }
+                                            </a>
+                                        </td>
+                                        <td class="destaque">@l.Vitorias</td>
+                                        <td>@l.Derrotas</td>
+                                        <td>@l.Aproveitamento</td>
+                                        <td>@l.JogosAtras</td>
+                                        <td>@l.Casa</td>
+                                        <td>@l.Fora</td>
+                                        <td>@l.Divisao</td>
+                                        <td>@l.Conferencia</td>
+                                        <td>@l.PontosFeitos</td>
+                                        <td>@l.PontosSofridos</td>
+                                        <td>@l.Saldo</td>
+                                        <td class="@NbaViewHelper.ClasseSequencia(l.Sequencia)">@l.Sequencia</td>
+                                        <td>@l.Ultimos10</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            }
+
+            if (porConferencia)
+            {
+                <div class="nba-legenda">
+                    <span class="lp">1º–6º: vaga direta nos playoffs</span>
+                    <span class="li">7º–10º: play-in</span>
+                    <span>Marcadores: * = melhor campanha da liga · x = vaga nos playoffs · y = campeão da divisão · z = melhor campanha da conferência · pi = play-in · e = eliminado</span>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@functions {
+    private static string EspnNbaRotulo(int ano) => ControleFutebolWeb.Services.EspnNbaService.RotuloTemporada(ano);
+}

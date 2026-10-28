@@ -1,0 +1,20 @@
+@{
+    ViewData["Title"] = "NBA";
+    ViewData["NbaAba"] = "";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/nba.css" asp-append-version="true" />
+}
+
+<div class="nba-root">
+    <header class="nba-cab">
+        <div class="nba-cab-marca">🏀 NBA</div>
+        <h1>Dados indisponíveis</h1>
+        <partial name="_NbaAbas" />
+    </header>
+    <div class="nba-conteudo">
+        <div class="nba-aviso">A ESPN não respondeu agora ou esse jogo/time não existe lá. Tente de novo em alguns instantes.</div>
+    </div>
+</div>

@@ -1,0 +1,98 @@
+@model ControleFutebolWeb.Models.ViewModels.NbaJogadorViewModel
+@using ControleFutebolWeb.Models.Nba
+@using ControleFutebolWeb.Services
+@{
+    var p = Model.Perfil;
+    ViewData["Title"] = $"NBA — {p.Nome}";
+    ViewData["NbaAba"] = "";
+    string? Atual(string a) => a == Model.Aba ? "true" : null;
+    var bio = new[]
+    {
+        p.Idade is int i ? $"{i} anos" : null,
+        p.Altura,
+        p.Peso,
+        p.Experiencia,
+    }.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/nba.css" asp-append-version="true" />
+}
+
+<div class="nba-root">
+    <header class="nba-cab">
+        <div class="nba-cab-topo">
+            <div class="nba-jogador-cab">
+                @if (p.Foto != null) { <img class="nba-jogador-foto" src="@p.Foto" alt="" /> }
+                <div>
+                    <div class="nba-cab-marca">
+                        🏀 NBA
+                        @if (p.Time != null)
+                        {
+                            <span>·</span>
+                            <a class="nba-cab-time" asp-action="Time" asp-route-id="@p.Time.Id">
+                                @if (p.Time.Logo != null) { <img class="nba-logo p" src="@p.Time.Logo" alt="" /> }
+                                @p.Time.Nome
+                            </a>
+                        }
+                    </div>
+                    <h1>@p.Nome</h1>
+                    <p class="nba-cab-sub">
+                        @if (p.Camisa != null) { <strong>#@p.Camisa</strong> }
+                        @if (p.Posicao != null) { <span> · @p.Posicao</span> }
+                        @if (!p.Ativo) { <span> · aposentado</span> }
+                    </p>
+                    @if (bio.Any()) { <p class="nba-cab-sub">@string.Join(" · ", bio)</p> }
+                    @if (p.Draft != null || p.Nascimento != null)
+                    {
+                        <p class="nba-cab-sub">
+                            @if (p.Draft != null) { <span>Draft: @p.Draft</span> }
+                            @if (p.Draft != null && p.Nascimento != null) { <span> · </span> }
+                            @if (p.Nascimento != null) { <span>Nasceu em @p.Nascimento@(p.LocalNascimento != null ? $", {p.LocalNascimento}" : "")</span> }
+                        </p>
+                    }
+                </div>
+            </div>
+            @if (p.Resumo.Any())
+            {
+                <div class="nba-resumo" aria-label="@(p.TituloResumo ?? "Temporada")">
+                    @foreach (var r in p.Resumo)
+                    {
+                        <div class="nba-resumo-item" title="@r.Nome">
+                            <span class="sigla">@r.Sigla</span>
+                            <span class="valor">@r.Valor</span>
+                            @if (r.Ranking != null) { <span class="rank">@r.Ranking</span> }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+        <partial name="_NbaAbas" />
+    </header>
+
+    <div class="nba-barra">
+        <a class="nba-chip" aria-current="@Atual("geral")" asp-action="Jogador" asp-route-id="@p.Id">Visão geral</a>
+        <a class="nba-chip" aria-current="@Atual("jogos")" asp-action="Jogador" asp-route-id="@p.Id" asp-route-aba="jogos">Jogos</a>
+        <a class="nba-chip" aria-current="@Atual("carreira")" asp-action="Jogador" asp-route-id="@p.Id" asp-route-aba="carreira">Carreira</a>
+        <a class="nba-chip" aria-current="@Atual("recortes")" asp-action="Jogador" asp-route-id="@p.Id" asp-route-aba="recortes">Recortes</a>
+    </div>
+
+    <div class="nba-conteudo">
+        @switch (Model.Aba)
+        {
+            case "jogos":
+                @await Html.PartialAsync("_JogadorJogos", Model)
+                break;
+            case "carreira":
+                @await Html.PartialAsync("_JogadorCarreira", Model)
+                break;
+            case "recortes":
+                @await Html.PartialAsync("_JogadorRecortes", Model)
+                break;
+            default:
+                @await Html.PartialAsync("_JogadorGeral", Model)
+                break;
+        }
+    </div>
+</div>

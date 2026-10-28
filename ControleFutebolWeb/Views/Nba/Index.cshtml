@@ -1,0 +1,166 @@
+@model ControleFutebolWeb.Models.ViewModels.NbaJogosViewModel
+@using ControleFutebolWeb.Models.Nba
+@{
+    ViewData["Title"] = "NBA — Jogos";
+    ViewData["NbaAba"] = "jogos";
+    var dia = Model.Dia;
+    var titulo = NbaViewHelper.Capitalizar(dia.ToString("dddd, d 'de' MMMM", NbaViewHelper.PtBr));
+    string UrlDia(DateTime d) => Url.Action("Index", "Nba", new { data = d.ToString("yyyy-MM-dd") })!;
+
+    var jogos = (Model.Jogos ?? Array.Empty<NbaJogo>())
+        // Ao vivo primeiro, depois agendados em ordem de horário, encerrados no fim.
+        .OrderBy(j => j.Situacao switch { NbaSituacao.AoVivo => 0, NbaSituacao.Agendado => 1, NbaSituacao.Adiado => 3, _ => 2 })
+        .ThenBy(j => j.InicioUtc)
+        .ToList();
+    var vivos = jogos.Count(j => j.Situacao == NbaSituacao.AoVivo);
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/nba.css" asp-append-version="true" />
+}
+
+<div class="nba-root">
+    <header class="nba-cab">
+        <div class="nba-cab-topo">
+            <div>
+                <div class="nba-cab-marca">🏀 NBA · @(Model.EhHoje ? "Hoje" : "Rodada")</div>
+                <h1>@titulo</h1>
+                <p class="nba-cab-sub">
+                    @if (Model.Jogos == null)
+                    {
+                        <span>Não foi possível carregar os jogos.</span>
+                    }
+                    else
+                    {
+                        <strong>@jogos.Count</strong> @(jogos.Count == 1 ? "jogo" : "jogos")
+                        @if (vivos > 0)
+                        {
+                            <span> · <span class="nba-ponto-vivo"></span> <strong>@vivos</strong> ao vivo</span>
+                        }
+                        <span> · horários de Brasília</span>
+                    }
+                </p>
+            </div>
+            <div class="nba-nav">
+                <a class="nba-nav-btn" href="@UrlDia(dia.AddDays(-1))" aria-label="Dia anterior">◀ @dia.AddDays(-1).ToString("dd/MM")</a>
+                <a class="nba-nav-btn @(Model.EhHoje ? "ativo" : "")" asp-action="Index">Hoje</a>
+                <a class="nba-nav-btn" href="@UrlDia(dia.AddDays(1))" aria-label="Dia seguinte">@dia.AddDays(1).ToString("dd/MM") ▶</a>
+                <form method="get" asp-action="Index">
+                    <input class="nba-campo" type="date" name="data" value="@dia.ToString("yyyy-MM-dd")" aria-label="Escolher data" onchange="this.form.submit()" />
+                </form>
+            </div>
+        </div>
+        <partial name="_NbaAbas" />
+    </header>
+
+    <div class="nba-conteudo">
+        @if (Model.Jogos == null)
+        {
+            <div class="nba-aviso">A ESPN não respondeu agora. Tente de novo em alguns instantes.</div>
+        }
+        else if (jogos.Count == 0)
+        {
+            <div class="nba-aviso">Nenhum jogo da NBA neste dia.</div>
+        }
+        else
+        {
+            <section class="nba-secao">
+                <div class="nba-jogos">
+                    @foreach (var j in jogos)
+                    {
+                        var vivo = j.Situacao == NbaSituacao.AoVivo;
+                        var temPlacar = j.Situacao != NbaSituacao.Agendado && j.Casa.Placar != null;
+                        var maxParciais = Math.Max(j.Visitante.Parciais.Count, j.Casa.Parciais.Count);
+                        <a class="nba-card @(vivo ? "vivo" : "")" asp-action="Jogo" asp-route-id="@j.Id">
+                            <div class="nba-card-topo">
+                                <span>@(j.Ginasio ?? "")@(j.Cidade != null ? $" · {j.Cidade}" : "")</span>
+                                <span class="nba-estado @NbaViewHelper.ClasseEstado(j.Situacao)">
+                                    @if (vivo) { <span class="nba-ponto-vivo"></span> }
+                                    @(j.Situacao == NbaSituacao.Agendado ? NbaViewHelper.Horario(j.InicioUtc, dia) : j.Status)
+                                </span>
+                            </div>
+
+                            @* Visitante em cima, mandante embaixo — a convenção da NBA ("A @@ B"). *@
+                            @foreach (var lado in new[] { j.Visitante, j.Casa })
+                            {
+                                var outro = lado.Casa ? j.Visitante : j.Casa;
+                                var perde = j.Situacao == NbaSituacao.Encerrado && lado.Placar < outro.Placar;
+                                <div class="nba-linha @(perde ? "perde" : "")">
+                                    @if (lado.Time.Logo != null) { <img class="nba-logo" src="@lado.Time.Logo" alt="" loading="lazy" /> } else { <span></span> }
+                                    <div class="nba-linha-nome">
+                                        @lado.Time.Nome
+                                        <small>@(lado.Campanha ?? "")@(lado.Casa ? " · mandante" : "")</small>
+                                    </div>
+                                    <div class="nba-parciais" aria-hidden="true">
+                                        @if (temPlacar)
+                                        {
+                                            for (var q = 0; q < maxParciais; q++)
+                                            {
+                                                <span>@(q < lado.Parciais.Count ? lado.Parciais[q].ToString() : "")</span>
+                                            }
+                                        }
+                                    </div>
+                                    <div class="nba-n">@(temPlacar ? lado.Placar.ToString() : "")</div>
+                                </div>
+                            }
+
+                            @{
+                                var temDestaques = j.Visitante.Lideres.Any() || j.Casa.Lideres.Any();
+                                var canaisBr = Model.CanaisBrasil.GetValueOrDefault(j.Id);
+                                // Canal só importa para quem ainda vai assistir.
+                                var mostraCanal = j.Situacao is NbaSituacao.Agendado or NbaSituacao.AoVivo;
+                            }
+                            @if (temDestaques || mostraCanal || j.Transmissao.Any() || j.Manchete != null || j.Nota != null)
+                            {
+                                <div class="nba-card-rodape">
+                                    @if (temDestaques)
+                                    {
+                                        <div class="nba-destaques">
+                                            @foreach (var lado in new[] { j.Visitante, j.Casa })
+                                            {
+                                                <div>
+                                                    @foreach (var l in lado.Lideres.Where(l => l.Categoria == "points").Take(1))
+                                                    {
+                                                        <span>@lado.Time.Sigla: <b>@l.Nome</b> @l.Valor @NbaViewHelper.SiglaLider(l.Categoria)</span>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                    @if (j.Nota != null) { <div>@j.Nota</div> }
+                                    @if (j.Manchete != null) { <div class="nba-manchete">@j.Manchete</div> }
+                                    @if (canaisBr != null)
+                                    {
+                                        <div class="nba-tv">
+                                            <span>📺 No Brasil:</span>
+                                            @foreach (var tv in canaisBr) { <span class="nba-tag br">@tv</span> }
+                                        </div>
+                                    }
+                                    else if (mostraCanal)
+                                    {
+                                        <div class="nba-tv"><span>📺 No Brasil:</span> <span class="nba-tv-pendente">a confirmar</span></div>
+                                    }
+                                    @if (j.Transmissao.Any())
+                                    {
+                                        <div class="nba-tv nba-tv-eua">
+                                            <span>EUA:</span>
+                                            @string.Join(" · ", j.Transmissao)
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </a>
+                    }
+                </div>
+                <p class="nba-nota">A rodada segue a data dos EUA: jogos que começam depois da meia-noite em Brasília aparecem com o dia ao lado do horário.</p>
+            </section>
+        }
+    </div>
+</div>
+
+@if (vivos > 0)
+{
+    @* Com jogo rolando, recarrega a cada 60 s (o cache do serviço é de 30 s). *@
+    <script>setTimeout(function () { if (!document.hidden) location.reload(); }, 60000);</script>
+}

@@ -1,0 +1,133 @@
+@model ControleFutebolWeb.Models.ViewModels.NbaTimeViewModel
+@using ControleFutebolWeb.Models.Nba
+@using ControleFutebolWeb.Services
+@{
+    var d = Model.Detalhe;
+    ViewData["Title"] = $"NBA — {d.Time.Nome}";
+    ViewData["NbaAba"] = "";
+    var encerrados = d.Calendario.Where(j => j.Situacao == NbaSituacao.Encerrado).OrderByDescending(j => j.InicioUtc).ToList();
+    var proximos = d.Calendario.Where(j => j.Situacao != NbaSituacao.Encerrado).OrderBy(j => j.InicioUtc).ToList();
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/nba.css" asp-append-version="true" />
+}
+
+@functions {
+    // Linha do calendário vista pelo lado deste time: adversário, mando e resultado.
+    private (NbaLadoJogo Eu, NbaLadoJogo Adv) Lados(NbaJogo j, string timeId) =>
+        j.Casa.Time.Id == timeId ? (j.Casa, j.Visitante) : (j.Visitante, j.Casa);
+}
+
+<div class="nba-root">
+    <header class="nba-cab">
+        <div class="nba-cab-topo">
+            <div style="display:flex;align-items:center;gap:16px">
+                @if (d.Time.Logo != null) { <img class="nba-logo g" src="@d.Time.Logo" alt="" /> }
+                <div>
+                    <div class="nba-cab-marca">🏀 NBA</div>
+                    <h1>@d.Time.Nome</h1>
+                    <p class="nba-cab-sub">
+                        @if (d.Campanha != null) { <strong>@d.Campanha</strong> }
+                        @if (d.Posicao != null) { <span> · @d.Posicao</span> }
+                        @if (d.Treinador != null) { <span> · Técnico: @d.Treinador</span> }
+                    </p>
+                </div>
+            </div>
+            <div class="nba-nav">
+                <form method="get" asp-action="Time" asp-route-id="@d.Time.Id">
+                    <select class="nba-campo" name="temporada" aria-label="Temporada do calendário" onchange="this.form.submit()">
+                        @for (var t = EspnNbaService.TemporadaAtual(DateTime.Today); t > EspnNbaService.TemporadaAtual(DateTime.Today) - 5; t--)
+                        {
+                            <option value="@t" selected="@(t == Model.Temporada)">@EspnNbaService.RotuloTemporada(t)</option>
+                        }
+                    </select>
+                </form>
+            </div>
+        </div>
+        <partial name="_NbaAbas" />
+    </header>
+
+    <div class="nba-conteudo">
+        <section class="nba-secao">
+            <h2>Elenco <small>@d.Elenco.Count jogadores</small></h2>
+            @if (!d.Elenco.Any())
+            {
+                <div class="nba-aviso">Elenco indisponível agora.</div>
+            }
+            else
+            {
+                <div class="nba-elenco">
+                    @foreach (var a in d.Elenco)
+                    {
+                        <a class="nba-atleta" asp-action="Jogador" asp-route-id="@a.Id">
+                            <span class="num">@(a.Camisa ?? "–")</span>
+                            @if (a.Foto != null) { <img class="nba-foto g" src="@a.Foto" alt="" loading="lazy" /> }
+                            <div>
+                                <div class="nome">@a.Nome</div>
+                                <div class="det">
+                                    @string.Join(" · ", new[] { a.Posicao, a.Altura, a.Peso, a.Idade is int i ? $"{i} anos" : null }.Where(x => !string.IsNullOrEmpty(x)))
+                                </div>
+                                @if (a.Universidade != null) { <div class="det">@a.Universidade</div> }
+                                @if (a.Lesao != null) { <div class="nba-lesao">@a.Lesao</div> }
+                            </div>
+                        </a>
+                    }
+                </div>
+            }
+        </section>
+
+        <div class="nba-duas">
+            @foreach (var (titulo, jogos) in new[] { ("Próximos jogos", proximos), ("Resultados", encerrados) })
+            {
+                <section class="nba-secao">
+                    <h2>@titulo <small>@jogos.Count</small></h2>
+                    @if (!jogos.Any())
+                    {
+                        <div class="nba-aviso">Nada por aqui.</div>
+                    }
+                    else
+                    {
+                        <div class="nba-tabela-wrap" style="max-height:620px;overflow-y:auto">
+                            <table class="nba-tabela">
+                                <thead><tr><th class="e">Data</th><th class="e">Adversário</th><th>@(titulo == "Resultados" ? "Placar" : "Horário")</th></tr></thead>
+                                <tbody>
+                                    @foreach (var j in jogos)
+                                    {
+                                        var (eu, adv) = Lados(j, d.Time.Id);
+                                        var local = NbaViewHelper.Brasilia(j.InicioUtc);
+                                        <tr>
+                                            <td class="e">@local.ToString("ddd dd/MM", NbaViewHelper.PtBr)</td>
+                                            <td class="e">
+                                                <a class="nba-time-cel nba-time-link" asp-action="Time" asp-route-id="@adv.Time.Id">
+                                                    <span style="color:var(--text-dim);width:16px">@(eu.Casa ? "vs" : "@")</span>
+                                                    @if (adv.Time.Logo != null) { <img class="nba-logo p" src="@adv.Time.Logo" alt="" loading="lazy" /> }
+                                                    @adv.Time.Nome
+                                                </a>
+                                            </td>
+                                            <td>
+                                                @if (j.Situacao == NbaSituacao.Encerrado && eu.Placar != null)
+                                                {
+                                                    var venceu = eu.Placar > adv.Placar;
+                                                    <a class="nba-link" asp-action="Jogo" asp-route-id="@j.Id">
+                                                        <b class="@(venceu ? "nba-seq-v" : "nba-seq-d")">@(venceu ? "V" : "D")</b>
+                                                        @eu.Placar–@adv.Placar
+                                                    </a>
+                                                }
+                                                else
+                                                {
+                                                    <a class="nba-link" asp-action="Jogo" asp-route-id="@j.Id">@(j.Situacao == NbaSituacao.Adiado ? j.Status : local.ToString("HH:mm"))</a>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </section>
+            }
+        </div>
+    </div>
+</div>

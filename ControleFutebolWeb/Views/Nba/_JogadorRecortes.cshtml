@@ -1,0 +1,34 @@
+@model ControleFutebolWeb.Models.ViewModels.NbaJogadorViewModel
+@using Microsoft.AspNetCore.Mvc.ViewFeatures
+@{
+    var r = Model.Recortes;
+}
+@if (r == null)
+{
+    <div class="nba-aviso">Não foi possível carregar os recortes agora.</div>
+    return;
+}
+
+<form method="get" asp-action="Jogador" asp-route-id="@Model.Perfil.Id" class="nba-filtro-temporada">
+    <input type="hidden" name="aba" value="recortes" />
+    <label>Temporada
+        <select name="temporada" onchange="this.form.submit()">
+            @foreach (var t in r.Temporadas)
+            {
+                <option value="@t.Ano" selected="@(t.Ano == Model.Temporada)">@t.Rotulo</option>
+            }
+        </select>
+    </label>
+</form>
+
+@if (!r.Grupos.Any())
+{
+    <div class="nba-aviso">Sem recortes para a temporada @r.Temporada.</div>
+}
+@foreach (var g in r.Grupos)
+{
+    <section class="nba-secao">
+        <h2>@g.Nome <small>temporada regular @r.Temporada · médias</small></h2>
+        @await Html.PartialAsync("_JogadorTabelaRotulada", g.Linhas, new ViewDataDictionary(ViewData) { ["Colunas"] = r.Colunas, ["Cabecalho"] = "" })
+    </section>
+}

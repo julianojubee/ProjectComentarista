@@ -1,0 +1,72 @@
+@model ControleFutebolWeb.Models.ViewModels.NbaJogadorViewModel
+@using Microsoft.AspNetCore.Mvc.ViewFeatures
+@{
+    var v = Model.Visao;
+}
+@if (v == null)
+{
+    <div class="nba-aviso">Não foi possível carregar a visão geral agora.</div>
+    return;
+}
+
+@if (v.Medias.Any())
+{
+    <section class="nba-secao">
+        <h2>Médias <small>temporada atual e carreira</small></h2>
+        @await Html.PartialAsync("_JogadorTabelaRotulada", v.Medias, new ViewDataDictionary(ViewData) { ["Colunas"] = v.ColunasMedias, ["Cabecalho"] = "" })
+    </section>
+}
+
+<section class="nba-secao">
+    <h2>
+        Últimos jogos
+        <a class="nba-link" style="font-size:.9rem;font-weight:600" asp-action="Jogador" asp-route-id="@Model.Perfil.Id" asp-route-aba="jogos">ver todos ▶</a>
+    </h2>
+    @if (v.UltimosJogos.Any())
+    {
+        @await Html.PartialAsync("_JogadorTabelaJogos", v.UltimosJogos, new ViewDataDictionary(ViewData) { ["Colunas"] = v.ColunasUltimos })
+    }
+    else
+    {
+        <div class="nba-aviso">Nenhum jogo recente.</div>
+    }
+</section>
+
+<div class="nba-duas">
+    @if (v.Premios.Any())
+    {
+        <section class="nba-secao">
+            <h2>Prêmios</h2>
+            <ul class="nba-premios">
+                @foreach (var pr in v.Premios)
+                {
+                    <li title="@string.Join(", ", pr.Temporadas.Select(t => int.TryParse(t, out var a) ? ControleFutebolWeb.Services.EspnNbaService.RotuloTemporada(a) : t))">
+                        <span class="qtd">@pr.Quantidade</span>
+                        <span>@pr.Nome</span>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+
+    @if (v.Times.Any())
+    {
+        <section class="nba-secao">
+            <h2>Times na carreira</h2>
+            <ul class="nba-passagens">
+                @foreach (var t in v.Times)
+                {
+                    <li>
+                        @if (t.Logo != null) { <img class="nba-logo" src="@t.Logo" alt="" loading="lazy" /> }
+                        @if (t.TimeId != null)
+                        {
+                            <a class="nba-time-link" asp-action="Time" asp-route-id="@t.TimeId">@t.Nome</a>
+                        }
+                        else { <span>@t.Nome</span> }
+                        <span class="periodo">@t.Periodo</span>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+</div>

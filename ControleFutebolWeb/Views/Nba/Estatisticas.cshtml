@@ -1,0 +1,288 @@
+@model ControleFutebolWeb.Models.ViewModels.NbaEstatisticasViewModel
+@using ControleFutebolWeb.Models.Nba
+@using ControleFutebolWeb.Services
+@{
+    ViewData["Title"] = "NBA — Estatísticas";
+    ViewData["NbaAba"] = "estatisticas";
+    string? Atual(string a) => a == Model.Aba ? "true" : null;
+    var rotuloTemporada = EspnNbaService.RotuloTemporada(Model.Temporada);
+
+    // Colunas da tabela de jogadores: (rótulo, chave da ESPN, ordem aceita no clique).
+    var colunasJogador = new (string Rotulo, string Campo, string? Ordem, string Titulo)[]
+    {
+        ("J", "gamesPlayed", null, "Jogos"),
+        ("MIN", "avgMinutes", "min", "Minutos por jogo"),
+        ("PTS", "avgPoints", "pts", "Pontos por jogo"),
+        ("REB", "avgRebounds", "reb", "Rebotes por jogo"),
+        ("AST", "avgAssists", "ast", "Assistências por jogo"),
+        ("RB", "avgSteals", "stl", "Roubos de bola por jogo"),
+        ("TOC", "avgBlocks", "blk", "Tocos por jogo"),
+        ("ERR", "avgTurnovers", "to", "Erros por jogo"),
+        ("FG%", "fieldGoalPct", "fg", "Aproveitamento de quadra"),
+        ("3PM", "avgThreePointFieldGoalsMade", "3pm", "Bolas de 3 por jogo"),
+        ("3P%", "threePointFieldGoalPct", "3p", "Aproveitamento de 3"),
+        ("LL%", "freeThrowPct", "ft", "Aproveitamento de lance livre"),
+        ("DD", "doubleDouble", null, "Duplos-duplos"),
+    };
+
+    var colunasTime = new (string Rotulo, string Campo, string Titulo)[]
+    {
+        ("J", "gamesPlayed", "Jogos"),
+        ("PPJ", "avgPoints", "Pontos por jogo"),
+        ("PSJ", "opp.avgPoints", "Pontos sofridos por jogo"),
+        ("SALDO", "avgPointsDifferential", "Saldo médio"),
+        ("FG%", "fieldGoalPct", "Aproveitamento de quadra"),
+        ("3P%", "threePointFieldGoalPct", "Aproveitamento de 3"),
+        ("LL%", "freeThrowPct", "Aproveitamento de lance livre"),
+        ("REB", "avgRebounds", "Rebotes por jogo"),
+        ("AST", "avgAssists", "Assistências por jogo"),
+        ("RB", "avgSteals", "Roubos de bola por jogo"),
+        ("TOC", "avgBlocks", "Tocos por jogo"),
+        ("ERR", "avgTurnovers", "Erros por jogo"),
+    };
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/fonts/barlow/barlow.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/nba.css" asp-append-version="true" />
+}
+
+<div class="nba-root">
+    <header class="nba-cab">
+        <div class="nba-cab-topo">
+            <div>
+                <div class="nba-cab-marca">🏀 NBA</div>
+                <h1>Estatísticas @rotuloTemporada</h1>
+                <p class="nba-cab-sub">Temporada regular · médias por jogo</p>
+            </div>
+            <div class="nba-nav">
+                <form method="get" asp-action="Estatisticas">
+                    <input type="hidden" name="aba" value="@Model.Aba" />
+                    <input type="hidden" name="ordem" value="@Model.Ordem" />
+                    @if (Model.Aba == "jogadores" && Model.TimeId != null) { <input type="hidden" name="time" value="@Model.TimeId" /> }
+                    <select class="nba-campo" name="temporada" aria-label="Temporada" onchange="this.form.submit()">
+                        @foreach (var t in Model.Temporadas)
+                        {
+                            <option value="@t" selected="@(t == Model.Temporada)">@EspnNbaService.RotuloTemporada(t)</option>
+                        }
+                    </select>
+                </form>
+            </div>
+        </div>
+        <partial name="_NbaAbas" />
+    </header>
+
+    <div class="nba-barra">
+        <a class="nba-chip" aria-current="@Atual("lideres")" asp-action="Estatisticas" asp-route-aba="lideres" asp-route-temporada="@Model.Temporada">Líderes</a>
+        <a class="nba-chip" aria-current="@Atual("jogadores")" asp-action="Estatisticas" asp-route-aba="jogadores" asp-route-temporada="@Model.Temporada">Jogadores</a>
+        <a class="nba-chip" aria-current="@Atual("times")" asp-action="Estatisticas" asp-route-aba="times" asp-route-temporada="@Model.Temporada">Times</a>
+    </div>
+
+    <div class="nba-conteudo">
+        @if (Model.Aba == "lideres")
+        {
+            var l = Model.Lideres;
+            if (l == null || l.Categorias.Count == 0)
+            {
+                <div class="nba-aviso">Não foi possível carregar os líderes agora.</div>
+            }
+            else
+            {
+                <div class="nba-lideres">
+                    @foreach (var cat in l.Categorias)
+                    {
+                        var top = cat.Top[0];
+                        <section class="nba-lider-card">
+                            <h3><span>@cat.Nome</span><span>@cat.Sigla</span></h3>
+                            <div class="nba-lider-top">
+                                @if (top.Foto != null) { <img class="nba-foto g" src="@top.Foto" alt="" loading="lazy" /> }
+                                <div>
+                                    <a class="nome nba-time-link" asp-action="Jogador" asp-route-id="@top.AtletaId">@top.Nome</a>
+                                    @if (top.Time != null)
+                                    {
+                                        <a class="time nba-time-link" asp-action="Time" asp-route-id="@top.Time.Id">
+                                            @if (top.Time.Logo != null) { <img class="nba-logo p" src="@top.Time.Logo" alt="" loading="lazy" /> }
+                                            @top.Time.NomeCurto
+                                        </a>
+                                    }
+                                </div>
+                                <div class="valor">@top.Valor</div>
+                            </div>
+                            <ol class="nba-lider-lista">
+                                @for (var i = 1; i < cat.Top.Count; i++)
+                                {
+                                    var x = cat.Top[i];
+                                    <li>
+                                        <span class="i">@(i + 1)</span>
+                                        @if (x.Time?.Logo != null) { <img class="nba-logo p" src="@x.Time.Logo" alt="@x.Time.Sigla" loading="lazy" /> } else { <span></span> }
+                                        <a class="n nba-time-link" asp-action="Jogador" asp-route-id="@x.AtletaId">@x.Nome</a>
+                                        <span class="v">@x.Valor</span>
+                                    </li>
+                                }
+                            </ol>
+                        </section>
+                    }
+                </div>
+            }
+        }
+        else if (Model.Aba == "jogadores")
+        {
+            var t = Model.Jogadores;
+            if (t == null)
+            {
+                <div class="nba-aviso">Não foi possível carregar as estatísticas agora.</div>
+            }
+            else
+            {
+                var timeSel = Model.TimesFiltro.FirstOrDefault(x => x.Id == Model.TimeId);
+                var inicio = (t.Pagina - 1) * EspnNbaService.JogadoresPorPagina;
+                <form method="get" asp-action="Estatisticas" class="nba-filtro-temporada">
+                    <input type="hidden" name="aba" value="jogadores" />
+                    <input type="hidden" name="temporada" value="@Model.Temporada" />
+                    <input type="hidden" name="ordem" value="@Model.Ordem" />
+                    <label>
+                        @if (timeSel?.Logo != null) { <img class="nba-logo p" src="@timeSel.Logo" alt="" /> }
+                        Time
+                        <select name="time" onchange="this.form.submit()">
+                            <option value="">Todos os times</option>
+                            @foreach (var tm in Model.TimesFiltro)
+                            {
+                                <option value="@tm.Id" selected="@(tm.Id == Model.TimeId)">@tm.Nome</option>
+                            }
+                        </select>
+                    </label>
+                    @if (timeSel != null)
+                    {
+                        <a class="nba-link" style="margin-left:10px;font-size:.86rem" asp-action="Time" asp-route-id="@timeSel.Id">página do time ▶</a>
+                    }
+                </form>
+
+                if (t.Linhas.Count == 0)
+                {
+                    <div class="nba-aviso">@(timeSel != null ? $"Nenhum jogador do {timeSel.Nome} com estatísticas nesta temporada." : "Ainda não há estatísticas de jogadores nesta temporada.")</div>
+                }
+                else
+                {
+                <section class="nba-secao">
+                    <h2>@(timeSel?.Nome ?? "Jogadores") <small>@t.Total @(timeSel != null ? "jogadores" : "qualificados") · temporada @t.Temporada</small></h2>
+                    <div class="nba-tabela-wrap">
+                        <table class="nba-tabela">
+                            <thead>
+                                <tr>
+                                    <th class="e pos">#</th>
+                                    <th class="e">Jogador</th>
+                                    <th class="e">Time</th>
+                                    @foreach (var col in colunasJogador)
+                                    {
+                                        var ordenada = col.Ordem == Model.Ordem;
+                                        <th title="@col.Titulo" aria-sort="@(ordenada ? "descending" : null)">
+                                            @if (col.Ordem != null)
+                                            {
+                                                <a asp-action="Estatisticas" asp-route-aba="jogadores" asp-route-temporada="@Model.Temporada" asp-route-ordem="@col.Ordem" asp-route-time="@Model.TimeId">@col.Rotulo</a>
+                                            }
+                                            else { @col.Rotulo }
+                                        </th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (var i = 0; i < t.Linhas.Count; i++)
+                                {
+                                    var j = t.Linhas[i];
+                                    <tr>
+                                        <td class="e pos">@(inicio + i + 1)</td>
+                                        <td class="e">
+                                            <a class="nba-time-cel nba-time-link" asp-action="Jogador" asp-route-id="@j.AtletaId">
+                                                @if (j.Foto != null) { <img class="nba-foto" src="@j.Foto" alt="" loading="lazy" /> }
+                                                <span>@j.Nome <small style="color:var(--text-dim)">@j.Posicao</small></span>
+                                            </a>
+                                        </td>
+                                        <td class="e">
+                                            @if (j.TimeId != null)
+                                            {
+                                                <a class="nba-time-cel nba-time-link" asp-action="Time" asp-route-id="@j.TimeId">
+                                                    @if (j.TimeLogo != null) { <img class="nba-logo p" src="@j.TimeLogo" alt="" loading="lazy" /> }
+                                                    @j.TimeSigla
+                                                </a>
+                                            }
+                                        </td>
+                                        @foreach (var col in colunasJogador)
+                                        {
+                                            <td class="@(col.Ordem == Model.Ordem ? "destaque" : "")">@j.Valores.GetValueOrDefault(col.Campo, "-")</td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    @if (t.TotalPaginas > 1)
+                    {
+                        <nav class="nba-paginacao" aria-label="Páginas">
+                            @if (t.Pagina > 1)
+                            {
+                                <a asp-action="Estatisticas" asp-route-aba="jogadores" asp-route-temporada="@Model.Temporada" asp-route-ordem="@Model.Ordem" asp-route-time="@Model.TimeId" asp-route-pagina="@(t.Pagina - 1)">◀ Anterior</a>
+                            }
+                            <span>Página @t.Pagina de @t.TotalPaginas</span>
+                            @if (t.Pagina < t.TotalPaginas)
+                            {
+                                <a asp-action="Estatisticas" asp-route-aba="jogadores" asp-route-temporada="@Model.Temporada" asp-route-ordem="@Model.Ordem" asp-route-time="@Model.TimeId" asp-route-pagina="@(t.Pagina + 1)">Próxima ▶</a>
+                            }
+                        </nav>
+                    }
+                </section>
+                }
+            }
+        }
+        else
+        {
+            var t = Model.Times;
+            if (t == null || t.Linhas.Count == 0)
+            {
+                <div class="nba-aviso">Não foi possível carregar as estatísticas dos times agora.</div>
+            }
+            else
+            {
+                var linhas = t.Linhas
+                    .OrderByDescending(x => double.TryParse(x.Valores.GetValueOrDefault("avgPoints"), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : 0)
+                    .ToList();
+                <section class="nba-secao">
+                    <h2>Times <small>temporada @t.Temporada</small></h2>
+                    @if (t.Temporada != rotuloTemporada)
+                    {
+                        <p class="nba-nota" style="margin-top:-6px">A ESPN ainda não publicou as estatísticas de times de @rotuloTemporada. Por enquanto, os números são de @t.Temporada.</p>
+                    }
+                    <div class="nba-tabela-wrap">
+                        <table class="nba-tabela">
+                            <thead>
+                                <tr>
+                                    <th class="e pos">#</th>
+                                    <th class="e">Time</th>
+                                    @foreach (var col in colunasTime) { <th title="@col.Titulo">@col.Rotulo</th> }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (var i = 0; i < linhas.Count; i++)
+                                {
+                                    var x = linhas[i];
+                                    <tr>
+                                        <td class="e pos">@(i + 1)</td>
+                                        <td class="e">
+                                            <a class="nba-time-cel nba-time-link" asp-action="Time" asp-route-id="@x.Time.Id">
+                                                @if (x.Time.Logo != null) { <img class="nba-logo p" src="@x.Time.Logo" alt="" loading="lazy" /> }
+                                                @x.Time.Nome
+                                            </a>
+                                        </td>
+                                        @foreach (var col in colunasTime)
+                                        {
+                                            <td class="@(col.Campo == "avgPoints" ? "destaque" : "")">@x.Valores.GetValueOrDefault(col.Campo, "-")</td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            }
+        }
+    </div>
+</div>

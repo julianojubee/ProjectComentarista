@@ -1,0 +1,10 @@
+@* Abas do cabeçalho de /NBA. ViewData["NbaAba"] diz qual está ativa. *@
+@{
+    var aba = ViewData["NbaAba"] as string ?? "";
+    string? Atual(string a) => a == aba ? "page" : null;
+}
+<nav class="nba-abas" aria-label="Seções da NBA">
+    <a class="nba-aba" aria-current="@Atual("jogos")" asp-controller="Nba" asp-action="Index">Jogos</a>
+    <a class="nba-aba" aria-current="@Atual("classificacao")" asp-controller="Nba" asp-action="Classificacao">Classificação</a>
+    <a class="nba-aba" aria-current="@Atual("estatisticas")" asp-controller="Nba" asp-action="Estatisticas">Estatísticas</a>
+</nav>

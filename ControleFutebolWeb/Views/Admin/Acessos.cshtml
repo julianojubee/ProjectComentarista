@@ -12,8 +12,23 @@
         "tabelas" => "Tabelas",
         "jogos-hoje" => "Jogos do dia",
         "simulador" => "Simulador",
+        "nba-jogos" => "Jogos do dia",
+        "nba-classificacao" => "Classificação",
+        "nba-estatisticas" => "Estatísticas",
+        "nba-jogo" => "Página do jogo",
+        "nba-time" => "Página do time",
+        "nba-jogador" => "Página do jogador",
         _ => f,
     };
+
+    // Área pública de cada ferramenta: as da NBA têm o prefixo "nba-".
+    string Area(string f) => f.StartsWith("nba-") ? "/NBA" : "/creators";
+
+    var porArea = Model.PorFerramenta
+        .GroupBy(f => Area(f.Ferramenta))
+        .Select(g => (Area: g.Key, Visitas: g.Sum(f => f.Visitas), Visitantes: g.Sum(f => f.Visitantes)))
+        .OrderByDescending(a => a.Visitas)
+        .ToList();
 }
 
 <style>
@@ -56,7 +71,7 @@
 <div class="ac-wrap">
     <h1 class="ac-titulo">Acessos das páginas públicas</h1>
     <p class="ac-sub">
-        Aberturas das ferramentas de <a href="/creators">/creators</a> entre
+        Aberturas das páginas públicas de <a href="/creators">/creators</a> e <a href="/NBA">/NBA</a> entre
         @Model.De.ToString("dd/MM/yyyy", ptBR) e @Model.Ate.ToString("dd/MM/yyyy", ptBR).
         Robôs e prévias de link (WhatsApp, buscadores) não entram na conta.
     </p>
@@ -106,7 +121,7 @@
                 var altura = Model.PicoDiario > 0 ? (int)Math.Round(100.0 * dia.Visitas / Model.PicoDiario) : 0;
                 var detalhe = dia.Detalhe.Count == 0
                     ? "sem acesso"
-                    : string.Join(" · ", dia.Detalhe.Select(x => $"{Nome(x.Ferramenta)}: {x.Visitas}"));
+                    : string.Join(" · ", dia.Detalhe.Select(x => $"{(x.Ferramenta.StartsWith("nba-") ? "NBA " : "")}{Nome(x.Ferramenta)}: {x.Visitas}"));
                 <div class="ac-barra-col" title="@dia.Dia.ToString("dd/MM", ptBR) — @dia.Visitas aberturas, @dia.Visitantes visitantes&#10;@detalhe">
                     <div class="ac-barra @(dia.Visitas == 0 ? "vazia" : "")" style="height:@(altura)%"></div>
                 </div>
@@ -118,11 +133,36 @@
             <span>@Model.Ate.ToString("dd/MM", ptBR)</span>
         </div>
 
+        @if (porArea.Count > 1)
+        {
+            <h2 class="ac-secao">Por área</h2>
+            <table class="ac-tabela">
+                <thead>
+                    <tr>
+                        <th class="esq">Área</th>
+                        <th>Aberturas</th>
+                        <th>Visitantes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var a in porArea)
+                    {
+                        <tr>
+                            <td class="esq">@a.Area</td>
+                            <td class="ac-forte">@a.Visitas</td>
+                            <td>@a.Visitantes</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+
         <h2 class="ac-secao">Por ferramenta</h2>
         <table class="ac-tabela">
             <thead>
                 <tr>
                     <th class="esq">Ferramenta</th>
+                    <th class="esq">Área</th>
                     <th>Aberturas</th>
                     <th>Visitantes</th>
                 </tr>
@@ -132,6 +172,7 @@
                 {
                     <tr>
                         <td class="esq">@Nome(f.Ferramenta)</td>
+                        <td class="esq" style="font-weight:400;color:var(--text-dim)">@Area(f.Ferramenta)</td>
                         <td class="ac-forte">@f.Visitas</td>
                         <td>@f.Visitantes</td>
                     </tr>
@@ -155,7 +196,7 @@
                     <tr>
                         <td class="esq">@dia.Dia.ToString("dd/MM/yyyy", ptBR)</td>
                         <td class="esq" style="font-weight:400;color:var(--text-dim);font-size:.78rem;">
-                            @string.Join(" · ", dia.Detalhe.Select(x => $"{Nome(x.Ferramenta)} ({x.Visitas})"))
+                            @string.Join(" · ", dia.Detalhe.Select(x => $"{(x.Ferramenta.StartsWith("nba-") ? "NBA " : "")}{Nome(x.Ferramenta)} ({x.Visitas})"))
                         </td>
                         <td class="ac-forte">@dia.Visitas</td>
                         <td>@dia.Visitantes</td>

@@ -1,7 +1,7 @@
 namespace ControleFutebolWeb.Models
 {
     /// <summary>
-    /// Quantas vezes cada ferramenta pública (/creators) foi aberta em um dia.
+    /// Quantas vezes cada ferramenta pública (/creators e /NBA) foi aberta em um dia.
     ///
     /// É um CONTADOR AGREGADO, não um registro de visita: uma linha por
     /// (ferramenta, dia), sem IP, sem user-agent, sem nada que identifique quem
@@ -14,7 +14,10 @@ namespace ControleFutebolWeb.Models
     {
         public int Id { get; set; }
 
-        /// <summary>Ferramenta aberta: "hub", "escalacao", "selecao", "tabelas", "jogos-hoje", "simulador".</summary>
+        /// <summary>
+        /// Ferramenta aberta: "hub", "escalacao", "selecao", "tabelas", "jogos-hoje",
+        /// "simulador" (/creators) ou "nba-…" (/NBA). Ver AcessoPublicoFilter.
+        /// </summary>
         public string Ferramenta { get; set; } = string.Empty;
 
         /// <summary>

@@ -3,7 +3,8 @@ using System.Net.Http.Json;
 namespace ControleFutebolWeb.Services
 {
     // Consome a API pública do futnatv.net (GET /api/futebol?data=yyyy-MM-dd),
-    // que lista os jogos do dia com a plataforma de transmissão de cada um.
+    // que lista os jogos do dia com a plataforma de transmissão de cada um. O
+    // basquete (NBA, NBB, EuroLiga, WNBA) sai no mesmo formato em /api/basquete.
     public class FutnatvService
     {
         private readonly HttpClient _http;
@@ -17,12 +18,16 @@ namespace ControleFutebolWeb.Services
             _logger = logger;
         }
 
+        public const string Futebol = "futebol";
+        public const string Basquete = "basquete";
+
         // dataBrasilia: data (sem hora) no fuso de referência do site, formato yyyy-MM-dd.
         // Não engole erro: quem chama decide como logar/monitorar a falha (ver AtualizarTransmissoesService).
-        public async Task<FutnatvResultado> BuscarJogosDoDiaAsync(DateOnly dataBrasilia, CancellationToken ct = default)
+        public async Task<FutnatvResultado> BuscarJogosDoDiaAsync(
+            DateOnly dataBrasilia, CancellationToken ct = default, string esporte = Futebol)
         {
             var chaveData = dataBrasilia.ToString("yyyy-MM-dd");
-            var url = $"api/futebol?data={chaveData}";
+            var url = $"api/{esporte}?data={chaveData}";
             try
             {
                 var resposta = await _http.GetFromJsonAsync<FutnatvResponse>(url, ct);
@@ -33,7 +38,7 @@ namespace ControleFutebolWeb.Services
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or NotSupportedException or System.Text.Json.JsonException)
             {
-                _logger.LogWarning(ex, "[Futnatv] Falha ao buscar jogos de {Data}.", chaveData);
+                _logger.LogWarning(ex, "[Futnatv] Falha ao buscar jogos de {Esporte} de {Data}.", esporte, chaveData);
                 return new FutnatvResultado(false, url, new List<FutnatvJogo>(), ex.Message);
             }
         }

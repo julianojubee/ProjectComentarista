@@ -111,6 +111,7 @@ namespace ControleFutebolWeb.Filters
         // conta, e bloquear pela inadimplência de quem está logado no navegador
         // derrubaria um link que nada tem a ver com ele.
         // CampeonatoPublico (/c/{token}): mesmo caso, o link do campeonato próprio.
+        // Nba (/NBA): pública, só dados externos (ESPN/futnatv), igual para todo mundo.
         private static bool EhControllerIsento(ActionExecutingContext context)
         {
             if (context.ActionDescriptor is not ControllerActionDescriptor d) return false;
@@ -118,7 +119,8 @@ namespace ControleFutebolWeb.Filters
                    string.Equals(d.ControllerName, "Blog", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(d.ControllerName, "AnalisePublica", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(d.ControllerName, "Creators", StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(d.ControllerName, "CampeonatoPublico", StringComparison.OrdinalIgnoreCase);
+                   string.Equals(d.ControllerName, "CampeonatoPublico", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(d.ControllerName, "Nba", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

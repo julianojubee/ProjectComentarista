@@ -1,0 +1,50 @@
+@model ControleFutebolWeb.Models.ViewModels.NbaJogadorViewModel
+@using Microsoft.AspNetCore.Mvc.ViewFeatures
+@{
+    var g = Model.Jogos;
+}
+@if (g == null)
+{
+    <div class="nba-aviso">Não foi possível carregar os jogos agora.</div>
+    return;
+}
+
+<form method="get" asp-action="Jogador" asp-route-id="@Model.Perfil.Id" class="nba-filtro-temporada">
+    <input type="hidden" name="aba" value="jogos" />
+    <label>Temporada
+        <select name="temporada" onchange="this.form.submit()">
+            @foreach (var t in g.Temporadas)
+            {
+                <option value="@t.Ano" selected="@(t.Ano == Model.Temporada)">@t.Rotulo</option>
+            }
+        </select>
+    </label>
+</form>
+
+@if (g.ResumoTemporada.Any())
+{
+    <section class="nba-secao">
+        <h2>Temporada regular @g.Temporada</h2>
+        @await Html.PartialAsync("_JogadorTabelaRotulada", g.ResumoTemporada, new ViewDataDictionary(ViewData) { ["Colunas"] = g.Colunas, ["Cabecalho"] = "" })
+    </section>
+}
+
+@if (g.ResumoPlayoffs.Any())
+{
+    <section class="nba-secao">
+        <h2>Playoffs @g.Temporada <small>a ESPN não publica o jogo a jogo da pós-temporada</small></h2>
+        @await Html.PartialAsync("_JogadorTabelaRotulada", g.ResumoPlayoffs, new ViewDataDictionary(ViewData) { ["Colunas"] = g.Colunas, ["Cabecalho"] = "" })
+    </section>
+}
+
+@if (!g.Meses.Any())
+{
+    <div class="nba-aviso">Nenhum jogo da temporada regular @g.Temporada.</div>
+}
+@foreach (var m in g.Meses)
+{
+    <section class="nba-secao">
+        <h2>@m.Nome <small>@m.Jogos.Count @(m.Jogos.Count == 1 ? "jogo" : "jogos")</small></h2>
+        @await Html.PartialAsync("_JogadorTabelaJogos", m.Jogos, new ViewDataDictionary(ViewData) { ["Colunas"] = g.Colunas, ["Medias"] = m.Medias })
+    </section>
+}

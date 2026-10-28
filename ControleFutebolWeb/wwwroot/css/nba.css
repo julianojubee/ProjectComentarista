@@ -1,0 +1,253 @@
+/* Página /NBA — mesma linguagem visual de /Jogos/Hoje (cabeçalho navy com filete
+   dourado, Barlow, superfícies --p-*), com o laranja da bola como acento. */
+
+.nba-root, .nba-root *, .nba-root *::before, .nba-root *::after { box-sizing: border-box; }
+.nba-root {
+    --nba-laranja: #ea580c;
+    margin: 0 -12px;
+    background: var(--p-0);
+    border-radius: 14px;
+    overflow: hidden;
+    color: var(--text);
+    font-family: 'Barlow', Arial, sans-serif;
+}
+.nba-root a { color: inherit; text-decoration: none; }
+.nba-root a.nba-link:hover, .nba-root .nba-time-link:hover { color: var(--gold-ink); text-decoration: underline; }
+.nba-root :is(a, button, select, input):focus-visible { outline: 2px solid #d4a520; outline-offset: 2px; }
+
+@keyframes nbaPulso { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .nba-root .nba-ponto-vivo { animation: none !important; } }
+.nba-ponto-vivo { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; animation: nbaPulso 1.5s ease infinite; flex-shrink: 0; }
+
+/* ── Cabeçalho (fundo escuro nos dois temas) ── */
+.nba-cab {
+    padding: 1.4rem 2.5rem 0;
+    background: linear-gradient(135deg, #0a1628 0%, #0f2040 55%, #0a1628 100%);
+    border-left: 4px solid #d4a520;
+}
+.nba-cab-topo { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px 24px; flex-wrap: wrap; }
+.nba-cab-marca { font-size: .85rem; font-weight: 700; color: #fdba74; letter-spacing: .08em; text-transform: uppercase; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.nba-cab h1 { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 2.3rem; font-weight: 800; color: #f2f5fa; margin: 2px 0 0; line-height: 1.05; }
+.nba-cab-sub { margin: 6px 0 0; font-size: .92rem; color: rgba(255,255,255,.75); }
+.nba-cab-sub strong { color: #f2f5fa; }
+
+.nba-abas { display: flex; gap: 4px; margin-top: 18px; overflow-x: auto; scrollbar-width: none; }
+.nba-root .nba-aba {
+    padding: 10px 16px; border-radius: 10px 10px 0 0; font-weight: 700; font-size: .95rem;
+    color: rgba(255,255,255,.7); white-space: nowrap; border-bottom: 3px solid transparent;
+}
+.nba-root .nba-aba:hover { color: #fff; }
+.nba-root .nba-aba[aria-current="page"] { color: #fff; border-bottom-color: #d4a520; background: rgba(255,255,255,.06); }
+
+/* Controles dentro do cabeçalho (setas de dia, data, temporada) */
+.nba-nav { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.nba-nav form { margin: 0; display: flex; gap: 6px; }
+.nba-root .nba-nav-btn {
+    display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,.25); background: transparent; color: #e8edf5;
+    font-family: inherit; font-size: .86rem; font-weight: 600; white-space: nowrap; cursor: pointer;
+}
+.nba-root .nba-nav-btn:hover { border-color: #d4a520; color: #f3d27a; }
+.nba-root .nba-nav-btn.ativo { background: #d4a520; border-color: #d4a520; color: #141414; }
+.nba-campo {
+    height: 36px; padding: 0 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.25);
+    background: rgba(255,255,255,.06); color: #e8edf5; font-family: inherit; font-size: .86rem; color-scheme: dark;
+}
+.nba-campo option { color: #111; }
+
+/* ── Barra de filtros (abaixo do cabeçalho) ── */
+.nba-barra { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 12px 2.5rem; background: var(--p-1); border-bottom: 1px solid var(--line); }
+.nba-root .nba-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px;
+    border: 1px solid var(--line-strong); color: var(--text-muted); font-size: .86rem; font-weight: 600; white-space: nowrap;
+}
+.nba-root .nba-chip:hover { color: var(--text-strong); border-color: #d4a520; }
+.nba-root .nba-chip:is([aria-current="true"], [aria-pressed="true"]) { background: var(--text-strong); border-color: var(--text-strong); color: var(--p-0); }
+
+/* ── Conteúdo ── */
+.nba-conteudo { padding: 24px 2.5rem 56px; max-width: 1300px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+.nba-secao > h2 {
+    font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.4rem; font-weight: 700; color: var(--text-strong);
+    margin: 0 0 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.nba-secao > h2 small { font-family: 'Barlow', Arial, sans-serif; font-size: .84rem; font-weight: 500; color: var(--text-dim); }
+.nba-conf-titulo { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.8rem; font-weight: 800; color: var(--text-strong); margin: 0 0 -12px; padding-top: 8px; border-top: 2px solid #d4a520; }
+.nba-aviso { padding: 28px; text-align: center; color: var(--text-muted); background: var(--p-1); border: 1px dashed var(--line-strong); border-radius: 12px; }
+.nba-nota { font-size: .82rem; color: var(--text-dim); margin: 8px 0 0; }
+
+.nba-logo { width: 28px; height: 28px; object-fit: contain; flex-shrink: 0; }
+.nba-logo.p { width: 20px; height: 20px; }
+.nba-logo.g { width: 64px; height: 64px; }
+.nba-foto { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; object-position: top; background: var(--p-3); flex-shrink: 0; }
+.nba-foto.g { width: 56px; height: 56px; }
+
+/* ── Cards de jogo ── */
+.nba-jogos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.nba-card {
+    display: flex; flex-direction: column; gap: 10px;
+    background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+}
+.nba-root a.nba-card:hover { border-color: #d4a520; }
+.nba-card.vivo { border-color: rgba(239,68,68,.45); }
+.nba-card-topo { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: .84rem; color: var(--text-muted); font-weight: 600; }
+.nba-estado { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.nba-estado.ag { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.15rem; color: var(--text-strong); }
+.nba-estado.vivo { color: var(--bad); }
+.nba-estado.enc { color: var(--text-dim); }
+
+.nba-linha { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto auto; align-items: center; gap: 10px; }
+.nba-linha-nome { font-weight: 600; color: var(--text-strong); overflow-wrap: anywhere; }
+.nba-linha-nome small { display: block; font-size: .76rem; font-weight: 500; color: var(--text-dim); }
+.nba-parciais { display: flex; gap: 6px; font-size: .78rem; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.nba-parciais span { min-width: 22px; text-align: right; }
+.nba-n { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--text-strong); min-width: 44px; text-align: right; line-height: 1; font-variant-numeric: tabular-nums; }
+.nba-linha.perde .nba-linha-nome, .nba-linha.perde .nba-n { color: var(--text-dim); font-weight: 500; }
+.nba-card.vivo .nba-n { color: var(--bad); }
+
+.nba-card-rodape { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line-soft); font-size: .82rem; color: var(--text-muted); }
+.nba-destaques { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
+.nba-destaques div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nba-destaques b { color: var(--text-strong); font-weight: 600; }
+.nba-tv { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.nba-tag { display: inline-block; padding: 2px 8px; border-radius: 6px; background: var(--p-4); color: var(--text-strong); font-size: .76rem; font-weight: 600; }
+.nba-tag.br { background: rgba(212,165,32,.16); color: var(--gold-ink); border: 1px solid rgba(212,165,32,.45); }
+.nba-tv-pendente { font-style: italic; color: var(--text-dim); }
+.nba-tv-eua { font-size: .76rem; color: var(--text-dim); }
+.nba-manchete { font-style: italic; color: var(--text-muted); }
+
+/* ── Tabelas ── */
+.nba-tabela-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--p-2); }
+.nba-tabela { width: 100%; border-collapse: collapse; font-size: .88rem; font-variant-numeric: tabular-nums; }
+.nba-tabela th, .nba-tabela td { padding: 8px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line-soft); }
+.nba-tabela th { background: var(--p-1); color: var(--text-dim); font-size: .76rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; position: sticky; top: 0; }
+.nba-tabela th.e, .nba-tabela td.e { text-align: left; }
+.nba-tabela tbody tr:hover { background: var(--p-3); }
+.nba-tabela tbody tr:last-child td { border-bottom: 0; }
+.nba-tabela td.destaque { font-weight: 800; color: var(--text-strong); }
+.nba-tabela tfoot td { font-weight: 700; background: var(--p-1); color: var(--text-strong); }
+.nba-tabela .nba-time-cel { display: flex; align-items: center; gap: 8px; }
+.nba-tabela .pos { width: 34px; color: var(--text-dim); font-weight: 700; }
+.nba-tabela th a { color: inherit; }
+.nba-tabela th a:hover { color: var(--text-strong); }
+.nba-tabela th[aria-sort] { color: var(--text-strong); }
+.nba-tabela th[aria-sort]::after { content: " ▼"; font-size: .65rem; }
+/* Linhas de corte da conferência: 1-6 direto nos playoffs, 7-10 play-in. */
+.nba-tabela tr.corte-playoff td { border-bottom: 2px solid var(--ok); }
+.nba-tabela tr.corte-playin td { border-bottom: 2px dashed var(--warn); }
+.nba-seq-v { color: var(--ok); font-weight: 700; }
+.nba-seq-d { color: var(--bad); font-weight: 700; }
+.nba-clincher { font-size: .7rem; font-weight: 700; color: var(--text-dim); margin-left: 2px; }
+.nba-legenda { display: flex; gap: 16px; flex-wrap: wrap; font-size: .8rem; color: var(--text-dim); margin-top: 10px; }
+.nba-legenda span::before { content: ""; display: inline-block; width: 18px; height: 0; vertical-align: middle; margin-right: 6px; }
+.nba-legenda .lp::before { border-top: 2px solid var(--ok); }
+.nba-legenda .li::before { border-top: 2px dashed var(--warn); }
+.nba-dnp td:not(.e) { color: var(--text-dim); font-style: italic; text-align: left; }
+
+.nba-grupos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.nba-grupos.um { grid-template-columns: 1fr; }
+
+/* ── Líderes ── */
+.nba-lideres { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.nba-lider-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.nba-lider-card h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-dim); font-weight: 700; margin: 0 0 10px; display: flex; justify-content: space-between; }
+.nba-lider-top { display: flex; align-items: center; gap: 12px; padding-bottom: 10px; margin-bottom: 6px; border-bottom: 1px solid var(--line-soft); }
+.nba-lider-top .nome { display: block; font-weight: 700; color: var(--text-strong); }
+.nba-lider-top .time { font-size: .8rem; color: var(--text-dim); display: flex; align-items: center; gap: 4px; }
+.nba-lider-top .valor { margin-left: auto; font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 2rem; font-weight: 800; color: var(--nba-laranja); }
+.nba-lider-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: .88rem; }
+.nba-lider-lista li { display: grid; grid-template-columns: 18px 20px minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.nba-lider-lista .i { color: var(--text-dim); font-weight: 700; }
+.nba-lider-lista .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-strong); }
+.nba-lider-lista .v { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.nba-paginacao { display: flex; gap: 6px; justify-content: center; align-items: center; margin-top: 14px; font-size: .88rem; color: var(--text-dim); }
+.nba-root .nba-paginacao a { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line-strong); color: var(--text-strong); font-weight: 600; }
+.nba-root .nba-paginacao a:hover { border-color: #d4a520; }
+
+/* ── Placar do jogo ── */
+.nba-placar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; padding: 22px 0 6px; }
+.nba-root .nba-placar-time { display: flex; align-items: center; gap: 14px; color: #f2f5fa; }
+.nba-root a.nba-placar-time:hover .nome { color: #f3d27a; }
+.nba-placar-time.casa { flex-direction: row-reverse; text-align: right; }
+.nba-placar-time .nome { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.5rem; font-weight: 700; line-height: 1.1; }
+.nba-placar-time small { display: block; font-family: 'Barlow', Arial, sans-serif; font-size: .82rem; color: rgba(255,255,255,.65); font-weight: 500; }
+.nba-placar-time .pts { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 3.2rem; font-weight: 800; margin: 0 6px; font-variant-numeric: tabular-nums; }
+.nba-placar-time.perde .pts { color: rgba(255,255,255,.5); }
+.nba-placar-meio { text-align: center; color: rgba(255,255,255,.8); font-size: .9rem; font-weight: 700; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.nba-placar-meio .vivo { color: #fca5a5; display: inline-flex; gap: 6px; align-items: center; }
+
+.nba-duas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+.nba-comparativo { width: 100%; border-collapse: collapse; font-size: .9rem; font-variant-numeric: tabular-nums; }
+.nba-comparativo td { padding: 7px 10px; border-bottom: 1px solid var(--line-soft); }
+.nba-comparativo td:first-child, .nba-comparativo td:last-child { width: 25%; font-weight: 700; color: var(--text-strong); }
+.nba-comparativo td:first-child { text-align: left; }
+.nba-comparativo td:last-child { text-align: right; }
+.nba-comparativo td:nth-child(2) { text-align: center; color: var(--text-muted); }
+
+.nba-lances { list-style: none; margin: 0; padding: 0; max-height: 560px; overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--p-2); }
+.nba-lances li { display: grid; grid-template-columns: 56px minmax(0, 1fr) 72px; gap: 10px; padding: 7px 12px; border-bottom: 1px solid var(--line-soft); font-size: .86rem; align-items: center; }
+.nba-lances li.ponto { background: var(--p-1); }
+.nba-lances li.ponto .txt { color: var(--text-strong); font-weight: 600; }
+.nba-lances li.periodo { background: var(--p-3); font-weight: 700; color: var(--text-strong); grid-template-columns: 1fr; }
+.nba-lances .rel { color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.nba-lances .plc { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-strong); }
+.nba-filtro-lances { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.nba-root button.nba-chip { background: transparent; font-family: inherit; cursor: pointer; }
+
+.nba-info { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: .86rem; color: var(--text-muted); }
+.nba-info b { color: var(--text-strong); font-weight: 600; }
+
+/* ── Elenco ── */
+.nba-elenco { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.nba-atleta { display: flex; gap: 12px; align-items: center; background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.nba-root a.nba-atleta:hover { border-color: #d4a520; }
+.nba-atleta .num { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.4rem; font-weight: 800; color: var(--text-dim); min-width: 28px; text-align: center; }
+.nba-atleta .nome { font-weight: 700; color: var(--text-strong); }
+.nba-atleta .det { font-size: .8rem; color: var(--text-dim); }
+.nba-lesao { color: var(--bad); font-weight: 700; font-size: .78rem; }
+
+@media (max-width: 900px) {
+    .nba-jogos, .nba-grupos, .nba-duas { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+    .nba-cab { padding: 1.1rem 1rem 0; }
+    .nba-barra, .nba-conteudo { padding-left: 1rem; padding-right: 1rem; }
+    .nba-cab h1 { font-size: 1.8rem; }
+    .nba-placar { grid-template-columns: 1fr; gap: 8px; }
+    .nba-placar-time, .nba-placar-time.casa { flex-direction: row; text-align: left; }
+    .nba-placar-time .pts { margin-left: auto; font-size: 2.4rem; }
+    .nba-placar-meio { order: -1; }
+    .nba-parciais { display: none; }
+}
+
+/* ── Jogador ── */
+.nba-jogador-cab { display: flex; align-items: flex-end; gap: 18px; min-width: 0; }
+.nba-jogador-foto { width: 132px; height: 96px; object-fit: cover; object-position: top; margin-bottom: -2px; flex-shrink: 0; }
+.nba-root .nba-cab-time { display: inline-flex; align-items: center; gap: 4px; color: #fdba74; }
+.nba-root .nba-cab-time:hover { color: #fff; }
+.nba-cab-sub + .nba-cab-sub { margin-top: 2px; }
+.nba-resumo { display: flex; gap: 8px; flex-wrap: wrap; }
+.nba-resumo-item {
+    display: flex; flex-direction: column; align-items: center; min-width: 74px; padding: 8px 10px;
+    border: 1px solid rgba(255,255,255,.18); border-radius: 10px; background: rgba(255,255,255,.05);
+}
+.nba-resumo-item .sigla { font-size: .72rem; font-weight: 700; color: rgba(255,255,255,.65); letter-spacing: .05em; }
+.nba-resumo-item .valor { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.7rem; font-weight: 800; color: #f2f5fa; line-height: 1.05; }
+.nba-resumo-item .rank { font-size: .72rem; font-weight: 700; color: #f3d27a; }
+
+.nba-premios { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.nba-premios li { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 999px; background: var(--p-1); border: 1px solid var(--line); font-size: .86rem; color: var(--text-strong); font-weight: 600; }
+.nba-premios .qtd { background: #d4a520; color: #141414; border-radius: 999px; padding: 2px 8px; font-weight: 800; font-size: .78rem; }
+.nba-passagens { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.nba-passagens li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--p-1); border: 1px solid var(--line); border-radius: 10px; font-weight: 600; color: var(--text-strong); }
+.nba-passagens .periodo { margin-left: auto; color: var(--text-dim); font-weight: 500; font-size: .86rem; }
+
+.nba-filtro-temporada { margin: 0; }
+.nba-filtro-temporada label { display: inline-flex; align-items: center; gap: 8px; font-size: .88rem; font-weight: 600; color: var(--text-muted); }
+.nba-filtro-temporada select { height: 34px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--input-bg); color: var(--text); font-family: inherit; }
+
+@media (max-width: 640px) {
+    .nba-jogador-cab { align-items: center; }
+    .nba-jogador-foto { width: 88px; height: 64px; }
+    .nba-resumo-item { min-width: 0; flex: 1; }
+}

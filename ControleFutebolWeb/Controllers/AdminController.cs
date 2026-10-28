@@ -22,7 +22,7 @@ namespace ControleFutebolWeb.Controllers
         }
 
         // GET: /Admin/Acessos?dias=30
-        // Movimento das páginas públicas de /creators: quantas aberturas e quantos
+        // Movimento das páginas públicas (/creators e /NBA): quantas aberturas e quantos
         // visitantes por ferramenta, dia a dia. É o contador agregado do
         // AcessoPublicoService — não há registro de visita individual para mostrar.
         [HttpGet]

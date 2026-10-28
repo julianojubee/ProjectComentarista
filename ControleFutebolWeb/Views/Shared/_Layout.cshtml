@@ -107,7 +107,7 @@
                         var _acao = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
                         bool _em(params string[] ctrls) => ctrls.Contains(_ctrl, StringComparer.OrdinalIgnoreCase);
                         var _naHoje = _em("Jogos") && _acao.Equals("Hoje", StringComparison.OrdinalIgnoreCase);
-                        var _naCompeticao = _em("Competicoes", "ChampionsLeague", "Libertadores", "SulAmericana", "CopaBrasil", "CopaDoMundo", "TabelaBrasileirao", "Tabela");
+                        var _naCompeticao = _em("Competicoes", "ChampionsLeague", "Libertadores", "SulAmericana", "CopaBrasil", "CopaDoMundo", "TabelaBrasileirao", "Tabela", "Nba");
                         var _noCadastro = !_naHoje && _em("Times", "Jogadores", "Treinadores", "Jogos", "Formacoes", "CriteriosNota");
                         var _naFerramenta = _em("Simulador", "Transferencias", "MarcacaoVideo");
                         var _noAdmin = _em("Servicos", "TransfermarktLogs");
@@ -131,6 +131,8 @@
                                 Competições
                             </a>
                             <div class="dropdown-menu" aria-labelledby="competicoesDropdown">
+                                <a class="dropdown-item" asp-controller="Nba" asp-action="Index"><span class="gold-ico">🏀</span> NBA</a>
+                                <div class="dropdown-divider"></div>
                                 @if (_layoutCompeticoesMenu.Any())
                                 {
                                     foreach (var comp in _layoutCompeticoesMenu)
@@ -276,6 +278,13 @@
                                 </div>
                             </li>
                         </ul>
+                    }
+                    else
+                    {
+                        @* Visitante numa página pública que usa este layout (hoje, /NBA): a
+                           barra fica sem menus, então o único caminho é entrar. *@
+                        <a class="btn btn-sm btn-dark" asp-controller="Account" asp-action="Login"
+                           asp-route-returnUrl="@(Context.Request.Path + Context.Request.QueryString)">Entrar</a>
                     }
 
                 </div>

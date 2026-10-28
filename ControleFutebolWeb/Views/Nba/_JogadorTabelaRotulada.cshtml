@@ -1,0 +1,29 @@
+@* Tabela de linhas rotuladas (temporada × carreira, resumos, recortes).
+   ViewData["Colunas"] são os rótulos; ViewData["Cabecalho"] é o título da 1ª coluna. *@
+@model IReadOnlyList<ControleFutebolWeb.Models.Nba.NbaLinhaRotulada>
+@{
+    var colunas = (IReadOnlyList<string>)ViewData["Colunas"]!;
+    var cabecalho = ViewData["Cabecalho"] as string ?? "";
+}
+<div class="nba-tabela-wrap">
+    <table class="nba-tabela">
+        <thead>
+            <tr>
+                <th class="e">@cabecalho</th>
+                @foreach (var c in colunas) { <th>@c</th> }
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var l in Model)
+            {
+                <tr>
+                    <td class="e"><b style="color:var(--text-strong)">@l.Rotulo</b></td>
+                    @for (var i = 0; i < colunas.Count; i++)
+                    {
+                        <td class="@(colunas[i] == "PTS" ? "destaque" : "")">@(i < l.Valores.Count ? l.Valores[i] : "")</td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

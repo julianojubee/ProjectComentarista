@@ -154,6 +154,8 @@ internal class Program
         builder.Services.AddHttpClient<ApiFootballService>();
         builder.Services.AddHttpClient<FutnatvService>();
         builder.Services.AddHttpClient<EspnEstatisticasService>();
+        builder.Services.AddHttpClient<EspnNbaService>();
+        builder.Services.AddScoped<TransmissaoNbaService>();
         builder.Services.AddScoped<EspnEscalacaoService>();
         builder.Services.AddScoped<EspnEventosService>();
         // Terceira fonte de estatística, para o que nem a api-football nem a ESPN têm

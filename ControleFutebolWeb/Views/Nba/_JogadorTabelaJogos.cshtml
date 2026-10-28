@@ -1,0 +1,56 @@
+@* Tabela de jogos do jogador (visão geral e game log). ViewData["Colunas"] são os
+   rótulos das estatísticas; ViewData["Medias"], opcional, vira o rodapé. *@
+@model IReadOnlyList<ControleFutebolWeb.Models.Nba.NbaJogoAtleta>
+@{
+    var colunas = (IReadOnlyList<string>)ViewData["Colunas"]!;
+    var medias = ViewData["Medias"] as IReadOnlyList<string>;
+}
+<div class="nba-tabela-wrap">
+    <table class="nba-tabela">
+        <thead>
+            <tr>
+                <th class="e">Data</th>
+                <th class="e">Adversário</th>
+                <th class="e">Resultado</th>
+                @foreach (var c in colunas) { <th>@c</th> }
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var j in Model)
+            {
+                <tr>
+                    <td class="e">@NbaViewHelper.DataCurta(j.DataUtc)</td>
+                    <td class="e">
+                        @if (j.AdversarioId != null)
+                        {
+                            <a class="nba-time-cel nba-time-link" asp-action="Time" asp-route-id="@j.AdversarioId">
+                                <span style="color:var(--text-dim);width:16px">@(j.EmCasa ? "vs" : "@")</span>
+                                @if (j.AdversarioLogo != null) { <img class="nba-logo p" src="@j.AdversarioLogo" alt="" loading="lazy" /> }
+                                @j.AdversarioSigla
+                            </a>
+                        }
+                        else { @j.AdversarioSigla }
+                    </td>
+                    <td class="e">
+                        <a class="nba-link" asp-action="Jogo" asp-route-id="@j.EventoId">
+                            <b class="@NbaViewHelper.ClasseSequencia(j.Resultado ?? "")">@j.Resultado</b> @j.Placar
+                        </a>
+                    </td>
+                    @for (var i = 0; i < colunas.Count; i++)
+                    {
+                        <td class="@(colunas[i] == "PTS" ? "destaque" : "")">@(i < j.Valores.Count ? j.Valores[i] : "")</td>
+                    }
+                </tr>
+            }
+        </tbody>
+        @if (medias is { Count: > 0 })
+        {
+            <tfoot>
+                <tr>
+                    <td class="e" colspan="3">Médias</td>
+                    @for (var i = 0; i < colunas.Count; i++) { <td>@(i < medias.Count ? medias[i] : "")</td> }
+                </tr>
+            </tfoot>
+        }
+    </table>
+</div>
