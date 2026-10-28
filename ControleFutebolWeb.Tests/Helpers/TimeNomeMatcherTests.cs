@@ -21,6 +21,10 @@ namespace ControleFutebolWeb.Tests.Helpers
         [InlineData("Campeonato Holandês", "Campeonato Neerlandês")]
         [InlineData("UEFA Nations League", "UEFA Nations League - A")]
         [InlineData("UEFA Nations League", "UEFA Nations League - D")]
+        [InlineData("Copa del Rey", "Copa do Rei")]
+        [InlineData("DFB Pokal", "Copa da Alemanha")]
+        [InlineData("League Cup", "Copa da Liga Inglesa")]
+        [InlineData("Copa da Liga Inglesa", "Copa da Liga Inglesa")]
         public void CompeticoesEquivalentes_Correspondem(string nomeBanco, string nomeFutnatv)
         {
             Assert.True(TimeNomeMatcher.SaoMesmaCompeticao(nomeBanco, nomeFutnatv));
@@ -35,6 +39,9 @@ namespace ControleFutebolWeb.Tests.Helpers
         [InlineData("La Liga", "Campeonato Espanhol (2ª div.)")]
         [InlineData("Campeonato Holandês", "Campeonato Neerlandês (2ª div.)")]
         [InlineData("UEFA Nations League", "CONCACAF Nations League")]
+        [InlineData("La Liga", "Copa do Rei")]
+        [InlineData("Bundesliga", "Copa da Alemanha")]
+        [InlineData("Copa del Rey", "Copa do Brasil")]
         public void CompeticoesDiferentes_NaoCorrespondem(string nomeBanco, string nomeFutnatv)
         {
             Assert.False(TimeNomeMatcher.SaoMesmaCompeticao(nomeBanco, nomeFutnatv));
@@ -50,6 +57,10 @@ namespace ControleFutebolWeb.Tests.Helpers
         [InlineData("Atlético Mineiro W", "Atlético-MG")]
         [InlineData("Deportivo Recoleta", "Recoleta")]     // futnatv encurta clubes sul-americanos
         [InlineData("Independiente Rivadavia", "Ind. Rivadavia")]
+        [InlineData("Dragonas IDV W", "Independiente del Valle")] // apelido do feminino (api-football) x FotMob
+        [InlineData("Libertad Asuncion W", "Libertad")]   // FotMob larga a cidade
+        [InlineData("Club Nacional de Football W", "Nacional")]
+        [InlineData("Club Nacional", "Nacional")]
         [InlineData("Union St. Gilloise", "Union Saint-Gilloise")]
         [InlineData("Wolves", "Wolverhampton")]
         [InlineData("Cerro Porteno", "Cerro Porteño")]
@@ -132,6 +143,24 @@ namespace ControleFutebolWeb.Tests.Helpers
         [InlineData("FSV Mainz 05", "Mainz 05")]              // número no fim faz parte do nome
         [InlineData("SV Elversberg", "Elversberg")]
         [InlineData("SC Paderborn 07", "Paderborn 07")]
+        // Copas nacionais (api-football x futnatv): clubes de divisão inferior.
+        [InlineData("Hertha BSC", "Hertha Berlin")]
+        [InlineData("Karlsruher SC", "Karlsruher")]
+        [InlineData("SG Sonnenhof Grossaspach", "Grossaspach")]
+        [InlineData("Rot-Weiß Essen", "RW Essen")]
+        [InlineData("SSV Jeddeloh", "Jeddeloh")]
+        [InlineData("1. FC Nürnberg", "Nürnberg")]
+        [InlineData("1. FC Magdeburg", "Magdeburg")]
+        [InlineData("VfL Bochum", "Bochum")]
+        [InlineData("SV Darmstadt 98", "Darmstadt 98")]
+        [InlineData("FC Schalke 04", "Schalke 04")]
+        [InlineData("Sestao River", "Sestao")]
+        [InlineData("Recreativo Huelva", "Huelva")]
+        [InlineData("Salamanca UDS", "Salamanca")]
+        [InlineData("Deportivo La Coruna", "Dep. A Coruña")]
+        [InlineData("Tarancón", "Tarancon")]
+        [InlineData("Ribadesella CF", "Ribadesella CF")]
+        [InlineData("Fleetwood Town", "Fleetwood")]
         public void TimesEquivalentes_Correspondem(string nomeBanco, string nomeFutnatv)
         {
             Assert.True(TimeNomeMatcher.SaoMesmoTime(nomeBanco, nomeFutnatv));

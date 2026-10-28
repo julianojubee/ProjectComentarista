@@ -65,6 +65,14 @@ namespace ControleFutebolWeb.Services
             // A ESPN põe a cidade que o nosso cadastro não tem: "Cienciano del Cusco".
             new[] { "cienciano", "cienciano del cusco" },
             new[] { "river plate", "river" },
+            // O feminino do Independiente del Valle entra no nosso cadastro com o apelido
+            // ("Dragonas IDV W", vindo da api-football) e o FotMob usa o nome do clube.
+            new[] { "independiente del valle", "dragonas idv", "idv", "ind del valle" },
+            // Idem: o FotMob larga a cidade do Libertad e o "Club ... de Football" do
+            // Nacional uruguaio. O "Libertad" seco do cadastro (outro clube) cai no grupo
+            // junto, mas a competição e o adversário é que separam no casamento.
+            new[] { "libertad asuncion", "libertad" },
+            new[] { "club nacional de football", "nacional" },
             new[] { "atletico torque", "montevideo city", "montevideo city torque" },
             // O futnatv chama o Estudiantes de La Plata só de "Estudiantes". A competição e o
             // adversário é que separam do Estudiantes de Mérida no casamento.
@@ -110,6 +118,21 @@ namespace ControleFutebolWeb.Services
             // O futnatv aportuguesa Hamburgo; o "SV" do nosso cadastro fica no fim do nome,
             // onde a lista de sufixos não mexe (lá "SC"/"SV" seriam sigla de estado).
             new[] { "hamburger sv", "hamburgo", "hamburg", "hamburger" },
+            // DFB Pokal: o futnatv corta o "BSC"/"SC" e o "SG Sonnenhof" e abrevia o
+            // Rot-Weiss. O "ß" não decompõe no FormD, então as duas grafias entram.
+            new[] { "hertha bsc", "hertha berlin", "hertha" },
+            new[] { "karlsruher sc", "karlsruher", "karlsruhe" },
+            new[] { "sg sonnenhof grossaspach", "sonnenhof grossaspach", "grossaspach",
+                    "sg sonnenhof großaspach", "großaspach" },
+            new[] { "rot weiss essen", "rot weiß essen", "rw essen" },
+            new[] { "ssv jeddeloh", "jeddeloh" },
+            // Copa del Rey: o futnatv corta o "River", o "Recreativo" e o "UDS", e escreve
+            // "Dep. A Coruña" onde a api-football põe "Deportivo La Coruna" (aqui difere
+            // mais de uma palavra, e a regra da abreviação não alcança).
+            new[] { "sestao river", "sestao" },
+            new[] { "recreativo huelva", "huelva", "recreativo" },
+            new[] { "salamanca uds", "salamanca" },
+            new[] { "deportivo la coruna", "deportivo a coruna", "dep a coruna", "deportivo coruna" },
             // Ligue 1: o futnatv usa o nome completo do clube e o nosso cadastro só a cidade.
             new[] { "marseille", "olympique de marseille", "olympique marseille" },
             new[] { "lyon", "olympique de lyon", "olympique lyonnais" },
@@ -190,6 +213,11 @@ namespace ControleFutebolWeb.Services
             // entra no grupo e continua sem casar.
             new[] { "uefa nations league", "uefa nations league a", "uefa nations league b",
                     "uefa nations league c", "uefa nations league d", "liga das nacoes", "liga das nacoes uefa" },
+            // Copas nacionais: o nosso cadastro guarda o nome da api-football e o futnatv o
+            // nome aportuguesado. Nenhuma delas se mistura com a liga do mesmo país.
+            new[] { "copa del rey", "copa do rei" },
+            new[] { "dfb pokal", "copa da alemanha" },
+            new[] { "league cup", "copa da liga inglesa", "efl cup", "carabao cup" },
         };
 
         // Letras que NÃO são "letra + acento" em Unicode e por isso sobrevivem ao FormD:
