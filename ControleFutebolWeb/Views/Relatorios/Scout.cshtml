@@ -58,7 +58,7 @@
     // Quantos critérios de desempenho estão preenchidos: com algum, o bloco abre sozinho
     var criteriosDesempenho = new object?[]
     {
-        f.MinJogos, f.MinGols, f.MinAssistencias, f.MinPassesChave, f.MinDesarmes, f.MinBloqueios,
+        f.MinJogos, f.MinGols, f.MinAssistencias, f.MinPassesTotal, f.MinPassesChave, f.MinDesarmes, f.MinBloqueios,
         f.MinInterceptacoes, f.MinDuelosVencidos, f.MinFinalizacoesNoGol, f.MinDrilesCertos, f.MinNota,
         f.MediaPassesChave, f.MediaDesarmes, f.MediaBloqueios, f.MediaInterceptacoes, f.MediaDuelosVencidos,
         f.MediaFinalizacoesNoGol, f.MediaDrilesCertos, f.MaxCartaoAmarelo, f.MaxCartaoVermelho
@@ -321,6 +321,36 @@
     .cmp-metrica-valor { font-size: .84rem; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
     .cmp-confrontos td { text-align: left; white-space: normal; }
 
+    /* ── Aba Similares ── */
+    .sim-filtros { display: grid; grid-template-columns: minmax(220px, 2fr) repeat(4, minmax(130px, 1fr)); gap: 12px; align-items: end; }
+    .sim-alvo-grid { display: grid; grid-template-columns: minmax(250px, 1fr) minmax(0, 2fr); gap: 12px; margin-bottom: 1rem; align-items: start; }
+    .sim-alvo-grid .sc-panel { margin-bottom: 0; }
+    .sim-perfil { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px 22px; }
+    .sim-perfil-row { display: grid; grid-template-columns: minmax(0, 1fr) 90px 40px; gap: 8px; align-items: center; font-size: .84rem; }
+    .sim-perfil-row > span { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sim-perfil-row > span small { color: var(--text-muted); }
+    .sim-perfil-row > b { text-align: right; color: var(--text-strong); font-variant-numeric: tabular-nums; font-size: .8rem; }
+    .sim-track { height: 8px; border-radius: 999px; background: var(--p-3); overflow: hidden; position: relative; }
+    .sim-track::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--line-strong); }
+    .sim-track div { height: 100%; border-radius: 999px; background: #d4a520; }
+    .sim-nota { font-size: .8rem; color: var(--text-muted); margin-top: .7rem; line-height: 1.5; }
+    .sim-aviso { font-size: .86rem; color: var(--text-2); background: rgba(212,165,32,.1); border: 1px solid rgba(212,165,32,.3); border-radius: 8px; padding: .55rem .8rem; margin-bottom: 1rem; }
+    .sim-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+    .sim-card { background: var(--p-1); border: 1px solid var(--line); border-radius: 12px; padding: .9rem 1rem; display: flex; flex-direction: column; gap: .55rem; }
+    .sim-card-top { display: flex; gap: .75rem; align-items: center; }
+    .sim-card-top .cmp-card-photo { width: 46px; height: 46px; }
+    .sim-card-id { min-width: 0; flex: 1; }
+    .sc-root .sim-card-nome { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.15rem; font-weight: 800; color: var(--text-strong); line-height: 1.1; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sc-root a.sim-card-nome:hover { color: var(--gold-ink); }
+    .sim-pct { text-align: right; flex-shrink: 0; }
+    .sim-pct-v { font-family: 'Barlow Condensed', Arial, sans-serif; font-size: 1.7rem; font-weight: 800; color: var(--gold-ink); line-height: 1; font-variant-numeric: tabular-nums; }
+    .sim-pct-l { font-size: .7rem; color: var(--text-muted); }
+    .sim-linha { font-size: .82rem; color: var(--text-2); line-height: 1.45; }
+    .sim-linha strong { color: var(--text-muted); font-weight: 600; }
+    .sim-acoes { display: flex; gap: 8px; margin-top: auto; padding-top: .2rem; }
+    .sc-root .sc-sim-link { background: none; border: none; padding: 0; margin-left: 6px; font: inherit; font-size: .76rem; font-weight: 600; color: var(--gold-ink); cursor: pointer; }
+    .sc-root .sc-sim-link:hover { text-decoration: underline; }
+
     @@media (max-width: 767.98px) {
         .sc-cab, .sc-tabs, .sc-corpo { padding-left: 1rem; padding-right: 1rem; }
         .sc-cab { padding-top: 1.1rem; padding-bottom: 1.1rem; }
@@ -332,6 +362,10 @@
         .cmp-select-grid { grid-template-columns: 1fr 1fr; }
         .cmp-graficos-grid { grid-template-columns: 1fr; }
         .cmp-acoes { margin-left: 0; }
+        .sim-filtros { grid-template-columns: 1fr 1fr; }
+        .sim-filtros > :first-child { grid-column: 1 / -1; }
+        .sim-alvo-grid { grid-template-columns: 1fr; }
+        .sim-lista { grid-template-columns: 1fr; }
 
         /* A tabela rola na horizontal; a coluna do jogador fica presa à esquerda */
         .sc-table th:nth-child(2), .sc-table td:nth-child(2) { position: sticky; left: 0; z-index: 2; background: var(--p-1); }
@@ -345,7 +379,7 @@
     }
 
     @@media print {
-        .sc-cab, .sc-tabs, #abaComparar > .sc-panel:first-child, .cmp-card-remove, .cmp-card-placeholder { display: none !important; }
+        .sc-cab, .sc-tabs, #abaComparar > .sc-panel:first-child, #abaSimilares > .sc-panel:first-child, .cmp-card-remove, .cmp-card-placeholder, .sim-acoes, .sc-sim-link { display: none !important; }
     }
 </style>
 
@@ -354,7 +388,7 @@
     <div class="sc-cab theme-dark-zone">
         <div>
             <h1>Scout de jogadores</h1>
-            <p>Filtre por perfil e desempenho para encontrar jogadores, ou compare até três lado a lado.</p>
+            <p>Filtre por perfil e desempenho para encontrar jogadores, compare até três lado a lado ou ache quem joga parecido.</p>
         </div>
         <a href="@Url.Action("Index", "Relatorios")" class="sc-cab-btn">Voltar para Relatórios</a>
     </div>
@@ -362,6 +396,7 @@
     <div class="sc-tabs" role="tablist">
         <button type="button" id="tabBuscarBtn" class="sc-tab-btn active" role="tab" aria-selected="true">Buscar</button>
         <button type="button" id="tabCompararBtn" class="sc-tab-btn" role="tab" aria-selected="false">Comparar</button>
+        <button type="button" id="tabSimilaresBtn" class="sc-tab-btn" role="tab" aria-selected="false">Similares</button>
     </div>
 
     <div class="sc-corpo">
@@ -498,6 +533,7 @@
                 @{ CampoNumero("minJogos", "Jogos", f.MinJogos, "10"); }
                 @{ CampoNumero("minGols", "Gols", f.MinGols, "5"); }
                 @{ CampoNumero("minAssistencias", "Assistências", f.MinAssistencias, "3"); }
+                @{ CampoNumero("minPassesTotal", "Passes tentados", f.MinPassesTotal, "100"); }
                 @{ CampoNumero("minPassesChave", "Passes-chave", f.MinPassesChave, "20"); }
                 @{ CampoNumero("minDesarmes", "Desarmes", f.MinDesarmes, "15"); }
                 @{ CampoNumero("minBloqueios", "Bloqueios", f.MinBloqueios, "10"); }
@@ -626,7 +662,7 @@
                                             <a class="sc-pname"
                                                href="@Url.Action("Estatisticas", "Jogadores", new { id = j.Id })"
                                                title="Ver perfil de @j.Nome">@j.Nome</a>
-                                            <div class="sc-pmeta">@j.Nacionalidade?.Nome</div>
+                                            <div class="sc-pmeta">@j.Nacionalidade?.Nome<button type="button" class="sc-sim-link" data-sim-id="@j.Id" title="Jogadores com perfil parecido com o de @j.Nome">Similares</button></div>
                                         </div>
                                     </div>
                                 </td>
@@ -830,6 +866,70 @@
             </div>
         </div>
     </div>
+
+    <div id="abaSimilares" style="display:none;">
+
+        <div class="sc-panel">
+            <div class="cmp-panel-head">
+                <h2 class="sc-panel-title">Quem joga parecido</h2>
+                <span class="cmp-hint">Compara o perfil por 90 minutos com o de todos da mesma função no recorte.</span>
+            </div>
+            <div class="sim-filtros">
+                <div class="sc-field cmp-busca-wrap">
+                    <label for="simBusca">Jogador</label>
+                    <input type="text" id="simBusca" placeholder="Nome do jogador" autocomplete="off" />
+                    <div id="simBuscaPanel" class="cmp-busca-panel"></div>
+                </div>
+                <div class="sc-field">
+                    <label for="simTemporada">Temporada</label>
+                    <select id="simTemporada">
+                        <option value="">A mais recente dele</option>
+                        <option value="0">Todas</option>
+                        @foreach (var t in Model.Temporadas)
+                        {
+                            <option value="@t">@t</option>
+                        }
+                    </select>
+                </div>
+                <div class="sc-field">
+                    <label for="simLiga">Competição</label>
+                    <select id="simLiga">
+                        <option value="">Todas</option>
+                    </select>
+                </div>
+                <div class="sc-field">
+                    <label for="simIdade">Idade até</label>
+                    <input type="number" id="simIdade" min="15" max="45" placeholder="Qualquer" />
+                </div>
+                <div class="sc-field">
+                    <label for="simMinutos">Minutos no recorte</label>
+                    <select id="simMinutos">
+                        <option value="270">270 ou mais</option>
+                        <option value="450" selected>450 ou mais</option>
+                        <option value="900">900 ou mais</option>
+                        <option value="1800">1.800 ou mais</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div id="simVazio" class="sc-empty"><b>Escolha um jogador.</b>Busque pelo nome acima ou clique em "Similares" ao lado de um nome na aba Buscar.</div>
+        <div id="simCarregando" class="sc-empty" style="display:none;">Calculando o perfil…</div>
+
+        <div id="simResultado" style="display:none;">
+            <div id="simAviso" class="sim-aviso" style="display:none;"></div>
+            <div class="sim-alvo-grid">
+                <div id="simAlvoCard"></div>
+                <div class="sc-panel">
+                    <h2 class="sc-panel-title">Perfil na função <span class="cmp-panel-subtitle" id="simGrupoTxt"></span></h2>
+                    <div id="simPerfil" class="sim-perfil"></div>
+                    <div class="sim-nota">A barra é o percentil dentro do grupo: 50 é o meio, e P90 quer dizer que ele supera 90% dos jogadores da função.</div>
+                </div>
+            </div>
+            <h2 class="sc-panel-title" id="simListaTitulo">Mais parecidos</h2>
+            <div id="simLista" class="sim-lista"></div>
+        </div>
+    </div>
     </div><!-- /.sc-corpo -->
 
 </div>
@@ -998,33 +1098,36 @@
     }
 
     // ── Abas Buscar / Comparar ──────────────────────────────────────
+    var ABAS = { buscar: ['abaBuscar', 'tabBuscarBtn'], comparar: ['abaComparar', 'tabCompararBtn'], similares: ['abaSimilares', 'tabSimilaresBtn'] };
     function showTab(nome) {
-        var buscar = nome === 'buscar';
-        document.getElementById('abaBuscar').style.display = buscar ? '' : 'none';
-        document.getElementById('abaComparar').style.display = buscar ? 'none' : '';
-        document.getElementById('tabBuscarBtn').classList.toggle('active', buscar);
-        document.getElementById('tabCompararBtn').classList.toggle('active', !buscar);
-        document.getElementById('tabBuscarBtn').setAttribute('aria-selected', buscar ? 'true' : 'false');
-        document.getElementById('tabCompararBtn').setAttribute('aria-selected', buscar ? 'false' : 'true');
-        if (!buscar) {
-            initCascataOnce();
+        Object.keys(ABAS).forEach(function (k) {
+            var ativa = k === nome;
+            document.getElementById(ABAS[k][0]).style.display = ativa ? '' : 'none';
+            document.getElementById(ABAS[k][1]).classList.toggle('active', ativa);
+            document.getElementById(ABAS[k][1]).setAttribute('aria-selected', ativa ? 'true' : 'false');
+        });
+        if (nome !== 'buscar') initCascataOnce();
+        if (nome === 'comparar') {
             if (radarChart) radarChart.resize();
             if (percentilChart) percentilChart.resize();
         }
     }
     document.getElementById('tabBuscarBtn').addEventListener('click', function () { showTab('buscar'); });
     document.getElementById('tabCompararBtn').addEventListener('click', function () { showTab('comparar'); });
+    document.getElementById('tabSimilaresBtn').addEventListener('click', function () { showTab('similares'); });
 
     // ── Cascata liga → time → jogador ───────────────────────────────
     function initCascataOnce() {
         if (cascataInit) return;
         cascataInit = true;
         fetch(ligasUrl).then(function (r) { return r.json(); }).then(function (ligas) {
-            var sel = document.getElementById('cmpLiga');
-            (ligas || []).forEach(function (l) {
-                var opt = document.createElement('option');
-                opt.value = l.id; opt.textContent = l.nome;
-                sel.appendChild(opt);
+            ['cmpLiga', 'simLiga'].forEach(function (selId) {
+                var sel = document.getElementById(selId);
+                (ligas || []).forEach(function (l) {
+                    var opt = document.createElement('option');
+                    opt.value = l.id; opt.textContent = l.nome;
+                    sel.appendChild(opt);
+                });
             });
         });
     }
@@ -1364,6 +1467,186 @@
             renderCharts(data.radar, data.percentil);
         });
     }
+
+    // ── Aba Similares ────────────────────────────────────────────────
+    // Dados de /Relatorios/ScoutSimilaresDados (SimilaridadeJogadorService).
+    var similaresUrl = '@Url.Action("ScoutSimilaresDados", "Relatorios")';
+    var simId = null;
+    var simInfo = {}; // cartões já carregados, para o "Comparar" não buscar de novo
+    var simSeq = 0;   // descarta a resposta de uma busca já substituída por outra
+
+    function simFoto(url) {
+        return url ? '<img src="' + escapeHtml(url) + '" alt="" onerror="this.remove()">' : '';
+    }
+
+    function simMeta(j) {
+        return [j.sigla || j.posicao, j.idade ? j.idade + ' anos' : '', j.minutos ? j.minutos.toLocaleString('pt-BR') + ' min' : '']
+            .filter(Boolean).map(escapeHtml).join(', ');
+    }
+
+    function simGuardar(j) {
+        simInfo[j.id] = { id: j.id, nome: j.nome, posicao: j.posicao, clube: j.clube, idade: j.idade };
+    }
+
+    function carregarSimilares() {
+        if (!simId) return;
+        var qs = 'id=' + simId;
+        var temporada = document.getElementById('simTemporada').value;
+        var liga = document.getElementById('simLiga').value;
+        var idade = document.getElementById('simIdade').value;
+        if (temporada) qs += '&temporada=' + encodeURIComponent(temporada);
+        if (liga) qs += '&competicaoId=' + encodeURIComponent(liga);
+        if (idade) qs += '&idadeMax=' + encodeURIComponent(idade);
+        qs += '&minMinutos=' + encodeURIComponent(document.getElementById('simMinutos').value);
+
+        var seq = ++simSeq;
+        var carregando = document.getElementById('simCarregando');
+        carregando.textContent = 'Calculando o perfil…';
+        carregando.style.display = '';
+        document.getElementById('simVazio').style.display = 'none';
+        document.getElementById('simResultado').style.display = 'none';
+        fetch(similaresUrl + '?' + qs).then(function (r) { return r.json(); }).then(function (d) {
+            if (seq !== simSeq) return;
+            carregando.style.display = 'none';
+            if (d.error) {
+                var vazio = document.getElementById('simVazio');
+                vazio.innerHTML = '<b>' + escapeHtml(d.error) + '</b>';
+                vazio.style.display = '';
+                return;
+            }
+            renderSimilares(d);
+        }).catch(function () {
+            if (seq === simSeq) carregando.textContent = 'Erro ao calcular os similares.';
+        });
+    }
+
+    function renderSimilares(d) {
+        document.getElementById('simResultado').style.display = '';
+
+        var aviso = document.getElementById('simAviso');
+        aviso.textContent = d.aviso || '';
+        aviso.style.display = d.aviso ? '' : 'none';
+
+        var a = d.alvo;
+        simGuardar(a);
+        var recorte = d.temporada ? 'em ' + d.temporada : 'em todas as temporadas';
+        document.getElementById('simAlvoCard').innerHTML =
+            '<div class="cmp-card" style="border-top-color:#d4a520;">' +
+                '<div class="cmp-card-photo">' + simFoto(a.foto) + '</div>' +
+                '<div style="min-width:0;flex:1;">' +
+                    '<a class="cmp-card-nome" href="' + estatisticasBase + '?id=' + a.id + '">' + escapeHtml(a.nome) + '</a>' +
+                    '<div class="cmp-card-meta">' + simMeta(a) + '</div>' +
+                    '<div class="cmp-card-clube">' + escapeHtml(a.clube || '') + '</div>' +
+                    '<div class="cmp-card-meta" style="margin-top:.5rem;">Grupo: ' + d.grupo + ' ' + (d.grupo === 1 ? 'jogador' : 'jogadores') +
+                        ' da função de ' + escapeHtml(d.funcao) + ' ' + recorte + ', com ' + d.minMinutos + ' minutos ou mais.</div>' +
+                '</div>' +
+            '</div>';
+
+        document.getElementById('simGrupoTxt').textContent = d.funcao + (d.temporada ? ', ' + d.temporada : '');
+        document.getElementById('simPerfil').innerHTML = (d.metricas || []).map(function (m) {
+            return '<div class="sim-perfil-row" title="' + escapeHtml(m.rotulo) + ': ' + escapeHtml(m.valor) + ' (percentil ' + m.percentil + ')">' +
+                '<span>' + escapeHtml(m.rotulo) + ' <small>' + escapeHtml(m.valor) + '</small></span>' +
+                '<div class="sim-track"><div style="width:' + Math.max(2, m.percentil) + '%;"></div></div>' +
+                '<b>P' + m.percentil + '</b>' +
+            '</div>';
+        }).join('') || '<div class="cmp-hint">Nenhuma métrica com amostra suficiente.</div>';
+
+        var lista = d.similares || [];
+        document.getElementById('simListaTitulo').textContent = lista.length ? 'Mais parecidos (' + lista.length + ')' : 'Mais parecidos';
+        document.getElementById('simLista').innerHTML = lista.length ? lista.map(function (s) {
+            var j = s.jogador;
+            simGuardar(j);
+            var dif = (s.diferencas || []).map(function (x) {
+                return '<span title="' + (x.mais ? 'Acima' : 'Abaixo') + ' de ' + escapeHtml(a.nome) + '">' + (x.mais ? '▲ ' : '▼ ') + escapeHtml(x.rotulo) + '</span>';
+            });
+            return '<div class="sim-card">' +
+                '<div class="sim-card-top">' +
+                    '<div class="cmp-card-photo">' + simFoto(j.foto) + '</div>' +
+                    '<div class="sim-card-id">' +
+                        '<a class="sim-card-nome" href="' + estatisticasBase + '?id=' + j.id + '">' + escapeHtml(j.nome) + '</a>' +
+                        '<div class="cmp-card-meta">' + simMeta(j) + '</div>' +
+                        '<div class="cmp-card-clube">' + escapeHtml(j.clube || '') + '</div>' +
+                    '</div>' +
+                    '<div class="sim-pct" title="Comparados em ' + s.comparadas + ' métricas"><div class="sim-pct-v">' + escapeHtml(s.similaridadeFmt) + '</div><div class="sim-pct-l">parecido</div></div>' +
+                '</div>' +
+                '<div class="sim-linha"><strong>Parecido em:</strong> ' + s.parecidos.map(escapeHtml).join(', ') + '</div>' +
+                (dif.length ? '<div class="sim-linha"><strong>Diferenças:</strong> ' + dif.join(', ') + '</div>' : '') +
+                '<div class="sim-acoes">' +
+                    '<button type="button" class="sc-btn-sec" data-sim-comparar="' + j.id + '">Comparar</button>' +
+                    '<button type="button" class="sc-btn-sec" data-sim-id="' + j.id + '">Similares a ele</button>' +
+                '</div>' +
+            '</div>';
+        }).join('') : '<div class="sc-empty" style="grid-column:1/-1;"><b>Nenhum jogador parecido no recorte.</b>Afrouxe o filtro de idade ou de minutos, ou troque a temporada.</div>';
+    }
+
+    function abrirSimilares(id) {
+        simId = id;
+        showTab('similares');
+        document.getElementById('abaSimilares').scrollIntoView({ block: 'start' });
+        carregarSimilares();
+    }
+
+    // "Similares" nas linhas da aba Buscar e nos cartões da própria aba;
+    // "Comparar" leva o alvo e o similar para a aba Comparar.
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-sim-id]');
+        if (b) { e.preventDefault(); abrirSimilares(parseInt(b.dataset.simId, 10)); return; }
+        var c = e.target.closest('[data-sim-comparar]');
+        if (c) {
+            var outro = parseInt(c.dataset.simComparar, 10);
+            cmpIds = [];
+            cmpInfo = {};
+            [simId, outro].forEach(function (id) {
+                if (simInfo[id]) { cmpIds.push(id); cmpInfo[id] = Object.assign({}, simInfo[id]); }
+            });
+            showTab('comparar');
+            atualizarComparacao();
+        }
+    });
+
+    ['simTemporada', 'simLiga', 'simMinutos'].forEach(function (id) {
+        document.getElementById(id).addEventListener('change', carregarSimilares);
+    });
+    var simIdadeTimer = null;
+    document.getElementById('simIdade').addEventListener('input', function () {
+        clearTimeout(simIdadeTimer);
+        simIdadeTimer = setTimeout(carregarSimilares, 400);
+    });
+
+    var simBusca = document.getElementById('simBusca');
+    var simBuscaPanel = document.getElementById('simBuscaPanel');
+    var simBuscaTimer = null;
+    simBusca.addEventListener('input', function () {
+        var termo = this.value.trim();
+        clearTimeout(simBuscaTimer);
+        if (termo.length < 2) { simBuscaPanel.classList.remove('open'); simBuscaPanel.innerHTML = ''; return; }
+        simBuscaTimer = setTimeout(function () {
+            fetch(jogadoresListaUrl + '?nome=' + encodeURIComponent(termo)).then(function (r) { return r.json(); }).then(function (jogadores) {
+                simBuscaPanel.innerHTML = '';
+                if (!jogadores || !jogadores.length) { simBuscaPanel.classList.remove('open'); return; }
+                jogadores.forEach(function (j) {
+                    var opt = document.createElement('div');
+                    opt.className = 'cmp-busca-opt';
+                    opt.tabIndex = 0;
+                    opt.setAttribute('role', 'button');
+                    opt.innerHTML = '<span>' + escapeHtml(j.nome) + '</span>&nbsp;<small>' + escapeHtml(j.clube || '') + '</small>';
+                    var escolher = function () {
+                        simBusca.value = j.nome;
+                        simBuscaPanel.classList.remove('open');
+                        simBuscaPanel.innerHTML = '';
+                        abrirSimilares(j.id);
+                    };
+                    opt.addEventListener('click', escolher);
+                    opt.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); escolher(); } });
+                    simBuscaPanel.appendChild(opt);
+                });
+                simBuscaPanel.classList.add('open');
+            });
+        }, 300);
+    });
+    document.addEventListener('click', function (e) {
+        if (!simBusca.contains(e.target) && !simBuscaPanel.contains(e.target)) simBuscaPanel.classList.remove('open');
+    });
 
     document.getElementById('cmpExportar').addEventListener('click', function () { window.print(); });
 

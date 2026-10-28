@@ -91,6 +91,7 @@ internal class Program
         builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
         builder.Services.AddScoped<RelatoriosService>();
         builder.Services.AddScoped<PerfilJogadorService>();
+        builder.Services.AddScoped<SimilaridadeJogadorService>();
         builder.Services.AddScoped<RatingAutomaticoService>();
         builder.Services.AddScoped<TransmissaoJogoService>();
         builder.Services.AddScoped<PainelJogoService>();

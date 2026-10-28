@@ -19,13 +19,16 @@ namespace ControleFutebolWeb.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RelatoriosService _relatorios;
         private readonly PerfilJogadorService _perfilJogador;
+        private readonly SimilaridadeJogadorService _similaridade;
 
-        public RelatoriosController(FutebolContext context, UserManager<ApplicationUser> userManager, RelatoriosService relatorios, PerfilJogadorService perfilJogador)
+        public RelatoriosController(FutebolContext context, UserManager<ApplicationUser> userManager, RelatoriosService relatorios, PerfilJogadorService perfilJogador,
+            SimilaridadeJogadorService similaridade)
         {
             _context = context;
             _userManager = userManager;
             _relatorios = relatorios;
             _perfilJogador = perfilJogador;
+            _similaridade = similaridade;
         }
 
         // GET: /Relatorios
@@ -58,7 +61,7 @@ namespace ControleFutebolWeb.Controllers
             int? alturaMin, int? alturaMax, int? pesoMin, int? pesoMax, int[]? timeIds,
             int[]? competicaoIds, int[]? nacionalidadeIds, int? temporada,
             int? minJogos, int? minGols, int? minAssistencias,
-            int? minPassesChave, int? minDesarmes, int? minBloqueios, int? minInterceptacoes, int? minDuelosVencidos, int? minFinalizacoesNoGol, int? minDrilesCertos,
+            int? minPassesTotal, int? minPassesChave, int? minDesarmes, int? minBloqueios, int? minInterceptacoes, int? minDuelosVencidos, int? minFinalizacoesNoGol, int? minDrilesCertos,
             double? mediaPassesChave, double? mediaDesarmes, double? mediaBloqueios, double? mediaInterceptacoes, double? mediaDuelosVencidos, double? mediaFinalizacoesNoGol, double? mediaDrilesCertos,
             double? minNota,
             int? maxCartaoAmarelo, int? maxCartaoVermelho,
@@ -97,7 +100,7 @@ namespace ControleFutebolWeb.Controllers
                     AlturaMin = alturaMin, AlturaMax = alturaMax, PesoMin = pesoMin, PesoMax = pesoMax,
                     TimeIds = timeIdsSelec, CompeticaoIds = compIdsSelec, NacionalidadeIds = nacIdsSelec, Temporada = temporada,
                     MinJogos = minJogos, MinGols = minGols, MinAssistencias = minAssistencias,
-                    MinPassesChave = minPassesChave, MinDesarmes = minDesarmes,
+                    MinPassesTotal = minPassesTotal, MinPassesChave = minPassesChave, MinDesarmes = minDesarmes,
                     MinBloqueios = minBloqueios, MinInterceptacoes = minInterceptacoes, MinDuelosVencidos = minDuelosVencidos,
                     MinFinalizacoesNoGol = minFinalizacoesNoGol, MinDrilesCertos = minDrilesCertos,
                     MediaPassesChave = mediaPassesChave, MediaDesarmes = mediaDesarmes,
@@ -298,6 +301,7 @@ namespace ControleFutebolWeb.Controllers
                 if (minAssistencias.HasValue     && ass < minAssistencias.Value) continue;
                 if (maxCartaoAmarelo.HasValue    && amarelo > maxCartaoAmarelo.Value) continue;
                 if (maxCartaoVermelho.HasValue   && vermelho > maxCartaoVermelho.Value) continue;
+                if (minPassesTotal.HasValue       && Soma(e => e.PassesTotal) < minPassesTotal.Value) continue;
                 if (minPassesChave.HasValue       && passesChave    < minPassesChave.Value) continue;
                 if (minDesarmes.HasValue          && desarmes       < minDesarmes.Value) continue;
                 if (minBloqueios.HasValue         && bloqueios      < minBloqueios.Value) continue;
@@ -689,6 +693,21 @@ namespace ControleFutebolWeb.Controllers
                 grupos = gruposJson,
                 confrontos,
             });
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Aba "Similares" do Scout: os jogadores da mesma função com o perfil
+        // estatístico mais próximo (ver SimilaridadeJogadorHelper).
+        // ─────────────────────────────────────────────────────────────────
+
+        // GET: /Relatorios/ScoutSimilaresDados?id=5&temporada=2026&competicaoId=3&idadeMax=23
+        // temporada vazia = a mais recente do jogador; 0 = todas.
+        [HttpGet]
+        public async Task<IActionResult> ScoutSimilaresDados(int id, int? temporada, int? competicaoId, int? idadeMax, int? minMinutos, CancellationToken ct)
+        {
+            var dados = await _similaridade.SimilaresAsync(id, temporada, competicaoId, idadeMax, minMinutos,
+                url => Url.Action("Imagem", "MediaProxy", new { url }), ct);
+            return dados == null ? Json(new { error = "Jogador não encontrado." }) : Json(dados);
         }
 
         // POST: /Relatorios/RecalcularNotas

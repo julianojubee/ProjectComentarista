@@ -20,6 +20,7 @@ namespace ControleFutebolWeb.Models.ViewModels
         public int? MinJogos { get; set; }
         public int? MinGols { get; set; }
         public int? MinAssistencias { get; set; }
+        public int? MinPassesTotal { get; set; }
         public int? MinPassesChave { get; set; }
         public int? MinDesarmes { get; set; }
         public int? MinBloqueios { get; set; }
