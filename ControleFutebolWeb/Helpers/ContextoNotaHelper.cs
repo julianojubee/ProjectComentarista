@@ -8,8 +8,8 @@ namespace ControleFutebolWeb.Helpers
     using LadoPorJogadorJogo = IReadOnlyDictionary<(int JogadorId, int JogoId), AtuacaoNoJogo>;
 
     // Monta o CriteriosNotaHelper.ContextoNota de cada (jogador, jogo): minutos em
-    // campo, "goleiro decisivo" (pegou 100% do que o adversário mandou no alvo) e
-    // autoria do gol da vitória.
+    // campo, "goleiro decisivo" (pegou 100% do que o adversário mandou no alvo),
+    // autoria do gol da vitória e as cobranças da disputa de pênaltis.
     //
     // Fica fora do CriteriosNotaHelper porque, ao contrário do resto do cálculo, isto
     // não sai da linha do próprio jogador: as finalizações no alvo são a soma das
@@ -25,12 +25,16 @@ namespace ControleFutebolWeb.Helpers
         public readonly record struct LinhaEstatistica(int JogadorId, int JogoId, int? Minutos, int Defesas, int FinalizacoesNoGol);
         public readonly record struct LinhaGol(int Id, int JogadorId, int JogoId, int Minuto, bool Contra);
         public readonly record struct LinhaPlacar(int JogoId, int? PlacarCasa, int? PlacarVisitante);
+        public readonly record struct LinhaCobranca(int JogadorId, int JogoId, bool IsTimeCasa, bool Convertido);
+        public readonly record struct LinhaSaida(int JogadorId, int JogoId);
 
         public static Dictionary<(int JogadorId, int JogoId), ContextoNota> Montar(
             IEnumerable<LinhaEstatistica> estatisticas,
             LadoPorJogadorJogo? lados,
             IEnumerable<LinhaGol>? gols = null,
-            IEnumerable<LinhaPlacar>? placares = null)
+            IEnumerable<LinhaPlacar>? placares = null,
+            IEnumerable<LinhaCobranca>? cobrancas = null,
+            IEnumerable<LinhaSaida>? saidas = null)
         {
             var linhas = estatisticas.ToList();
 
@@ -46,19 +50,30 @@ namespace ControleFutebolWeb.Helpers
             }
 
             var autoresDoGolDaVitoria = AutoresDoGolDaVitoria(gols, placares, lados);
+            var disputa = CobrancasDaDisputa(cobrancas, saidas, linhas, lados);
 
             var mapa = new Dictionary<(int JogadorId, int JogoId), ContextoNota>();
             foreach (var l in linhas)
+            {
+                var (perdidos, defendidos) = disputa.GetValueOrDefault((l.JogadorId, l.JogoId));
                 mapa[(l.JogadorId, l.JogoId)] = new ContextoNota(
                     Minutos: l.Minutos,
                     GoleiroDecisivo: EhGoleiroDecisivo(l, lados, alvoPorLado),
-                    GolDaVitoria: autoresDoGolDaVitoria.Contains((l.JogadorId, l.JogoId)));
+                    GolDaVitoria: autoresDoGolDaVitoria.Contains((l.JogadorId, l.JogoId)),
+                    PenaltisPerdidosDisputa: perdidos,
+                    PenaltisDefendidosDisputa: defendidos);
+            }
 
             // Quem marcou mas não tem linha de estatística importada ainda precisa
             // aparecer no mapa, senão o bônus se perde.
             foreach (var chave in autoresDoGolDaVitoria)
                 if (!mapa.ContainsKey(chave))
                     mapa[chave] = new ContextoNota(GolDaVitoria: true);
+
+            foreach (var (chave, (perdidos, defendidos)) in disputa)
+                if (!mapa.ContainsKey(chave))
+                    mapa[chave] = new ContextoNota(
+                        PenaltisPerdidosDisputa: perdidos, PenaltisDefendidosDisputa: defendidos);
 
             return mapa;
         }
@@ -78,6 +93,57 @@ namespace ControleFutebolWeb.Helpers
 
             var noAlvoAdversario = alvoPorLado.GetValueOrDefault((l.JogoId, !atuacao.IsTimeCasa));
             return noAlvoAdversario > 0 && l.Defesas >= noAlvoAdversario;
+        }
+
+        // Cobranças da disputa de pênaltis por (jogador, jogo): as que ele desperdiçou
+        // e, para o goleiro, as do adversário que pararam nele.
+        //
+        // Nenhuma fonte diz se a cobrança perdida foi defendida ou foi para fora, então
+        // toda cobrança desperdiçada conta como defesa do goleiro que estava no gol —
+        // o que foi a campo e não saiu substituído. Com mais de um goleiro nessa
+        // situação, ou nenhum, não há como saber quem foi e ninguém é creditado.
+        private static Dictionary<(int JogadorId, int JogoId), (int Perdidos, int Defendidos)> CobrancasDaDisputa(
+            IEnumerable<LinhaCobranca>? cobrancas, IEnumerable<LinhaSaida>? saidas,
+            List<LinhaEstatistica> linhas, LadoPorJogadorJogo? lados)
+        {
+            var resultado = new Dictionary<(int, int), (int Perdidos, int Defendidos)>();
+            var desperdicadas = cobrancas?.Where(c => !c.Convertido).ToList();
+            if (desperdicadas == null || desperdicadas.Count == 0) return resultado;
+
+            foreach (var c in desperdicadas)
+            {
+                var atual = resultado.GetValueOrDefault((c.JogadorId, c.JogoId));
+                resultado[(c.JogadorId, c.JogoId)] = (atual.Perdidos + 1, atual.Defendidos);
+            }
+
+            if (lados == null) return resultado;
+
+            var substituidos = (saidas ?? Enumerable.Empty<LinhaSaida>())
+                .Select(s => (s.JogadorId, s.JogoId))
+                .ToHashSet();
+            var jogosComDisputa = desperdicadas.Select(c => c.JogoId).ToHashSet();
+
+            var goleiroNoFim = new Dictionary<(int JogoId, bool IsTimeCasa), int>();
+            foreach (var grupo in linhas
+                .Where(l => jogosComDisputa.Contains(l.JogoId) && l.Minutos is > 0
+                            && !substituidos.Contains((l.JogadorId, l.JogoId)))
+                .Select(l => (Linha: l, Atuacao: lados.TryGetValue((l.JogadorId, l.JogoId), out var a) ? a : (AtuacaoNoJogo?)null))
+                .Where(x => x.Atuacao is { } a && CriteriosNotaHelper.GrupoDaPosicao(a.Posicao) == "GOLEIRO")
+                .GroupBy(x => (x.Linha.JogoId, x.Atuacao!.Value.IsTimeCasa)))
+            {
+                var goleiros = grupo.Select(x => x.Linha.JogadorId).Distinct().ToList();
+                if (goleiros.Count == 1) goleiroNoFim[grupo.Key] = goleiros[0];
+            }
+
+            // A cobrança desperdiçada pelo time da casa parou no goleiro visitante.
+            foreach (var c in desperdicadas)
+            {
+                if (!goleiroNoFim.TryGetValue((c.JogoId, !c.IsTimeCasa), out var goleiroId)) continue;
+                var atual = resultado.GetValueOrDefault((goleiroId, c.JogoId));
+                resultado[(goleiroId, c.JogoId)] = (atual.Perdidos, atual.Defendidos + 1);
+            }
+
+            return resultado;
         }
 
         // Quem marcou o gol que decidiu cada partida.
@@ -153,7 +219,9 @@ namespace ControleFutebolWeb.Helpers
                 await ConsultaEstatisticas(context, jogoIds).ToListAsync(ct),
                 lados,
                 await ConsultaGols(context, jogoIds).ToListAsync(ct),
-                await ConsultaPlacares(context, jogoIds).ToListAsync(ct));
+                await ConsultaPlacares(context, jogoIds).ToListAsync(ct),
+                await ConsultaCobrancas(context, jogoIds).ToListAsync(ct),
+                await ConsultaSaidas(context, jogoIds).ToListAsync(ct));
         }
 
         /// <inheritdoc cref="CarregarAsync"/>
@@ -169,7 +237,9 @@ namespace ControleFutebolWeb.Helpers
                 ConsultaEstatisticas(context, jogoIds).ToList(),
                 lados,
                 ConsultaGols(context, jogoIds).ToList(),
-                ConsultaPlacares(context, jogoIds).ToList());
+                ConsultaPlacares(context, jogoIds).ToList(),
+                ConsultaCobrancas(context, jogoIds).ToList(),
+                ConsultaSaidas(context, jogoIds).ToList());
         }
 
         // Sem filtro por jogador: as finalizações no alvo do adversário e a série de
@@ -191,6 +261,18 @@ namespace ControleFutebolWeb.Helpers
                 .AsNoTracking()
                 .Where(j => jogoIds.Contains(j.Id))
                 .Select(j => new LinhaPlacar(j.Id, j.PlacarCasa, j.PlacarVisitante));
+
+        private static IQueryable<LinhaCobranca> ConsultaCobrancas(FutebolContext context, IReadOnlyCollection<int> jogoIds) =>
+            context.PenaltisDisputa
+                .AsNoTracking()
+                .Where(p => jogoIds.Contains(p.JogoId))
+                .Select(p => new LinhaCobranca(p.JogadorId, p.JogoId, p.IsTimeCasa, p.Convertido));
+
+        private static IQueryable<LinhaSaida> ConsultaSaidas(FutebolContext context, IReadOnlyCollection<int> jogoIds) =>
+            context.Substituicoes
+                .AsNoTracking()
+                .Where(s => jogoIds.Contains(s.JogoId) && s.JogadorSaiuId != null)
+                .Select(s => new LinhaSaida(s.JogadorSaiuId!.Value, s.JogoId));
 
         public static ContextoNota De(
             IReadOnlyDictionary<(int JogadorId, int JogoId), ContextoNota>? mapa, int jogadorId, int jogoId)

@@ -171,11 +171,14 @@ namespace ControleFutebolWeb.Services
                     sofridos = contra;
                 }
 
+                var classico = ContextoNotaHelper.De(doHelper, jogadorId, jogoId);
                 mapa[(jogadorId, jogoId)] = new ContextoRating(
                     ResultadoSinal: sinal,
                     GolsSofridosTime: sofridos,
                     GolsContra: golsContra.GetValueOrDefault((jogadorId, jogoId)),
-                    GolDaVitoria: ContextoNotaHelper.De(doHelper, jogadorId, jogoId).GolDaVitoria);
+                    GolDaVitoria: classico.GolDaVitoria,
+                    PenaltisPerdidosDisputa: classico.PenaltisPerdidosDisputa,
+                    PenaltisDefendidosDisputa: classico.PenaltisDefendidosDisputa);
             }
 
             return mapa;

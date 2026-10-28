@@ -45,6 +45,17 @@ namespace ControleFutebolWeb.Tests.Helpers
             => RatingAutomaticoHelper.Calcular(e, posicao, contexto)!.Nota;
 
         [Fact]
+        public void DefesaNaDisputaDePenaltis_SobeANotaDoGoleiro()
+        {
+            var goleiro = Mediano("GOLEIRO");
+            var sem = NotaDe(goleiro, "Goleiro", new ContextoRating(ResultadoSinal: 0, GolsSofridosTime: 1));
+            var com = NotaDe(goleiro, "Goleiro",
+                new ContextoRating(ResultadoSinal: 0, GolsSofridosTime: 1, PenaltisDefendidosDisputa: 2));
+
+            Assert.Equal(RatingAutomaticoHelper.Saturar(2, RatingAutomaticoHelper.ValorPenaltiDefendido), com - sem, 2);
+        }
+
+        [Fact]
         public void SemMinutos_NaoTemNota()
         {
             Assert.Null(RatingAutomaticoHelper.Calcular(new EstatisticaJogador { Minutos = 0 }, "Zagueiro"));

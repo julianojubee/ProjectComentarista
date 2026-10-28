@@ -32,6 +32,13 @@ namespace ControleFutebolWeb.Helpers
         public const string AcaoMotorNota = "motor_nota";
         public const string LabelMotorNota = "Motor da nota automática";
 
+        // Chips da disputa de pênaltis. Não têm extrator nem critério próprio: valem o
+        // peso de "penalti_perdido"/"penalti_defendido" e quem os monta é a
+        // CalculadoraNotaAutomatica, a partir do ContextoNota. AcaoId separado para a
+        // tela não somar a cobrança da disputa ao pênalti perdido no tempo normal.
+        public const string AcaoPenaltiPerdidoDisputa = "penalti_perdido_disputa";
+        public const string AcaoPenaltiDefendidoDisputa = "penalti_defendido_disputa";
+
         public const double BonusVitoria = +2.0;
 
         public const double BonusDerrota = -1.0;
@@ -228,9 +235,13 @@ namespace ControleFutebolWeb.Helpers
         /// Null = detalhes indisponíveis (ou jogo sem nenhuma ação marcada), e aí o
         /// gatilho do merecimento cai no valor somado das ações.
         /// </param>
+        /// <param name="PenaltisPerdidosDisputa">Cobranças que o jogador desperdiçou na disputa de pênaltis.</param>
+        /// <param name="PenaltisDefendidosDisputa">
+        /// Cobranças do adversário desperdiçadas na disputa com este goleiro no gol.
+        /// </param>
         public readonly record struct ContextoNota(
             int? Minutos = null, bool GoleiroDecisivo = false, ContagemAcoes? Acoes = null,
-            bool GolDaVitoria = false)
+            bool GolDaVitoria = false, int PenaltisPerdidosDisputa = 0, int PenaltisDefendidosDisputa = 0)
         {
             public static readonly ContextoNota Vazio = new();
         }
@@ -474,6 +485,28 @@ namespace ControleFutebolWeb.Helpers
                 .Where(c => c.Ativo)
                 .OrderBy(c => c.Ordem)
                 .ToList();
+        }
+
+        // Chips da disputa de pênaltis, com o peso do pênalti perdido/defendido do
+        // tempo normal. Critério desativado = a cobrança da disputa também não conta.
+        public static List<Notadetalhe> DetalhesDisputa(ContextoNota contexto, IEnumerable<CriterioNota>? criteriosBanco = null)
+        {
+            var criterios = ResolverCriterios(criteriosBanco);
+            var detalhes = new List<Notadetalhe>();
+
+            void Adicionar(string acaoBase, string acaoId, string label, int quantidade)
+            {
+                var criterio = criterios.FirstOrDefault(c => c.AcaoId == acaoBase);
+                if (quantidade <= 0 || criterio == null) return;
+                detalhes.Add(new Notadetalhe
+                {
+                    AcaoId = acaoId, AcaoLabel = label, Quantidade = quantidade, Peso = criterio.Peso,
+                });
+            }
+
+            Adicionar("penalti_perdido", AcaoPenaltiPerdidoDisputa, "Pênalti perdido (disputa)", contexto.PenaltisPerdidosDisputa);
+            Adicionar("penalti_defendido", AcaoPenaltiDefendidoDisputa, "Pênalti defendido (disputa)", contexto.PenaltisDefendidosDisputa);
+            return detalhes;
         }
 
         // Retorna os critérios do banco ou cria a lista padrão se o banco estiver vazio

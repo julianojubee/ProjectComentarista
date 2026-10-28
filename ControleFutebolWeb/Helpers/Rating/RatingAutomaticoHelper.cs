@@ -6,11 +6,15 @@ namespace ControleFutebolWeb.Helpers.Rating
     /// <param name="ResultadoSinal">+1 vitória, 0 empate, -1 derrota. Null = placar desconhecido.</param>
     /// <param name="GolsSofridosTime">Gols que o TIME do jogador levou. Null = desconhecido.</param>
     /// <param name="GolsContra">Gols contra marcados pelo jogador na partida.</param>
+    /// <param name="PenaltisPerdidosDisputa">Cobranças desperdiçadas pelo jogador na disputa de pênaltis.</param>
+    /// <param name="PenaltisDefendidosDisputa">Cobranças do adversário que pararam neste goleiro na disputa.</param>
     public readonly record struct ContextoRating(
         int? ResultadoSinal = null,
         int? GolsSofridosTime = null,
         int GolsContra = 0,
-        bool GolDaVitoria = false)
+        bool GolDaVitoria = false,
+        int PenaltisPerdidosDisputa = 0,
+        int PenaltisDefendidosDisputa = 0)
     {
         public static readonly ContextoRating Vazio = new();
     }
@@ -101,6 +105,9 @@ namespace ControleFutebolWeb.Helpers.Rating
         // FatorRepeticao. Dois gols valem mais que um, mas não o dobro.
         public const double FatorRepeticao = 0.75;
 
+        public const double ValorPenaltiDefendido = +1.00;
+        public const double ValorPenaltiPerdido = -0.80;
+
         // O Id é o que FonteEstatistica consulta para saber se a fonte publica aquele
         // evento — os quatro de pênalti não vêm da ESPN, e somá-los como zero seria
         // afirmar que não houve pênalti nenhum.
@@ -108,9 +115,9 @@ namespace ControleFutebolWeb.Helpers.Rating
         {
             ("evento_gol",               "Gol",               +1.20, e => e.Gols),
             ("evento_assistencia",       "Assistência",       +0.80, e => e.Assistencias),
-            ("evento_penalti_defendido", "Pênalti defendido", +1.00, e => e.PenaltiDefendido),
+            ("evento_penalti_defendido", "Pênalti defendido", ValorPenaltiDefendido, e => e.PenaltiDefendido),
             ("evento_penalti_sofrido",   "Pênalti sofrido",   +0.40, e => e.PenaltiSofrido),
-            ("evento_penalti_perdido",   "Pênalti perdido",   -0.80, e => e.PenaltiPerdido),
+            ("evento_penalti_perdido",   "Pênalti perdido",   ValorPenaltiPerdido, e => e.PenaltiPerdido),
             ("evento_penalti_cometido",  "Pênalti cometido",  -0.80, e => e.PenaltiCometido),
             ("evento_cartao_vermelho",   "Cartão vermelho",   -1.50, e => e.CartoesVermelhos),
         };
@@ -246,6 +253,25 @@ namespace ControleFutebolWeb.Helpers.Rating
                 var pontos = Saturar(contexto.GolsContra, ValorGolContra);
                 total += pontos;
                 detalhe.Add(new ContribuicaoEvento("Gol contra", contexto.GolsContra, Math.Round(pontos, 3)));
+            }
+
+            // Disputa de pênaltis: vem do PenaltiDisputa, não da fonte da estatística,
+            // então não passa pelo FonteEstatistica. Mesmo valor do pênalti do tempo
+            // normal, contado à parte para não saturar junto com ele.
+            if (contexto.PenaltisDefendidosDisputa > 0)
+            {
+                var pontos = Saturar(contexto.PenaltisDefendidosDisputa, ValorPenaltiDefendido);
+                total += pontos;
+                detalhe.Add(new ContribuicaoEvento("Pênalti defendido (disputa)",
+                    contexto.PenaltisDefendidosDisputa, Math.Round(pontos, 3)));
+            }
+
+            if (contexto.PenaltisPerdidosDisputa > 0)
+            {
+                var pontos = Saturar(contexto.PenaltisPerdidosDisputa, ValorPenaltiPerdido);
+                total += pontos;
+                detalhe.Add(new ContribuicaoEvento("Pênalti perdido (disputa)",
+                    contexto.PenaltisPerdidosDisputa, Math.Round(pontos, 3)));
             }
 
             if (contexto.GolDaVitoria)

@@ -147,6 +147,33 @@ namespace ControleFutebolWeb.Tests.Helpers
         }
 
         [Fact]
+        public void DisputaDePenaltis_EntraNasDuasReguas()
+        {
+            CalculadoraNotaAutomatica ComDisputa(MotorNota motor, int perdidos) => new(motor,
+                new List<CriterioNota>(), Lados,
+                new Dictionary<(int, int), CriteriosNotaHelper.ContextoNota>
+                {
+                    [(JogadorId, JogoId)] = new CriteriosNotaHelper.ContextoNota(
+                        Minutos: 90, PenaltisPerdidosDisputa: perdidos),
+                },
+                new Dictionary<(int, int), ContextoRating>
+                {
+                    [(JogadorId, JogoId)] = new ContextoRating(
+                        ResultadoSinal: 0, GolsSofridosTime: 1, PenaltisPerdidosDisputa: perdidos),
+                },
+                BaselineRating.Padrao);
+
+            var classico = ComDisputa(MotorNota.Classico, 1).De(Jogo());
+            Assert.Contains(classico.Detalhes, d =>
+                d.AcaoId == CriteriosNotaHelper.AcaoPenaltiPerdidoDisputa && d.Quantidade == 1 && d.Peso < 0);
+            Assert.True(classico.ValorAcoes < ComDisputa(MotorNota.Classico, 0).De(Jogo()).ValorAcoes);
+
+            var automatico = ComDisputa(MotorNota.Automatico, 1).De(Jogo());
+            Assert.Contains(automatico.Rating!.EventosDetalhe, e => e.Label == "Pênalti perdido (disputa)");
+            Assert.True(automatico.Nota < ComDisputa(MotorNota.Automatico, 0).De(Jogo()).Nota);
+        }
+
+        [Fact]
         public void SemMinutos_MesmoNoAutomatico_CaiNoClassico()
         {
             // Sem tempo em campo o rating não existe; ficar sem nota nenhuma seria pior.

@@ -229,5 +229,61 @@ namespace ControleFutebolWeb.Tests.Helpers
 
             Assert.DoesNotContain(mapa, kv => kv.Value.GolDaVitoria);
         }
+
+        // ── Disputa de pênaltis ─────────────────────────────────────────────
+
+        private static ContextoNotaHelper.LinhaCobranca Cobranca(int jogador, bool casa, bool convertido)
+            => new(jogador, Jogo, casa, convertido);
+
+        [Fact]
+        public void Disputa_CobrancaPerdidaContaParaQuemBateuEParaOGoleiroAdversario()
+        {
+            // Visitantes 20 e 21 perderam; o goleiro da casa (10) estava no gol.
+            var mapa = ContextoNotaHelper.Montar(
+                new[] { Goleiro(defesas: 0), Atacante(20, 0), Atacante(21, 0) }, Lados(),
+                cobrancas: new[]
+                {
+                    Cobranca(20, casa: false, convertido: false),
+                    Cobranca(21, casa: false, convertido: false),
+                    Cobranca(10, casa: true, convertido: true),
+                });
+
+            Assert.Equal(2, mapa[(10, Jogo)].PenaltisDefendidosDisputa);
+            Assert.Equal(0, mapa[(10, Jogo)].PenaltisPerdidosDisputa);
+            Assert.Equal(1, mapa[(20, Jogo)].PenaltisPerdidosDisputa);
+            Assert.Equal(1, mapa[(21, Jogo)].PenaltisPerdidosDisputa);
+        }
+
+        [Fact]
+        public void Disputa_GoleiroSubstituido_NaoRecebeADefesa()
+        {
+            // O goleiro 10 saiu e o 11 entrou para a disputa: a defesa é do 11.
+            var lados = Lados();
+            lados[(11, Jogo)] = new AtuacaoNoJogo(IsTimeCasa: true, Posicao: "Goleiro");
+
+            var mapa = ContextoNotaHelper.Montar(
+                new[] { Goleiro(defesas: 0), new Linha(11, Jogo, 2, 0, 0), Atacante(20, 0) }, lados,
+                cobrancas: new[] { Cobranca(20, casa: false, convertido: false) },
+                saidas: new[] { new ContextoNotaHelper.LinhaSaida(10, Jogo) });
+
+            Assert.Equal(0, mapa[(10, Jogo)].PenaltisDefendidosDisputa);
+            Assert.Equal(1, mapa[(11, Jogo)].PenaltisDefendidosDisputa);
+        }
+
+        [Fact]
+        public void Disputa_DoisGoleirosPossiveis_NinguemECreditado()
+        {
+            // Sem saber quem estava no gol, melhor não dar a defesa a ninguém.
+            var lados = Lados();
+            lados[(11, Jogo)] = new AtuacaoNoJogo(IsTimeCasa: true, Posicao: "Goleiro");
+
+            var mapa = ContextoNotaHelper.Montar(
+                new[] { Goleiro(defesas: 0), new Linha(11, Jogo, 30, 0, 0), Atacante(20, 0) }, lados,
+                cobrancas: new[] { Cobranca(20, casa: false, convertido: false) });
+
+            Assert.Equal(0, mapa[(10, Jogo)].PenaltisDefendidosDisputa);
+            Assert.Equal(0, mapa[(11, Jogo)].PenaltisDefendidosDisputa);
+            Assert.Equal(1, mapa[(20, Jogo)].PenaltisPerdidosDisputa);
+        }
     }
 }

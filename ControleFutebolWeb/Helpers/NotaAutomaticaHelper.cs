@@ -84,17 +84,25 @@ namespace ControleFutebolWeb.Helpers
         /// </summary>
         public NotaAutomatica De(IReadOnlyCollection<EstatisticaJogador> estatisticas, int jogadorId, int jogoId)
         {
+            var contextoClassico = _contextosClassicos.TryGetValue((jogadorId, jogoId), out var c)
+                ? c : ContextoNota.Vazio;
+
+            // As cobranças da disputa de pênaltis não estão na linha de estatística
+            // (a disputa não entra no placar nem na súmula do jogador): entram aqui,
+            // como chips próprios com o peso do pênalti perdido/defendido.
+            var detalhesDisputa = CriteriosNotaHelper.DetalhesDisputa(contextoClassico, Criterios);
+
             var valorAcoes = Math.Round(
-                estatisticas.Sum(e => CriteriosNotaHelper.CalcularPontuacao(e, Criterios, _lados)), 2);
+                estatisticas.Sum(e => CriteriosNotaHelper.CalcularPontuacao(e, Criterios, _lados))
+                + detalhesDisputa.Sum(d => d.Quantidade * d.Peso), 2);
 
             // Os detalhes (os chips do jogo) valem nos dois motores: eles descrevem o
             // que o jogador fez, não como a nota foi montada.
             var detalhes = estatisticas
                 .SelectMany(e => CriteriosNotaHelper.ConstruirDetalhes(e, Criterios, _lados))
+                .Concat(detalhesDisputa)
                 .ToList();
 
-            var contextoClassico = _contextosClassicos.TryGetValue((jogadorId, jogoId), out var c)
-                ? c : ContextoNota.Vazio;
             contextoClassico = contextoClassico with { Acoes = CriteriosNotaHelper.ContarAcoes(detalhes) };
 
             if (Motor == MotorNota.Classico)
