@@ -830,11 +830,14 @@ namespace ControleFutebolWeb.Services
                 var camisa = NumeroNulavel(j, "JerseyNum");
 
                 // Já cadastrada? Primeiro pelo vínculo com a FIFA, depois pelo mesmo
-                // casamento de nome e camisa que a importação de escalação usa — é ele
-                // que evita duplicar quem entrou no elenco por um jogo anterior.
+                // casamento por nome que a importação de escalação usa — é ele que
+                // evita duplicar quem entrou no elenco por um jogo anterior. Só pela
+                // camisa, não: a convocação de outra edição ainda está no elenco.
                 var existente = elenco.FirstOrDefault(e =>
                                     vinculo != null && e.LinkTransfermarket == vinculo)
-                             ?? EspnEscalacaoService.Casar(elenco, nome, camisa)?.Jogador;
+                             ?? (vinculo != null
+                                    ? EspnEscalacaoService.CasarPorNomeComVinculo(elenco, nome, camisa, vinculo)
+                                    : EspnEscalacaoService.Casar(elenco, nome, camisa)?.Jogador);
 
                 if (existente != null)
                 {

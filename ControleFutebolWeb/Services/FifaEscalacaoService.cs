@@ -165,7 +165,11 @@ namespace ControleFutebolWeb.Services
                     // FieldStatus não serve para isto: ele diz quem TERMINOU em campo,
                     // então marca como "fora" o titular que foi substituído. Quem entrou
                     // sai da lista de substituições do próprio time.
-                    Atuou: titular || entraram.Contains(FifaService.Texto(j, "IdPlayer") ?? ""));
+                    Atuou: titular || entraram.Contains(FifaService.Texto(j, "IdPlayer") ?? ""),
+                    // Mesmo vínculo que FifaService.ImportarElencoAsync grava: é ele
+                    // que impede a camisa de casar com a convocação de outra edição.
+                    Vinculo: FifaService.Texto(j, "IdPlayer") is { Length: > 0 } idPlayer
+                        ? $"fifa:{idPlayer}" : null);
             }
         }
 

@@ -398,10 +398,27 @@ namespace ControleFutebolWeb.Services
                     ? elenco.FirstOrDefault(j => j.IdFotMob == idFotMob) : null;
                 if (jogador != null) return jogador;
 
+                // Mesma ideia para o vínculo com a FIFA ("fifa:{IdPlayer}"), que a
+                // importação de elenco da FIFA grava em LinkTransfermarket.
+                if (a.Vinculo != null)
+                {
+                    jogador = elenco.FirstOrDefault(j => j.LinkTransfermarket == a.Vinculo)
+                           ?? CasarPorNomeComVinculo(elenco, a.Nome, a.Numero, a.Vinculo);
+                    if (jogador != null)
+                    {
+                        if (string.IsNullOrWhiteSpace(jogador.LinkTransfermarket))
+                            jogador.LinkTransfermarket = a.Vinculo;
+                        if (jogador.NumeroCamisa == null && a.Numero != null &&
+                            !elenco.Any(j => j.NumeroCamisa == a.Numero))
+                            jogador.NumeroCamisa = a.Numero;
+                        return jogador;
+                    }
+                }
+
                 // 2º nome E camisa batendo. Vem antes do casamento só por nome porque é
                 // o que separa homônimos do mesmo elenco (dois "Danilo" no Botafogo) —
                 // e, por ser forte, é o único que grava vínculo novo.
-                jogador = CasarPorNomeECamisa(elenco, a.Nome, a.Numero);
+                jogador = a.Vinculo == null ? CasarPorNomeECamisa(elenco, a.Nome, a.Numero) : null;
                 if (jogador != null)
                 {
                     if (a.IdFotMob != null && jogador.IdFotMob == null &&
@@ -410,8 +427,11 @@ namespace ControleFutebolWeb.Services
                     return jogador;
                 }
 
-                // 3º nome ou camisa isolados, com desempate.
-                jogador = Casar(elenco, a.Nome, a.Numero)?.Jogador;
+                // 3º nome ou camisa isolados, com desempate. Quem traz vínculo de fonte
+                // oficial já passou pelo casamento por nome acima e não cai aqui: a
+                // camisa sozinha casaria a convocação nova com jogadores de uma edição
+                // anterior que continuam no elenco da seleção.
+                jogador = a.Vinculo == null ? Casar(elenco, a.Nome, a.Numero)?.Jogador : null;
                 if (jogador != null)
                 {
                     // Cadastro que nasceu sem camisa (gol ou lance lido de outra fonte
@@ -434,6 +454,7 @@ namespace ControleFutebolWeb.Services
                     Posicao = EhSubstituto(a.Posicao) ? "" : a.Posicao,
                     NumeroCamisa = a.Numero,
                     IdFotMob = a.IdFotMob,
+                    LinkTransfermarket = a.Vinculo,
                     TimeId = time.Id,
                     SelecaoId = time.EhSelecao ? time.Id : null,
                     DtInc = DateTime.UtcNow,
@@ -565,8 +586,13 @@ namespace ControleFutebolWeb.Services
         /// Id do atleta no FotMob, quando a fonte é o FotMob. Casa direto com
         /// Jogador.IdFotMob, antes de qualquer comparação de nome.
         /// </param>
+        /// <param name="Vinculo">
+        /// Identidade do atleta numa fonte oficial, no formato de
+        /// Jogador.LinkTransfermarket ("fifa:{IdPlayer}"). Quando vem, a camisa sozinha
+        /// deixa de ser critério de casamento — ver <see cref="CasarPorNomeComVinculo"/>.
+        /// </param>
         public record AtletaEscalado(string Nome, int? Numero, string Posicao, bool Titular, bool Atuou = true,
-            long? IdFotMob = null);
+            long? IdFotMob = null, string? Vinculo = null);
 
         private static IEnumerable<AtletaEscalado> AtletasDaEspn(JsonElement roster)
         {
@@ -649,6 +675,27 @@ namespace ControleFutebolWeb.Services
                 1 => ambos[0],
                 _ => Desempatar(ambos, nome, camisa),
             };
+        }
+
+        /// <summary>
+        /// Casamento para atleta que veio com vínculo oficial (FIFA): nome E camisa,
+        /// depois só nome — nunca só camisa. Seleção de base troca a convocação inteira
+        /// a cada edição, e o elenco guarda as jogadoras antigas com as mesmas camisas:
+        /// a "C. Bray" 18 da api-football virava a camisa 18 da FIFA, que é outra
+        /// jogadora. Candidato já vinculado a OUTRO atleta da FIFA também fica de fora.
+        /// </summary>
+        internal static Jogador? CasarPorNomeComVinculo(
+            List<Jogador> elenco, string nome, int? camisa, string vinculo)
+        {
+            var livres = elenco
+                .Where(j => string.IsNullOrWhiteSpace(j.LinkTransfermarket) || j.LinkTransfermarket == vinculo)
+                .ToList();
+
+            var porNome = CasarPorNomeECamisa(livres, nome, camisa);
+            if (porNome != null) return porNome;
+
+            var soNome = livres.Where(j => NomeJogadorHelper.Corresponde(j.Nome, nome)).ToList();
+            return soNome.Count == 0 ? null : Desempatar(soNome, nome, camisa);
         }
 
         /// <summary>
