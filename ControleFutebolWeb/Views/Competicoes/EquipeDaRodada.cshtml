@@ -42,6 +42,8 @@
     .er-area-sup { top: -1px; border-top: none; }
     .er-area-inf { bottom: -1px; border-bottom: none; }
 
+    /* O top de cada slot é limitado (clamp no style) a ~meia altura do card,
+       senão a nota do goleiro (Y perto de 100%) vaza pela base do campo. */
     .er-slot { position: absolute; width: 92px; margin-left: -46px; text-align: center; transform: translateY(-50%); }
     .er-slot-pos { display: inline-block; font-size: .58rem; font-weight: 800; letter-spacing: .04em; color: #cfe6d3; background: rgba(0,0,0,.35); border-radius: 4px; padding: 0 4px; margin-bottom: 3px; }
     .er-slot.aproximado .er-slot-pos { color: #fbbf24; }
@@ -208,7 +210,7 @@ else
                     {
                         var p = slot.Jogador;
                         <div class="er-slot @(slot.Aproximado ? "aproximado" : "")"
-                             style="left:@Coord(slot.PosicaoX)%; top:@Coord(slot.PosicaoY)%;">
+                             style="left:@Coord(slot.PosicaoX)%; top:clamp(60px, @Coord(slot.PosicaoY)%, calc(100% - 62px));">
                             <span class="er-slot-pos"
                                   title="@slot.NomePosicao@(slot.Aproximado ? " — ninguém avaliado jogou exatamente aqui na rodada" : "")">
                                 @PosicaoJogadorHelper.Sigla(slot.NomePosicao)@(slot.Aproximado ? "*" : "")
