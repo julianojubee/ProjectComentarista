@@ -824,6 +824,19 @@ namespace ControleFutebolWeb.Services
                 ["Fouls committed"] = "Faltas cometidas",
                 ["Was fouled"] = "Faltas sofridas",
                 ["Possession won final 3rd"] = "Posse recuperada no último terço",
+
+                // Físico (grupo physical_metrics)
+                ["Top Speed"] = "Velocidade máxima (km/h)",
+                ["Total Distance Covered"] = "Distância percorrida (m)",
+                ["Distance Covered"] = "Distância percorrida (m)",
+                ["Walking"] = "Caminhando (m)",
+                ["Jogging"] = "Trotando (m)",
+                ["Running"] = "Correndo (m)",
+                ["High Speed Running"] = "Corrida em alta velocidade (m)",
+                ["High Intensity Running"] = "Corrida em alta intensidade (m)",
+                ["Sprinting"] = "Em sprint (m)",
+                ["Number of Sprints"] = "Número de sprints",
+                ["Sprints"] = "Número de sprints",
             };
 
         /// <summary>
@@ -1416,6 +1429,7 @@ namespace ControleFutebolWeb.Services
             "discipline" => "Disciplina",
             "goalkeeping" => "Goleiro",
             "distribution" => "Distribuição",
+            "physical_metrics" or "physical" => "Físico",
             _ => id ?? "Outras",
         };
     }
