@@ -224,5 +224,33 @@ namespace ControleFutebolWeb.Tests.Helpers
         {
             Assert.False(TimeNomeMatcher.SaoMesmoTime(a, b));
         }
+
+        // Champions League feminina: os 18 clubes da fase principal, cadastro
+        // (api-football, liga 525) x FotMob (/api/data/leagues?id=9375). O FotMob marca
+        // o feminino com "(W)" e às vezes repete o "W" que já vem no nome.
+        [Theory]
+        [InlineData("Arsenal W", "Arsenal (W)")]
+        [InlineData("Austria Wien W", "Austria Wien W (W)")]
+        [InlineData("Häcken W", "BK Häcken (W)")]
+        [InlineData("Barcelona W", "Barcelona (W)")]
+        [InlineData("Bayern Munich W", "Bayern München (W)")]
+        [InlineData("SL Benfica W", "Benfica (W)")]
+        [InlineData("Chelsea W", "Chelsea (W)")]
+        [InlineData("Køge W", "HB Køge (W)")]
+        [InlineData("Inter Milano W", "Inter (W)")]
+        [InlineData("Juventus W", "Juventus (W)")]
+        [InlineData("Manchester City W", "Manchester City (W)")]
+        [InlineData("Lyon W", "OL Lyonnes (W)")]
+        [InlineData("OH Leuven W", "Oud-Heverlee Leuven (W)")]
+        [InlineData("Paris FC W", "Paris FC (W)")]
+        [InlineData("Paris Saint Germain W", "Paris Saint Germain (W)")]
+        [InlineData("Real Madrid W", "Real Madrid (W)")]
+        [InlineData("Roma W", "Roma (W)")]
+        [InlineData("Servette Chênois W", "Servette (W)")]
+        public void ChampionsFeminina_CadastroCasaComOFotMob(string nosso, string doFotMob)
+        {
+            Assert.True(TimeNomeMatcher.SaoMesmoTime(nosso, doFotMob),
+                $"\"{nosso}\" deveria casar com \"{doFotMob}\".");
+        }
     }
 }

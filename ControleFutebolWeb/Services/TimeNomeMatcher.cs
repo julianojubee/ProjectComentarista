@@ -19,7 +19,7 @@ namespace ControleFutebolWeb.Services
             // O "Inter" do nosso cadastro é o de Milão na Série A e o Internacional no
             // Brasileirão — os dois no mesmo grupo, porque a competição é que separa e eles
             // nunca aparecem na mesma.
-            new[] { "internacional", "inter", "internazionale", "inter milan" },
+            new[] { "internacional", "inter", "internazionale", "inter milan", "inter milano" },
             new[] { "gremio", "gremio fbpa" },
             new[] { "sao paulo", "sao paulo fc", "spfc" },
             new[] { "vasco", "vasco da gama" },
@@ -135,7 +135,8 @@ namespace ControleFutebolWeb.Services
             new[] { "deportivo la coruna", "deportivo a coruna", "dep a coruna", "deportivo coruna" },
             // Ligue 1: o futnatv usa o nome completo do clube e o nosso cadastro só a cidade.
             new[] { "marseille", "olympique de marseille", "olympique marseille" },
-            new[] { "lyon", "olympique de lyon", "olympique lyonnais" },
+            // "OL Lyonnes" é o nome que o FotMob dá ao feminino do Lyon.
+            new[] { "lyon", "olympique de lyon", "olympique lyonnais", "ol lyonnes", "lyonnes" },
             new[] { "estac troyes", "troyes", "troyes ac" },
             new[] { "stade brestois 29", "brest", "stade brestois", "stade brestois 29 fc" },
             // O caminho inverso: aqui é o futnatv que usa a sigla e o nosso cadastro o nome
@@ -177,6 +178,13 @@ namespace ControleFutebolWeb.Services
             new[] { "plzen", "viktoria plzen" },
             new[] { "nec nijmegen", "nec" },
             new[] { "ferencvarosi tc", "ferencvaros", "ferencvarosi" },
+            // Champions feminina: a api-football usa a sigla ou o nome do clube feminino
+            // e o FotMob o nome do clube por extenso (ou o contrário).
+            new[] { "sl benfica", "benfica" },
+            new[] { "hacken", "bk hacken" },
+            new[] { "koge", "hb koge" },
+            new[] { "oh leuven", "oud heverlee leuven" },
+            new[] { "servette chenois", "servette" },
         };
 
         // Mesma ideia para competições: o nosso cadastro usa o nome "oficial"/da API de dados,
@@ -354,13 +362,19 @@ namespace ControleFutebolWeb.Services
             feminino = false;
             var normalizado = Normalizar(nomeTime);
             // Exige o espaço antes do sufixo para não mutilar nomes que só terminam na mesma letra.
-            foreach (var sufixo in SufixosCategoria)
+            // Repete porque o FotMob às vezes marca duas vezes: "Austria Wien W (W)".
+            for (var tirou = true; tirou;)
             {
-                if (normalizado.EndsWith(" " + sufixo, StringComparison.Ordinal))
+                tirou = false;
+                foreach (var sufixo in SufixosCategoria)
                 {
-                    feminino = sufixo is "w" or "f";
-                    normalizado = normalizado[..^(sufixo.Length + 1)].TrimEnd();
-                    break;
+                    if (normalizado.EndsWith(" " + sufixo, StringComparison.Ordinal))
+                    {
+                        feminino |= sufixo is "w" or "f";
+                        normalizado = normalizado[..^(sufixo.Length + 1)].TrimEnd();
+                        tirou = true;
+                        break;
+                    }
                 }
             }
             foreach (var sufixo in SufixosAgremiacao)
