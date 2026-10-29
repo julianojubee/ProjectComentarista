@@ -38,5 +38,8 @@
   "848": 10216,
 
   "_comentario_libertadores_feminina": "A api-football nao tem o elenco dos clubes femininos (players/squads vazio); o FotMob tem. Usado pelo Buscar elenco em /Times/Details.",
-  "949": 11021
+  "949": 11021,
+
+  "_comentario_champions_feminina": "A api-football traz o placar da UEFA Champions League Women mas nao as estatisticas das jogadoras; o FotMob tem. 9375 = fase principal, 10612 = qualificacao (conferidos no allLeagues, ccode INT).",
+  "525": [9375, 10612]
 }
